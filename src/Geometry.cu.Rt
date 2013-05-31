@@ -1,0 +1,265 @@
+#include <iostream>
+#include "pugixml.hpp"
+#include "cross.h"
+#include "types.h"
+#include "Region.h"
+#include "Geometry.h"
+#include "Global.h"
+#include "def.h"
+#include "vtkOutput.h"
+
+Geometry::Geometry(const lbRegion& r):region(r)
+{
+	geom = new flag_t[region.sizeL()];
+	for (size_t i=0; i<region.sizeL(); i++) {
+		geom[i] = 0;
+	}
+	printf("[%d] Creating geom size:%ld\n", D_MPI_RANK, region.sizeL()); 
+}
+
+#define E(x) if (x) { return -1; }
+
+int Geometry::setFlag(const pugi::char_t * name) {
+	pugi::xml_node node = fg_xml.find_child_by_attribute("Type","name",name);
+	if (! node) {
+		std::cerr << "Unknown flag (in xml): " << name << "\n";
+		return -1;
+	}
+	fg = node.attribute("value").as_int(0);
+	E( setMask(node.attribute("mask").value()) ); 
+	return 0;
+}
+
+int Geometry::setMask(const pugi::char_t * name) {
+	pugi::xml_node node = fg_xml.find_child_by_attribute("Mask","name",name);
+	if (! node) {
+		std::cerr << "Unknown mask (in xml): " << name << "\n";
+		return -1;
+	}
+	fg_mask = node.attribute("value").as_int(-1);
+	return 0;
+}
+
+#define MAX_INT 2e9;
+
+lbRegion Geometry::getRegion(const pugi::xml_node& node)
+{
+	lbRegion ret;
+	pugi::xml_attribute attr;
+	if (! node) {
+		ret.dx=ret.dy=ret.dz=0;
+		ret.nx=ret.ny=ret.nz=1;
+		return ret;
+	}
+	ret = getRegion(node.parent());
+	attr = node.attribute("dx");
+	if (attr) {
+		int w = attr.as_int();
+		if (w<0) w = ret.nx+w;
+		ret.dx += w;
+		ret.nx -= w;
+	}
+	attr = node.attribute("dy");
+	if (attr) {
+		int w = attr.as_int();
+		if (w<0) w = ret.ny+w;
+		ret.dy += w;
+		ret.ny -= w;
+	}
+	attr = node.attribute("dz");
+	if (attr) {
+		int w = attr.as_int();
+		if (w<0) w = ret.nz+w;
+		ret.dz += w;
+		ret.nz -= w;
+	}
+
+	attr = node.attribute("fx");
+	if (attr) {
+		int w = attr.as_int();
+		if (w<0) w = ret.nx + w + ret.dx;
+		ret.nx = w - ret.dx + 1;
+	}
+	attr = node.attribute("fy");
+	if (attr) {
+		int w = attr.as_int();
+		if (w<0) w = ret.ny + w + ret.dy;
+		ret.ny = w - ret.dy + 1;
+	}
+	attr = node.attribute("fz");
+	if (attr) {
+		int w = attr.as_int();
+		if (w<0) w = ret.nz + w + ret.dz;
+		ret.nz = w - ret.dz + 1;
+	}
+
+	attr = node.attribute("nx");
+	if (attr) ret.nx = attr.as_int();
+	attr = node.attribute("ny");
+	if (attr) ret.ny = attr.as_int();
+	attr = node.attribute("nz");
+	if (attr) ret.nz = attr.as_int();
+
+	return ret;
+}
+
+inline flag_t Geometry::Dot(int x, int y, int z)
+{
+	int i = region.offset(x,y,z);
+	return geom[i] = (geom[i] & (~fg_mask)) | fg;
+}
+
+inline int inSphere(double x, double y, double z) {
+	x=2*x-1;
+	y=2*y-1;
+	z=2*z-1;
+	return (x*x+y*y+z*z)<1;
+}
+
+inline int inWedge(double x, double y, double z,const char * type) {
+	if (strcmp(type,"") == 0) type="UpperLeft";
+	if (strcmp(type,"UpperLeft") == 0) {
+		// default
+	} else if (strcmp(type,"UpperRight") == 0) {
+		x=1.-x;
+	} else if (strcmp(type,"LowerLeft") == 0) {
+		y=1.-y;
+	} else if (strcmp(type,"LowerRight") == 0) {
+		x=1.-x;
+		y=1.-y;
+	}
+	return (x-y) < 1e-10;
+}
+
+
+int Geometry::Draw(pugi::xml_node& node)
+{
+	for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
+		lbRegion reg = getRegion(n);
+		if (strcmp(n.name(),"Box") == 0) {
+			reg = region.intersect(reg);
+			std::cout <<"[" << D_MPI_RANK << "] " << "Filling with flag " << fg << " (" << fg_mask << "): ";
+			reg.print(); 
+			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
+			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
+			for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
+				Dot(x,y,z);
+			}
+		} else if (strcmp(n.name(),"Sphere") == 0) {
+			reg = region.intersect(reg);
+			std::cout <<"[" << D_MPI_RANK << "] " << "Filling sphere with flag " << fg << " (" << fg_mask << "): ";
+			reg.print(); 
+			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
+			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
+			for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
+				if (inSphere((.5+x-reg.dx)/reg.nx,(.5+y-reg.dy)/reg.ny,(.5+z-reg.dz)/reg.nz)) { 
+					Dot(x,y,z);
+				}
+			}
+		} else if (strcmp(n.name(),"Wedge") == 0) {
+			reg = region.intersect(reg);
+			std::cout <<"[" << D_MPI_RANK << "] " << "Filling wedge with flag " << fg << " (" << fg_mask << "): ";
+			reg.print(); 
+			const char * type = n.attribute("direction").value();
+			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
+			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
+			for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
+				if (inWedge((x-reg.dx)/(reg.nx-1.),(y-reg.dy)/(reg.ny-1.),(z-reg.dz)/(reg.nz-1.),type)) { 
+					Dot(x,y,z);
+				}
+			}
+		} else if (strcmp(n.name(),"Text") == 0) {
+			lbRegion crop = getRegion(n.parent());
+			crop = region.intersect(crop);
+			crop.print();
+			if (! n.attribute("file")) {
+				std::cerr << "No 'file' attribute in 'Text' element in xml conf\n";
+				return -1;
+			}
+			FILE * f = fopen(n.attribute("file").value(),"rt");
+			if (f == NULL) {
+				std::cerr << "Could not open file: " << n.attribute("file").value() << "\n";
+				return -1;
+			}
+			std::cout <<"[" << D_MPI_RANK << "] " << "Reading file " << n.attribute("file").value() << " into ";
+			reg.print(); 
+			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
+			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
+			for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
+				int v;
+				fscanf(f,"%d",&v);
+				if ((v != 0) && (crop.isIn(x,y,z))) Dot(x,y,z);
+			}
+			fclose(f);
+		} else {
+			pugi::xml_node node = fg_xml.find_child_by_attribute("Zone","name",n.name());
+			if (node) {
+				E( Draw(node) ); 
+			} else {
+				std::cerr << "Unknown geometry element: " << n.name() << "\n";
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
+int Geometry::loadZone(const char * name)
+{
+	pugi::xml_node node = fg_xml.find_child_by_attribute("Zone","name",name);
+	if (! node) {
+		std::cerr << "Unknown zone (in xml): " << name << "\n";
+		return -1;
+	}
+	E( Draw(node) ); 
+	return 0;
+
+}
+
+int Geometry::load(pugi::xml_node& node)
+{
+	pugi::xml_node geom_def = xml_def.child("Geometry");
+	fg_xml = node;
+	for (pugi::xml_node z = geom_def.first_child(); z; z = z.next_sibling()) {
+                pugi::xml_attribute attr = z.attribute("name");
+		if (! attr) continue;
+		if (node.find_child_by_attribute(z.name(),"name",attr.value())) continue;
+		node.prepend_copy(z);
+	}
+	for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
+		if (strcmp(n.name(),"Zone") == 0) continue;
+		if (strcmp(n.name(),"Type") == 0) continue;
+		if (strcmp(n.name(),"Mask") == 0) continue;
+		E( setFlag(n.name()) );
+		{
+			pugi::xml_attribute attr = n.attribute("mask");
+			if (attr) {
+				E( setMask(attr.value()) );
+			}
+		}
+		{
+			pugi::xml_attribute attr = n.attribute("zone");
+			if (attr) {
+				loadZone(attr.value());
+			}
+		}
+		E( Draw(n) );
+        }
+	return 0;
+}
+
+Geometry::~Geometry() {
+//	for (int i=0;i<region.size();i++) std::cout << geom[i] << " ";
+//	std::cout << "\n";
+	printf("[%d] Destroy geom\n", D_MPI_RANK); 
+	delete [] geom;
+}
+
+void Geometry::writeVTI(char * filename) {
+	vtkFileOut vtkFile;
+        if (vtkFile.Open(filename)) {return;}
+        vtkFile.Init(region, "");
+	vtkFile.WriteField("geom",geom);
+	vtkFile.Finish();
+	vtkFile.Close();
+}

@@ -1,0 +1,44 @@
+# MPI settings
+MPI_INCLUDES = @MPI_INCLUDE@
+MPI_LIBS     = @MPI_LIB@
+# MPI_OPT      = -L$(MPI_LIBS) -I$(MPI_INCLUDES) -lmpi
+
+EXT := cu 
+
+OPT :=  -D GRAPHICS
+
+<?R
+	if (!exists("ADJOINT")) ADJOINT=0
+	if (ADJOINT == 1) { ?>
+		OPT += -D ADJOINT
+<?R } ?>
+
+OBJS := cuda.o Lattice.o vtkLattice.o Global.o vtkOutput.o cross.o
+OBJS_CPP := Solver.o
+#compiler/preprocessor options
+INCS := -I. -I@CUDA_HOME@/include @R_INCLUDE@ @RCPP_CXX@ -I$(MPI_INCLUDES)
+PARAMS := @MISC_PARAMS@ @DEVICEOPTS@ -Xcompiler @CPICFLAGS@
+
+#linker options
+LD_PARAMS := @DEVICEOPTS@ -Xlinker @RPATHFLAG@
+LIBS := @R_LIB@ @LIBS@ @RCPP_LD@ -Xlinker -rpath -Xlinker $(MPI_LIBS) -L$(MPI_LIBS) -lmpi -lmpi_cxx -lglut
+
+TARGETS := CLB.so
+
+NVCC := @CUDA_HOME@/bin/nvcc -gencode arch=compute_10,code=sm_10 -gencode arch=compute_11,code=sm_11 -gencode arch=compute_12,code=sm_12 -gencode arch=compute_13,code=sm_13 -gencode arch=compute_20,code=sm_20
+
+all: $(TARGETS) 
+
+$(TARGETS): $(OBJS_CPP) $(OBJS13) $(CULA_OBJS) $(OBJS)
+	$(NVCC) -shared $(LD_PARAMS) $(LIBS) $^ -o $@
+
+$(OBJS): %.o: %.$(EXT)
+	$(NVCC) -c $(INCS) $(PARAMS) $(OPT) $^ -o $@
+
+$(OBJS_CPP): %.o: %.cpp
+	g++ -c $(INCS) @CPICFLAGS@ $(OPT) $^ -o $@
+
+clean:
+	rm -rf *o
+
+.PHONY: all clean

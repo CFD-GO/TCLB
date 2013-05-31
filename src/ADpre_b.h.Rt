@@ -1,0 +1,7 @@
+<?R
+ source("conf.R")
+ c_header();
+?>
+#define objectiveb 1.0
+<?R for (v in Globals$name) { ?>
+#define <?%s v ?>b <?%s v ?>InObj <?R } ?>

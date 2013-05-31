@@ -1,0 +1,259 @@
+<?R
+	source("conf.R") 
+
+calcRhoJ = rbind(
+        rho == sum(f),
+        J == f %% U
+)
+
+calcRfromF = R == f %% MRTMAT
+calcReq = R == Req
+calcFfromR = f == R %% MRTMAT.inv
+calcFeq = f == Req %% MRTMAT.inv
+
+p=PV(1/4)
+RTeq = PV("rho")*rbind(PV(1),J[1],J[2],J[3],p,p,p)
+calcTeq = fT == solve(MRTT) %% RTeq
+?>
+
+CudaDeviceFunction type_f getRho(){
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction type_f getT(){
+	return (<?R C(sum(fT)) ?>)/(<?R C(sum(f)) ?>);
+}
+    
+CudaDeviceFunction type_v getU(){
+	type_f d = getRho();
+	type_v u;
+<?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+	return u;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        type_v u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+        if (B == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void Collision()
+{
+
+}
+
+
+CudaDeviceFunction void BounceBack()
+{
+     type_f uf;
+<?R
+	uf = PV("uf")
+	by(Density,Density$group,function(d){
+		i = order(d$dx,d$dy,d$dz)
+		j = order(-d$dx,-d$dy,-d$dz)
+		if (any(d[i,c("dx","dy","dz")]!=-d[j,c("dx","dy","dz")])) stop("Density directions are not fully symetric!");
+		V = cbind(i,j);
+		sel = V[,1] > V[,2]
+		V = V[sel,]
+		f = PV(d$name)
+		for (i in 1:nrow(V))
+		{
+			w = list(
+				uf==f[V[i,1]],
+				f[V[i,1]]==f[V[i,2]],
+				f[V[i,2]]==uf
+			)
+			for (h in w) C(h)
+		}
+	NULL})
+?>}
+
+CudaDeviceFunction void EVelocity()
+{
+
+}
+
+CudaDeviceFunction void WPressure()
+{
+}
+
+CudaDeviceFunction void eqWVelocity()
+{
+}
+
+
+<?R
+	X = U[,1]
+	Y = U[,2]
+	Z = U[,3]
+?>
+
+CudaDeviceFunction void WVelocity()
+{
+     type_f rho, Nxy, Nxz;
+	type_f ux = InletVelocity;
+
+<?R
+	C(rho == sum(f[X <  0]),float=F)
+	C(rho == sum(f[X == 0]) + 2 * rho, float=F)
+?>
+	rho = rho / (1. - ux);
+
+	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2.;
+	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2.;
+
+	f<?%d -1 + I[ 1] ?> = f<?%d -1 + I[ 2] ?> + rho * ux / 3.;
+	f<?%d -1 + I[ 8] ?> = f<?%d -1 + I[11] ?> + rho * ux / 6. + Nxy;
+	f<?%d -1 + I[ 7] ?> = f<?%d -1 + I[12] ?> + rho * ux / 6. - Nxy;
+	f<?%d -1 + I[ 9] ?> = f<?%d -1 + I[14] ?> + rho * ux / 6. - Nxz;
+	f<?%d -1 + I[10] ?> = f<?%d -1 + I[13] ?> + rho * ux / 6. + Nxz;
+
+        rho = rho*InletTemperature;
+        <?R
+		RTeq = PV("rho")*rbind(PV(1),PV("ux"),0,0,p,p,p)
+		C(fT == solve(MRTT) %% RTeq)
+        ?>
+
+}
+
+CudaDeviceFunction void EPressure()
+{
+     type_f rho = 1.0;
+     type_f Nxy, Nxz;
+     type_f ux;
+<?R
+	ux = PV("ux")
+	C(ux == sum(f[X >  0]),float=F)
+	C(ux == sum(f[X == 0]) + 2 * ux, float=F)
+?>
+	ux =  -1. + ux / rho;
+
+	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2;
+	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2;
+
+	f<?%d -1 + I[ 2] ?> = f<?%d -1 + I[ 1] ?> - rho * ux / 3.0;
+	f<?%d -1 + I[11] ?> = f<?%d -1 + I[ 8] ?> - rho * ux / 6.0 - Nxy;
+	f<?%d -1 + I[12] ?> = f<?%d -1 + I[ 7] ?> - rho * ux / 6.0 + Nxy;
+	f<?%d -1 + I[14] ?> = f<?%d -1 + I[ 9] ?> - rho * ux / 6.0 + Nxz;
+	f<?%d -1 + I[13] ?> = f<?%d -1 + I[10] ?> - rho * ux / 6.0 - Nxz;
+
+	
+        rho =2*T1 + <?R C(sum(fT[-(2:3)])) ?>;
+	rho = rho/(1.+ux);
+	T2 = T1 - rho*ux;
+}
+
+
+CudaDeviceFunction void Run() {
+//	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
+    switch (B & NODE_BOUNDARY) {
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_Wall:
+	case NODE_Solid:
+		BounceBack();
+                break;
+    }
+    switch (B & NODE_COLLISION) {
+	case NODE_BGK:
+		Collision();
+		break;
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(type_f rho, type_f J[3], type_f Teq)
+{
+	<?R
+		C(calcFeq);
+	?>
+	J[0] /= rho;
+	J[1] /= rho;
+	J[2] /= rho;
+	rho = Teq;
+	<?R
+		C(calcTeq);
+	?>
+}
+
+CudaDeviceFunction void Init(int x, int y, int w, int h, char flag ) {
+//        B = flag;
+	type_f u[3] = {InletVelocity, 0., 0.};
+	type_f d = 1.0;
+	SetEquilibrum(d,u,InletTemperature);
+        B = flag;
+
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+	type_f J[3], rho, omT;
+	type_f <?R cat(ToC(R[selR]), sep=",") ?>;
+
+	#define S1  0.0
+	#define S2  1.0//19
+	#define S3  1.0//4
+	#define S4  0.0
+	#define S5  1.0//2
+	#define S6  0.0
+	#define S7  1.0//2
+	#define S8  0.0
+	#define S9  1.0//2
+	#define S10 omega
+	#define S11 1.0//4
+	#define S12 omega
+	#define S13 1.0//4
+	#define S14 omega
+	#define S15 omega
+	#define S16 omega
+	#define S17 1.0//98
+	#define S18 1.0//98
+	#define S19 1.0//98
+<?R
+        Sy = PV(paste("S",1:19,"",sep=""))
+
+#C( calcRhoJ )
+C( calcRfromF ,float =F);
+C( calcReq[selR] , eqstring = "-=" )
+
+# C( f == f + (R * Sy[sel]) %% (M.inv * -1)[sel,] );
+
+C( f == (R * Sy)[selR] %% MRTMAT.inv[selR,] , eqstring = "-=");
+
+?>
+
+        J[0] /= rho;
+        J[1] /= rho;  
+        J[2] /= rho;
+        rho = <?R C(sum(fT)) ?>;
+	if ((B & NODE_OBJ) == NODE_Obj3) {
+		rho = HeaterTemperature;
+	}
+
+	omT = 1/(0.5+FluidAlpha*4);
+        <?R
+		omega=PV("omT");
+                C(fT == omega*calcTeq - fT*(omega-1)); 
+        ?>
+}

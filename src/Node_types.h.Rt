@@ -1,0 +1,9 @@
+<?R
+  source("conf.R")
+  for (n in names(Node)) { ?>
+#define NODE_<?%s n ?>       0x<?%x Node[n] ?> <?R
+  }
+  for (n in names(Node_Group)) { ?>
+#define NODE_<?%s n ?>       0x<?%x Node_Group[n] ?> <?R
+  }
+?>

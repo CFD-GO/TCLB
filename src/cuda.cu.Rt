@@ -1,0 +1,76 @@
+<?R
+        source("conf.R")
+	c_header()
+?>
+
+#ifdef ADJOINT
+	#include "types_b.h"
+#endif
+
+#include "cross.h"
+#include "Global.h"
+
+#ifdef ADJOINT
+	#include "ADTools.cu"
+#endif
+
+#include "Node_types.h"
+
+<?R
+        for (i in 1:nrow(Settings)) {
+                v = Settings[i,]; ?>
+CudaDeviceFunction CudaConstantMemory type_f <?%s v$name ?> = 0.0; <?R
+	} ?>
+CudaConstantMemory type_f c_sq = 1.0/3.;
+
+
+#define NODE_H
+#define AddToObjective(x)
+
+<?R for (v in Globals$name) { ?>
+#define AddTo<?%s v ?>(x)<?R } ?>
+struct Node {
+int x,y,z;
+CudaDeviceFunction void inline Pre() {}
+#ifndef ADJOINT
+	#include "Dynamics.h"
+#endif
+	#include "Dynamics.c"
+#ifdef ADJOINT
+	#include "Dynamics_b.c"
+	#include "Dynamics_adj.c"
+#endif
+};
+#undef AddToObjective
+<?R for (v in Globals$name) { ?>
+#undef AddTo<?%s v ?><?R } ?>
+
+#define NODE_GLOBS_H
+#define AddToObjective(x) objective = objective + x
+<?R for (v in Globals$name) { ?>
+#define AddTo<?%s v ?>(x) <?%s v ?> = <?%s v ?> + x<?R } ?>
+
+struct Node_Globs {
+int x,y,z;
+type_f objective;
+<?R for (v in Globals$name) { ?>
+type_f <?%s v ?>;<?R } ?>
+
+CudaDeviceFunction void inline Pre() {
+	objective = 0.0;
+<?R for (v in Globals$name) { ?>
+	<?%s v ?> = 0.0;<?R } ?>
+}
+#ifndef ADJOINT
+	#include "Dynamics.h"
+#endif
+	#include "Dynamics.c"
+#ifdef ADJOINT
+	#include "Dynamics_b.c"
+	#include "Dynamics_adj.c"
+#endif
+};
+
+
+#include "LatticeContainer.h"
+#include "LatticeContainer.cu"

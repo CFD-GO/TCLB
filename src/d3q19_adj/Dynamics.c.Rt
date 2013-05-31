@@ -1,0 +1,286 @@
+<?R
+ 	source("../tools/fun_v3.R")
+	source("conf.R") 
+
+calcRhoJ = rbind(
+        rho == sum(f),
+        J == f %% U
+)
+
+calcRfromF = R == f %% MRTMAT
+calcReq = R == Req
+calcFfromR = f == R %% solve(MRTMAT)
+calcFeq = f == Req %% solve(MRTMAT)
+
+
+?>
+
+int test() {
+return 0;
+}
+
+
+type_f getRho(){
+	return <?R C(sum(f)) ?>;
+}
+    
+type_v getU(){
+	type_f d = getRho();
+	type_v u;
+<?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+	return u;
+}
+
+CudaDeviceFunction type_f gpuRho(){
+	return <?R C(sum(f)) ?> ;
+}
+    
+CudaDeviceFunction type_v gpuU(){
+	type_f d = <?R C(sum(f)) ?>;
+	type_v u;
+<?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+	return u;
+}
+    
+<?R fb = PV(paste("fb[",1:19-1,"]")); ?>
+
+CudaDeviceFunction type_f gpuRhoB(){
+	return <?R C(sum(fb)) ?> ;
+}
+    
+CudaDeviceFunction type_v gpuUB(){
+	type_v u;
+<?R C(PV(c("u.x","u.y", "u.z")) == fb %% U) ?>
+	return u;
+}
+
+CudaDeviceFunction type_f gpuW(){
+	return w ;
+}
+
+CudaDeviceFunction type_f gpuWB(){
+	return wb ;
+}
+
+
+
+CudaDeviceFunction void Collision()
+{
+
+}
+
+
+CudaDeviceFunction void BounceBack()
+{
+<?R
+#	bounce = c(19, 2, 1, 4, 3, 6, 5, 12, 11, 14, 13, 8, 7, 10, 9, 18, 17,16,15)
+#	bounce = I[bounce]
+	bounce = c( 2, 1, 4, 3, 6, 5, 12, 11, 14, 13, 8, 7, 10, 9, 18, 17,16,15,19)
+	bounce[I] = I[bounce]
+	uf = PV("uf")
+?>
+     type_f uf;
+<?R
+  V = cbind(1:length(bounce), bounce)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	w = list(
+           uf==f[V[i,1]],
+           f[V[i,1]]==f[V[i,2]],
+           f[V[i,2]]==uf
+	)
+	for (h in w) C(h)
+   }
+?>
+}
+
+// 0 1 2 3 4 5 6 7 8
+// 1 5 2 6 3 7 4 8 0
+
+CudaDeviceFunction void EVelocity()
+{
+
+}
+
+CudaDeviceFunction void WPressure()
+{
+}
+
+CudaDeviceFunction void eqWVelocity()
+{
+}
+
+
+<?R
+	X = U[,1]
+	Y = U[,2]
+	Z = U[,3]
+?>
+
+CudaDeviceFunction void WVelocity()
+{
+     type_f rho, Nxy, Nxz;
+     const type_v u = {BOUNDARY_UX, 0., 0.};
+
+<?R
+	C(rho == sum(f[X <  0]),float=F)
+	C(rho == sum(f[X == 0]) + 2 * rho, float=F)
+?>
+	rho = rho / (1+u.x);
+
+	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2 - rho * u.y / 3;
+	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2 - rho * u.z / 3;
+
+	f[<?%d -1 + I[ 1] ?>] = f[<?%d -1 + I[ 2] ?>] + rho * u.x / 3.0;
+	f[<?%d -1 + I[ 8] ?>] = f[<?%d -1 + I[11] ?>] + rho * (u.x - u.y) / 6.0 + Nxy;
+	f[<?%d -1 + I[ 7] ?>] = f[<?%d -1 + I[12] ?>] + rho * (u.x + u.y) / 6.0 - Nxy;
+	f[<?%d -1 + I[ 9] ?>] = f[<?%d -1 + I[14] ?>] + rho * (u.x + u.z) / 6.0 - Nxz;
+	f[<?%d -1 + I[10] ?>] = f[<?%d -1 + I[13] ?>] + rho * (u.x - u.z) / 6.0 + Nxz;
+}
+
+CudaDeviceFunction void EPressure()
+{
+     const type_f rho = 1.0;
+	type_f Nxy, Nxz;
+     type_v u = {0., 0., 0.};
+<?R
+	ux = PV("u.x")
+	C(ux == sum(f[X >  0]),float=F)
+	C(ux == sum(f[X == 0]) + 2 * ux, float=F)
+?>
+	u.x =  u.x / rho -1;
+
+	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2 - rho * u.y / 3;
+	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2 - rho * u.z / 3;
+
+	f[<?%d -1 + I[ 2] ?>] = f[<?%d -1 + I[ 1] ?>] - rho * u.x / 3.0;
+	f[<?%d -1 + I[11] ?>] = f[<?%d -1 + I[ 8] ?>] + rho * (-u.x + u.y) / 6.0 - Nxy;
+	f[<?%d -1 + I[12] ?>] = f[<?%d -1 + I[ 7] ?>] + rho * (-u.x - u.y) / 6.0 + Nxy;
+	f[<?%d -1 + I[14] ?>] = f[<?%d -1 + I[ 9] ?>] + rho * (-u.x - u.z) / 6.0 + Nxz;
+	f[<?%d -1 + I[13] ?>] = f[<?%d -1 + I[10] ?>] + rho * (-u.x + u.z) / 6.0 - Nxz;
+}
+
+
+CudaDeviceFunction void Run() {
+//	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
+
+type_f ux,uy,uz;
+type_f d;
+
+        if (B & NODE_OBJ) { 
+                d = <?R C(sum(f)) ?>;
+                <?R C(PV(c("ux","uy","uz")) == f %% U) ?>
+                ux /= d;
+                uy /= d;
+                d = ((d-1)/3 + d*(ux*ux+uy*uy)/2) * ux * 10000;
+        }
+    switch (B & NODE_OBJ) { 
+        case NODE_Obj1:
+                AddToObjective(d);
+                break;
+        case NODE_Obj2:
+                AddToObjective(-d);
+                break;  
+    }
+
+
+
+    switch (B & NODE_BOUNDARY) {
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+    }
+    switch (B & NODE_COLLISION) {
+	case NODE_BGK:
+		Collision();
+		break;
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+
+}
+
+CudaDeviceFunction void SetEquilibrum(const type_f rho, const type_f J[3])
+{
+	<?R
+		C(calcFeq);
+	?>
+}
+
+CudaDeviceFunction void Init(int x, int y, int w, int h, char flag ) {
+//        B = flag;
+	type_f u[3] = {BOUNDARY_UX, 0., 0.};
+	type_f d = 1.0;
+	w = 1;
+	SetEquilibrum(d,u);
+        B = flag;
+	for (int i=0;i < 19; i++) fb[i] = 0;
+	wb = 0;
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+	type_f rho,J[3];
+	type_f <?R cat(ToC(R[selR]), sep=",") ?>;
+
+	#define S1  0.0
+	#define S2  1.0//19
+	#define S3  1.0//4
+	#define S4  0.0
+	#define S5  1.0//2
+	#define S6  0.0
+	#define S7  1.0//2
+	#define S8  0.0
+	#define S9  1.0//2
+	#define S10 omega
+	#define S11 1.0//4
+	#define S12 omega
+	#define S13 1.0//4
+	#define S14 omega
+	#define S15 omega
+	#define S16 omega
+	#define S17 1.0//98
+	#define S18 1.0//98
+	#define S19 1.0//98
+<?R
+        Sy = PV(paste("S",1:19,"",sep=""))
+
+# C( calcRhoJ )
+C( calcRfromF ,float =F);
+?>
+	J[0] *= w;
+	J[1] *= w;
+	J[2] *= w;
+<?R
+for(i in selR) {
+	C(R[i]) ?> = (1-<?R C(Sy[i]) ?>)*<?R C(R[i]) ?> + <?R C(Sy[i]) ?>*(<?R C(Req[i]) ?>);
+<?R }
+
+# C( f == f + (R * Sy[sel]) %% (solve(M) * -1)[sel,] );
+
+C( f == R %% solve(MRTMAT));
+
+?>
+}

@@ -1,0 +1,76 @@
+<?R source("conf.R") ?>
+
+#define PARALLEL
+#ifdef PARALLEL
+	#include <mpi.h>
+#endif
+#include "Rcpp.h"
+#include "cuda.h"
+#include "cuda_runtime_api.h"
+#include "driver_types.h"
+#define CROSS_CPP
+#include "cross.h"
+#include "Global.h"
+#include "Region.h"
+#include "Lattice.h"
+#include "Node_types.h"
+#ifdef GRAPHICS
+	#include "gpu_anim.h"
+	#include "GL/freeglut_ext.h"
+#endif
+
+using namespace std;
+
+struct InfoBlock {
+	lbRegion region;
+	int xsdim;
+        int MaxIter;
+        char outpath[STRING_LEN];
+};
+
+class LBSolver {
+
+    public:
+	InfoBlock info;
+	MPIInfo mpi;
+        CudaEvent_t     start, stop; // CUDA events
+        Lattice * lattice; // Main lattice object
+	lbRegion region;
+        int iter; // Iteration Number
+	int IterateUntil;
+        void setWidth(int &w){region.nx = w;};
+        void setHeight(int &h){region.ny = h;};
+        int getWidth(){return region.nx;};
+        int getHeight(){return region.ny;};
+        #ifdef GRAPHICS
+            GPUAnimBitmap * bitmap;
+        #endif
+
+        void outIterFile(const char * name, char * suffix, char * out);
+        void outGlobalFile(const char * name, char * suffix, char * out);
+	int mpi_rank;
+	int mpi_size;
+        void MouseMove(int x, int y, int nx, int ny );
+        void MainLoop( uchar4* outputBitmap, int ticks );
+        void MainFree();
+	~LBSolver();
+	LBSolver(int nx_, int ny_, int nz_);
+	void Initialize();
+	void Iterate(int NextIter);
+	void FlagOverwrite(int dx, int dy, int dz, int nx, int ny, int nz, Rcpp::IntegerVector v);
+<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ?>
+	Rcpp::NumericVector Get<?%s q$name ?>(int dx, int dy, int dz, int nx, int ny, int nz);
+<?R } ?>
+<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
+	Rcpp::NumericVector Get_<?%s d$nicename ?>(int dx, int dy, int dz, int nx, int ny, int nz);
+	void Set_<?%s d$nicename ?>(int dx, int dy, int dz, int nx, int ny, int nz, Rcpp::NumericVector v);
+<?R } ?>
+	void WriteVTK(string name);
+<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+	double setting_<?%s v$name ?>;
+	void Set_<?%s v$name ?>(double tmp);
+	double Get_<?%s v$name ?>();
+<?R } ?>
+	string get_outpath();
+	void set_outpath(string tmp);
+};

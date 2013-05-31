@@ -1,0 +1,155 @@
+
+
+MRTMAT = matrix(c(
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+-30,-11,-11,-11,-11,-11,-11,8,8,8,8,8,8,8,8,8,8,8,8,
+12,-4,-4,-4,-4,-4,-4,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,-1,0,0,0,0,1,-1,1,-1,1,-1,1,-1,0,0,0,0,
+0,-4,4,0,0,0,0,1,-1,1,-1,1,-1,1,-1,0,0,0,0,
+0,0,0,1,-1,0,0,1,1,-1,-1,0,0,0,0,1,-1,1,-1,
+0,0,0,-4,4,0,0,1,1,-1,-1,0,0,0,0,1,-1,1,-1,
+0,0,0,0,0,1,-1,0,0,0,0,1,1,-1,-1,1,1,-1,-1,
+0,0,0,0,0,-4,4,0,0,0,0,1,1,-1,-1,1,1,-1,-1,
+ 0,2,2,-1,-1,-1,-1,1,1,1,1,1,1,1,1,-2,-2,-2,-2,
+0,-4,-4,2,2,2,2,1,1,1,1,1,1,1,1,-2,-2,-2,-2,
+ 0,0,0,1,1,-1,-1,1,1,1,1,-1,-1,-1,-1,0,0,0,0,
+0,0,0,-2,-2,2,2,1,1,1,1,-1,-1,-1,-1,0,0,0,0,
+ 0,0,0,0,0,0,0,1,-1,-1,1,0,0,0,0,0,0,0,0,
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,-1,1,
+ 0,0,0,0,0,0,0,0,0,0,0,1,-1,-1,1,0,0,0,0,
+0,0,0,0,0,0,0,1,-1,1,-1,-1,1,-1,1,0,0,0,0,
+0,0,0,0,0,0,0,-1,-1,1,1,0,0,0,0,1,-1,1,-1,
+0,0,0,0,0,0,0,0,0,0,0,1,1,-1,-1,-1,-1,1,1
+),19,19)
+
+selU = c(4,6,8)
+
+
+
+Density = data.frame(
+	name = paste("f[",0:18,"]"),
+	dx   = MRTMAT[,selU[1]],
+	dy   = MRTMAT[,selU[2]],
+	dz   = MRTMAT[,selU[3]],
+	command=paste("density F",0:18)
+)
+
+rho = PV("rho")
+J = PV(paste("J[",1:3-1,"]"))
+rho0 = 1
+
+if (FALSE) {
+	we = 0
+	weJ = -475/63
+	wxx = 0
+} else {
+	we = 3
+	weJ = -11/2
+	wxx = -1/2
+}
+
+pxx = 1/(3*rho0) * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3]) 
+pww = 1/(rho0) * (J[2] * J[2] - J[3] * J[3]) 
+pxy = 1/(rho0) * (J[1]*J[2]) 
+pyz = 1/(rho0) * (J[2]*J[3]) 
+pxz = 1/(rho0) * (J[1]*J[3]) 
+
+Req = rbind(
+	rho,
+	-11*rho + 19/rho0*sum(J*J),
+	we*rho + weJ/rho0*sum(J*J),
+	J[1],
+	-2/3*J[1],
+	J[2],
+	-2/3*J[2],
+	J[3],
+	-2/3*J[3],
+	pxx*3,
+	wxx*pxx*3,
+	pww,
+	wxx*pww,
+	pxy,
+	pyz,
+	pxx,
+	0,
+	0,
+	0
+)
+
+U = MRTMAT[,selU]
+f = PV(Density$name)
+R = PV(paste("R",0:18,sep=""))
+
+R[1] = rho
+R[c(4,6,8)] = J
+selR = c(2,3,5,7,9:19)
+#R[[1]] = rho[[1]]
+#R[[4]] = J[[1]]
+#R[[6]] = J[[2]]
+#R[[8]] = J[[3]]
+
+
+renum = c(19, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 9, 13, 10, 14, 15, 17, 16, 18)
+
+I = rep(0, 19)
+I[renum] = 1:19
+
+if (FALSE) {
+Sy = rbind(
+	PV(0),
+	PV(1.19),
+	PV(1.4),
+	PV(0),
+	PV(1.2),
+	PV(0),
+	PV(1.2),
+	PV(0),
+	PV(1.2),
+	PV("omega"),
+	PV(1.4),
+	PV("omega"),
+	PV(1.4),
+	PV("omega"),
+	PV("omega"),
+	PV("omega"),
+	PV(1.98),
+	PV(1.98),
+	PV(1.98)
+)
+	
+}
+
+
+Quantities = data.frame(
+        name = c("Rho","U"),
+        type = c("type_f","type_v")
+)
+
+
+Density = rbind(Density,data.frame(
+	name = "w",
+	dx   = 0,
+	dy   = 0,
+	dz   = 0,
+	command="porocity"
+))
+
+
+
+DensityAD = Density
+
+DensityAD$dx = -Density$dx
+DensityAD$dy = -Density$dy
+DensityAD$dz = -Density$dz
+DensityAD$name = as.character(DensityAD$name);
+i = grep("[[]", Density$name)
+DensityAD$name[i] = sub("[[]","b[", Density$name[i])
+DensityAD$name[-i] = paste(Density$name[-i], "b",sep="")
+
+Density = rbind(Density,DensityAD)
+
+
+Quantities = rbind(Quantities, data.frame(
+        name = c("RhoB", "UB", "W", "WB"),
+        type = c("type_f","type_v","type_f","type_f")
+))

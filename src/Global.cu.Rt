@@ -1,0 +1,41 @@
+#include "cross.h"
+#include "Global.h"
+
+<?R
+	source("conf.R")
+?>
+
+int D_MPI_RANK;
+
+void initSettings() {
+	type_f val = 0;
+<?R for (i in 1:nrow(Settings)) { v = Settings[i,];
+	if (is.na(v$derived)) { ?>
+			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(type_f)); <?R
+	}} ?>
+}
+
+void fillSides(MPIInfo mpi, int nx, int ny, int nz)
+{
+	int x, y, z, k, j;
+<?R
+	sides = function(name, dx, dy, dz) {
+?>
+		j = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
+		mpi.node[k].<?%s name ?> = j;
+//		printf("[%d] <?%d dx ?> <?%d dy ?> <?%d dz ?>: %d <?%s name ?> %d\n", D_MPI_RANK, k, j);
+<?R
+	}
+?>
+	for (x=0; x<nx; x++)
+	for (y=0; y<ny; y++)
+	for (z=0; z<nz; z++) {
+		k = x + y * nx + z * nx * ny;
+<?R
+	for (i in NonEmptyMargin) {
+		sides(Margin$side[i], Margin$dx[i], Margin$dy[i], Margin$dz[i]);
+	}
+?>
+	}
+}
+

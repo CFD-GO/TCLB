@@ -1,0 +1,19 @@
+inline void stripbare(char * str)
+{
+	int i = 0, j=0;
+	while (str[i])
+	{
+		str[j] = str[i];
+		if (str[j] == '/') j = -1;
+		i++;j++;
+	}
+	str[j] = 0;
+	i = 0;
+	j = -1;
+	while (str[i]) {
+		if (str[i] == '.') j =i;
+		i++;
+	}
+	if (j == -1) j = i;
+	str[j] = 0;
+}

@@ -1,0 +1,238 @@
+
+<?R
+	source("conf.R") 
+
+	u = PV(paste("u[",1:2-1,"]",sep=""))
+	uf = PV("uf")
+	d = PV("d")
+	usq = PV("usq")
+	omega = PV("omega")
+        uf1 = uf;
+        uf2 = uf;
+        uf3 = uf;
+#	omega = 1.0
+
+
+
+
+t1 = 4/9
+t2 = 1/9
+t3 = 1/36
+c_squ = 1/3
+
+tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
+bounce = c(0,3,4,1,2,7,8,5,6)
+
+?>
+
+CudaDeviceFunction type_f getRho(){
+	return <?R C(sum(f)) ?> ;
+}
+    
+CudaDeviceFunction type_v getU(){
+	type_f d = <?R C(sum(f)) ?>;
+	type_v u;
+<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        type_v u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (B == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+
+CudaDeviceFunction void BounceBack()
+{
+     type_f uf;
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	w = list(
+           uf==f[V[i,1]],
+           f[V[i,1]]==f[V[i,2]],
+           f[V[i,2]]==uf
+	)
+	for (h in w) C(h)
+   }
+?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+     type_f rho, ru;
+	const type_f ux0 = InletVelocity;
+	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
+	ru = rho * ux0;
+	f[3] = f[1] - (2./3.) * ru;
+	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+}
+
+CudaDeviceFunction void WPressure()
+{
+        type_f ru, ux0;
+	type_f rho = InletDensity;
+	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
+	ru = rho * ux0;
+
+	f[1] = f[3] - (2./3.) * ru;
+	f[5] = f[7] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+	f[8] = f[6] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+}
+
+CudaDeviceFunction void WVelocity()
+{
+     type_f rho, ru;
+	const type_f u[2] = {InletVelocity,0.};
+	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
+	ru = rho * u[0];
+	f[1] = f[3] + (2./3.) * ru;
+	f[5] = f[7] + (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+	f[8] = f[6] + (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+}
+
+CudaDeviceFunction void EPressure()
+{
+     type_f ru, ux0;
+	const type_f rho = 1.0;
+	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
+	ru = rho * ux0;
+
+	f[3] = f[1] - (2./3.) * ru;
+	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+}
+
+
+CudaDeviceFunction void Run() {
+    switch (B & NODE_BOUNDARY) {
+//	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    }
+    if (B & NODE_MRT)
+    {
+		CollisionMRT();
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
+{	type_f usq, uf;
+<?R C(usq == sum(u*u)*(1/c_squ)) ?>
+<?R
+	for (i in 1:9) {
+         cat("//--",i,"-------------------------------------------------\n")
+         w2 = list(
+                 uf1 == (u %% t(U) * (1/c_squ))[i],
+                 uf2 == uf1 + (uf1*uf1+usq*(-1))*0.5 + 1,
+                 uf3 == d * uf2,
+                 f[i] == uf3 * tn[i,i]
+         )
+         for (h in w2) C(h)
+        }
+?>
+
+}
+
+CudaDeviceFunction void Init() {
+	type_f u[2] = {InletVelocity,0.};
+//	type_f u[2] = {0.,0.};
+	type_f d = 1.0;
+	SetEquilibrum(d,u);
+	dev1=dev2=0;
+}
+
+
+CudaDeviceFunction void CollisionMRT()
+{
+	type_f u[2], usq, d, R[8];
+<?R
+        R = PV(c(
+		"d",
+		paste("u[",1:2-1,"]",sep=""),
+		paste("R[",1:8-1,"]",sep="")
+	))
+        Sy = rbind(
+		PV(c(0,0,0)),
+		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
+	)
+
+ct=sqrt(1/5)
+cs=sqrt(1/2)
+
+a=2*ct/sqrt(1-4*ct^2)  
+b=ct*sqrt(2/(1-2*ct^2))
+
+M=matrix(c(
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+        0, 1, 0,-1, 0, 1,-1,-1, 1, 0, 0,
+        0, 0, 1, 0,-1, 1, 1,-1,-1, 0, 0,
+        4, 1, 1, 1, 1,-2,-2,-2,-2, 0, 0,
+        0, 4, 0,-4, 0,-2, 2, 2,-2, 0, 0,
+        0, 0, 4, 0,-4,-2,-2, 2, 2, 0, 0,
+        4,-2,-2,-2,-2, 1, 1, 1, 1, 0, 0,
+        0,0.5,-0.5, 0.5,-0.5, 0, 0, 0, 0,a, 0,
+        0, 0, 0, 0, 0, 1,-1, 1,-1, 0, 2*b, 
+        0, 2,-2, 2,-2, 0, 0, 0, 0, -4/a, 0,
+        0, 0, 0, 0, 0, 2,-2, 2,-2, 0,-4/b
+),11,11)
+
+f = PV(Density$name)  
+
+	norms = diag(t(M) %*% M)
+	C( R == f %% M, float=T);
+	C(usq == sum(u*u));
+?>
+#define S2 1.3333
+#define S3 1.0
+#define S4 1.0
+#define S5 omega
+#define S6 omega
+#define S7 1.2
+d=1;
+R[0] = R[0]*(1-S2)  +  S2*(2. * d - 3. * usq);
+R[1] = R[1]*(1-S3)  +  S3*(2*u[0]);
+R[2] = R[2]*(1-S3)  +  S3*(2*u[1]);
+R[3] = R[3]*(1-S4)  +  S4*(d - 3.*usq);
+R[4] = R[4]*(1-S5)  +  S5*(u[0]*u[0] - u[1]*u[1])*0.5;
+R[5] = R[5]*(1-S6)  +  S6*(u[0]*u[1]);
+R[6] = R[6]*(1-S7)  +  S7*(u[0]*u[0] - u[1]*u[1])*2;
+R[7] = R[7]*(1-S7)  +  S7*(u[0]*u[1])*2;
+
+<?R
+	for (i in 1:length(R)) { ?>
+<?R C(R[i]) ?> /= <?%f norms[i] ?>; <?R
+	} ?>
+<?R
+	C( f == R %% t(M), float=T);
+?>
+}
+
+
