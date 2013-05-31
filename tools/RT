@@ -10,6 +10,9 @@ options <- list(
 	make_option(c("-e","--exterminate"), "store_true", default=FALSE, help="Kill and Destroy"),
 	make_option(c("-c","--code"), "store_true", default=FALSE, help="Generate R code"),
 	make_option(c("-s","--shell"), "store_true", default=FALSE,help="Discart first '#!...' line"),
+        make_option(c("-i","--include"), "store", default="", help="Include a .R file", type="character"),
+        make_option(c("-I","--includedir"), "store", default="", help="Include directory", type="character"),
+        make_option(c("-w","--workdir"), "store", default="", help="Set working directory", type="character"),
 	make_option(c("-q","--quiet"), "store_true", default=FALSE,help="Quiet (print only errors)"),
         make_option(c("-t","--csv"), "store", default="", help="Read csv. use: \"-t example.csv:3\" the 3 record of example.csv", type="character")
 )
@@ -23,7 +26,17 @@ RT.standards = c(
 	"f=textConnection(\"quiet.source.text\",\"w\");",
 	"sink(f); ret=source(...); sink(); close(f);",
 	"cat(paste(comment,quiet.source.text,\"\n\",sep=\"\"),sep=\"\")",
-	"ret }"
+	"ret }",
+	"if (!exists(\"include.dir\")) include.dir=NULL;",
+	"source = function(file,...) {",
+	"pot = c(file, paste(include.dir,file,sep=\"/\"))",
+	"sel = sapply(pot,file.exists)",
+	"sel = which(sel)",
+	"if (length(sel) < 1) stop(\"file not found:\",file,\" in include
+	directories:\",paste(include.dir,collapse=\",\"))",
+	"newfile=pot[sel[1]]",
+	"base::source(file=newfile,...)",
+	"}"
 )
 
 RT = function(infile, add=NULL, shell=N)
@@ -198,6 +211,20 @@ if (length(args) > 0) {
 	addcode = c(addcode,
 		args
 	)
+}
+
+if (opt$workdir != "") {
+	addcode = c(addcode, paste("setwd(\"",opt$includedir,"\")",sep=""))
+}
+
+if (opt$includedir != "") {
+	opt$includedir = strsplit(opt$includedir,",")[[1]]
+	addcode = c(addcode, paste("include.dir = c(include.dir,\"",opt$includedir,"\")",sep=""))
+}
+
+if (opt$include != "") {
+	opt$include = strsplit(opt$include,",")[[1]]
+	addcode = c(addcode, paste("source(\"", opt$include, "\")",sep=""))
 }
 
 code = RT(opt$file, add=addcode, shell=opt$shell)

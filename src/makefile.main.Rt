@@ -1,3 +1,13 @@
+<?R 
+	l = dir(path="src");
+	d=sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
+	models=l[d]
+	rm(l,d) 
+	destinations=c("standalone","package/src");
+?>
+# MODELS: 
+#	<?%s paste(models,collapse=", ") ?>
+
 include conf.mk
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
 GRAPHICS=1       # GLUT graphics: 1-on, 0-off
@@ -16,7 +26,7 @@ total : Rpackage
 endif
 
 makefile:src/makefile.main.Rt
-	RT -f $< -o $@
+	tools/RT -f $< -o $@
 
 thor : Rpackage
 	scp CLB_0.00.tar.gz tachion:cuwork
@@ -123,31 +133,9 @@ source:Dynamics.R conf.R $(DEST_FILES)
 conf.R:$(SRC)/conf.R
 	@cp $< $@
 
-Dynamics.R:$(SRC)/$(MODELPATH)/Dynamics.R
-	@cp $< $@
-	
-
 package/data/LB.RData: conf.R Dynamics.R
 	@echo "MAKEDATA     $@"
 	@Rscript tools/makeData.R
-
-
-$(DEST)/%:$(SRC)/%.Rt Dynamics.R conf.R
-	@echo "  RT         $@"
-	@$(RT) -q -f $< -o $@ $(RTOPT) || rm $@
-
-
-$(DEST)/%:$(SRC)/$(MODELPATH)/%.Rt Dynamics.R conf.R
-	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -o $@ $(RTOPT) || rm $@
-
-$(DEST)/%:$(SRC)/$(MODELPATH)/%
-	@echo "  CP         $@ (model)"
-	@cp $< $@
-
-$(DEST)/%:$(SRC)/%
-	@echo "  CP         $@"
-	@cp $< $@
 
 %.hpp:%.cpp
 	@echo "MAKEHEADERS  $<"
@@ -170,3 +158,27 @@ $(DEST)/Dynamics_b.c $(DEST)/Dynamics_b.h $(DEST)/types_b.h $(DEST)/ADpre_.h $(D
 tapenade.run : $(DEST)/Dynamics.c $(DEST)/ADpre.h $(DEST)/ADpre_b.h $(DEST)/Dynamics.h $(DEST)/Node_types.h $(DEST)/types.h $(DEST)/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd standalone; ../tools/makeAD)
+
+###############################################################################
+######       AUTO GENERATED CASES for RT                                 ######
+###############################################################################
+
+<?R for (m in models) { for (d in destinations) {?>
+# for model <?%s m ?> and destination <?%s d ?>
+
+<?%s d ?>/%:$(SRC)/%.Rt Dynamics.R conf.R
+	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(SRC),$(SRC/<?%s m ?>) -o $@ $(RTOPT) || rm $@
+
+<?%s d ?>/%:$(SRC)/<?%s m ?>/%.Rt Dynamics.R conf.R
+	@echo "  RT         $@ (model)"
+	@$(RT) -q -f $< -I $(SRC),$(SRC/<?%s m ?>) -o $@ $(RTOPT) || rm $@
+
+<?%s d ?>/%:$(SRC)/<?%s m ?>/%
+	@echo "  CP         $@ (model)"
+	@cp $< $@
+
+<?%s d ?>/%:$(SRC)/%
+	@echo "  CP         $@"
+	@cp $< $@
+<?R }} ?>
