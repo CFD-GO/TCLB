@@ -27,7 +27,9 @@ total : Rpackage
 	R CMD INSTALL CLB_0.00.tar.gz
 endif
 
-makefile:src/makefile.main.Rt
+.PHONY: all clean dummy
+
+makefile:src/makefile.main.Rt src/*
 	tools/RT -f $< -o $@
 
 thor : Rpackage
@@ -153,8 +155,10 @@ tapenade.run : $(DEST)/Dynamics.c $(DEST)/ADpre.h $(DEST)/ADpre_b.h $(DEST)/Dyna
 <?R for (m in models) { ?>
 <?%s m ?>:  | standalone/<?%s m ?>
 
-<?%s m ?>: standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES))
+<?%s m ?>: standalone/<?%s m ?> standalone/<?%s m ?>/main
 	@echo "  DONE       $@"
+standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES))
+	@cd standalone/<?%s m ?>; $(MAKE)
 
 standalone/<?%s m ?> :
 	mkdir -p $@
