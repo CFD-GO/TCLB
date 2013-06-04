@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0">
+        <Geometry nx="256" ny="128" predef="none" model="MRT">
+		<MRT><Box/></MRT>
+		<Solid nx="64" fy="-10"><Box/></Solid>
+		<Wall mask="ALL">
+			<Box dx="64" nx="3" dy="30" fy="-30"/>
+			<Box ny="1"/>
+			<Box dy="-1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Params InletVelocity="0.0"/>
+		<Params InletDensity="1.00"/>
+		<Params nu="0.014"/>
+		<Params InitDensity="0.3"
+			SolidDensity="2.0"
+			Temperature="0.85"
+			FAcc="1"
+			Magic="0.005"
+			MagicA="-0.152"
+			MagicF="-0.66666666666666"
+			GravitationY="-0.00001"
+			GravitationX= "0.00000"
+			MovingWallVelocity="0.1"
+			WallDensity="1.0"
+		/>
+	</Model>
+	<Solve Iterations="1000" output="output/">
+		<VTK Iterations="100"/>
+	</Solve>
+</CLBConfig>
