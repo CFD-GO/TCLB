@@ -9,7 +9,8 @@ Density = data.frame(
 
 Quantities = data.frame(
 	name = c("Rho","U", "T", "W", "WB"),
-	type = c("type_f","type_v", "type_f", "type_f", "type_f")
+	type = c("type_f","type_v", "type_f", "type_f", "type_f"),
+	adjoint=c(F,F,F,F,T)
 )
 
         f = PV(Density$name)

@@ -92,7 +92,7 @@ else
 
 %.o:%.cu $(HEADERS)
 	@echo "  NVCC       $<"
-	@$(NVCC) -c $< -o $@ $(OPT) $(NVOPT)
+	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NVOPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"

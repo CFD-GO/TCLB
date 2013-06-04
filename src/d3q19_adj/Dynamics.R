@@ -122,7 +122,8 @@ Sy = rbind(
 
 Quantities = data.frame(
         name = c("Rho","U"),
-        type = c("type_f","type_v")
+        type = c("type_f","type_v"),
+	adjoint=F
 )
 
 
@@ -134,22 +135,8 @@ Density = rbind(Density,data.frame(
 	command="porocity"
 ))
 
-
-
-DensityAD = Density
-
-DensityAD$dx = -Density$dx
-DensityAD$dy = -Density$dy
-DensityAD$dz = -Density$dz
-DensityAD$name = as.character(DensityAD$name);
-i = grep("[[]", Density$name)
-DensityAD$name[i] = sub("[[]","b[", Density$name[i])
-DensityAD$name[-i] = paste(Density$name[-i], "b",sep="")
-
-Density = rbind(Density,DensityAD)
-
-
 Quantities = rbind(Quantities, data.frame(
         name = c("RhoB", "UB", "W", "WB"),
-        type = c("type_f","type_v","type_f","type_f")
+        type = c("type_f","type_v","type_f","type_f"),
+	adjoint=T
 ))

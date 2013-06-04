@@ -152,7 +152,7 @@ f[ 8 ] =    2.7777777778e-02*uf ;
 
 }
 
-CudaDeviceFunction void Init(int x, int y, int nx, int ny, char flag ) {
+CudaDeviceFunction void Init() {
 	type_f u[2] = {UX,0.};
 	type_f d = 1.0;
 	SetEquilibrum(d,u);

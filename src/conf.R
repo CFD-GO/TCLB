@@ -171,7 +171,7 @@ NonEmptyMargin = which(Margin$size != 0)
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
-git_version = function(){f=pipe("git describe --tags"); v=readLines(f); close(f); v}
+git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 version=git_version()
 
 clb_header = c(

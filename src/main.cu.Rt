@@ -380,7 +380,7 @@ int MainLoop( uchar4* outputBitmap, DataBlock *d, int ticks )
 		if (t>1) t = 1;
 		double w = 6*(1-t) + (1/d->info.lower_nu)*t;
 		d->info.setting_nu = 1/w;
-		type_f om =  1.0/(3*d->info.setting_nu + 0.5);
+//		type_f om =  1.0/(3*d->info.setting_nu + 0.5);
 		printf("                                                        Setting nu to:%f\n", d->info.setting_nu);
 //		d->lattice->SetConst_omega(om);
 	}

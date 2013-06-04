@@ -1,59 +1,56 @@
-include conf.mk
+<?R 
+	l = dir(path="src");
+	d=sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
+	models=l[d]
+	rm(l,d) 
+	destinations=c("standalone","package/src");
+?>
+# MODELS: 
+#	<?%s paste(models,collapse=", ") ?>
+
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
 GRAPHICS=1       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
-DOUBLE=1         # precision: 1-double, 0-float
+DOUBLE=0         # precision: 1-double, 0-float
 
 
 #######################################################################################################################
 
-ifeq '$(strip $(STANDALONE))' '1'
- total : sa
-else
-total : Rpackage
-	R CMD INSTALL CLB_0.00.tar.gz
-endif
+all: <?%s paste(models,collapse=" ") ?>
 
-makefile:src/makefile.main.Rt
-	RT -f $< -o $@
+.PHONY: all clean dummy
 
-thor : Rpackage
-	scp CLB_0.00.tar.gz tachion:cuwork
+makefile:src/makefile.main.Rt src/*
+	tools/RT -f $< -o $@
 
-Rpackage : source package/configure
-	R CMD build package
+#Rpackage : source package/configure
+#	R CMD build package
 	
-package/configure:package/configure.ac
-	@echo "AUTOCONF     $@"
-	@cd package; autoconf
+#package/configure:package/configure.ac
+#	@echo "AUTOCONF     $@"
+#	@cd package; autoconf
 
-sa : source
-	@cd standalone; $(MAKE)
-
-MPI_INCLUDES = /usr/include/mpi/
-MPI_LIBS     = /usr/lib/mpich/lib/
-MPI_OPT      = -L$(MPI_LIBS) -I$(MPI_INCLUDES) -lmpi #-Xptxas -v
 RT = tools/RT
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
 SRC=src
 
-ifeq '$(strip $(STANDALONE))' '1'
+#ifeq '$(strip $(STANDALONE))' '1'
  DEST=standalone
  ADDITIONALS=makefile model README.md
  SOURCE_CU+=main.cu
  HEADERS_H+=DataLine.h
-else
- DEST=package/src
- ADDITIONALS=package/src/Makefile.in package/data/LB.RData
-endif
+#else
+# DEST=package/src
+# ADDITIONALS=package/src/Makefile.in package/data/LB.RData
+#endif
 
 SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c inter.cpp Solver.cpp pugixml.cpp Geometry.cu def.cpp
 SOURCE_R=conf.R Dynamics.R
 SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
-HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h
+HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h
 HEADERS=$(addprefix $(DEST)/,$(HEADERS_H))
 
 ALL_FILES=$(SOURCE_CU) $(HEADERS_H) $(ADDITIONALS)
@@ -65,8 +62,6 @@ CC=nvcc
 CCTXT=NVCC
 
 RTOPT=
-
-OPT=$(MPI_OPT)
 
 ifdef MODEL
  RTOPT+=MODEL=\"$(strip $(MODEL))\"
@@ -111,8 +106,6 @@ ifeq '$(strip $(DOUBLE))' '1'
 endif
 
 MODELPATH=$(strip $(MODEL))
-all:$(AOUT)
-	@echo "DONE         $^"
 
 .PRECIOUS:$(DEST_FILES)
 
@@ -120,44 +113,9 @@ source:Dynamics.R conf.R $(DEST_FILES)
 	@cd $(DEST); git add $(ALL_FILES)
 
 
-conf.R:$(SRC)/conf.R
-	@cp $< $@
-
-Dynamics.R:$(SRC)/$(MODELPATH)/Dynamics.R
-	@cp $< $@
-	
-
 package/data/LB.RData: conf.R Dynamics.R
 	@echo "MAKEDATA     $@"
 	@Rscript tools/makeData.R
-
-
-$(DEST)/%:$(SRC)/%.Rt Dynamics.R conf.R
-	@echo "  RT         $@"
-	@$(RT) -q -f $< -o $@ $(RTOPT) || rm $@
-
-
-$(DEST)/%:$(SRC)/$(MODELPATH)/%.Rt Dynamics.R conf.R
-	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -o $@ $(RTOPT) || rm $@
-
-$(DEST)/%:$(SRC)/$(MODELPATH)/%
-	@echo "  CP         $@ (model)"
-	@cp $< $@
-
-$(DEST)/%:$(SRC)/%
-	@echo "  CP         $@"
-	@cp $< $@
-
-%.hpp:%.cpp
-	@echo "MAKEHEADERS  $<"
-	@$(MAKEHEADERS) $< && mv $@ $@. && sed 's/extern//' $@. > $@
-	@rm $@.
-
-%.hp:%.c
-	@echo "MAKEHEADERS  $<"
-	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
-	@rm $<.cpp $<.hpp
 
 clear:
 	@echo "  RM         ALL"
@@ -170,3 +128,53 @@ $(DEST)/Dynamics_b.c $(DEST)/Dynamics_b.h $(DEST)/types_b.h $(DEST)/ADpre_.h $(D
 tapenade.run : $(DEST)/Dynamics.c $(DEST)/ADpre.h $(DEST)/ADpre_b.h $(DEST)/Dynamics.h $(DEST)/Node_types.h $(DEST)/types.h $(DEST)/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd standalone; ../tools/makeAD)
+
+###############################################################################
+######       AUTO GENERATED CASES for RT                                 ######
+###############################################################################
+
+<?R for (m in models) { ?>
+<?%s m ?>:  | standalone/<?%s m ?>
+
+<?%s m ?>: standalone/<?%s m ?> standalone/<?%s m ?>/main
+	@echo "  DONE       $@"
+standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES))
+	@cd standalone/<?%s m ?>; $(MAKE)
+
+standalone/<?%s m ?> :
+	mkdir -p $@
+<?R } ?>
+
+
+<?R for (m in models) { for (d in destinations) {?>
+# for model <?%s m ?> and destination <?%s d ?>
+
+<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT) MODEL=\"<?%s m ?>\" || rm $@
+
+<?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@ (model)"
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT) MODEL=\"<?%s m ?>\" || rm $@
+
+<?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
+	@echo "  CP         $@ (model)"
+	@cp $< $@
+
+<?%s d ?>/<?%s m ?>/%:$(SRC)/%
+	@echo "  CP         $@"
+	@cp $< $@
+<?R }} ?>
+
+
+
+%.hp:%.c
+	@echo "MAKEHEADERS  $<"
+	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
+	@rm $<.cpp $<.hpp
+
+%.hp:%.cpp
+	@echo "MAKEHEADERS  $<"
+	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
+	@rm $<.cpp $<.hpp
+
