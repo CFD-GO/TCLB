@@ -2,46 +2,29 @@
 # MODELS: 
 #	d1q3, d2q9, d2q9_adj, d2q9_adj_smooth, d2q9_adj_top, d2q9_entropic, d2q9_exp, d2q9_heat, d2q9_heat_adj, d2q9_kuper, d3q19, d3q19_adj, d3q19_heat, d3q19_heat_adj
 
-include conf.mk
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
 GRAPHICS=1       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
-DOUBLE=1         # precision: 1-double, 0-float
+DOUBLE=0         # precision: 1-double, 0-float
 
 
 #######################################################################################################################
 
 all: d1q3 d2q9 d2q9_adj d2q9_adj_smooth d2q9_adj_top d2q9_entropic d2q9_exp d2q9_heat d2q9_heat_adj d2q9_kuper d3q19 d3q19_adj d3q19_heat d3q19_heat_adj
 
-ifeq '$(strip $(STANDALONE))' '1'
- total : sa
-else
-total : Rpackage
-	R CMD INSTALL CLB_0.00.tar.gz
-endif
-
 .PHONY: all clean dummy
 
 makefile:src/makefile.main.Rt src/*
 	tools/RT -f $< -o $@
 
-thor : Rpackage
-	scp CLB_0.00.tar.gz tachion:cuwork
-
-Rpackage : source package/configure
-	R CMD build package
+#Rpackage : source package/configure
+#	R CMD build package
 	
-package/configure:package/configure.ac
-	@echo "AUTOCONF     $@"
-	@cd package; autoconf
+#package/configure:package/configure.ac
+#	@echo "AUTOCONF     $@"
+#	@cd package; autoconf
 
-sa : source
-	@cd standalone; $(MAKE)
-
-MPI_INCLUDES = /usr/include/mpi/
-MPI_LIBS     = /usr/lib/mpich/lib/
-MPI_OPT      = -L$(MPI_LIBS) -I$(MPI_INCLUDES) -lmpi #-Xptxas -v
 RT = tools/RT
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
@@ -73,8 +56,6 @@ CC=nvcc
 CCTXT=NVCC
 
 RTOPT=
-
-OPT=$(MPI_OPT)
 
 ifdef MODEL
  RTOPT+=MODEL=\"$(strip $(MODEL))\"
@@ -294,11 +275,11 @@ standalone/d3q19_heat_adj :
 
 standalone/d1q3/%:$(SRC)/%.Rt $(SRC)/d1q3/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) MODEL=\"d1q3\" || rm $@
 
 standalone/d1q3/%:$(SRC)/d1q3/%.Rt $(SRC)/d1q3/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) MODEL=\"d1q3\" || rm $@
 
 standalone/d1q3/%:$(SRC)/d1q3/%
 	@echo "  CP         $@ (model)"
@@ -312,11 +293,11 @@ standalone/d1q3/%:$(SRC)/%
 
 package/src/d1q3/%:$(SRC)/%.Rt $(SRC)/d1q3/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) MODEL=\"d1q3\" || rm $@
 
 package/src/d1q3/%:$(SRC)/d1q3/%.Rt $(SRC)/d1q3/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) MODEL=\"d1q3\" || rm $@
 
 package/src/d1q3/%:$(SRC)/d1q3/%
 	@echo "  CP         $@ (model)"
@@ -330,11 +311,11 @@ package/src/d1q3/%:$(SRC)/%
 
 standalone/d2q9/%:$(SRC)/%.Rt $(SRC)/d2q9/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) MODEL=\"d2q9\" || rm $@
 
 standalone/d2q9/%:$(SRC)/d2q9/%.Rt $(SRC)/d2q9/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) MODEL=\"d2q9\" || rm $@
 
 standalone/d2q9/%:$(SRC)/d2q9/%
 	@echo "  CP         $@ (model)"
@@ -348,11 +329,11 @@ standalone/d2q9/%:$(SRC)/%
 
 package/src/d2q9/%:$(SRC)/%.Rt $(SRC)/d2q9/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) MODEL=\"d2q9\" || rm $@
 
 package/src/d2q9/%:$(SRC)/d2q9/%.Rt $(SRC)/d2q9/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) MODEL=\"d2q9\" || rm $@
 
 package/src/d2q9/%:$(SRC)/d2q9/%
 	@echo "  CP         $@ (model)"
@@ -366,11 +347,11 @@ package/src/d2q9/%:$(SRC)/%
 
 standalone/d2q9_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
 
 standalone/d2q9_adj/%:$(SRC)/d2q9_adj/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
 
 standalone/d2q9_adj/%:$(SRC)/d2q9_adj/%
 	@echo "  CP         $@ (model)"
@@ -384,11 +365,11 @@ standalone/d2q9_adj/%:$(SRC)/%
 
 package/src/d2q9_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
 
 package/src/d2q9_adj/%:$(SRC)/d2q9_adj/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
 
 package/src/d2q9_adj/%:$(SRC)/d2q9_adj/%
 	@echo "  CP         $@ (model)"
@@ -402,11 +383,11 @@ package/src/d2q9_adj/%:$(SRC)/%
 
 standalone/d2q9_adj_smooth/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 standalone/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 standalone/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%
 	@echo "  CP         $@ (model)"
@@ -420,11 +401,11 @@ standalone/d2q9_adj_smooth/%:$(SRC)/%
 
 package/src/d2q9_adj_smooth/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 package/src/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 package/src/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%
 	@echo "  CP         $@ (model)"
@@ -438,11 +419,11 @@ package/src/d2q9_adj_smooth/%:$(SRC)/%
 
 standalone/d2q9_adj_top/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
 
 standalone/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
 
 standalone/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%
 	@echo "  CP         $@ (model)"
@@ -456,11 +437,11 @@ standalone/d2q9_adj_top/%:$(SRC)/%
 
 package/src/d2q9_adj_top/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
 
 package/src/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
 
 package/src/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%
 	@echo "  CP         $@ (model)"
@@ -474,11 +455,11 @@ package/src/d2q9_adj_top/%:$(SRC)/%
 
 standalone/d2q9_entropic/%:$(SRC)/%.Rt $(SRC)/d2q9_entropic/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) MODEL=\"d2q9_entropic\" || rm $@
 
 standalone/d2q9_entropic/%:$(SRC)/d2q9_entropic/%.Rt $(SRC)/d2q9_entropic/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) MODEL=\"d2q9_entropic\" || rm $@
 
 standalone/d2q9_entropic/%:$(SRC)/d2q9_entropic/%
 	@echo "  CP         $@ (model)"
@@ -492,11 +473,11 @@ standalone/d2q9_entropic/%:$(SRC)/%
 
 package/src/d2q9_entropic/%:$(SRC)/%.Rt $(SRC)/d2q9_entropic/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) MODEL=\"d2q9_entropic\" || rm $@
 
 package/src/d2q9_entropic/%:$(SRC)/d2q9_entropic/%.Rt $(SRC)/d2q9_entropic/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) MODEL=\"d2q9_entropic\" || rm $@
 
 package/src/d2q9_entropic/%:$(SRC)/d2q9_entropic/%
 	@echo "  CP         $@ (model)"
@@ -510,11 +491,11 @@ package/src/d2q9_entropic/%:$(SRC)/%
 
 standalone/d2q9_exp/%:$(SRC)/%.Rt $(SRC)/d2q9_exp/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) MODEL=\"d2q9_exp\" || rm $@
 
 standalone/d2q9_exp/%:$(SRC)/d2q9_exp/%.Rt $(SRC)/d2q9_exp/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) MODEL=\"d2q9_exp\" || rm $@
 
 standalone/d2q9_exp/%:$(SRC)/d2q9_exp/%
 	@echo "  CP         $@ (model)"
@@ -528,11 +509,11 @@ standalone/d2q9_exp/%:$(SRC)/%
 
 package/src/d2q9_exp/%:$(SRC)/%.Rt $(SRC)/d2q9_exp/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) MODEL=\"d2q9_exp\" || rm $@
 
 package/src/d2q9_exp/%:$(SRC)/d2q9_exp/%.Rt $(SRC)/d2q9_exp/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) MODEL=\"d2q9_exp\" || rm $@
 
 package/src/d2q9_exp/%:$(SRC)/d2q9_exp/%
 	@echo "  CP         $@ (model)"
@@ -546,11 +527,11 @@ package/src/d2q9_exp/%:$(SRC)/%
 
 standalone/d2q9_heat/%:$(SRC)/%.Rt $(SRC)/d2q9_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) MODEL=\"d2q9_heat\" || rm $@
 
 standalone/d2q9_heat/%:$(SRC)/d2q9_heat/%.Rt $(SRC)/d2q9_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) MODEL=\"d2q9_heat\" || rm $@
 
 standalone/d2q9_heat/%:$(SRC)/d2q9_heat/%
 	@echo "  CP         $@ (model)"
@@ -564,11 +545,11 @@ standalone/d2q9_heat/%:$(SRC)/%
 
 package/src/d2q9_heat/%:$(SRC)/%.Rt $(SRC)/d2q9_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) MODEL=\"d2q9_heat\" || rm $@
 
 package/src/d2q9_heat/%:$(SRC)/d2q9_heat/%.Rt $(SRC)/d2q9_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) MODEL=\"d2q9_heat\" || rm $@
 
 package/src/d2q9_heat/%:$(SRC)/d2q9_heat/%
 	@echo "  CP         $@ (model)"
@@ -582,11 +563,11 @@ package/src/d2q9_heat/%:$(SRC)/%
 
 standalone/d2q9_heat_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
 
 standalone/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
 
 standalone/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -600,11 +581,11 @@ standalone/d2q9_heat_adj/%:$(SRC)/%
 
 package/src/d2q9_heat_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
 
 package/src/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
 
 package/src/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -618,11 +599,11 @@ package/src/d2q9_heat_adj/%:$(SRC)/%
 
 standalone/d2q9_kuper/%:$(SRC)/%.Rt $(SRC)/d2q9_kuper/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) MODEL=\"d2q9_kuper\" || rm $@
 
 standalone/d2q9_kuper/%:$(SRC)/d2q9_kuper/%.Rt $(SRC)/d2q9_kuper/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) MODEL=\"d2q9_kuper\" || rm $@
 
 standalone/d2q9_kuper/%:$(SRC)/d2q9_kuper/%
 	@echo "  CP         $@ (model)"
@@ -636,11 +617,11 @@ standalone/d2q9_kuper/%:$(SRC)/%
 
 package/src/d2q9_kuper/%:$(SRC)/%.Rt $(SRC)/d2q9_kuper/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) MODEL=\"d2q9_kuper\" || rm $@
 
 package/src/d2q9_kuper/%:$(SRC)/d2q9_kuper/%.Rt $(SRC)/d2q9_kuper/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) MODEL=\"d2q9_kuper\" || rm $@
 
 package/src/d2q9_kuper/%:$(SRC)/d2q9_kuper/%
 	@echo "  CP         $@ (model)"
@@ -654,11 +635,11 @@ package/src/d2q9_kuper/%:$(SRC)/%
 
 standalone/d3q19/%:$(SRC)/%.Rt $(SRC)/d3q19/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) MODEL=\"d3q19\" || rm $@
 
 standalone/d3q19/%:$(SRC)/d3q19/%.Rt $(SRC)/d3q19/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) MODEL=\"d3q19\" || rm $@
 
 standalone/d3q19/%:$(SRC)/d3q19/%
 	@echo "  CP         $@ (model)"
@@ -672,11 +653,11 @@ standalone/d3q19/%:$(SRC)/%
 
 package/src/d3q19/%:$(SRC)/%.Rt $(SRC)/d3q19/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) MODEL=\"d3q19\" || rm $@
 
 package/src/d3q19/%:$(SRC)/d3q19/%.Rt $(SRC)/d3q19/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) MODEL=\"d3q19\" || rm $@
 
 package/src/d3q19/%:$(SRC)/d3q19/%
 	@echo "  CP         $@ (model)"
@@ -690,11 +671,11 @@ package/src/d3q19/%:$(SRC)/%
 
 standalone/d3q19_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
 
 standalone/d3q19_adj/%:$(SRC)/d3q19_adj/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
 
 standalone/d3q19_adj/%:$(SRC)/d3q19_adj/%
 	@echo "  CP         $@ (model)"
@@ -708,11 +689,11 @@ standalone/d3q19_adj/%:$(SRC)/%
 
 package/src/d3q19_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
 
 package/src/d3q19_adj/%:$(SRC)/d3q19_adj/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
 
 package/src/d3q19_adj/%:$(SRC)/d3q19_adj/%
 	@echo "  CP         $@ (model)"
@@ -726,11 +707,11 @@ package/src/d3q19_adj/%:$(SRC)/%
 
 standalone/d3q19_heat/%:$(SRC)/%.Rt $(SRC)/d3q19_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) MODEL=\"d3q19_heat\" || rm $@
 
 standalone/d3q19_heat/%:$(SRC)/d3q19_heat/%.Rt $(SRC)/d3q19_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) MODEL=\"d3q19_heat\" || rm $@
 
 standalone/d3q19_heat/%:$(SRC)/d3q19_heat/%
 	@echo "  CP         $@ (model)"
@@ -744,11 +725,11 @@ standalone/d3q19_heat/%:$(SRC)/%
 
 package/src/d3q19_heat/%:$(SRC)/%.Rt $(SRC)/d3q19_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) MODEL=\"d3q19_heat\" || rm $@
 
 package/src/d3q19_heat/%:$(SRC)/d3q19_heat/%.Rt $(SRC)/d3q19_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) MODEL=\"d3q19_heat\" || rm $@
 
 package/src/d3q19_heat/%:$(SRC)/d3q19_heat/%
 	@echo "  CP         $@ (model)"
@@ -762,11 +743,11 @@ package/src/d3q19_heat/%:$(SRC)/%
 
 standalone/d3q19_heat_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
 
 standalone/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
 
 standalone/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -780,11 +761,11 @@ standalone/d3q19_heat_adj/%:$(SRC)/%
 
 package/src/d3q19_heat_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
 
 package/src/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
 
 package/src/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%
 	@echo "  CP         $@ (model)"
