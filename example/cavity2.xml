@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0">
+        <Geometry nx="512" ny="40" predef="none" model="MRT">
+		<MRT><Box/></MRT>
+		<WPressure><Box nx="1"/></WPressure>
+		<EPressure><Box dx="-1"/></EPressure>
+		<Zone name="UpperWall" dy="20">
+		        <Box fx="200"/>
+<!--		        <Wedge direction="UpperLeft" dx="100" nx="20"/>
+		        <Wedge direction="UpperRight" dx="180" nx="20"/> -->
+                        <Box dx="300"/>
+			<Box dy="-1"/>
+                </Zone>
+		<Wall mask="ALL">
+			<Box dy="-1"/>
+			<UpperWall/>
+		</Wall>
+		<MovingWall mask="ALL">
+			<Box ny="1"/>
+		</MovingWall>  
+	</Geometry>
+	<Model>
+		<Params InletVelocity="0.05"/>
+		<Params InletDensity="1.00"/>
+		<Params nu="0.16666"/>
+		<Params InitDensity="2.1"
+			WallDensity="1.0"
+			OutletDensity="2.1"
+			InletDensity="2.1"
+			Temperature="0.85"
+			FAcc="1"
+			Magic="0.002"
+			MagicA="-0.152"
+			MagicF="-0.6666666666666"
+			GravitationY="0.0"
+			GravitationX="0.0"
+			MovingWallVelocity="0.1"
+		/>
+	</Model>
+	<Solve Iterations="1000" output="output/">
+		<Log Iterations="100"/>
+		<VTK Iterations="1000"/>
+	</Solve>
+</CLBConfig>

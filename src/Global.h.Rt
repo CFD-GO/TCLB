@@ -1,0 +1,68 @@
+<?R
+        source("conf.R")
+	c_header()
+?>
+
+	#define VERSION "<?%s version ?>"
+	#define MODEL "<?%s MODEL ?>"
+
+	#include "types.h"
+
+#ifndef GLOBAL_H
+	#define BOUNDARY_UX UX_mid
+	#define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
+#define GLOBAL_H 1
+#endif
+
+#ifndef INFO_H
+	#include "cross.h"
+	#include "Region.h"
+
+struct NodeInfo {
+    lbRegion region;
+    int rank; <?R
+for (i in NonEmptyMargin) { ?>
+    int <?%s Margin$side[i] ?>;<?R
+} ?>
+};
+
+struct MPIInfo {
+    NodeInfo * node;
+    lbRegion totalregion;
+    int size;
+    int rank;
+    int gpu;
+};
+
+void fillSides(MPIInfo, int, int, int);
+
+struct FTabs {
+ type_f* f;
+<?R for (i in NonEmptyMargin) { ?>
+ type_f* <?%s Margin$name[i] ?>;
+<?R } ?>
+};
+
+#define INFO_H 1
+#endif
+
+#ifndef SETTINGS_H
+<?R
+	for (i in 1:nrow(Settings)) { ?>
+CudaExternConstantMemory(type_f <?%s Settings$name[i] ?>);<?R
+	} ?>
+void initSettings();
+#define SETTINGS_H 1
+#endif
+
+#ifndef DEBUG_H   
+	extern int D_MPI_RANK;
+
+	#define DEBUG_SETRANK(x) D_MPI_RANK = x
+	#define DEBUG0(x) 
+	#define DEBUG1(x) x
+	#define DEBUG2(x) x
+	#define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+	
+#define DEBUG_H 1
+#endif

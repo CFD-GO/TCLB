@@ -1,0 +1,38 @@
+<?R
+ 	source("../tools/fun_v3.R")
+	source("conf.R") 
+
+calcRhoJ = rbind(
+        rho == sum(f),
+        J == f %% U
+)
+
+calcRfromF = R == f %% MRTMAT
+calcReq = R == Req
+calcFfromR = f == R %% solve(MRTMAT)
+calcFeq = f == Req %% solve(MRTMAT)
+
+
+?>
+
+
+<?R fb = PV(paste("fb[",1:19-1,"]")); ?>
+
+CudaDeviceFunction type_f getRhoB(){
+	return <?R C(sum(fb)) ?> ;
+}
+    
+CudaDeviceFunction type_v getUB(){
+	type_v u;
+<?R C(PV(c("u.x","u.y", "u.z")) == fb %% U) ?>
+	return u;
+}
+
+CudaDeviceFunction type_f getW(){
+	return w ;
+}
+
+CudaDeviceFunction type_f getWB(){
+	return wb ;
+}
+

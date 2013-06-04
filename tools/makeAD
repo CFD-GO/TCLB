@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#cd package/src
+. ADset.sh
+rm Dynamics_tmp.c Dynamics_b.c* ADpre_.h types_b.h tmp 2>/dev/null
+echo "#define CudaDeviceFunction" > Dynamics_tmp.c
+echo "#include \"types.h\"" >> Dynamics_tmp.c
+echo "#include \"Node_types.h\"" >> Dynamics_tmp.c
+echo "#include \"Dynamics.h\"" >> Dynamics_tmp.c
+echo "#include \"ADpre_.h\"" >> Dynamics_tmp.c
+cp ADpre.h ADpre_.h
+cat Dynamics.c >> Dynamics_tmp.c
+tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES"
+test -f Dynamics_b.c || { echo "Tapenade failed"; exit -1; }
+Rscript ../tools/ADmod.R
+sed 's/0[.]D0/0/' Dynamics_b.c_ > Dynamics_b.c
+echo rm Dynamics_tmp.c
+sed 's/void/CudaDeviceFunction void/' Dynamics_b.c > tmp
+mv tmp Dynamics_b.c
+echo > ADpre_.h
+#echo "#define objectiveb 1.0" >ADpre__b.h
+mv ADpre_b.h ADpre__b.h
+if [ -f types_b.h ]; then
+        echo "#ifndef TYPES_H" >tmp;
+        cat types_b.h >> tmp;
+        echo "#define TYPES_H" >> tmp;
+        echo "#endif" >> tmp;
+        mv tmp types_b.h;
+else
+        cp types.h types_b.h;
+fi

@@ -1,0 +1,34 @@
+<?R
+	source("conf.R");
+	c_header();
+?>
+
+CudaDeviceFunction type_f getRhoB(){
+        return <?R C(sum(PV(DensityAD$name[DensityAD$group == "f"]))) ?>;
+}
+
+CudaDeviceFunction type_f getWB(){
+        return wb;
+}
+
+CudaDeviceFunction type_f getTB(){
+        return <?R C(sum(PV(DensityAD$name[DensityAD$group == "T"]))) ?>;
+}
+
+CudaDeviceFunction type_v getUB(){
+        type_v u;
+	<?R C(PV(c("u.x","u.y", "u.z")) == PV(DensityAD$name[DensityAD$group == "f"]) %% U) ?>;
+	return u;
+}
+
+CudaDeviceFunction void RunAdj(){
+	if (B & NODE_DesignSpace ) {
+		wb /= 1000;
+//		if (wb > 0.00001)  wb =  0.01;
+//		if (wb < -0.00001) wb = -0.01;
+		w += wb;
+		if (w > 1.0) w=1.0;
+		if (w < 0.01) w=0.01;
+	}
+	wb=0;
+}

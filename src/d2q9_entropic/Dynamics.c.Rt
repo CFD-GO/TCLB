@@ -1,0 +1,349 @@
+
+#define S2 1.3333
+#define S3 1.0
+#define S5 1.0
+#define S7 1.0
+#define S8 omega
+#define S9 omega
+
+<?R
+	source("conf.R") 
+
+	u = PV(paste("u[",1:2-1,"]",sep=""))
+	uf = PV("uf")
+	d = PV("d")
+	usq = PV("usq")
+	omega = PV("omega")
+        uf1 = uf;
+        uf2 = uf;
+        uf3 = uf;
+#	omega = 1.0
+
+
+
+
+t1 = 4/9
+t2 = 1/9
+t3 = 1/36
+c_squ = 1/3
+
+tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
+bounce = c(0,3,4,1,2,7,8,5,6)
+
+?>
+
+CudaDeviceFunction type_f getRho(){
+	return <?R C(sum(f)) ?> ;
+}
+    
+CudaDeviceFunction type_v getU(){
+	type_f d = <?R C(sum(f)) ?>;
+	type_v u;
+<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        type_v u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        ret.y = 1-lim;
+        return ret;
+}
+
+
+CudaDeviceFunction void BounceBack()
+{
+     type_f uf;
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	w = list(
+           uf==f[V[i,1]],
+           f[V[i,1]]==f[V[i,2]],
+           f[V[i,2]]==uf
+	)
+	for (h in w) C(h)
+   }
+?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+     type_f rho, ru;
+	const type_f ux0 = InletVelocity;
+	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
+	ru = rho * ux0;
+	f[3] = f[1] - (2./3.) * ru;
+	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+}
+
+CudaDeviceFunction void WPressure()
+{
+        type_f ru, ux0;
+	type_f rho = InletDensity;
+	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
+	ru = rho * ux0;
+
+	f[1] = f[3] - (2./3.) * ru;
+	f[5] = f[7] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+	f[8] = f[6] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+}
+
+CudaDeviceFunction void WVelocity()
+{
+     type_f rho, ru;
+	const type_f u[2] = {InletVelocity,0.};
+	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
+	ru = rho * u[0];
+	f[1] = f[3] + (2./3.) * ru;
+	f[5] = f[7] + (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+	f[8] = f[6] + (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+}
+
+CudaDeviceFunction void EPressure()
+{
+     type_f ru, ux0;
+	const type_f rho = 1.0;
+	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
+	ru = rho * ux0;
+
+	f[3] = f[1] - (2./3.) * ru;
+	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+}
+
+
+CudaDeviceFunction void Run() {
+	type_f fb[9];
+    switch (B & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    }
+
+<?R for (i in 1:9) { ?>
+	fb[<?%d i-1?>] = f[<?%d i-1?>];<?R } ?>
+    switch (B & NODE_COLLISION) {
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+	case NODE_Entropic:
+		CollisionEntropic();
+		break;
+    }
+	EntropicLimiter(fb);
+}
+
+CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
+{	type_f usq, uf;
+<?R C(usq == sum(u*u)*(1/c_squ)) ?>
+<?R
+	for (i in 1:9) {
+         cat("//--",i,"-------------------------------------------------\n")
+         w2 = list(
+                 uf1 == (u %% t(U) * (1/c_squ))[i],
+                 uf2 == uf1 + (uf1*uf1+usq*(-1))*0.5 + 1,
+                 uf3 == d * uf2,
+                 f[i] == uf3 * tn[i,i]
+         )
+         for (h in w2) C(h)
+        }
+?>
+
+}
+
+CudaDeviceFunction void Init() {
+	type_f u[2] = {InletVelocity,0.};
+	type_f d = 1.0;
+//	SetEquilibrum(d,u);
+	EntropicEquilibrum(f,d,u);
+}
+
+
+CudaDeviceFunction void CollisionMRT()
+{
+	type_f u[2], usq, d, R[6];
+<?R
+        R = PV(c(
+		"d",
+		paste("u[",1:2-1,"]",sep=""),
+		paste("R[",1:6-1,"]",sep="")
+	))
+        Sy = rbind(
+		PV(c(0,0,0)),
+		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
+	)
+
+M = matrix(c(
+      1,  1,  1,  1,  1,  1,  1,  1,  1,
+      0,  1,  0, -1,  0,  1, -1, -1,  1,
+      0,  0,  1,  0, -1,  1,  1, -1, -1,
+     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+      4, -2, -2, -2, -2,  1,  1,  1,  1,
+      0, -2,  0,  2,  0,  1, -1, -1,  1,
+      0,  0, -2,  0,  2,  1,  1, -1, -1,
+      0,  1, -1,  1, -1,  0,  0,  0,  0,
+      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
+
+	norms = diag(t(M) %*% M)
+	C( R == f %% M, float=F);
+	C(usq == sum(u*u));
+?>
+
+R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
+R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
+R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
+R[3] = R[3]*(1-S7)  +  S7*(-u[1]);
+R[4] = R[4]*(1-S8)  +  S8*(u[0]*u[0] - u[1]*u[1]);
+R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
+<?R
+	for (i in 1:length(R)) { ?>
+<?R C(R[i]) ?> /= <?%d norms[i] ?>; <?R
+	} ?>
+<?R
+	C( f == R %% t(M), float=F);
+?>
+}
+
+CudaDeviceFunction void EntropicLimiter(type_f fb[]) {
+	type_f e1, e2, e3, e0, ft,l=1;
+	int i;
+	e3 = 0;
+	<?R
+		fb=PV(paste("fb[",1:9-1,"]",sep=""));
+		C(f == f * diag(1/tn));
+		C(fb == fb * diag(1/tn));
+	?>		
+	<?R for (i in 1:9) { ?>
+	e3 += f[<?%d i-1?>]*log(f[<?%d i-1?>]);<?R } ?>
+	e1 = 0;
+	<?R for (i in 1:9) { ?>
+	e1 += fb[<?%d i-1?>]*log(fb[<?%d i-1?>]);<?R } ?>
+	e0=e1;
+//	lim=0;
+//	if (e0 < e3) lim=1;
+/*	if (e0 < e3) {
+		for (i=0; i<30; i++) {
+		l=l*0.5;
+		<?R for (i in 1:9) { ?>
+		f[<?%d i-1?>] = (fb[<?%d i-1?>]+f[<?%d i-1?>])*0.5;<?R } ?>
+		e2 = 0;
+		<?R for (i in 1:9) { ?>
+		e2 += f[<?%d i-1?>]*log(f[<?%d i-1?>]);<?R } ?>
+		if (e0 < e2) {
+			e3=e2;
+			lim+=l;
+		} else {
+		<?R for (i in 1:9) { ?>
+			ft = f[<?%d i-1?>];
+			f[<?%d i-1?>] = -fb[<?%d i-1?>]+f[<?%d i-1?>]*2;
+			fb[<?%d i-1?>] = ft;<?R } ?>
+			e1=e2;
+		}
+		}
+	}	
+*/	<?R
+		C(f == f * diag(tn));
+	?>
+}
+
+
+
+CudaDeviceFunction void CollisionEntropic() {
+	type_f feq[9];
+	type_f u[2], usq, d, R[6];
+	<?R C( R[1:3] == f %% M[,1:3], float=F); ?>
+	EntropicEquilibrum(feq,d,u);
+	<?R
+		omega = PV("omega");
+		feq = PV(paste("feq[",1:9-1,"]",sep=""))
+#		C( f == f*(omega+(-1)) + feq*omega );
+		C( f == feq);
+	?>
+}
+
+
+CudaDeviceFunction void EntropicEquilibrum(type_f feq[], type_f d, type_f u[])
+{
+<?R
+	M = matrix(c(
+	      1,  1,  1,  1,  1,  1,  1,  1,  1,
+	      0,  1,  0, -1,  0,  1, -1, -1,  1,
+	      0,  0,  1,  0, -1,  1,  1, -1, -1,
+	     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+	      4, -2, -2, -2, -2,  1,  1,  1,  1,
+	      0, -2,  0,  2,  0,  1, -1, -1,  1,
+	      0,  0, -2,  0,  2,  1,  1, -1, -1,
+	      0,  1, -1,  1, -1,  0,  0,  0,  0,
+	      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
+
+	S = cbind(M[,c(1,2,3)],c(0,1,1,1,1,2,2,2,2))
+
+	m = PV(c("d","u[0]","u[1]","p"))
+	r = PV(c("r0","r1","r2","r3"))
+	feq = PV(paste("feq[",1:9-1,"]",sep=""))
+	a = PV("a")
+	Sx = PV(paste("Sx",0:8,sep=""))
+	Sp = PV(paste("Sp",0:8,sep=""))
+?>
+	type_f <?%s paste(ToC(r),collapse=",")?>;
+	type_f p = d*0.6666666666666666666666 + u[0]*u[0]/d+u[1]*u[1]/d;
+	type_f <?%s paste(ToC(Sx),collapse=",")?>;
+	type_f <?%s paste(ToC(Sp),collapse=",")?>;
+	type_f a,nlr,lr,lp;
+	int i;
+<?R
+	C(Sx == Sx*0)
+	C(Sp == Sx*0)
+?>
+<?R for (i in 1:9) { ?>
+//Sx<?%d i-1?> = log(f[<?%d i-1?>]);<?R } ?>
+lr = 1;
+for (i=0; i<100; i++) {
+<?R for (i in 1:9) { ?>
+feq[<?%d i-1?>] = exp(Sx<?%d i-1?>);<?R } ?>
+<?R
+	C(r == m - feq %% S,float=F)
+	C(PV("nlr") == sum(r*r))
+?>
+if (nlr < 1e-6) break;
+a = nlr/lr;
+<?R
+	C(Sp == r %% t(S) + a * Sp, float=F)
+?>
+lr=nlr;
+<?R
+	C(PV("lp") == sum(Sp * feq * Sp))
+?>
+a = lr/lp;
+<?R
+	C(Sx == Sx + a * Sp)
+?>
+}
+lim=0;
+if (nlr > 1e-6) {
+lim=1;
+<?R 	C(feq == f); ?>
+}
+}

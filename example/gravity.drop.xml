@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0">
+        <Geometry nx="96" ny="200" predef="none" model="MRT">
+		<MRT><Box/></MRT>
+		<Wet>
+			<Sphere dx="30" dy="35" nx="40" ny="40"/>
+			<Box nx="10" dy="-40" fy="-30"/> 
+		</Wet>
+		<WPressure><Box nx="1"/></WPressure>
+		<Wall mask="ALL">
+<!--			<Wedge direction="LowerLeft"  ny="6" dy="34"  fx="60" dx="10"/>
+			<Wedge direction="LowerRight" ny="6" dy="0"  fx="60" dx="10"/>
+			-->
+			<Box dx="-1"/> 
+			<Box nx="10" fy="-40"/> 
+			<Box nx="10" dy="-30"/>
+			<Channel/>
+		</Wall>  
+		<Wet>
+<!--			<Box nx="30" dy="-45" fy="-25"/>-->
+		</Wet>
+	</Geometry>
+	<Model>
+		<Params InletVelocity="0.0"/>
+		<Params InletDensity="1.00"/>
+		<Params nu="0.166666"/>
+		<Params InitDensity="0.04"
+			WallDensity="1.0"
+			WetDensity="2.9"
+			OutletDensity="3.1"
+			InletDensity="3.4"
+			Temperature="0.65"
+			FAcc="1"
+			Magic="0.01"
+			MagicA="-0.152"
+			MagicF="-0.6666666666666"
+			GravitationY="-0.000005"
+			GravitationX="0.00000"
+			MovingWallVelocity="0.1"
+		/>
+	</Model>
+	<Solve Iterations="3000" output="output/">
+		<Params	InletDensity="2.8"/>
+		<VTK Iterations="100"/>
+	</Solve>
+	<Solve Iterations="600" output="output/">
+		<VTK Iterations="100"/>
+		<Params	InletDensity="3.4"/>
+	</Solve>
+	<Solve Iterations="3000" output="output/">
+		<VTK Iterations="100"/>
+		<Params	InletDensity="2.8"/>
+	</Solve>
+	<Solve Iterations="600" output="output/">
+		<VTK Iterations="100"/>
+		<Params	InletDensity="3.4"/>
+	</Solve>
+	<Solve Iterations="3000" output="output/">
+		<VTK Iterations="100"/>
+		<Params	InletDensity="2.8"/>
+	</Solve>
+</CLBConfig>
