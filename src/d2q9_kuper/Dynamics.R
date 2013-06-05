@@ -63,4 +63,6 @@ Globals = table_from_text("
         name            in_objective   comment
         MovingWallForceX    1              'force x'
         MovingWallForceY    1              'force y'
+	Pressure1           1              'pressure at Obj1'
+	Pressure2           1              'pressure at Obj2'
 ")
