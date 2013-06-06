@@ -33,10 +33,15 @@
 			MagicF="-0.6666666666666"
 			MovingWallVelocity="0.1"
 			GravitationX="-0.00005"
+			Wetting="0.5"
 		/>
 	</Model>
-	<Solve Iterations="1000" output="output/">
+	<Solve Iterations="200" output="output/">
 		<Params	InletDensity="2.9"/>
+		<VTK Iterations="50"/>
+	</Solve>
+	<Solve Iterations="800" output="output/">
+		<Params	Wetting="1.0"/>
 		<VTK Iterations="50"/>
 	</Solve>
 	<Solve Iterations="600" output="output/">

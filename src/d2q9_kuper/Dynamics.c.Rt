@@ -36,6 +36,7 @@ CudaDeviceFunction type_v getU(){
 <?R C(PV(c("u.x","u.y")) == fs %% U) ?>
 	u.x /= d;
 	u.y /= d;
+	u.z = 0;
 	return u;
 }
 
@@ -46,6 +47,10 @@ CudaDeviceFunction type_v getF() {
                 F.x=0;
                 F.y=0;
         } else {
+<?R for (i in Density$name[Density$group=="phi"]) { ?>
+	if (<?%s i ?> < 0) <?%s i ?> = (<?%s i ?>+phi0)*Wetting - <?%s i ?>;
+<?R } ?>
+
 <?R  
         R = PV(c(paste("R[",1:9-1,"]",sep="")))
 	Force = PV(c("F.x","F.y"));
@@ -207,7 +212,7 @@ CudaDeviceFunction void switch_f() {
 }
 
 
-CudaDeviceFunction void calc_phi() {
+CudaDeviceFunction void calc_phi0() {
 	const double a2 = 3.852462271644162;
         const double b2 = 0.1304438860971524 * 4.0 ;
         const double c2 = 2.785855170470555;
@@ -249,6 +254,34 @@ CudaDeviceFunction void calc_phi() {
 	phi0 = FAcc * std::sqrt( -p*Magic + rho2/(3.) );
 }
 
+CudaDeviceFunction void calc_phi() {
+	type_f w=1,uf;
+       switch (B & NODE_BOUNDARY) {
+		case NODE_Wall:
+		case NODE_MovingWall:
+			w = -1;
+			break;
+	}
+<?R
+#  V = cbind(1:9, bounce+1)
+#  sel = V[,1] > V[,2]
+#  V = V[sel,]
+#  phi=PV(paste("phi",0:8,sep=""));
+#  wet=PV("w");
+#  for (i in 1:nrow(V))
+#  {
+#	w = list(
+#           uf==(phi[V[i,1]]-phi[1])*wet+phi[1],
+#           phi[V[i,1]]==(phi[V[i,2]]-phi[1])*wet+phi[1],
+#           phi[V[i,2]]==uf
+#	)
+#	for (h in w) C(h)
+#   }
+?>
+	<?R for( p in Density$name[Density$group=="phi"] ) { ?><?%s p ?> = <?R } ?> w*phi0;
+
+}
+
 
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
@@ -282,8 +315,8 @@ CudaDeviceFunction void Run() {
                 CollisionMRT();
                 break;
     }
+	calc_phi0();
 	calc_phi();
-	<?R for (i in which(Density$group=="phi")) {?> <?%s Density$name[i]?> = <?R } ?>phi0;
 }
 
 CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
@@ -335,6 +368,9 @@ CudaDeviceFunction void Init() {
 		C(fs[i]==f[i])
 	}
 ?>
+	calc_phi0();
+	calc_phi();
+//	<?R for( p in Density$name[Density$group=="phi"] ) { ?><?%s p ?> = <?R } ?> phi0;
 }
 
 CudaDeviceFunction float2 Color() {

@@ -57,6 +57,7 @@ Settings = table_from_text("
 	MovingWallVelocity	NA			NA	'Velocity of the MovingWall'
 	WetDensity		NA			NA	'wet density'
 	DryDensity		NA			NA	'dry density'
+	Wetting			NA			NA	'wetting factor'
 ")
 
 Globals = table_from_text("
