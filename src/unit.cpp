@@ -226,7 +226,7 @@ std::string strFromDouble(double val) {
       b[i] = log(v.val);
       i++;
     }
-    printf("\\-----------------------------------------\n");
+    printf("------------------------------------------\n");
     for (int j=0;j<m_unit;j++) {
       int v=0;
       for (int l=0;l<i;l++) {
@@ -249,6 +249,8 @@ std::string strFromDouble(double val) {
     gauss(Mat,b,x,m_unit);
     for (int j=0;j<m_unit;j++) {
       scale[j] = exp(-x[j]);
+      printf("| 1 %s = %lf units\n",m_units[j].c_str(), scale[j]);
     }
+    printf("\\-----------------------------------------\n");
   }
 

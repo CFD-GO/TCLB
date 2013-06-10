@@ -1,3 +1,6 @@
+#ifndef UNIT_H
+#define UNIT_H
+
 #include <string>
 #include <map>
 #include <stdio.h>
@@ -123,6 +126,15 @@ public:
     for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
     return ret;
   };
+  inline double si(const std::string str) {return readText(str).val;};
+  inline double alt(const std::string str) {
+    UnitVal v = readText(str);
+    double ret = v.val;
+    for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
+    return ret;
+  };
+  inline double si(const std::string str, double def) { if (str.length() > 0) return si(str); else return def;};
+  inline double alt(const std::string str, double def) { if (str.length() > 0) return alt(str); else return def;};
   void setUnit(std::string name, const UnitVal & v, double v2);
   void setUnit(std::string name, const UnitVal & v);
   void makeGauge();
@@ -146,3 +158,5 @@ public:
     return env->alt(*this);
   };
 };
+
+#endif
