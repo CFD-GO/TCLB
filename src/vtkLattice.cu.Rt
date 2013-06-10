@@ -6,7 +6,7 @@
 #include "vtkLattice.h"
 #include "Node.h"
 
-int vtkWriteLattice(char * filename, Lattice * lattice)
+int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 {
 	int size;
 	lbRegion reg = lattice->region;
@@ -24,8 +24,9 @@ int vtkWriteLattice(char * filename, Lattice * lattice)
 
 	<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
 	{
+		double v = units.alt("<?%s q$unit ?>");
 		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-		lattice->Get<?%s q$name ?>(reg, tmp);
+		lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
 		vtkFile.WriteField("<?%s q$name ?>",tmp);
 		delete[] tmp;
 	}

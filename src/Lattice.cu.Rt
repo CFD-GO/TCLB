@@ -471,7 +471,7 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, type_f * tab)
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
 
-void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab)
+void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, type_f scale)
 {
 	lbRegion inter = region.intersect(over);
 //        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
@@ -486,7 +486,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab)
 		small.dy -= region.dy;
 		small.dz -= region.dz;
 //	        printf("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, buf));
+		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, buf, scale));
 //	        printf("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
 		CudaMemcpy(&tab[over.offsetL(x,y,z)], buf, small.sizeL()*sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
 	}

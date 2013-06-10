@@ -373,7 +373,7 @@ int MainLoop( uchar4* outputBitmap, DataBlock *d, int ticks )
                                     printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
                                     char filename[STRING_LEN];
                                     d->outIterFile("VTK", ".vti", filename);
-                                    vtkWriteLattice(filename, d->lattice);
+                                    vtkWriteLattice(filename, d->lattice, d->units);
                                     printf("]\n");
                             } else if (strcmp(node.name(), "Mean")==0) {
                                     printf("[%d]                                                     writing mean pressure [...", D_MPI_RANK);
@@ -452,7 +452,7 @@ void MainFree( DataBlock *d ) {
 		if (d->dataline_file != NULL) delete d->dataline_file;
 		if (d->dataline_obj  != NULL) delete d->dataline_obj;
 	}
-//	vtkWriteLattice("output/Finish.vti", d->lattice);
+//	vtkWriteLattice("output/Finish.vti", d->lattice, d->units);
     printf("cudaFree ...\n");
     CudaEventDestroy( d->start );
     CudaEventDestroy( d->stop );
@@ -771,7 +771,7 @@ int main ( int argc, char * argv[] )
 		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
 		char filename[STRING_LEN];
 		data.outIterFile("VTK", ".vti", filename);
-		vtkWriteLattice(filename, data.lattice);
+		vtkWriteLattice(filename, data.lattice, data.units);
 		printf("]\n");
 	}    
 
