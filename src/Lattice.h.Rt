@@ -1,6 +1,8 @@
 #ifndef LATTICE_H
 
 #include "cross.h"
+#include "unit.h"
+
 // #include "Region.h"
 class lbRegion;
 // #include "LatticeContainer.h"
@@ -32,6 +34,7 @@ private:
   CudaEvent_t outEv[28];
   CudaEvent_t mpiEv[28];
 public:
+  UnitEnv units;
   type_f settings[<?%d nrow(Settings) ?>];  
   lbRegion region;
   MPIInfo mpi;
