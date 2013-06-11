@@ -30,7 +30,8 @@ Density = rbind(Density,data.frame(
 
 Quantities = data.frame(
 	name = c("Rho", "U", "P", "F"),
-	type = c("type_f", "type_v", "type_f", "type_v")
+	type = c("type_f", "type_v", "type_f", "type_v"),
+	unit = c("kg/m3", "m/s", "Pa", "N")
 )
 
 f  = PV(Density$name[Density$group=="f"])

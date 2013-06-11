@@ -14,7 +14,8 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 	vtkFileOut vtkFile;
 	if (vtkFile.Open(filename)) {return -1;}
 //	vtkFile.Init(reg, "Scalars=\"rho\" Vectors=\"velocity\"");
-	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"");
+	double spacing = 1/units.alt("m");	
+	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
 	{	flag_t * B = new flag_t[size];
 		lattice->GetFlags(reg, B);

@@ -16,7 +16,8 @@ public:
 	int Open(char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, char* selection);
-	void Init(lbRegion, lbRegion region, char* selection);
+	void Init(lbRegion, lbRegion region, char* selection, double spacing);
+	inline void Init(lbRegion tot, lbRegion region, char* selection) { Init(tot, region, selection, 0.05); }
 	void Init(int width, int height);
 	void WriteField(char * name, void * data, int elem, char * tp, int components);
 	inline void WriteField(char * name, float * data) { WriteField(name, (void*) data, sizeof(float), "Float32", 1); };
