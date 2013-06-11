@@ -41,10 +41,10 @@ SRC=src
 # ADDITIONALS=package/src/Makefile.in package/data/LB.RData
 #endif
 
-SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c inter.cpp Solver.cpp pugixml.cpp Geometry.cu def.cpp
+SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c inter.cpp Solver.cpp pugixml.cpp Geometry.cu def.cpp unit.cpp
 SOURCE_R=conf.R Dynamics.R
 SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
-HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h
+HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
 HEADERS=$(addprefix $(DEST)/,$(HEADERS_H))
 
 ALL_FILES=$(SOURCE_CU) $(HEADERS_H) $(ADDITIONALS)

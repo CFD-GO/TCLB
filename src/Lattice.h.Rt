@@ -1,6 +1,7 @@
 #ifndef LATTICE_H
 
 #include "cross.h"
+
 // #include "Region.h"
 class lbRegion;
 // #include "LatticeContainer.h"
@@ -64,7 +65,8 @@ public:
 <?R } ?>
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint);?>
-	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab);
+	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, type_f scale);
+	inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };
 	<?R tp = "double" ?>
 	void Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>

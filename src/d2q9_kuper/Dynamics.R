@@ -30,7 +30,8 @@ Density = rbind(Density,data.frame(
 
 Quantities = data.frame(
 	name = c("Rho", "U", "P", "F"),
-	type = c("type_f", "type_v", "type_f", "type_v")
+	type = c("type_f", "type_v", "type_f", "type_v"),
+	unit = c("kg/m3", "m/s", "Pa", "N")
 )
 
 f  = PV(Density$name[Density$group=="f"])
@@ -57,6 +58,7 @@ Settings = table_from_text("
 	MovingWallVelocity	NA			NA	'Velocity of the MovingWall'
 	WetDensity		NA			NA	'wet density'
 	DryDensity		NA			NA	'dry density'
+	Wetting			NA			NA	'wetting factor'
 ")
 
 Globals = table_from_text("

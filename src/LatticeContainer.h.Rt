@@ -102,7 +102,7 @@ for (i in 1:nrow(Quantities))
 	q = Quantities[i,,drop=F];
 	ifdef(q$adjoint);
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab); <?R
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, type_f scale); <?R
 	for (tp in c("float","double"))
         { ?>
 CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);

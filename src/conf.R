@@ -67,6 +67,12 @@ Node = c(
 
 source("Dynamics.R")
 
+if (! "unit" %in% names(Quantities)) {
+	Quantities$unit = "1"
+} else {
+	Quantities$unit = as.character(Quantities$unit)
+}
+
 if (! "adjoint" %in% names(Quantities)) {
 	Quantities$adjoint = F
 }

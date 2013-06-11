@@ -6,7 +6,7 @@
 #include "vtkLattice.h"
 #include "Node.h"
 
-int vtkWriteLattice(char * filename, Lattice * lattice)
+int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 {
 	int size;
 	lbRegion reg = lattice->region;
@@ -14,7 +14,8 @@ int vtkWriteLattice(char * filename, Lattice * lattice)
 	vtkFileOut vtkFile;
 	if (vtkFile.Open(filename)) {return -1;}
 //	vtkFile.Init(reg, "Scalars=\"rho\" Vectors=\"velocity\"");
-	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"");
+	double spacing = 1/units.alt("m");	
+	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
 	{	flag_t * B = new flag_t[size];
 		lattice->GetFlags(reg, B);
@@ -24,8 +25,9 @@ int vtkWriteLattice(char * filename, Lattice * lattice)
 
 	<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
 	{
+		double v = units.alt("<?%s q$unit ?>");
 		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-		lattice->Get<?%s q$name ?>(reg, tmp);
+		lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
 		vtkFile.WriteField("<?%s q$name ?>",tmp);
 		delete[] tmp;
 	}

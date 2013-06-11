@@ -8,7 +8,7 @@
 #include "def.h"
 #include "vtkOutput.h"
 
-Geometry::Geometry(const lbRegion& r):region(r)
+Geometry::Geometry(const lbRegion& r, const UnitEnv& units_) : region(r), units(units_)
 {
 	geom = new flag_t[region.sizeL()];
 	for (size_t i=0; i<region.sizeL(); i++) {
@@ -19,13 +19,34 @@ Geometry::Geometry(const lbRegion& r):region(r)
 
 #define E(x) if (x) { return -1; }
 
+int myround(double v) {
+	if (v > 0) return v+0.5;
+	return v-0.5;
+}
+
+int Geometry::val(pugi::xml_attribute attr, int def) {
+	if (!attr) {
+		return def;
+        } else {
+		return myround(units.alt(attr.value(), def));
+	}
+}
+
+int Geometry::val(pugi::xml_attribute attr) {
+	if (!attr) {
+		std::cerr << "Attribute without value and default" << "\n";
+                return -1;
+        }
+	return myround(units.alt(attr.value()));
+}
+
 int Geometry::setFlag(const pugi::char_t * name) {
 	pugi::xml_node node = fg_xml.find_child_by_attribute("Type","name",name);
 	if (! node) {
 		std::cerr << "Unknown flag (in xml): " << name << "\n";
 		return -1;
 	}
-	fg = node.attribute("value").as_int(0);
+	fg = node.attribute("value").as_int();
 	E( setMask(node.attribute("mask").value()) ); 
 	return 0;
 }
@@ -54,21 +75,21 @@ lbRegion Geometry::getRegion(const pugi::xml_node& node)
 	ret = getRegion(node.parent());
 	attr = node.attribute("dx");
 	if (attr) {
-		int w = attr.as_int();
+		int w = val(attr);
 		if (w<0) w = ret.nx+w;
 		ret.dx += w;
 		ret.nx -= w;
 	}
 	attr = node.attribute("dy");
 	if (attr) {
-		int w = attr.as_int();
+		int w = val(attr);
 		if (w<0) w = ret.ny+w;
 		ret.dy += w;
 		ret.ny -= w;
 	}
 	attr = node.attribute("dz");
 	if (attr) {
-		int w = attr.as_int();
+		int w = val(attr);
 		if (w<0) w = ret.nz+w;
 		ret.dz += w;
 		ret.nz -= w;
@@ -76,29 +97,29 @@ lbRegion Geometry::getRegion(const pugi::xml_node& node)
 
 	attr = node.attribute("fx");
 	if (attr) {
-		int w = attr.as_int();
+		int w = val(attr);
 		if (w<0) w = ret.nx + w + ret.dx;
 		ret.nx = w - ret.dx + 1;
 	}
 	attr = node.attribute("fy");
 	if (attr) {
-		int w = attr.as_int();
+		int w = val(attr);
 		if (w<0) w = ret.ny + w + ret.dy;
 		ret.ny = w - ret.dy + 1;
 	}
 	attr = node.attribute("fz");
 	if (attr) {
-		int w = attr.as_int();
+		int w = val(attr);
 		if (w<0) w = ret.nz + w + ret.dz;
 		ret.nz = w - ret.dz + 1;
 	}
 
 	attr = node.attribute("nx");
-	if (attr) ret.nx = attr.as_int();
+	if (attr) ret.nx = val(attr);
 	attr = node.attribute("ny");
-	if (attr) ret.ny = attr.as_int();
+	if (attr) ret.ny = val(attr);
 	attr = node.attribute("nz");
-	if (attr) ret.nz = attr.as_int();
+	if (attr) ret.nz = val(attr);
 
 	return ret;
 }

@@ -597,7 +597,7 @@ for (i in 1:nrow(Quantities))
 	q = Quantities[i,,drop=F];
 	ifdef(q$adjoint); ?>
 
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab)
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, type_f scale)
 {
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy;
@@ -607,7 +607,16 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab)
 		now.y = y;
 		now.z = z;
 		constContainer.pop(now);
-		tab[r.offset(x,y,z)] = now.get<?%s q$name ?>();
+		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
+		if (q$type == "type_v")
+		{
+		  for (coef in c("x","y","z")) { ?>
+			w.<?%s coef ?> *= scale; <?R
+		  }
+		} else { ?>
+			w *= scale;
+		<?R } ?>
+		tab[r.offset(x,y,z)] = w;
 	}
 } <?R
 	for (tp in c("float","double"))
