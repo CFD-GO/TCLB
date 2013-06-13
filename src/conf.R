@@ -72,6 +72,19 @@ if (! "unit" %in% names(Quantities)) {
 } else {
 	Quantities$unit = as.character(Quantities$unit)
 }
+if (! "unit" %in% names(Globals)) {
+	Globals$unit = "1"
+} else {
+	Globals$unit = as.character(Globals$unit)
+}
+if (! "unit" %in% names(Settings)) {
+	Settings$unit = "1"
+} else {
+	Settings$unit = as.character(Settings$unit)
+}
+
+Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
+
 
 if (! "adjoint" %in% names(Quantities)) {
 	Quantities$adjoint = F
