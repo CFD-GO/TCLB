@@ -242,6 +242,7 @@ CudaDeviceFunction void calc_phi0() {
 	}
 	
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
+	p = Magic*p;
 	switch (B & NODE_OBJECTIVE) { 
 		case NODE_Obj1:
 			AddToPressure1(p);
@@ -251,7 +252,7 @@ CudaDeviceFunction void calc_phi0() {
 			break;
 	}
 
-	phi0 = FAcc * std::sqrt( -p*Magic + rho2/(3.) );
+	phi0 = FAcc * std::sqrt( -p + rho2/(3.) );
 }
 
 CudaDeviceFunction void calc_phi() {

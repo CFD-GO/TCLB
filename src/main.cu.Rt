@@ -84,6 +84,7 @@ class DataBlock {
 	int saveN, saveI;
 	char ** saveFile;
 	UnitEnv units;
+	double LogScales[<?%d nrow(Globals) ?> + <?%d nrow(Settings) ?> + <?%d nrow(Scales) ?>];
 	DataBlock() {
 		info.MaxIter = 0;
 		iter = 0;
@@ -166,6 +167,17 @@ class DataBlock {
 			units.setUnit(nm, units(val), gauge);
                 }
 		units.makeGauge();
+	    <?R 
+		for (i in 1:nrow(Settings)) { ?>
+                    LogScales[<?%d i-1 ?>] = 1/units.alt("<?%s Settings$unit[i] ?>"); <?R
+		}
+		for (i in 1:nrow(Globals)) { ?>
+                    LogScales[<?%d nrow(Settings)+i-1 ?>] = 1/units.alt("<?%s Globals$unit[i] ?>"); <?R
+		}
+		for (i in 1:nrow(Scales)) { ?>
+                    LogScales[<?%d nrow(Settings)+nrow(Globals)+i-1 ?>] = 1/units.alt("<?%s Scales$unit[i] ?>"); <?R
+		}
+ ?>
 	}
 
 	int Iterations(pugi::xml_node sol) {
@@ -239,10 +251,13 @@ class DataBlock {
 			
                     fprintf(f,"\"Iteration\"");
 		    <?R for (v in Settings$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\"");
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
 		    <?R for (v in Globals$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\"");
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
+		    <?R } ?>
+		    <?R for (v in Scales$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>_si\"");
 		    <?R } ?>
                     fprintf(f,"\n");
 
@@ -254,27 +269,27 @@ class DataBlock {
 	int writeLog(const char * filename)
 	{ 
 	        FILE * f = NULL;
+		double v;
+		type_f glob[<?%d nrow(Globals) ?>];
+		lattice->getGlobals(glob);
 	        if (mpi.rank == 0) {
+			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
 			fprintf(f,"%d",iter);
 			for (int i=0; i< <?%d nrow(Settings) ?>; i++) {
-				#ifdef CALC_DOUBLE_PRECISION
-					fprintf(f,", %le",lattice->settings[i]);
-				#else
-					fprintf(f,", %e",lattice->settings[i]);
-				#endif
+				v = lattice->settings[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
 			}
-		}
-		type_f glob[<?%d nrow(Globals) ?>];
-		lattice->getGlobals(glob);
-	        if (mpi.rank == 0) {
 			for (int i=0; i< <?%d nrow(Globals) ?>; i++) {
-				#ifdef CALC_DOUBLE_PRECISION
-					fprintf(f,", %le",glob[i]);
-				#else
-					fprintf(f,", %e",glob[i]);
-				#endif
+				v = glob[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< <?%d nrow(Scales) ?>; i++) {
+				fprintf(f,", %le",LogScales[j]);
+				j++;
 			}
 			fprintf(f,"\n");
 	                fclose(f);  

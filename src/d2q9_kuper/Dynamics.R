@@ -49,10 +49,10 @@ Settings = table_from_text("
         InitDensity              NA                      NA   'inlet density'
 	WallDensity		NA			NA	'vapor/liquid density of wall'
 	Temperature                 NA                      NA   'temperature of the liquid/gas'
-	FAcc			NA			NA	'wtf'
-	Magic			NA			NA	'wtf'
-	MagicA			NA			NA	'wtf'
-	MagicF			NA			NA	'wtf'
+	FAcc			NA			NA	'Multiplier of potential'
+	Magic			NA			NA	'K'
+	MagicA			NA			NA	'A in force calculation'
+	MagicF			NA			NA	'Force multiplier'
 	GravitationY		NA			NA	'Gravitation in the direction of y'
 	GravitationX		NA			NA	'Gravitation in the direction of x'
 	MovingWallVelocity	NA			NA	'Velocity of the MovingWall'
@@ -62,9 +62,9 @@ Settings = table_from_text("
 ")
 
 Globals = table_from_text("
-        name            in_objective   comment
-        MovingWallForceX    1              'force x'
-        MovingWallForceY    1              'force y'
-	Pressure1           1              'pressure at Obj1'
-	Pressure2           1              'pressure at Obj2'
+        name            in_objective   unit comment
+        MovingWallForceX    1          N/m    'force x'
+        MovingWallForceY    1          N/m    'force y'
+	Pressure1           1          Pa    'pressure at Obj1'
+	Pressure2           1          Pa    'pressure at Obj2'
 ")

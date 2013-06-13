@@ -139,6 +139,8 @@ std::string strFromDouble(double val) {
       }
       if (k-j > 0) {
         last = readUnitAlpha(val.substr(j,k-j).c_str(), p);
+      } else {
+        last = 1.0;
       }
       if (w > 0) {
         ret = ret * last;
