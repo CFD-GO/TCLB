@@ -146,7 +146,7 @@ class DataBlock {
 			return;
 		}
                 for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
-			std::string nm="", val="", gauge="";
+			std::string nm="", val="", gauge="1";
 			for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
 			{
 				if (((std::string) attr.name()) == "gauge") {
@@ -162,10 +162,13 @@ class DataBlock {
 			if (nm == "") {
 				std::cerr << "No variable in a Params element in Units\n";
 			}
-			printf(" %s = %s = %lf \n", nm.c_str(), val.c_str(), gauge);
+			if (mpi_rank == 0) printf("[ ] %s = %s = %s \n", nm.c_str(), val.c_str(), gauge.c_str());
 			units.setUnit(nm, units(val)/units(gauge), 1);
                 }
 		units.makeGauge();
+		if (mpi_rank == 0) {
+			units.printGauge();
+		}
 	    <?R 
 		for (i in 1:nrow(Settings)) { ?>
                     LogScales[<?%d i-1 ?>] = 1/units.alt("<?%s Settings$unit[i] ?>"); <?R

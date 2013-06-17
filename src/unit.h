@@ -138,6 +138,7 @@ public:
   void setUnit(std::string name, const UnitVal & v, double v2);
   void setUnit(std::string name, const UnitVal & v);
   void makeGauge();
+  void printGauge();
 };
 
 class UnitVar : public UnitVal {

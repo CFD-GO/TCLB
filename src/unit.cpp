@@ -213,22 +213,14 @@ std::string strFromDouble(double val) {
       Mat[i]=0;
     }
     i=0;
-    printf("/---------------[ GAUGE ]-----------------\n");
     for(std::map<std::string, UnitVal>::iterator el=gauge.begin();el!=gauge.end();el++) {
-      if (i >= m_unit) {
-        printf("Too many gauge variables\n");
-        throw(std::string("Wrong number of gauge variables"));
-      }
       UnitVal v = el->second;
-      printf("|  ");
-      v.print();
       for (j=0;j<m_unit;j++) {
         Mat[m_unit*j+i] = v.uni[j];
       }
       b[i] = log(v.val);
       i++;
     }
-    printf("------------------------------------------\n");
     for (int j=0;j<m_unit;j++) {
       int v=0;
       for (int l=0;l<i;l++) {
@@ -251,7 +243,18 @@ std::string strFromDouble(double val) {
     gauss(Mat,b,x,m_unit);
     for (int j=0;j<m_unit;j++) {
       scale[j] = exp(-x[j]);
-      printf("| 1 %s = %lf units\n",m_units[j].c_str(), scale[j]);
+    }
+  }
+  void UnitEnv::printGauge() {
+    printf("/---------------[ GAUGE ]-----------------\n");
+    for(std::map<std::string, UnitVal>::iterator el=gauge.begin();el!=gauge.end();el++) {
+      UnitVal v = el->second;
+      printf("|  ");
+      v.print();
+    }
+    printf("------------------------------------------\n");
+    for (int j=0;j<m_unit;j++) {
+      printf("| 1 %s = %lf units\n", m_units[j].c_str(), scale[j]);
     }
     printf("\\-----------------------------------------\n");
   }
