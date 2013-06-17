@@ -594,9 +594,9 @@ int main ( int argc, char * argv[] )
 	XMLCHILD(data.geom, data.config, "Geometry");
 	XMLCHILD(data.mod, data.config, "Model");
 	data.readUnits();
-	data.info.region.nx = data.units.alt(data.geom.attribute("nx").value(),1);
-	data.info.region.ny = data.units.alt(data.geom.attribute("ny").value(),1);
-	data.info.region.nz = data.units.alt(data.geom.attribute("nz").value(),1);
+	data.info.region.nx = myround(data.units.alt(data.geom.attribute("nx").value(),1));
+	data.info.region.ny = myround(data.units.alt(data.geom.attribute("ny").value(),1));
+	data.info.region.nz = myround(data.units.alt(data.geom.attribute("nz").value(),1));
 	printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,data.info.region.nx,data.info.region.ny,data.info.region.nz);
 
         if (data.info.region.nx < data.info.xsdim) {

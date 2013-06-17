@@ -7,6 +7,7 @@
 #include "Global.h"
 #include "def.h"
 #include "vtkOutput.h"
+#include "utils.h"
 
 Geometry::Geometry(const lbRegion& r, const UnitEnv& units_) : region(r), units(units_)
 {
@@ -18,11 +19,6 @@ Geometry::Geometry(const lbRegion& r, const UnitEnv& units_) : region(r), units(
 }
 
 #define E(x) if (x) { return -1; }
-
-int myround(double v) {
-	if (v > 0) return v+0.5;
-	return v-0.5;
-}
 
 int Geometry::val(pugi::xml_attribute attr, int def) {
 	if (!attr) {
