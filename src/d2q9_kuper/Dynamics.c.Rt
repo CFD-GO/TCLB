@@ -34,6 +34,10 @@ CudaDeviceFunction type_v getU(){
 	type_f d = getRho();
 	type_v u;
 <?R C(PV(c("u.x","u.y")) == fs %% U) ?>
+	type_v F;
+	F = getF();
+u.x = u.x+F.x*MagicF*0.5;
+u.y = u.y+F.y*MagicF*0.5;
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;

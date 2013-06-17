@@ -146,12 +146,11 @@ class DataBlock {
 			return;
 		}
                 for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
-			std::string nm="", val="";
-			double gauge=0;
+			std::string nm="", val="", gauge="";
 			for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
 			{
 				if (((std::string) attr.name()) == "gauge") {
-					gauge = attr.as_double();
+					gauge = attr.value();
 				} else {
 					if (nm != "") {
 						std::cerr << "Only one variable allowed in a Params element in Units (" << nm << "," << attr.name() << ")\n";
@@ -164,7 +163,7 @@ class DataBlock {
 				std::cerr << "No variable in a Params element in Units\n";
 			}
 			printf(" %s = %s = %lf \n", nm.c_str(), val.c_str(), gauge);
-			units.setUnit(nm, units(val), gauge);
+			units.setUnit(nm, units(val)/units(gauge), 1);
                 }
 		units.makeGauge();
 	    <?R 
