@@ -1,3 +1,6 @@
+<?R
+	source("conf.R")
+?>
 #include "cross.h"
 #include "types.h"
 #include "Global.h"
@@ -7,17 +10,16 @@
 #include "mpi.h"
 #include "assert.h"
 
-<?R
-	source("conf.R")
-?>
-
+// Declaration of constContainer - a lattice container used to run all kernels
 CudaExternConstantMemory(LatticeContainer constContainer);
 
+//Local (CPU) calculation of offset
 int Lattice::Offset(int x, int y, int z)
 {
 	return x+region.nx*y + region.nx*region.ny*z;
 }
 
+//Constructor based on size
 Lattice::Lattice(lbRegion _region):region(_region)
 {
 	container = new LatticeContainer;
@@ -38,6 +40,7 @@ Lattice::Lattice(lbRegion _region):region(_region)
 	        CudaEventCreate( &mpiEv[i] );
 }
 
+//Initialization of MPI buffors
 void Lattice::MPIInit(MPIInfo mpi_)
 {
 	mpi = mpi_;
@@ -49,19 +52,19 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 <?R
-	for (i in NonEmptyMargin) {
+	for (m in NonEmptyMargin) {
 ?>
-	size = <?R C(MarginSize[i],float=F) ?> * sizeof(type_f);
-	from = mpi.node[mpi.rank].<?%s Margin$side[28-i] ?>;
-	to = mpi.node[mpi.rank].<?%s Margin$side[i] ?>;
+	size = <?R C(m$Size,float=F) ?> * sizeof(type_f);
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
-		gpuout[bufnumber] = container->out.<?%s Margin$name[i] ?>;
+		gpuout[bufnumber] = container->out.<?%s m$name ?>;
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
-		gpuin[bufnumber] = container->in.<?%s Margin$name[i] ?>;
+		gpuin[bufnumber] = container->in.<?%s m$name ?>;
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
 		bufnumber ++;
@@ -72,75 +75,21 @@ void Lattice::MPIInit(MPIInfo mpi_)
 #endif
 
 	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
-#ifdef GPU_CROSS_IND
-	printf("[%d] Starting MPI cross-indetification\n", D_MPI_RANK);
-	{
-		char to_name[MPI_MAX_PROCESSOR_NAME], from_name[MPI_MAX_PROCESSOR_NAME];
-		MPI_Status status;
-		{
-			int len;
-			MPI_Get_processor_name(from_name,&len);
-		}
-		printf("[%d] Running on: %s\n",D_MPI_RANK, from_name);
-		for (to = 0; to < mpi.size; to++)
-		for (from = 0; from < mpi.size; from++)
-		if (to != from) {
-		if ((to == mpi.rank) || (from == mpi.rank)) {
-			int sameproc = 0, gpu = -1;
-			if (to   == mpi.rank) {
-				MPI_Send(from_name, MPI_MAX_PROCESSOR_NAME, MPI_BYTE, from, 0, MPI_COMM_WORLD);
-				MPI_Send(&mpi.gpu,1,MPI_INT,from,1,MPI_COMM_WORLD);
-			}
-			if (from == mpi.rank) {
-				MPI_Recv(to_name,   MPI_MAX_PROCESSOR_NAME, MPI_BYTE, to,   0, MPI_COMM_WORLD, &status);
-				MPI_Recv(&gpu,1,MPI_INT,to,1,MPI_COMM_WORLD,&status);
-				printf("[%d] recived from [%d]: %s\n",D_MPI_RANK, to, to_name);
-				if (strcmp(to_name,from_name) == 0) {
-					printf("[%d] and [%d] are on the same machine (GPU%d, GPU%d)\n",D_MPI_RANK, to, mpi.gpu, gpu);
-				//	if (gpu != mpi.gpu) {
-						sameproc = 1;
-				//	}
-				}
-				MPI_Send(&sameproc,1,MPI_INT,to,0,MPI_COMM_WORLD);
-			}
-			if (to   == mpi.rank) MPI_Recv(&sameproc, 1, MPI_INT, from, 0, MPI_COMM_WORLD, &status);
-			if (sameproc) for (int i = 0; i < bufnumber; i++) {
-				if ((to ==   mpi.rank) && (from == nodein[i])) {
-					// I will be reciving data from 'from' and putting it in 'in'
-					MPI_Send(&gpuin[i],sizeof(type_f*),MPI_BYTE,from,i,MPI_COMM_WORLD);
-					nodein[i] = -1;
-				}
-				if ((to == nodeout[i]) && (from ==  mpi.rank)) {
-					// I will be sending data from 'out' to 'to'
-					type_f * ptr;
-					MPI_Recv(&ptr,sizeof(type_f*),MPI_BYTE,to,i,MPI_COMM_WORLD,&status);
-					printf("[%d] recv (i:%d) buffor: %p on GPU%d\n",D_MPI_RANK,i,ptr,gpu);
-					nodeout[i] = -(1+gpu);
-					mpiout[i] = ptr;
-				}
-			}
-		} MPI_Barrier(MPI_COMM_WORLD); }
-		printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
-	}
-#endif
 }
+
 
 void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 	*maxsize = 0;
-	*n = <?%d length(NonEmptyMargin) ?> + 1;
+	*n = <?%d length(NonEmptyMargin) ?>;
 	*size = new size_t[*n];
 	*ptr = new void*[*n];
-	(*size)[j] = (size_t) nx*ny*nz*<?%d nrow(DensityAll) ?>*sizeof(type_f);
-	(*ptr)[j] = (void*) container->in.f;
-	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
-	j++;	
 <?R
-	for (i in NonEmptyMargin) {
+	for (m in NonEmptyMargin) {
 ?>
-	(*size)[j] = (size_t) <?R C(MarginSize[i],float=F) ?> * sizeof(type_f);
-	(*ptr)[j] = (void*) container->in.<?%s Margin$name[i] ?>;
+	(*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(type_f);
+	(*ptr)[j] = (void*) container->in.<?%s m$name ?>;
 	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
@@ -285,16 +234,8 @@ void Lattice::IterateT(int iter_type)
 		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i], MPI_COMM_WORLD, &request);
 	}
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] < 0) {
-#ifdef GPU_CROSS_IND
-		printf("[%d] Device to Device copy %d:%p -> %d:%p\n",D_MPI_RANK, mpi.gpu, gpuout[i], -nodeout[i]-1, mpiout[i]);
-	        CudaEventRecord( outEv[i], outStream );
-		CudaMemcpyPeerAsync(mpiout[i],-nodeout[i]-1, gpuout[i], mpi.gpu, bufsize[i], outStream);
-	        CudaEventRecord( mpiEv[i], inStream );
-	        CudaEventRecord( inEv[i], outStream );
-#else
 		printf("[%d] Wrong node number in Stream!", D_MPI_RANK);
 		DEBUG_M;
-#endif
 	}
 	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
 		DEBUG_M;
@@ -306,30 +247,26 @@ void Lattice::IterateT(int iter_type)
 	        CudaEventRecord( inEv[i], inStream );
 	}
 <?R
-	for (i in NonEmptyMargin) if ((Margin$dy[i] != 0) || (Margin$dz[i] != 0)) {
+	for (m in NonEmptyMargin) if ((m$dy != 0) || (m$dz != 0)) {
 ?>
 	from = mpi.rank;
-	to = mpi.node[mpi.rank].<?%s Margin$side[i] ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (to == mpi.rank) {
-		tmp = container->in.<?%s Margin$name[i] ?>;
-	    	container->in.<?%s Margin$name[i] ?> = container->out.<?%s Margin$name[i] ?>;
-	    	container->out.<?%s Margin$name[i] ?> = tmp;
+		tmp = container->in.<?%s m$name ?>;
+	    	container->in.<?%s m$name ?> = container->out.<?%s m$name ?>;
+	    	container->out.<?%s m$name ?> = tmp;
 	}
 	DEBUG_M;
 <?R
 	}
-	for (i in NonEmptyMargin) if ((Margin$dy[i] == 0) && (Margin$dz[i] == 0)) {
+	for (m in NonEmptyMargin) if ((m$dy == 0) && (m$dz == 0)) {
 ?>
-	tmp = container->in.<?%s Margin$name[i] ?>;
-    	container->in.<?%s Margin$name[i] ?> = container->out.<?%s Margin$name[i] ?>;
-    	container->out.<?%s Margin$name[i] ?> = tmp;
+	tmp = container->in.<?%s m$name ?>;
+    	container->in.<?%s m$name ?> = container->out.<?%s m$name ?>;
+    	container->out.<?%s m$name ?> = tmp;
 <?R
 	}
 ?>
-	tmp = container->in.f;
-	container->in.f = container->out.f;
-	container->out.f = tmp;
-
         CudaStreamSynchronize(kernelStream);
 	DEBUG_M;
         CudaStreamSynchronize(inStream);
@@ -395,8 +332,8 @@ void Lattice::GetRegion(lbRegion over, Node * tab)
 		CudaMemcpy2D(&tab[over.offsetL(x,y,z)].B, sizeof(Node), &container->B[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
                 for (int j=0; j<19; j++)
                 {
-//			printf("GetRegion: %d %d %d %d\n", x,y,z,j);
-			CudaMemcpy2D(&tab[over.offsetL(x,y,z)].f[j], sizeof(Node), &container->in.f[offset], sizeof(type_f), sizeof(type_f), inter.nx, cudaMemcpyDeviceToHost);
+			printf("GetRegion: %d %d %d %d\n", x,y,z,j);
+//			CudaMemcpy2D(&tab[over.offsetL(x,y,z)].f[j], sizeof(Node), &container->in.f[offset], sizeof(type_f), sizeof(type_f), inter.nx, cudaMemcpyDeviceToHost);
 			offset += region.sizeL();
 		}
 	}
@@ -434,15 +371,15 @@ void Lattice::Get_<?%s d$nicename ?>(lbRegion over, type_f * tab)
 //        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-//		printf("GetRegion: %d %d %d\n", x,y,z);
+		printf("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(
+/*		CudaMemcpy2D(
 			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(type_f),
 			&container->in.f[offset+<?%d i-1?>*region.sizeL()], region.nx*sizeof(type_f),
 			inter.nx*sizeof(type_f),
 			inter.ny,
 			cudaMemcpyDeviceToHost);
-	}
+*/	}
 }
 
 void Lattice::Set_<?%s d$nicename ?>(lbRegion over, type_f * tab)
@@ -456,15 +393,15 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, type_f * tab)
 //        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-//		printf("%dx%dx%d+%d,%d,%d\n", inter.nx,inter.ny,1, x,y,z);
+		printf("%dx%dx%d+%d,%d,%d\n", inter.nx,inter.ny,1, x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(
+/*		CudaMemcpy2D(
 			&container->in.f[offset+<?%d i-1?>*region.sizeL()], region.nx*sizeof(type_f),
 			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(type_f),
 			inter.nx*sizeof(type_f),
 			inter.ny,
 			cudaMemcpyHostToDevice);
-	}
+*/	}
 }
 
 <?R } ?>

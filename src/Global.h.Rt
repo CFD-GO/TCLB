@@ -21,8 +21,8 @@
 struct NodeInfo {
     lbRegion region;
     int rank; <?R
-for (i in NonEmptyMargin) { ?>
-    int <?%s Margin$side[i] ?>;<?R
+for (m in NonEmptyMargin) { ?>
+    int <?%s m$side ?>;<?R
 } ?>
 };
 
@@ -37,9 +37,8 @@ struct MPIInfo {
 void fillSides(MPIInfo, int, int, int);
 
 struct FTabs {
- type_f* f;
-<?R for (i in NonEmptyMargin) { ?>
- type_f* <?%s Margin$name[i] ?>;
+<?R for (m in NonEmptyMargin) { ?>
+ type_f* <?%s m$name ?>;
 <?R } ?>
 };
 

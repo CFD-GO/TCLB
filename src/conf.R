@@ -3,6 +3,20 @@ if (!exists("DOUBLE")) DOUBLE=0
 
 source("tools/fun_v3.R")
 
+rows = function(x) {
+	rows_df= function(x) {
+		if (nrow(x) > 0) {
+			lapply(1:nrow(x),function(i) unclass(x[i,,drop=F]))
+		} else {
+			list()
+		}
+	};
+	switch( class(x),
+		list       = x,
+		data.frame = rows_df(x)
+	)
+}
+
 table_from_text = function(text) {
 	con = textConnection(text);
 	tab = read.table(con, header=T);
@@ -122,7 +136,7 @@ DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 
 
 Margin = data.frame(
-	name = paste("margin",1:27,sep=""),
+	name = paste("block",1:27,sep=""),
 	side = paste("side",1:27,sep=""),
 	dx   = rep(-1:1,times=9),
 	dy   = rep(rep(-1:1,times=3),each=3),
@@ -130,7 +144,9 @@ Margin = data.frame(
 	command=paste("Margin",1:27)
 )
 
-# Margin = Margin[1:19,]
+Margin$size = 0
+Margin=rows(Margin)
+
 
 GetMargins = function(dx,dy,dz) {
 	fun = function(dx,dy,dz) {
@@ -143,50 +159,52 @@ GetMargins = function(dx,dy,dz) {
 		}
 	}
 	c(
+		fun(NA,NA,NA),
 		fun(dx,NA,NA),
 		fun(NA,dy,NA),
-		fun(NA,NA,dz),
 		fun(dx,dy,NA),
-		fun(NA,dy,dz),
+		fun(NA,NA,dz),
 		fun(dx,NA,dz),
+		fun(NA,dy,dz),
 		fun(dx,dy,dz)
 	)
 }
 
-Margin$size = 0
-
 nx = PV("nx");
 ny = PV("ny");
 nz = PV("nz");
-SideSize = rbind(ny*nz, nx*nz, nx*ny, nz, nx, ny, 1);
+SideSize = rbind(nx*ny*nz, ny*nz, nx*nz, nz, nx*ny, ny, nx, 1);
 zero = PV(0);
-MarginSize =  zero
-for (i in 2:nrow(Margin)) MarginSize = rbind(MarginSize, zero)
+
+for (i in 1:length(Margin)) {
+	Margin[[i]]$Size = zero
+	Margin[[i]]$Offset = zero
+	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+}
 
 x = PV("node.x");
 y = PV("node.y");
 z = PV("node.z");
-SideOffset = rbind(y + z*ny, x + z*nx, x + y*nx, z, x, y, 0);
-MarginOffset =  zero
-for (i in 2:nrow(Margin)) MarginOffset = rbind(MarginOffset, zero)
+SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
 
-
-for (i in 1:nrow(DensityAll))
+for (x in rows(DensityAll))
 {
-	x = DensityAll[i,]
 	w = GetMargins(x$dx,x$dy,x$dz)
-	for (k in 1:length(w)) {j = w[k];
+	for (k in 1:length(w)) {
+		j = w[k];
 		if (j != 0) {
-			Margin$size[j] = Margin$size[j] + 1
-			MarginSize[[j]] = MarginSize[[j]] + SideSize[[k]]
-			MarginOffset[[j]] = SideOffset[[k]]
+			Margin[[j]]$size   = Margin[[j]]$size + 1
+			Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[k]
+			Margin[[j]]$Offset = SideOffset[k]
 		}
 	}
 }
 
 
+NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
+NonEmptyMargin = Margin[NonEmptyMargin]
 
-NonEmptyMargin = which(Margin$size != 0)
+
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 

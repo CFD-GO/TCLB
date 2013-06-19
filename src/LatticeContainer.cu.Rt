@@ -24,10 +24,6 @@ CudaGlobalFunction void clearmem(type_f* ptr) {
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 {
 	iter = 0;
-<?R
-	sizes = MarginSize;
-?>
-
     nx = nx_;
     ny = ny_;
     nz = nz_;
@@ -43,19 +39,6 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 
     char * tmp;
     size_t size;
-    size = (size_t) nx*ny*nz*<?%d nrow(DensityAll) ?>*sizeof(type_f);
-	ALLOCPRINT1;
-    CudaMalloc( (void**)&tmp, size );
-	ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); //    CudaKernelRun(clearmem,dim3(size/sizeof(type_f)),dim3(1),((type_f*)tmp));
-    in.f = (type_f*)tmp;
-
-    size = (size_t) nx*ny*nz*<?%d nrow(DensityAll) ?>*sizeof(type_f);
-	ALLOCPRINT1;
-    CudaMalloc( (void**)&tmp, size );
-	ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(type_f)),dim3(1),((type_f*)tmp));
-    out.f = (type_f*)tmp;
 
     size = (size_t) nx*ny*nz*sizeof(flag_t);
 	ALLOCPRINT1;
@@ -64,13 +47,13 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(type_f)),dim3(1),((type_f*)tmp));
     B = (flag_t*)tmp;
 
-    <?R for (inout in c("in","out")) for (i in NonEmptyMargin) { ?>
-        <?%s inout ?>.<?%s Margin$name[i] ?> =  (type_f*)tmp;
+    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
+        <?%s inout ?>.<?%s m$name ?> =  (type_f*)tmp;
     <?R } ?>
 
 
-    <?R for (inout in c("in","out")) for (i in NonEmptyMargin) { ?>
-	size = (size_t) <?R C(MarginSize[i],float=F) ?>*sizeof(type_f);
+    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
+	size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(type_f);
 	ALLOCPRINT1;
 	#ifdef DIRECT_MEM
 	    	CudaMallocHost( (void**)&tmp, size );
@@ -79,7 +62,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	#endif
 	ALLOCPRINT2;
     	CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(type_f)),dim3(1),((type_f*)tmp));
-	<?%s inout ?>.<?%s Margin$name[i] ?>=  (type_f*)tmp;
+	<?%s inout ?>.<?%s m$name ?>=  (type_f*)tmp;
     <?R } ?>
 
     size = (size_t) <?%d nrow(Globals) ?>*sizeof(type_f);
@@ -93,14 +76,14 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 
 void LatticeContainer::Free()
 {
-    CudaFree( in.f );
-    CudaFree( out.f );
+//    CudaFree( in.f );
+//    CudaFree( out.f );
     CudaFree( B );
-    <?R for (inout in c("in","out")) for (i in NonEmptyMargin) { ?>
+    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
 	#ifdef DIRECT_MEM
-	    	CudaFreeHost( <?%s inout ?>.<?%s Margin$name[i] ?> );
+	    	CudaFreeHost( <?%s inout ?>.<?%s m$name ?> );
 	#else
-	    	CudaFree( <?%s inout ?>.<?%s Margin$name[i] ?> );
+	    	CudaFree( <?%s inout ?>.<?%s m$name ?> );
 	#endif
     <?R } ?>
 
@@ -157,10 +140,9 @@ template <class N> CudaDeviceFunction void LatticeContainer::push(N & node)
 		}
 	} 
 
-	Moffset = PV(rep(0,nrow(Margin)))
-	Mfoffset = PV(0)
-	Mactual = PV(rep(0,nrow(Margin)))
-	Mfactual = PV(0)
+	for ( i in 1:length(Margin) ) Margin[[i]]$Offset = PV(0)
+	for ( i in 1:length(Margin) ) Margin[[i]]$Size = PV(0)
+
 	gdens = ""
 	push = function(dens,dx,dy,dz) { ?>
 
@@ -176,53 +158,37 @@ template <class N> CudaDeviceFunction void LatticeContainer::push(N & node)
 		Y = PV("node.y")
 		Z = PV("node.z")
 
-		Mnew = Mactual
 		H = PV(rep(0,8))
-		Hf = X + dx + nx * (Y + dy) + nx * ny * (Z + dz)
-		H[1] = ny * (Z + dz) + (Y + dy)
-		H[2] = nx * (Z + dz) + X+dx
+		H[1] = X + dx + nx * (Y + dy) + nx * ny * (Z + dz)
+		H[2] = ny * (Z + dz) + (Y + dy)
+		H[3] = nx * (Z + dz) + X+dx
 		H[4] = Z + dz
-		H[3] = nx * (Y + dy) + X+dx
+		H[5] = nx * (Y + dy) + X+dx
 		H[6] = Y + dy
-		H[5] = X + dx
-		H[7] = PV(0)
-
-		for (i in 1:length(w)) if (w[i] > 0) Mnew[w[i]] = Moffset[w[i]] + H[i]
-		Mfnew = Mfoffset + Hf
-
-	for (i in NonEmptyMargin) {
-		v = ToC(Mnew[i] - Mactual[i],float=F);
-		if (v != "   0") {
-#		v = PV(paste("pocket.", Margin$name[i],sep=""))
-#		v = ToC(v + Mfnew - Mfactual,float=F); ?>
-	pocket.<?%s Margin$name[i] ?> += <?%s v ?>;<?R
-		}
-	}
-	v = ToC(Mfnew - Mfactual,float=F);
-	if (v != "   0") {
-#		v = PV("pocket.f");
-#		v = ToC(v + Mfnew - Mfactual,float=F); ?>
-	pocket.f += <?%s v ?>;<?R
-	}
-
-	Mactual <<- Mnew
-	Mfactual <<- Mfnew
+		H[7] = X + dx
+		H[8] = PV(0)
 
 		for (i in 1:length(w)) if (w[i] > 0) {
-			Moffset[w[i]] <<- Moffset[w[i]] + SideSize[i]
+			off = Margin[[w[i]]]$Size
+			noff = off + H[i]
+			Margin[[w[i]]]$Size = Margin[[w[i]]]$Size + SideSize[i]
+			v = ToC(noff - off,float=F);
+			if (v != "   0") {
+			?>	pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>;
+<?R }
+			Margin[[w[i]]]$Offset = noff;
 		}
-		Mfoffset <<- Mfoffset + nx*ny*nz
-
-
+		p = rep("ItCannotHappen",length(w))
+		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
 		pushZ(
-			"pocket.f",
-			paste("pocket.margin",w[1],sep=""),
-			paste("pocket.margin",w[2],sep=""),
-			paste("pocket.margin",w[4],sep=""),
-			paste("pocket.margin",w[3],sep=""),
-			paste("pocket.margin",w[6],sep=""),
-			paste("pocket.margin",w[5],sep=""),
-			paste("pocket.margin",w[7],sep=""),
+			p[1],
+			p[2],
+			p[3],
+			p[4],
+			p[5],
+			p[6],
+			p[7],
+			p[8],
 			dx, dy, dz);
 
 	} 
@@ -241,12 +207,11 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node)
 	FTabs pocket = in;
 //	CudaSyncThreads();
 	node.B = B[(node.x + nx*node.y + nx*ny*node.z)];
-	pocket.f += (node.x + nx*node.y + nx*ny*node.z);
 	<?R
-	for (i in NonEmptyMargin) {
-		v = ToC(MarginOffset[i],float=F);
+	for (m in NonEmptyMargin) {
+		v = ToC(m$Offset,float=F);
 		if (v != "") { ?>
-	pocket.<?%s Margin$name[i] ?> += <?%s v ?>; <?R
+	pocket.<?%s m$name ?> += <?%s v ?>; <?R
 		}
 	}
 
@@ -309,23 +274,24 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node)
 		dx = -dx
 		dy = -dy
 		dz = -dz
+		p = rep("ItCannotHappen",length(w))
+		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "[0]", sep="")
 		popZ(	dens,
-			"pocket.f[0]",
-			paste("pocket.margin", w[1],"[0]",sep=""),
-			paste("pocket.margin", w[2],"[0]",sep=""),
-			paste("pocket.margin", w[4],"[0]",sep=""),
-			paste("pocket.margin", w[3],"[0]",sep=""),
-			paste("pocket.margin", w[6],"[0]",sep=""),
-			paste("pocket.margin", w[5],"[0]",sep=""),
-			paste("pocket.margin", w[7],"[0]",sep=""),
-			dx,dy,dz) ?>
-		
-	pocket.f += nx*ny*nz; <?R
+			p[1],
+			p[2],
+			p[3],
+			p[4],
+			p[5],
+			p[6],
+			p[7],
+			p[8],
+			dx,dy,dz)
+		cat("\n")
 		for (j in 1:length(w)) {
 			i = w[j];
-			if (i != 0) { ?>
-	pocket.<?%s Margin$name[i]?> += <?R C(SideSize[j],float=F) ?>; <?R
-			}
+			if (i != 0) {
+				?>	pocket.<?%s Margin[[i]]$name?> += <?R C(SideSize[j],float=F) ?>;
+<?R			}
 		}
 	} 
 
