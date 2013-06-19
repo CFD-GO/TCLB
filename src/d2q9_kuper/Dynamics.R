@@ -30,7 +30,8 @@ Density = rbind(Density,data.frame(
 
 Quantities = data.frame(
 	name = c("Rho", "U", "P", "F"),
-	type = c("type_f", "type_v", "type_f", "type_v")
+	type = c("type_f", "type_v", "type_f", "type_v"),
+	unit = c("kg/m3", "m/s", "Pa", "N")
 )
 
 f  = PV(Density$name[Density$group=="f"])
@@ -48,19 +49,26 @@ Settings = table_from_text("
         InitDensity              NA                      NA   'inlet density'
 	WallDensity		NA			NA	'vapor/liquid density of wall'
 	Temperature                 NA                      NA   'temperature of the liquid/gas'
-	FAcc			NA			NA	'wtf'
-	Magic			NA			NA	'wtf'
-	MagicA			NA			NA	'wtf'
-	MagicF			NA			NA	'wtf'
+	FAcc			NA			NA	'Multiplier of potential'
+	Magic			NA			NA	'K'
+	MagicA			NA			NA	'A in force calculation'
+	MagicF			NA			NA	'Force multiplier'
 	GravitationY		NA			NA	'Gravitation in the direction of y'
 	GravitationX		NA			NA	'Gravitation in the direction of x'
 	MovingWallVelocity	NA			NA	'Velocity of the MovingWall'
 	WetDensity		NA			NA	'wet density'
 	DryDensity		NA			NA	'dry density'
+	Wetting			NA			NA	'wetting factor'
 ")
 
 Globals = table_from_text("
-        name            in_objective   comment
-        MovingWallForceX    1              'force x'
-        MovingWallForceY    1              'force y'
+        name            in_objective   unit comment
+        MovingWallForceX    1          N/m    'force x'
+        MovingWallForceY    1          N/m    'force y'
+	Pressure1           1          Pa    'pressure at Obj1'
+	Pressure2           1          Pa    'pressure at Obj2'
+	Pressure3           1          Pa    'pressure at Obj3'
+	Density1            1          Pa    'density at Obj1'
+	Density2            1          Pa    'density at Obj2'
+	Density3            1          Pa    'density at Obj3'
 ")

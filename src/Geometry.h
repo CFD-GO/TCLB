@@ -1,9 +1,11 @@
+#include "unit.h"
 
 class Geometry {
 public:
   flag_t * geom;
   lbRegion region;
-  Geometry(const lbRegion& r);
+  UnitEnv units;
+  Geometry(const lbRegion& r, const UnitEnv& units_);
   ~Geometry();
   int load(pugi::xml_node&);
   void writeVTI(char * filename);
@@ -16,5 +18,7 @@ private:
   int Draw(pugi::xml_node&);
   int loadZone(const char * name);
   lbRegion getRegion(const pugi::xml_node& node);
+  int val(pugi::xml_attribute attr, int def);
+  int val(pugi::xml_attribute attr);
   flag_t Dot(int x, int y, int z);
 };

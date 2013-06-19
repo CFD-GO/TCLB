@@ -1,62 +1,37 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="96" ny="200" predef="none" model="MRT">
+        <Geometry nx="128" ny="128">
 		<MRT><Box/></MRT>
 		<Wet>
-			<Sphere dx="30" dy="35" nx="40" ny="40"/>
-			<Box nx="10" dy="-40" fy="-30"/> 
+			<Sphere dx="32" dy="32" nx="64" ny="64"/>
 		</Wet>
-		<WPressure><Box nx="1"/></WPressure>
 		<Wall mask="ALL">
-<!--			<Wedge direction="LowerLeft"  ny="6" dy="34"  fx="60" dx="10"/>
-			<Wedge direction="LowerRight" ny="6" dy="0"  fx="60" dx="10"/>
-			-->
-			<Box dx="-1"/> 
-			<Box nx="10" fy="-40"/> 
-			<Box nx="10" dy="-30"/>
-			<Channel/>
-		</Wall>  
-		<Wet>
-<!--			<Box nx="30" dy="-45" fy="-25"/>-->
-		</Wet>
+			<Wedge direction="LowerRight" nx="20" ny="20" dy="44"/>
+			<Wedge direction="LowerLeft" nx="20" ny="20" dy="44" dx="20"/>
+			<Wedge direction="LowerRight" nx="20" ny="20" dy="108" dx="64"/>
+			<Wedge direction="LowerLeft" nx="20" ny="20" dy="108"
+			dx="84"/>
+		</Wall> 
+		<Obj1><Box dx="64" dy="64" nx="1" ny="1"/></Obj1>
+		<Obj2><Box dx="0" dy="0" nx="1" ny="1"/></Obj2>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
-		<Params nu="0.166666"/>
+		<Params nu="0.1178511"/>
 		<Params InitDensity="0.04"
-			WallDensity="1.0"
-			WetDensity="2.9"
-			OutletDensity="3.1"
-			InletDensity="3.4"
+			WetDensity="2.931"
 			Temperature="0.65"
 			FAcc="1"
 			Magic="0.01"
 			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			GravitationY="-0.000005"
-			GravitationX="0.00000"
-			MovingWallVelocity="0.1"
+			MagicF="-0.66666666666666"
+			WallDensity="2.0"
+			GravitationY="-0.0001"
+			GravitationX="0.000"
 		/>
 	</Model>
-	<Solve Iterations="3000" output="output/">
-		<Params	InletDensity="2.8"/>
+	<Solve Iterations="5000" output="output/">
 		<VTK Iterations="100"/>
-	</Solve>
-	<Solve Iterations="600" output="output/">
-		<VTK Iterations="100"/>
-		<Params	InletDensity="3.4"/>
-	</Solve>
-	<Solve Iterations="3000" output="output/">
-		<VTK Iterations="100"/>
-		<Params	InletDensity="2.8"/>
-	</Solve>
-	<Solve Iterations="600" output="output/">
-		<VTK Iterations="100"/>
-		<Params	InletDensity="3.4"/>
-	</Solve>
-	<Solve Iterations="3000" output="output/">
-		<VTK Iterations="100"/>
-		<Params	InletDensity="2.8"/>
 	</Solve>
 </CLBConfig>

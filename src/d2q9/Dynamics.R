@@ -24,9 +24,9 @@ Density = table_from_text("
 # [type] get[something]() { return ...; }
 
 Quantities = table_from_text("
-	name   type
-	Rho    type_f
-	U      type_v
+	name   type     unit
+	Rho    type_f   kg/m3
+	U      type_v   m/s
 ")
 
 # Settings - table of settings (constants) that are taken from a .clb file
@@ -38,12 +38,12 @@ Quantities = table_from_text("
 # that if [something] is set in the .clb file, then the [variable] will be filled with 1+[something]
 
 Settings = table_from_text("
-	name                 derived                equation   comment
-	omega                     NA                      NA   'one over relaxation time'
-	nu                     omega      '1.0/(3*nu + 0.5)'   'viscosity'
-	InletVelocity             NA                      NA   'inlet velocity'
-	InletPressure   InletDensity   '1.0+InletPressure/3'   'inlet pressure'
-	InletDensity              NA                      NA   'inlet density'
+	name                 derived                equation   default       comment
+	omega                     NA                      NA   1.0           'one over relaxation time'
+	nu                     omega      '1.0/(3*nu + 0.5)'   1.6666666     'viscosity'
+	InletVelocity             NA                      NA   0m/s          'inlet velocity'
+	InletPressure   InletDensity   '1.0+InletPressure/3'   0Pa           'inlet pressure'
+	InletDensity              NA                      NA   1             'inlet density'
 ")
 
 

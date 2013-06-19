@@ -19,6 +19,7 @@
 #include "Geometry.h"
 #include "def.h"
 #include "utils.h"
+#include "unit.h"
 
 #include <fstream>
 #include <iostream>
@@ -82,6 +83,8 @@ class DataBlock {
 	int steps;
 	int saveN, saveI;
 	char ** saveFile;
+	UnitEnv units;
+	double LogScales[<?%d nrow(Globals) ?> + <?%d nrow(Settings) ?> + <?%d nrow(Scales) ?>];
 	DataBlock() {
 		info.MaxIter = 0;
 		iter = 0;
@@ -128,10 +131,63 @@ class DataBlock {
                         pugi::xml_attribute attr;
                         <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
                                 attr = node.attribute("<?%s v$name?>");
-                                if (attr) lattice-><?%s v$FunName ?>(attr.as_double());
+                                if (attr) {
+					double val = units.alt(attr.value());
+					lattice-><?%s v$FunName ?>(val);
+				}
                         <?R } ?>
                 }
 	}
+
+	void readUnits() {
+		pugi::xml_node set = config.child("Units");
+		if (!set) {
+			printf("[%d] Warning: No \"Units\" element in config file\n", D_MPI_RANK);
+			return;
+		}
+                for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
+			std::string nm="", val="", gauge="1";
+			for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
+			{
+				if (((std::string) attr.name()) == "gauge") {
+					gauge = attr.value();
+				} else {
+					if (nm != "") {
+						std::cerr << "Only one variable allowed in a Params element in Units (" << nm << "," << attr.name() << ")\n";
+					}
+					nm = attr.name();
+					val= attr.value();
+				}
+			}
+			if (nm == "") {
+				std::cerr << "No variable in a Params element in Units\n";
+			}
+			if (mpi_rank == 0) printf("[ ] %s = %s = %s \n", nm.c_str(), val.c_str(), gauge.c_str());
+			units.setUnit(nm, units(val)/units(gauge), 1);
+                }
+		units.makeGauge();
+		if (mpi_rank == 0) {
+			units.printGauge();
+		}
+	    <?R 
+		for (i in 1:nrow(Settings)) { ?>
+                    LogScales[<?%d i-1 ?>] = 1/units.alt("<?%s Settings$unit[i] ?>"); <?R
+		}
+		for (i in 1:nrow(Globals)) { ?>
+                    LogScales[<?%d nrow(Settings)+i-1 ?>] = 1/units.alt("<?%s Globals$unit[i] ?>"); <?R
+		}
+		for (i in 1:nrow(Scales)) { ?>
+                    LogScales[<?%d nrow(Settings)+nrow(Globals)+i-1 ?>] = 1/units.alt("<?%s Scales$unit[i] ?>"); <?R
+		}
+ ?>
+	}
+
+	int Iterations(pugi::xml_node sol) {
+		double v = units.alt(sol.attribute("Iterations").value());
+		if (v > 0) return v + 0.5;
+		return v - 0.5;
+	}
+
         void loadSolve(pugi::xml_node nsol) {
 		if (! nsol) { return; }
                 sol = nsol;
@@ -139,7 +195,7 @@ class DataBlock {
 		if (! nsol.attribute("Iterations")) {
 			std::cerr << "No 'Iterations' attribute in 'Solve' in xml config\n";
 		}
-                info.MaxIter += nsol.attribute("Iterations").as_int(0);
+                info.MaxIter += Iterations(nsol);
 		LogIter = 0;
 		if (sol.attribute("output")) {
 			char _confname[STRING_LEN];
@@ -172,7 +228,7 @@ class DataBlock {
 					node.append_attribute("filename") = filename;
 				}
 				initLog(node.attribute("filename").value());
-				LogIter = node.attribute("Iterations").as_int(0);
+				LogIter = Iterations(node);
 			}
 		}
 		DEBUG_M;
@@ -197,10 +253,13 @@ class DataBlock {
 			
                     fprintf(f,"\"Iteration\"");
 		    <?R for (v in Settings$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\"");
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
 		    <?R for (v in Globals$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\"");
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
+		    <?R } ?>
+		    <?R for (v in Scales$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>_si\"");
 		    <?R } ?>
                     fprintf(f,"\n");
 
@@ -212,27 +271,27 @@ class DataBlock {
 	int writeLog(const char * filename)
 	{ 
 	        FILE * f = NULL;
+		double v;
+		type_f glob[<?%d nrow(Globals) ?>];
+		lattice->getGlobals(glob);
 	        if (mpi.rank == 0) {
+			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
 			fprintf(f,"%d",iter);
 			for (int i=0; i< <?%d nrow(Settings) ?>; i++) {
-				#ifdef CALC_DOUBLE_PRECISION
-					fprintf(f,", %le",lattice->settings[i]);
-				#else
-					fprintf(f,", %e",lattice->settings[i]);
-				#endif
+				v = lattice->settings[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
 			}
-		}
-		type_f glob[<?%d nrow(Globals) ?>];
-		lattice->getGlobals(glob);
-	        if (mpi.rank == 0) {
 			for (int i=0; i< <?%d nrow(Globals) ?>; i++) {
-				#ifdef CALC_DOUBLE_PRECISION
-					fprintf(f,", %le",glob[i]);
-				#else
-					fprintf(f,", %e",glob[i]);
-				#endif
+				v = glob[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< <?%d nrow(Scales) ?>; i++) {
+				fprintf(f,", %le",LogScales[j]);
+				j++;
 			}
 			fprintf(f,"\n");
 	                fclose(f);  
@@ -324,14 +383,14 @@ int MainLoop( uchar4* outputBitmap, DataBlock *d, int ticks )
 	DEBUG_M;
 	for (pugi::xml_node node = d->sol.first_child(); node; node = node.next_sibling()) {
 		if (node.attribute("Iterations")) {
-                    int it = node.attribute("Iterations").as_int(1);
+                    int it = d->Iterations(node);
                     if ((d->iter - d->solIter) % it == 0) {
 			DEBUG_M;
 			    if (strcmp(node.name(), "VTK")==0) {
                                     printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
                                     char filename[STRING_LEN];
                                     d->outIterFile("VTK", ".vti", filename);
-                                    vtkWriteLattice(filename, d->lattice);
+                                    vtkWriteLattice(filename, d->lattice, d->units);
                                     printf("]\n");
                             } else if (strcmp(node.name(), "Mean")==0) {
                                     printf("[%d]                                                     writing mean pressure [...", D_MPI_RANK);
@@ -352,7 +411,7 @@ int MainLoop( uchar4* outputBitmap, DataBlock *d, int ticks )
 	{
 		pugi::xml_node node = d->config.child("Checkpoint");
 		if (node) {
-                	int it = node.attribute("Iterations").as_int(1);
+                	int it = d->Iterations(node);
 			if ((d->iter - d->solIter) % it == 0) {
 				char * filename = d->saveFile[d->saveI];
 				d->outIterFile("SAVE", ".bin", filename);
@@ -410,7 +469,7 @@ void MainFree( DataBlock *d ) {
 		if (d->dataline_file != NULL) delete d->dataline_file;
 		if (d->dataline_obj  != NULL) delete d->dataline_obj;
 	}
-//	vtkWriteLattice("output/Finish.vti", d->lattice);
+//	vtkWriteLattice("output/Finish.vti", d->lattice, d->units);
     printf("cudaFree ...\n");
     CudaEventDestroy( d->start );
     CudaEventDestroy( d->stop );
@@ -534,9 +593,11 @@ int main ( int argc, char * argv[] )
 	XMLCHILD(data.config, data.configfile, "CLBConfig");
 	XMLCHILD(data.geom, data.config, "Geometry");
 	XMLCHILD(data.mod, data.config, "Model");
-	data.info.region.nx = data.geom.attribute("nx").as_int(1);
-	data.info.region.ny = data.geom.attribute("ny").as_int(1);
-	data.info.region.nz = data.geom.attribute("nz").as_int(1);
+	data.readUnits();
+	data.info.region.nx = myround(data.units.alt(data.geom.attribute("nx").value(),1));
+	data.info.region.ny = myround(data.units.alt(data.geom.attribute("ny").value(),1));
+	data.info.region.nz = myround(data.units.alt(data.geom.attribute("nz").value(),1));
+	printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,data.info.region.nx,data.info.region.ny,data.info.region.nz);
 
         if (data.info.region.nx < data.info.xsdim) {
                 data.info.xsdim = data.info.region.nx - 1 + 32 - ((data.info.region.nx - 1) % 32);
@@ -636,13 +697,17 @@ int main ( int argc, char * argv[] )
 	initSettings();
 	data.loadParams(data.mod);
 	{
+		pugi::xml_node set = data.config.child("Units");
+		if (set) data.loadParams(set);
+	}
+	{
 		pugi::xml_node sol;
 		XMLCHILD(sol, data.config, "Solve");
 		data.loadSolve(sol);
 	}
 	DEBUG_M;
 	{
-		Geometry geom(data.region);
+		Geometry geom(data.region, data.units);
 		if (geom.load(data.geom)) {
 			std::cerr << "Error while loading geometry\n";
 			return -1;
@@ -664,7 +729,7 @@ int main ( int argc, char * argv[] )
 		if (node) {
                 	int save = node.attribute("Save").as_int(3);
 			data.saveInit(save);
-                	int it = node.attribute("Iterations").as_int(0);
+                	int it = data.Iterations(node);
 			if (it < 1) {
 				fprintf(stderr, "[%d] No Iterations in Checkpoint element\n", D_MPI_RANK);
 				assert(it < 1);
@@ -723,7 +788,7 @@ int main ( int argc, char * argv[] )
 		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
 		char filename[STRING_LEN];
 		data.outIterFile("VTK", ".vti", filename);
-		vtkWriteLattice(filename, data.lattice);
+		vtkWriteLattice(filename, data.lattice, data.units);
 		printf("]\n");
 	}    
 

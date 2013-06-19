@@ -5,9 +5,9 @@
 	#include "LatticeContainer.h"
 	#include "Lattice.h"
 	#include "vtkOutput.h"
+	#include "unit.h"
 
-
-	int vtkWriteLattice(char * filename, Lattice * lattice);
+	int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv);
 	void screenDumpLattice(Lattice * lattice);
 	int initMean(char * filename);
 	int writeMean(char * filename, Lattice * lattice, int, int iter, double);

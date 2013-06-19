@@ -3,7 +3,7 @@
 #	d1q3, d2q9, d2q9_adj, d2q9_adj_smooth, d2q9_adj_top, d2q9_entropic, d2q9_exp, d2q9_heat, d2q9_heat_adj, d2q9_kuper, d3q19, d3q19_adj, d3q19_heat, d3q19_heat_adj
 
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
-GRAPHICS=1       # GLUT graphics: 1-on, 0-off
+GRAPHICS=0       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
 DOUBLE=0         # precision: 1-double, 0-float
@@ -41,10 +41,10 @@ SRC=src
 # ADDITIONALS=package/src/Makefile.in package/data/LB.RData
 #endif
 
-SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c inter.cpp Solver.cpp pugixml.cpp Geometry.cu def.cpp
+SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c inter.cpp Solver.cpp pugixml.cpp Geometry.cu def.cpp unit.cpp
 SOURCE_R=conf.R Dynamics.R
 SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
-HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h
+HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
 HEADERS=$(addprefix $(DEST)/,$(HEADERS_H))
 
 ALL_FILES=$(SOURCE_CU) $(HEADERS_H) $(ADDITIONALS)

@@ -34,8 +34,13 @@ CudaDeviceFunction type_v getU(){
 	type_f d = getRho();
 	type_v u;
 <?R C(PV(c("u.x","u.y")) == fs %% U) ?>
+	type_v F;
+	F = getF();
+u.x = u.x+F.x*MagicF*0.5;
+u.y = u.y+F.y*MagicF*0.5;
 	u.x /= d;
 	u.y /= d;
+	u.z = 0;
 	return u;
 }
 
@@ -46,6 +51,10 @@ CudaDeviceFunction type_v getF() {
                 F.x=0;
                 F.y=0;
         } else {
+<?R for (i in Density$name[Density$group=="phi"]) { ?>
+	if (<?%s i ?> < 0) <?%s i ?> = (<?%s i ?>+phi0)*Wetting - <?%s i ?>;
+<?R } ?>
+
 <?R  
         R = PV(c(paste("R[",1:9-1,"]",sep="")))
 	Force = PV(c("F.x","F.y"));
@@ -91,7 +100,7 @@ CudaDeviceFunction type_f getP(){
 	}
 	
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
-	return p;
+	return Magic*p;
 }
 
 CudaDeviceFunction void BounceBack()
@@ -124,6 +133,18 @@ CudaDeviceFunction void BounceBack()
 	}
 
 }
+
+CudaDeviceFunction void MovingWall()
+{
+	type_f rho, ru;
+	const type_f ux0 = MovingWallVelocity;
+	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
+	ru = rho * ux0;
+	f2 = f4;
+	f6 = f8 - (1./2.) * ru - (1./2.)*(f3 - f1);
+	f5 = f7 + (1./2.) * ru + (1./2.)*(f3 - f1);
+}
+
 
 // 0 1 2 3 4 5 6 7 8
 // 1 5 2 6 3 7 4 8 0
@@ -207,7 +228,7 @@ CudaDeviceFunction void switch_f() {
 }
 
 
-CudaDeviceFunction void calc_phi() {
+CudaDeviceFunction void calc_phi0() {
 	const double a2 = 3.852462271644162;
         const double b2 = 0.1304438860971524 * 4.0 ;
         const double c2 = 2.785855170470555;
@@ -237,8 +258,51 @@ CudaDeviceFunction void calc_phi() {
 	}
 	
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
- 
-	phi0 = FAcc * std::sqrt( -p*Magic + rho2/(3.) );
+	p = Magic*p;
+	switch (B & NODE_OBJECTIVE) { 
+		case NODE_Obj1:
+			AddToPressure1(p);
+			AddToDensity1(rho2);
+			break;
+		case NODE_Obj2:
+			AddToPressure2(p);
+			AddToDensity2(rho2);
+			break;
+		case NODE_Obj3:
+			AddToPressure3(p);
+			AddToDensity3(rho2);
+			break;
+	}
+
+	phi0 = FAcc * std::sqrt( -p + rho2/(3.) );
+}
+
+CudaDeviceFunction void calc_phi() {
+	type_f w=1,uf;
+       switch (B & NODE_BOUNDARY) {
+		case NODE_Wall:
+		case NODE_MovingWall:
+			w = -1;
+			break;
+	}
+<?R
+#  V = cbind(1:9, bounce+1)
+#  sel = V[,1] > V[,2]
+#  V = V[sel,]
+#  phi=PV(paste("phi",0:8,sep=""));
+#  wet=PV("w");
+#  for (i in 1:nrow(V))
+#  {
+#	w = list(
+#           uf==(phi[V[i,1]]-phi[1])*wet+phi[1],
+#           phi[V[i,1]]==(phi[V[i,2]]-phi[1])*wet+phi[1],
+#           phi[V[i,2]]==uf
+#	)
+#	for (h in w) C(h)
+#   }
+?>
+	<?R for( p in Density$name[Density$group=="phi"] ) { ?><?%s p ?> = <?R } ?> w*phi0;
+
 }
 
 
@@ -251,8 +315,10 @@ CudaDeviceFunction void Run() {
 	case NODE_Solid:
 		break;
 	case NODE_Wall:
-	case NODE_MovingWall:
 		BounceBack();
+		break;
+	case NODE_MovingWall:
+		MovingWall();
 		break;
 	case NODE_EVelocity:
 		EVelocity();
@@ -274,8 +340,8 @@ CudaDeviceFunction void Run() {
                 CollisionMRT();
                 break;
     }
+	calc_phi0();
 	calc_phi();
-	<?R for (i in which(Density$group=="phi")) {?> <?%s Density$name[i]?> = <?R } ?>phi0;
 }
 
 CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
@@ -327,6 +393,9 @@ CudaDeviceFunction void Init() {
 		C(fs[i]==f[i])
 	}
 ?>
+	calc_phi0();
+	calc_phi();
+//	<?R for( p in Density$name[Density$group=="phi"] ) { ?><?%s p ?> = <?R } ?> phi0;
 }
 
 CudaDeviceFunction float2 Color() {

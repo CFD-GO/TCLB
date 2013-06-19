@@ -17,3 +17,9 @@ inline void stripbare(char * str)
 	if (j == -1) j = i;
 	str[j] = 0;
 }
+
+inline int myround(double v) {
+	if (v > 0) return v+0.5;
+	return v-0.5;
+}
+                
