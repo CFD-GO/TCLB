@@ -134,6 +134,18 @@ CudaDeviceFunction void BounceBack()
 
 }
 
+CudaDeviceFunction void MovingWall()
+{
+	type_f rho, ru;
+	const type_f ux0 = MovingWallVelocity;
+	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
+	ru = rho * ux0;
+	f2 = f4;
+	f6 = f8 - (1./2.) * ru - (1./2.)*(f3 - f1);
+	f5 = f7 + (1./2.) * ru + (1./2.)*(f3 - f1);
+}
+
+
 // 0 1 2 3 4 5 6 7 8
 // 1 5 2 6 3 7 4 8 0
 
@@ -250,9 +262,15 @@ CudaDeviceFunction void calc_phi0() {
 	switch (B & NODE_OBJECTIVE) { 
 		case NODE_Obj1:
 			AddToPressure1(p);
+			AddToDensity1(rho2);
 			break;
 		case NODE_Obj2:
 			AddToPressure2(p);
+			AddToDensity2(rho2);
+			break;
+		case NODE_Obj3:
+			AddToPressure3(p);
+			AddToDensity3(rho2);
 			break;
 	}
 
@@ -297,8 +315,10 @@ CudaDeviceFunction void Run() {
 	case NODE_Solid:
 		break;
 	case NODE_Wall:
-	case NODE_MovingWall:
 		BounceBack();
+		break;
+	case NODE_MovingWall:
+		MovingWall();
 		break;
 	case NODE_EVelocity:
 		EVelocity();

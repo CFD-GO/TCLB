@@ -3,7 +3,7 @@
 #	d1q3, d2q9, d2q9_adj, d2q9_adj_smooth, d2q9_adj_top, d2q9_entropic, d2q9_exp, d2q9_heat, d2q9_heat_adj, d2q9_kuper, d3q19, d3q19_adj, d3q19_heat, d3q19_heat_adj
 
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
-GRAPHICS=1       # GLUT graphics: 1-on, 0-off
+GRAPHICS=0       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
 DOUBLE=0         # precision: 1-double, 0-float

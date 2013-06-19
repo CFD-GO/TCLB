@@ -67,4 +67,8 @@ Globals = table_from_text("
         MovingWallForceY    1          N/m    'force y'
 	Pressure1           1          Pa    'pressure at Obj1'
 	Pressure2           1          Pa    'pressure at Obj2'
+	Pressure3           1          Pa    'pressure at Obj3'
+	Density1            1          Pa    'density at Obj1'
+	Density2            1          Pa    'density at Obj2'
+	Density3            1          Pa    'density at Obj3'
 ")
