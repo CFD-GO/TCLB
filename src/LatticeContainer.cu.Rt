@@ -169,14 +169,14 @@ template <class N> CudaDeviceFunction void LatticeContainer::push(N & node)
 		H[8] = PV(0)
 
 		for (i in 1:length(w)) if (w[i] > 0) {
-			off = Margin[[w[i]]]$Size
-			noff = off + H[i]
-			Margin[[w[i]]]$Size = Margin[[w[i]]]$Size + SideSize[i]
+			off = Margin[[w[i]]]$Offset
+			noff = Margin[[w[i]]]$Size + H[i]
+			Margin[[w[i]]]$Size <<- Margin[[w[i]]]$Size + SideSize[i]
 			v = ToC(noff - off,float=F);
 			if (v != "   0") {
 			?>	pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>;
 <?R }
-			Margin[[w[i]]]$Offset = noff;
+			Margin[[w[i]]]$Offset <<- noff;
 		}
 		p = rep("ItCannotHappen",length(w))
 		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
