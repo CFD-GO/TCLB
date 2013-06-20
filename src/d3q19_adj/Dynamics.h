@@ -1,3 +1,3 @@
  type_f f[19];
- char B;
+ char NodeType;
  type_f w;

@@ -3,7 +3,7 @@
 ?>
 
 CudaDeviceFunction type_f getCp(){
-	if ((B & NODE_BOUNDARY) == NODE_Solid)
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
 		return 100.0;
 	else 
 		return 1.0;
@@ -27,7 +27,7 @@ CudaDeviceFunction float2 Color() {
         type_f d = <?R C(sum(f)) ?>;
         ret.x = (d-InletDensity)/(1.0-InletDensity);
 	ret.x = ret.x;
-        if (B == NODE_Solid){
+        if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
                 ret.y = 1;
@@ -66,7 +66,7 @@ CudaDeviceFunction void EPressure()
 
 
 CudaDeviceFunction void Run() {
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Wall:
 		BounceBack();
 		break;
@@ -83,7 +83,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    if (B & NODE_MRT)
+    if (NodeType & NODE_MRT)
     {
 		CollisionMRT();
     }

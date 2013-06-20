@@ -19,7 +19,7 @@ CudaDeviceFunction type_v getUB(){
 }
 
 CudaDeviceFunction void RunAdj(){
-	if (B & NODE_DesignSpace ) {
+	if (NodeType & NODE_DesignSpace ) {
 		wb /= 1000;
 //		if (wb > 0.00001)  wb =  0.01;
 //		if (wb < -0.00001) wb = -0.01;

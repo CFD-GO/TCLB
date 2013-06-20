@@ -42,7 +42,7 @@ CudaDeviceFunction float2 Color() {
         float2 ret;
         type_v u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
-        if (B == NODE_Solid){
+        if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
                 ret.y = 1;
@@ -109,7 +109,7 @@ CudaDeviceFunction void eqWVelocity()
 	f<?%d -1 + I[10] ?> = f<?%d -1 + I[13] ?> + rho * ux / 6. + Nxz;
 
         rho = InletTemperature;
-	if ((B & NODE_ADDITIONALS) == NODE_Heater) {
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) {
 		rho = HeaterTemperature;
 	}
         <?R
@@ -196,7 +196,7 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_WPressureL:
 		WPressureLimited();
 		break;
@@ -213,7 +213,7 @@ CudaDeviceFunction void Run() {
 		BounceBack();
                 break;
     }
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
 	case NODE_BGK:
 		Collision();
 		break;
@@ -239,7 +239,7 @@ CudaDeviceFunction void SetEquilibrum(type_f rho, type_f Jx, type_f Jy, type_f J
 
 CudaDeviceFunction void Init() {
 	SetEquilibrum(1.0, InletVelocity, 0., 0.,InletTemperature);
-	if ((B & NODE_BOUNDARY) == NODE_Solid) {
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		w = 0.01;
 	}
 }
@@ -315,20 +315,20 @@ for (i in 1:length(R)) {
 <?R
 		}
 ?>
-	if ((B & NODE_ADDITIONALS) == NODE_Heater) {
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) {
 		T = HeaterTemperature;
 	}
-	if ((B & NODE_ADDITIONALS) == NODE_HeatSource) {
+	if ((NodeType & NODE_ADDITIONALS) == NODE_HeatSource) {
 		T += HeatSource;
 	}
-//	if ((B & NODE_OBJECTIVE) == NODE_Outlet) AddToObjective( T*Jx);
-	if ((B & NODE_OBJECTIVE) == NODE_Outlet) {
+//	if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) AddToObjective( T*Jx);
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) {
 //		if ((T > -1.) && (T < 1.)) AddToObjective( (1-T*T)*Jx);
 		AddToFlux( Jx );
 		AddToHeatFlux( T*Jx );
 		AddToHeatSquareFlux( T*T*Jx );
 	}
-	if ((B & NODE_OBJECTIVE) == NODE_Thermometer) {
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Thermometer) {
 		AddToTemperature(T);
 		if (T > LimitTemperature) {
 			AddToHighTemperature((T-LimitTemperature)*(T-LimitTemperature));
@@ -336,7 +336,7 @@ for (i in 1:length(R)) {
 			AddToLowTemperature( (T-LimitTemperature)*(T-LimitTemperature));
 		}
 	}
-//	if ((B & NODE_OBJECTIVE) == NODE_Inlet) AddToObjective(-T*T);
+//	if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) AddToObjective(-T*T);
 <?R
 		for (i in 2:length(R)) {
 ?>	<?%s ToC(R[i]) ?> += <?%s ToC(RTeq[i]) ?>;

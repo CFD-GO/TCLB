@@ -123,7 +123,7 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void Run() {
 	type_f fb[9];
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
@@ -144,7 +144,7 @@ CudaDeviceFunction void Run() {
 
 <?R for (i in 1:9) { ?>
 	fb[<?%d i-1?>] = f[<?%d i-1?>];<?R } ?>
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
 	case NODE_MRT:
 		CollisionMRT();
 		break;

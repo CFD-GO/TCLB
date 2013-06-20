@@ -28,7 +28,7 @@ CudaDeviceFunction float2 Color() {
         float2 ret;
         type_v u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
-        if (B == NODE_Solid){
+        if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
                 ret.y = 1;
@@ -78,7 +78,7 @@ CudaDeviceFunction void EPressure()
 
 
 CudaDeviceFunction void Run() {
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
@@ -93,7 +93,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    if (B & NODE_COLLISION)
+    if (NodeType & NODE_COLLISION)
     {
 		CollisionMRT();
     }

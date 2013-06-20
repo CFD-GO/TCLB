@@ -169,7 +169,7 @@ CudaDeviceFunction void EPressure()
 }
 
 CudaDeviceFunction void Run() {
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 		w=0;
 		break;
@@ -189,8 +189,8 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    if ((B & NODE_OBJECTIVE) == NODE_Obj3) w=0;
-    if ((B & NODE_MRT) || ((B & NODE_BOUNDARY) == NODE_Solid))
+    if ((NodeType & NODE_OBJECTIVE) == NODE_Obj3) w=0;
+    if ((NodeType & NODE_MRT) || ((NodeType & NODE_BOUNDARY) == NODE_Solid))
     {
 		CollisionMRT();
     }
@@ -276,7 +276,7 @@ type_f us[2];
 <?R
 	C( R == fT %% M );
 ?>
-	if ((B & NODE_OBJECTIVE) == NODE_Obj3) d=100;
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj3) d=100;
 
 #define Tom omegaT
 #define Tom2 omegaT
@@ -296,7 +296,7 @@ u[1] = u[1]*(1-Tom2) + (us[1]*d)*Tom2;
 	C( fT == R %% solve(M) );
 ?>
 
-    if ((B & NODE_OBJECTIVE) == NODE_Obj2) AddToObjective(d*us[0]);
+    if ((NodeType & NODE_OBJECTIVE) == NODE_Obj2) AddToObjective(d*us[0]);
 
 }
 

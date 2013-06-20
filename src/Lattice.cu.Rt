@@ -233,10 +233,6 @@ void Lattice::IterateT(int iter_type)
 		DEBUG_M;
 		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i], MPI_COMM_WORLD, &request);
 	}
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] < 0) {
-		printf("[%d] Wrong node number in Stream!", D_MPI_RANK);
-		DEBUG_M;
-	}
 	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
 		DEBUG_M;
 		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank, MPI_COMM_WORLD, &status);
@@ -304,14 +300,14 @@ void Lattice::AfterIt()
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
 //	printf("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
-//	CudaMemcpy2D(container->B, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
+//	CudaMemcpy2D(container->NodeType, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
 	lbRegion inter = region.intersect(over);
 //        printf("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx;
         for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-                CudaMemcpy2D(&container->B[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
+                CudaMemcpy2D(&container->NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
         }
 
 }
@@ -329,7 +325,7 @@ void Lattice::GetRegion(lbRegion over, Node * tab)
         {
 //		printf("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&tab[over.offsetL(x,y,z)].B, sizeof(Node), &container->B[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+		CudaMemcpy2D(&tab[over.offsetL(x,y,z)].NodeType, sizeof(Node), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
                 for (int j=0; j<19; j++)
                 {
 			printf("GetRegion: %d %d %d %d\n", x,y,z,j);
@@ -341,7 +337,7 @@ void Lattice::GetRegion(lbRegion over, Node * tab)
 }
 */
 
-void Lattice::GetFlags(lbRegion over, flag_t * B)
+void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {
 //	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
 	size_t offset;
@@ -353,7 +349,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * B)
         {
 //		printf("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&B[over.offsetL(x,y,z)], sizeof(flag_t), &container->B[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+		CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
 	}
 
 }

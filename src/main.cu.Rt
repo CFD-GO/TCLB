@@ -306,7 +306,7 @@ void MouseMove( DataBlock * data, int x, int y, int nx, int ny )
 {
 //	Node now;
 //	data->lattice->GetRegion(x,data->region.ny - y - 1,1,1,&now);
-//	now.B = NODE_BounceBack; //Setting node as wall
+//	now.NodeType = NODE_BounceBack; //Setting node as wall
 //	data->lattice->SetRegion(x,data->region.ny - y - 1,1,1,&now);
 
 	lbRegion r(
@@ -314,8 +314,8 @@ void MouseMove( DataBlock * data, int x, int y, int nx, int ny )
 		data->region.ny - y - 1,
 		0,
 	1,1,1);
-	flag_t B = NODE_Wall;
-	data->lattice->FlagOverwrite(&B,r); // Overwrite mesh flags with flags from 'mask' table
+	flag_t NodeType = NODE_Wall;
+	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
 
 }
 

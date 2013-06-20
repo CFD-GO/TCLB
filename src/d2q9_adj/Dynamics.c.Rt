@@ -124,7 +124,7 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
 //    AddToObjective(w*(1-w)/10);
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
@@ -142,7 +142,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
                 break;   
         case NODE_MRT:
@@ -181,7 +181,7 @@ CudaDeviceFunction float2 Color() {
         type_v u = getU();
 //        ret.x = sqrt(u.x*u.x + u.y*u.y);
 //	ret.x=wb;
-//        if (B == NODE_Solid){
+//        if (NodeType == NODE_Solid){
 //                ret.y = 0;
 //        } else {
 //                ret.y = 1;
@@ -218,10 +218,10 @@ M = matrix(c(
 
 C( R == f %% M );
 ?>
-        if ((B & NODE_OBJECTIVE) == NODE_Outlet) {
+        if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) {
 		AddToPressDiff(d);
 	}
-        if ((B & NODE_OBJECTIVE) == NODE_Inlet) {
+        if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) {
 		AddToPressDiff(-d);
 	}
 u[0] = u[0]*w;

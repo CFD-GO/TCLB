@@ -130,7 +130,7 @@ CudaDeviceFunction void Run() {
 //    AddToObjective(w*(1-w)/10);
 	w0 = (w1+w2+w3+w4)/4;
 	w0 = w + Smooth*(w0 - w);
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
 		w0=0;
@@ -149,7 +149,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
                 break;   
         case NODE_MRT:
@@ -226,10 +226,10 @@ M = matrix(c(
 
 C( R == f %% M );
 ?>
-        if ((B & NODE_OBJECTIVE) == NODE_Outlet) {
+        if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) {
 		AddToPressDiff(d);
 	}
-        if ((B & NODE_OBJECTIVE) == NODE_Inlet) {
+        if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) {
 		AddToPressDiff(-d);
 	}
 pom=log(w0);

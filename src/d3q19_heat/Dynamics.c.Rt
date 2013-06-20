@@ -38,7 +38,7 @@ CudaDeviceFunction float2 Color() {
         float2 ret;
         type_v u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
-        if (B == NODE_Solid){
+        if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
                 ret.y = 1;
@@ -155,7 +155,7 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_EVelocity:
 		EVelocity();
 		break;
@@ -173,7 +173,7 @@ CudaDeviceFunction void Run() {
 		BounceBack();
                 break;
     }
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
 	case NODE_BGK:
 		Collision();
 		break;
@@ -244,7 +244,7 @@ C( f == (R * Sy)[selR] %% MRTMAT.inv[selR,] , eqstring = "-=");
         J[1] /= rho;  
         J[2] /= rho;
         rho = <?R C(sum(fT)) ?>;
-	if ((B & NODE_OBJECTIVE) == NODE_Obj3) {
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj3) {
 		rho = HeaterTemperature;
 	}
 
