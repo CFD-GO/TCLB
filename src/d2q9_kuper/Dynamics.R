@@ -30,7 +30,7 @@ Density = rbind(Density,data.frame(
 
 Quantities = data.frame(
 	name = c("Rho", "U", "P", "F"),
-	type = c("type_f", "type_v", "type_f", "type_v"),
+	type = c("real_t", "vector_t", "real_t", "vector_t"),
 	unit = c("kg/m3", "m/s", "Pa", "N")
 )
 

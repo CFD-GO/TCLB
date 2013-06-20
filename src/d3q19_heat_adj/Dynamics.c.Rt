@@ -16,21 +16,21 @@ RTeq = PV("T")*rbind(PV(1),J[1],J[2],J[3],p,p,p)
 calcTeq = fT == solve(MRTT) %% RTeq
 ?>
 
-CudaDeviceFunction type_f getRho(){
+CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
 
-CudaDeviceFunction type_f getW(){
+CudaDeviceFunction real_t getW(){
 	return w;
 }
 
-CudaDeviceFunction type_f getT(){
+CudaDeviceFunction real_t getT(){
 	return (<?R C(sum(fT)) ?>)/(<?R C(sum(f)) ?>);
 }
     
-CudaDeviceFunction type_v getU(){
-	type_f d = getRho();
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
 	u.x /= d;
 	u.y /= d;
@@ -40,7 +40,7 @@ CudaDeviceFunction type_v getU(){
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        type_v u = getU();
+        vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
         if (NodeType == NODE_Solid){
                 ret.y = 0;
@@ -58,7 +58,7 @@ CudaDeviceFunction void Collision()
 
 CudaDeviceFunction void BounceBack()
 {
-     type_f uf;
+     real_t uf;
 <?R
 	uf = PV("uf")
 	by(Density, Density$group, function(d) {
@@ -120,8 +120,8 @@ CudaDeviceFunction void eqWVelocity()
 
 CudaDeviceFunction void WVelocity()
 {
-     type_f rho, Nxy, Nxz;
-	type_f ux = InletVelocity;
+     real_t rho, Nxy, Nxz;
+	real_t ux = InletVelocity;
 
 <?R
 	C(rho == sum(f[X <  0]),float=F)
@@ -134,8 +134,8 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void WPressure()
 {
-     type_f rho, Nxy, Nxz;
-	type_f ux;
+     real_t rho, Nxy, Nxz;
+	real_t ux;
 	rho = InletDensity;
 <?R
 	ux = PV("ux")
@@ -148,7 +148,7 @@ CudaDeviceFunction void WPressure()
 
 CudaDeviceFunction void WPressureLimited()
 {
-     type_f rho, Nxy, Nxz, SF, ux;
+     real_t rho, Nxy, Nxz, SF, ux;
 <?R
 	SF = PV("SF")
 	C(SF == sum(f[X <  0]),float=F)
@@ -167,9 +167,9 @@ CudaDeviceFunction void WPressureLimited()
 
 CudaDeviceFunction void EPressure()
 {
-     type_f rho = 1.0;
-     type_f Nxy, Nxz;
-     type_f ux;
+     real_t rho = 1.0;
+     real_t Nxy, Nxz;
+     real_t ux;
 <?R
 	ux = PV("ux")
 	C(ux == sum(f[X >  0]),float=F)
@@ -223,7 +223,7 @@ CudaDeviceFunction void Run() {
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(type_f rho, type_f Jx, type_f Jy, type_f Jz, type_f T)
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz, real_t T)
 {
 	<?R
 		C(calcFeq);
@@ -246,8 +246,8 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f Jx,Jy,Jz, rho, omT, T;
-	type_f <?R cat(ToC(R[selR]), sep=",") ?>;
+	real_t Jx,Jy,Jz, rho, omT, T;
+	real_t <?R cat(ToC(R[selR]), sep=",") ?>;
 
 	#define S1  0.0
 	#define S2  1.0//19

@@ -8,10 +8,10 @@
 int D_MPI_RANK;
 
 void initSettings() {
-	type_f val = 0;
+	real_t val = 0;
 <?R for (i in 1:nrow(Settings)) { v = Settings[i,];
 	if (is.na(v$derived)) { ?>
-			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(type_f)); <?R
+			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
 	}} ?>
 }
 

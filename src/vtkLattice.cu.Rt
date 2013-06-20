@@ -35,7 +35,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 
 // ------------------------------ DUMP ALL DENSITIES ----------------------------
 /* 
-	type_f* tmp = new type_f[size];
+	real_t* tmp = new real_t[size];
 	<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
 	{
 		lattice->Get_<?%s d$nicename ?>(reg, tmp);
@@ -127,7 +127,7 @@ int writeMean(char * filename, Lattice * lattice, int margin, int iter, double n
 			int num=0;
 			int size = reg.size();
 			if (size != 0) {
-				type_f * rho = new type_f[size];
+				real_t * rho = new real_t[size];
 				flag_t * NodeType = new flag_t[size];
 				double rho1;
 				lattice->GetRho(reg, rho);
@@ -140,7 +140,7 @@ int writeMean(char * filename, Lattice * lattice, int margin, int iter, double n
 						sd   += rho1*rho1;
 					}
 				}
-				type_v * v = new type_v[size];
+				vector_t * v = new vector_t[size];
 				double v2;
 				lattice->GetU(reg, v);
 				for (int i=0; i<size; i++) {

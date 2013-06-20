@@ -18,21 +18,21 @@ calcFeq = f == Req %% solve(MRTMAT)
 
 <?R fb = PV(paste("fb[",1:19-1,"]")); ?>
 
-CudaDeviceFunction type_f getRhoB(){
+CudaDeviceFunction real_t getRhoB(){
 	return <?R C(sum(fb)) ?> ;
 }
     
-CudaDeviceFunction type_v getUB(){
-	type_v u;
+CudaDeviceFunction vector_t getUB(){
+	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")) == fb %% U) ?>
 	return u;
 }
 
-CudaDeviceFunction type_f getW(){
+CudaDeviceFunction real_t getW(){
 	return w ;
 }
 
-CudaDeviceFunction type_f getWB(){
+CudaDeviceFunction real_t getWB(){
 	return wb ;
 }
 

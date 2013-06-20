@@ -150,7 +150,7 @@ Sy = rbind(
 
 Quantities = data.frame(
         name = c("Rho","U","T"),
-        type = c("type_f","type_v","type_f")
+        type = c("real_t","vector_t","real_t")
 )
 
 

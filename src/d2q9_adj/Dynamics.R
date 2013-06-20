@@ -9,7 +9,7 @@ Density = data.frame(
 
 Quantities = data.frame(
         name = c("Rho","U","RhoB","UB","W","WB"),
-        type = c("type_f","type_v","type_f","type_v","type_f","type_f"),
+        type = c("real_t","vector_t","real_t","vector_t","real_t","real_t"),
 	adjoint = c(F,F,T,T,F,T)
 )
 

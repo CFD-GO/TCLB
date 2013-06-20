@@ -3,16 +3,16 @@
 	c_header();
 ?>
 
-CudaDeviceFunction type_f getRhoB(){
+CudaDeviceFunction real_t getRhoB(){
         return <?R C(sum(PV(DensityAD$name[DensityAD$group == "f"]))) ?>;
 }
 
-CudaDeviceFunction type_f getWB(){
+CudaDeviceFunction real_t getWB(){
         return wb;
 }
 
-CudaDeviceFunction type_v getUB(){
-        type_v u;
+CudaDeviceFunction vector_t getUB(){
+        vector_t u;
 	<?R C(PV(c("u.x","u.y")) == PV(DensityAD$name[DensityAD$group == "f"]) %% U) ?>;
 	u.z=0;
 	return u;

@@ -27,9 +27,9 @@ public:
 	inline void WriteField(char * name, double2 * data) { WriteField(name, (void*) data, sizeof(double2), "Float64", 2); };
 	inline void WriteField(char * name, double3 * data) { WriteField(name, (void*) data, sizeof(double3), "Float64", 3); };
 #ifndef CALC_DOUBLE_PRECISION
-	inline void WriteField(char * name, type_v * data) { WriteField(name, (void*) data, sizeof(type_v), "Float32", 3); };
+	inline void WriteField(char * name, vector_t * data) { WriteField(name, (void*) data, sizeof(vector_t), "Float32", 3); };
 #else
-	inline void WriteField(char * name, type_v * data) { WriteField(name, (void*) data, sizeof(type_v), "Float64", 3); };
+	inline void WriteField(char * name, vector_t * data) { WriteField(name, (void*) data, sizeof(vector_t), "Float64", 3); };
 #endif
 	inline void WriteField(char * name, int * data) { WriteField(name, (void*) data, sizeof(int), "Int32", 1); };
 	inline void WriteField(char * name, char * data) { WriteField(name, (void*) data, sizeof(char), "Int8", 1); };

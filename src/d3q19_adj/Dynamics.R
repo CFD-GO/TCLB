@@ -122,7 +122,7 @@ Sy = rbind(
 
 Quantities = data.frame(
         name = c("Rho","U"),
-        type = c("type_f","type_v"),
+        type = c("real_t","vector_t"),
 	adjoint=F
 )
 
@@ -137,6 +137,6 @@ Density = rbind(Density,data.frame(
 
 Quantities = rbind(Quantities, data.frame(
         name = c("RhoB", "UB", "W", "WB"),
-        type = c("type_f","type_v","type_f","type_f"),
+        type = c("real_t","vector_t","real_t","real_t"),
 	adjoint=T
 ))

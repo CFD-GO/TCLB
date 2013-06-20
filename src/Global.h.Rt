@@ -38,7 +38,7 @@ void fillSides(MPIInfo, int, int, int);
 
 struct FTabs {
 <?R for (m in NonEmptyMargin) { ?>
- type_f* <?%s m$name ?>;
+ real_t* <?%s m$name ?>;
 <?R } ?>
 };
 
@@ -48,7 +48,7 @@ struct FTabs {
 #ifndef SETTINGS_H
 <?R
 	for (i in 1:nrow(Settings)) { ?>
-CudaExternConstantMemory(type_f <?%s Settings$name[i] ?>);<?R
+CudaExternConstantMemory(real_t <?%s Settings$name[i] ?>);<?R
 	} ?>
 void initSettings();
 #define SETTINGS_H 1

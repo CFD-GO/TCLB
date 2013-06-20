@@ -20,13 +20,13 @@ return 0;
 }
 
 
-CudaDeviceFunction type_f getRho(){
+CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
     
-CudaDeviceFunction type_v getU(){
-	type_f d = getRho();
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
 	u.x /= d;
 	u.y /= d;
@@ -50,7 +50,7 @@ CudaDeviceFunction void BounceBack()
 	bounce[I] = I[bounce]
 	uf = PV("uf")
 ?>
-     type_f uf;
+     real_t uf;
 <?R
   V = cbind(1:length(bounce), bounce)
   sel = V[,1] > V[,2]
@@ -100,8 +100,8 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void WVelocity()
 {
-     type_f rho, Nxy, Nxz;
-     const type_v u = {BOUNDARY_UX, 0., 0.};
+     real_t rho, Nxy, Nxz;
+     const vector_t u = {BOUNDARY_UX, 0., 0.};
 
 <?R
 	C(rho == sum(f[X <  0]),float=F)
@@ -121,9 +121,9 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-     const type_f rho = 1.0;
-	type_f Nxy, Nxz;
-     type_v u = {0., 0., 0.};
+     const real_t rho = 1.0;
+	real_t Nxy, Nxz;
+     vector_t u = {0., 0., 0.};
 <?R
 	ux = PV("u.x")
 	C(ux == sum(f[X >  0]),float=F)
@@ -145,8 +145,8 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
 
-type_f ux,uy,uz;
-type_f d;
+real_t ux,uy,uz;
+real_t d;
 
         if (NodeType & NODE_OBJECTIVE) { 
                 d = <?R C(sum(f)) ?>;
@@ -195,7 +195,7 @@ type_f d;
 
 }
 
-CudaDeviceFunction void SetEquilibrum(const type_f rho, const type_f J[3])
+CudaDeviceFunction void SetEquilibrum(const real_t rho, const real_t J[3])
 {
 	<?R
 		C(calcFeq);
@@ -204,16 +204,16 @@ CudaDeviceFunction void SetEquilibrum(const type_f rho, const type_f J[3])
 
 CudaDeviceFunction void Init( ) {
 //        NodeType = flag;
-	type_f u[3] = {BOUNDARY_UX, 0., 0.};
-	type_f d = 1.0;
+	real_t u[3] = {BOUNDARY_UX, 0., 0.};
+	real_t d = 1.0;
 	w = 1;
 	SetEquilibrum(d,u);
 }
 
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f rho,J[3];
-	type_f <?R cat(ToC(R[selR]), sep=",") ?>;
+	real_t rho,J[3];
+	real_t <?R cat(ToC(R[selR]), sep=",") ?>;
 
 	#define S1  0.0
 	#define S2  1.0//19

@@ -2,20 +2,20 @@
 	source("conf.R") 
 ?>
 
-CudaDeviceFunction type_f getCp(){
+CudaDeviceFunction real_t getCp(){
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
 		return 100.0;
 	else 
 		return 1.0;
 }
 
-CudaDeviceFunction type_f getRho(){
-	type_f Cp = getCp();
+CudaDeviceFunction real_t getRho(){
+	real_t Cp = getCp();
 	return (<?R C(sum(f)) ?>)/Cp ;
 }
     
-CudaDeviceFunction type_v getU(){
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	vector_t u;
 	u.x = f[1] - f[2];
 	u.y = 0.0;
 	u.z = 0.0;
@@ -24,7 +24,7 @@ CudaDeviceFunction type_v getU(){
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        type_f d = <?R C(sum(f)) ?>;
+        real_t d = <?R C(sum(f)) ?>;
         ret.x = (d-InletDensity)/(1.0-InletDensity);
 	ret.x = ret.x;
         if (NodeType == NODE_Solid){
@@ -38,7 +38,7 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void BounceBack()
 {
-	type_f uf;
+	real_t uf;
 	uf=f[2];
 	f[2]=f[1];
 	f[1]=uf;
@@ -50,7 +50,7 @@ CudaDeviceFunction void EVelocity()
 
 CudaDeviceFunction void WPressure()
 {
-	type_f rho = InletDensity;
+	real_t rho = InletDensity;
 	f[1] = rho - f[0] - f[2];
 }
 
@@ -60,7 +60,7 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-	const type_f rho = 1.0;
+	const real_t rho = 1.0;
 	f[2] = rho - f[0] - f[1];
 }
 
@@ -89,9 +89,9 @@ CudaDeviceFunction void Run() {
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
-{	type_f usq, uf;
-	type_f Cp = getCp();
+CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+{	real_t usq, uf;
+	real_t Cp = getCp();
 	
 	f[0]=d*Cp - 1./3.*d;
 	f[1]=1./6.*d;
@@ -99,16 +99,16 @@ CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
 }
 
 CudaDeviceFunction void Init() {
-	type_f u[2] = {InletVelocity,0.};
-	type_f d = 1.0;
+	real_t u[2] = {InletVelocity,0.};
+	real_t d = 1.0;
 	SetEquilibrum(d,u);
 }
 
 
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f d, u, p;
-	type_f Cp = getCp();
+	real_t d, u, p;
+	real_t Cp = getCp();
 	
 <?R
         R = PV(c("d","u","p"))

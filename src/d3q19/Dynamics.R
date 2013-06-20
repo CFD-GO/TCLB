@@ -118,7 +118,7 @@ if (FALSE) {
 
 Quantities = data.frame(
         name = c("Rho","U"),
-        type = c("type_f","type_v"),
+        type = c("real_t","vector_t"),
 	adjoint = c(F,F)
 )
 

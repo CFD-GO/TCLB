@@ -1,4 +1,4 @@
-type_f f[9];
-type_f T[9];
+real_t f[9];
+real_t T[9];
 char NodeType;
-type_f w;
+real_t w;
