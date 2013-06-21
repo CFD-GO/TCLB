@@ -13,38 +13,28 @@
 #endif
 
 #ifdef GRID_3D
-	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
-	#define Y (CudaBlock.x)
-	#define Z (CudaBlock.y)
+//	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
+//	#define Y (CudaBlock.x)
+//	#define Z (CudaBlock.y)
 	#define BLOCKS dim3(region.ny,region.nz,container->kx)
 #else
-	#define X (CudaThread.x+_z_*DXSDIM)
-	#define Y (CudaBlock.x)
-	#define Z (CudaBlock.y)
+//	#define X (CudaThread.x+_z_*DXSDIM)
+//	#define Y (CudaBlock.x)
+//	#define Z (CudaBlock.y)
 	#define BLOCKS dim3(region.ny,region.nz,1)
 #endif
 #define THREADS dim3(XSDIM,1)
-#define OFFSET (X + nx*Y + nx*ny*Z)
+//#define OFFSET (X + nx*Y + nx*ny*Z)
 
 extern int _xsdim;
 extern int _ysdim;
-
-/*
-struct FTabs {
- type_f* f;
-// type_f* margin0;
-<?R for (i in NonEmptyMargin) { ?>
- type_f* <?%s Margin$name[i] ?>;
-<?R } ?>
-};
-*/
 
 class LatticeContainer {
 	public:
   FTabs in;
   FTabs out;
-  flag_t * B;
-  type_f * Globals;
+  flag_t * NodeType;
+  real_t * Globals;
   int dx, dy, dz;
   int nx, ny, nz;
   int fx, fy, fz;
@@ -61,6 +51,7 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void Glob(N & f);
   CudaDeviceFunction void popXYZ(Node & f, int, int, int);
   void Init();
+  void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
   void RunBorderG(CudaStream_t);
@@ -70,25 +61,20 @@ class LatticeContainer {
   void CopyToConst();
   void WaitAll();
   void WaitBorder();
-  CudaDeviceFunction inline int Offset(int _z_)
-  {
-          return OFFSET;
-  };
-
 
   inline void clearGlobals() {
-        CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(type_f));
+        CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(real_t));
   }
 
   <?R for (i in 1:nrow(Globals)) { v=Globals$name[i]; ?>
-        inline type_f get<?%s v ?>(){
-                type_f ret;
-                CudaMemcpy(&ret, &Globals[<?%d i-1 ?>],sizeof(type_f),cudaMemcpyDeviceToHost);
+        inline real_t get<?%s v ?>(){
+                real_t ret;
+                CudaMemcpy(&ret, &Globals[<?%d i-1 ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
-	inline void getGlobals(type_f * tab) {
-                CudaMemcpy(tab, Globals, <?%d nrow(Globals) ?>*sizeof(type_f), cudaMemcpyDeviceToHost);
+	inline void getGlobals(real_t * tab) {
+                CudaMemcpy(tab, Globals, <?%d nrow(Globals) ?>*sizeof(real_t), cudaMemcpyDeviceToHost);
 	}
 };
 
@@ -102,7 +88,7 @@ for (i in 1:nrow(Quantities))
 	q = Quantities[i,,drop=F];
 	ifdef(q$adjoint);
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, type_f scale); <?R
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
         { ?>
 CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);

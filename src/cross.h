@@ -78,7 +78,7 @@ int GetMaxThreads();
 #define RunKernelMaxThreads (GetMaxThreads())
 
 __device__ int lock = 0;
-__device__ inline void atomicAddP(type_f* a, type_f b)
+__device__ inline void atomicAddP(real_t* a, real_t b)
 {
         while(atomicCAS(&lock, 0, 1)) {};
         a[0] += b;
@@ -86,9 +86,9 @@ __device__ inline void atomicAddP(type_f* a, type_f b)
 }
 
 
-__shared__ type_f sumtab[512];
+__shared__ real_t sumtab[512];
 
-__device__ inline void atomicSum(type_f * sum, type_f val)
+__device__ inline void atomicSum(real_t * sum, real_t val)
 {
         int i = blockDim.x*blockDim.y;
         int k = blockDim.x*blockDim.y;

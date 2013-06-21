@@ -1,3 +1,3 @@
- type_f f[19];
- char B;
- type_f w;
+ real_t f[19];
+ char NodeType;
+ real_t w;

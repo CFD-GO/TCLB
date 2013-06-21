@@ -19,12 +19,13 @@ class Lattice {
 private:
 //public:
   LatticeContainer * container;
-	type_f *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27];
+	real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27];
 	size_t bufsize[27];
 	int nodein[27], nodeout[27];
 	int bufnumber;
 //  FTabs mpiin;
 //  FTabs mpiout;
+  FTabs * ftabs;
   CudaStream_t kernelStream;
   CudaStream_t inStream;
   CudaStream_t outStream;
@@ -33,7 +34,7 @@ private:
   CudaEvent_t outEv[28];
   CudaEvent_t mpiEv[28];
 public:
-  type_f settings[<?%d nrow(Settings) ?>];  
+  real_t settings[<?%d nrow(Settings) ?>];  
   lbRegion region;
   MPIInfo mpi;
   Lattice (lbRegion region);
@@ -60,21 +61,21 @@ public:
 //  void SetRegion(int, int, int, int, Node *);
   void GetFlags(lbRegion, flag_t *);
 <?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
-	void Get_<?%s d$nicename ?>(lbRegion over, type_f * tab);
-	void Set_<?%s d$nicename ?>(lbRegion over, type_f * tab);
+	void Get_<?%s d$nicename ?>(lbRegion over, real_t * tab);
+	void Set_<?%s d$nicename ?>(lbRegion over, real_t * tab);
 <?R } ?>
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint);?>
-	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, type_f scale);
+	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
 	inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };
 	<?R tp = "double" ?>
 	void Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>
 
-  void getGlobals(type_f * tab); 
+  void getGlobals(real_t * tab); 
 
 <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
-	void <?%s v$FunName ?>(type_f);<?R } ?>
+	void <?%s v$FunName ?>(real_t);<?R } ?>
 };
 
 #endif

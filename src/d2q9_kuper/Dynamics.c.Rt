@@ -26,15 +26,15 @@
 	bounce = c(0,3,4,1,2,7,8,5,6)
 ?>
 
-CudaDeviceFunction type_f getRho(){
+CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(fs)) ?>;
 }
     
-CudaDeviceFunction type_v getU(){
-	type_f d = getRho();
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
 <?R C(PV(c("u.x","u.y")) == fs %% U) ?>
-	type_v F;
+	vector_t F;
 	F = getF();
 u.x = u.x+F.x*MagicF*0.5;
 u.y = u.y+F.y*MagicF*0.5;
@@ -44,10 +44,10 @@ u.y = u.y+F.y*MagicF*0.5;
 	return u;
 }
 
-CudaDeviceFunction type_v getF() {
-	type_v F;
-	type_f R[9];
-        if (B & NODE_BOUNDARY) {
+CudaDeviceFunction vector_t getF() {
+	vector_t F;
+	real_t R[9];
+        if (NodeType & NODE_BOUNDARY) {
                 F.x=0;
                 F.y=0;
         } else {
@@ -70,7 +70,7 @@ CudaDeviceFunction type_v getF() {
 	return F;
 }
 
-CudaDeviceFunction type_f getP(){
+CudaDeviceFunction real_t getP(){
 	const double a2 = 3.852462271644162;
         const double b2 = 0.1304438860971524 * 4.0 ;
         const double c2 = 2.785855170470555;
@@ -78,11 +78,11 @@ CudaDeviceFunction type_f getP(){
         double p;
 	double rho2;
 	rho2 = <?R C(sum(fs)) ?>;
-        switch (B & NODE_BOUNDARY) {
+        switch (NodeType & NODE_BOUNDARY) {
 		case NODE_Wall:
 		case NODE_MovingWall:
 			rho2 = WallDensity;
-	        	switch (B & NODE_ADDITIONALS) {
+	        	switch (NodeType & NODE_ADDITIONALS) {
 				case NODE_Wet:
 	        	        	rho2 = WetDensity;
 					break;
@@ -105,7 +105,7 @@ CudaDeviceFunction type_f getP(){
 
 CudaDeviceFunction void BounceBack()
 {
-     type_f uf;
+     real_t uf;
 <?R
   V = cbind(1:9, bounce+1)
   sel = V[,1] > V[,2]
@@ -120,12 +120,12 @@ CudaDeviceFunction void BounceBack()
 	for (h in w) C(h)
    }
 ?>
-	if ((B & NODE_BOUNDARY) == NODE_MovingWall){
+	if ((NodeType & NODE_BOUNDARY) == NODE_MovingWall){
 		AddToMovingWallForceX(<?%s ToC(f %% U[,1]) ?>);
 //		AddToMovingWallForceY(<?%s ToC(f %% U[,2]) ?>);
 		AddToMovingWallForceY(f2+f5+f6);
 
-		type_f ux = MovingWallVelocity;
+		real_t ux = MovingWallVelocity;
 		<?R
 			ub=rbind(PV("ux"),0)
 			C(f==ub %% t(U) * diag(tn)*12, eqstring="+=")
@@ -136,8 +136,8 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void MovingWall()
 {
-	type_f rho, ru;
-	const type_f ux0 = MovingWallVelocity;
+	real_t rho, ru;
+	const real_t ux0 = MovingWallVelocity;
 	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
 	ru = rho * ux0;
 	f2 = f4;
@@ -151,8 +151,8 @@ CudaDeviceFunction void MovingWall()
 
 CudaDeviceFunction void EVelocity()
 {
-     type_f rho, ru;
-	const type_f ux0 = InletVelocity;
+     real_t rho, ru;
+	const real_t ux0 = InletVelocity;
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -165,8 +165,8 @@ CudaDeviceFunction void EVelocity()
 
 CudaDeviceFunction void WPressure()
 {
-     type_f ru;
-	const type_f rho = InletDensity;
+     real_t ru;
+	const real_t rho = InletDensity;
 	ru = rho - ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) );
 
 	f1 = f3 + (2./3.) * ru;
@@ -176,18 +176,18 @@ CudaDeviceFunction void WPressure()
 
 CudaDeviceFunction void eqWVelocity()
 {
-     type_f rho;
-	const type_f u[2] = {InletVelocity,0.};
+     real_t rho;
+	const real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	SetEquilibrum(rho,u);
 }
 
 CudaDeviceFunction void WVelocity()
 {
-	type_f rho2;
-	const type_f u[2] = {InletVelocity,0.};
+	real_t rho2;
+	const real_t u[2] = {InletVelocity,0.};
 	rho2 = InletDensity;
-        switch (B & NODE_ADDITIONALS) {
+        switch (NodeType & NODE_ADDITIONALS) {
 		case NODE_Wet:
 	                rho2 = WetDensity;
 			break;
@@ -200,8 +200,8 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-        type_f ru;
-	const type_f rho = OutletDensity;
+        real_t ru;
+	const real_t rho = OutletDensity;
 	ru = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) - rho;
 
 	f3 = f1 - (2./3.) * ru;
@@ -212,7 +212,7 @@ CudaDeviceFunction void EPressure()
 
 
 CudaDeviceFunction void switch_f() {
-     type_f uf;
+     real_t uf;
 <?R
 	for (i in 1:length(f))
 	{
@@ -236,11 +236,11 @@ CudaDeviceFunction void calc_phi0() {
         double p;
 	double rho2;
 	rho2 = <?R C(sum(fs)) ?>;
-        switch (B & NODE_BOUNDARY) {
+        switch (NodeType & NODE_BOUNDARY) {
 		case NODE_Wall:
 		case NODE_MovingWall:
 			rho2 = WallDensity;
-	        	switch (B & NODE_ADDITIONALS) {
+	        	switch (NodeType & NODE_ADDITIONALS) {
 				case NODE_Wet:
 	        	        	rho2 = WetDensity;
 					break;
@@ -259,7 +259,7 @@ CudaDeviceFunction void calc_phi0() {
 	
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-	switch (B & NODE_OBJECTIVE) { 
+	switch (NodeType & NODE_OBJECTIVE) { 
 		case NODE_Obj1:
 			AddToPressure1(p);
 			AddToDensity1(rho2);
@@ -278,8 +278,8 @@ CudaDeviceFunction void calc_phi0() {
 }
 
 CudaDeviceFunction void calc_phi() {
-	type_f w=1,uf;
-       switch (B & NODE_BOUNDARY) {
+	real_t w=1,uf;
+       switch (NodeType & NODE_BOUNDARY) {
 		case NODE_Wall:
 		case NODE_MovingWall:
 			w = -1;
@@ -311,7 +311,7 @@ CudaDeviceFunction void Run() {
 //    AddToObjective(w*(1-w)/10);
 
 	switch_f();
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 		break;
 	case NODE_Wall:
@@ -333,7 +333,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
                 break;   
         case NODE_MRT:
@@ -344,8 +344,8 @@ CudaDeviceFunction void Run() {
 	calc_phi();
 }
 
-CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
-{	type_f usq, uf;
+CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+{	real_t usq, uf;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R
 	for (i in 1:9) {
@@ -363,10 +363,10 @@ CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
 }
 
 CudaDeviceFunction void Init() {
-	type_f u[2] = {InletVelocity,0.};
-	type_f rho2;
+	real_t u[2] = {InletVelocity,0.};
+	real_t rho2;
 	rho2 = InitDensity;
-        switch (B & NODE_BOUNDARY) {
+        switch (NodeType & NODE_BOUNDARY) {
 		case NODE_Wall:
 		case NODE_MovingWall:
 			rho2 = WallDensity;
@@ -378,7 +378,7 @@ CudaDeviceFunction void Init() {
 			rho2 = InletDensity;
 			break;
 	}
-        switch (B & NODE_ADDITIONALS) {
+        switch (NodeType & NODE_ADDITIONALS) {
 		case NODE_Wet:
 	                rho2 = WetDensity;
 			break;
@@ -400,7 +400,7 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        type_v u = getU();
+        vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
 //	ret.x = (getRho()-1);
 //	ret.x=wb;
@@ -416,8 +416,8 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f u[2], usq, d, R[6], uf;
-	type_v F;
+	real_t u[2], usq, d, R[6], uf;
+	vector_t F;
 <?R
         R = PV(c(
 		"d",

@@ -8,13 +8,13 @@
 
 
 
-CudaDeviceFunction type_f getRho(){
+CudaDeviceFunction real_t getRho(){
 	return    f[ 0 ] + f[ 1 ] + f[ 2 ] + f[ 3 ] + f[ 4 ] + f[ 5 ] + f[ 6 ] + f[ 7 ] + f[ 8 ] ;
 }
     
-CudaDeviceFunction type_v getU(){
-	type_f d =    f[ 0 ] + f[ 1 ] + f[ 2 ] + f[ 3 ] + f[ 4 ] + f[ 5 ] + f[ 6 ] + f[ 7 ] + f[ 8 ];
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	real_t d =    f[ 0 ] + f[ 1 ] + f[ 2 ] + f[ 3 ] + f[ 4 ] + f[ 5 ] + f[ 6 ] + f[ 7 ] + f[ 8 ];
+	vector_t u;
 u.x =    f[ 1 ] - f[ 3 ] + f[ 5 ] - f[ 6 ] - f[ 7 ] + f[ 8 ] ;
 u.y =    f[ 2 ] - f[ 4 ] + f[ 5 ] + f[ 6 ] - f[ 7 ] - f[ 8 ] ;
 
@@ -26,9 +26,9 @@ u.y =    f[ 2 ] - f[ 4 ] + f[ 5 ] + f[ 6 ] - f[ 7 ] - f[ 8 ] ;
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        type_v u = getU();
+        vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
-        if (B == NODE_Solid){
+        if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
                 ret.y = 1;
@@ -39,7 +39,7 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void BounceBack()
 {
-     type_f uf;
+     real_t uf;
      uf =    f[ 3 ] ;
      f[ 3 ] =    f[ 1 ] ;
      f[ 1 ] =    uf ;
@@ -56,8 +56,8 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void WVelocity()
 {
-        type_f rho, ru;
-	const type_f u[2] = {UX,0.};
+        real_t rho, ru;
+	const real_t u[2] = {UX,0.};
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
 	ru = rho * u[0];
 	f[1] = f[3] + (2./3.) * ru;
@@ -67,8 +67,8 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-        type_f ru, ux0;
-	const type_f rho = 1.0;
+        real_t ru, ux0;
+	const real_t rho = 1.0;
 	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
 	ru = rho * ux0;
 	f[3] = f[1] - (2./3.) * ru;
@@ -78,7 +78,7 @@ CudaDeviceFunction void EPressure()
 
 
 CudaDeviceFunction void Run() {
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
@@ -93,14 +93,14 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    if (B & NODE_COLLISION)
+    if (NodeType & NODE_COLLISION)
     {
 		CollisionMRT();
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
-{	type_f usq, uf;
+CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+{	real_t usq, uf;
 usq =    3.0000000000e+00*(u[0]*u[0]) + 3.0000000000e+00*(u[1]*u[1]) ;
 
 //-- 1 -------------------------------------------------
@@ -153,15 +153,15 @@ f[ 8 ] =    2.7777777778e-02*uf ;
 }
 
 CudaDeviceFunction void Init() {
-	type_f u[2] = {UX,0.};
-	type_f d = 1.0;
+	real_t u[2] = {UX,0.};
+	real_t d = 1.0;
 	SetEquilibrum(d,u);
 }
 
 
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f u[2], usq, d, R[6], uf;
+	real_t u[2], usq, d, R[6], uf;
 d =    f[ 0 ] + f[ 1 ] + f[ 2 ] + f[ 3 ] + f[ 4 ] + f[ 5 ] + f[ 6 ] + f[ 7 ] + f[ 8 ] ;
 u[0] =    f[ 1 ] - f[ 3 ] + f[ 5 ] - f[ 6 ] - f[ 7 ] + f[ 8 ] ;
 u[1] =    f[ 2 ] - f[ 4 ] + f[ 5 ] + f[ 6 ] - f[ 7 ] - f[ 8 ] ;

@@ -34,17 +34,17 @@ bounce = c(0,3,4,1,2,7,8,5,6)
 
 ?>
 
-CudaDeviceFunction type_f getRho(){
+CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
 }
 
-CudaDeviceFunction type_f getT(){
+CudaDeviceFunction real_t getT(){
 	return <?R C(sum(fT)) ?> ;
 }
     
-CudaDeviceFunction type_v getU(){
-	type_f d = <?R C(sum(f)) ?>;
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	real_t d = <?R C(sum(f)) ?>;
+	vector_t u;
 <?R C(PV(c("u.x","u.y")) == f %% U) ?>
 //	u.x /= d;
 //	u.y /= d;
@@ -52,13 +52,13 @@ CudaDeviceFunction type_v getU(){
 	return u;
 }
 
-CudaDeviceFunction type_f getW(){
+CudaDeviceFunction real_t getW(){
 	return w;
 }
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-//        type_v u = getU();
+//        vector_t u = getU();
 //        ret.x = sqrt(u.x*u.x + u.y*u.y);
 
 	ret.x = (<?R C(sum(fT)) ?>);
@@ -71,7 +71,7 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void BounceBack()
 {
-     type_f uf;
+     real_t uf;
      #define dump 1
 <?R
   V = cbind(1:9, bounce+1)
@@ -100,8 +100,8 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void EVelocity()
 {
-     type_f rho, ru;
-	const type_f ux0 = InletVelocity;
+     real_t rho, ru;
+	const real_t ux0 = InletVelocity;
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
 	ru = rho * ux0;
 	f[3] = f[1] - (2./3.) * ru;
@@ -111,8 +111,8 @@ CudaDeviceFunction void EVelocity()
 
 CudaDeviceFunction void WPressure()
 {
-     type_f ru, ux0;
-	type_f rho = InletDensity;
+     real_t ru, ux0;
+	real_t rho = InletDensity;
 	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
 	ru = rho * ux0;
 
@@ -128,16 +128,16 @@ CudaDeviceFunction void WPressure()
 
 CudaDeviceFunction void eqWVelocity()
 {
-     type_f rho;
-	const type_f u[2] = {InletVelocity,0.};
+     real_t rho;
+	const real_t u[2] = {InletVelocity,0.};
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
 	SetEquilibrum(rho,u);
 }
 
 CudaDeviceFunction void WVelocity()
 {
-     type_f rho, ru;
-	const type_f u[2] = {InletVelocity,0.};
+     real_t rho, ru;
+	const real_t u[2] = {InletVelocity,0.};
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
 	ru = rho * u[0];
 	f[1] = f[3] + (2./3.) * ru;
@@ -153,8 +153,8 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-     type_f ru, ux0;
-	type_f rho = 1.0;
+     real_t ru, ux0;
+	real_t rho = 1.0;
 	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
 	ru = rho * ux0;
 
@@ -169,7 +169,7 @@ CudaDeviceFunction void EPressure()
 }
 
 CudaDeviceFunction void Run() {
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 		w=0;
 		break;
@@ -189,15 +189,15 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    if ((B & NODE_OBJECTIVE) == NODE_Obj3) w=0;
-    if ((B & NODE_MRT) || ((B & NODE_BOUNDARY) == NODE_Solid))
+    if ((NodeType & NODE_OBJECTIVE) == NODE_Obj3) w=0;
+    if ((NodeType & NODE_MRT) || ((NodeType & NODE_BOUNDARY) == NODE_Solid))
     {
 		CollisionMRT();
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
-{	type_f usq, uf;
+CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+{	real_t usq, uf;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R
 	for (i in 1:9) {
@@ -215,8 +215,8 @@ CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
 }
 
 CudaDeviceFunction void Init() {
-	type_f u[2] = {InletVelocity,0.};
-	type_f d = 1.0;
+	real_t u[2] = {InletVelocity,0.};
+	real_t d = 1.0;
 	SetEquilibrum(d,u);
 //	for (int i =0; i<9;i++) T[i] = 0;
 	w=1;
@@ -228,7 +228,7 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f u[2], usq, d, R[6], uf;
+	real_t u[2], usq, d, R[6], uf;
 <?R
         R = PV(c(
 		"d",
@@ -270,18 +270,18 @@ R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
 <?R
 	C( f == R %% solve(M) );
 ?>
-type_f us[2];
+real_t us[2];
 	us[0] = u[0] / d;
 	us[1] = u[1] / d;
 <?R
 	C( R == fT %% M );
 ?>
-	if ((B & NODE_OBJECTIVE) == NODE_Obj3) d=100;
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj3) d=100;
 
 #define Tom omegaT
 #define Tom2 omegaT
 
-type_f omegaT = FluidAlfa * w + SolidAlfa * (1-w);
+real_t omegaT = FluidAlfa * w + SolidAlfa * (1-w);
 omegaT = 1.0/(3*omegaT + 0.5);
 R[0] = R[0]*(1-Tom2) + (-2*d)*Tom2;
 R[1] = R[1]*(1-Tom2) + (d)*Tom2;
@@ -296,7 +296,7 @@ u[1] = u[1]*(1-Tom2) + (us[1]*d)*Tom2;
 	C( fT == R %% solve(M) );
 ?>
 
-    if ((B & NODE_OBJECTIVE) == NODE_Obj2) AddToObjective(d*us[0]);
+    if ((NodeType & NODE_OBJECTIVE) == NODE_Obj2) AddToObjective(d*us[0]);
 
 }
 

@@ -62,8 +62,8 @@ inline void stripbare(char * str)
                         region.ny - y - 1,
                         0,
                 1,1,1);
-                char B = NODE_Solid;
-                lattice->FlagOverwrite(&B,r); // Overwrite mesh flags with flags from 'mask' table
+                char NodeType = NODE_Solid;
+                lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
 
         }
 
@@ -104,7 +104,7 @@ inline void stripbare(char * str)
         //        int fps = 1000/elapsedTime; // Frames made per second
                 int desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
                 // Print information
-                printf("%8d it     %4.1f MLBUps                             Data: %5.2f GB/s\n", iter, ((double)lbups)/1000, ((double)lbups * NUMBER_OF_DENSITIES * sizeof(type_f))/1e6);
+                printf("%8d it     %4.1f MLBUps                             Data: %5.2f GB/s\n", iter, ((double)lbups)/1000, ((double)lbups * NUMBER_OF_DENSITIES * sizeof(real_t))/1e6);
                 printf("                                                        time:%5.1f, out-of-frame: %5.1f, elapsed: %4.1f MLBUps\n", elapsedTime, outofTime, ((double)(info.region.size()*i))/(elapsedTime+outofTime)/1000);
                 step = desired_steps;
                 if (step < 1) step = 1;
@@ -334,13 +334,13 @@ for (i in 1:nrow(Quantities)) {
 		int size = over.size();
 		<?%s q$type  ?> * vp = new <?%s q$type  ?>[size];
 		lattice->Get<?%s q$name ?>(over, vp);
-		<?R if (q$type == "type_v") { ?>		
+		<?R if (q$type == "vector_t") { ?>		
 		Rcpp::NumericMatrix v(size,3);
 		<?R } else { ?>		
 		Rcpp::NumericVector v(size);
 		<?R } ?>	
 		for (int i =0; i<size; i++) {
-		<?R  if (q$type == "type_v") { ?>
+		<?R  if (q$type == "vector_t") { ?>
 //			printf("%lf\n", vp[i].x);		
 			v(i,0) = vp[i].x;
 			v(i,1) = vp[i].y;
@@ -359,7 +359,7 @@ for (i in 1:nrow(Quantities)) {
 	{
 		lbRegion over(dx,dy,dz,nx,ny,nz);
 		int size = over.size();
-		type_f * vp = new type_f[size];
+		real_t * vp = new real_t[size];
 		lattice->Get_<?%s d$nicename ?>(over, vp);
 		Rcpp::NumericVector v(size);
 		for (int i =0; i<size; i++) {
@@ -372,7 +372,7 @@ for (i in 1:nrow(Quantities)) {
 	{
 		lbRegion over(dx,dy,dz,nx,ny,nz);
 		int size = over.size();
-		type_f * vp = new type_f[size];
+		real_t * vp = new real_t[size];
 		if (v.length() == 1) {
                         for (int i = 0; i<over.size(); i++) vp[i] = v[0];
                 } else if (v.length() == over.size()) {
@@ -397,7 +397,7 @@ for (i in 1:nrow(Settings))
 ?>
 	void LBSolver::Set_<?%s v$name ?>(double tmp) {
 		setting_<?%s v$name ?> = tmp;
-		<?%s v$FunName ?>((type_f) tmp);
+		<?%s v$FunName ?>((real_t) tmp);
 	}
 	double LBSolver::Get_<?%s v$name ?>() {
 		return setting_<?%s v$name ?>;

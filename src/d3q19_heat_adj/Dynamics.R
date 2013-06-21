@@ -178,7 +178,7 @@ Sy = rbind(
 
 Quantities = data.frame(
         name = c("Rho","U","T","RhoB","UB","TB","W","WB"),
-        type = c("type_f","type_v","type_f","type_f","type_v","type_f","type_f","type_f"),
+        type = c("real_t","vector_t","real_t","real_t","vector_t","real_t","real_t","real_t"),
 	adjoint = c(F,F,F,T,T,T,F,T)
 )
 

@@ -67,6 +67,8 @@ MODELPATH=$(strip $(MODEL))
 all:$(AOUT)
 	@echo "  DONE       $^"
 
+include dep.mk
+
 .PRECIOUS:$(SOURCE) $(HEADERS)
 
 source:Dynamics.R conf.R $(SOURCE) $(HEADERS)
@@ -76,7 +78,7 @@ ifdef CPU
 %.cpp:%.cu
 	cp $< $@
 
-%.o:%.cpp $(HEADERS)
+%.o:%.cpp
 	@echo "  G++        $<"
 	@g++ -c $< -o $@ $(OPT)
 
@@ -86,11 +88,11 @@ main:main.o $(OBJ)
 
 else
 
-%.o:%.cpp $(HEADERS)
+%.o:%.cpp
 	@echo "  G++        $<"
 	@g++ -c $< -o $@ -I/home/llaniewski/cuwork/drivers/cuda/include/
 
-%.o:%.cu $(HEADERS)
+%.o:%.cu
 	@echo "  NVCC       $<"
 	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NVOPT)
 

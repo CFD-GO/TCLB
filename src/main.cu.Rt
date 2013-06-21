@@ -43,7 +43,7 @@ struct InfoBlock {
         char filename[STRING_LEN],fileformat[STRING_LEN];// Input file name and format
 <?R
         for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
-	type_f setting_<?%s v$name ?>;
+	real_t setting_<?%s v$name ?>;
 	int ifset_<?%s v$name ?>; <?R
 	}
 ?>
@@ -59,7 +59,7 @@ struct InfoBlock {
 	int mean_margin;
 	int lower_iter;
 	int lower_iter_max;
-	type_f lower_nu;
+	real_t lower_nu;
 };
 
 
@@ -272,7 +272,7 @@ class DataBlock {
 	{ 
 	        FILE * f = NULL;
 		double v;
-		type_f glob[<?%d nrow(Globals) ?>];
+		real_t glob[<?%d nrow(Globals) ?>];
 		lattice->getGlobals(glob);
 	        if (mpi.rank == 0) {
 			int j=0;
@@ -306,7 +306,7 @@ void MouseMove( DataBlock * data, int x, int y, int nx, int ny )
 {
 //	Node now;
 //	data->lattice->GetRegion(x,data->region.ny - y - 1,1,1,&now);
-//	now.B = NODE_BounceBack; //Setting node as wall
+//	now.NodeType = NODE_BounceBack; //Setting node as wall
 //	data->lattice->SetRegion(x,data->region.ny - y - 1,1,1,&now);
 
 	lbRegion r(
@@ -314,8 +314,8 @@ void MouseMove( DataBlock * data, int x, int y, int nx, int ny )
 		data->region.ny - y - 1,
 		0,
 	1,1,1);
-	flag_t B = NODE_Wall;
-	data->lattice->FlagOverwrite(&B,r); // Overwrite mesh flags with flags from 'mask' table
+	flag_t NodeType = NODE_Wall;
+	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
 
 }
 
@@ -374,7 +374,7 @@ int MainLoop( uchar4* outputBitmap, DataBlock *d, int ticks )
         	lbups /= elapsedTime;
         	int desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
         	// Print information
-        	printf("[ ] %8d it  %8.1f MLBUps  %7.4f Tbit/s         %4.2f%% out-of-frame\n", d->iter, ((double)lbups)/1000, ( (double) lbups * 8 * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(type_f) + sizeof(flag_t))) / 1e9, outofTime/(elapsedTime+outofTime)*100);
+        	printf("[ ] %8d it  %8.1f MLBUps  %7.4f Tbit/s         %4.2f%% out-of-frame\n", d->iter, ((double)lbups)/1000, ( (double) lbups * 8 * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e9, outofTime/(elapsedTime+outofTime)*100);
         	d->steps = desired_steps;
 		if (d->steps < 1) d->steps = 1;
 		if (d->steps % 2 == 1) d->steps ++;
@@ -439,7 +439,7 @@ int MainLoop( uchar4* outputBitmap, DataBlock *d, int ticks )
 		if (t>1) t = 1;
 		double w = 6*(1-t) + (1/d->info.lower_nu)*t;
 		d->info.setting_nu = 1/w;
-//		type_f om =  1.0/(3*d->info.setting_nu + 0.5);
+//		real_t om =  1.0/(3*d->info.setting_nu + 0.5);
 		printf("                                                        Setting nu to:%f\n", d->info.setting_nu);
 //		d->lattice->SetConst_omega(om);
 	}
@@ -573,7 +573,7 @@ int main ( int argc, char * argv[] )
 
 	printf("[%d] Running at %dx%d threads per block\n", D_MPI_RANK, data.info.xsdim, data.info.ysdim);
 	MPI_Barrier(MPI_COMM_WORLD);
-	<?R for (tp in c("size_t","type_f","flag_t")) { ?>
+	<?R for (tp in c("size_t","real_t","flag_t")) { ?>
 		printf("[%d] sizeof(<?%s tp?>) = %ld\n", D_MPI_RANK, sizeof(<?%s tp?>));
 	<?R } ?>
 	MPI_Barrier(MPI_COMM_WORLD);

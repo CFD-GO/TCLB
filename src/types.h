@@ -3,18 +3,18 @@
 
   #define STRING_LEN 1024
   #ifdef CALC_DOUBLE_PRECISION
-    typedef double type_f;
+    typedef double real_t;
   #else
-    typedef float type_f;
+    typedef float real_t;
   #endif
-  typedef struct {type_f x,y,z;} type_v;
+  typedef struct {real_t x,y,z;} vector_t;
 
 //  typedef char flag_t;
   typedef unsigned short int flag_t;
 
 /*
-  struct type_v {
-    type_f x,y,z;
+  struct vector_t {
+    real_t x,y,z;
     template <typename T> CudaDeviceFunction CudaHostFunction inline operator T () {
       T p;
       p.x = x; p.y = y; p.z = z;

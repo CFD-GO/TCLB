@@ -3,7 +3,7 @@
 #	d1q3, d2q9, d2q9_adj, d2q9_adj_smooth, d2q9_adj_top, d2q9_entropic, d2q9_exp, d2q9_heat, d2q9_heat_adj, d2q9_kuper, d3q19, d3q19_adj, d3q19_heat, d3q19_heat_adj
 
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
-GRAPHICS=0       # GLUT graphics: 1-on, 0-off
+GRAPHICS=1       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
 DOUBLE=0         # precision: 1-double, 0-float
@@ -16,7 +16,7 @@ all: d1q3 d2q9 d2q9_adj d2q9_adj_smooth d2q9_adj_top d2q9_entropic d2q9_exp d2q9
 .PHONY: all clean dummy
 
 makefile:src/makefile.main.Rt src/*
-	tools/RT -f $< -o $@
+	@tools/RT -q -f $< -o $@
 
 #Rpackage : source package/configure
 #	R CMD build package
@@ -26,6 +26,7 @@ makefile:src/makefile.main.Rt src/*
 #	@cd package; autoconf
 
 RT = tools/RT
+RS = R  --slave --quiet --vanilla -f
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
@@ -33,7 +34,7 @@ SRC=src
 
 #ifeq '$(strip $(STANDALONE))' '1'
  DEST=standalone
- ADDITIONALS=makefile model README.md
+ ADDITIONALS=makefile model README.md dep.mk
  SOURCE_CU+=main.cu
  HEADERS_H+=DataLine.h
 #else
@@ -273,6 +274,10 @@ standalone/d3q19_heat_adj :
 
 # for model d1q3 and destination standalone
 
+standalone/d1q3/dep.mk:tools/dep.R $(addprefix standalone/d1q3/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d1q3; $(RS) ../../$<
+
 standalone/d1q3/%:$(SRC)/%.Rt $(SRC)/d1q3/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d1q3 -o $@ $(RTOPT) MODEL=\"d1q3\" || rm $@
@@ -290,6 +295,10 @@ standalone/d1q3/%:$(SRC)/%
 	@cp $< $@
 
 # for model d1q3 and destination package/src
+
+package/src/d1q3/dep.mk:tools/dep.R $(addprefix standalone/d1q3/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d1q3; $(RS) ../../$<
 
 package/src/d1q3/%:$(SRC)/%.Rt $(SRC)/d1q3/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -309,6 +318,10 @@ package/src/d1q3/%:$(SRC)/%
 
 # for model d2q9 and destination standalone
 
+standalone/d2q9/dep.mk:tools/dep.R $(addprefix standalone/d2q9/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9; $(RS) ../../$<
+
 standalone/d2q9/%:$(SRC)/%.Rt $(SRC)/d2q9/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9 -o $@ $(RTOPT) MODEL=\"d2q9\" || rm $@
@@ -326,6 +339,10 @@ standalone/d2q9/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9 and destination package/src
+
+package/src/d2q9/dep.mk:tools/dep.R $(addprefix standalone/d2q9/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9; $(RS) ../../$<
 
 package/src/d2q9/%:$(SRC)/%.Rt $(SRC)/d2q9/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -345,6 +362,10 @@ package/src/d2q9/%:$(SRC)/%
 
 # for model d2q9_adj and destination standalone
 
+standalone/d2q9_adj/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_adj; $(RS) ../../$<
+
 standalone/d2q9_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
@@ -362,6 +383,10 @@ standalone/d2q9_adj/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_adj and destination package/src
+
+package/src/d2q9_adj/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_adj; $(RS) ../../$<
 
 package/src/d2q9_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -381,6 +406,10 @@ package/src/d2q9_adj/%:$(SRC)/%
 
 # for model d2q9_adj_smooth and destination standalone
 
+standalone/d2q9_adj_smooth/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj_smooth/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_adj_smooth; $(RS) ../../$<
+
 standalone/d2q9_adj_smooth/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
@@ -398,6 +427,10 @@ standalone/d2q9_adj_smooth/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_adj_smooth and destination package/src
+
+package/src/d2q9_adj_smooth/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj_smooth/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_adj_smooth; $(RS) ../../$<
 
 package/src/d2q9_adj_smooth/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -417,6 +450,10 @@ package/src/d2q9_adj_smooth/%:$(SRC)/%
 
 # for model d2q9_adj_top and destination standalone
 
+standalone/d2q9_adj_top/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj_top/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_adj_top; $(RS) ../../$<
+
 standalone/d2q9_adj_top/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
@@ -434,6 +471,10 @@ standalone/d2q9_adj_top/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_adj_top and destination package/src
+
+package/src/d2q9_adj_top/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj_top/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_adj_top; $(RS) ../../$<
 
 package/src/d2q9_adj_top/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -453,6 +494,10 @@ package/src/d2q9_adj_top/%:$(SRC)/%
 
 # for model d2q9_entropic and destination standalone
 
+standalone/d2q9_entropic/dep.mk:tools/dep.R $(addprefix standalone/d2q9_entropic/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_entropic; $(RS) ../../$<
+
 standalone/d2q9_entropic/%:$(SRC)/%.Rt $(SRC)/d2q9_entropic/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_entropic -o $@ $(RTOPT) MODEL=\"d2q9_entropic\" || rm $@
@@ -470,6 +515,10 @@ standalone/d2q9_entropic/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_entropic and destination package/src
+
+package/src/d2q9_entropic/dep.mk:tools/dep.R $(addprefix standalone/d2q9_entropic/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_entropic; $(RS) ../../$<
 
 package/src/d2q9_entropic/%:$(SRC)/%.Rt $(SRC)/d2q9_entropic/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -489,6 +538,10 @@ package/src/d2q9_entropic/%:$(SRC)/%
 
 # for model d2q9_exp and destination standalone
 
+standalone/d2q9_exp/dep.mk:tools/dep.R $(addprefix standalone/d2q9_exp/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_exp; $(RS) ../../$<
+
 standalone/d2q9_exp/%:$(SRC)/%.Rt $(SRC)/d2q9_exp/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_exp -o $@ $(RTOPT) MODEL=\"d2q9_exp\" || rm $@
@@ -506,6 +559,10 @@ standalone/d2q9_exp/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_exp and destination package/src
+
+package/src/d2q9_exp/dep.mk:tools/dep.R $(addprefix standalone/d2q9_exp/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_exp; $(RS) ../../$<
 
 package/src/d2q9_exp/%:$(SRC)/%.Rt $(SRC)/d2q9_exp/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -525,6 +582,10 @@ package/src/d2q9_exp/%:$(SRC)/%
 
 # for model d2q9_heat and destination standalone
 
+standalone/d2q9_heat/dep.mk:tools/dep.R $(addprefix standalone/d2q9_heat/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_heat; $(RS) ../../$<
+
 standalone/d2q9_heat/%:$(SRC)/%.Rt $(SRC)/d2q9_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat -o $@ $(RTOPT) MODEL=\"d2q9_heat\" || rm $@
@@ -542,6 +603,10 @@ standalone/d2q9_heat/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_heat and destination package/src
+
+package/src/d2q9_heat/dep.mk:tools/dep.R $(addprefix standalone/d2q9_heat/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_heat; $(RS) ../../$<
 
 package/src/d2q9_heat/%:$(SRC)/%.Rt $(SRC)/d2q9_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -561,6 +626,10 @@ package/src/d2q9_heat/%:$(SRC)/%
 
 # for model d2q9_heat_adj and destination standalone
 
+standalone/d2q9_heat_adj/dep.mk:tools/dep.R $(addprefix standalone/d2q9_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_heat_adj; $(RS) ../../$<
+
 standalone/d2q9_heat_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
@@ -578,6 +647,10 @@ standalone/d2q9_heat_adj/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_heat_adj and destination package/src
+
+package/src/d2q9_heat_adj/dep.mk:tools/dep.R $(addprefix standalone/d2q9_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_heat_adj; $(RS) ../../$<
 
 package/src/d2q9_heat_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -597,6 +670,10 @@ package/src/d2q9_heat_adj/%:$(SRC)/%
 
 # for model d2q9_kuper and destination standalone
 
+standalone/d2q9_kuper/dep.mk:tools/dep.R $(addprefix standalone/d2q9_kuper/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_kuper; $(RS) ../../$<
+
 standalone/d2q9_kuper/%:$(SRC)/%.Rt $(SRC)/d2q9_kuper/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_kuper -o $@ $(RTOPT) MODEL=\"d2q9_kuper\" || rm $@
@@ -614,6 +691,10 @@ standalone/d2q9_kuper/%:$(SRC)/%
 	@cp $< $@
 
 # for model d2q9_kuper and destination package/src
+
+package/src/d2q9_kuper/dep.mk:tools/dep.R $(addprefix standalone/d2q9_kuper/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d2q9_kuper; $(RS) ../../$<
 
 package/src/d2q9_kuper/%:$(SRC)/%.Rt $(SRC)/d2q9_kuper/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -633,6 +714,10 @@ package/src/d2q9_kuper/%:$(SRC)/%
 
 # for model d3q19 and destination standalone
 
+standalone/d3q19/dep.mk:tools/dep.R $(addprefix standalone/d3q19/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19; $(RS) ../../$<
+
 standalone/d3q19/%:$(SRC)/%.Rt $(SRC)/d3q19/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19 -o $@ $(RTOPT) MODEL=\"d3q19\" || rm $@
@@ -650,6 +735,10 @@ standalone/d3q19/%:$(SRC)/%
 	@cp $< $@
 
 # for model d3q19 and destination package/src
+
+package/src/d3q19/dep.mk:tools/dep.R $(addprefix standalone/d3q19/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19; $(RS) ../../$<
 
 package/src/d3q19/%:$(SRC)/%.Rt $(SRC)/d3q19/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -669,6 +758,10 @@ package/src/d3q19/%:$(SRC)/%
 
 # for model d3q19_adj and destination standalone
 
+standalone/d3q19_adj/dep.mk:tools/dep.R $(addprefix standalone/d3q19_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19_adj; $(RS) ../../$<
+
 standalone/d3q19_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
@@ -686,6 +779,10 @@ standalone/d3q19_adj/%:$(SRC)/%
 	@cp $< $@
 
 # for model d3q19_adj and destination package/src
+
+package/src/d3q19_adj/dep.mk:tools/dep.R $(addprefix standalone/d3q19_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19_adj; $(RS) ../../$<
 
 package/src/d3q19_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -705,6 +802,10 @@ package/src/d3q19_adj/%:$(SRC)/%
 
 # for model d3q19_heat and destination standalone
 
+standalone/d3q19_heat/dep.mk:tools/dep.R $(addprefix standalone/d3q19_heat/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19_heat; $(RS) ../../$<
+
 standalone/d3q19_heat/%:$(SRC)/%.Rt $(SRC)/d3q19_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat -o $@ $(RTOPT) MODEL=\"d3q19_heat\" || rm $@
@@ -722,6 +823,10 @@ standalone/d3q19_heat/%:$(SRC)/%
 	@cp $< $@
 
 # for model d3q19_heat and destination package/src
+
+package/src/d3q19_heat/dep.mk:tools/dep.R $(addprefix standalone/d3q19_heat/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19_heat; $(RS) ../../$<
 
 package/src/d3q19_heat/%:$(SRC)/%.Rt $(SRC)/d3q19_heat/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -741,6 +846,10 @@ package/src/d3q19_heat/%:$(SRC)/%
 
 # for model d3q19_heat_adj and destination standalone
 
+standalone/d3q19_heat_adj/dep.mk:tools/dep.R $(addprefix standalone/d3q19_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19_heat_adj; $(RS) ../../$<
+
 standalone/d3q19_heat_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
@@ -758,6 +867,10 @@ standalone/d3q19_heat_adj/%:$(SRC)/%
 	@cp $< $@
 
 # for model d3q19_heat_adj and destination package/src
+
+package/src/d3q19_heat_adj/dep.mk:tools/dep.R $(addprefix standalone/d3q19_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/d3q19_heat_adj; $(RS) ../../$<
 
 package/src/d3q19_heat_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
