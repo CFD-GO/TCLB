@@ -22,7 +22,7 @@ all: <?%s paste(models,collapse=" ") ?>
 .PHONY: all clean dummy
 
 makefile:src/makefile.main.Rt src/*
-	tools/RT -f $< -o $@
+	@tools/RT -q -f $< -o $@
 
 #Rpackage : source package/configure
 #	R CMD build package
@@ -32,6 +32,7 @@ makefile:src/makefile.main.Rt src/*
 #	@cd package; autoconf
 
 RT = tools/RT
+RS = R  --slave --quiet --vanilla -f
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
@@ -39,7 +40,7 @@ SRC=src
 
 #ifeq '$(strip $(STANDALONE))' '1'
  DEST=standalone
- ADDITIONALS=makefile model README.md
+ ADDITIONALS=makefile model README.md dep.mk
  SOURCE_CU+=main.cu
  HEADERS_H+=DataLine.h
 #else
@@ -148,6 +149,10 @@ standalone/<?%s m ?> :
 
 <?R for (m in models) { for (d in destinations) {?>
 # for model <?%s m ?> and destination <?%s d ?>
+
+<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R $(addprefix standalone/<?%s m ?>/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd standalone/<?%s m ?>; $(RS) ../../$<
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"

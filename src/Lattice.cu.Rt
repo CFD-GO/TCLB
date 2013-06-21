@@ -166,8 +166,7 @@ Lattice::~Lattice()
 }
 
 void Lattice::Color(uchar4 * ptr) {
-	container->CopyToConst();
-	CudaKernelRun( nodes_to_color , BLOCKS , THREADS ,(ptr));
+	container->Color(ptr);
 }
 
 void Lattice::Init()

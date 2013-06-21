@@ -457,15 +457,15 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 void LatticeContainer::RunInteriorG(CudaStream_t interiorStream) { RunInteriorT<Node_Globs>(interiorStream); };
 void LatticeContainer::RunInterior (CudaStream_t interiorStream) { RunInteriorT<Node      >(interiorStream); };
 
-CudaDeviceFunction void node_to_color( int _z_, uchar4 *optr )
+CudaDeviceFunction void node_to_color( int x, int y, uchar4 *optr )
 {
-    int offset = constContainer.Offset(_z_);
+    int offset = x+y*constContainer.nx;//constContainer.Offset(_z_);
     float l=0.0; float w=0.0;
-    int x=0,y=0,z=0;
+    int r=0,g=0,b=0;
     Node now;
-	now.x = X;
-	now.y = Y;
-	now.z = Z;
+    now.x = x;
+    now.y = y;
+    now.z = 0;
     constContainer.pop(now);
     {
      float2 v = now.Color();
@@ -474,35 +474,31 @@ CudaDeviceFunction void node_to_color( int _z_, uchar4 *optr )
     }
 
     l = l * 111;
-    if (               (l <-111)) {x = 255; y = 255; z = 255; }
-    if ((l >= -111) && (l < -11)) {x = 255*(-l-11)/100; y = 255; z = 255; }
-    if ((l >=  -11) && (l <  -1)) {x = 0; y = (255*(-l-1))/10; z = 255; }
-    if ((l >=   -1) && (l <   0)) {x = 0; y = 0; z = 255*(-l); }
-    if ((l >=    0) && (l <   1)) {x = 255*l; y = 0; z = 0; }
-    if ((l >=    1) && (l <  11)) {x = 255; y = 255*(l-1)/10; z = 0; }
-    if ((l >=   11) && (l < 111)) {x = 255; y = 255; z = 255*(l-11)/100; }
-    if ((l >=  111)             ) {x = 255; y = 255; z = 255; }
-    x=x*w;
-    y=y*w + (1-w)*255;
-    z=z*w;
+    if (               (l <-111)) {r = 255; g = 255; b = 255; }
+    if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
+    if ((l >=  -11) && (l <  -1)) {r = 0; g = (255*(-l-1))/10; b = 255; }
+    if ((l >=   -1) && (l <   0)) {r = 0; g = 0; b = 255*(-l); }
+    if ((l >=    0) && (l <   1)) {r = 255*l; g = 0; b = 0; }
+    if ((l >=    1) && (l <  11)) {r = 255; g = 255*(l-1)/10; b = 0; }
+    if ((l >=   11) && (l < 111)) {r = 255; g = 255; b = 255*(l-11)/100; }
+    if ((l >=  111)             ) {r = 255; g = 255; b = 255; }
+    r=r*w;
+    g=g*w + (1-w)*255;
+    b=b*w;
   
-    optr[offset].x = x;  
-    optr[offset].y = y;  
-    optr[offset].z = z;  
+    optr[offset].x = r;  
+    optr[offset].y = g;  
+    optr[offset].z = b;  
     optr[offset].w = 255;
 }
 
 CudaGlobalFunction void nodes_to_color( uchar4 *optr )
 {
-#ifdef GRID_3D
-		node_to_color(0,optr);
-#else
-	int z;
-	for (z = 0; z < constContainer.kx; z ++) {
-		node_to_color(z,optr);
-	}
-#endif
-
+  node_to_color(
+    CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
+    CudaBlock.y,
+    optr
+  );
 }
 
 CudaGlobalFunction void nodes_fill( int width, int height) {
@@ -523,10 +519,6 @@ CudaGlobalFunction void nodes_fill( int width, int height) {
 	}
 }
 
-#undef X
-#undef Y
-#undef Z
-
 void LatticeContainer::Init() {
    printf("[%d] Initializing Lattice %d(%d)x%dx%d...\n", D_MPI_RANK,nx,kx,ny,nz); 
 	dx=dy=dz=0;
@@ -536,13 +528,12 @@ void LatticeContainer::Init() {
 //   CudaKernelRun( nodes_fill_o , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
 };
 
-
-
-
-
-#define X x_
-#define Y y_
-#define Z z_
+void LatticeContainer::Color( uchar4 *optr ) {
+   dx=dy=dz=0;
+   fx=nx;fy=ny;fz=nz;
+   CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
+   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(XSDIM) ,(optr));
+};
 
 inline CudaDeviceFunction void LatticeContainer::popXYZ(Node & node,int x_, int y_, int z_) 
 {
@@ -552,10 +543,6 @@ inline CudaDeviceFunction void LatticeContainer::popXYZ(Node & node,int x_, int 
 	pop(node);
 }
 <?R #popfunction() ?>
-
-#undef X
-#undef Y
-#undef Z
 
 <?R
 for (i in 1:nrow(Quantities))

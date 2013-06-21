@@ -13,18 +13,18 @@
 #endif
 
 #ifdef GRID_3D
-	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
-	#define Y (CudaBlock.x)
-	#define Z (CudaBlock.y)
+//	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
+//	#define Y (CudaBlock.x)
+//	#define Z (CudaBlock.y)
 	#define BLOCKS dim3(region.ny,region.nz,container->kx)
 #else
-	#define X (CudaThread.x+_z_*DXSDIM)
-	#define Y (CudaBlock.x)
-	#define Z (CudaBlock.y)
+//	#define X (CudaThread.x+_z_*DXSDIM)
+//	#define Y (CudaBlock.x)
+//	#define Z (CudaBlock.y)
 	#define BLOCKS dim3(region.ny,region.nz,1)
 #endif
 #define THREADS dim3(XSDIM,1)
-#define OFFSET (X + nx*Y + nx*ny*Z)
+//#define OFFSET (X + nx*Y + nx*ny*Z)
 
 extern int _xsdim;
 extern int _ysdim;
@@ -51,6 +51,7 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void Glob(N & f);
   CudaDeviceFunction void popXYZ(Node & f, int, int, int);
   void Init();
+  void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
   void RunBorderG(CudaStream_t);
@@ -60,11 +61,6 @@ class LatticeContainer {
   void CopyToConst();
   void WaitAll();
   void WaitBorder();
-  CudaDeviceFunction inline int Offset(int _z_)
-  {
-          return OFFSET;
-  };
-
 
   inline void clearGlobals() {
         CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(real_t));
