@@ -1,11 +1,13 @@
-#include "Global.h"
-#include "Node.h"
-#include "Lattice.h"
-
 <?R
 	source("conf.R")
         c_header()
 ?>
+#include "Global.h"
+#include "Node.h"
+#include "Lattice.h"
+
+#define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
+#define ALLOCPRINT2 printf("(%p - %p) \n", tmp, tmp+size)
 
 int _xsdim = 0;
 int _ysdim = 1;
@@ -21,6 +23,23 @@ CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
 }
 
+void FTabs::Alloc(int nx,int ny,int nz) {
+  size_t size;
+  char * tmp;
+  <?R for (m in NonEmptyMargin) { ?>
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    ALLOCPRINT1;
+    #ifdef DIRECT_MEM
+      CudaMallocHost( (void**)&tmp, size );
+    #else
+      CudaMalloc( (void**)&tmp, size );
+    #endif
+    ALLOCPRINT2;
+    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    <?%s m$name ?>=  (real_t*)tmp;
+  <?R } ?>
+}
+
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 {
 	iter = 0;
@@ -30,12 +49,6 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     kx = nx/XSDIM;
     ky = ny/YSDIM;
 	if (ky*YSDIM < ny) ky ++;
-
-//	CudaStreamCreate(&borderStream);
-//	CudaStreamCreate(&interiorStream);
-    #define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
-    #define ALLOCPRINT2 printf("(%p - %p) \n", tmp, tmp+size)
-//    #define ALLOCPRINT
 
     char * tmp;
     size_t size;
@@ -48,21 +61,12 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     NodeType = (flag_t*)tmp;
 
     <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
-        <?%s inout ?>.<?%s m$name ?> =  (real_t*)tmp;
+//        <?%s inout ?>.<?%s m$name ?> =  (real_t*)tmp;
     <?R } ?>
 
 
-    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
-	size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
-	ALLOCPRINT1;
-	#ifdef DIRECT_MEM
-	    	CudaMallocHost( (void**)&tmp, size );
-	#else
-	    	CudaMalloc( (void**)&tmp, size );
-	#endif
-	ALLOCPRINT2;
-    	CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
-	<?%s inout ?>.<?%s m$name ?>=  (real_t*)tmp;
+    <?R for (inout in c("in","out")) { ?>
+//	<?%s inout ?>.Alloc(nx,ny,nz);
     <?R } ?>
 
     size = (size_t) <?%d nrow(Globals) ?>*sizeof(real_t);
