@@ -13,6 +13,24 @@
 // Declaration of constContainer - a lattice container used to run all kernels
 CudaExternConstantMemory(LatticeContainer constContainer);
 
+// C-crazed function for calculating number of zeros at a end of a number.
+int SnapLevel(unsigned int i) {
+	unsigned int j = 16;
+	unsigned int w = 0;
+	unsigned int k = 0xFFFFu;
+	while(j) {
+		if (i & k) {
+			j = j >> 1;
+			k = k >> j;
+		} else {
+			w = w + j;
+			j = j >> 1;
+			k = k << j;
+		}
+	}
+	return w;
+}
+
 //Local (CPU) calculation of offset
 int Lattice::Offset(int x, int y, int z)
 {
@@ -22,14 +40,17 @@ int Lattice::Offset(int x, int y, int z)
 //Constructor based on size
 Lattice::Lattice(lbRegion _region):region(_region)
 {
+	nSnaps=10;
 	container = new LatticeContainer;
-	ftabs = new FTabs[2];
+	Snaps = new FTabs[nSnaps];
+	iSnaps = new int[nSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
-	for (int i=0; i < 2; i++) {
-		ftabs[i].Alloc(_region.nx,_region.ny,_region.nz);
+	for (int i=0; i < nSnaps; i++) {
+		Snaps[i].Alloc(_region.nx,_region.ny,_region.nz);
+		iSnaps[i]=-1;
 	}
-	container->in = ftabs[0];
-	container->out = ftabs[1];
+	container->in = Snaps[0];
+	container->out = Snaps[1];
 	
 	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {
 		settings[i] = 0.0;
@@ -64,14 +85,15 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	size = <?R C(m$Size,float=F) ?> * sizeof(real_t);
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (mpi.rank != to) {
+	if ((mpi.rank != to) && (size > 0)) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
 		gpuout[bufnumber] = container->out.<?%s m$name ?>;
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
-		gpuin[bufnumber] = container->in.<?%s m$name ?>;
+//		gpuin[bufnumber] = container->in.<?%s m$name ?>;
+		gpuin[bufnumber] = (real_t*)BAlloc(size);
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
 		bufnumber ++;
@@ -83,6 +105,94 @@ void Lattice::MPIInit(MPIInfo mpi_)
 
 	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
 }
+
+
+
+
+void Lattice::Iteration(int tab0, int tab1, int iter_type, int iter)
+{
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+//	printf("%d -> %d\n", tab0, tab1);
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuout[i] = Snaps[tab0].<?%s m$name ?>;
+		container->in.<?%s m$name ?> = gpuin[i];
+		i ++;
+	} else {
+		container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+	}
+	container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+<?R
+	}
+?>
+	container->CopyToConst();
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	        CudaEventRecord( outEv[i], outStream );
+	}
+
+	CudaEventRecord(kernelEv[2],kernelStream);
+	DEBUG_M;
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunInterior (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInteriorG(kernelStream); break;
+	}	
+        CudaStreamSynchronize(outStream);
+	DEBUG_M;
+	for (int i = 0; i < bufnumber; i++) {
+		DEBUG_M;
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+	}
+	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+		DEBUG_M;
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+	        CudaEventRecord( mpiEv[i], inStream );
+		DEBUG_M;
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+		DEBUG_M;
+	        CudaEventRecord( inEv[i], inStream );
+	}
+        CudaStreamSynchronize(inStream);
+	DEBUG_M;
+	CudaEventRecord(kernelEv[0],kernelStream);
+	DEBUG_M;
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunBorder (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorderG(kernelStream); break;
+	}	
+	DEBUG_M;
+	CudaEventRecord(kernelEv[1],kernelStream);
+	DEBUG_M;
+
+        CudaStreamSynchronize(kernelStream);
+	DEBUG_M;
+        CudaStreamSynchronize(inStream);
+	DEBUG_M;
+        CudaStreamSynchronize(outStream);
+	DEBUG_M;
+        CudaDeviceSynchronize();
+	DEBUG_M;
+	container->CopyToConst();
+	DEBUG_M;
+//	AfterIt();
+	DEBUG_M;
+	iSnaps[tab1] = iter;
+	Iter = iter;
+	Snap = tab1;
+};
+
 
 
 void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
@@ -170,6 +280,10 @@ int Lattice::load(char * filename) {
 Lattice::~Lattice()
 {
 	container->Free();
+	for (int i=0; i<nSnaps; i++) {
+		Snaps[i].Free();
+	}
+	delete[] Snaps;	
 }
 
 void Lattice::Color(uchar4 * ptr) {
@@ -182,20 +296,59 @@ void Lattice::Init()
 //   CudaCopyToConstant("constContainer", constContainer, container, sizeof(LatticeContainer));
 //   printf("[%d] Sizeof(LatticeContainer) = %ld\n", D_MPI_RANK, sizeof(LatticeContainer));
 //   CudaKernelRun( nodes_fill , BLOCKS , THREADS ,(region.nx,region.ny));
+	container->out=Snaps[0];
    container->CopyToConst();
    container->Init();
-   Stream();
-   container->Init();
-   Stream();
+	iSnaps[0]=0;
+	Iter=0;
+	Snap=0;
+//   Stream();
+//   container->Init();
+//   Stream();
 }
 
 void Lattice::BeforeIt()
 {
 }
 
+int Lattice::getSnap(int i) {
+	int s = SnapLevel(i) + 1;
+	if (s >= nSnaps) {
+		s=0;
+	}
+	return s;
+}
+
+
+void Lattice::IterateTill(int it, int iter_type)
+{
+	int mx = -1, imx = -1, i;
+	for (i=0;i<nSnaps; i++) {
+		if ((iSnaps[i] > mx) && (iSnaps[i] <= it)) {
+			mx = iSnaps[i];
+			imx = i;
+		}
+	}
+	assert (imx >= 0);
+	printf("iterate: %d -> %d, startSnap: %d\n", mx, it, imx);
+	int s1 = imx;
+	for (i = mx; i < it; i++) {
+		int s2 = getSnap(i+1);
+		Iteration(s1, s2, iter_type, i+1);
+		s1 = s2;
+	}
+}
+
 void Lattice::IterateT(int iter_type)
 {
-	real_t * tmp;
+	static int i=0;
+//	int s1 = getSnap(i);
+//	int s2 = getSnap(i+1);
+//	Iteration(s1, s2, iter_type, i);
+	i--;
+	if (i < 0) i = 511;
+	IterateTill(i,iter_type);
+/*	real_t * tmp;
 	int size, from, to;
 	MPI_Status status;
 	MPI_Request request;
@@ -278,6 +431,7 @@ void Lattice::IterateT(int iter_type)
 	DEBUG_M;
 //	AfterIt();
 	DEBUG_M;
+*/
 };
 
 void Lattice::AfterIt()

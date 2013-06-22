@@ -25,7 +25,9 @@ private:
 	int bufnumber;
 //  FTabs mpiin;
 //  FTabs mpiout;
-  FTabs * ftabs;
+  int nSnaps;
+  FTabs * Snaps;
+  int * iSnaps;
   CudaStream_t kernelStream;
   CudaStream_t inStream;
   CudaStream_t outStream;
@@ -34,6 +36,8 @@ private:
   CudaEvent_t outEv[28];
   CudaEvent_t mpiEv[28];
 public:
+  int Iter;
+  int Snap;
   real_t settings[<?%d nrow(Settings) ?>];  
   lbRegion region;
   MPIInfo mpi;
@@ -52,7 +56,10 @@ public:
 //  inline void RunG() { container->RunG(borderStream,interiorStream); };
   void BeforeIt();
   void AfterIt();
+	int getSnap(int );
   void        IterateT(int);
+  void        IterateTill(int,int);
+  void        Iteration(int, int, int, int);
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };

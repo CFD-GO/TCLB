@@ -23,6 +23,19 @@ CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
 }
 
+void * BAlloc(size_t size) {
+  char * tmp;
+    ALLOCPRINT1;
+    #ifdef DIRECT_MEM
+      CudaMallocHost( (void**)&tmp, size );
+    #else
+      CudaMalloc( (void**)&tmp, size );
+    #endif
+    ALLOCPRINT2;
+    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+	return (void *) tmp;
+}
+
 void FTabs::Alloc(int nx,int ny,int nz) {
   size_t size;
   char * tmp;
@@ -38,6 +51,19 @@ void FTabs::Alloc(int nx,int ny,int nz) {
     CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
     <?%s m$name ?>=  (real_t*)tmp;
   <?R } ?>
+}
+
+
+void FTabs::Free() {
+    <?R for (m in NonEmptyMargin) { ?>
+	if ( <?%s m$name ?> != NULL) {
+	#ifdef DIRECT_MEM
+	    	CudaFreeHost( <?%s m$name ?> );
+	#else
+	    	CudaFree( <?%s m$name ?> );
+	#endif
+	}
+    <?R } ?>
 }
 
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
@@ -80,17 +106,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 
 void LatticeContainer::Free()
 {
-//    CudaFree( in.f );
-//    CudaFree( out.f );
     CudaFree( NodeType );
-    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
-	#ifdef DIRECT_MEM
-	    	CudaFreeHost( <?%s inout ?>.<?%s m$name ?> );
-	#else
-	    	CudaFree( <?%s inout ?>.<?%s m$name ?> );
-	#endif
-    <?R } ?>
-
 }
 
 template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
