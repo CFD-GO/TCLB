@@ -210,49 +210,6 @@ void LatticeContainer::Free()
 			p[8],
 			dx, dy, dz,...);
 	} 
-?>
-
-
-template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
-{
-	FTabs pocket = out;
-<?R
-	for ( i in 1:length(Margin) ) Margin[[i]]$Offset = PV(0)
-	for ( i in 1:length(Margin) ) Margin[[i]]$Size = PV(0)
-	gdens = ""
-	for (i in 1:nrow(DensityAll)) {
-		push(DensityAll$name[i], DensityAll$dx[i], DensityAll$dy[i], DensityAll$dz[i])
-	}
-?>
-}
-
-template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
-{
-	FTabs pocket = out;
-<?R
-	for ( i in 1:length(Margin) ) Margin[[i]]$Offset = PV(0)
-	for ( i in 1:length(Margin) ) Margin[[i]]$Size = PV(0)
-	gdens = ""
-	for (i in 1:nrow(DensityAll)) {
-		push(DensityAll$name[i], DensityAll$dx[i], DensityAll$dy[i], DensityAll$dz[i], pull=T)
-	}
-?>
-}
-
-
-template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
-<?R popfunction = function () { # SAVING THE FUNCTION BODY, TO REUSE IT IN popXYZ FUNCTION ?>
-{
-	FTabs pocket = in;
-//	CudaSyncThreads();
-	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)];
-	<?R
-	for (m in NonEmptyMargin) {
-		v = ToC(m$Offset,float=F);
-		if (v != "") { ?>
-	pocket.<?%s m$name ?> += <?%s v ?>; <?R
-		}
-	}
 
 	popX = function(dens,a,b,dx) {
 		if (dx > 0) { ?>
@@ -334,15 +291,66 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node)
 		}
 	} 
 
-	for (i in 1:nrow(DensityAll)) {
-		pop(DensityAll$name[i], DensityAll$dx[i], DensityAll$dy[i], DensityAll$dz[i])
+	InOut = function(type, pocket, density) { ?>
+	FTabs pocket = <?%s pocket ?>; <?R
+		pull=F
+		if ((type == "push") || (type == "pull")) {
+			if (type == "pull") pull=T
+			for ( i in 1:length(Margin) ) Margin[[i]]$Offset = PV(0)
+			for ( i in 1:length(Margin) ) Margin[[i]]$Size = PV(0)
+			gdens = ""
+			for (d in rows(density)) {
+				push(d$name, d$dx, d$dy, d$dz, pull=pull)
+			}
+		} else if (type == "pop") { ?>
+	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
+			for (m in NonEmptyMargin) {
+				v = ToC(m$Offset,float=F);
+				if (v != "") { ?>
+	pocket.<?%s m$name ?> += <?%s v ?>; <?R
+				}
+			}
+			for (d in rows(density)) {
+				pop(d$name, d$dx, d$dy, d$dz)
+			}
+		} else {
+			stop("Unknown type in InOut");
+		}
 	}
-
-	?>
-} <?R
-	} # END OF SAVING FUNCTION BODY
-	popfunction() 
 ?>
+
+
+template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
+{
+<?R	InOut("push", "out", Density); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
+{
+<?R	InOut("pull", "out", Density); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
+{
+<?R	InOut("pop", "in", Density); ?>
+}
+
+#ifdef ADJOINT
+template <class N> CudaDeviceFunction void LatticeContainer::push_adj(N & node) 
+{
+<?R	InOut("push", "adjout", DensityAD); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node) 
+{
+<?R	InOut("pull", "adjout", DensityAD); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
+{
+<?R	InOut("pop", "in", DensityAD); ?>
+}
+#endif
 
 CudaDeviceFunction void inline LatticeContainer::Glob(Node now) {}
 
@@ -359,7 +367,9 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 
 template <class N> inline CudaDeviceFunction void RunElement(N& now)
 {
+        constContainer.pop(now);
 	#ifdef ADJOINT
+	        constContainer.pop_adj(now);
 		now.RunAdj();
 		real_t back[<?%d nrow(Density) ?>]; <?R
 			for (i in 1:nrow(Density))
@@ -373,6 +383,7 @@ template <class N> inline CudaDeviceFunction void RunElement(N& now)
 			} ?>
 	#endif
 	now.Run();
+        constContainer.push(now);
 }
 
 template <class N> CudaGlobalFunction void RunKernel()
@@ -386,9 +397,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 	#endif
 		now.Pre();
 		if (now.y < constContainer.fy) {
-			constContainer.pop(now);
 			RunElement(now);
-			constContainer.push(now);
 		}
 		constContainer.Glob(now);		
 	#ifndef GRID_3D
@@ -414,9 +423,7 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	if (now.z < constContainer.nz) {
 #endif
 		now.y = 0;
-		constContainer.pop(now);
 		RunElement(now);
-		constContainer.push(now);
 #ifdef BORDER_Z
 	}
 #endif
@@ -426,9 +433,7 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	if (now.z < constContainer.nz) {
 #endif
 		now.y = constContainer.ny - 1;
-		constContainer.pop(now);
 		RunElement(now);
-		constContainer.push(now);
 #ifdef BORDER_Z
 	}
 #endif
@@ -438,17 +443,13 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.y = CudaBlock.x;
 	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
 		now.z = 0;
-                constContainer.pop(now);
                 RunElement(now);
-                constContainer.push(now);
 	}
 	constContainer.Glob(now);
 	now.Pre();
 	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
                 now.z = constContainer.nz - 1;
-                constContainer.pop(now);
                 RunElement(now);
-                constContainer.push(now);
 	}
 	constContainer.Glob(now);
 #endif

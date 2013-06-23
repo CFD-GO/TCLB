@@ -36,6 +36,9 @@ class LatticeContainer {
 	public:
   FTabs in;
   FTabs out;
+#ifdef ADJOINT
+  FTabs adjout;
+#endif
   flag_t * NodeType;
   real_t * Globals;
   int dx, dy, dz;
@@ -50,6 +53,11 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void push(N & f);
   template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
+#ifdef ADJOINT
+  template<class N>  CudaDeviceFunction void push_adj(N & f);
+  template<class N>  CudaDeviceFunction void pull_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop_adj(N & f);
+#endif
   CudaDeviceFunction void Glob(Node);
   CudaDeviceFunction void Glob(Node_Globs);
   template<class N>  CudaDeviceFunction void Glob(N & f);

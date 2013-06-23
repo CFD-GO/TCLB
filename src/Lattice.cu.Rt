@@ -41,7 +41,7 @@ int Lattice::Offset(int x, int y, int z)
 //Constructor based on size
 Lattice::Lattice(lbRegion _region):region(_region)
 {
-	nSnaps=10;
+	nSnaps=3;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[nSnaps];
@@ -52,7 +52,7 @@ Lattice::Lattice(lbRegion _region):region(_region)
 	}
 	container->in = Snaps[0];
 	container->out = Snaps[1];
-	
+//	container->adjout = Snaps[0];	
 	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {
 		settings[i] = 0.0;
 	}
@@ -117,7 +117,7 @@ void Lattice::Iteration(int tab0, int tab1, int iter_type, int iter)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-//	printf("%d -> %d\n", tab0, tab1);
+	printf("%d -> %d\n", tab0, tab1);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -349,90 +349,6 @@ void Lattice::IterateT(int iter_type)
 	i--;
 	if (i < 0) i = 511;
 	IterateTill(i,iter_type);
-/*	real_t * tmp;
-	int size, from, to;
-	MPI_Status status;
-	MPI_Request request;
-	DEBUG_M;
-	CudaEventRecord(kernelEv[0],kernelStream);
-	DEBUG_M;
-	switch(iter_type){
-	case ITER_NORM:
-		container->RunBorder (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunBorderG(kernelStream); break;
-	}	
-	DEBUG_M;
-	CudaEventRecord(kernelEv[1],kernelStream);
-	DEBUG_M;
-	CudaStreamWaitEvent(outStream, kernelEv[1], 0);
-        CudaEventRecord( outEv[0], outStream );
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
-		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
-	        CudaEventRecord( outEv[i], outStream );
-	}
-	CudaEventRecord(kernelEv[2],kernelStream);
-	DEBUG_M;
-	switch(iter_type){
-	case ITER_NORM:
-		container->RunInterior (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunInteriorG(kernelStream); break;
-	}	
-	DEBUG_M;
-	CudaEventRecord(kernelEv[3],kernelStream);
-	DEBUG_M;
-        CudaStreamSynchronize(outStream);
-	DEBUG_M;
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
-		DEBUG_M;
-//		CudaEventSynchronize(outEv[i]);
-		DEBUG_M;
-		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i], MPI_COMM_WORLD, &request);
-	}
-	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
-		DEBUG_M;
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank, MPI_COMM_WORLD, &status);
-	        CudaEventRecord( mpiEv[i], inStream );
-		DEBUG_M;
-		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
-		DEBUG_M;
-	        CudaEventRecord( inEv[i], inStream );
-	}
-<?R
-	for (m in NonEmptyMargin) if ((m$dy != 0) || (m$dz != 0)) {
-?>
-	from = mpi.rank;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (to == mpi.rank) {
-		tmp = container->in.<?%s m$name ?>;
-	    	container->in.<?%s m$name ?> = container->out.<?%s m$name ?>;
-	    	container->out.<?%s m$name ?> = tmp;
-	}
-	DEBUG_M;
-<?R
-	}
-	for (m in NonEmptyMargin) if ((m$dy == 0) && (m$dz == 0)) {
-?>
-	tmp = container->in.<?%s m$name ?>;
-    	container->in.<?%s m$name ?> = container->out.<?%s m$name ?>;
-    	container->out.<?%s m$name ?> = tmp;
-<?R
-	}
-?>
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_M;
-        CudaStreamSynchronize(inStream);
-	DEBUG_M;
-        CudaStreamSynchronize(outStream);
-	DEBUG_M;
-        CudaDeviceSynchronize();
-	DEBUG_M;
-	container->CopyToConst();
-	DEBUG_M;
-//	AfterIt();
-	DEBUG_M;
-*/
 };
 
 void Lattice::AfterIt()
