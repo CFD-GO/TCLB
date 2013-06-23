@@ -188,14 +188,14 @@ void LatticeContainer::Free()
 		H[8] = PV(0)
 
 		for (i in 1:length(w)) if (w[i] > 0) {
-			off = Margin[[w[i]]]$Offset
-			noff = Margin[[w[i]]]$Size + H[i]
-			Margin[[w[i]]]$Size <<- Margin[[w[i]]]$Size + SideSize[i]
+			off = Margin[[w[i]]]$POffset
+			noff = Margin[[w[i]]]$PSize + H[i]
+			Margin[[w[i]]]$PSize <<- Margin[[w[i]]]$PSize + SideSize[i]
 			v = ToC(noff - off,float=F);
 			if (v != "   0") { ?>
 	pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
 			}
-			Margin[[w[i]]]$Offset <<- noff;
+			Margin[[w[i]]]$POffset <<- noff;
 		}
 		p = rep("ItCannotHappen",length(w))
 		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
@@ -296,8 +296,8 @@ void LatticeContainer::Free()
 		pull=F
 		if ((type == "push") || (type == "pull")) {
 			if (type == "pull") pull=T
-			for ( i in 1:length(Margin) ) Margin[[i]]$Offset = PV(0)
-			for ( i in 1:length(Margin) ) Margin[[i]]$Size = PV(0)
+			for ( i in 1:length(Margin) ) Margin[[i]]$POffset <<- PV(0)
+			for ( i in 1:length(Margin) ) Margin[[i]]$PSize <<- PV(0)
 			gdens = ""
 			for (d in rows(density)) {
 				push(d$name, d$dx, d$dy, d$dz, pull=pull)

@@ -41,7 +41,7 @@ int Lattice::Offset(int x, int y, int z)
 //Constructor based on size
 Lattice::Lattice(lbRegion _region):region(_region)
 {
-	nSnaps=3;
+	nSnaps=5;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[nSnaps];
@@ -347,7 +347,7 @@ void Lattice::IterateT(int iter_type)
 //	int s2 = getSnap(i+1);
 //	Iteration(s1, s2, iter_type, i);
 	i--;
-	if (i < 0) i = 511;
+	if (i < 0) i = 15;
 	IterateTill(i,iter_type);
 };
 
