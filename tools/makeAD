@@ -1,5 +1,6 @@
 #!/bin/bash
 
+path_to_script=$(dirname $0)
 #cd package/src
 . ADset.sh
 rm Dynamics_tmp.c Dynamics_b.c* ADpre_.h types_b.h tmp 2>/dev/null
@@ -12,7 +13,7 @@ cp ADpre.h ADpre_.h
 cat Dynamics.c >> Dynamics_tmp.c
 tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES"
 test -f Dynamics_b.c || { echo "Tapenade failed"; exit -1; }
-Rscript ../tools/ADmod.R
+Rscript $path_to_script/ADmod.R
 sed 's/0[.]D0/0/' Dynamics_b.c_ > Dynamics_b.c
 echo rm Dynamics_tmp.c
 sed 's/void/CudaDeviceFunction void/' Dynamics_b.c > tmp

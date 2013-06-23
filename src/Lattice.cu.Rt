@@ -1,5 +1,6 @@
 <?R
 	source("conf.R")
+	c_header();
 ?>
 #include "cross.h"
 #include "types.h"
@@ -330,7 +331,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		}
 	}
 	assert (imx >= 0);
-	printf("iterate: %d -> %d, startSnap: %d\n", mx, it, imx);
+	printf("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
 	int s1 = imx;
 	for (i = mx; i < it; i++) {
 		int s2 = getSnap(i+1);
@@ -563,6 +564,7 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {
+	container->out = Snaps[Snap];
 	lbRegion inter = region.intersect(over);
 //        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;

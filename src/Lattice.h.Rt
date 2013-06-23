@@ -1,3 +1,7 @@
+<?R
+        source("conf.R")
+	c_header();
+?>
 #ifndef LATTICE_H
 
 #include "cross.h"
@@ -6,10 +10,6 @@
 class lbRegion;
 // #include "LatticeContainer.h"
 class LatticeContainer;
-
-<?R
-        source("conf.R")
-?>
 
 #define ITER_STREAM 0x0
 #define ITER_NORM   0x1

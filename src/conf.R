@@ -91,6 +91,11 @@ if (! "unit" %in% names(Globals)) {
 } else {
 	Globals$unit = as.character(Globals$unit)
 }
+if (! "default" %in% names(Settings)) {
+	Settings$default = "0"
+} else {
+	Settings$default = as.character(Settings$default)
+}
 if (! "unit" %in% names(Settings)) {
 	Settings$unit = "1"
 } else {
@@ -126,7 +131,7 @@ if (ADJOINT==1) {
 
 	Settings = rbind(Settings, data.frame(
 		name=paste(Globals$name,"InObj",sep=""),
-		derived=NA,equation=NA,comment=Globals$comment))
+		derived=NA,equation=NA,comment=Globals$comment,default="0", unit="1"))
 } else {
 	DensityAD = NULL
 	DensityAll = Density
@@ -213,10 +218,10 @@ version=git_version()
 
 clb_header = c(
 sprintf("-------------------------------------------------------------"),
-sprintf("   CLB                                                       "),
-sprintf("    CUDA Lattice Boltzmann                                   "),
-sprintf("    Author: Lukasz Laniewski-Wollk                           "),
-sprintf("    Developed at: Warsaw University of Technology - 2012     "),
+sprintf("  CLB - Cudne LB                                             "),
+sprintf("     CUDA based Adjoint Lattice Boltzmann Solver             "),
+sprintf("     Author: Lukasz Laniewski-Wollk                          "),
+sprintf("     Developed at: Warsaw University of Technology - 2012    "),
 sprintf("-------------------------------------------------------------")
 )
 
@@ -228,5 +233,5 @@ c_header = function() {
 
 hash_header = function() {
 	for (l in clb_header)
-	cat("#",l,"\n",sep="");
+	cat("# |",l,"|\n",sep="");
 }

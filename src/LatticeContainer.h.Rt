@@ -1,4 +1,7 @@
-<?R source("conf.R") ?>
+<?R
+	source("conf.R");
+	c_header()
+?>
 
 #ifndef LATTICECONTAINER_H
 
@@ -45,6 +48,7 @@ class LatticeContainer {
   void Free();
   CudaDeviceFunction void fill();
   template<class N>  CudaDeviceFunction void push(N & f);
+  template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
   CudaDeviceFunction void Glob(Node);
   CudaDeviceFunction void Glob(Node_Globs);

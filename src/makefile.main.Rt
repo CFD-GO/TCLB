@@ -8,7 +8,7 @@
 # MODELS: 
 #	<?%s paste(models,collapse=", ") ?>
 
-ADJOINT=0        # calculate adjoint: 1-on, 0-off
+ADJOINT=1        # calculate adjoint: 1-on, 0-off
 GRAPHICS=1       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
@@ -122,13 +122,6 @@ clear:
 	@echo "  RM         ALL"
 	@rm `ls | grep -v -e ^makefile$$ -e .mk$$` 2>/dev/null; true
 
-$(DEST)/Dynamics_b.c $(DEST)/Dynamics_b.h $(DEST)/types_b.h $(DEST)/ADpre_.h $(DEST)/ADpre__b.h : tapenade.run
-
-.INTERMEDIATE : tapenade.run
-
-tapenade.run : $(DEST)/Dynamics.c $(DEST)/ADpre.h $(DEST)/ADpre_b.h $(DEST)/Dynamics.h $(DEST)/Node_types.h $(DEST)/types.h $(DEST)/ADset.sh
-	@echo "  TAPENADE   $<"
-	@(cd standalone; ../tools/makeAD)
 
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
@@ -150,9 +143,18 @@ standalone/<?%s m ?> :
 <?R for (m in models) { for (d in destinations) {?>
 # for model <?%s m ?> and destination <?%s d ?>
 
-<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R $(addprefix standalone/<?%s m ?>/,$(SOURCE_CU) $(HEADERS_H))
+<?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run
+
+.INTERMEDIATE : tapenade.run
+
+<?%s d ?>/<?%s m ?>/tapenade.run : <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Node_types.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh
+	@echo "  TAPENADE   $<"
+	@(cd $<; ../../tools/makeAD)
+
+
+<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R $(addprefix <?%s d ?>/<?%s m ?>/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
-	@cd standalone/<?%s m ?>; $(RS) ../../$<
+	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
