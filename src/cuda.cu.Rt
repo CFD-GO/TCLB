@@ -25,52 +25,58 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 
 
 #define NODE_H
-#define AddToObjective(x)
 
-<?R for (v in Globals$name) { ?>
-#define AddTo<?%s v ?>(x)<?R } ?>
-struct Node {
-int x,y,z;
-CudaDeviceFunction void inline Pre() {}
-#ifndef ADJOINT
-	#include "Dynamics.h"
-#endif
+<?R
+	for (tp in rows(expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE)))) {
+	cat("\n")
+	ifdef(tp$adjoint)
+	suff=""
+	if (tp$globals) suff=paste(suff,"Globs",sep="_")
+	if (tp$adjoint) suff=paste(suff,"Adj",sep="_")
+	for (g in rows(Globals)) if ((! g$adjoint) || (tp$adjoint)) {
+		if (tp$globals) { ?>
+			#define AddTo<?%s v ?>(x) <?%s v ?> = <?%s v ?> + x <?R
+		} else { ?>
+			#define AddTo<?%s v ?>(x) <?R
+		}
+	} ?>
+struct Node<?%s suff ?> {
+	int x,y,z;
+	<?R
+		if (tp$globals) {
+			for (v in Globals$name) { ?>
+				real_t <?%s v ?>; <?R
+			}
+		}
+	?>
+	CudaDeviceFunction void inline Pre() { <?R
+		if (tp$globals) { ?>
+			objective = 0.0;
+			<?R
+				for (v in Globals$name) { ?>
+					<?%s v ?> = 0.0; <?R
+				}
+		} ?>
+	}
+	<?R
+		if (tp$adjoint) { ?>
+			#include "Dynamics.h" <?R
+		} ?>
 	#include "Dynamics.c"
-#ifdef ADJOINT
-	#include "Dynamics_b.c"
-	#include "Dynamics_adj.c"
-#endif
-};
-#undef AddToObjective
-<?R for (v in Globals$name) { ?>
-#undef AddTo<?%s v ?><?R } ?>
-
-#define NODE_GLOBS_H
-#define AddToObjective(x) objective = objective + x
-<?R for (v in Globals$name) { ?>
-#define AddTo<?%s v ?>(x) <?%s v ?> = <?%s v ?> + x<?R } ?>
-
-struct Node_Globs {
-int x,y,z;
-real_t objective;
-<?R for (v in Globals$name) { ?>
-real_t <?%s v ?>;<?R } ?>
-
-CudaDeviceFunction void inline Pre() {
-	objective = 0.0;
-<?R for (v in Globals$name) { ?>
-	<?%s v ?> = 0.0;<?R } ?>
-}
-#ifndef ADJOINT
-	#include "Dynamics.h"
-#endif
-	#include "Dynamics.c"
-#ifdef ADJOINT
-	#include "Dynamics_b.c"
-	#include "Dynamics_adj.c"
-#endif
-};
-
+	<?R
+		if (tp$adjoint) { ?>
+			#include "Dynamics_b.c"
+			#include "Dynamics_adj.c" <?R
+		}
+	?>
+}; <?R
+	for (v in Globals$name) { ?>
+		#undef AddTo<?%s v ?><?R
+	}
+} 
+cat("\n")
+ifdef()
+?>
 
 #include "LatticeContainer.h"
 #include "LatticeContainer.cu"

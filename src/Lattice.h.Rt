@@ -67,7 +67,7 @@ public:
 //  void GetRegion(lbRegion, Node *);
 //  void SetRegion(int, int, int, int, Node *);
   void GetFlags(lbRegion, flag_t *);
-<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
+<?R for (d in rows(DensityAll)) { ?>
 	void Get_<?%s d$nicename ?>(lbRegion over, real_t * tab);
 	void Set_<?%s d$nicename ?>(lbRegion over, real_t * tab);
 <?R } ?>

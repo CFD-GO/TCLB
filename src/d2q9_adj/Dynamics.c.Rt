@@ -179,7 +179,7 @@ CudaDeviceFunction void Init() {
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
-//        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
 //	ret.x=wb;
 //        if (NodeType == NODE_Solid){
 //                ret.y = 0;

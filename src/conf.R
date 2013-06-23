@@ -91,6 +91,9 @@ if (! "unit" %in% names(Globals)) {
 } else {
 	Globals$unit = as.character(Globals$unit)
 }
+if (! "adjoint" %in% names(Globals)) {
+	Globals$adjoint = TRUE
+} 
 if (! "default" %in% names(Settings)) {
 	Settings$default = "0"
 } else {
@@ -192,7 +195,7 @@ y = PV("node.y");
 z = PV("node.z");
 SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
 
-for (x in rows(DensityAll))
+for (x in rows(Density))
 {
 	w = GetMargins(x$dx,x$dy,x$dz)
 	for (k in 1:length(w)) {

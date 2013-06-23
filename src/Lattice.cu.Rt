@@ -41,7 +41,7 @@ int Lattice::Offset(int x, int y, int z)
 //Constructor based on size
 Lattice::Lattice(lbRegion _region):region(_region)
 {
-	nSnaps=5;
+	nSnaps=10;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[nSnaps];
@@ -117,7 +117,7 @@ void Lattice::Iteration(int tab0, int tab1, int iter_type, int iter)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	printf("%d -> %d\n", tab0, tab1);
+//	printf("%d -> %d\n", tab0, tab1);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -347,7 +347,7 @@ void Lattice::IterateT(int iter_type)
 //	int s2 = getSnap(i+1);
 //	Iteration(s1, s2, iter_type, i);
 	i--;
-	if (i < 0) i = 15;
+	if (i < 0) i = 511;
 	IterateTill(i,iter_type);
 };
 
