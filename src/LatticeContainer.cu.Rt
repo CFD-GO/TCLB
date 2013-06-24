@@ -53,7 +53,6 @@ void FTabs::Alloc(int nx,int ny,int nz) {
   <?R } ?>
 }
 
-
 void FTabs::Free() {
     <?R for (m in NonEmptyMargin) { ?>
 	if ( <?%s m$name ?> != NULL) {
@@ -598,6 +597,9 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 		now.y = y;
 		now.z = z;
 		constContainer.pull(now);
+		<?R if (q$adjoint) { ?>
+			constContainer.pull_adj(now);
+		<?R } ?>
 		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
 		if (q$type == "vector_t")
 		{

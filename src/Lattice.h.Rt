@@ -15,6 +15,8 @@ class LatticeContainer;
 #define ITER_NORM   0x1
 #define ITER_GLOBS  0x2
 
+const int maxSnaps=33;
+
 class Lattice {
 private:
 //public:
@@ -28,6 +30,9 @@ private:
   int nSnaps;
   FTabs * Snaps;
   int * iSnaps;
+#ifdef ADJOINT
+  FTabs * aSnaps;
+#endif
   CudaStream_t kernelStream;
   CudaStream_t inStream;
   CudaStream_t outStream;
@@ -48,9 +53,11 @@ public:
   int Offset(int,int,int);
   void FlagOverwrite(flag_t *, lbRegion);
   void Init();
-  void listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize);
-  int save(char * filename);
-  int load(char * filename);
+  void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
+  int save(FTabs&, char * filename);
+  inline int save(char * filename){ return save(container->in, filename); }
+  int load(FTabs&, char * filename);
+  inline int load(char * filename){ return load(container->in, filename); }
 
 //  inline void Run()  { container->Run(borderStream,interiorStream);  };
 //  inline void RunG() { container->RunG(borderStream,interiorStream); };
@@ -58,6 +65,9 @@ public:
   void AfterIt();
 	int getSnap(int );
   void        IterateT(int);
+#ifdef ADJOINT
+  void        Iteration_Adj(int, int, int, int);
+#endif
   void        IterateTill(int,int);
   void        Iteration(int, int, int, int);
   void inline Iterate()  { IterateT(ITER_NORM);   };

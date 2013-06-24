@@ -44,15 +44,22 @@ Lattice::Lattice(lbRegion _region):region(_region)
 	nSnaps=10;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
-	iSnaps = new int[nSnaps];
+	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].Alloc(_region.nx,_region.ny,_region.nz);
+	}
+	for (int i=0; i < maxSnaps; i++) {	
 		iSnaps[i]=-1;
 	}
 	container->in = Snaps[0];
 	container->out = Snaps[1];
-//	container->adjout = Snaps[0];	
+#ifdef ADJOINT
+	aSnaps = new FTabs[2];
+	aSnaps[0].Alloc(_region.nx,_region.ny,_region.nz);
+	aSnaps[1].Alloc(_region.nx,_region.ny,_region.nz);
+	container->adjout = aSnaps[0];
+#endif
 	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {
 		settings[i] = 0.0;
 	}
@@ -189,14 +196,99 @@ void Lattice::Iteration(int tab0, int tab1, int iter_type, int iter)
 	DEBUG_M;
 //	AfterIt();
 	DEBUG_M;
-	iSnaps[tab1] = iter;
+//	iSnaps[tab1] = iter;
 	Iter = iter;
 	Snap = tab1;
 };
 
+#ifdef ADJOINT
+void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type, int iter)
+{
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+//	printf("Adjoint %d -> %d\n", tab0, tab1);
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuout[i] = aSnaps[tab0].<?%s m$name ?>;
+		container->in.<?%s m$name ?> = gpuin[i];
+		i ++;
+	} else {
+		container->in.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;
+	}
+	container->out.<?%s m$name ?> = Snaps[Snap].<?%s m$name ?>;
+	container->adjout.<?%s m$name ?> = aSnaps[tab1].<?%s m$name ?>;
+<?R
+	}
+?>
+	container->CopyToConst();
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	        CudaEventRecord( outEv[i], outStream );
+	}
 
+	CudaEventRecord(kernelEv[2],kernelStream);
+	DEBUG_M;
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunInterior_Adj (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInterior_Globs_Adj(kernelStream); break;
+	}	
+        CudaStreamSynchronize(outStream);
+	DEBUG_M;
+	for (int i = 0; i < bufnumber; i++) {
+		DEBUG_M;
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+	}
+	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+		DEBUG_M;
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+	        CudaEventRecord( mpiEv[i], inStream );
+		DEBUG_M;
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+		DEBUG_M;
+	        CudaEventRecord( inEv[i], inStream );
+	}
+        CudaStreamSynchronize(inStream);
+	DEBUG_M;
+	CudaEventRecord(kernelEv[0],kernelStream);
+	DEBUG_M;
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunBorder_Adj (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder_Globs_Adj(kernelStream); break;
+	}	
+	DEBUG_M;
+	CudaEventRecord(kernelEv[1],kernelStream);
+	DEBUG_M;
 
-void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
+        CudaStreamSynchronize(kernelStream);
+	DEBUG_M;
+        CudaStreamSynchronize(inStream);
+	DEBUG_M;
+        CudaStreamSynchronize(outStream);
+	DEBUG_M;
+        CudaDeviceSynchronize();
+	DEBUG_M;
+	container->CopyToConst();
+	DEBUG_M;
+//	AfterIt();
+	DEBUG_M;
+//	iSnaps[tab1] = iter;
+//	Iter = iter;
+//	Snap = tab1;
+};
+#endif
+
+void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 	*maxsize = 0;
@@ -207,7 +299,7 @@ void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	for (m in NonEmptyMargin) {
 ?>
 	(*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(real_t);
-	(*ptr)[j] = (void*) container->in.<?%s m$name ?>;
+	(*ptr)[j] = (void*) tab.<?%s m$name ?>;
 	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
@@ -215,7 +307,7 @@ void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 ?>
 }
 
-int Lattice::save(char * filename) {
+int Lattice::save(FTabs& tab, char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
 		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
@@ -229,7 +321,7 @@ int Lattice::save(char * filename) {
 	size_t maxsize;
 	int n;
 
-	listTabs(&n, &size, &ptr, &maxsize);
+	listTabs(tab, &n, &size, &ptr, &maxsize);
 	CudaMallocHost(&pt,maxsize);
 
 	for(int i=0; i<n; i++)
@@ -246,7 +338,7 @@ int Lattice::save(char * filename) {
 	return 0;
 }
 
-int Lattice::load(char * filename) {
+int Lattice::load(FTabs& tab, char * filename) {
 	FILE * f = fopen(filename, "r");
 	printf("[%d] Loading Lattice data from %s\n", D_MPI_RANK, filename);
 	if (f == NULL) {
@@ -261,7 +353,7 @@ int Lattice::load(char * filename) {
 	size_t maxsize;
 	int n;
 
-	listTabs(&n, &size, &ptr, &maxsize);
+	listTabs(tab, &n, &size, &ptr, &maxsize);
 	CudaMallocHost(&pt,maxsize);
 
 	for(int i=0; i<n; i++)
@@ -285,6 +377,7 @@ Lattice::~Lattice()
 		Snaps[i].Free();
 	}
 	delete[] Snaps;	
+	delete[] iSnaps;
 }
 
 void Lattice::Color(uchar4 * ptr) {
@@ -300,9 +393,17 @@ void Lattice::Init()
 	container->out=Snaps[0];
    container->CopyToConst();
    container->Init();
+	iSnaps[getSnap(0)]=0;
 	iSnaps[0]=0;
 	Iter=0;
 	Snap=0;
+
+		{
+			char filename[STRING_LEN];
+			sprintf(filename, "Snap_%02d.dat", getSnap(0));
+			save(Snaps[0], filename);
+		}
+
 //   Stream();
 //   container->Init();
 //   Stream();
@@ -314,41 +415,59 @@ void Lattice::BeforeIt()
 
 int Lattice::getSnap(int i) {
 	int s = SnapLevel(i) + 1;
-	if (s >= nSnaps) {
-		s=0;
-	}
 	return s;
 }
 
 
 void Lattice::IterateTill(int it, int iter_type)
 {
+	int s1,ls1,s2,ls2;
 	int mx = -1, imx = -1, i;
-	for (i=0;i<nSnaps; i++) {
+	for (i=0;i<maxSnaps; i++) {
 		if ((iSnaps[i] > mx) && (iSnaps[i] <= it)) {
 			mx = iSnaps[i];
 			imx = i;
 		}
 	}
-	assert (imx >= 0);
-	printf("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
-	int s1 = imx;
+	assert(imx >= 0);
+//	printf("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
+	if (imx >= nSnaps) {
+		printf("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
+		{
+			char filename[STRING_LEN];
+			sprintf(filename, "Snap_%02d.dat", imx);
+			load(Snaps[0], filename);
+		}
+		iSnaps[0] = iSnaps[imx];
+		imx = 0;
+	}
+	s1 = imx;
 	for (i = mx; i < it; i++) {
 		int s2 = getSnap(i+1);
-		Iteration(s1, s2, iter_type, i+1);
-		s1 = s2;
+		int s3 = s2;
+		if (s2 >= nSnaps) s3=0;
+		Iteration(s1, s3, iter_type, i+1);
+		if (s2 >= nSnaps){
+			printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
+			{
+				char filename[STRING_LEN];
+				sprintf(filename, "Snap_%02d.dat", s2);
+				save(Snaps[0], filename);
+			}
+		}
+		iSnaps[s2] = i+1;
+		iSnaps[s3] = i+1;
+		s1 = s3;
 	}
 }
 
 void Lattice::IterateT(int iter_type)
 {
 	static int i=0;
-//	int s1 = getSnap(i);
-//	int s2 = getSnap(i+1);
-//	Iteration(s1, s2, iter_type, i);
 	i--;
-	if (i < 0) i = 511;
+	if (i < 0) i = 30000;
 	IterateTill(i,iter_type);
+	Iteration_Adj(i % 2, (i+1) % 2, iter_type, i);
 };
 
 void Lattice::AfterIt()
