@@ -400,7 +400,7 @@ void Lattice::Init()
 
 		{
 			char filename[STRING_LEN];
-			sprintf(filename, "Snap_%02d.dat", getSnap(0));
+			sprintf(filename, "Snap__%02d_%02d.dat", D_MPI_RANK, getSnap(0));
 			save(Snaps[0], filename);
 		}
 
@@ -435,7 +435,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		printf("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
 		{
 			char filename[STRING_LEN];
-			sprintf(filename, "Snap_%02d.dat", imx);
+			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, imx);
 			load(Snaps[0], filename);
 		}
 		iSnaps[0] = iSnaps[imx];
@@ -451,7 +451,7 @@ void Lattice::IterateTill(int it, int iter_type)
 			printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
 			{
 				char filename[STRING_LEN];
-				sprintf(filename, "Snap_%02d.dat", s2);
+				sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}
 		}
