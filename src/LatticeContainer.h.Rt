@@ -58,18 +58,17 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void pull_adj(N & f);
   template<class N>  CudaDeviceFunction void pop_adj(N & f);
 #endif
-  CudaDeviceFunction void Glob(Node);
-  CudaDeviceFunction void Glob(Node_Globs);
-  template<class N>  CudaDeviceFunction void Glob(N & f);
-  CudaDeviceFunction void popXYZ(Node & f, int, int, int);
+//  CudaDeviceFunction void Glob(Node);
+//  CudaDeviceFunction void Glob(Node_Globs);
+//  template<class N>  CudaDeviceFunction void Glob(N & f);
   void Init();
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-  void RunBorderG(CudaStream_t);
-  void RunBorder (CudaStream_t);
-  void RunInteriorG(CudaStream_t);
-  void RunInterior (CudaStream_t);
+<?R for(tp in rows(Dispatch)) { ?>
+  void RunBorder<?%s tp$suffix ?>(CudaStream_t);
+  void RunInterior<?%s tp$suffix ?>(CudaStream_t);
+<?R } ?>
   void CopyToConst();
   void WaitAll();
   void WaitBorder();

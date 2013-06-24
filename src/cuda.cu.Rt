@@ -10,6 +10,12 @@
 #include "cross.h"
 #include "Global.h"
 
+class Node;
+class Node_Globs;
+#include "LatticeContainer.h"
+//class LatticeContainer;
+CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
+
 #ifdef ADJOINT
 	#include "ADTools.cu"
 #endif
@@ -27,39 +33,45 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 #define NODE_H
 
 <?R
-	for (tp in rows(expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE)))) {
+	for (tp in rows(Dispatch)) {
 	cat("\n")
 	ifdef(tp$adjoint)
-	suff=""
-	if (tp$globals) suff=paste(suff,"Globs",sep="_")
-	if (tp$adjoint) suff=paste(suff,"Adj",sep="_")
+	suff=tp$suffix
 	for (g in rows(Globals)) if ((! g$adjoint) || (tp$adjoint)) {
 		if (tp$globals) { ?>
-			#define AddTo<?%s v ?>(x) <?%s v ?> = <?%s v ?> + x <?R
+			#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + x <?R
 		} else { ?>
-			#define AddTo<?%s v ?>(x) <?R
+			#define AddTo<?%s g$name ?>(x) <?R
 		}
 	} ?>
 struct Node<?%s suff ?> {
 	int x,y,z;
 	<?R
 		if (tp$globals) {
-			for (v in Globals$name) { ?>
-				real_t <?%s v ?>; <?R
+			for (g in rows(Globals)) { ?>
+				real_t <?%s g$name ?>; <?R
 			}
 		}
 	?>
 	CudaDeviceFunction void inline Pre() { <?R
 		if (tp$globals) { ?>
-			objective = 0.0;
 			<?R
-				for (v in Globals$name) { ?>
-					<?%s v ?> = 0.0; <?R
+				for (g in rows(Globals)) { ?>
+					<?%s g$name ?> = 0.0; <?R
 				}
 		} ?>
 	}
+	CudaDeviceFunction void inline Glob() { <?R
+		if (tp$globals) {
+			i=0
+			for (g in rows(Globals)) if ((! g$adjoint) || (tp$adjoint)) { ?>
+				atomicSum(&constContainer.Globals[<?%d i ?>], <?%s g$name ?>); <?R
+				i = i + 1;
+			}
+		} ?>
+	}
 	<?R
-		if (tp$adjoint) { ?>
+		if (! tp$adjoint) { ?>
 			#include "Dynamics.h" <?R
 		} ?>
 	#include "Dynamics.c"
@@ -69,14 +81,26 @@ struct Node<?%s suff ?> {
 			#include "Dynamics_adj.c" <?R
 		}
 	?>
+	CudaDeviceFunction inline void RunElement() { <?R
+		if (tp$adjoint) { ?>
+			constContainer.pull(*this);
+			constContainer.pop_adj(*this);
+			Run_b();
+			constContainer.push_adj(*this); <?R
+		} else { ?>
+		        constContainer.pop(*this); 
+			Run();
+			constContainer.push(*this); <?R
+		} ?>
+	}
 }; <?R
-	for (v in Globals$name) { ?>
-		#undef AddTo<?%s v ?><?R
+	for (g in rows(Globals)) { ?>
+		#undef AddTo<?%s g$name ?><?R
 	}
 } 
 cat("\n")
 ifdef()
 ?>
 
-#include "LatticeContainer.h"
+//#include "LatticeContainer.h"
 #include "LatticeContainer.cu"

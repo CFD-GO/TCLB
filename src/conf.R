@@ -92,7 +92,7 @@ if (! "unit" %in% names(Globals)) {
 	Globals$unit = as.character(Globals$unit)
 }
 if (! "adjoint" %in% names(Globals)) {
-	Globals$adjoint = TRUE
+	Globals$adjoint = FALSE
 } 
 if (! "default" %in% names(Settings)) {
 	Settings$default = "0"
@@ -215,6 +215,14 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
+
+Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
+Dispatch$suffix = paste(
+	ifelse(Dispatch$globals,"_Globs",""),
+	ifelse(Dispatch$adjoint,"_Adj",""),
+	sep=""
+)
+
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 version=git_version()
