@@ -1,4 +1,7 @@
-<?R source("conf.R") ?>
+<?R
+	source("conf.R");
+	c_header()
+?>
 
 #ifndef LATTICECONTAINER_H
 
@@ -33,6 +36,9 @@ class LatticeContainer {
 	public:
   FTabs in;
   FTabs out;
+#ifdef ADJOINT
+  FTabs adjout;
+#endif
   flag_t * NodeType;
   real_t * Globals;
   int dx, dy, dz;
@@ -45,19 +51,24 @@ class LatticeContainer {
   void Free();
   CudaDeviceFunction void fill();
   template<class N>  CudaDeviceFunction void push(N & f);
+  template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
-  CudaDeviceFunction void Glob(Node);
-  CudaDeviceFunction void Glob(Node_Globs);
-  template<class N>  CudaDeviceFunction void Glob(N & f);
-  CudaDeviceFunction void popXYZ(Node & f, int, int, int);
+#ifdef ADJOINT
+  template<class N>  CudaDeviceFunction void push_adj(N & f);
+  template<class N>  CudaDeviceFunction void pull_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop_adj(N & f);
+#endif
+//  CudaDeviceFunction void Glob(Node);
+//  CudaDeviceFunction void Glob(Node_Globs);
+//  template<class N>  CudaDeviceFunction void Glob(N & f);
   void Init();
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-  void RunBorderG(CudaStream_t);
-  void RunBorder (CudaStream_t);
-  void RunInteriorG(CudaStream_t);
-  void RunInterior (CudaStream_t);
+<?R for(tp in rows(Dispatch)) { ?>
+  void RunBorder<?%s tp$suffix ?>(CudaStream_t);
+  void RunInterior<?%s tp$suffix ?>(CudaStream_t);
+<?R } ?>
   void CopyToConst();
   void WaitAll();
   void WaitBorder();

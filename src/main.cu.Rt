@@ -550,22 +550,8 @@ int main ( int argc, char * argv[] )
 		data.info.xsdim = 1;
 		data.info.ysdim = 1;
 	#else
-		#ifdef GRAPHICS
-			data.info.xsdim = 32;
-			data.info.ysdim = 1;
-		#else
-		{
-			cudaFuncAttributes * attr = new cudaFuncAttributes;
-			HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<Node>) );
-			DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
-			DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
-			DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
-			DEBUG1( printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs) );
-			DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
-			data.info.xsdim = 32;
-			data.info.ysdim = attr->maxThreadsPerBlock/32;
-		}
-		#endif
+		data.info.xsdim = 32;
+		data.info.ysdim = 1;
 	#endif
 
 	// 1024 threads not working. (Why?)
