@@ -2,7 +2,7 @@
 # MODELS: 
 #	d1q3, d2q9, d2q9_adj, d2q9_adj_smooth, d2q9_adj_top, d2q9_entropic, d2q9_exp, d2q9_heat, d2q9_heat_adj, d2q9_kuper, d3q19, d3q19_adj, d3q19_heat, d3q19_heat_adj
 
-ADJOINT=1        # calculate adjoint: 1-on, 0-off
+ADJOINT=0        # calculate adjoint: 1-on, 0-off
 GRAPHICS=1       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
@@ -57,6 +57,10 @@ CC=nvcc
 CCTXT=NVCC
 
 RTOPT=
+
+RTOPT_ADJ=ADJOINT=1
+ALL_FILES_ADJ=Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
+OPT_ADJ=-D ADJOINT
 
 ifdef MODEL
  RTOPT+=MODEL=\"$(strip $(MODEL))\"
@@ -126,144 +130,12 @@ d1q3:  | standalone/d1q3
 
 d1q3: standalone/d1q3 standalone/d1q3/main
 	@echo "  DONE       $@"
+
 standalone/d1q3/main:standalone/d1q3 $(addprefix standalone/d1q3/,$(ALL_FILES))
 	@cd standalone/d1q3; $(MAKE)
 
 standalone/d1q3 :
 	mkdir -p $@
-
-d2q9:  | standalone/d2q9
-
-d2q9: standalone/d2q9 standalone/d2q9/main
-	@echo "  DONE       $@"
-standalone/d2q9/main:standalone/d2q9 $(addprefix standalone/d2q9/,$(ALL_FILES))
-	@cd standalone/d2q9; $(MAKE)
-
-standalone/d2q9 :
-	mkdir -p $@
-
-d2q9_adj:  | standalone/d2q9_adj
-
-d2q9_adj: standalone/d2q9_adj standalone/d2q9_adj/main
-	@echo "  DONE       $@"
-standalone/d2q9_adj/main:standalone/d2q9_adj $(addprefix standalone/d2q9_adj/,$(ALL_FILES))
-	@cd standalone/d2q9_adj; $(MAKE)
-
-standalone/d2q9_adj :
-	mkdir -p $@
-
-d2q9_adj_smooth:  | standalone/d2q9_adj_smooth
-
-d2q9_adj_smooth: standalone/d2q9_adj_smooth standalone/d2q9_adj_smooth/main
-	@echo "  DONE       $@"
-standalone/d2q9_adj_smooth/main:standalone/d2q9_adj_smooth $(addprefix standalone/d2q9_adj_smooth/,$(ALL_FILES))
-	@cd standalone/d2q9_adj_smooth; $(MAKE)
-
-standalone/d2q9_adj_smooth :
-	mkdir -p $@
-
-d2q9_adj_top:  | standalone/d2q9_adj_top
-
-d2q9_adj_top: standalone/d2q9_adj_top standalone/d2q9_adj_top/main
-	@echo "  DONE       $@"
-standalone/d2q9_adj_top/main:standalone/d2q9_adj_top $(addprefix standalone/d2q9_adj_top/,$(ALL_FILES))
-	@cd standalone/d2q9_adj_top; $(MAKE)
-
-standalone/d2q9_adj_top :
-	mkdir -p $@
-
-d2q9_entropic:  | standalone/d2q9_entropic
-
-d2q9_entropic: standalone/d2q9_entropic standalone/d2q9_entropic/main
-	@echo "  DONE       $@"
-standalone/d2q9_entropic/main:standalone/d2q9_entropic $(addprefix standalone/d2q9_entropic/,$(ALL_FILES))
-	@cd standalone/d2q9_entropic; $(MAKE)
-
-standalone/d2q9_entropic :
-	mkdir -p $@
-
-d2q9_exp:  | standalone/d2q9_exp
-
-d2q9_exp: standalone/d2q9_exp standalone/d2q9_exp/main
-	@echo "  DONE       $@"
-standalone/d2q9_exp/main:standalone/d2q9_exp $(addprefix standalone/d2q9_exp/,$(ALL_FILES))
-	@cd standalone/d2q9_exp; $(MAKE)
-
-standalone/d2q9_exp :
-	mkdir -p $@
-
-d2q9_heat:  | standalone/d2q9_heat
-
-d2q9_heat: standalone/d2q9_heat standalone/d2q9_heat/main
-	@echo "  DONE       $@"
-standalone/d2q9_heat/main:standalone/d2q9_heat $(addprefix standalone/d2q9_heat/,$(ALL_FILES))
-	@cd standalone/d2q9_heat; $(MAKE)
-
-standalone/d2q9_heat :
-	mkdir -p $@
-
-d2q9_heat_adj:  | standalone/d2q9_heat_adj
-
-d2q9_heat_adj: standalone/d2q9_heat_adj standalone/d2q9_heat_adj/main
-	@echo "  DONE       $@"
-standalone/d2q9_heat_adj/main:standalone/d2q9_heat_adj $(addprefix standalone/d2q9_heat_adj/,$(ALL_FILES))
-	@cd standalone/d2q9_heat_adj; $(MAKE)
-
-standalone/d2q9_heat_adj :
-	mkdir -p $@
-
-d2q9_kuper:  | standalone/d2q9_kuper
-
-d2q9_kuper: standalone/d2q9_kuper standalone/d2q9_kuper/main
-	@echo "  DONE       $@"
-standalone/d2q9_kuper/main:standalone/d2q9_kuper $(addprefix standalone/d2q9_kuper/,$(ALL_FILES))
-	@cd standalone/d2q9_kuper; $(MAKE)
-
-standalone/d2q9_kuper :
-	mkdir -p $@
-
-d3q19:  | standalone/d3q19
-
-d3q19: standalone/d3q19 standalone/d3q19/main
-	@echo "  DONE       $@"
-standalone/d3q19/main:standalone/d3q19 $(addprefix standalone/d3q19/,$(ALL_FILES))
-	@cd standalone/d3q19; $(MAKE)
-
-standalone/d3q19 :
-	mkdir -p $@
-
-d3q19_adj:  | standalone/d3q19_adj
-
-d3q19_adj: standalone/d3q19_adj standalone/d3q19_adj/main
-	@echo "  DONE       $@"
-standalone/d3q19_adj/main:standalone/d3q19_adj $(addprefix standalone/d3q19_adj/,$(ALL_FILES))
-	@cd standalone/d3q19_adj; $(MAKE)
-
-standalone/d3q19_adj :
-	mkdir -p $@
-
-d3q19_heat:  | standalone/d3q19_heat
-
-d3q19_heat: standalone/d3q19_heat standalone/d3q19_heat/main
-	@echo "  DONE       $@"
-standalone/d3q19_heat/main:standalone/d3q19_heat $(addprefix standalone/d3q19_heat/,$(ALL_FILES))
-	@cd standalone/d3q19_heat; $(MAKE)
-
-standalone/d3q19_heat :
-	mkdir -p $@
-
-d3q19_heat_adj:  | standalone/d3q19_heat_adj
-
-d3q19_heat_adj: standalone/d3q19_heat_adj standalone/d3q19_heat_adj/main
-	@echo "  DONE       $@"
-standalone/d3q19_heat_adj/main:standalone/d3q19_heat_adj $(addprefix standalone/d3q19_heat_adj/,$(ALL_FILES))
-	@cd standalone/d3q19_heat_adj; $(MAKE)
-
-standalone/d3q19_heat_adj :
-	mkdir -p $@
-
-
-
 
 # for model d1q3 and destination standalone
 
@@ -274,7 +146,6 @@ standalone/d1q3/Dynamics_b.c standalone/d1q3/Dynamics_b.h standalone/d1q3/types_
 standalone/d1q3/tapenade.run : standalone/d1q3 standalone/d1q3/Dynamics.c standalone/d1q3/ADpre.h standalone/d1q3/ADpre_b.h standalone/d1q3/Dynamics.h standalone/d1q3/Node_types.h standalone/d1q3/types.h standalone/d1q3/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d1q3/dep.mk:tools/dep.R $(addprefix standalone/d1q3/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -306,7 +177,6 @@ package/src/d1q3/tapenade.run : package/src/d1q3 package/src/d1q3/Dynamics.c pac
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d1q3/dep.mk:tools/dep.R $(addprefix package/src/d1q3/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d1q3; $(RS) ../../$<
@@ -327,6 +197,17 @@ package/src/d1q3/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d2q9:  | standalone/d2q9
+
+d2q9: standalone/d2q9 standalone/d2q9/main
+	@echo "  DONE       $@"
+
+standalone/d2q9/main:standalone/d2q9 $(addprefix standalone/d2q9/,$(ALL_FILES))
+	@cd standalone/d2q9; $(MAKE)
+
+standalone/d2q9 :
+	mkdir -p $@
+
 # for model d2q9 and destination standalone
 
 standalone/d2q9/Dynamics_b.c standalone/d2q9/Dynamics_b.h standalone/d2q9/types_b.h standalone/d2q9/ADpre_.h standalone/d2q9/ADpre__b.h : standalone/d2q9/tapenade.run
@@ -336,7 +217,6 @@ standalone/d2q9/Dynamics_b.c standalone/d2q9/Dynamics_b.h standalone/d2q9/types_
 standalone/d2q9/tapenade.run : standalone/d2q9 standalone/d2q9/Dynamics.c standalone/d2q9/ADpre.h standalone/d2q9/ADpre_b.h standalone/d2q9/Dynamics.h standalone/d2q9/Node_types.h standalone/d2q9/types.h standalone/d2q9/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d2q9/dep.mk:tools/dep.R $(addprefix standalone/d2q9/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -368,7 +248,6 @@ package/src/d2q9/tapenade.run : package/src/d2q9 package/src/d2q9/Dynamics.c pac
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9/dep.mk:tools/dep.R $(addprefix package/src/d2q9/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9; $(RS) ../../$<
@@ -389,6 +268,17 @@ package/src/d2q9/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d2q9_adj:  | standalone/d2q9_adj
+
+d2q9_adj: standalone/d2q9_adj standalone/d2q9_adj/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_adj/main:standalone/d2q9_adj $(addprefix standalone/d2q9_adj/,$(ALL_FILES) $(ALL_FILES_ADJ))
+	@cd standalone/d2q9_adj; $(MAKE)
+
+standalone/d2q9_adj :
+	mkdir -p $@
+
 # for model d2q9_adj and destination standalone
 
 standalone/d2q9_adj/Dynamics_b.c standalone/d2q9_adj/Dynamics_b.h standalone/d2q9_adj/types_b.h standalone/d2q9_adj/ADpre_.h standalone/d2q9_adj/ADpre__b.h : standalone/d2q9_adj/tapenade.run
@@ -399,18 +289,17 @@ standalone/d2q9_adj/tapenade.run : standalone/d2q9_adj standalone/d2q9_adj/Dynam
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 standalone/d2q9_adj/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd standalone/d2q9_adj; $(RS) ../../$<
 
 standalone/d2q9_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj\" || rm $@
 
 standalone/d2q9_adj/%:$(SRC)/d2q9_adj/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj\" || rm $@
 
 standalone/d2q9_adj/%:$(SRC)/d2q9_adj/%
 	@echo "  CP         $@ (model)"
@@ -430,18 +319,17 @@ package/src/d2q9_adj/tapenade.run : package/src/d2q9_adj package/src/d2q9_adj/Dy
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_adj/dep.mk:tools/dep.R $(addprefix package/src/d2q9_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_adj; $(RS) ../../$<
 
 package/src/d2q9_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj\" || rm $@
 
 package/src/d2q9_adj/%:$(SRC)/d2q9_adj/%.Rt $(SRC)/d2q9_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) MODEL=\"d2q9_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj\" || rm $@
 
 package/src/d2q9_adj/%:$(SRC)/d2q9_adj/%
 	@echo "  CP         $@ (model)"
@@ -450,6 +338,17 @@ package/src/d2q9_adj/%:$(SRC)/d2q9_adj/%
 package/src/d2q9_adj/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
+
+d2q9_adj_smooth:  | standalone/d2q9_adj_smooth
+
+d2q9_adj_smooth: standalone/d2q9_adj_smooth standalone/d2q9_adj_smooth/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_adj_smooth/main:standalone/d2q9_adj_smooth $(addprefix standalone/d2q9_adj_smooth/,$(ALL_FILES) $(ALL_FILES_ADJ))
+	@cd standalone/d2q9_adj_smooth; $(MAKE)
+
+standalone/d2q9_adj_smooth :
+	mkdir -p $@
 
 # for model d2q9_adj_smooth and destination standalone
 
@@ -461,18 +360,17 @@ standalone/d2q9_adj_smooth/tapenade.run : standalone/d2q9_adj_smooth standalone/
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 standalone/d2q9_adj_smooth/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj_smooth/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd standalone/d2q9_adj_smooth; $(RS) ../../$<
 
 standalone/d2q9_adj_smooth/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 standalone/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 standalone/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%
 	@echo "  CP         $@ (model)"
@@ -492,18 +390,17 @@ package/src/d2q9_adj_smooth/tapenade.run : package/src/d2q9_adj_smooth package/s
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_adj_smooth/dep.mk:tools/dep.R $(addprefix package/src/d2q9_adj_smooth/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_adj_smooth; $(RS) ../../$<
 
 package/src/d2q9_adj_smooth/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 package/src/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%.Rt $(SRC)/d2q9_adj_smooth/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) MODEL=\"d2q9_adj_smooth\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_smooth -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_smooth\" || rm $@
 
 package/src/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%
 	@echo "  CP         $@ (model)"
@@ -512,6 +409,17 @@ package/src/d2q9_adj_smooth/%:$(SRC)/d2q9_adj_smooth/%
 package/src/d2q9_adj_smooth/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
+
+d2q9_adj_top:  | standalone/d2q9_adj_top
+
+d2q9_adj_top: standalone/d2q9_adj_top standalone/d2q9_adj_top/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_adj_top/main:standalone/d2q9_adj_top $(addprefix standalone/d2q9_adj_top/,$(ALL_FILES) $(ALL_FILES_ADJ))
+	@cd standalone/d2q9_adj_top; $(MAKE)
+
+standalone/d2q9_adj_top :
+	mkdir -p $@
 
 # for model d2q9_adj_top and destination standalone
 
@@ -523,18 +431,17 @@ standalone/d2q9_adj_top/tapenade.run : standalone/d2q9_adj_top standalone/d2q9_a
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 standalone/d2q9_adj_top/dep.mk:tools/dep.R $(addprefix standalone/d2q9_adj_top/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd standalone/d2q9_adj_top; $(RS) ../../$<
 
 standalone/d2q9_adj_top/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_top\" || rm $@
 
 standalone/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_top\" || rm $@
 
 standalone/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%
 	@echo "  CP         $@ (model)"
@@ -554,18 +461,17 @@ package/src/d2q9_adj_top/tapenade.run : package/src/d2q9_adj_top package/src/d2q
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_adj_top/dep.mk:tools/dep.R $(addprefix package/src/d2q9_adj_top/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_adj_top; $(RS) ../../$<
 
 package/src/d2q9_adj_top/%:$(SRC)/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_top\" || rm $@
 
 package/src/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%.Rt $(SRC)/d2q9_adj_top/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) MODEL=\"d2q9_adj_top\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_adj_top -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_adj_top\" || rm $@
 
 package/src/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%
 	@echo "  CP         $@ (model)"
@@ -574,6 +480,17 @@ package/src/d2q9_adj_top/%:$(SRC)/d2q9_adj_top/%
 package/src/d2q9_adj_top/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
+
+d2q9_entropic:  | standalone/d2q9_entropic
+
+d2q9_entropic: standalone/d2q9_entropic standalone/d2q9_entropic/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_entropic/main:standalone/d2q9_entropic $(addprefix standalone/d2q9_entropic/,$(ALL_FILES))
+	@cd standalone/d2q9_entropic; $(MAKE)
+
+standalone/d2q9_entropic :
+	mkdir -p $@
 
 # for model d2q9_entropic and destination standalone
 
@@ -584,7 +501,6 @@ standalone/d2q9_entropic/Dynamics_b.c standalone/d2q9_entropic/Dynamics_b.h stan
 standalone/d2q9_entropic/tapenade.run : standalone/d2q9_entropic standalone/d2q9_entropic/Dynamics.c standalone/d2q9_entropic/ADpre.h standalone/d2q9_entropic/ADpre_b.h standalone/d2q9_entropic/Dynamics.h standalone/d2q9_entropic/Node_types.h standalone/d2q9_entropic/types.h standalone/d2q9_entropic/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d2q9_entropic/dep.mk:tools/dep.R $(addprefix standalone/d2q9_entropic/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -616,7 +532,6 @@ package/src/d2q9_entropic/tapenade.run : package/src/d2q9_entropic package/src/d
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_entropic/dep.mk:tools/dep.R $(addprefix package/src/d2q9_entropic/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_entropic; $(RS) ../../$<
@@ -637,6 +552,17 @@ package/src/d2q9_entropic/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d2q9_exp:  | standalone/d2q9_exp
+
+d2q9_exp: standalone/d2q9_exp standalone/d2q9_exp/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_exp/main:standalone/d2q9_exp $(addprefix standalone/d2q9_exp/,$(ALL_FILES))
+	@cd standalone/d2q9_exp; $(MAKE)
+
+standalone/d2q9_exp :
+	mkdir -p $@
+
 # for model d2q9_exp and destination standalone
 
 standalone/d2q9_exp/Dynamics_b.c standalone/d2q9_exp/Dynamics_b.h standalone/d2q9_exp/types_b.h standalone/d2q9_exp/ADpre_.h standalone/d2q9_exp/ADpre__b.h : standalone/d2q9_exp/tapenade.run
@@ -646,7 +572,6 @@ standalone/d2q9_exp/Dynamics_b.c standalone/d2q9_exp/Dynamics_b.h standalone/d2q
 standalone/d2q9_exp/tapenade.run : standalone/d2q9_exp standalone/d2q9_exp/Dynamics.c standalone/d2q9_exp/ADpre.h standalone/d2q9_exp/ADpre_b.h standalone/d2q9_exp/Dynamics.h standalone/d2q9_exp/Node_types.h standalone/d2q9_exp/types.h standalone/d2q9_exp/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d2q9_exp/dep.mk:tools/dep.R $(addprefix standalone/d2q9_exp/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -678,7 +603,6 @@ package/src/d2q9_exp/tapenade.run : package/src/d2q9_exp package/src/d2q9_exp/Dy
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_exp/dep.mk:tools/dep.R $(addprefix package/src/d2q9_exp/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_exp; $(RS) ../../$<
@@ -699,6 +623,17 @@ package/src/d2q9_exp/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d2q9_heat:  | standalone/d2q9_heat
+
+d2q9_heat: standalone/d2q9_heat standalone/d2q9_heat/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_heat/main:standalone/d2q9_heat $(addprefix standalone/d2q9_heat/,$(ALL_FILES))
+	@cd standalone/d2q9_heat; $(MAKE)
+
+standalone/d2q9_heat :
+	mkdir -p $@
+
 # for model d2q9_heat and destination standalone
 
 standalone/d2q9_heat/Dynamics_b.c standalone/d2q9_heat/Dynamics_b.h standalone/d2q9_heat/types_b.h standalone/d2q9_heat/ADpre_.h standalone/d2q9_heat/ADpre__b.h : standalone/d2q9_heat/tapenade.run
@@ -708,7 +643,6 @@ standalone/d2q9_heat/Dynamics_b.c standalone/d2q9_heat/Dynamics_b.h standalone/d
 standalone/d2q9_heat/tapenade.run : standalone/d2q9_heat standalone/d2q9_heat/Dynamics.c standalone/d2q9_heat/ADpre.h standalone/d2q9_heat/ADpre_b.h standalone/d2q9_heat/Dynamics.h standalone/d2q9_heat/Node_types.h standalone/d2q9_heat/types.h standalone/d2q9_heat/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d2q9_heat/dep.mk:tools/dep.R $(addprefix standalone/d2q9_heat/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -740,7 +674,6 @@ package/src/d2q9_heat/tapenade.run : package/src/d2q9_heat package/src/d2q9_heat
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_heat/dep.mk:tools/dep.R $(addprefix package/src/d2q9_heat/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_heat; $(RS) ../../$<
@@ -761,6 +694,17 @@ package/src/d2q9_heat/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d2q9_heat_adj:  | standalone/d2q9_heat_adj
+
+d2q9_heat_adj: standalone/d2q9_heat_adj standalone/d2q9_heat_adj/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_heat_adj/main:standalone/d2q9_heat_adj $(addprefix standalone/d2q9_heat_adj/,$(ALL_FILES) $(ALL_FILES_ADJ))
+	@cd standalone/d2q9_heat_adj; $(MAKE)
+
+standalone/d2q9_heat_adj :
+	mkdir -p $@
+
 # for model d2q9_heat_adj and destination standalone
 
 standalone/d2q9_heat_adj/Dynamics_b.c standalone/d2q9_heat_adj/Dynamics_b.h standalone/d2q9_heat_adj/types_b.h standalone/d2q9_heat_adj/ADpre_.h standalone/d2q9_heat_adj/ADpre__b.h : standalone/d2q9_heat_adj/tapenade.run
@@ -771,18 +715,17 @@ standalone/d2q9_heat_adj/tapenade.run : standalone/d2q9_heat_adj standalone/d2q9
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 standalone/d2q9_heat_adj/dep.mk:tools/dep.R $(addprefix standalone/d2q9_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd standalone/d2q9_heat_adj; $(RS) ../../$<
 
 standalone/d2q9_heat_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_heat_adj\" || rm $@
 
 standalone/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_heat_adj\" || rm $@
 
 standalone/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -802,18 +745,17 @@ package/src/d2q9_heat_adj/tapenade.run : package/src/d2q9_heat_adj package/src/d
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_heat_adj/dep.mk:tools/dep.R $(addprefix package/src/d2q9_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_heat_adj; $(RS) ../../$<
 
 package/src/d2q9_heat_adj/%:$(SRC)/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_heat_adj\" || rm $@
 
 package/src/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%.Rt $(SRC)/d2q9_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) MODEL=\"d2q9_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d2q9_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d2q9_heat_adj\" || rm $@
 
 package/src/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -822,6 +764,17 @@ package/src/d2q9_heat_adj/%:$(SRC)/d2q9_heat_adj/%
 package/src/d2q9_heat_adj/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
+
+d2q9_kuper:  | standalone/d2q9_kuper
+
+d2q9_kuper: standalone/d2q9_kuper standalone/d2q9_kuper/main
+	@echo "  DONE       $@"
+
+standalone/d2q9_kuper/main:standalone/d2q9_kuper $(addprefix standalone/d2q9_kuper/,$(ALL_FILES))
+	@cd standalone/d2q9_kuper; $(MAKE)
+
+standalone/d2q9_kuper :
+	mkdir -p $@
 
 # for model d2q9_kuper and destination standalone
 
@@ -832,7 +785,6 @@ standalone/d2q9_kuper/Dynamics_b.c standalone/d2q9_kuper/Dynamics_b.h standalone
 standalone/d2q9_kuper/tapenade.run : standalone/d2q9_kuper standalone/d2q9_kuper/Dynamics.c standalone/d2q9_kuper/ADpre.h standalone/d2q9_kuper/ADpre_b.h standalone/d2q9_kuper/Dynamics.h standalone/d2q9_kuper/Node_types.h standalone/d2q9_kuper/types.h standalone/d2q9_kuper/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d2q9_kuper/dep.mk:tools/dep.R $(addprefix standalone/d2q9_kuper/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -864,7 +816,6 @@ package/src/d2q9_kuper/tapenade.run : package/src/d2q9_kuper package/src/d2q9_ku
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d2q9_kuper/dep.mk:tools/dep.R $(addprefix package/src/d2q9_kuper/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d2q9_kuper; $(RS) ../../$<
@@ -885,6 +836,17 @@ package/src/d2q9_kuper/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d3q19:  | standalone/d3q19
+
+d3q19: standalone/d3q19 standalone/d3q19/main
+	@echo "  DONE       $@"
+
+standalone/d3q19/main:standalone/d3q19 $(addprefix standalone/d3q19/,$(ALL_FILES))
+	@cd standalone/d3q19; $(MAKE)
+
+standalone/d3q19 :
+	mkdir -p $@
+
 # for model d3q19 and destination standalone
 
 standalone/d3q19/Dynamics_b.c standalone/d3q19/Dynamics_b.h standalone/d3q19/types_b.h standalone/d3q19/ADpre_.h standalone/d3q19/ADpre__b.h : standalone/d3q19/tapenade.run
@@ -894,7 +856,6 @@ standalone/d3q19/Dynamics_b.c standalone/d3q19/Dynamics_b.h standalone/d3q19/typ
 standalone/d3q19/tapenade.run : standalone/d3q19 standalone/d3q19/Dynamics.c standalone/d3q19/ADpre.h standalone/d3q19/ADpre_b.h standalone/d3q19/Dynamics.h standalone/d3q19/Node_types.h standalone/d3q19/types.h standalone/d3q19/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d3q19/dep.mk:tools/dep.R $(addprefix standalone/d3q19/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -926,7 +887,6 @@ package/src/d3q19/tapenade.run : package/src/d3q19 package/src/d3q19/Dynamics.c 
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d3q19/dep.mk:tools/dep.R $(addprefix package/src/d3q19/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d3q19; $(RS) ../../$<
@@ -947,6 +907,17 @@ package/src/d3q19/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d3q19_adj:  | standalone/d3q19_adj
+
+d3q19_adj: standalone/d3q19_adj standalone/d3q19_adj/main
+	@echo "  DONE       $@"
+
+standalone/d3q19_adj/main:standalone/d3q19_adj $(addprefix standalone/d3q19_adj/,$(ALL_FILES) $(ALL_FILES_ADJ))
+	@cd standalone/d3q19_adj; $(MAKE)
+
+standalone/d3q19_adj :
+	mkdir -p $@
+
 # for model d3q19_adj and destination standalone
 
 standalone/d3q19_adj/Dynamics_b.c standalone/d3q19_adj/Dynamics_b.h standalone/d3q19_adj/types_b.h standalone/d3q19_adj/ADpre_.h standalone/d3q19_adj/ADpre__b.h : standalone/d3q19_adj/tapenade.run
@@ -957,18 +928,17 @@ standalone/d3q19_adj/tapenade.run : standalone/d3q19_adj standalone/d3q19_adj/Dy
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 standalone/d3q19_adj/dep.mk:tools/dep.R $(addprefix standalone/d3q19_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd standalone/d3q19_adj; $(RS) ../../$<
 
 standalone/d3q19_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_adj\" || rm $@
 
 standalone/d3q19_adj/%:$(SRC)/d3q19_adj/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_adj\" || rm $@
 
 standalone/d3q19_adj/%:$(SRC)/d3q19_adj/%
 	@echo "  CP         $@ (model)"
@@ -988,18 +958,17 @@ package/src/d3q19_adj/tapenade.run : package/src/d3q19_adj package/src/d3q19_adj
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d3q19_adj/dep.mk:tools/dep.R $(addprefix package/src/d3q19_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d3q19_adj; $(RS) ../../$<
 
 package/src/d3q19_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_adj\" || rm $@
 
 package/src/d3q19_adj/%:$(SRC)/d3q19_adj/%.Rt $(SRC)/d3q19_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) MODEL=\"d3q19_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_adj\" || rm $@
 
 package/src/d3q19_adj/%:$(SRC)/d3q19_adj/%
 	@echo "  CP         $@ (model)"
@@ -1008,6 +977,17 @@ package/src/d3q19_adj/%:$(SRC)/d3q19_adj/%
 package/src/d3q19_adj/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
+
+d3q19_heat:  | standalone/d3q19_heat
+
+d3q19_heat: standalone/d3q19_heat standalone/d3q19_heat/main
+	@echo "  DONE       $@"
+
+standalone/d3q19_heat/main:standalone/d3q19_heat $(addprefix standalone/d3q19_heat/,$(ALL_FILES))
+	@cd standalone/d3q19_heat; $(MAKE)
+
+standalone/d3q19_heat :
+	mkdir -p $@
 
 # for model d3q19_heat and destination standalone
 
@@ -1018,7 +998,6 @@ standalone/d3q19_heat/Dynamics_b.c standalone/d3q19_heat/Dynamics_b.h standalone
 standalone/d3q19_heat/tapenade.run : standalone/d3q19_heat standalone/d3q19_heat/Dynamics.c standalone/d3q19_heat/ADpre.h standalone/d3q19_heat/ADpre_b.h standalone/d3q19_heat/Dynamics.h standalone/d3q19_heat/Node_types.h standalone/d3q19_heat/types.h standalone/d3q19_heat/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
-
 
 standalone/d3q19_heat/dep.mk:tools/dep.R $(addprefix standalone/d3q19_heat/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
@@ -1050,7 +1029,6 @@ package/src/d3q19_heat/tapenade.run : package/src/d3q19_heat package/src/d3q19_h
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d3q19_heat/dep.mk:tools/dep.R $(addprefix package/src/d3q19_heat/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d3q19_heat; $(RS) ../../$<
@@ -1071,6 +1049,17 @@ package/src/d3q19_heat/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
 
+d3q19_heat_adj:  | standalone/d3q19_heat_adj
+
+d3q19_heat_adj: standalone/d3q19_heat_adj standalone/d3q19_heat_adj/main
+	@echo "  DONE       $@"
+
+standalone/d3q19_heat_adj/main:standalone/d3q19_heat_adj $(addprefix standalone/d3q19_heat_adj/,$(ALL_FILES) $(ALL_FILES_ADJ))
+	@cd standalone/d3q19_heat_adj; $(MAKE)
+
+standalone/d3q19_heat_adj :
+	mkdir -p $@
+
 # for model d3q19_heat_adj and destination standalone
 
 standalone/d3q19_heat_adj/Dynamics_b.c standalone/d3q19_heat_adj/Dynamics_b.h standalone/d3q19_heat_adj/types_b.h standalone/d3q19_heat_adj/ADpre_.h standalone/d3q19_heat_adj/ADpre__b.h : standalone/d3q19_heat_adj/tapenade.run
@@ -1081,18 +1070,17 @@ standalone/d3q19_heat_adj/tapenade.run : standalone/d3q19_heat_adj standalone/d3
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 standalone/d3q19_heat_adj/dep.mk:tools/dep.R $(addprefix standalone/d3q19_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd standalone/d3q19_heat_adj; $(RS) ../../$<
 
 standalone/d3q19_heat_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_heat_adj\" || rm $@
 
 standalone/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_heat_adj\" || rm $@
 
 standalone/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -1112,18 +1100,17 @@ package/src/d3q19_heat_adj/tapenade.run : package/src/d3q19_heat_adj package/src
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 package/src/d3q19_heat_adj/dep.mk:tools/dep.R $(addprefix package/src/d3q19_heat_adj/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd package/src/d3q19_heat_adj; $(RS) ../../$<
 
 package/src/d3q19_heat_adj/%:$(SRC)/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_heat_adj\" || rm $@
 
 package/src/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%.Rt $(SRC)/d3q19_heat_adj/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) MODEL=\"d3q19_heat_adj\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/d3q19_heat_adj -o $@ $(RTOPT) $(RTOPT_ADJ) MODEL=\"d3q19_heat_adj\" || rm $@
 
 package/src/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%
 	@echo "  CP         $@ (model)"
@@ -1132,8 +1119,6 @@ package/src/d3q19_heat_adj/%:$(SRC)/d3q19_heat_adj/%
 package/src/d3q19_heat_adj/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp $< $@
-
-
 
 
 %.hp:%.c

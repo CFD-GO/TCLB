@@ -1,14 +1,26 @@
 <?R 
 	l = dir(path="src");
-	d=sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
+	d = sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
 	models=l[d]
+	
+	Models = do.call(rbind, lapply(models,function (m) {
+		pt = paste("src",m,sep="/");
+		cf = paste("src",m,"conf.mk",sep="/");
+		if (file.exists(cf)) {
+			source(cf);
+		} else {
+			ADJOINT=0;
+		}
+		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
+	}))
+	
 	rm(l,d) 
 	destinations=c("standalone","package/src");
 ?>
 # MODELS: 
-#	<?%s paste(models,collapse=", ") ?>
+#	<?%s paste(Models$name,collapse=", ") ?>
 
-ADJOINT=1        # calculate adjoint: 1-on, 0-off
+ADJOINT=0        # calculate adjoint: 1-on, 0-off
 GRAPHICS=1       # GLUT graphics: 1-on, 0-off
 GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
@@ -17,7 +29,7 @@ DOUBLE=0         # precision: 1-double, 0-float
 
 #######################################################################################################################
 
-all: <?%s paste(models,collapse=" ") ?>
+all: <?%s paste(Models$name,collapse=" ") ?>
 
 .PHONY: all clean dummy
 
@@ -63,6 +75,10 @@ CC=nvcc
 CCTXT=NVCC
 
 RTOPT=
+
+RTOPT_ADJ=ADJOINT=1
+ALL_FILES_ADJ=Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
+OPT_ADJ=-D ADJOINT
 
 ifdef MODEL
  RTOPT+=MODEL=\"$(strip $(MODEL))\"
@@ -127,20 +143,24 @@ clear:
 ######       AUTO GENERATED CASES for RT                                 ######
 ###############################################################################
 
-<?R for (m in models) { ?>
+<?R
+	for (i in 1:nrow(Models)) {
+		m = Models$name[i];
+		adjoint = Models$adjoint[i]
+?>
 <?%s m ?>:  | standalone/<?%s m ?>
 
 <?%s m ?>: standalone/<?%s m ?> standalone/<?%s m ?>/main
 	@echo "  DONE       $@"
-standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES))
+
+standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES)<?R if (adjoint) {?> $(ALL_FILES_ADJ)<?R }?>)
 	@cd standalone/<?%s m ?>; $(MAKE)
 
 standalone/<?%s m ?> :
 	mkdir -p $@
-<?R } ?>
-
-
-<?R for (m in models) { for (d in destinations) {?>
+<?R
+		for (d in destinations) {
+?>
 # for model <?%s m ?> and destination <?%s d ?>
 
 <?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run
@@ -151,18 +171,17 @@ standalone/<?%s m ?> :
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R $(addprefix <?%s d ?>/<?%s m ?>/,$(SOURCE_CU) $(HEADERS_H))
 	@echo "  AUTO-DEP   $@"
 	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT) MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT) MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
@@ -172,8 +191,6 @@ standalone/<?%s m ?> :
 	@echo "  CP         $@"
 	@cp $< $@
 <?R }} ?>
-
-
 
 %.hp:%.c
 	@echo "MAKEHEADERS  $<"

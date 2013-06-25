@@ -464,10 +464,13 @@ void Lattice::IterateTill(int it, int iter_type)
 void Lattice::IterateT(int iter_type)
 {
 	static int i=0;
-	i--;
-	if (i < 0) i = 30000;
+//	i--;
+//	if (i < 0) i = 30000;
+	i++;
 	IterateTill(i,iter_type);
+#ifdef ADJOINT
 	Iteration_Adj(i % 2, (i+1) % 2, iter_type, i);
+#endif
 };
 
 void Lattice::AfterIt()
