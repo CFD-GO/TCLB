@@ -400,7 +400,7 @@ void Lattice::Init()
 
 		{
 			char filename[STRING_LEN];
-			sprintf(filename, "Snap__%02d_%02d.dat", D_MPI_RANK, getSnap(0));
+			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
 			save(Snaps[0], filename);
 		}
 

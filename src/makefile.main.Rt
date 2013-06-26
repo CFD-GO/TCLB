@@ -33,8 +33,8 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 .PHONY: all clean dummy
 
-makefile:src/makefile.main.Rt src/*
-	@tools/RT -q -f $< -o $@
+#makefile:src/makefile.main.Rt src/*
+#	@tools/RT -q -f $< -o $@
 
 #Rpackage : source package/configure
 #	R CMD build package
