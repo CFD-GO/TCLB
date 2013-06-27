@@ -40,6 +40,7 @@ private:
   CudaEvent_t inEv[28];
   CudaEvent_t outEv[28];
   CudaEvent_t mpiEv[28];
+  int reverse_save;
 public:
   int Iter;
   int Snap;
