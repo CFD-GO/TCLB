@@ -24,17 +24,85 @@ table_from_text = function(text) {
 	tab
 }
 
-Settings = data.frame(
-        name = c("omega","nu","UX_mid"),
-        derived = c(NA,"omega",NA),
-        equation = c(NA,"1.0/(3*nu + 0.5)",NA),
-        comment = c("one over relaxation time", "viscosity", "velocity on inlet")
-)
+Density = NULL
+Globals = NULL
+Settings = NULL
+Quantities = NULL
 
-Globals = table_from_text("
-        name            in_objective   comment
-        PressureLoss    1              'pressure loss'
-")
+
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="") {
+	if (missing(name)) stop("Have to supply name in AddDensity!")
+	if (comment == "") {
+		comment = name
+	}
+	d = data.frame(
+		name=name,
+		dx=dx,
+		dy=dy,
+		dz=dz,
+		comment=comment,
+		adjoint=adjoint,
+		group=group
+	)
+	Density <<- rbind(Density,d)
+}
+
+AddSetting = function(name,  comment="", default=0, ...) {
+	if (missing(name)) stop("Have to supply name in AddSetting!")
+	if (comment == "") {
+		comment = name
+	}
+	der = list(...)
+	if (length(der) == 0) {
+		derived = NA;
+		equation = NA;
+	} else if (length(der) == 1) {
+		derived = names(der);
+		equation = as.character(der[[1]]);
+	} else {
+		stop("Only one derived setting allowed in AddSetting!");
+	} 
+	s = data.frame(
+		name=name,
+		derived=derived,
+		equation=equation,
+		default=default,
+		comment=comment
+	)
+	Settings <<- rbind(Settings,s)
+}
+
+AddGlobal = function(name, comment="") {
+	if (missing(name)) stop("Have to supply name in AddGlobal!")
+	if (comment == "") {
+		comment = name
+	}
+	g = data.frame(
+		name=name,
+		comment=comment
+	)
+	Globals <<- rbind(Globals,g)
+}
+
+AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
+	if (missing(name)) stop("Have to supply name in AddQuantity!")
+	if (comment == "") {
+		comment = name
+	}
+	if (vector) {
+		type="vector_t"
+	} else {
+		type="real_t"
+	}
+	q = data.frame(
+		name=name,
+		type=type,
+		unit=unit,
+		adjoint=adjoint,
+		comment=comment
+	)
+	Quantities <<- rbind(Quantities,q)
+}	
 
 Node_Group = c(
   NONE        =0x0000

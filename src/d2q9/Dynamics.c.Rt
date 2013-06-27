@@ -1,13 +1,8 @@
-
-#define S2 1.3333
-#define S3 1.0
-#define S5 1.0
-#define S7 1.0
-#define S8 omega
-#define S9 omega
-
 <?R
 	source("conf.R") 
+	c_header();
+	f = PV(Density$name)
+	U = as.matrix(Density[,c("dx","dy")])
 
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	uf = PV("uf")
@@ -17,20 +12,21 @@
         uf1 = uf;
         uf2 = uf;
         uf3 = uf;
-#	omega = 1.0
-
-
-
-
-t1 = 4/9
-t2 = 1/9
-t3 = 1/36
-c_squ = 1/3
-
-tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
-bounce = c(0,3,4,1,2,7,8,5,6)
-
+	t1 = 4/9
+	t2 = 1/9
+	t3 = 1/36
+	c_squ = 1/3
+	tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
+	bounce = c(0,3,4,1,2,7,8,5,6)
 ?>
+
+#define S2 1.3333
+#define S3 1.0
+#define S5 1.0
+#define S7 1.0
+#define S8 omega
+#define S9 omega
+
 
 CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
