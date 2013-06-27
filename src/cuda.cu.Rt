@@ -74,7 +74,11 @@ struct Node<?%s suff ?> {
 		if (! tp$adjoint) { ?>
 			#include "Dynamics.h" <?R
 		} ?>
+#ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
+#else
+	#include "Dynamics_sp.c"
+#endif
 	<?R
 		if (tp$adjoint) { ?>
 			#include "Dynamics_b.c"
