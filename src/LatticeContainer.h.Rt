@@ -53,6 +53,7 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void push(N & f);
   template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
+  template<class N>  CudaDeviceFunction void getType(N & f);
 #ifdef ADJOINT
   template<class N>  CudaDeviceFunction void push_adj(N & f);
   template<class N>  CudaDeviceFunction void pull_adj(N & f);

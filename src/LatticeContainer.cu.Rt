@@ -350,6 +350,8 @@ void LatticeContainer::Free()
 			for (d in rows(density)) {
 				pop(d$name, d$dx, d$dy, d$dz)
 			}
+		} else if (type == "type") { ?>
+	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
 		} else {
 			stop("Unknown type in InOut");
 		}
@@ -370,6 +372,11 @@ template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node)
 template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
 {
 <?R	InOut("pop", "in", Density); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
+{
+<?R	InOut("type", "in", Density); ?>
 }
 
 #ifdef ADJOINT
