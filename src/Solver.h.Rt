@@ -1,76 +1,114 @@
-<?R source("conf.R") ?>
+<?R
+        source("conf.R")
+	c_header();
+?>
 
-#define PARALLEL
-#ifdef PARALLEL
-	#include <mpi.h>
-#endif
-#include "Rcpp.h"
-#include "cuda.h"
-#include "cuda_runtime_api.h"
-#include "driver_types.h"
-#define CROSS_CPP
-#include "cross.h"
+#include "pugixml.hpp"
 #include "Global.h"
-#include "Region.h"
-#include "Lattice.h"
-#include "Node_types.h"
+#include <mpi.h>
 #ifdef GRAPHICS
 	#include "gpu_anim.h"
-	#include "GL/freeglut_ext.h"
+#endif
+#include "cross.h"
+#include "Region.h"
+#include "Node.h"
+#include "LatticeContainer.h"
+#include "Lattice.h"
+#include "vtkLattice.h"
+#include "Geometry.h"
+#include "def.h"
+#include "utils.h"
+#include "unit.h"
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <assert.h>
+#include "Handlers.h"
+
+#ifdef GRAPHICS
+    const int desired_fps = 10;
+#else
+    const int desired_fps = 1;
 #endif
 
 using namespace std;
 
 struct InfoBlock {
+	char conffile[STRING_LEN];
 	lbRegion region;
-	int xsdim;
+        lbRegion fileregion; // Size of input mesh
+        char filename[STRING_LEN],fileformat[STRING_LEN];// Input file name and format
+<?R
+        for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+	real_t setting_<?%s v$name ?>;
+	int ifset_<?%s v$name ?>; <?R
+	}
+?>
+	int xsdim,ysdim;
+        char wall; // Wall flat. 1-walls at top and bottom, 0- no wals, periodic boundary cond.
+        flag_t collision_model; // Collision model (NODE_*)
+	flag_t inlet_type;
         int MaxIter;
         char outpath[STRING_LEN];
+	int        dataline_iter;
+	int        vtk_iter;
+	int mean_iter;
+	int mean_margin;
+	int lower_iter;
+	int lower_iter_max;
+	real_t lower_nu;
 };
 
-class LBSolver {
-
+class Solver {
     public:
 	InfoBlock info;
 	MPIInfo mpi;
+	MPI_Comm mpi_comm;
         CudaEvent_t     start, stop; // CUDA events
         Lattice * lattice; // Main lattice object
 	lbRegion region;
         int iter; // Iteration Number
-	int IterateUntil;
-        void setWidth(int &w){region.nx = w;};
-        void setHeight(int &h){region.ny = h;};
-        int getWidth(){return region.nx;};
-        int getHeight(){return region.ny;};
-        #ifdef GRAPHICS
-            GPUAnimBitmap * bitmap;
-        #endif
-
-        void outIterFile(const char * name, char * suffix, char * out);
-        void outGlobalFile(const char * name, char * suffix, char * out);
+	ofstream * dataline_file;
+	int LogIter;
+	int solIter;
 	int mpi_rank;
 	int mpi_size;
-        void MouseMove(int x, int y, int nx, int ny );
-        void MainLoop( uchar4* outputBitmap, int ticks );
-        void MainFree();
-	~LBSolver();
-	LBSolver(int nx_, int ny_, int nz_);
-	void Initialize();
-	void Iterate(int NextIter);
-	void FlagOverwrite(int dx, int dy, int dz, int nx, int ny, int nz, Rcpp::IntegerVector v);
-<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ?>
-	Rcpp::NumericVector Get<?%s q$name ?>(int dx, int dy, int dz, int nx, int ny, int nz);
-<?R } ?>
-<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
-	Rcpp::NumericVector Get_<?%s d$nicename ?>(int dx, int dy, int dz, int nx, int ny, int nz);
-	void Set_<?%s d$nicename ?>(int dx, int dy, int dz, int nx, int ny, int nz, Rcpp::NumericVector v);
-<?R } ?>
-	void WriteVTK(string name);
-<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
-	double setting_<?%s v$name ?>;
-	void Set_<?%s v$name ?>(double tmp);
-	double Get_<?%s v$name ?>();
-<?R } ?>
-	string get_outpath();
-	void set_outpath(string tmp);
-};
+	pugi::xml_node config, geom, mod, sol;
+	pugi::xml_document configfile;
+	int steps;
+	int saveN, saveI;
+	char ** saveFile;
+	UnitEnv units;
+	double LogScales[<?%d nrow(Globals) ?> + <?%d nrow(Settings) ?> + <?%d nrow(Scales) ?>];
+	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
+	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_) { Init(); };
+	void Init();
+	void saveInit(int n);
+        inline void setWidth(int &w){region.nx = w;};
+        inline void setHeight(int &h){region.ny = h;};
+        inline int getWidth(){return region.nx;};
+        inline int getHeight(){return region.ny;};
+        inline void outIterFile(char * name, char * suffix, char * out) {
+                sprintf(out, "%s_%s_P%02d_%08d%s", info.outpath, name, mpi_rank, iter, suffix);
+        };
+        inline void outGlobalFile(char * name, char * suffix, char * out) {
+                sprintf(out, "%s_%s_P%02d%s", info.outpath, name, mpi_rank, suffix);
+        };
+
+
+	void loadParams(pugi::xml_node set);
+	void readUnits();
+	int Iterations(pugi::xml_node sol);
+        void loadSolve(pugi::xml_node nsol);
+	void setSteps(int mdl);
+	int initLog(const char * filename);
+	int writeLog(const char * filename);
+	int readConf(char * filename);
+	int loadSize();
+	int MPIDivision();
+	int InitAll();
+	int RunMainLoop();
+};   
+

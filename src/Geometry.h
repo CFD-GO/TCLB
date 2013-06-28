@@ -1,3 +1,6 @@
+#ifndef GEOMETRY_H
+#define GEOMETRY_H
+
 #include "unit.h"
 
 class Geometry {
@@ -22,3 +25,5 @@ private:
   int val(pugi::xml_attribute attr);
   flag_t Dot(int x, int y, int z);
 };
+
+#endif
