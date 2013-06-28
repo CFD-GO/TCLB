@@ -2,14 +2,15 @@
 
 class Solver;
 
-class lbCallback {
+class Handler {
 	public:
 	int startIter;
 	int everyIter;
 	pugi::xml_node node;
+	inline Handler(pugi::xml_node node_) : node(node_) {};
 	virtual int DoIt(Solver*);
 };
 
-lbCallback * getHandler(pugi::xml_node);
+Handler * getHandler(pugi::xml_node);
 
 

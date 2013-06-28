@@ -29,23 +29,53 @@
 #include "Solver.h"
 
 
-int lbCallback::DoIt(Solver* solver) {
+int Handler::DoIt(Solver* solver) {
 	printf("It is wrong!\n");
 	exit(-1);
 	return -1;
 };
 
-class VTKWrite: public lbCallback {
+class VTKWrite: public Handler {
+	public:
+	VTKWrite(pugi::xml_node node_) : Handler(node_) {};
 	int DoIt(Solver* solver) {
-		printf("Hey!\n");
+		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
+		char filename[STRING_LEN];
+		solver->outIterFile("VTK", ".vti", filename);
+		vtkWriteLattice(filename, solver->lattice, solver->units);
+		printf("]\n");
 		return 0;
 	};
 };
 
-lbCallback * getHandler(pugi::xml_node node) {
-	lbCallback * ret;
-	ret = new lbCallback;
-	
-	ret->node = node;
+class LogWrite: public Handler {
+	public:
+	LogWrite(pugi::xml_node node_) : Handler(node_) {};
+	int DoIt(Solver* solver) {
+		solver->LogIter = solver->iter;
+		solver->writeLog(node.attribute("filename").value());
+	}
+};
+
+class SimpleSolve: public Handler {
+	public:
+	SimpleSolve(pugi::xml_node node_) : Handler(node_) {};
+	int DoIt(Solver* solver) {
+	}
+};
+
+Handler * getHandler(pugi::xml_node node) {
+	Handler * ret;
+	std::string name(node.name());
+	if (name=="VTK") {
+		ret = new VTKWrite(node);
+        } else if (name=="Log") {
+		ret = new LogWrite(node);
+        } else if (name=="Solve") {
+		ret = new SimpleSolve(node);
+        } else {
+		std::cerr << "Unknown element '" << node.name() << "' in xml\n";
+		return NULL;
+	}
 	return ret;
 }

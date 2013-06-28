@@ -132,7 +132,7 @@ void Solver::saveInit(int n){
         void Solver::loadSolve(pugi::xml_node nsol) {
 		if (! nsol) { return; }
 
-		lbCallback * hand = getHandler(nsol);
+		Handler * hand = getHandler(nsol);
 
 		hand->DoIt(this);
 
