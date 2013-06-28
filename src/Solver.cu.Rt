@@ -1,0 +1,593 @@
+<?R
+        source("conf.R")
+	c_header();
+?>
+
+#include "pugixml.hpp"
+#include "Global.h"
+#include <mpi.h>
+#ifdef GRAPHICS
+	#include "gpu_anim.h"
+#endif
+#include "cross.h"
+#include "Region.h"
+#include "Node.h"
+#include "LatticeContainer.h"
+#include "Lattice.h"
+#include "vtkLattice.h"
+#include "Geometry.h"
+#include "def.h"
+#include "utils.h"
+#include "unit.h"
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <assert.h>
+
+#include "Solver.h"
+
+using namespace std;
+
+void MouseMove( Solver * data, int x, int y, int nx, int ny );
+int MainLoop( uchar4* outputBitmap, Solver *d, int ticks );
+void MainFree( Solver *d);
+
+void Solver::Init() {
+		info.MaxIter = 0;
+		iter = 0;
+		LogIter = 0;
+		solIter = 0;
+		mpi_rank = 0;
+		mpi_size = 1;
+		steps = 1;
+		saveN = 0;
+		saveI = 0;
+		saveFile = NULL;
+	}
+
+
+void Solver::saveInit(int n){
+		n++;
+		if (saveN != 0) {
+			free(saveFile[0]);
+			free(saveFile);
+		}
+		saveN=n;
+		n++;
+		saveFile = (char**) malloc(sizeof(char*)*n);
+		char * fn = (char*) malloc(sizeof(char )*n*STRING_LEN);
+		for (int i=0;i<n;i++) {
+			saveFile[i] = &(fn[i*STRING_LEN]);
+			saveFile[i][0] = '\0';
+		}
+		outGlobalFile("SAVE", ".txt", saveFile[saveN]);
+	}
+
+
+	void Solver::loadParams(pugi::xml_node set) {
+		DEBUG_M;
+                for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
+                        pugi::xml_attribute attr;
+                        <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+                                attr = node.attribute("<?%s v$name?>");
+                                if (attr) {
+					double val = units.alt(attr.value());
+					lattice-><?%s v$FunName ?>(val);
+				}
+                        <?R } ?>
+                }
+	}
+
+	void Solver::readUnits() {
+		pugi::xml_node set = config.child("Units");
+		if (!set) {
+			printf("[%d] Warning: No \"Units\" element in config file\n", D_MPI_RANK);
+			return;
+		}
+                for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
+			std::string nm="", val="", gauge="1";
+			for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
+			{
+				if (((std::string) attr.name()) == "gauge") {
+					gauge = attr.value();
+				} else {
+					if (nm != "") {
+						std::cerr << "Only one variable allowed in a Params element in Units (" << nm << "," << attr.name() << ")\n";
+					}
+					nm = attr.name();
+					val= attr.value();
+				}
+			}
+			if (nm == "") {
+				std::cerr << "No variable in a Params element in Units\n";
+			}
+			if (mpi_rank == 0) printf("[ ] %s = %s = %s \n", nm.c_str(), val.c_str(), gauge.c_str());
+			units.setUnit(nm, units(val)/units(gauge), 1);
+                }
+		units.makeGauge();
+		if (mpi_rank == 0) {
+			units.printGauge();
+		}
+	    <?R 
+		for (i in 1:nrow(Settings)) { ?>
+                    LogScales[<?%d i-1 ?>] = 1/units.alt("<?%s Settings$unit[i] ?>"); <?R
+		}
+		for (i in 1:nrow(Globals)) { ?>
+                    LogScales[<?%d nrow(Settings)+i-1 ?>] = 1/units.alt("<?%s Globals$unit[i] ?>"); <?R
+		}
+		for (i in 1:nrow(Scales)) { ?>
+                    LogScales[<?%d nrow(Settings)+nrow(Globals)+i-1 ?>] = 1/units.alt("<?%s Scales$unit[i] ?>"); <?R
+		}
+ ?>
+	}
+
+	int Solver::Iterations(pugi::xml_node sol) {
+		double v = units.alt(sol.attribute("Iterations").value());
+		if (v > 0) return v + 0.5;
+		return v - 0.5;
+	}
+
+        void Solver::loadSolve(pugi::xml_node nsol) {
+		if (! nsol) { return; }
+
+		lbCallback * hand = getHandler(nsol);
+
+		hand->DoIt(this);
+
+		delete hand;
+                sol = nsol;
+                solIter = iter;
+		if (! nsol.attribute("Iterations")) {
+			std::cerr << "No 'Iterations' attribute in 'Solve' in xml config\n";
+		}
+                info.MaxIter += Iterations(nsol);
+		LogIter = 0;
+		if (sol.attribute("output")) {
+			char _confname[STRING_LEN];
+			strcpy(_confname,info.conffile);
+			stripbare(_confname);
+			sprintf(info.outpath, "%s%s", sol.attribute("output").value(), _confname);
+			printf("[%d] Setting output path to: %s\n", D_MPI_RANK, info.outpath);
+		}
+		DEBUG_M;
+		for (pugi::xml_node node = sol.first_child(); node; node = node.next_sibling()) {
+			DEBUG_M;
+			if (strcmp(node.name(), "Params")!=0) {
+				if (! node.attribute("Iterations")) {
+					DEBUG_M;
+					std::cerr << "No 'Iterations' attribute in action '" << node.name() << "' in 'Solve' in xml\n";
+				}
+			}
+			if (strcmp(node.name(), "Mean")==0) {
+				DEBUG_M;
+				char filename[STRING_LEN];
+				outGlobalFile("Density", ".csv", filename);
+				initMean(filename);
+			}
+			if (strcmp(node.name(), "Log")==0) {
+				DEBUG_M;
+				if (! node.attribute("filename")) {
+					char filename[STRING_LEN];
+					outIterFile("Log", ".csv", filename);
+					printf("%s\n",filename);
+					node.append_attribute("filename") = filename;
+				}
+				initLog(node.attribute("filename").value());
+				LogIter = Iterations(node);
+			}
+		}
+		DEBUG_M;
+		loadParams(sol);
+		steps = 1;
+		DEBUG_M;
+        }
+	void Solver::setSteps(int mdl) {
+		int ns = mdl - ((iter - solIter) % mdl);
+		if (ns <= 0) return;
+		if (ns > steps) return;
+		steps = ns;
+	}
+
+	int Solver::initLog(const char * filename)
+	{ 
+		if (mpi.rank == 0) {
+                    FILE * f = NULL;
+                    printf("Initializing %s\n",filename);
+                    f = fopen(filename, "wt");
+                    assert( f != NULL );
+			
+                    fprintf(f,"\"Iteration\"");
+		    <?R for (v in Settings$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
+		    <?R } ?>
+		    <?R for (v in Globals$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
+		    <?R } ?>
+		    <?R for (v in Scales$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>_si\"");
+		    <?R } ?>
+                    fprintf(f,"\n");
+
+                    fclose(f);
+		}
+                return 0;
+	}
+
+	int Solver::writeLog(const char * filename)
+	{ 
+	        FILE * f = NULL;
+		double v;
+		real_t glob[<?%d nrow(Globals) ?>];
+		lattice->getGlobals(glob);
+	        if (mpi.rank == 0) {
+			int j=0;
+	                f = fopen(filename, "at");  
+	                assert( f != NULL );
+			fprintf(f,"%d",iter);
+			for (int i=0; i< <?%d nrow(Settings) ?>; i++) {
+				v = lattice->settings[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< <?%d nrow(Globals) ?>; i++) {
+				v = glob[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< <?%d nrow(Scales) ?>; i++) {
+				fprintf(f,", %le",LogScales[j]);
+				j++;
+			}
+			fprintf(f,"\n");
+	                fclose(f);  
+        	}
+		return 0;
+	}
+
+	int Solver::readConf(char * filename) {
+	        if (xml_def_init()) { fprintf(stderr, "[%d] Error in xml_def_init. It should work!\n", D_MPI_RANK); return -1; }
+		strcpy(info.conffile, filename);
+		pugi::xml_parse_result result = configfile.load_file(filename);
+		if (!result) {
+			std::cerr << "Error while parsing " << info.conffile << ": " << result.description() << std::endl;
+			return -1;
+		}
+		return 0;
+	}
+
+	int Solver::loadSize() {
+		#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { std::cerr << "Error in " << info.conffile << ": No \"" << z << "\" element" << std::endl; return -1; }}
+	
+		XMLCHILD(config, configfile, "CLBConfig");
+		XMLCHILD(geom, config, "Geometry");
+		XMLCHILD(mod, config, "Model");
+		readUnits();
+		info.region.nx = myround(units.alt(geom.attribute("nx").value(),1));
+		info.region.ny = myround(units.alt(geom.attribute("ny").value(),1));
+		info.region.nz = myround(units.alt(geom.attribute("nz").value(),1));
+		printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,info.region.nx,info.region.ny,info.region.nz);
+		if (info.region.nx < info.xsdim) {
+			info.xsdim = info.region.nx - 1 + 32 - ((info.region.nx - 1) % 32);
+			printf("[%d] small mesh: resetting number of threads to: %dx%d\n", D_MPI_RANK, info.xsdim, info.ysdim);
+		}
+		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
+		return 0;
+	}
+
+	int Solver::MPIDivision() {
+		if (mpi_rank == 0) {
+			printf("[ ] Mesh size: %dx%dx%d\n",info.region.nx, info.region.ny, info.region.nz);
+			int divz,divy;
+			float com, mincom, optcom;
+			mincom = (1+mpi_size) * (info.region.ny+info.region.nz);
+			optcom = 2 * sqrt((float) info.region.ny*info.region.nz*mpi_size);
+			for (divz = 1; divz <= mpi_size; divz ++)
+				if (mpi_size % divz == 0) {
+	                                divy = mpi_size / divz;
+	                                com = divz * info.region.ny + divy * info.region.nz;
+	                                printf("[ ] MPI division %d x %d. Communication: %f (%3.0f%%) ", divz, divy, com, 100*(com/optcom - 1));
+	                                if (com < mincom) {
+	                                        mincom = com;
+	                                        int * zlens = new int[divz];
+	                                        int * ylens = new int[divy];
+	                                        int mz,my;
+	                                        mz = info.region.nz;
+	                                        my = info.region.ny;
+	                                        if (mz >= divz && my >= divy) {
+	                                                printf("Division:");
+	                                                for (int i=0; i<divy; i++)
+	                                                {	ylens[i] = my/(divy-i);
+	                                                        my -= ylens[i];
+	                                                        printf(" %d",ylens[i]);
+	                                                }
+	                                                printf(" x");
+	                                                for (int i=0; i<divz; i++)
+	                                                {	zlens[i] = mz/(divz-i);
+	                                                        mz -= zlens[i];
+	                                                        printf(" %d",zlens[i]);
+	                                                }
+	                                                printf("\n");
+	                                                int dz=0,dy=0,k=0;;
+	                                                for (int i=0; i<divz; i++) {
+								dy=0;
+		                                                for (int j=0; j<divy; j++) {
+	                                                                mpi.node[k].region.dz = dz;
+	                                                                mpi.node[k].region.dy = dy;
+	                                                                mpi.node[k].region.nz = zlens[i];
+	                                                                mpi.node[k].region.ny = ylens[j];
+	                                                                mpi.node[k].region.dx = info.region.dx;
+	                                                                mpi.node[k].region.nx = info.region.nx;
+	                                                                dy += ylens[j];
+	                                                                k++;
+	                                                        }
+	                                                        dz += zlens[i];
+	                                                }
+	                                                fillSides(mpi, 1, divy, divz);
+	                                        } else {
+	                                                printf("Mesh too small to divide\n");
+	                                        }
+	                                        delete[] zlens;
+	                                        delete[] ylens;
+	                                } else {
+						printf("\n");
+					}
+	                	}
+	                int k = 0;
+	                for (int i=0; i < mpi_size; i++) {
+	                        printf("[ ] Processor %d will get: %dx%dx%d\n", i, mpi.node[i].region.nx, mpi.node[i].region.ny,mpi.node[i].region.nz);
+	                        if (k < mpi.node[i].region.size()) k = mpi.node[i].region.size();
+	                }
+	                float overhead = ((double)(  k*mpi_size - info.region.size()  )) / info.region.size();
+	                printf("[ ] Max region size: %d. Mesh size %d. Overhead: %2.f%%\n", k, info.region.size(), overhead * 100);
+		}
+	
+		#ifndef CROSS_CPU
+			XSDIM = info.xsdim;
+			YSDIM = info.ysdim;
+		#endif
+	
+	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPI_COMM_WORLD);
+	        region = mpi.node[mpi_rank].region;
+	        mpi.totalregion = info.region;
+	        printf("[%d] Lattice size: %dx%dx%d\n", D_MPI_RANK, region.nx, region.ny,region.nz);
+		return 0;
+	}
+
+	int Solver::InitAll() {
+	        // Making a window
+	        #ifdef GRAPHICS
+	        	printf("[%d] Running graphics at %dx%d\n", D_MPI_RANK, region.nx, region.ny);
+	        	GPUAnimBitmap bitmap( region.nx, region.ny, this );
+	        #endif
+		MPI_Barrier(MPI_COMM_WORLD);
+	
+		// Creating Lattice (GPU allocation is here)
+		lattice = new Lattice(region);
+		lattice->MPIInit(mpi);
+	   
+		// Setting global variables
+		initSettings();
+		loadParams(mod);
+		{
+			pugi::xml_node set = config.child("Units");
+			if (set) loadParams(set);
+		}
+		{
+			pugi::xml_node sol;
+			XMLCHILD(sol, config, "Solve");
+			loadSolve(sol);
+		}
+		DEBUG_M;
+		{
+			Geometry geometry(region, units);
+			if (geometry.load(geom)) {
+				std::cerr << "Error while loading geometry\n";
+				return -1;
+			}
+			char filename[STRING_LEN];
+			outIterFile("G", ".vti", filename);
+			geometry.writeVTI(filename);
+			lattice->FlagOverwrite(geometry.geom,geometry.region);
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
+
+		iter = 0;
+		if (iter == 0) {
+			lattice->Init();
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
+
+		// Timers initiation
+		CudaEventCreate( &start );
+		CudaEventCreate( &stop );
+		CudaEventRecord( stop, 0 );
+		return 0;
+	}
+
+	int Solver::RunMainLoop() {
+		// Main loop call
+    
+		#ifdef GRAPHICS
+        		bitmap.mouse_move( (void (*)(void*,int,int,int,int)) MouseMove);
+		        bitmap.anim_and_exit( (int (*)(uchar4*,void*,int)) MainLoop, (void (*)(void*))MainFree );
+		#else
+			while (iter < info.MaxIter) {
+				MainLoop(NULL, this, 0);
+			}
+			MainFree(this);
+		#endif
+		return 0;
+	}
+
+
+void MouseMove( Solver * data, int x, int y, int nx, int ny )
+{
+//	Node now;
+//	data->lattice->GetRegion(x,data->region.ny - y - 1,1,1,&now);
+//	now.NodeType = NODE_BounceBack; //Setting node as wall
+//	data->lattice->SetRegion(x,data->region.ny - y - 1,1,1,&now);
+
+	lbRegion r(
+		x,
+		data->region.ny - y - 1,
+		0,
+	1,1,1);
+	flag_t NodeType = NODE_Wall;
+	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+
+}
+
+// Main loop function
+int MainLoop( uchar4* outputBitmap, Solver *d, int ticks )
+{
+    static int i;
+    float   elapsedTime, outofTime; // Elapsed times
+	DEBUG_M;
+	MPI_Bcast(&d->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	DEBUG_M;
+    CudaEventRecord( d->start, 0 );
+    CudaEventSynchronize( d->start );
+    CudaEventElapsedTime( &outofTime, d->stop, d->start );
+
+//---------------------------- MAIN LOOP ------------------------------//
+//screenDumpLattice(d->lattice);
+	i=0;
+	if (d->LogIter != 0) if ((d->iter - d->solIter + d->steps) % d->LogIter == 0) { i++;}
+	for (; i<d->steps;i++)
+	{
+		d->iter++;
+        	d->lattice->Iterate(); // LB iteration
+		DEBUG_M;
+		#ifndef GRAPHICS
+			if (d->iter >= d->info.MaxIter) break;
+		#endif
+	}
+	DEBUG_M;
+	if (d->LogIter != 0) if ((d->iter - d->solIter + 1) % d->LogIter == 0) {
+//		printf("Additional 'Globals' Iteration\n");
+		d->iter++;
+		d->lattice->IterateG();
+	}
+	CudaThreadSynchronize();
+	DEBUG_M;
+	MPI_Barrier(MPI_COMM_WORLD);
+    	DEBUG_M;
+//---------------------------- END of LOOP ----------------------------//
+
+    // Time measurement
+	CudaEventRecord( d->stop, 0 );
+	CudaEventSynchronize( d->stop );
+	CudaEventElapsedTime( &elapsedTime, d->start, d->stop );
+
+#ifdef GRAPHICS
+	d->lattice->Color(outputBitmap); // Updating graphics
+#endif
+	if (d->mpi.rank == 0) {
+        	int ups = (float) (1000.*i)/elapsedTime; // Steps made per second
+        	double lbups=1.0;
+        	lbups *= d->info.region.nx;
+        	lbups *= d->info.region.ny;
+        	lbups *= d->info.region.nz;
+        	lbups *= i;
+        	lbups /= elapsedTime;
+        	int desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
+        	// Print information
+        	printf("[ ] %8d it  %8.1f MLBUps  %7.4f Tbit/s         %4.2f%% out-of-frame\n", d->iter, ((double)lbups)/1000, ( (double) lbups * 8 * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e9, outofTime/(elapsedTime+outofTime)*100);
+        	d->steps = desired_steps;
+		if (d->steps < 1) d->steps = 1;
+		if (d->steps % 2 == 1) d->steps ++;
+	}
+	MPI_Bcast(&d->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	DEBUG_M;
+	for (pugi::xml_node node = d->sol.first_child(); node; node = node.next_sibling()) {
+		if (node.attribute("Iterations")) {
+                    int it = d->Iterations(node);
+                    if ((d->iter - d->solIter) % it == 0) {
+			DEBUG_M;
+			    if (strcmp(node.name(), "VTK")==0) {
+                                    printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
+                                    char filename[STRING_LEN];
+                                    d->outIterFile("VTK", ".vti", filename);
+                                    vtkWriteLattice(filename, d->lattice, d->units);
+                                    printf("]\n");
+                            } else if (strcmp(node.name(), "Mean")==0) {
+                                    printf("[%d]                                                     writing mean pressure [...", D_MPI_RANK);
+                                    char filename[STRING_LEN];
+                                    d->outGlobalFile("Density", ".csv", filename);
+                                    writeMean(filename, d->lattice, node.attribute("offset").as_int(0), d->iter, d->info.setting_nu);
+                                    printf("]\n");
+                            } else if (strcmp(node.name(), "Log")==0) {
+				d->LogIter=it;
+				d->writeLog(node.attribute("filename").value());
+                            } else {
+                                    std::cerr << "Unknown action '" << node.name() << "' in xml Solve\n";
+                            }
+                    }
+                    d->setSteps(it);
+		}
+	}
+	{
+		pugi::xml_node node = d->config.child("Checkpoint");
+		if (node) {
+                	int it = d->Iterations(node);
+			if ((d->iter - d->solIter) % it == 0) {
+				char * filename = d->saveFile[d->saveI];
+				d->outIterFile("SAVE", ".bin", filename);
+				d->lattice->save(filename);
+				d->saveI = (d->saveI + 1) % d->saveN;
+				filename = d->saveFile[d->saveI];
+				if (filename[0] != '\0') {
+					if( remove( filename ) != 0 ) {
+						perror( "Error deleting file" );
+						assert( 1 == 0 );
+					}
+				}
+				if (d->mpi.rank == 0) {
+					filename = d->saveFile[d->saveN];
+					FILE * f = fopen(filename,"w");
+					fprintf(f, "%d\n", d->iter);
+					fclose(f);
+				}
+			}
+			d->setSteps(it);
+		}
+	}
+	if ( (d->info.lower_iter != 0) && (d->iter % d->info.lower_iter == 0)) {
+		double t = ((double)d->iter) / d->info.lower_iter_max;
+		if (t>1) t = 1;
+		double w = 6*(1-t) + (1/d->info.lower_nu)*t;
+		d->info.setting_nu = 1/w;
+//		real_t om =  1.0/(3*d->info.setting_nu + 0.5);
+		printf("                                                        Setting nu to:%f\n", d->info.setting_nu);
+//		d->lattice->SetConst_omega(om);
+	}
+
+	if (d->iter >= d->info.MaxIter) {
+		d->loadSolve(d->sol.next_sibling("Solve"));
+	}
+	d->setSteps(d->info.MaxIter - d->solIter);
+
+	if (d->steps < 1) d->steps = 1;
+
+
+//screenDumpLattice(d->lattice);
+	#ifndef GRAPHICS
+//		if (d->iter >= d->info.MaxIter) break;
+	#endif
+	CudaThreadSynchronize();
+	MPI_Barrier(MPI_COMM_WORLD);
+    
+//---------------------------- END of LOOP ----------------------------//
+	return 0;
+}
+
+// Function for cleanup. Free memory, etc.
+void MainFree( Solver *d ) {
+    printf("cudaFree ...\n");
+    CudaEventDestroy( d->start );
+    CudaEventDestroy( d->stop );
+    delete d->lattice;
+    MPI_Finalize();
+}

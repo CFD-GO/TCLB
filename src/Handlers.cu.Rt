@@ -1,0 +1,51 @@
+<?R
+        source("conf.R")
+	c_header();
+?>
+
+#include "pugixml.hpp"
+#include "Global.h"
+#include <mpi.h>
+#ifdef GRAPHICS
+	#include "gpu_anim.h"
+#endif
+#include "cross.h"
+#include "Region.h"
+#include "Node.h"
+#include "LatticeContainer.h"
+#include "Lattice.h"
+#include "vtkLattice.h"
+#include "Geometry.h"
+#include "def.h"
+#include "utils.h"
+#include "unit.h"
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <assert.h>
+
+#include "Solver.h"
+
+
+int lbCallback::DoIt(Solver* solver) {
+	printf("It is wrong!\n");
+	exit(-1);
+	return -1;
+};
+
+class VTKWrite: public lbCallback {
+	int DoIt(Solver* solver) {
+		printf("Hey!\n");
+		return 0;
+	};
+};
+
+lbCallback * getHandler(pugi::xml_node node) {
+	lbCallback * ret;
+	ret = new lbCallback;
+	
+	ret->node = node;
+	return ret;
+}
