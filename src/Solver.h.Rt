@@ -77,6 +77,7 @@ class Solver {
 	int mpi_size;
 	pugi::xml_node config, geom, mod, sol;
 	pugi::xml_document configfile;
+	std::vector<Handler> hands;
 	int steps;
 	int saveN, saveI;
 	char ** saveFile;

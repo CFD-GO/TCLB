@@ -121,9 +121,15 @@ int main ( int argc, char * argv[] )
 	// Reading the config file
 	char* filename = argv[1];
 	if (solver.readConf(filename)) return -1;
+
 	if (solver.loadSize()) return -1;
+
 	if (solver.MPIDivision()) return -1;
 	if (solver.InitAll()) return -1;
+	Handler hand(solver.config);
+	if (hand) {
+		hand.Init(&solver);
+	}
 	if (solver.RunMainLoop()) return -1;
 	return 0;
 }

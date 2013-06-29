@@ -29,16 +29,46 @@
 #include "Solver.h"
 
 
-int Handler::DoIt(Solver* solver) {
-	printf("It is wrong!\n");
+
+
+int vHandler::DoIt(Solver* solver) {
+	printf("It is wrong (do it)!\n");
 	exit(-1);
 	return -1;
 };
 
-class VTKWrite: public Handler {
-	public:
-	VTKWrite(pugi::xml_node node_) : Handler(node_) {};
+int vHandler::Init(Solver* solver) {
+	printf("It is wrong (init)!\n");
+	exit(-1);
+	return -1;
+};
+
+int vHandler::Type() {
+	return 0;
+};
+
+class Callback : public vHandler {
+public:
 	int DoIt(Solver* solver) {
+	}
+	int Init(Solver* solver) {
+	}
+	int Type() { return HANDLER_CALLBACK; }
+};
+
+class Action : public vHandler {
+public:
+	int DoIt(Solver* solver) {
+	}
+	int Init(Solver* solver) {
+	}
+	int Type() { return HANDLER_ACTION; }
+};
+
+class cbVTK: public Callback {
+	public:
+	int DoIt(Solver* solver) {
+		Callback::DoIt(solver);
 		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
 		char filename[STRING_LEN];
 		solver->outIterFile("VTK", ".vti", filename);
@@ -48,34 +78,101 @@ class VTKWrite: public Handler {
 	};
 };
 
-class LogWrite: public Handler {
+class cbLog: public Callback {
 	public:
-	LogWrite(pugi::xml_node node_) : Handler(node_) {};
 	int DoIt(Solver* solver) {
+		Callback::DoIt(solver);
 		solver->LogIter = solver->iter;
 		solver->writeLog(node.attribute("filename").value());
+		return 0;
 	}
 };
 
-class SimpleSolve: public Handler {
+class GenericAction: public Action {
 	public:
-	SimpleSolve(pugi::xml_node node_) : Handler(node_) {};
-	int DoIt(Solver* solver) {
+	int Init(Solver* solver) {
+                for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+			Handler hand(par);
+			if (hand) {
+				int ret = hand.Init(solver);
+				if (ret) return ret;
+				if (hand.Type() & HANDLER_CALLBACK) solver->hands.push_back(hand);
+			} else return -1;
+                }
+		return 0;
 	}
 };
 
-Handler * getHandler(pugi::xml_node node) {
-	Handler * ret;
+class GenericContainer: public GenericAction {
+	public:
+	int Init(Solver* solver) {
+		Action::Init(solver);
+		return GenericAction::Init(solver);
+	}
+};
+
+
+class acSolve: public GenericAction {
+	public:
+	int Init(Solver* solver) {
+		Action::Init(solver);
+		GenericAction::Init(solver);
+	}
+};
+
+class acParams: public Action {
+	public:
+	int Init(Solver* solver) {
+		Action::Init(solver);
+		pugi::xml_attribute attr;
+		<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+			attr = node.attribute("<?%s v$name?>");
+			if (attr) {
+				double val = solver->units.alt(attr.value());
+				solver->lattice-><?%s v$FunName ?>(val);
+			}
+		<?R } ?>
+	}
+};
+
+class acGeometry: public Action {
+	public:
+	int Init(Solver* solver) {
+			Geometry geometry(solver->region, solver->units);
+			if (geometry.load(node)) {
+				std::cerr << "Error while loading geometry\n";
+				return -1;
+			}
+			char filename[STRING_LEN];
+			solver->outIterFile("G", ".vti", filename);
+			geometry.writeVTI(filename);
+			solver->lattice->FlagOverwrite(geometry.geom,geometry.region);
+			return 0;
+	}
+};
+
+vHandler * getHandler(pugi::xml_node node) {
+	vHandler * ret;
 	std::string name(node.name());
+	std::cout << name << "\n";
 	if (name=="VTK") {
-		ret = new VTKWrite(node);
+		ret = new cbVTK;
         } else if (name=="Log") {
-		ret = new LogWrite(node);
+		ret = new cbLog;
         } else if (name=="Solve") {
-		ret = new SimpleSolve(node);
+		ret = new acSolve;
+        } else if (name=="Params") {
+		ret = new acParams;
+        } else if (name=="Geometry") {
+		ret = new acGeometry;
+        } else if (name=="CLBConfig") {
+		ret = new GenericContainer;
+        } else if (name=="Model") {
+		ret = new GenericContainer;
         } else {
 		std::cerr << "Unknown element '" << node.name() << "' in xml\n";
 		return NULL;
 	}
+	ret->node = node;
 	return ret;
 }

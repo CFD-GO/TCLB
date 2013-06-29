@@ -132,11 +132,10 @@ void Solver::saveInit(int n){
         void Solver::loadSolve(pugi::xml_node nsol) {
 		if (! nsol) { return; }
 
-		Handler * hand = getHandler(nsol);
+		Handler hand(nsol);
 
-		hand->DoIt(this);
+		hand.DoIt(this);
 
-		delete hand;
                 sol = nsol;
                 solIter = iter;
 		if (! nsol.attribute("Iterations")) {
