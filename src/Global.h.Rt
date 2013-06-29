@@ -67,7 +67,7 @@ void initSettings();
 
 	#define DEBUG_SETRANK(x) D_MPI_RANK = x
 	#define DEBUG0(x) 
-	#define DEBUG1(x) x
+	#define DEBUG1(x)
 	#define DEBUG2(x) x
 	#define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
 	

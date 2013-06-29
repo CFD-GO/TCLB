@@ -28,13 +28,13 @@ public:
 		hand = getHandler(node);
 		ref = new int;
 		*ref=1;
-		printf("H: create\n");
+		DEBUG0(printf("H: create\n");)
 	}
 	inline Handler(const Handler & that) {
 		hand = that.hand;
 		ref = that.ref;
 		(*ref)++;
-		printf("H: + %d\n", *ref);
+		DEBUG0(printf("H: + %d\n", *ref);)
 	}
 	inline const int Init(Solver* solver) { return hand->Init(solver); }
 	inline const int DoIt(Solver* solver) { return hand->DoIt(solver); }
@@ -43,12 +43,12 @@ public:
 		hand = that.hand;
 		ref = that.ref;
 		(*ref)++;
-		printf("H: + %d\n", *ref);
+		DEBUG0(printf("H: + %d\n", *ref);)
 		return *this;
 	}
 	inline ~Handler() {
 		(*ref)--;
-		printf("H: - %d\n", *ref);
+		DEBUG0(printf("H: - %d\n", *ref);)
 		if (ref <= 0) {
 			delete hand;
 			delete ref;

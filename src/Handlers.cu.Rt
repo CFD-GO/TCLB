@@ -116,7 +116,9 @@ class acSolve: public GenericAction {
 	public:
 	int Init(Solver* solver) {
 		Action::Init(solver);
+		printf("Solve\n");
 		GenericAction::Init(solver);
+		return 0;
 	}
 };
 
@@ -132,6 +134,27 @@ class acParams: public Action {
 				solver->lattice-><?%s v$FunName ?>(val);
 			}
 		<?R } ?>
+	}
+};
+
+
+class acModel: public GenericContainer {
+	public:
+	int Init(Solver* solver) {
+		GenericContainer::Init(solver);
+		solver->iter = 0;
+		solver->lattice->Init();
+		return 0;
+	}
+};
+
+
+class acInit: public Action {
+	public:
+	int Init(Solver* solver) {
+		Action::Init(solver);
+		solver->lattice->Init();
+		return 0;
 	}
 };
 
@@ -154,7 +177,7 @@ class acGeometry: public Action {
 vHandler * getHandler(pugi::xml_node node) {
 	vHandler * ret;
 	std::string name(node.name());
-	std::cout << name << "\n";
+	DEBUG1(std::cout << name << "\n";)
 	if (name=="VTK") {
 		ret = new cbVTK;
         } else if (name=="Log") {
@@ -163,12 +186,16 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new acSolve;
         } else if (name=="Params") {
 		ret = new acParams;
+        } else if (name=="Units") {
+		ret = new acParams;
         } else if (name=="Geometry") {
 		ret = new acGeometry;
         } else if (name=="CLBConfig") {
 		ret = new GenericContainer;
         } else if (name=="Model") {
-		ret = new GenericContainer;
+		ret = new acModel;
+        } else if (name=="Init") {
+		ret = new acInit;
         } else {
 		std::cerr << "Unknown element '" << node.name() << "' in xml\n";
 		return NULL;

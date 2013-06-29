@@ -100,7 +100,8 @@ class Solver {
 
 
 	void loadParams(pugi::xml_node set);
-	void readUnits();
+	void setUnit(std::string, std::string, std::string);
+	void Gauge();
 	int Iterations(pugi::xml_node sol);
         void loadSolve(pugi::xml_node nsol);
 	void setSteps(int mdl);
@@ -108,6 +109,7 @@ class Solver {
 	int writeLog(const char * filename);
 	int readConf(char * filename);
 	int loadSize();
+	int setSize(int,int,int);
 	int MPIDivision();
 	int InitAll();
 	int RunMainLoop();

@@ -80,32 +80,10 @@ void Solver::saveInit(int n){
                 }
 	}
 
-	void Solver::readUnits() {
-		pugi::xml_node set = config.child("Units");
-		if (!set) {
-			printf("[%d] Warning: No \"Units\" element in config file\n", D_MPI_RANK);
-			return;
-		}
-                for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
-			std::string nm="", val="", gauge="1";
-			for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
-			{
-				if (((std::string) attr.name()) == "gauge") {
-					gauge = attr.value();
-				} else {
-					if (nm != "") {
-						std::cerr << "Only one variable allowed in a Params element in Units (" << nm << "," << attr.name() << ")\n";
-					}
-					nm = attr.name();
-					val= attr.value();
-				}
-			}
-			if (nm == "") {
-				std::cerr << "No variable in a Params element in Units\n";
-			}
-			if (mpi_rank == 0) printf("[ ] %s = %s = %s \n", nm.c_str(), val.c_str(), gauge.c_str());
-			units.setUnit(nm, units(val)/units(gauge), 1);
-                }
+	void Solver::setUnit(std::string nm, std::string val, std::string gauge) {
+		units.setUnit(nm, units(val)/units(gauge), 1);
+	}
+	void Solver::Gauge() {
 		units.makeGauge();
 		if (mpi_rank == 0) {
 			units.printGauge();
@@ -131,10 +109,6 @@ void Solver::saveInit(int n){
 
         void Solver::loadSolve(pugi::xml_node nsol) {
 		if (! nsol) { return; }
-
-		Handler hand(nsol);
-
-		hand.DoIt(this);
 
                 sol = nsol;
                 solIter = iter;
@@ -256,22 +230,18 @@ void Solver::saveInit(int n){
 		return 0;
 	}
 
-	int Solver::loadSize() {
-		#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { std::cerr << "Error in " << info.conffile << ": No \"" << z << "\" element" << std::endl; return -1; }}
-	
-		XMLCHILD(config, configfile, "CLBConfig");
-		XMLCHILD(geom, config, "Geometry");
-		XMLCHILD(mod, config, "Model");
-		readUnits();
-		info.region.nx = myround(units.alt(geom.attribute("nx").value(),1));
-		info.region.ny = myround(units.alt(geom.attribute("ny").value(),1));
-		info.region.nz = myround(units.alt(geom.attribute("nz").value(),1));
+	int Solver::setSize(int nx, int ny, int nz) {
+		info.region.nx = nx;
+		info.region.ny = ny;
+		info.region.nz = nz;
 		printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,info.region.nx,info.region.ny,info.region.nz);
 		if (info.region.nx < info.xsdim) {
 			info.xsdim = info.region.nx - 1 + 32 - ((info.region.nx - 1) % 32);
 			printf("[%d] small mesh: resetting number of threads to: %dx%d\n", D_MPI_RANK, info.xsdim, info.ysdim);
 		}
 		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
+		MPIDivision();
+		InitAll();
 		return 0;
 	}
 
@@ -360,7 +330,6 @@ void Solver::saveInit(int n){
 	        	printf("[%d] Running graphics at %dx%d\n", D_MPI_RANK, region.nx, region.ny);
 	        	GPUAnimBitmap bitmap( region.nx, region.ny, this );
 	        #endif
-		MPI_Barrier(MPI_COMM_WORLD);
 	
 		// Creating Lattice (GPU allocation is here)
 		lattice = new Lattice(region);
@@ -368,40 +337,10 @@ void Solver::saveInit(int n){
 	   
 		// Setting global variables
 		initSettings();
-		loadParams(mod);
-		{
-			pugi::xml_node set = config.child("Units");
-			if (set) loadParams(set);
-		}
-		{
-			pugi::xml_node sol;
-			XMLCHILD(sol, config, "Solve");
-			loadSolve(sol);
-		}
-		DEBUG_M;
-		{
-			Geometry geometry(region, units);
-			if (geometry.load(geom)) {
-				std::cerr << "Error while loading geometry\n";
-				return -1;
-			}
-			char filename[STRING_LEN];
-			outIterFile("G", ".vti", filename);
-			geometry.writeVTI(filename);
-			lattice->FlagOverwrite(geometry.geom,geometry.region);
-		}
-		MPI_Barrier(MPI_COMM_WORLD);
-
-		iter = 0;
-		if (iter == 0) {
-			lattice->Init();
-		}
-		MPI_Barrier(MPI_COMM_WORLD);
-
-		// Timers initiation
 		CudaEventCreate( &start );
 		CudaEventCreate( &stop );
 		CudaEventRecord( stop, 0 );
+		MPI_Barrier(MPI_COMM_WORLD);
 		return 0;
 	}
 
