@@ -46,6 +46,8 @@
     #endif
     #define CudaMemset(a__,b__,c__) HANDLE_ERROR( cudaMemset(a__, b__, c__) )
     #define CudaMalloc(a__,b__) HANDLE_ERROR( cudaMalloc(a__,b__) )
+    #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
+    #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( cudaMallocHost(a__,b__) )
     #define CudaFree(a__) HANDLE_ERROR( cudaFree(a__) )
     #define CudaFreeHost(a__) HANDLE_ERROR( cudaFreeHost(a__) )
@@ -71,6 +73,9 @@
 
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
+
+cudaError_t cudaPreAlloc(void ** ptr, size_t size);
+cudaError_t cudaAllocFinalize();
 
 void HandleError( cudaError_t err, const char *file, int line );
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))

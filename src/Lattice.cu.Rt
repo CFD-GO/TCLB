@@ -52,17 +52,22 @@ Lattice::Lattice(lbRegion _region):region(_region)
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
 	for (int i=0; i < nSnaps; i++) {
-		Snaps[i].Alloc(_region.nx,_region.ny,_region.nz);
+		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
 	}
 	for (int i=0; i < maxSnaps; i++) {	
 		iSnaps[i]=-1;
 	}
-	container->in = Snaps[0];
-	container->out = Snaps[1];
 #ifdef ADJOINT
 	aSnaps = new FTabs[2];
 	aSnaps[0].Alloc(_region.nx,_region.ny,_region.nz);
 	aSnaps[1].Alloc(_region.nx,_region.ny,_region.nz);
+#endif
+
+	CudaAllocFinalize();
+
+	container->in = Snaps[0];
+	container->out = Snaps[1];
+#ifdef ADJOINT
 	container->adjout = aSnaps[0];
 #endif
 	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {

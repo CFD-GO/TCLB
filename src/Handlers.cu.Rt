@@ -52,6 +52,16 @@ public:
 	int DoIt(Solver* solver) {
 	}
 	int Init(Solver* solver) {
+		if (node.attribute("Iterations")) {
+			int it = solver->Iterations(node);
+			startIter = solver->iter;
+			everyIter = it;
+			std::cout << "Setting callback " << node.name() << " at " << it << " iterations\n";
+		} else {
+			std::cerr << "No Iterations attribute in " << node.name() << "\n";
+			return -1;
+		}
+		return 0;
 	}
 	int Type() { return HANDLER_CALLBACK; }
 };
@@ -61,6 +71,16 @@ public:
 	int DoIt(Solver* solver) {
 	}
 	int Init(Solver* solver) {
+		if (node.attribute("Iterations")) {
+			int it = solver->Iterations(node);
+			startIter = solver->iter;
+			everyIter = it;
+			std::cout << "Setting action " << node.name() << " at " << it << " iterations\n";
+		} else {
+			startIter = solver->iter;
+			everyIter = 0;
+		}
+		return 0;
 	}
 	int Type() { return HANDLER_ACTION; }
 };
@@ -79,11 +99,20 @@ class cbVTK: public Callback {
 };
 
 class cbLog: public Callback {
+	std::string filename;
 	public:
+	int Init(Solver* solver) {
+		char fn[STRING_LEN];
+		Callback::Init(solver);
+		solver->outIterFile("Log", ".csv", fn);
+		filename = fn;
+		solver->initLog(filename.c_str());
+		return 0;
+	}
 	int DoIt(Solver* solver) {
 		Callback::DoIt(solver);
 		solver->LogIter = solver->iter;
-		solver->writeLog(node.attribute("filename").value());
+		solver->writeLog(filename.c_str());
 		return 0;
 	}
 };
@@ -91,14 +120,22 @@ class cbLog: public Callback {
 class GenericAction: public Action {
 	public:
 	int Init(Solver* solver) {
+		int stack=0;
                 for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 			Handler hand(par);
 			if (hand) {
 				int ret = hand.Init(solver);
 				if (ret) return ret;
-				if (hand.Type() & HANDLER_CALLBACK) solver->hands.push_back(hand);
+				if (hand.Type() & HANDLER_CALLBACK) {
+					printf("adding %d\n", hand.hand->everyIter);
+					solver->hands.push_back(hand);
+					stack++;
+				}
 			} else return -1;
                 }
+		while(stack--) {
+			solver->hands.pop_back();
+		}
 		return 0;
 	}
 };
@@ -116,8 +153,42 @@ class acSolve: public GenericAction {
 	public:
 	int Init(Solver* solver) {
 		Action::Init(solver);
-		printf("Solve\n");
 		GenericAction::Init(solver);
+//		static int i;
+//		float   elapsedTime, outofTime; // Elapsed times
+//		MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+//	CudaEventRecord( solver->start, 0 );
+//	CudaEventSynchronize( solver->start );
+//	CudaEventElapsedTime( &outofTime, solver->stop, solver->start );
+
+		while (solver->iter < startIter+everyIter) {
+			int next_it=startIter + everyIter - solver->iter;
+			for (int i=0; i<solver->hands.size(); i++) {
+				int it  = solver->hands[i].Next(solver->iter);
+//				printf("it:%d\n",it);
+				if ((it > 0) && (it < next_it)) next_it = it;
+			}
+//			printf("next_it: %d\n", next_it);
+			solver->steps = next_it;
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			solver->iter += solver->steps;
+			solver->lattice->IterateTill(solver->iter, ITER_NORM);
+			CudaThreadSynchronize();
+			MPI_Barrier(MPI_COMM_WORLD);
+//	CudaEventRecord( solver->stop, 0 );
+//	CudaEventSynchronize( solver->stop );
+//	CudaEventElapsedTime( &elapsedTime, solver->start, solver->stop );
+
+			for (int i=0; i<solver->hands.size(); i++) {
+				if (solver->hands[i].Now(solver->iter)) {
+					solver->hands[i].DoIt(solver);
+				}
+			}
+		}
+		CudaThreadSynchronize();
+		MPI_Barrier(MPI_COMM_WORLD);
+		printf("Solve\n");
+//		GenericAction::Init(solver);
 		return 0;
 	}
 };

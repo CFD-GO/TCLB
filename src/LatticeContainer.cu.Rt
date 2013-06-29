@@ -89,6 +89,14 @@ void FTabs::Alloc(int nx,int ny,int nz) {
   <?R } ?>
 }
 
+void FTabs::PreAlloc(int nx,int ny,int nz) {
+  size_t size;
+  <?R for (m in NonEmptyMargin) { ?>
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    CudaPreAlloc( (void**)&<?%s m$name ?>, size );
+  <?R } ?>
+}
+
 void FTabs::Free() {
     <?R for (m in NonEmptyMargin) { ?>
 	if ( <?%s m$name ?> != NULL) {

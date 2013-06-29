@@ -3,6 +3,8 @@
 #include "Global.h"
 #include "Node.h"
 #include "LatticeContainer.h"
+#include <vector>
+#include <algorithm>
 #ifdef CROSS_CPU
 
 uint3 CpuBlock, CpuThread, CpuSize;
@@ -38,5 +40,54 @@ int GetMaxThreads()
             printf( "Shared   mem:%ld\n", attr->sharedSizeBytes);
             return attr->maxThreadsPerBlock;
 }
+
+struct ptrpair {
+	void ** ptr;
+	size_t size;
+	ptrpair() { ptr=NULL; size = 0; }
+	ptrpair(const ptrpair & p) { ptr=p.ptr; size=p.size; };
+	ptrpair(void ** ptr_, size_t size_) { ptr=ptr_; size=size_; };
+	inline const bool operator< (const ptrpair & B) const {
+		return size < B.size;
+	};
+};
+
+std::vector< ptrpair > ptrlist;
+
+cudaError_t cudaPreAlloc(void ** ptr, size_t size) {
+	DEBUG1(printf("Preallocation of %d b\n", (int) size);)
+	ptrlist.push_back(ptrpair(ptr, size));
+//	return cudaMalloc(ptr, size);
+	return cudaSuccess;
+}
+
+#define MEM_ALIGN 128
+
+cudaError_t cudaAllocFinalize() {
+	sort(ptrlist.begin(), ptrlist.end());
+	ptrpair ptr;
+	size_t fullsize=0;
+	for (int i = 0; i < ptrlist.size(); i++) {
+		size_t size = ptrlist[i].size;
+		int align = MEM_ALIGN;
+		while (align > size) align /= 2;
+		size = (((size-1)/align)+1)*align;
+		fullsize += size;
+		ptrlist[i].size=size;
+	}
+	char * tmp;
+	printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+	cudaMalloc((void **) &tmp,fullsize);
+	while (!ptrlist.empty()) {
+		ptr = ptrlist.back();
+//		printf("Allocation of %d b\n", (int) ptr.size);
+//		cudaMalloc(ptr.ptr,ptr.size);
+		*(ptr.ptr) = (void **)tmp;
+		tmp += ptr.size;
+		ptrlist.pop_back();
+	}
+	return cudaSuccess;
+}
+
 
 #endif
