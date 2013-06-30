@@ -108,6 +108,14 @@ void Solver::saveInit(int n){
 		return v - 0.5;
 	}
 
+	void Solver::setOutput(const char * out) {
+		char _confname[STRING_LEN];
+		strcpy(_confname,info.conffile);
+		stripbare(_confname);
+		sprintf(info.outpath, "%s%s", out, _confname);
+		printf("[%d] Setting output path to: %s\n", D_MPI_RANK, info.outpath);
+	}
+
         void Solver::loadSolve(pugi::xml_node nsol) {
 		if (! nsol) { return; }
 
@@ -218,6 +226,15 @@ void Solver::saveInit(int n){
 	                fclose(f);  
         	}
 		return 0;
+	}
+
+	int Solver::writeVTK(const char * nm) {
+		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
+		char filename[STRING_LEN];
+		outIterFile(nm, ".vti", filename);
+		int ret = vtkWriteLattice(filename, lattice, units);
+		printf("]\n");
+		return ret;
 	}
 
 	int Solver::readConf(char * filename) {

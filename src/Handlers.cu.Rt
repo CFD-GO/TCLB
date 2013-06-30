@@ -43,6 +43,12 @@ int vHandler::Init(Solver* solver) {
 	return -1;
 };
 
+int vHandler::Finish(Solver* solver) {
+	printf("It is wrong (finish)!\n");
+	exit(-1);
+	return -1;
+};
+
 int vHandler::Type() {
 	return 0;
 };
@@ -63,6 +69,9 @@ public:
 		}
 		return 0;
 	}
+	int Finish(Solver* solver) {
+		return 0;
+	}
 	int Type() { return HANDLER_CALLBACK; }
 };
 
@@ -80,21 +89,31 @@ public:
 			startIter = solver->iter;
 			everyIter = 0;
 		}
+		if (node.attribute("output")) {
+			solver->setOutput(node.attribute("output").value());
+		}
+		return 0;
+	}
+	int Finish(Solver* solver) {
 		return 0;
 	}
 	int Type() { return HANDLER_ACTION; }
 };
 
 class cbVTK: public Callback {
+	std::string nm;
+	public:
+	int Init(Solver* solver) {
+		Callback::Init(solver);
+		pugi::xml_attribute attr = node.attribute("name");
+		nm = "VTK";
+		if (attr) nm = attr.value();
+		return 0;
+	}
 	public:
 	int DoIt(Solver* solver) {
 		Callback::DoIt(solver);
-		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
-		char filename[STRING_LEN];
-		solver->outIterFile("VTK", ".vti", filename);
-		vtkWriteLattice(filename, solver->lattice, solver->units);
-		printf("]\n");
-		return 0;
+		return solver->writeVTK(nm.c_str());
 	};
 };
 
@@ -121,14 +140,13 @@ class cbLog: public Callback {
 };
 
 class GenericAction: public Action {
+	int stack;
 	public:
 	int Init(Solver* solver) {
-		int stack=0;
+		stack=0;
                 for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
-			Handler hand(par);
+			Handler hand(par, solver);
 			if (hand) {
-				int ret = hand.Init(solver);
-				if (ret) return ret;
 				if (hand.Type() & HANDLER_CALLBACK) {
 					printf("adding %d\n", hand.hand->everyIter);
 					solver->hands.push_back(hand);
@@ -136,9 +154,13 @@ class GenericAction: public Action {
 				}
 			} else return -1;
                 }
+		return 0;
+	}
+	int Finish(Solver* solver) {
 		while(stack--) {
 			solver->hands.pop_back();
 		}
+		
 		return 0;
 	}
 };
@@ -171,7 +193,7 @@ class acSolve: public GenericAction {
 			MPI_Barrier(MPI_COMM_WORLD);
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
-					solver->hands[i].DoIt(solver);
+					solver->hands[i].DoIt();
 				}
 			}
 		}

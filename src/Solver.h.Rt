@@ -98,8 +98,8 @@ class Solver {
                 sprintf(out, "%s_%s_P%02d%s", info.outpath, name, mpi_rank, suffix);
         };
 
-
-	void loadParams(pugi::xml_node set);
+	void setOutput(const char * out);
+ 	void loadParams(pugi::xml_node set);
 	void setUnit(std::string, std::string, std::string);
 	void Gauge();
 	int Iterations(pugi::xml_node sol);
@@ -107,6 +107,7 @@ class Solver {
 	void setSteps(int mdl);
 	int initLog(const char * filename);
 	int writeLog(const char * filename);
+	int writeVTK(const char * nm);
 	int readConf(char * filename);
 	int loadSize();
 	int setSize(int,int,int);

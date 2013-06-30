@@ -152,6 +152,7 @@ int main ( int argc, char * argv[] )
 
         if (xml_def_init()) { fprintf(stderr, "[%d] Error in xml_def_init. It should work!\n", D_MPI_RANK); return -1; }
 	strcpy(solver.info.conffile, filename);
+	solver.setOutput("");
 	pugi::xml_parse_result result = configfile.load_file(filename);
 	if (!result) {
 		std::cerr << "Error while parsing " << filename << ": " << result.description() << std::endl;
@@ -171,9 +172,10 @@ int main ( int argc, char * argv[] )
 
 	if (solver.setSize(nx,ny,nz)) return -1;
 
-	Handler hand(config);
-	if (hand) {
-		hand.Init(&solver);
+	Handler hand(config, &solver);
+	if (!hand) {
+		std::cerr << "Something went wrong in xml run!\n";
+		return -1;
 	}
 	return 0;
 }
