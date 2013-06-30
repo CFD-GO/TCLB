@@ -59,6 +59,35 @@
 		solver->Gauge();
 	};
 
+
+CudaEvent_t     start, stop; // CUDA events
+
+int MainCallback(int iter, Solver* solver) {
+	int steps;
+	float   elapsedTime; // Elapsed times
+	CudaEventRecord( stop, 0 );
+	CudaEventSynchronize( stop );
+	CudaEventElapsedTime( &elapsedTime, start, stop );
+	if (D_MPI_RANK == 0) {
+       		int ups = (float) (1000.*iter)/elapsedTime; // Steps made per second
+       		double lbups=1.0;
+       		lbups *= solver->info.region.nx;
+		lbups *= solver->info.region.ny;
+       		lbups *= solver->info.region.nz;
+       		lbups *= iter;
+		lbups /= elapsedTime;
+		int desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
+		printf("[ ]             %8.1f MLBUps   %7.2f GB/s\n", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+		steps = desired_steps;
+		if (steps < 1) steps = 1;
+		if (steps % 2 == 1) steps ++;
+	}
+	MPI_Bcast(&steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	CudaEventRecord( start, 0 );
+	CudaEventSynchronize( start );
+	return steps;
+}
+
 // main program function
 int main ( int argc, char * argv[] )
 {
@@ -68,7 +97,6 @@ int main ( int argc, char * argv[] )
 	MPI_Init(&argc, &argv);
 
 	Solver   solver(MPI_COMM_WORLD); // Global data declaration
-
 
 	MPI_Comm_rank(MPI_COMM_WORLD,  &solver.mpi_rank);
 	MPI_Comm_size(MPI_COMM_WORLD,  &solver.mpi_size);
@@ -138,6 +166,7 @@ int main ( int argc, char * argv[] )
 		solver.info.ysdim = 1;
 	#endif
 
+
 	// 1024 threads not working. (Why?)
 	if (solver.info.xsdim > 512) solver.info.xsdim = 512;
 	printf("[%d] Running at %dx%d threads per block\n", D_MPI_RANK, solver.info.xsdim, solver.info.ysdim);
@@ -171,6 +200,11 @@ int main ( int argc, char * argv[] )
 	printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,nx,ny,nz);
 
 	if (solver.setSize(nx,ny,nz)) return -1;
+
+	CudaEventCreate( &start );
+	CudaEventCreate( &stop );
+	CudaEventRecord( start, 0 );
+	solver.lattice->Callback((int(*)(int, void*)) MainCallback, (void*) &solver);
 
 	Handler hand(config, &solver);
 	if (!hand) {

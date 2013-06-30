@@ -10,7 +10,7 @@ class Solver;
 class vHandler {
 	public:
 	int startIter;
-	int everyIter;
+	double everyIter;
 	pugi::xml_node node;
 	virtual int Init(Solver*);
 	virtual int DoIt(Solver*);
@@ -61,14 +61,14 @@ public:
 		if (hand->everyIter) {
 			iter -= hand->startIter;
 			int k = floor((iter)/hand->everyIter);
-			return (k+1) * hand->everyIter - iter;
+			return - floor(-(k+1) * hand->everyIter) - iter;
 		} else return -1;
 	}
 	inline const int Prev(int iter) {
 		if (hand->everyIter) {
 			iter -= hand->startIter;
 			int k = floor((iter-1)/hand->everyIter);
-			return iter - (k-1) * hand->everyIter;
+			return iter - floor((k-1) * hand->everyIter);
 		} else return -1;
 	}
 	inline Handler & operator=(const Handler & that) {

@@ -103,9 +103,7 @@ void Solver::saveInit(int n){
 	}
 
 	int Solver::Iterations(pugi::xml_node sol) {
-		double v = units.alt(sol.attribute("Iterations").value());
-		if (v > 0) return v + 0.5;
-		return v - 0.5;
+		return 0;
 	}
 
 	void Solver::setOutput(const char * out) {
@@ -202,6 +200,7 @@ void Solver::saveInit(int n){
 	        FILE * f = NULL;
 		double v;
 		real_t glob[<?%d nrow(Globals) ?>];
+//		print("writing Log");
 		lattice->getGlobals(glob);
 	        if (mpi.rank == 0) {
 			int j=0;
@@ -228,12 +227,14 @@ void Solver::saveInit(int n){
 		return 0;
 	}
 
+	void Solver::print(const char * str) {
+		printf("[%d] %8d it                      %s\n", D_MPI_RANK, iter, str);
+	}
 	int Solver::writeVTK(const char * nm) {
-		printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
+		print("writing vtk");
 		char filename[STRING_LEN];
 		outIterFile(nm, ".vti", filename);
 		int ret = vtkWriteLattice(filename, lattice, units);
-		printf("]\n");
 		return ret;
 	}
 

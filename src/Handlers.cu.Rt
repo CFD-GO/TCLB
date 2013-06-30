@@ -58,8 +58,9 @@ public:
 	int DoIt(Solver* solver) {
 	}
 	int Init(Solver* solver) {
-		if (node.attribute("Iterations")) {
-			int it = solver->Iterations(node);
+		pugi::xml_attribute attr = node.attribute("Iterations");
+		if (attr) {
+			double it = solver->units.alt(attr.value());
 			startIter = solver->iter;
 			everyIter = it;
 			std::cout << "Setting callback " << node.name() << " at " << it << " iterations\n";
@@ -80,8 +81,9 @@ public:
 	int DoIt(Solver* solver) {
 	}
 	int Init(Solver* solver) {
-		if (node.attribute("Iterations")) {
-			int it = solver->Iterations(node);
+		pugi::xml_attribute attr = node.attribute("Iterations");
+		if (attr) {
+			double it = solver->units.alt(attr.value());
 			startIter = solver->iter;
 			everyIter = it;
 			std::cout << "Setting action " << node.name() << " at " << it << " iterations\n";
@@ -148,7 +150,7 @@ class GenericAction: public Action {
 			Handler hand(par, solver);
 			if (hand) {
 				if (hand.Type() & HANDLER_CALLBACK) {
-					printf("adding %d\n", hand.hand->everyIter);
+					printf("adding %lf\n", hand.hand->everyIter);
 					solver->hands.push_back(hand);
 					stack++;
 				}

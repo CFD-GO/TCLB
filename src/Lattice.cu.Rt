@@ -144,6 +144,13 @@ void Lattice::stopRecord()
 
 }
 
+
+void Lattice::Callback(int(*cb)(int, void*), void* data) {
+	callback = cb;
+	callback_data = data;
+}
+
+
 inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 {
 	real_t * tmp;
@@ -196,6 +203,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
         CudaStreamSynchronize(kernelStream);
         CudaDeviceSynchronize();
 	Snap = tab1;
+	MarkIteration();
 };
 
 inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
@@ -266,6 +274,7 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	DEBUG_M;
         CudaDeviceSynchronize();
 	aSnap = tab1;
+	MarkIteration();
 #else
 	std::cerr << "This model doesn't have adjoint!\n";
 	exit (-1);

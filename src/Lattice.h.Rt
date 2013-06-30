@@ -64,6 +64,18 @@ public:
   inline int load(char * filename){ return load(container->in, filename); }
   void startRecord();
   void stopRecord();
+  int(* callback)(int, void*);
+  void* callback_data;
+  int callback_iter;
+  void Callback(int(*)(int, void*), void*);
+  inline void MarkIteration() {
+	total_iterations ++;
+	if (total_iterations >= callback_iter) {
+		if (callback) callback_iter = callback(total_iterations, callback_data);
+		total_iterations = 0;
+	}
+  }
+
 //  inline void Run()  { container->Run(borderStream,interiorStream);  };
 //  inline void RunG() { container->RunG(borderStream,interiorStream); };
   void BeforeIt();
