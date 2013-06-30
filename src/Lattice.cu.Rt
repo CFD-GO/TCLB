@@ -39,9 +39,10 @@ int Lattice::Offset(int x, int y, int z)
 }
 
 //Constructor based on size
-Lattice::Lattice(lbRegion _region):region(_region)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 {
 	reverse_save=0;
+	total_iterations;
 	if (reverse_save) {
 		nSnaps=10;
 	} else {
@@ -62,7 +63,7 @@ Lattice::Lattice(lbRegion _region):region(_region)
 	aSnaps[0].Alloc(_region.nx,_region.ny,_region.nz);
 	aSnaps[1].Alloc(_region.nx,_region.ny,_region.nz);
 #endif
-
+	MPIInit(mpi);
 	CudaAllocFinalize();
 
 	container->in = Snaps[0];
@@ -70,6 +71,7 @@ Lattice::Lattice(lbRegion _region):region(_region)
 #ifdef ADJOINT
 	container->adjout = aSnaps[0];
 #endif
+	aSnap = 0;
 	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {
 		settings[i] = 0.0;
 	}
@@ -89,7 +91,6 @@ Lattice::Lattice(lbRegion _region):region(_region)
 //Initialization of MPI buffors
 void Lattice::MPIInit(MPIInfo mpi_)
 {
-	mpi = mpi_;
 //--------- Initialize MPI buffors
 	bufnumber = 0;
 #ifndef DIRECT_MEM
@@ -111,7 +112,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
 //		gpuin[bufnumber] = container->in.<?%s m$name ?>;
-		gpuin[bufnumber] = (real_t*)BAlloc(size);
+		BPreAlloc((void**) & (gpuin[bufnumber]), size);
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
 		bufnumber ++;
@@ -125,9 +126,25 @@ void Lattice::MPIInit(MPIInfo mpi_)
 }
 
 
+void Lattice::startRecord()
+{
+	if (Iter != 0) {
+		std::cerr << "Record tape is not rewinded (iter = " << Iter << ") maybe last adjoint didn't go all the way\n";
+		Iter = 0;
+	}
+	{
+		char filename[STRING_LEN];
+		sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
+		save(Snaps[0], filename);
+	}
+}
 
+void Lattice::stopRecord()
+{
 
-void Lattice::Iteration(int tab0, int tab1, int iter_type, int iter)
+}
+
+inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 {
 	real_t * tmp;
 	int size, from, to;
@@ -178,14 +195,12 @@ void Lattice::Iteration(int tab0, int tab1, int iter_type, int iter)
 	}	
         CudaStreamSynchronize(kernelStream);
         CudaDeviceSynchronize();
-	iSnaps[tab1] = iter;
-	Iter = iter;
 	Snap = tab1;
 };
 
-#ifdef ADJOINT
-void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type, int iter)
+inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 {
+#ifdef ADJOINT
 	real_t * tmp;
 	int size, from, to;
 	MPI_Status status;
@@ -249,26 +264,13 @@ void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type, int iter)
 		container->RunBorder_Globs_Adj(kernelStream); break;
 	}	
 	DEBUG_M;
-	CudaEventRecord(kernelEv[1],kernelStream);
-	DEBUG_M;
-
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_M;
-        CudaStreamSynchronize(inStream);
-	DEBUG_M;
-        CudaStreamSynchronize(outStream);
-	DEBUG_M;
         CudaDeviceSynchronize();
-	DEBUG_M;
-	container->CopyToConst();
-	DEBUG_M;
-//	AfterIt();
-	DEBUG_M;
-//	iSnaps[tab1] = iter;
-//	Iter = iter;
-//	Snap = tab1;
-};
+	aSnap = tab1;
+#else
+	std::cerr << "This model doesn't have adjoint!\n";
+	exit (-1);
 #endif
+};
 
 void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
@@ -380,12 +382,6 @@ void Lattice::Init()
 	Iter=0;
 	Snap=0;
 
-		{
-			char filename[STRING_LEN];
-			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
-			save(Snaps[0], filename);
-		}
-
 //   Stream();
 //   container->Init();
 //   Stream();
@@ -431,7 +427,8 @@ void Lattice::IterateTill(int it, int iter_type)
 		int s2 = getSnap(i+1);
 		int s3 = s2;
 		if (s2 >= nSnaps) s3=0;
-		Iteration(s1, s3, iter_type, i+1);
+		Iteration(s1, s3, iter_type);
+		Iter = i+1;
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
@@ -446,16 +443,31 @@ void Lattice::IterateTill(int it, int iter_type)
 	}
 }
 
-void Lattice::IterateT(int iter_type)
+void Lattice::Iterate(int niter, int iter_type)
 {
-	static int i=0;
-//	i--;
-//	if (i < 0) i = 30000;
-	i++;
-	IterateTill(i,iter_type);
-#ifdef ADJOINT
-	Iteration_Adj(i % 2, (i+1) % 2, iter_type, i);
-#endif
+	int ad = iter_type & ITER_ADJOINT;
+	int i;
+	iter_type = iter_type & ITER_TYPE;
+	if (reverse_save) {
+		if (ad) {
+			for (i=0; i< niter; i++) {
+				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+				IterateTill(Iter, iter_type);
+			}
+		} else {
+			IterateTill(niter+Iter, iter_type);
+		}
+	} else {
+		if (ad) {
+			for (i=0; i< niter; i++) {
+				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
+			}
+		} else {
+			for (i=0; i< niter; i++) {
+				Iteration(Snap, (Snap+1) % 2, iter_type);
+			}
+		}
+	}
 };
 
 void Lattice::AfterIt()

@@ -104,7 +104,10 @@ class cbLog: public Callback {
 	int Init(Solver* solver) {
 		char fn[STRING_LEN];
 		Callback::Init(solver);
-		solver->outIterFile("Log", ".csv", fn);
+		pugi::xml_attribute attr = node.attribute("name");
+		std::string nm = "Log";
+		if (attr) nm = attr.value();
+		solver->outIterFile(nm.c_str(), ".csv", fn);
 		filename = fn;
 		solver->initLog(filename.c_str());
 		return 0;
@@ -154,31 +157,18 @@ class acSolve: public GenericAction {
 	int Init(Solver* solver) {
 		Action::Init(solver);
 		GenericAction::Init(solver);
-//		static int i;
-//		float   elapsedTime, outofTime; // Elapsed times
-//		MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
-//	CudaEventRecord( solver->start, 0 );
-//	CudaEventSynchronize( solver->start );
-//	CudaEventElapsedTime( &outofTime, solver->stop, solver->start );
-
 		while (solver->iter < startIter+everyIter) {
 			int next_it=startIter + everyIter - solver->iter;
 			for (int i=0; i<solver->hands.size(); i++) {
 				int it  = solver->hands[i].Next(solver->iter);
-//				printf("it:%d\n",it);
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
-//			printf("next_it: %d\n", next_it);
 			solver->steps = next_it;
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			solver->iter += solver->steps;
-			solver->lattice->IterateTill(solver->iter, ITER_NORM);
+			solver->lattice->Iterate(solver->steps, ITER_NORM);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
-//	CudaEventRecord( solver->stop, 0 );
-//	CudaEventSynchronize( solver->stop );
-//	CudaEventElapsedTime( &elapsedTime, solver->start, solver->stop );
-
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					solver->hands[i].DoIt(solver);
@@ -187,8 +177,6 @@ class acSolve: public GenericAction {
 		}
 		CudaThreadSynchronize();
 		MPI_Barrier(MPI_COMM_WORLD);
-		printf("Solve\n");
-//		GenericAction::Init(solver);
 		return 0;
 	}
 };

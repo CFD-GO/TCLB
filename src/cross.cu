@@ -5,6 +5,7 @@
 #include "LatticeContainer.h"
 #include <vector>
 #include <algorithm>
+#include <iostream>
 #ifdef CROSS_CPU
 
 uint3 CpuBlock, CpuThread, CpuSize;
@@ -78,6 +79,11 @@ cudaError_t cudaAllocFinalize() {
 	char * tmp;
 	printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
 	cudaMalloc((void **) &tmp,fullsize);
+	if (tmp == NULL) {
+		std::cerr << "FATAL ERROR: Not enaught memory! tried to allocate (cumulatice): " << fullsize << " b\n";
+		exit(-1);
+	}
+	CudaMemset( tmp, 0, fullsize );
 	while (!ptrlist.empty()) {
 		ptr = ptrlist.back();
 //		printf("Allocation of %d b\n", (int) ptr.size);

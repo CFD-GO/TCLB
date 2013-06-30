@@ -333,8 +333,7 @@ void Solver::saveInit(int n){
 	        #endif
 	
 		// Creating Lattice (GPU allocation is here)
-		lattice = new Lattice(region);
-		lattice->MPIInit(mpi);
+		lattice = new Lattice(region, mpi);
 	   
 		// Setting global variables
 		initSettings();

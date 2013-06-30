@@ -14,6 +14,8 @@ class LatticeContainer;
 #define ITER_STREAM 0x0
 #define ITER_NORM   0x1
 #define ITER_GLOBS  0x2
+#define ITER_TYPE   0x3
+#define ITER_ADJOINT    0x4
 
 const int maxSnaps=33;
 
@@ -43,11 +45,12 @@ private:
   int reverse_save;
 public:
   int Iter;
-  int Snap;
+  int Snap, aSnap;
+	int total_iterations;
   real_t settings[<?%d nrow(Settings) ?>];  
   lbRegion region;
   MPIInfo mpi;
-  Lattice (lbRegion region);
+  Lattice (lbRegion region, MPIInfo);
   ~Lattice ();
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
@@ -59,18 +62,18 @@ public:
   inline int save(char * filename){ return save(container->in, filename); }
   int load(FTabs&, char * filename);
   inline int load(char * filename){ return load(container->in, filename); }
-
+  void startRecord();
+  void stopRecord();
 //  inline void Run()  { container->Run(borderStream,interiorStream);  };
 //  inline void RunG() { container->RunG(borderStream,interiorStream); };
   void BeforeIt();
   void AfterIt();
 	int getSnap(int );
-  void        IterateT(int);
-#ifdef ADJOINT
-  void        Iteration_Adj(int, int, int, int);
-#endif
+  void        Iterate(int, int);
+  inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
+  void        Iteration_Adj(int, int, int);
   void        IterateTill(int,int);
-  void        Iteration(int, int, int, int);
+  void        Iteration(int, int, int);
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };

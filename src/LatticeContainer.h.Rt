@@ -110,6 +110,7 @@ CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, in
 ifdef() ?>
 
 void * BAlloc(size_t size);
+void BPreAlloc(void **, size_t size);
 
 #endif
 #define LATTICECONTAINER_H 1
