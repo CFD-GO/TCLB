@@ -6,9 +6,6 @@
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
-#ifdef GRAPHICS
-	#include "gpu_anim.h"
-#endif
 #include "cross.h"
 #include "Region.h"
 #include "Node.h"
@@ -29,6 +26,7 @@
 
 #ifdef GRAPHICS
     const int desired_fps = 10;
+	class GPUAnimBitmap;
 #else
     const int desired_fps = 1;
 #endif
@@ -82,9 +80,18 @@ class Solver {
 	int saveN, saveI;
 	char ** saveFile;
 	UnitEnv units;
+#ifdef GRAPHICS
+	GPUAnimBitmap * bitmap;
+#endif
 	void print(const char * str);
 	double LogScales[<?%d nrow(Globals) ?> + <?%d nrow(Settings) ?> + <?%d nrow(Scales) ?>];
 	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
+	inline ~Solver() {
+		if (lattice) delete lattice;
+#ifdef GRAPHICS
+		if (bitmap) delete bitmap;
+#endif
+	}
 	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_) { Init(); };
 	void Init();
 	void saveInit(int n);
@@ -115,5 +122,6 @@ class Solver {
 	int MPIDivision();
 	int InitAll();
 	int RunMainLoop();
+	int EventLoop();
 };   
 

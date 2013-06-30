@@ -347,7 +347,8 @@ void Solver::saveInit(int n){
 	        // Making a window
 	        #ifdef GRAPHICS
 	        	printf("[%d] Running graphics at %dx%d\n", D_MPI_RANK, region.nx, region.ny);
-	        	GPUAnimBitmap bitmap( region.nx, region.ny, this );
+			bitmap = new GPUAnimBitmap( region.nx, region.ny, this );
+			RunMainLoop();
 	        #endif
 	
 		// Creating Lattice (GPU allocation is here)
@@ -363,16 +364,17 @@ void Solver::saveInit(int n){
 	}
 
 	int Solver::RunMainLoop() {
-		// Main loop call
-    
 		#ifdef GRAPHICS
-        		bitmap.mouse_move( (void (*)(void*,int,int,int,int)) MouseMove);
-		        bitmap.anim_and_exit( (int (*)(uchar4*,void*,int)) MainLoop, (void (*)(void*))MainFree );
-		#else
-			while (iter < info.MaxIter) {
-				MainLoop(NULL, this, 0);
-			}
-			MainFree(this);
+        		bitmap->mouse_move( (void (*)(void*,int,int,int,int)) MouseMove);
+		        bitmap->anim_and_exit( (int (*)(uchar4*,void*,int)) MainLoop, (void (*)(void*))MainFree );
+			glutMainLoopEvent();
+		#endif
+		return 0;
+	}
+	int Solver::EventLoop(){
+		#ifdef GRAPHICS
+			bitmap->idle_func();
+			glutMainLoopEvent();
 		#endif
 		return 0;
 	}
@@ -398,152 +400,15 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 // Main loop function
 int MainLoop( uchar4* outputBitmap, Solver *d, int ticks )
 {
-    static int i;
-    float   elapsedTime, outofTime; // Elapsed times
-	DEBUG_M;
-	MPI_Bcast(&d->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	DEBUG_M;
-    CudaEventRecord( d->start, 0 );
-    CudaEventSynchronize( d->start );
-    CudaEventElapsedTime( &outofTime, d->stop, d->start );
-
-//---------------------------- MAIN LOOP ------------------------------//
-//screenDumpLattice(d->lattice);
-	i=0;
-	if (d->LogIter != 0) if ((d->iter - d->solIter + d->steps) % d->LogIter == 0) { i++;}
-	for (; i<d->steps;i++)
-	{
-		d->iter++;
-        	d->lattice->Iterate(); // LB iteration
-		DEBUG_M;
-		#ifndef GRAPHICS
-			if (d->iter >= d->info.MaxIter) break;
-		#endif
-	}
-	DEBUG_M;
-	if (d->LogIter != 0) if ((d->iter - d->solIter + 1) % d->LogIter == 0) {
-//		printf("Additional 'Globals' Iteration\n");
-		d->iter++;
-		d->lattice->IterateG();
-	}
-	CudaThreadSynchronize();
-	DEBUG_M;
-	MPI_Barrier(MPI_COMM_WORLD);
-    	DEBUG_M;
-//---------------------------- END of LOOP ----------------------------//
-
-    // Time measurement
-	CudaEventRecord( d->stop, 0 );
-	CudaEventSynchronize( d->stop );
-	CudaEventElapsedTime( &elapsedTime, d->start, d->stop );
-
-#ifdef GRAPHICS
 	d->lattice->Color(outputBitmap); // Updating graphics
-#endif
-	if (d->mpi.rank == 0) {
-        	int ups = (float) (1000.*i)/elapsedTime; // Steps made per second
-        	double lbups=1.0;
-        	lbups *= d->info.region.nx;
-        	lbups *= d->info.region.ny;
-        	lbups *= d->info.region.nz;
-        	lbups *= i;
-        	lbups /= elapsedTime;
-        	int desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
-        	// Print information
-        	printf("[ ] %8d it  %8.1f MLBUps  %7.4f Tbit/s         %4.2f%% out-of-frame\n", d->iter, ((double)lbups)/1000, ( (double) lbups * 8 * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e9, outofTime/(elapsedTime+outofTime)*100);
-        	d->steps = desired_steps;
-		if (d->steps < 1) d->steps = 1;
-		if (d->steps % 2 == 1) d->steps ++;
-	}
-	MPI_Bcast(&d->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	DEBUG_M;
-	for (pugi::xml_node node = d->sol.first_child(); node; node = node.next_sibling()) {
-		if (node.attribute("Iterations")) {
-                    int it = d->Iterations(node);
-                    if ((d->iter - d->solIter) % it == 0) {
-			DEBUG_M;
-			    if (strcmp(node.name(), "VTK")==0) {
-                                    printf("[%d]                                                     writing vtk [...", D_MPI_RANK);
-                                    char filename[STRING_LEN];
-                                    d->outIterFile("VTK", ".vti", filename);
-                                    vtkWriteLattice(filename, d->lattice, d->units);
-                                    printf("]\n");
-                            } else if (strcmp(node.name(), "Mean")==0) {
-                                    printf("[%d]                                                     writing mean pressure [...", D_MPI_RANK);
-                                    char filename[STRING_LEN];
-                                    d->outGlobalFile("Density", ".csv", filename);
-                                    writeMean(filename, d->lattice, node.attribute("offset").as_int(0), d->iter, d->info.setting_nu);
-                                    printf("]\n");
-                            } else if (strcmp(node.name(), "Log")==0) {
-				d->LogIter=it;
-				d->writeLog(node.attribute("filename").value());
-                            } else {
-                                    std::cerr << "Unknown action '" << node.name() << "' in xml Solve\n";
-                            }
-                    }
-                    d->setSteps(it);
-		}
-	}
-	{
-		pugi::xml_node node = d->config.child("Checkpoint");
-		if (node) {
-                	int it = d->Iterations(node);
-			if ((d->iter - d->solIter) % it == 0) {
-				char * filename = d->saveFile[d->saveI];
-				d->outIterFile("SAVE", ".bin", filename);
-				d->lattice->save(filename);
-				d->saveI = (d->saveI + 1) % d->saveN;
-				filename = d->saveFile[d->saveI];
-				if (filename[0] != '\0') {
-					if( remove( filename ) != 0 ) {
-						perror( "Error deleting file" );
-						assert( 1 == 0 );
-					}
-				}
-				if (d->mpi.rank == 0) {
-					filename = d->saveFile[d->saveN];
-					FILE * f = fopen(filename,"w");
-					fprintf(f, "%d\n", d->iter);
-					fclose(f);
-				}
-			}
-			d->setSteps(it);
-		}
-	}
-	if ( (d->info.lower_iter != 0) && (d->iter % d->info.lower_iter == 0)) {
-		double t = ((double)d->iter) / d->info.lower_iter_max;
-		if (t>1) t = 1;
-		double w = 6*(1-t) + (1/d->info.lower_nu)*t;
-		d->info.setting_nu = 1/w;
-//		real_t om =  1.0/(3*d->info.setting_nu + 0.5);
-		printf("                                                        Setting nu to:%f\n", d->info.setting_nu);
-//		d->lattice->SetConst_omega(om);
-	}
-
-	if (d->iter >= d->info.MaxIter) {
-		d->loadSolve(d->sol.next_sibling("Solve"));
-	}
-	d->setSteps(d->info.MaxIter - d->solIter);
-
-	if (d->steps < 1) d->steps = 1;
-
-
-//screenDumpLattice(d->lattice);
-	#ifndef GRAPHICS
-//		if (d->iter >= d->info.MaxIter) break;
-	#endif
-	CudaThreadSynchronize();
-	MPI_Barrier(MPI_COMM_WORLD);
-    
-//---------------------------- END of LOOP ----------------------------//
 	return 0;
 }
 
 // Function for cleanup. Free memory, etc.
 void MainFree( Solver *d ) {
-    printf("cudaFree ...\n");
-    CudaEventDestroy( d->start );
-    CudaEventDestroy( d->stop );
-    delete d->lattice;
-    MPI_Finalize();
+//    printf("cudaFree ...\n");
+//    CudaEventDestroy( d->start );
+//    CudaEventDestroy( d->stop );
+//    delete d->lattice;
+//    MPI_Finalize();
 }

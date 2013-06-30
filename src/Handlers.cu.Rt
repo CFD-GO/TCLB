@@ -6,9 +6,6 @@
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
-#ifdef GRAPHICS
-	#include "gpu_anim.h"
-#endif
 #include "cross.h"
 #include "Region.h"
 #include "Node.h"
@@ -181,8 +178,8 @@ class acSolve: public GenericAction {
 	int Init(Solver* solver) {
 		Action::Init(solver);
 		GenericAction::Init(solver);
-		while (solver->iter < startIter+everyIter) {
-			int next_it=startIter + everyIter - solver->iter;
+		do {
+			int next_it = Next(solver->iter);
 			for (int i=0; i<solver->hands.size(); i++) {
 				int it  = solver->hands[i].Next(solver->iter);
 				if ((it > 0) && (it < next_it)) next_it = it;
@@ -198,7 +195,7 @@ class acSolve: public GenericAction {
 					solver->hands[i].DoIt();
 				}
 			}
-		}
+		} while (!Now(solver->iter));
 		CudaThreadSynchronize();
 		MPI_Barrier(MPI_COMM_WORLD);
 		return 0;
@@ -209,6 +206,7 @@ class acParams: public Action {
 	public:
 	int Init(Solver* solver) {
 		Action::Init(solver);
+		printf("Params --- \n");
 		pugi::xml_attribute attr;
 		<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
 			attr = node.attribute("<?%s v$name?>");
@@ -270,7 +268,7 @@ vHandler * getHandler(pugi::xml_node node) {
         } else if (name=="Params") {
 		ret = new acParams;
         } else if (name=="Units") {
-		ret = new acParams;
+		ret = new GenericContainer;
         } else if (name=="Geometry") {
 		ret = new acGeometry;
         } else if (name=="CLBConfig") {

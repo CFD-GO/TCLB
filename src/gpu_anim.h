@@ -115,7 +115,7 @@ struct GPUAnimBitmap {
         if (move != NULL)
             glutMotionFunc( move_func );
         glutIdleFunc( idle_func );
-        glutMainLoop();
+//        glutMainLoop();
     }
 
     // static method used for glut callbacks

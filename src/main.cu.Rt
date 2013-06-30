@@ -7,7 +7,7 @@
 #include "Global.h"
 #include <mpi.h>
 #ifdef GRAPHICS
-	#include "gpu_anim.h"
+//	#include "gpu_anim.h"
 #endif
 //#include "cross.h"
 #include "Region.h"
@@ -83,6 +83,7 @@ int MainCallback(int iter, Solver* solver) {
 		if (steps % 2 == 1) steps ++;
 	}
 	MPI_Bcast(&steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	solver->EventLoop();
 	CudaEventRecord( start, 0 );
 	CudaEventSynchronize( start );
 	return steps;
@@ -211,6 +212,10 @@ int main ( int argc, char * argv[] )
 		std::cerr << "Something went wrong in xml run!\n";
 		return -1;
 	}
+	printf("cudaFree ...\n");
+	CudaEventDestroy( start );
+	CudaEventDestroy( stop );
+	MPI_Finalize();
 	return 0;
 }
 
