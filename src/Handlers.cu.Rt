@@ -60,7 +60,9 @@ public:
 			double it = solver->units.alt(attr.value());
 			startIter = solver->iter;
 			everyIter = it;
-			std::cout << "Setting callback " << node.name() << " at " << it << " iterations\n";
+			if (D_MPI_RANK == 0) {
+				std::cout << "[ ] Setting callback " << node.name() << " at " << it << " iterations\n";
+			}
 		} else {
 			std::cerr << "No Iterations attribute in " << node.name() << "\n";
 			return -1;
@@ -83,7 +85,9 @@ public:
 			double it = solver->units.alt(attr.value());
 			startIter = solver->iter;
 			everyIter = it;
-			std::cout << "Setting action " << node.name() << " at " << it << " iterations\n";
+			if (D_MPI_RANK == 0) {
+				std::cout << "[ ] Setting action " << node.name() << " at " << it << " iterations\n";
+			}
 		} else {
 			startIter = solver->iter;
 			everyIter = 0;
@@ -132,7 +136,6 @@ class cbLog: public Callback {
 	}
 	int DoIt(Solver* solver) {
 		Callback::DoIt(solver);
-		solver->LogIter = solver->iter;
 		solver->writeLog(filename.c_str());
 		return 0;
 	}
@@ -202,11 +205,47 @@ class acSolve: public GenericAction {
 	}
 };
 
+class acUSAdjoint: public GenericAction {
+	public:
+	int Init(Solver* solver) {
+		Action::Init(solver);
+		solver->lattice->startRecord();
+		GenericAction::Init(solver);
+		everyIter = solver->iter - startIter;
+		if (everyIter <= 0) {
+			std::cerr << "No iterations done inside of Usteady Adjoint! Nothing to do\n";
+			return -1;
+		}
+		do {
+			int next_it = Prev(solver->iter);
+			for (int i=0; i<solver->hands.size(); i++) {
+				int it  = solver->hands[i].Prev(solver->iter);
+				if ((it > 0) && (it < next_it)) next_it = it;
+			}
+			solver->steps = next_it;
+			printf("%d\n", solver->steps);
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			solver->iter -= solver->steps;
+			solver->lattice->Iterate(solver->steps, ITER_NORM | ITER_ADJOINT);
+			CudaThreadSynchronize();
+			MPI_Barrier(MPI_COMM_WORLD);
+			for (int i=0; i<solver->hands.size(); i++) {
+				if (solver->hands[i].Now(solver->iter)) {
+					solver->hands[i].DoIt();
+				}
+			}
+		} while (!Now(solver->iter));
+		solver->lattice->stopRecord();
+		CudaThreadSynchronize();
+		MPI_Barrier(MPI_COMM_WORLD);
+		return 0;
+	}
+};
+
 class acParams: public Action {
 	public:
 	int Init(Solver* solver) {
 		Action::Init(solver);
-		printf("Params --- \n");
 		pugi::xml_attribute attr;
 		<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
 			attr = node.attribute("<?%s v$name?>");
@@ -265,6 +304,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new cbLog;
         } else if (name=="Solve") {
 		ret = new acSolve;
+        } else if (name=="Adjoint") {
+		ret = new acUSAdjoint;
         } else if (name=="Params") {
 		ret = new acParams;
         } else if (name=="Units") {

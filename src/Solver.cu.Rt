@@ -34,11 +34,8 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny );
 int MainLoop( uchar4* outputBitmap, Solver *d, int ticks );
 void MainFree( Solver *d);
 
-void Solver::Init() {
-		info.MaxIter = 0;
+	void Solver::Init() {
 		iter = 0;
-		LogIter = 0;
-		solIter = 0;
 		mpi_rank = 0;
 		mpi_size = 1;
 		steps = 1;
@@ -49,7 +46,7 @@ void Solver::Init() {
 	}
 
 
-void Solver::saveInit(int n){
+	void Solver::saveInit(int n){
 		n++;
 		if (saveN != 0) {
 			free(saveFile[0]);
@@ -66,24 +63,10 @@ void Solver::saveInit(int n){
 		outGlobalFile("SAVE", ".txt", saveFile[saveN]);
 	}
 
-
-	void Solver::loadParams(pugi::xml_node set) {
-		DEBUG_M;
-                for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
-                        pugi::xml_attribute attr;
-                        <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
-                                attr = node.attribute("<?%s v$name?>");
-                                if (attr) {
-					double val = units.alt(attr.value());
-					lattice-><?%s v$FunName ?>(val);
-				}
-                        <?R } ?>
-                }
-	}
-
 	void Solver::setUnit(std::string nm, std::string val, std::string gauge) {
 		units.setUnit(nm, units(val)/units(gauge), 1);
 	}
+
 	void Solver::Gauge() {
 		units.makeGauge();
 		if (mpi_rank == 0) {
@@ -102,72 +85,12 @@ void Solver::saveInit(int n){
  ?>
 	}
 
-	int Solver::Iterations(pugi::xml_node sol) {
-		return 0;
-	}
-
 	void Solver::setOutput(const char * out) {
 		char _confname[STRING_LEN];
 		strcpy(_confname,info.conffile);
 		stripbare(_confname);
 		sprintf(info.outpath, "%s%s", out, _confname);
 		printf("[%d] Setting output path to: %s\n", D_MPI_RANK, info.outpath);
-	}
-
-        void Solver::loadSolve(pugi::xml_node nsol) {
-		if (! nsol) { return; }
-
-                sol = nsol;
-                solIter = iter;
-		if (! nsol.attribute("Iterations")) {
-			std::cerr << "No 'Iterations' attribute in 'Solve' in xml config\n";
-		}
-                info.MaxIter += Iterations(nsol);
-		LogIter = 0;
-		if (sol.attribute("output")) {
-			char _confname[STRING_LEN];
-			strcpy(_confname,info.conffile);
-			stripbare(_confname);
-			sprintf(info.outpath, "%s%s", sol.attribute("output").value(), _confname);
-			printf("[%d] Setting output path to: %s\n", D_MPI_RANK, info.outpath);
-		}
-		DEBUG_M;
-		for (pugi::xml_node node = sol.first_child(); node; node = node.next_sibling()) {
-			DEBUG_M;
-			if (strcmp(node.name(), "Params")!=0) {
-				if (! node.attribute("Iterations")) {
-					DEBUG_M;
-					std::cerr << "No 'Iterations' attribute in action '" << node.name() << "' in 'Solve' in xml\n";
-				}
-			}
-			if (strcmp(node.name(), "Mean")==0) {
-				DEBUG_M;
-				char filename[STRING_LEN];
-				outGlobalFile("Density", ".csv", filename);
-				initMean(filename);
-			}
-			if (strcmp(node.name(), "Log")==0) {
-				DEBUG_M;
-				if (! node.attribute("filename")) {
-					char filename[STRING_LEN];
-					outIterFile("Log", ".csv", filename);
-					printf("%s\n",filename);
-					node.append_attribute("filename") = filename;
-				}
-				initLog(node.attribute("filename").value());
-				LogIter = Iterations(node);
-			}
-		}
-		DEBUG_M;
-		loadParams(sol);
-		steps = 1;
-		DEBUG_M;
-        }
-	void Solver::setSteps(int mdl) {
-		int ns = mdl - ((iter - solIter) % mdl);
-		if (ns <= 0) return;
-		if (ns > steps) return;
-		steps = ns;
 	}
 
 	int Solver::initLog(const char * filename)
@@ -230,23 +153,13 @@ void Solver::saveInit(int n){
 	void Solver::print(const char * str) {
 		printf("[%d] %8d it                      %s\n", D_MPI_RANK, iter, str);
 	}
+
 	int Solver::writeVTK(const char * nm) {
 		print("writing vtk");
 		char filename[STRING_LEN];
 		outIterFile(nm, ".vti", filename);
 		int ret = vtkWriteLattice(filename, lattice, units);
 		return ret;
-	}
-
-	int Solver::readConf(char * filename) {
-	        if (xml_def_init()) { fprintf(stderr, "[%d] Error in xml_def_init. It should work!\n", D_MPI_RANK); return -1; }
-		strcpy(info.conffile, filename);
-		pugi::xml_parse_result result = configfile.load_file(filename);
-		if (!result) {
-			std::cerr << "Error while parsing " << info.conffile << ": " << result.description() << std::endl;
-			return -1;
-		}
-		return 0;
 	}
 
 	int Solver::setSize(int nx, int ny, int nz) {
@@ -356,10 +269,6 @@ void Solver::saveInit(int n){
 	   
 		// Setting global variables
 		initSettings();
-		CudaEventCreate( &start );
-		CudaEventCreate( &stop );
-		CudaEventRecord( stop, 0 );
-		MPI_Barrier(MPI_COMM_WORLD);
 		return 0;
 	}
 
@@ -382,11 +291,6 @@ void Solver::saveInit(int n){
 
 void MouseMove( Solver * data, int x, int y, int nx, int ny )
 {
-//	Node now;
-//	data->lattice->GetRegion(x,data->region.ny - y - 1,1,1,&now);
-//	now.NodeType = NODE_BounceBack; //Setting node as wall
-//	data->lattice->SetRegion(x,data->region.ny - y - 1,1,1,&now);
-
 	lbRegion r(
 		x,
 		data->region.ny - y - 1,
@@ -394,7 +298,6 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 	1,1,1);
 	flag_t NodeType = NODE_Wall;
 	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
-
 }
 
 // Main loop function
@@ -406,9 +309,5 @@ int MainLoop( uchar4* outputBitmap, Solver *d, int ticks )
 
 // Function for cleanup. Free memory, etc.
 void MainFree( Solver *d ) {
-//    printf("cudaFree ...\n");
-//    CudaEventDestroy( d->start );
-//    CudaEventDestroy( d->stop );
-//    delete d->lattice;
-//    MPI_Finalize();
+
 }

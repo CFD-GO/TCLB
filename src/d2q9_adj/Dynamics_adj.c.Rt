@@ -1,6 +1,9 @@
 <?R
 	source("conf.R");
 	c_header();
+        f = PV(Density$name[Density$group=="f"])
+        U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+
 ?>
 
 CudaDeviceFunction real_t getRhoB(){

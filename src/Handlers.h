@@ -33,7 +33,7 @@ class vHandler {
 		if (everyIter) {
 			iter -= startIter;
 			int k = floor((iter-1)/everyIter);
-			return iter - floor((k-1) * everyIter);
+			return iter + floor(-k * everyIter);
 		} else return -1;
 	}
 };

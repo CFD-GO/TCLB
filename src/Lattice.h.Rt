@@ -5,6 +5,8 @@
 #ifndef LATTICE_H
 
 #include "cross.h"
+#include <vector>
+#include <utility>
 
 // #include "Region.h"
 class lbRegion;
@@ -44,6 +46,10 @@ private:
   CudaEvent_t mpiEv[28];
   int reverse_save;
 public:
+  std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record;
+  int settings_i;
+  void push_setting(int,real_t,real_t);
+  void pop_settings();
   int Iter;
   int Snap, aSnap;
 	int total_iterations;
@@ -106,7 +112,7 @@ public:
 <?R }; ifdef() ?>
 
   void getGlobals(real_t * tab); 
-
+  void setSetting(int i, real_t tmp);
 <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
 	void <?%s v$FunName ?>(real_t);<?R } ?>
 };

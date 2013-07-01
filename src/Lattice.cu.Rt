@@ -46,7 +46,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 	if (reverse_save) {
 		nSnaps=10;
 	} else {
-		nSnaps=2;
+		nSnaps=10;
 	}
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
@@ -128,20 +128,30 @@ void Lattice::MPIInit(MPIInfo mpi_)
 
 void Lattice::startRecord()
 {
+	if (reverse_save) {
+		std::cerr << "Nested record! Called startRecord while recording\n";
+		exit(-1);
+	}
 	if (Iter != 0) {
 		std::cerr << "Record tape is not rewinded (iter = " << Iter << ") maybe last adjoint didn't go all the way\n";
 		Iter = 0;
 	}
+	printf("[%d] Lattice is starting to record (usteady adjoint)\n",D_MPI_RANK);
 	{
 		char filename[STRING_LEN];
 		sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
 		save(Snaps[0], filename);
 	}
+	reverse_save = 1;
 }
 
 void Lattice::stopRecord()
 {
-
+	if (Iter != 0) {
+		std::cerr << "Warning: Record tape is not rewinded (iter = " << Iter << ")\n";
+		Iter = 0;
+	}
+	reverse_save = 0;
 }
 
 
@@ -436,6 +446,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		int s2 = getSnap(i+1);
 		int s3 = s2;
 		if (s2 >= nSnaps) s3=0;
+		pop_settings();
 		Iteration(s1, s3, iter_type);
 		Iter = i+1;
 		if (s2 >= nSnaps){
@@ -461,6 +472,11 @@ void Lattice::Iterate(int niter, int iter_type)
 		if (ad) {
 			for (i=0; i< niter; i++) {
 				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+				Iter -= 1;
+				if (Iter < 0) {
+					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
+					exit(-1);
+				}
 				IterateTill(Iter, iter_type);
 			}
 		} else {
@@ -668,11 +684,70 @@ void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int 
 
 <?R }; ifdef() ?>
 
-  void Lattice::getGlobals(real_t * tab) {
+
+void Lattice::push_setting(int i, real_t old, real_t nw)
+{
+	settings_record.push_back(
+		std::pair< int, std::pair<int,std::pair<real_t,real_t> > >(
+			Iter,
+			std::pair<int,std::pair<real_t,real_t> >(
+				i,
+				std::pair<real_t,real_t> (
+					old,
+					nw
+				)
+			)
+		)
+	);
+	settings_i = settings_record.size();
+}
+
+void Lattice::pop_settings()
+{
+	while (settings_i > 0) {
+		if (settings_record[settings_i-1].first <= Iter) break;
+		settings_i--;
+		printf("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
+	}
+	while (settings_i < settings_record.size()) {
+		if (settings_record[settings_i].first > Iter) break;
+		printf("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
+		settings_i++;
+	}
+
+}
+
+
+void Lattice::getGlobals(real_t * tab) {
         real_t tabl[<?%d nrow(Globals) ?>];
         container->getGlobals(tabl);
         MPI_Reduce(tabl, tab, <?%d nrow(Globals) ?>, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
+}
+
+
+
+void Lattice::setSetting(int i, real_t tmp) {
+	settings[i] = tmp;
+	switch (i) {
+<?R
+        for (i in 1:nrow(Settings)) {
+                v = Settings[i,];
+                if (is.na(v$derived)) {
+                        tmp = paste(v$name,"_",sep="");
+                } else {
+                        tmp = v$name;
+                }
+                if (is.na(v$derived)) { ?>
+	case <?%d i-1 ?>:
+//	        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, tmp);
+	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t)); <?R
+		} ?>
+		break; <?R
+        } ?>
+	}
+}
 
 <?R
         for (i in 1:nrow(Settings)) {
@@ -685,11 +760,10 @@ void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int 
         ?>
 
 void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
-	settings[<?%d i-1 ?>] = <?%s tmp ?>;
-        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>); <?R
-                if (is.na(v$derived)) { ?>
-        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &<?%s tmp ?>, sizeof(real_t)); <?R
-                } else {
+	if (reverse_save) push_setting(<?%d i-1 ?>, settings[<?%d i-1 ?>], <?%s tmp ?>);
+        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
+	setSetting(<?%d i-1 ?>, <?%s tmp ?>); <?R
+                if (!is.na(v$derived)) {
                         i = which(as.character(Settings$name) == as.character(v$derived));
                         if (is.null(i)) stop(paste(v$derived, "was declared as derived of",v$name,". But", v$derived, "doesn't exist\n"));
                         sel = Settings[i[1],]; ?>
