@@ -107,12 +107,12 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	if ((mpi.rank != to) && (size > 0)) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
-		gpuout[bufnumber] = container->out.<?%s m$name ?>;
+		gpuout[bufnumber] = NULL; //container->out.<?%s m$name ?>;
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
-//		gpuin[bufnumber] = container->in.<?%s m$name ?>;
-		BPreAlloc((void**) & (gpuin[bufnumber]), size);
+//		gpuin[bufnumber] = NULL; //container->in.<?%s m$name ?>;
+		BPreAlloc((void**) & (gpubuf[bufnumber]), size);
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
 		bufnumber ++;
@@ -176,7 +176,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = Snaps[tab0].<?%s m$name ?>;
-		container->in.<?%s m$name ?> = gpuin[i];
+		gpuin[i] = container->in.<?%s m$name ?> = gpubuf[i];
 		i ++;
 	} else {
 		container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
@@ -232,7 +232,7 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[tab0].<?%s m$name ?>;
-		container->in.<?%s m$name ?> = gpuin[i];
+		gpuin[i] = container->in.<?%s m$name ?> = gpubuf[i];
 		i ++;
 	} else {
 		container->in.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;

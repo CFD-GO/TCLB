@@ -25,7 +25,7 @@ class Lattice {
 private:
 //public:
   LatticeContainer * container;
-	real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27];
+	real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27], *gpubuf[27];
 	size_t bufsize[27];
 	int nodein[27], nodeout[27];
 	int bufnumber;
