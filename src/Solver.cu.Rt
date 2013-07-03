@@ -270,6 +270,9 @@ void MainFree( Solver *d);
 	   
 		// Setting global variables
 		initSettings();
+
+		geometry = new Geometry(region, units);
+
 		return 0;
 	}
 

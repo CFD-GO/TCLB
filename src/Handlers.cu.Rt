@@ -230,7 +230,6 @@ class acUSAdjoint: public GenericAction {
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
 			solver->steps = next_it;
-			printf("%d\n", solver->steps);
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			solver->iter -= solver->steps;
 			solver->lattice->Iterate(solver->steps, solver->iter_type | ITER_ADJOINT);
@@ -288,15 +287,14 @@ class acInit: public Action {
 class acGeometry: public Action {
 	public:
 	int Init(Solver* solver) {
-			Geometry geometry(solver->region, solver->units);
-			if (geometry.load(node)) {
+			if (solver->geometry->load(node)) {
 				std::cerr << "Error while loading geometry\n";
 				return -1;
 			}
 			char filename[STRING_LEN];
 			solver->outIterFile("G", ".vti", filename);
-			geometry.writeVTI(filename);
-			solver->lattice->FlagOverwrite(geometry.geom,geometry.region);
+			solver->geometry->writeVTI(filename);
+			solver->lattice->FlagOverwrite(solver->geometry->geom,solver->geometry->region);
 			return 0;
 	}
 };

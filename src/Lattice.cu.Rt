@@ -441,6 +441,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		imx = 0;
 	}
 	s1 = imx;
+	Iter = mx;
 	for (i = mx; i < it; i++) {
 		int s2 = getSnap(i+1);
 		int s3 = s2;
@@ -464,6 +465,8 @@ void Lattice::IterateTill(int it, int iter_type)
 
 void Lattice::Iterate(int niter, int iter_type)
 {
+	assert(niter > 0);
+	printf("--------------------- %d %d %d\n", Iter ,niter, iter_type);
 	int ad = iter_type & ITER_ADJOINT;
 	int last_glob = iter_type & ITER_LASTGLOB;
 	int i;
@@ -472,8 +475,10 @@ void Lattice::Iterate(int niter, int iter_type)
 	if (reverse_save) {
 		if (ad) {
 			for (i=0; i< niter; i++) {
-//				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
-				if ((last_glob) && (i == niter -1)) iter_type = ITER_GLOBS;
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = ITER_GLOBS;
+				}
 				Iter -= 1;
 				if (Iter < 0) {
 					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
@@ -485,7 +490,8 @@ void Lattice::Iterate(int niter, int iter_type)
 		} else {
 			if (last_glob) {
 				IterateTill(niter+Iter-1, iter_type);
-				IterateTill(niter+Iter, ITER_GLOBS);
+				container->clearGlobals();
+				IterateTill(Iter+1, ITER_GLOBS);
 			} else {
 				IterateTill(niter+Iter, iter_type);
 			}
@@ -493,12 +499,18 @@ void Lattice::Iterate(int niter, int iter_type)
 	} else {
 		if (ad) {
 			for (i=0; i< niter; i++) {
-				if ((last_glob) && (i == niter -1)) iter_type = ITER_GLOBS;
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = ITER_GLOBS;
+				}
 				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
 			}
 		} else {
 			for (i=0; i< niter; i++) {
-				if ((last_glob) && (i == niter -1)) iter_type = ITER_GLOBS;
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = ITER_GLOBS;
+				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 			}
 		}

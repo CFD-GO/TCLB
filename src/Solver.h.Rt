@@ -53,6 +53,7 @@ class Solver {
 	MPIInfo mpi;
 	MPI_Comm mpi_comm;
         Lattice * lattice; // Main lattice object
+	Geometry * geometry;
 	lbRegion region;
         int iter; // Iteration Number
 	int mpi_rank;
@@ -74,6 +75,7 @@ class Solver {
 #ifdef GRAPHICS
 		if (bitmap) delete bitmap;
 #endif
+		if (geometry) delete geometry;
 	}
 	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_) { Init(); };
 	void Init();
