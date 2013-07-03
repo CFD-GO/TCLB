@@ -36,6 +36,7 @@ void MainFree( Solver *d);
 
 	void Solver::Init() {
 		iter = 0;
+		iter_type = ITER_NORM;
 		mpi_rank = 0;
 		mpi_size = 1;
 		steps = 1;

@@ -404,7 +404,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node)
 
 template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
 {
-<?R	InOut("pop", "in", DensityAD); ?>
+<?R	InOut("pop", "adjin", DensityAD); ?>
 }
 #endif
 

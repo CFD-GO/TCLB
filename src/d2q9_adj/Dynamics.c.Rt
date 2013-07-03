@@ -2,9 +2,9 @@
 	source("conf.R") ;
 	c_header();
 ?>
-#define S2 1.3333
-#define S3 1.0
+#define S4 1.3333
 #define S5 1.0
+#define S6 1.0
 #define S7 1.0
 #define S8 omega
 #define S9 omega
@@ -194,10 +194,10 @@ CudaDeviceFunction float2 Color() {
         return ret;
 }
 
-
 CudaDeviceFunction void CollisionMRT()
 {
 	real_t u[2], usq, d, R[6], uf;
+	vector_t F;
 <?R
         R = PV(c(
 		"d",
@@ -222,26 +222,53 @@ M = matrix(c(
 
 C( R == f %% M );
 ?>
-        if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) {
-		AddToPressDiff(d);
-	}
-        if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) {
-		AddToPressDiff(-d);
-	}
+//F = getF();
+//u[0] = u[0]+F.x*MagicF;
+//u[1] = u[1]+F.y*MagicF;
+<?R
+	d = PV("d");
+	dw = d
+	dw[[1]][1,2]=-1
+	C(usq == sum(u*u)*dw);
+	usq = PV("usq")
+	u = PV(c("u[0]","u[1]"))
+	Req = rbind(
+		d,
+		u,
+		d*(-2)+usq*3,
+		d - usq*3,
+		u[1]*(-1),
+		u[2]*(-1),
+		u[1]*u[1]*dw-u[2]*u[2]*dw,
+		u[1]*u[2]*dw
+	)
+
+?>
+<?R
+        Sy = PV(paste("S",1:19,"",sep=""))
+	selR = c(4,5,6,7,8,9);
+#	cr = calcReq[selR]
+	Mw = colSums(M**2)
+for (i in selR) {
+?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
+<?R
+}
+?>
 u[0] = u[0]*w;
 u[1] = u[1]*w;
+//u[0]=u[0]+0.001;
 <?R
-	C(usq == sum(u*u));
-?>
-R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
-R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
-R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
-R[3] = R[3]*(1-S7)  +  S7*(-u[1]);
-R[4] = R[4]*(1-S8)  +  S8*(u[0]*u[0] - u[1]*u[1]);
-R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
+	C(usq == sum(u*u)*dw);
+for (i in selR) {
+?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
+<?R
+}
+for (i in 1:length(R)) {
+?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
+<?R
+}
+   C( f == R %% t(M) , float=F);
 
-<?R
-	C( f == R %% solve(M) );
 ?>
 }
 

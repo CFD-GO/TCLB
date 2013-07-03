@@ -175,17 +175,24 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
-		gpuout[i] = Snaps[tab0].<?%s m$name ?>;
-		gpuin[i] = container->in.<?%s m$name ?> = gpubuf[i];
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
 		i ++;
 	} else {
-		container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
 	}
-	container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
 <?R
 	}
 ?>
 	container->CopyToConst();
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunBorder (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder_Globs(kernelStream); break;
+	}	
+        CudaStreamSynchronize(kernelStream);
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
 		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
 	}
@@ -203,14 +210,6 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
 		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
 	}
-        CudaStreamSynchronize(inStream);
-	switch(iter_type){
-	case ITER_NORM:
-		container->RunBorder (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunBorder_Globs(kernelStream); break;
-	}	
-        CudaStreamSynchronize(kernelStream);
         CudaDeviceSynchronize();
 	Snap = tab1;
 	MarkIteration();
@@ -232,12 +231,12 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[tab0].<?%s m$name ?>;
-		gpuin[i] = container->in.<?%s m$name ?> = gpubuf[i];
+		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
 		i ++;
 	} else {
-		container->in.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;
+		container->adjin.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;
 	}
-	container->out.<?%s m$name ?> = Snaps[Snap].<?%s m$name ?>;
+	container->in.<?%s m$name ?> = Snaps[Snap].<?%s m$name ?>;
 	container->adjout.<?%s m$name ?> = aSnaps[tab1].<?%s m$name ?>;
 <?R
 	}
@@ -466,29 +465,40 @@ void Lattice::IterateTill(int it, int iter_type)
 void Lattice::Iterate(int niter, int iter_type)
 {
 	int ad = iter_type & ITER_ADJOINT;
+	int last_glob = iter_type & ITER_LASTGLOB;
 	int i;
 	iter_type = iter_type & ITER_TYPE;
+	if (iter_type & ITER_GLOBS) last_glob=0;
 	if (reverse_save) {
 		if (ad) {
 			for (i=0; i< niter; i++) {
-				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+//				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+				if ((last_glob) && (i == niter -1)) iter_type = ITER_GLOBS;
 				Iter -= 1;
 				if (Iter < 0) {
 					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
 					exit(-1);
 				}
-				IterateTill(Iter, iter_type);
+				IterateTill(Iter, ITER_NORM);
+				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
 			}
 		} else {
-			IterateTill(niter+Iter, iter_type);
+			if (last_glob) {
+				IterateTill(niter+Iter-1, iter_type);
+				IterateTill(niter+Iter, ITER_GLOBS);
+			} else {
+				IterateTill(niter+Iter, iter_type);
+			}
 		}
 	} else {
 		if (ad) {
 			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) iter_type = ITER_GLOBS;
 				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
 			}
 		} else {
 			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) iter_type = ITER_GLOBS;
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 			}
 		}

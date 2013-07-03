@@ -87,7 +87,7 @@ struct Node<?%s suff ?> {
 	?>
 	CudaDeviceFunction inline void RunElement() { <?R
 		if (tp$adjoint) { ?>
-			constContainer.pull(*this);
+			constContainer.pop(*this);
 			constContainer.pop_adj(*this);
 			Run_b();
 			constContainer.push_adj(*this); <?R
