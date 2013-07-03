@@ -12,9 +12,10 @@ class vHandler {
 	int startIter;
 	double everyIter;
 	pugi::xml_node node;
-	virtual int Init(Solver*);
-	virtual int DoIt(Solver*);
-	virtual int Finish(Solver*);
+	Solver* solver;
+	virtual int Init();
+	virtual int DoIt();
+	virtual int Finish();
 	virtual int Type();
 	inline const bool Now(int iter) {
 		if (everyIter) {
@@ -44,14 +45,13 @@ class Handler {
 private:
 public:
 	vHandler * hand;
-	Solver * solver;
 	int *ref;
 //public:
 	inline Handler(pugi::xml_node node, Solver * solver_) {
-		solver = solver_;
 		hand = getHandler(node);
+		hand->solver = solver_;
 		if (hand) {
-			int ret = hand->Init(solver);
+			int ret = hand->Init();
 			if (ret) {
 				delete hand;
 				hand = NULL;
@@ -62,14 +62,13 @@ public:
 		DEBUG0(printf("H: create\n");)
 	}
 	inline Handler(const Handler & that) {
-		solver = that.solver;
 		hand = that.hand;
 		ref = that.ref;
 		(*ref)++;
 		DEBUG0(printf("H: + %d\n", *ref);)
 	}
-	inline const int Init() { return hand->Init(solver); }
-	inline const int DoIt() { return hand->DoIt(solver); }
+	inline const int Init() { return hand->Init(); }
+	inline const int DoIt() { return hand->DoIt(); }
 	inline const int Type() { return hand->Type(); }
 	inline const bool Now(int iter) { return hand->Now(iter); }
 	inline const int Next(int iter) { return hand->Next(iter); }
@@ -86,7 +85,7 @@ public:
 		DEBUG0(printf("H: - %d\n", *ref);)
 		if (ref <= 0) {
 			if (hand) {
-				hand->Finish(solver);
+				hand->Finish();
 				delete hand;
 			}
 			delete ref;

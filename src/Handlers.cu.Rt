@@ -28,19 +28,19 @@
 
 
 
-int vHandler::DoIt(Solver* solver) {
+int vHandler::DoIt() {
 	printf("It is wrong (do it)!\n");
 	exit(-1);
 	return -1;
 };
 
-int vHandler::Init(Solver* solver) {
+int vHandler::Init() {
 	printf("It is wrong (init)!\n");
 	exit(-1);
 	return -1;
 };
 
-int vHandler::Finish(Solver* solver) {
+int vHandler::Finish() {
 	printf("It is wrong (finish)!\n");
 	exit(-1);
 	return -1;
@@ -52,9 +52,9 @@ int vHandler::Type() {
 
 class Callback : public vHandler {
 public:
-	int DoIt(Solver* solver) {
+	int DoIt() {
 	}
-	int Init(Solver* solver) {
+	int Init() {
 		pugi::xml_attribute attr = node.attribute("Iterations");
 		if (attr) {
 			double it = solver->units.alt(attr.value());
@@ -69,7 +69,7 @@ public:
 		}
 		return 0;
 	}
-	int Finish(Solver* solver) {
+	int Finish() {
 		return 0;
 	}
 	int Type() { return HANDLER_CALLBACK; }
@@ -77,9 +77,9 @@ public:
 
 class Action : public vHandler {
 public:
-	int DoIt(Solver* solver) {
+	int DoIt() {
 	}
-	int Init(Solver* solver) {
+	int Init() {
 		pugi::xml_attribute attr = node.attribute("Iterations");
 		if (attr) {
 			double it = solver->units.alt(attr.value());
@@ -97,7 +97,7 @@ public:
 		}
 		return 0;
 	}
-	int Finish(Solver* solver) {
+	int Finish() {
 		return 0;
 	}
 	int Type() { return HANDLER_ACTION; }
@@ -106,16 +106,16 @@ public:
 class cbVTK: public Callback {
 	std::string nm;
 	public:
-	int Init(Solver* solver) {
-		Callback::Init(solver);
+	int Init() {
+		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("name");
 		nm = "VTK";
 		if (attr) nm = attr.value();
 		return 0;
 	}
 	public:
-	int DoIt(Solver* solver) {
-		Callback::DoIt(solver);
+	int DoIt() {
+		Callback::DoIt();
 		return solver->writeVTK(nm.c_str());
 	};
 };
@@ -124,9 +124,9 @@ class cbLog: public Callback {
 	std::string filename;
 	int old_iter_type;
 	public:
-	int Init(Solver* solver) {
+	int Init() {
 		char fn[STRING_LEN];
-		Callback::Init(solver);
+		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("name");
 		std::string nm = "Log";
 		if (attr) nm = attr.value();
@@ -137,21 +137,21 @@ class cbLog: public Callback {
 		solver->iter_type |= ITER_LASTGLOB;
 		return 0;
 	}
-	int DoIt(Solver* solver) {
-		Callback::DoIt(solver);
+	int DoIt() {
+		Callback::DoIt();
 		solver->writeLog(filename.c_str());
 		return 0;
 	}
-	int Finish(Solver* solver) {
+	int Finish() {
 		solver->iter_type = old_iter_type;
-		Callback::Finish(solver);
+		Callback::Finish();
 	}
 };
 
 class GenericAction: public Action {
 	int stack;
 	public:
-	int Init(Solver* solver) {
+	int Init() {
 		stack=0;
                 for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 			Handler hand(par, solver);
@@ -165,7 +165,7 @@ class GenericAction: public Action {
                 }
 		return 0;
 	}
-	int Finish(Solver* solver) {
+	int Finish() {
 		while(stack--) {
 			solver->hands.pop_back();
 		}
@@ -176,18 +176,18 @@ class GenericAction: public Action {
 
 class GenericContainer: public GenericAction {
 	public:
-	int Init(Solver* solver) {
-		Action::Init(solver);
-		return GenericAction::Init(solver);
+	int Init() {
+		Action::Init();
+		return GenericAction::Init();
 	}
 };
 
 
 class acSolve: public GenericAction {
 	public:
-	int Init(Solver* solver) {
-		Action::Init(solver);
-		GenericAction::Init(solver);
+	int Init() {
+		Action::Init();
+		GenericAction::Init();
 		do {
 			int next_it = Next(solver->iter);
 			for (int i=0; i<solver->hands.size(); i++) {
@@ -214,10 +214,10 @@ class acSolve: public GenericAction {
 
 class acUSAdjoint: public GenericAction {
 	public:
-	int Init(Solver* solver) {
-		Action::Init(solver);
+	int Init() {
+		Action::Init();
 		solver->lattice->startRecord();
-		GenericAction::Init(solver);
+		GenericAction::Init();
 		everyIter = solver->iter - startIter;
 		if (everyIter <= 0) {
 			std::cerr << "No iterations done inside of Usteady Adjoint! Nothing to do\n";
@@ -250,8 +250,8 @@ class acUSAdjoint: public GenericAction {
 
 class acParams: public Action {
 	public:
-	int Init(Solver* solver) {
-		Action::Init(solver);
+	int Init() {
+		Action::Init();
 		pugi::xml_attribute attr;
 		<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
 			attr = node.attribute("<?%s v$name?>");
@@ -266,8 +266,8 @@ class acParams: public Action {
 
 class acModel: public GenericContainer {
 	public:
-	int Init(Solver* solver) {
-		GenericContainer::Init(solver);
+	int Init() {
+		GenericContainer::Init();
 		solver->iter = 0;
 		solver->lattice->Init();
 		return 0;
@@ -277,8 +277,8 @@ class acModel: public GenericContainer {
 
 class acInit: public Action {
 	public:
-	int Init(Solver* solver) {
-		Action::Init(solver);
+	int Init() {
+		Action::Init();
 		solver->lattice->Init();
 		return 0;
 	}
@@ -286,7 +286,7 @@ class acInit: public Action {
 
 class acGeometry: public Action {
 	public:
-	int Init(Solver* solver) {
+	int Init() {
 			if (solver->geometry->load(node)) {
 				std::cerr << "Error while loading geometry\n";
 				return -1;
