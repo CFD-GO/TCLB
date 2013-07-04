@@ -72,14 +72,16 @@ AddSetting = function(name,  comment="", default=0, ...) {
 	Settings <<- rbind(Settings,s)
 }
 
-AddGlobal = function(name, comment="") {
+AddGlobal = function(name, comment="", unit="1", adjoint=F) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
 	if (comment == "") {
 		comment = name
 	}
 	g = data.frame(
 		name=name,
-		comment=comment
+		comment=comment,
+		unit=unit,
+		adjoint=adjoint
 	)
 	Globals <<- rbind(Globals,g)
 }
@@ -210,6 +212,8 @@ if (ADJOINT==1) {
 
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 
+GlobalsD = Globals
+AddGlobal(name="Objective",comment="Objective function");
 
 Margin = data.frame(
 	name = paste("block",1:27,sep=""),
@@ -290,6 +294,11 @@ Dispatch$suffix = paste(
 	ifelse(Dispatch$adjoint,"_Adj",""),
 	sep=""
 )
+
+Settings$index = 1:nrow(Settings)-1
+Density$index = 1:nrow(Density)-1
+Globals$index = 1:nrow(Globals)-1
+Quantities$index = 1:nrow(Quantities)-1
 
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}

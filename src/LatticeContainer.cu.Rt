@@ -101,6 +101,14 @@ void FTabs::PreAlloc(int nx,int ny,int nz) {
   <?R } ?>
 }
 
+void FTabs::Clear(int nx,int ny,int nz) {
+  size_t size;
+  <?R for (m in NonEmptyMargin) { ?>
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    CudaMemset( <?%s m$name ?>, 0, size );
+  <?R } ?>
+}
+
 void FTabs::Free() {
     <?R for (m in NonEmptyMargin) { ?>
 	if ( <?%s m$name ?> != NULL) {
@@ -412,7 +420,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 CudaDeviceFunction void inline LatticeContainer::Glob(Node now) {}
 
 CudaDeviceFunction void inline LatticeContainer::Glob(Node_Globs now) {
-<?R for (i in 1:nrow(Globals)) { v=Globals$name[i]  ?>
+<?R for (i in 1:nrow(GlobalsD)) { v=GlobalsD$name[i]  ?>
         atomicSum(&Globals[<?%d i-1 ?>], now.<?%s v ?>);
 //        atomicSum(&Globals[<?%d i-1 ?>], <?%d i ?>.0);
 <?R } ?>

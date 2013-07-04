@@ -137,12 +137,34 @@ void Lattice::startRecord()
 		Iter = 0;
 	}
 	printf("[%d] Lattice is starting to record (usteady adjoint)\n",D_MPI_RANK);
+	if (Snap != 0) {
+		std::cerr << "Warning: Snap = "<< Snap << "\n";
+		
+	}
+	for (int i=0; i < maxSnaps; i++) {	
+		iSnaps[i]=-1;
+	}
 	{
 		char filename[STRING_LEN];
 		sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
-		save(Snaps[0], filename);
+		iSnaps[getSnap(0)] = 0;
+		save(Snaps[Snap], filename);
+	}
+	if (Snap != 0) {
+		std::cerr << "Warning: Snap = "<< Snap << " Going through disk\n";
+	} else {
+		iSnaps[Snap] = 0;
 	}
 	reverse_save = 1;
+	clearAdjoint();
+	clearGlobals();
+}
+
+void Lattice::clearAdjoint()
+{
+	printf("Clearing adjoint\n");
+	aSnaps[0].Clear(region.nx,region.ny,region.nz);
+	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 }
 
 void Lattice::stopRecord()
@@ -152,6 +174,7 @@ void Lattice::stopRecord()
 		Iter = 0;
 	}
 	reverse_save = 0;
+	printf("[%d] Stop recording\n", D_MPI_RANK);
 }
 
 
@@ -442,6 +465,7 @@ void Lattice::IterateTill(int it, int iter_type)
 	}
 	s1 = imx;
 	Iter = mx;
+	Snap = s1;
 	for (i = mx; i < it; i++) {
 		int s2 = getSnap(i+1);
 		int s3 = s2;
@@ -465,8 +489,6 @@ void Lattice::IterateTill(int it, int iter_type)
 
 void Lattice::Iterate(int niter, int iter_type)
 {
-	assert(niter > 0);
-	printf("--------------------- %d %d %d\n", Iter ,niter, iter_type);
 	int ad = iter_type & ITER_ADJOINT;
 	int last_glob = iter_type & ITER_LASTGLOB;
 	int i;
@@ -514,6 +536,12 @@ void Lattice::Iterate(int niter, int iter_type)
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 			}
 		}
+	}
+	if (last_glob) {
+		clearGlobals();
+		calcGlobals();
+	} else if ( iter_type == ITER_GLOBS ) {
+		calcGlobals();
 	}
 };
 
@@ -642,6 +670,41 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 
 <?R } ?>
 
+<?R	sel = DensityAll$adjoint;
+	DensityAll$nindex = 0
+	DensityAll$nindex[sel] = 1:sum(sel)-1
+	DensityAll$nindex[!sel] = 1:sum(!sel)-1
+	for (d in rows(DensityAll)) { 
+	if (d$adjoint) {
+		from="aSnaps[aSnap]";
+	} else {
+		from="Snaps[Snap]";
+	}
+?>
+
+void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
+{
+	printf("Pulling all <?%s d$nicename ?>\n");
+	CudaMemcpy(
+		tab,
+		&<?%s from ?>.block14[<?%d d$nindex ?>*region.sizeL()], 
+		region.sizeL()*sizeof(real_t),
+		cudaMemcpyDeviceToHost);
+}
+
+void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
+{
+	printf("Setting all <?%s d$nicename ?>\n");
+	CudaMemcpy(
+		&<?%s from ?>.block14[<?%d d$nindex?>*region.sizeL()], 
+		tab,
+		region.sizeL()*sizeof(real_t),
+		cudaMemcpyHostToDevice);
+}
+
+<?R } ?>
+
+
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
 
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
@@ -746,6 +809,33 @@ void Lattice::getGlobals(real_t * tab) {
         real_t tabl[<?%d nrow(Globals) ?>];
         container->getGlobals(tabl);
         MPI_Reduce(tabl, tab, <?%d nrow(Globals) ?>, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
+}
+
+void Lattice::calcGlobals() {
+        real_t tab[<?%d nrow(Globals) ?>];
+        getGlobals(tab);
+	double obj =0;
+<?R
+	for (m in rows(Globals)) {
+		i = which(Settings$name == paste(m$name,"InObj",sep=""));
+		if (length(i) == 1) {
+			s = Settings[Settings$name == paste(m$name,"InObj",sep=""),]; ?>
+	obj += settings[<?%d s$index ?>] * tab[<?%d m$index ?>]; <?R
+		}
+	}
+?>	
+	printf("%lf\n",obj);
+	tab[<?%d Globals$index[Globals$name == "Objective"] ?>] += obj;
+	for (int i=0; i< <?%d nrow(Globals) ?>; i++) globals[i] += tab[i];
+	container->clearGlobals();
+}
+
+void Lattice::clearGlobals() {
+	memset(globals, 0, sizeof(double)* <?%d nrow(Globals) ?>);
+}
+
+double Lattice::getObjective() {
+	return globals[<?%d Globals$index[Globals$name == "Objective"] ?>];
 }
 
 

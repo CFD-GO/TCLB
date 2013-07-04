@@ -27,7 +27,7 @@ AOUT=main
 NVCC=nvcc
 CCTXT=NVCC
 
-OPT=$(MPI_OPT) -g
+OPT=$(MPI_OPT) -g -lnlopt
 NVOPT=
 # OPT+=-D CROSS_SYNC
 

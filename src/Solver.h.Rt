@@ -101,5 +101,11 @@ class Solver {
 	int InitAll();
 	int RunMainLoop();
 	int EventLoop();
+
+	int Par_size, *Par_sizes, *Par_disp;
+	int getPars();
+	int getDPar(double * wb);
+	int getPar(double * wb);
+	int setPar(const double * w);
 };   
 

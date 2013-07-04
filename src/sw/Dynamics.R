@@ -26,4 +26,5 @@ AddSetting(name="SolidH", default=1, comment='inlet density')
 
 AddGlobal(name="PressDiff", comment='pressure loss')
 AddGlobal(name="TotalDiff", comment='total variation of velocity')
+AddGlobal(name="Material", comment='total material')
 

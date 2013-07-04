@@ -56,6 +56,7 @@ public:
   int Snap, aSnap;
 	int total_iterations;
   real_t settings[<?%d nrow(Settings) ?>];  
+  double globals[<?%d nrow(Globals) ?>];
   lbRegion region;
   MPIInfo mpi;
   Lattice (lbRegion region, MPIInfo);
@@ -72,6 +73,7 @@ public:
   inline int load(char * filename){ return load(container->in, filename); }
   void startRecord();
   void stopRecord();
+  void clearAdjoint();
   int(* callback)(int, void*);
   void* callback_data;
   int callback_iter;
@@ -104,6 +106,8 @@ public:
 <?R for (d in rows(DensityAll)) { ?>
 	void Get_<?%s d$nicename ?>(lbRegion over, real_t * tab);
 	void Set_<?%s d$nicename ?>(lbRegion over, real_t * tab);
+	void Get_<?%s d$nicename ?>(real_t * tab);
+	void Set_<?%s d$nicename ?>(real_t * tab);
 <?R } ?>
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint);?>
@@ -114,9 +118,13 @@ public:
 <?R }; ifdef() ?>
 
   void getGlobals(real_t * tab); 
+  void calcGlobals();
+  void clearGlobals();
+  double getObjective();
   void setSetting(int i, real_t tmp);
 <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
 	void <?%s v$FunName ?>(real_t);<?R } ?>
+
 };
 
 #endif

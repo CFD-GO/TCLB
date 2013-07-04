@@ -37,7 +37,7 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 	cat("\n")
 	ifdef(tp$adjoint)
 	suff=tp$suffix
-	for (g in rows(Globals)) if ((! g$adjoint) || (tp$adjoint)) {
+	for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) {
 		if (tp$globals) { ?>
 			#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + x <?R
 		} else { ?>
@@ -48,7 +48,7 @@ struct Node<?%s suff ?> {
 	int x,y,z;
 	<?R
 		if (tp$globals) {
-			for (g in rows(Globals)) { ?>
+			for (g in rows(GlobalsD)) { ?>
 				real_t <?%s g$name ?>; <?R
 			}
 		}
@@ -56,7 +56,7 @@ struct Node<?%s suff ?> {
 	CudaDeviceFunction void inline Pre() { <?R
 		if (tp$globals) { ?>
 			<?R
-				for (g in rows(Globals)) { ?>
+				for (g in rows(GlobalsD)) { ?>
 					<?%s g$name ?> = 0.0; <?R
 				}
 		} ?>
@@ -64,7 +64,7 @@ struct Node<?%s suff ?> {
 	CudaDeviceFunction void inline Glob() { <?R
 		if (tp$globals) {
 			i=0
-			for (g in rows(Globals)) if ((! g$adjoint) || (tp$adjoint)) { ?>
+			for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) { ?>
 				atomicSum(&constContainer.Globals[<?%d i ?>], <?%s g$name ?>); <?R
 				i = i + 1;
 			}
@@ -98,7 +98,7 @@ struct Node<?%s suff ?> {
 		} ?>
 	}
 }; <?R
-	for (g in rows(Globals)) { ?>
+	for (g in rows(GlobalsD)) { ?>
 		#undef AddTo<?%s g$name ?><?R
 	}
 } 

@@ -20,7 +20,7 @@ sed 's/void/CudaDeviceFunction void/' Dynamics_b.c > tmp
 mv tmp Dynamics_b.c
 echo > ADpre_.h
 #echo "#define objectiveb 1.0" >ADpre__b.h
-mv ADpre_b.h ADpre__b.h
+cp ADpre_b.h ADpre__b.h
 if [ -f types_b.h ]; then
         echo "#ifndef TYPES_H" >tmp;
         cat types_b.h >> tmp;
