@@ -167,6 +167,14 @@ void Lattice::clearAdjoint()
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 }
 
+void Lattice::clearDPar()
+{ <?R
+	for (d in rows(DensityAll)) if ((d$adjoint) && (d$parameter)) { ?>
+	Clear_<?%s d$nicename ?>(); <?R
+	}
+?>
+}
+
 void Lattice::stopRecord()
 {
 	if (Iter != 0) {
@@ -538,7 +546,11 @@ void Lattice::Iterate(int niter, int iter_type)
 		}
 	}
 	if (last_glob) {
-		clearGlobals();
+		if (ad) {
+			clearGlobals_Adj();
+		} else {
+			clearGlobals();
+		}
 		calcGlobals();
 	} else if ( iter_type == ITER_GLOBS ) {
 		calcGlobals();
@@ -692,6 +704,15 @@ void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
 		cudaMemcpyDeviceToHost);
 }
 
+void Lattice::Clear_<?%s d$nicename ?>()
+{
+	printf("Clearing all <?%s d$nicename ?>\n");
+	CudaMemset(
+		&<?%s from ?>.block14[<?%d d$nindex ?>*region.sizeL()], 
+		0,
+		region.sizeL()*sizeof(real_t));
+}
+
 void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 {
 	printf("Setting all <?%s d$nicename ?>\n");
@@ -703,7 +724,6 @@ void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 }
 
 <?R } ?>
-
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
 
@@ -830,8 +850,18 @@ void Lattice::calcGlobals() {
 	container->clearGlobals();
 }
 
-void Lattice::clearGlobals() {
-	memset(globals, 0, sizeof(double)* <?%d nrow(Globals) ?>);
+void Lattice::clearGlobals() { <?R
+	for( g in rows(Globals) ) if (!g$adjoint) { ?>
+	globals[<?%d g$index ?>] = 0; <?R
+	}
+?>
+}
+
+void Lattice::clearGlobals_Adj() { <?R
+	for( g in rows(Globals) ) if (g$adjoint) { ?>
+	globals[<?%d g$index ?>] = 0; <?R
+	}
+?>
 }
 
 double Lattice::getObjective() {

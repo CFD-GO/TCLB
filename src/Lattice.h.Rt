@@ -74,6 +74,7 @@ public:
   void startRecord();
   void stopRecord();
   void clearAdjoint();
+  void clearDPar();
   int(* callback)(int, void*);
   void* callback_data;
   int callback_iter;
@@ -107,6 +108,7 @@ public:
 	void Get_<?%s d$nicename ?>(lbRegion over, real_t * tab);
 	void Set_<?%s d$nicename ?>(lbRegion over, real_t * tab);
 	void Get_<?%s d$nicename ?>(real_t * tab);
+	void Clear_<?%s d$nicename ?>();
 	void Set_<?%s d$nicename ?>(real_t * tab);
 <?R } ?>
 
@@ -120,6 +122,7 @@ public:
   void getGlobals(real_t * tab); 
   void calcGlobals();
   void clearGlobals();
+  void clearGlobals_Adj();
   double getObjective();
   void setSetting(int i, real_t tmp);
 <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>

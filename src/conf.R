@@ -30,7 +30,10 @@ Settings = NULL
 Quantities = NULL
 
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="") {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+	if (parameter) {
+		if ((dx != 0) && (dy != 0) && (dz != 0)) stop("Parameters cannot be streamed (AddDensity)");
+	}
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (comment == "") {
 		comment = name
@@ -42,7 +45,8 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="") {
 		dz=dz,
 		comment=comment,
 		adjoint=adjoint,
-		group=group
+		group=group,
+		parameter=parameter
 	)
 	Density <<- rbind(Density,d)
 }

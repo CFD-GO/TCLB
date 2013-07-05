@@ -91,7 +91,7 @@ __device__ inline void atomicAddP(real_t* a, real_t b)
 }
 
 
-__shared__ real_t sumtab[512];
+__shared__ real_t sumtab[1024];
 
 __device__ inline void atomicSum(real_t * sum, real_t val)
 {

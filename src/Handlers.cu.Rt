@@ -289,6 +289,7 @@ class acSAdjoint: public GenericAction {
 			solver->steps = next_it;
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			solver->iter += solver->steps;
+			printf("iterate %d %d\n", solver->steps, solver->iter_type | ITER_ADJOINT);
 			solver->lattice->Iterate(solver->steps, solver->iter_type | ITER_ADJOINT);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
@@ -443,12 +444,13 @@ vHandler * getHandler(pugi::xml_node node) {
         } else if (name=="Adjoint") {
 		pugi::xml_attribute attr = node.attribute("type");
 		if (attr) {
-			if (attr.value() == "unsteady") {
+			std::string type(attr.value());
+			if (type == "unsteady") {
 				ret = new acUSAdjoint;
-			} else if (attr.value() == "unsteady") {
+			} else if (type == "steady") {
 				ret = new acSAdjoint;
 			} else {
-				std::cerr << "Unknown type of adjoint in xml:" << attr.value() << "\n";
+				std::cerr << "Unknown type of adjoint in xml:" << type << "\n";
 			}
 		} else {
 			pugi::xml_attribute attr = node.attribute("Iterations");

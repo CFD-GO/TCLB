@@ -254,6 +254,8 @@ for (i in selR) {
 <?R
 }
 ?>
+if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) AddToPressDiff(-d);
+if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) AddToPressDiff(d);
 u[0] = u[0]*w;
 u[1] = u[1]*w;
 //u[0]=u[0]+0.001;
