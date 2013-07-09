@@ -44,9 +44,9 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 	reverse_save=0;
 	total_iterations;
 	if (reverse_save) {
-		nSnaps=2;
+		nSnaps=10;
 	} else {
-		nSnaps=2;
+		nSnaps=10;
 	}
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
@@ -844,7 +844,6 @@ void Lattice::calcGlobals() {
 		}
 	}
 ?>	
-	printf("%lf\n",obj);
 	tab[<?%d Globals$index[Globals$name == "Objective"] ?>] += obj;
 	for (int i=0; i< <?%d nrow(Globals) ?>; i++) globals[i] += tab[i];
 	container->clearGlobals();

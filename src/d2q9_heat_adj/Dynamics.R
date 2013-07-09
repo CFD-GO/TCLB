@@ -34,6 +34,8 @@ AddSetting(name="HeaterTemperature", default=1, comment='inlet temperature')
 AddSetting(name="FluidAlpha", default=1, comment='thermal diffusivity of fluid')
 AddSetting(name="SolidAlpha", default=1, comment='thermal diffusivity of solid')
 AddSetting(name="LimitTemperature", comment='temperature of the heater')
+AddSetting(name="InletTotalPressure", comment='temperature of the heater')
+AddSetting(name="OutletTotalPressure", comment='temperature of the heater')
 
 # AddGlobal(name="PressDiff", comment='pressure loss')
 
