@@ -161,8 +161,9 @@ CudaDeviceFunction void WVelocity()
 	f1 = f3 + (2./3.) * ru;
 	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
 	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
-#define rho_bar InletTemperature
-	rho = 6.*( rho_bar - (T0 + T2 + T4 + T3 + T7 + T6) );
+	double T = InletTemperature;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) T=HeaterTemperature;
+	rho = 6.*( T - (T0 + T2 + T4 + T3 + T7 + T6) );
 	T1 = (1./9.) * rho;
 	T5 = (1./36.) * rho;
 	T8 = (1./36.) * rho;

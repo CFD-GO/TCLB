@@ -75,3 +75,17 @@ void initSettings();
 	
 #define DEBUG_H 1
 #endif
+
+
+#ifndef CONSTS_H
+
+<?R
+	for (v in rows(Consts)) { ?>
+#define <?%s v$name ?> <?%s v$value ?> <?R
+	}
+?>
+	
+#define CONSTS_H 1
+#endif
+
+

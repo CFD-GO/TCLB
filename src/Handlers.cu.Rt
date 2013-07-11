@@ -27,6 +27,8 @@
 
 #include  <nlopt.h>
 
+#define ITERATION_STOP 1
+
 int vHandler::DoIt() {
 	printf("It is wrong (do it)!\n");
 	exit(-1);
@@ -147,6 +149,42 @@ class cbLog: public Callback {
 	}
 };
 
+class cbStop: public Callback {
+	double stop;
+	double old_obj;
+	int old_iter_type;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("ObjectiveChange");
+		if (attr) {
+			stop = attr.as_double();
+		} else {
+			std::cerr << "No ObjectiveChange attribute in " << node.name() << "\n";
+			return -1;
+		}
+		old_obj=1e20;
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_LASTGLOB;
+		return 0;
+	}
+	int DoIt() {
+		Callback::DoIt();
+		double v = solver->lattice->globals[ GLOBALS_Objective ];
+		printf("%lf\n", fabs(old_obj - v));
+		if (fabs(old_obj - v) < stop) {
+			printf("------------ stop\n");
+			return ITERATION_STOP;
+		}
+		old_obj = v;
+		return 0;
+	}
+	int Finish() {
+		solver->iter_type = old_iter_type;
+		Callback::Finish();
+	}
+};
+
 class GenericAction: public Action {
 	int stack;
 	public:
@@ -199,7 +237,8 @@ class acSolve: public GenericAction {
 	public:
 	int Init() {
 		GenericAction::Init();
-		GenericAction::ExecuteInternal();
+		if (GenericAction::ExecuteInternal()) return -1;
+		int stop=0;
 		do {
 			int next_it = Next(solver->iter);
 			for (int i=0; i<solver->hands.size(); i++) {
@@ -214,9 +253,18 @@ class acSolve: public GenericAction {
 			MPI_Barrier(MPI_COMM_WORLD);
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
-					solver->hands[i].DoIt();
+					int ret = solver->hands[i].DoIt();
+					switch (ret) {
+					case ITERATION_STOP:
+						stop=1;
+					case 0:
+						break;
+					default:
+						return -1;
+					}
 				}
 			}
+			if (stop) break;
 		} while (!Now(solver->iter));
 		CudaThreadSynchronize();
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -322,14 +370,13 @@ class acOptimize: public GenericAction {
 			std::cerr << "Error: No parameters defined!\n";
 			return -1;
 		}			
-		printf("par: %d\n", par);
 		if (solver->mpi_rank == 0) {
+			printf("[ ] Parameters: %d\n", par);
 			start = new double[par];
 		}
 		solver->getPar(start);
 		if (solver->mpi_rank == 0) {
 			opt = nlopt_create(NLOPT_LD_LBFGS,par);
-			printf("... %p\n", opt);
 			{
 				double * bound = new double[par];
 				for (int i=0;i<par; i++) bound[i] = 0;
@@ -340,37 +387,28 @@ class acOptimize: public GenericAction {
 			}
 			nlopt_set_max_objective(opt, FOptimize, this);
 			nlopt_result res = nlopt_optimize(opt, start, &val);
-			printf("res: %d\n", res);
-			printf("\n%lf\n",val);
+			printf("[ ] NLOpt result: %d\n", res);
+			printf("[ ] Final Objective value: %lf\n",val);
 			nlopt_destroy(opt);
 		}
 		return 0;
 	}
 	int Execute(const double * x, double * grad, double * f) {
-		printf("Ex\n");
 		solver->setPar(x);
-		GenericAction::ExecuteInternal();
+		if (GenericAction::ExecuteInternal()) return -1;
 		everyIter = solver->iter - startIter;
-//		if (everyIter <= 0) {
-//			std::cerr << "Warning: No iterations done inside of Optimize! Something is probably wrong!\n";
-//			return -1;
-//		}
 		solver->getDPar(grad);
 		*f = solver->lattice->getObjective();
-		printf("Objective: %lg\n", *f);
+		printf("[ ] Objective: %lg\n", *f);
 		return 0;
 	}
 	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);
 };
 
 double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
-	printf("Fcall\n");
 	acOptimize * obj = (acOptimize *) data;
-	printf("Fcall\n");
 	assert(n == obj->par);
-	printf("Fcall\n");
 	double val;
-	printf("Fcall\n");
 	int ret = obj->Execute(x, grad, &val);
 	if (ret) {
 		std::cerr << "Error while executing calculations in optimize. exiting loop.\n";
@@ -439,6 +477,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new cbVTK;
         } else if (name=="Log") {
 		ret = new cbLog;
+        } else if (name=="Stop") {
+		ret = new cbStop;
         } else if (name=="Solve") {
 		ret = new acSolve;
         } else if (name=="Adjoint") {

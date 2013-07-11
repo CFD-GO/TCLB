@@ -60,8 +60,8 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 	}
 #ifdef ADJOINT
 	aSnaps = new FTabs[2];
-	aSnaps[0].Alloc(_region.nx,_region.ny,_region.nz);
-	aSnaps[1].Alloc(_region.nx,_region.ny,_region.nz);
+	aSnaps[0].PreAlloc(_region.nx,_region.ny,_region.nz);
+	aSnaps[1].PreAlloc(_region.nx,_region.ny,_region.nz);
 #endif
 	MPIInit(mpi);
 	CudaAllocFinalize();
@@ -72,7 +72,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 	container->adjout = aSnaps[0];
 #endif
 	aSnap = 0;
-	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {
+	for (int i=0; i < SETTINGS; i++) {
 		settings[i] = 0.0;
 	}
         CudaStreamCreate(&kernelStream);
@@ -162,9 +162,11 @@ void Lattice::startRecord()
 
 void Lattice::clearAdjoint()
 {
+#ifdef ADJOINT
 	printf("Clearing adjoint\n");
 	aSnaps[0].Clear(region.nx,region.ny,region.nz);
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
+#endif
 }
 
 void Lattice::clearDPar()
@@ -651,7 +653,7 @@ void Lattice::Get_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 		offset = region.offsetL(x,y,z);
 /*		CudaMemcpy2D(
 			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(real_t),
-			&container->in.f[offset+<?%d i-1?>*region.sizeL()], region.nx*sizeof(real_t),
+			&container->in.f[offset+<?%s d$Index ?>*region.sizeL()], region.nx*sizeof(real_t),
 			inter.nx*sizeof(real_t),
 			inter.ny,
 			cudaMemcpyDeviceToHost);
@@ -672,7 +674,7 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 		printf("%dx%dx%d+%d,%d,%d\n", inter.nx,inter.ny,1, x,y,z);
 		offset = region.offsetL(x,y,z);
 /*		CudaMemcpy2D(
-			&container->in.f[offset+<?%d i-1?>*region.sizeL()], region.nx*sizeof(real_t),
+			&container->in.f[offset+<?%s d$Index ?>*region.sizeL()], region.nx*sizeof(real_t),
 			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(real_t),
 			inter.nx*sizeof(real_t),
 			inter.ny,
@@ -682,11 +684,8 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 
 <?R } ?>
 
-<?R	sel = DensityAll$adjoint;
-	DensityAll$nindex = 0
-	DensityAll$nindex[sel] = 1:sum(sel)-1
-	DensityAll$nindex[!sel] = 1:sum(!sel)-1
-	for (d in rows(DensityAll)) { 
+<?R
+	for (d in rows(rbind(Density,DensityAD))) { 
 	if (d$adjoint) {
 		from="aSnaps[aSnap]";
 	} else {
@@ -699,7 +698,7 @@ void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
 	printf("Pulling all <?%s d$nicename ?>\n");
 	CudaMemcpy(
 		tab,
-		&<?%s from ?>.block14[<?%d d$nindex ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
 		region.sizeL()*sizeof(real_t),
 		cudaMemcpyDeviceToHost);
 }
@@ -708,7 +707,7 @@ void Lattice::Clear_<?%s d$nicename ?>()
 {
 	printf("Clearing all <?%s d$nicename ?>\n");
 	CudaMemset(
-		&<?%s from ?>.block14[<?%d d$nindex ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
 		0,
 		region.sizeL()*sizeof(real_t));
 }
@@ -717,7 +716,7 @@ void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 {
 	printf("Setting all <?%s d$nicename ?>\n");
 	CudaMemcpy(
-		&<?%s from ?>.block14[<?%d d$nindex?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
 		tab,
 		region.sizeL()*sizeof(real_t),
 		cudaMemcpyHostToDevice);
@@ -810,7 +809,7 @@ void Lattice::push_setting(int i, real_t old, real_t nw)
 void Lattice::pop_settings()
 {
 	while (settings_i > 0) {
-		if (settings_record[settings_i-1].first <= Iter) break;
+		if (settings_record[settings_i - 1].first <= Iter) break;
 		settings_i--;
 		printf("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
@@ -826,13 +825,13 @@ void Lattice::pop_settings()
 
 
 void Lattice::getGlobals(real_t * tab) {
-        real_t tabl[<?%d nrow(Globals) ?>];
+        real_t tabl[ GLOBALS ];
         container->getGlobals(tabl);
-        MPI_Reduce(tabl, tab, <?%d nrow(Globals) ?>, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(tabl, tab, GLOBALS, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 
 void Lattice::calcGlobals() {
-        real_t tab[<?%d nrow(Globals) ?>];
+        real_t tab[ GLOBALS ];
         getGlobals(tab);
 	double obj =0;
 <?R
@@ -840,31 +839,31 @@ void Lattice::calcGlobals() {
 		i = which(Settings$name == paste(m$name,"InObj",sep=""));
 		if (length(i) == 1) {
 			s = Settings[Settings$name == paste(m$name,"InObj",sep=""),]; ?>
-	obj += settings[<?%d s$index ?>] * tab[<?%d m$index ?>]; <?R
+	obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
 		}
 	}
 ?>	
-	tab[<?%d Globals$index[Globals$name == "Objective"] ?>] += obj;
-	for (int i=0; i< <?%d nrow(Globals) ?>; i++) globals[i] += tab[i];
+	tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
+	for (int i=0; i< GLOBALS ; i++) globals[i] += tab[i];
 	container->clearGlobals();
 }
 
 void Lattice::clearGlobals() { <?R
 	for( g in rows(Globals) ) if (!g$adjoint) { ?>
-	globals[<?%d g$index ?>] = 0; <?R
+	globals[<?%s g$Index ?>] = 0; <?R
 	}
 ?>
 }
 
 void Lattice::clearGlobals_Adj() { <?R
 	for( g in rows(Globals) ) if (g$adjoint) { ?>
-	globals[<?%d g$index ?>] = 0; <?R
+	globals[<?%s g$Index ?>] = 0; <?R
 	}
 ?>
 }
 
 double Lattice::getObjective() {
-	return globals[<?%d Globals$index[Globals$name == "Objective"] ?>];
+	return globals[<?%s Globals$Index[Globals$name == "Objective"] ?>];
 }
 
 
@@ -873,26 +872,16 @@ void Lattice::setSetting(int i, real_t tmp) {
 	settings[i] = tmp;
 	switch (i) {
 <?R
-        for (i in 1:nrow(Settings)) {
-                v = Settings[i,];
-                if (is.na(v$derived)) {
-                        tmp = paste(v$name,"_",sep="");
-                } else {
-                        tmp = v$name;
-                }
-                if (is.na(v$derived)) { ?>
-	case <?%d i-1 ?>:
-//	        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, tmp);
-	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t)); <?R
-		} ?>
+        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
+	case <?%s v$Index ?>:
+	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
 		break; <?R
         } ?>
 	}
 }
 
 <?R
-        for (i in 1:nrow(Settings)) {
-                v = Settings[i,];
+        for (v in rows(Settings)) {
                 if (is.na(v$derived)) {
                         tmp = paste(v$name,"_",sep="");
                 } else {
@@ -901,9 +890,9 @@ void Lattice::setSetting(int i, real_t tmp) {
         ?>
 
 void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
-	if (reverse_save) push_setting(<?%d i-1 ?>, settings[<?%d i-1 ?>], <?%s tmp ?>);
-        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
-	setSetting(<?%d i-1 ?>, <?%s tmp ?>); <?R
+	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
+        printf("[%s] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
+	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
                 if (!is.na(v$derived)) {
                         i = which(as.character(Settings$name) == as.character(v$derived));
                         if (is.null(i)) stop(paste(v$derived, "was declared as derived of",v$name,". But", v$derived, "doesn't exist\n"));

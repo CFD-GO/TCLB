@@ -304,7 +304,7 @@ int Solver::getPars() {
 			j++;
 		}
 	}
-	Par_size = j;
+	Par_size = j * <?%d sum(Density$parameter==T) ?>;
 	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	if (mpi_rank == 0) {
 		int i;
@@ -320,15 +320,16 @@ int Solver::getPar(double * wb) {
 	int k = Par_size;
 	real_t * buf = new real_t[n];
 	double * wb_l = new double[Par_size];
-	lattice->Get_w(buf);
 	int j=0;
+<?R for (d in rows(DensityAll)) if ((d$parameter) && (!d$adjoint)) { ?>
+	lattice->Get_<?%s d$nicename ?>(buf);
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			wb_l[j] = buf[i];
 			j++;
 		}
 	}
-	printf("design space: %d\n", j);
+<?R } ?>
 	assert(j == Par_size);
 	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	delete[] wb_l;
@@ -341,9 +342,10 @@ int Solver::getDPar(double * wb) {
 	int k = Par_size;
 	real_t * buf = new real_t[n];
 	double * wb_l = new double[Par_size];
-	lattice->Get_wb(buf);
 	int j=0;
 	double sum=0;
+<?R for (d in rows(DensityAll)) if ((d$parameter) && (d$adjoint)) { ?>
+	lattice->Get_<?%s d$nicename ?>(buf);
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			wb_l[j] = buf[i];
@@ -351,6 +353,7 @@ int Solver::getDPar(double * wb) {
 			j++;
 		}
 	}
+<?R } ?>
 	printf("design space: %d %lg\n", j, sum);
 	assert(j == Par_size);
 	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -365,10 +368,11 @@ int Solver::setPar(const double * w) {
 	real_t * buf = new real_t[n];
 	double * w_l = new double[Par_size];
 	MPI_Scatterv(const_cast<double *>(w), Par_sizes, Par_disp,  MPI_DOUBLE, w_l, Par_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	lattice->Get_w(buf);
 	int j=0;
 	double sum =0;
 	double diff;
+<?R for (d in rows(DensityAll)) if ((d$parameter) && (!d$adjoint)) { ?>
+	lattice->Get_<?%s d$nicename ?>(buf);
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 //			if (j < 100 ) printf("%lf\n", w_l[j]);
@@ -381,9 +385,9 @@ int Solver::setPar(const double * w) {
 			j++;
 		}
 	}
-//	exit(-1);
+	lattice->Set_<?%s d$nicename ?>(buf);
+<?R } ?> 
 	assert(j == Par_size);
-	lattice->Set_w(buf);
 	printf("design space: %d diff: %lg\n", j,sum);
 	delete[] w_l;
 	delete[] buf;

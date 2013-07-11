@@ -295,10 +295,26 @@ Dispatch$suffix = paste(
 	sep=""
 )
 
-Settings$index = 1:nrow(Settings)-1
-Density$index = 1:nrow(Density)-1
-Globals$index = 1:nrow(Globals)-1
-Quantities$index = 1:nrow(Quantities)-1
+Consts = NULL
+
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities")) {
+	v = get(n)
+	if (is.null(v)) v = data.frame()
+	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
+	if (nrow(v) > 0) {
+		v$index = 1:nrow(v)-1
+		v$nicename = gsub("[][ ]","",v$name)
+		v$Index = paste(" ",toupper(n), "_", v$nicename, " ", sep="")
+		Consts = rbind(Consts, data.frame(name=v$Index, value=v$index));
+		assign(n,v)
+	}
+	assign(n,v)
+}
+
+#Settings$index = 1:nrow(Settings)-1
+#Density$index = 1:nrow(Density)-1
+#Globals$index = 1:nrow(Globals)-1
+#Quantities$index = 1:nrow(Quantities)-1
 
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
