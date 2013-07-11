@@ -14,7 +14,7 @@
 	U = as.matrix(Density[Density$group=="f",c("dx","dy")])
 
 
-	u = PV(paste("u[",1:2-1,"]",sep=""))
+	u = PV(c("ux","uy"))
 	uf = PV("uf")
 	d = PV("d")
 	usq = PV("usq")
@@ -96,9 +96,8 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void eqWVelocity()
 {
      real_t rho;
-	 real_t u[2] = {InletVelocity,0.};
-	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
-	SetEquilibrum(rho,u);
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - InletVelocity);
+	SetEquilibrum(rho,InletVelocity,0.);
 }
 
 CudaDeviceFunction void WVelocity()
@@ -159,14 +158,11 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void Init() {
 	w = 1;
-	real_t u[2];
-	u[0]=InletVelocity;
-	u[1]=0;
 	real_t d = 1.0;
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		d=SolidH;
 	}
-	SetEquilibrum(d,u);
+	SetEquilibrum(d,InletVelocity,0);
 }
 
 CudaDeviceFunction float2 Color() {
@@ -187,13 +183,13 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t u[2], usq, d, R[6], uf;
+	real_t ux, uy, usq, d, R0,R1,R2,R3,R4,R5;
 	vector_t F;
 <?R
         R = PV(c(
 		"d",
-		paste("u[",1:2-1,"]",sep=""),
-		paste("R[",1:6-1,"]",sep="")
+		"ux","uy",
+		paste("R",1:6-1,sep="")
 	))
         Sy = rbind(
 		PV(c(0,0,0)),
@@ -218,7 +214,7 @@ M = matrix(c(
 	dw[[1]][1,2]=-1
 	C(usq == sum(u*u)*dw);
 	usq = PV("usq")
-	u = PV(c("u[0]","u[1]"))
+	u = PV(c("ux","uy"))
 	Req = rbind(
 		d,
 		u,
@@ -239,10 +235,10 @@ for (i in selR) {
 }
 ?>
 if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
-	AddToTotalDiff( u[0]*u[0] + u[1]*u[1]);
+	AddToTotalDiff( ux*ux + uy*uy);
 }
-u[0] *= w;
-u[1] *= w;
+ux *= w;
+uy *= w;
 <?R
 	C(usq == sum(u*u)*dw);
 for (i in selR) {
@@ -259,9 +255,9 @@ for (i in 1:length(R)) {
 }
 
 
-CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
+CudaDeviceFunction void SetEquilibrum(real_t d, real_t ux ,real_t uy)
 {
-	real_t usq, R[6], uf;
+	real_t  usq, R0,R1,R2,R3,R4,R5;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R
 	C(R == Req);

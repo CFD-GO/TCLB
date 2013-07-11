@@ -440,12 +440,8 @@ M = matrix(c(
       0,  1, -1,  1, -1,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-C( R == f %% M );
-?>
-//F = getF();
-//u[0] = u[0]+F.x*MagicF;
-//u[1] = u[1]+F.y*MagicF;
-<?R
+	C( R == f %% M , float=F);
+
 	d = PV("d");
 	dw = d
 	dw[[1]][1,2]=-1
@@ -462,9 +458,6 @@ C( R == f %% M );
 		u[1]*u[1]*dw-u[2]*u[2]*dw,
 		u[1]*u[2]*dw
 	)
-
-?>
-<?R
         Sy = PV(paste("S",1:19,"",sep=""))
 	selR = c(4,5,6,7,8,9);
 #	cr = calcReq[selR]
@@ -477,19 +470,11 @@ for (i in selR) {
 F = getF();
 u[0] = u[0]+F.x*MagicF + (GravitationX)*d;
 u[1] = u[1]+F.y*MagicF + (GravitationY)*d;
-//u[0]=u[0]+0.001;
 <?R
 	C(usq == sum(u*u)*dw);
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
-<?R
-}
-for (i in 1:length(R)) {
-?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
-<?R
-}
-   C( f == R %% t(M) , float=F);
-
+	C(R[selR] == Req[selR], eqstring="+=");
+	C(R == PV(Mw), eqstring="/=", float=F);
+	C( f == R %% t(M) , float=F);
 ?>
 }
 

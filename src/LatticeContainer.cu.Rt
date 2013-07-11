@@ -28,7 +28,7 @@ template <class N> dim3 GetThreads() {
 	HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<N>) );
 	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
 	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
-	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
+	DEBUG2( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
 	DEBUG1( printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs) );
 	DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
 	ret.x = 32;
