@@ -7,7 +7,7 @@ AddDensity( name="f5", dx= 1, dy= 1, group="f")
 AddDensity( name="f6", dx=-1, dy= 1, group="f")
 AddDensity( name="f7", dx=-1, dy=-1, group="f")
 AddDensity( name="f8", dx= 1, dy=-1, group="f")
-AddDensity( name="w", group="w")
+AddDensity( name="w", group="w", parameter=T)
 
 AddQuantity( name="Rho",unit="kg/m3")
 AddQuantity( name="U",unit="m/s",vector=T)

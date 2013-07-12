@@ -67,10 +67,12 @@ public:
   void FlagOverwrite(flag_t *, lbRegion);
   void Init();
   void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
-  int save(FTabs&, char * filename);
-  inline int save(char * filename){ return save(container->in, filename); }
-  int load(FTabs&, char * filename);
-  inline int load(char * filename){ return load(container->in, filename); }
+  int save(FTabs&, const char * filename);
+  inline int save(const char * filename){ return save(container->in, filename); }
+  int load(FTabs&, const char * filename);
+  inline int load(const char * filename){ return load(container->in, filename); }
+	void saveSolution(const char * filename);
+	void loadSolution(const char * filename);
   void startRecord();
   void stopRecord();
   void clearAdjoint();
