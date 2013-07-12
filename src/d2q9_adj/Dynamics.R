@@ -1,53 +1,26 @@
-Density = data.frame(
-	name = paste("f",0:8,sep=""),
-	dx   = c( 0, 1, 0,-1, 0, 1,-1,-1, 1),
-	dy   = c( 0, 0, 1, 0,-1, 1, 1,-1,-1),
-	dz   = c( 0, 0, 0, 0, 0, 0, 0, 0, 0),
-	group="f",
-	comment=paste("density F",0:8)
-)
+AddDensity( name="f0", dx= 0, dy= 0, group="f" )
+AddDensity( name="f1", dx= 1, dy= 0, group="f" )
+AddDensity( name="f2", dx= 0, dy= 1, group="f" )
+AddDensity( name="f3", dx=-1, dy= 0, group="f" )
+AddDensity( name="f4", dx= 0, dy=-1, group="f" )
+AddDensity( name="f5", dx= 1, dy= 1, group="f" )
+AddDensity( name="f6", dx=-1, dy= 1, group="f" )
+AddDensity( name="f7", dx=-1, dy=-1, group="f" )
+AddDensity( name="f8", dx= 1, dy=-1, group="f" )
+AddDensity( name="w", group="w", parameter=T )
 
-Quantities = data.frame(
-        name = c("Rho","U","RhoB","UB","W","WB"),
-        type = c("type_f","type_v","type_f","type_v","type_f","type_f"),
-	adjoint = c(F,F,T,T,F,T)
-)
+AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="U",unit="m/s",vector=T)
+AddQuantity( name="RhoB",adjoint=T)
+AddQuantity( name="UB",adjoint=T,vector=T)
+AddQuantity( name="W")
+AddQuantity( name="WB",adjoint=T)
 
-Settings = table_from_text("
-        name                 derived                equation   comment
-        omega                     NA                      NA   'one over relaxation time'
-        nu                     omega      '1.0/(3*nu + 0.5)'   'viscosity'
-        InletVelocity             NA                      NA   'inlet velocity'
-        InletPressure   InletDensity   '1.0+InletPressure/3'   'inlet pressure'
-        InletDensity              NA                      NA   'inlet density'
-        InletTemperature          NA                      NA   'inlet temperature'
-	HeaterTemperature	  NA			  NA   'temperature of the heater'
-	LimitTemperature	  NA			  NA   'temperature of the heater'
-	FluidAlpha		  NA			  NA   'heat conductivity of fluid'
-	SolidAlpha		  NA			  NA   'heat conductivity of fluid'
-	HeatSource		  NA			  NA   'heat conductivity of fluid'
-	Inertia                   NA                      NA   'inertia of the transport equation'
-")
+AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='inlet density')
 
-Globals = table_from_text("
-        name            in_objective   comment
-        HeatFlux    1              'pressure loss'
-        HeatSquareFlux    1              'pressure loss'
-	PressDiff	1	'pressure difference'
-        Flux    1              'pressure loss'
-	Temperature 1 'integral of temperature'
-	HighTemperature 1 'penalty for high temperature'
-	LowTemperature  1 'penalty for low temperature'
-")
-
-f = PV(Density$name)
-U = as.matrix(Density[,c("dx","dy")])
-
-Density = rbind(Density, data.frame(
-	name = "w",
-	dx=0,dy=0,dz=0,
-	group="w",
-	comment = "Porocity"
-))
-
+AddGlobal(name="PressDiff", comment='pressure loss')
 

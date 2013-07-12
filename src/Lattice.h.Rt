@@ -1,30 +1,44 @@
+<?R
+        source("conf.R")
+	c_header();
+?>
 #ifndef LATTICE_H
 
 #include "cross.h"
+#include <vector>
+#include <utility>
 
 // #include "Region.h"
 class lbRegion;
 // #include "LatticeContainer.h"
 class LatticeContainer;
 
-<?R
-        source("conf.R")
-?>
+#define ITER_STREAM   0x0
+#define ITER_NORM     0x1
+#define ITER_GLOBS    0x2
+#define ITER_TYPE     0x3
+#define ITER_ADJOINT  0x4
+#define ITER_LASTGLOB 0x8
 
-#define ITER_STREAM 0x0
-#define ITER_NORM   0x1
-#define ITER_GLOBS  0x2
+
+const int maxSnaps=33;
 
 class Lattice {
 private:
 //public:
   LatticeContainer * container;
-	type_f *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27];
+	real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27], *gpubuf[27];
 	size_t bufsize[27];
 	int nodein[27], nodeout[27];
 	int bufnumber;
 //  FTabs mpiin;
 //  FTabs mpiout;
+  int nSnaps;
+  FTabs * Snaps;
+  int * iSnaps;
+#ifdef ADJOINT
+  FTabs * aSnaps;
+#endif
   CudaStream_t kernelStream;
   CudaStream_t inStream;
   CudaStream_t outStream;
@@ -32,26 +46,59 @@ private:
   CudaEvent_t inEv[28];
   CudaEvent_t outEv[28];
   CudaEvent_t mpiEv[28];
+  int reverse_save;
 public:
-  type_f settings[<?%d nrow(Settings) ?>];  
+  std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record;
+  int settings_i;
+  void push_setting(int,real_t,real_t);
+  void pop_settings();
+  int Iter;
+  int Snap, aSnap;
+	int total_iterations;
+  real_t settings[<?%d nrow(Settings) ?>];  
+  double globals[<?%d nrow(Globals) ?>];
   lbRegion region;
   MPIInfo mpi;
-  Lattice (lbRegion region);
+  Lattice (lbRegion region, MPIInfo);
   ~Lattice ();
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
   int Offset(int,int,int);
   void FlagOverwrite(flag_t *, lbRegion);
   void Init();
-  void listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize);
-  int save(char * filename);
-  int load(char * filename);
+  void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
+  int save(FTabs&, const char * filename);
+  inline int save(const char * filename){ return save(container->in, filename); }
+  int load(FTabs&, const char * filename);
+  inline int load(const char * filename){ return load(container->in, filename); }
+	void saveSolution(const char * filename);
+	void loadSolution(const char * filename);
+  void startRecord();
+  void stopRecord();
+  void clearAdjoint();
+  void clearDPar();
+  int(* callback)(int, void*);
+  void* callback_data;
+  int callback_iter;
+  void Callback(int(*)(int, void*), void*);
+  inline void MarkIteration() {
+	total_iterations ++;
+	if (total_iterations >= callback_iter) {
+		if (callback) callback_iter = callback(total_iterations, callback_data);
+		total_iterations = 0;
+	}
+  }
 
 //  inline void Run()  { container->Run(borderStream,interiorStream);  };
 //  inline void RunG() { container->RunG(borderStream,interiorStream); };
   void BeforeIt();
   void AfterIt();
-  void        IterateT(int);
+	int getSnap(int );
+  void        Iterate(int, int);
+  inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
+  void        Iteration_Adj(int, int, int);
+  void        IterateTill(int,int);
+  void        Iteration(int, int, int);
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };
@@ -59,22 +106,30 @@ public:
 //  void GetRegion(lbRegion, Node *);
 //  void SetRegion(int, int, int, int, Node *);
   void GetFlags(lbRegion, flag_t *);
-<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
-	void Get_<?%s d$nicename ?>(lbRegion over, type_f * tab);
-	void Set_<?%s d$nicename ?>(lbRegion over, type_f * tab);
+<?R for (d in rows(DensityAll)) { ?>
+	void Get_<?%s d$nicename ?>(lbRegion over, real_t * tab);
+	void Set_<?%s d$nicename ?>(lbRegion over, real_t * tab);
+	void Get_<?%s d$nicename ?>(real_t * tab);
+	void Clear_<?%s d$nicename ?>();
+	void Set_<?%s d$nicename ?>(real_t * tab);
 <?R } ?>
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint);?>
-	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, type_f scale);
+	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
 	inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };
 	<?R tp = "double" ?>
 	void Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>
 
-  void getGlobals(type_f * tab); 
-
+  void getGlobals(real_t * tab); 
+  void calcGlobals();
+  void clearGlobals();
+  void clearGlobals_Adj();
+  double getObjective();
+  void setSetting(int i, real_t tmp);
 <?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
-	void <?%s v$FunName ?>(type_f);<?R } ?>
+	void <?%s v$FunName ?>(real_t);<?R } ?>
+
 };
 
 #endif

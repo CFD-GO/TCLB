@@ -155,8 +155,7 @@ int Geometry::Draw(pugi::xml_node& node)
 		lbRegion reg = getRegion(n);
 		if (strcmp(n.name(),"Box") == 0) {
 			reg = region.intersect(reg);
-			std::cout <<"[" << D_MPI_RANK << "] " << "Filling with flag " << fg << " (" << fg_mask << "): ";
-			reg.print(); 
+			DEBUG1(std::cout <<"[" << D_MPI_RANK << "] " << "Filling with flag " << fg << " (" << fg_mask << "): "; reg.print(); )
 			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
 			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
 			for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
@@ -164,8 +163,7 @@ int Geometry::Draw(pugi::xml_node& node)
 			}
 		} else if (strcmp(n.name(),"Sphere") == 0) {
 			reg = region.intersect(reg);
-			std::cout <<"[" << D_MPI_RANK << "] " << "Filling sphere with flag " << fg << " (" << fg_mask << "): ";
-			reg.print(); 
+			DEBUG1(std::cout <<"[" << D_MPI_RANK << "] " << "Filling sphere with flag " << fg << " (" << fg_mask << "): "; reg.print(); )
 			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
 			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
 			for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
@@ -175,8 +173,7 @@ int Geometry::Draw(pugi::xml_node& node)
 			}
 		} else if (strcmp(n.name(),"Wedge") == 0) {
 			reg = region.intersect(reg);
-			std::cout <<"[" << D_MPI_RANK << "] " << "Filling wedge with flag " << fg << " (" << fg_mask << "): ";
-			reg.print(); 
+			DEBUG1(std::cout <<"[" << D_MPI_RANK << "] " << "Filling wedge with flag " << fg << " (" << fg_mask << "): "; reg.print(); )
 			const char * type = n.attribute("direction").value();
 			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
 			for (int y=reg.dy; y<reg.dy+reg.ny; y++)

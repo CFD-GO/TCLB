@@ -1,4 +1,7 @@
-<?R source("conf.R") ?>
+<?R
+	source("conf.R");
+	c_header()
+?>
 
 #ifndef LATTICECONTAINER_H
 
@@ -13,38 +16,32 @@
 #endif
 
 #ifdef GRID_3D
-	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
-	#define Y (CudaBlock.x)
-	#define Z (CudaBlock.y)
+//	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
+//	#define Y (CudaBlock.x)
+//	#define Z (CudaBlock.y)
 	#define BLOCKS dim3(region.ny,region.nz,container->kx)
 #else
-	#define X (CudaThread.x+_z_*DXSDIM)
-	#define Y (CudaBlock.x)
-	#define Z (CudaBlock.y)
+//	#define X (CudaThread.x+_z_*DXSDIM)
+//	#define Y (CudaBlock.x)
+//	#define Z (CudaBlock.y)
 	#define BLOCKS dim3(region.ny,region.nz,1)
 #endif
 #define THREADS dim3(XSDIM,1)
-#define OFFSET (X + nx*Y + nx*ny*Z)
+//#define OFFSET (X + nx*Y + nx*ny*Z)
 
 extern int _xsdim;
 extern int _ysdim;
-
-/*
-struct FTabs {
- type_f* f;
-// type_f* margin0;
-<?R for (i in NonEmptyMargin) { ?>
- type_f* <?%s Margin$name[i] ?>;
-<?R } ?>
-};
-*/
 
 class LatticeContainer {
 	public:
   FTabs in;
   FTabs out;
-  flag_t * B;
-  type_f * Globals;
+#ifdef ADJOINT
+  FTabs adjout;
+  FTabs adjin;
+#endif
+  flag_t * NodeType;
+  real_t * Globals;
   int dx, dy, dz;
   int nx, ny, nz;
   int fx, fy, fz;
@@ -55,40 +52,42 @@ class LatticeContainer {
   void Free();
   CudaDeviceFunction void fill();
   template<class N>  CudaDeviceFunction void push(N & f);
+  template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
-  CudaDeviceFunction void Glob(Node);
-  CudaDeviceFunction void Glob(Node_Globs);
-  template<class N>  CudaDeviceFunction void Glob(N & f);
-  CudaDeviceFunction void popXYZ(Node & f, int, int, int);
+  template<class N>  CudaDeviceFunction void getType(N & f);
+#ifdef ADJOINT
+  template<class N>  CudaDeviceFunction void push_adj(N & f);
+  template<class N>  CudaDeviceFunction void pull_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop_adj(N & f);
+#endif
+//  CudaDeviceFunction void Glob(Node);
+//  CudaDeviceFunction void Glob(Node_Globs);
+//  template<class N>  CudaDeviceFunction void Glob(N & f);
   void Init();
+  void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-  void RunBorderG(CudaStream_t);
-  void RunBorder (CudaStream_t);
-  void RunInteriorG(CudaStream_t);
-  void RunInterior (CudaStream_t);
+<?R for(tp in rows(Dispatch)) { ?>
+  void RunBorder<?%s tp$suffix ?>(CudaStream_t);
+  void RunInterior<?%s tp$suffix ?>(CudaStream_t);
+<?R } ?>
   void CopyToConst();
   void WaitAll();
   void WaitBorder();
-  CudaDeviceFunction inline int Offset(int _z_)
-  {
-          return OFFSET;
-  };
-
 
   inline void clearGlobals() {
-        CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(type_f));
+        CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(real_t));
   }
 
   <?R for (i in 1:nrow(Globals)) { v=Globals$name[i]; ?>
-        inline type_f get<?%s v ?>(){
-                type_f ret;
-                CudaMemcpy(&ret, &Globals[<?%d i-1 ?>],sizeof(type_f),cudaMemcpyDeviceToHost);
+        inline real_t get<?%s v ?>(){
+                real_t ret;
+                CudaMemcpy(&ret, &Globals[<?%d i-1 ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
-	inline void getGlobals(type_f * tab) {
-                CudaMemcpy(tab, Globals, <?%d nrow(Globals) ?>*sizeof(type_f), cudaMemcpyDeviceToHost);
+	inline void getGlobals(real_t * tab) {
+                CudaMemcpy(tab, Globals, <?%d nrow(Globals) ?>*sizeof(real_t), cudaMemcpyDeviceToHost);
 	}
 };
 
@@ -102,7 +101,7 @@ for (i in 1:nrow(Quantities))
 	q = Quantities[i,,drop=F];
 	ifdef(q$adjoint);
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, type_f scale); <?R
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
         { ?>
 CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
@@ -110,6 +109,9 @@ CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, in
 	}
 }
 ifdef() ?>
+
+void * BAlloc(size_t size);
+void BPreAlloc(void **, size_t size);
 
 #endif
 #define LATTICECONTAINER_H 1

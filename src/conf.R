@@ -3,6 +3,20 @@ if (!exists("DOUBLE")) DOUBLE=0
 
 source("tools/fun_v3.R")
 
+rows = function(x) {
+	rows_df= function(x) {
+		if (nrow(x) > 0) {
+			lapply(1:nrow(x),function(i) unclass(x[i,,drop=F]))
+		} else {
+			list()
+		}
+	};
+	switch( class(x),
+		list       = x,
+		data.frame = rows_df(x)
+	)
+}
+
 table_from_text = function(text) {
 	con = textConnection(text);
 	tab = read.table(con, header=T);
@@ -10,17 +24,87 @@ table_from_text = function(text) {
 	tab
 }
 
-Settings = data.frame(
-        name = c("omega","nu","UX_mid"),
-        derived = c(NA,"omega",NA),
-        equation = c(NA,"1.0/(3*nu + 0.5)",NA),
-        comment = c("one over relaxation time", "viscosity", "velocity on inlet")
-)
+Density = NULL
+Globals = NULL
+Settings = NULL
+Quantities = NULL
 
-Globals = table_from_text("
-        name            in_objective   comment
-        PressureLoss    1              'pressure loss'
-")
+
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
+	if (missing(name)) stop("Have to supply name in AddDensity!")
+	comment = ifelse(comment == "", name, comment);
+	d = data.frame(
+		name=name,
+		dx=dx,
+		dy=dy,
+		dz=dz,
+		comment=comment,
+		adjoint=adjoint,
+		group=group,
+		parameter=parameter
+	)
+	Density <<- rbind(Density,d)
+}
+
+AddSetting = function(name,  comment="", default=0, ...) {
+	if (missing(name)) stop("Have to supply name in AddSetting!")
+	if (comment == "") {
+		comment = name
+	}
+	der = list(...)
+	if (length(der) == 0) {
+		derived = NA;
+		equation = NA;
+	} else if (length(der) == 1) {
+		derived = names(der);
+		equation = as.character(der[[1]]);
+	} else {
+		stop("Only one derived setting allowed in AddSetting!");
+	} 
+	s = data.frame(
+		name=name,
+		derived=derived,
+		equation=equation,
+		default=default,
+		comment=comment
+	)
+	Settings <<- rbind(Settings,s)
+}
+
+AddGlobal = function(name, comment="", unit="1", adjoint=F) {
+	if (missing(name)) stop("Have to supply name in AddGlobal!")
+	if (comment == "") {
+		comment = name
+	}
+	g = data.frame(
+		name=name,
+		comment=comment,
+		unit=unit,
+		adjoint=adjoint
+	)
+	Globals <<- rbind(Globals,g)
+}
+
+AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
+	if (missing(name)) stop("Have to supply name in AddQuantity!")
+	if (comment == "") {
+		comment = name
+	}
+	if (vector) {
+		type="vector_t"
+	} else {
+		type="real_t"
+	}
+	q = data.frame(
+		name=name,
+		type=type,
+		unit=unit,
+		adjoint=adjoint,
+		comment=comment
+	)
+	Quantities <<- rbind(Quantities,q)
+}	
 
 Node_Group = c(
   NONE        =0x0000
@@ -77,6 +161,14 @@ if (! "unit" %in% names(Globals)) {
 } else {
 	Globals$unit = as.character(Globals$unit)
 }
+if (! "adjoint" %in% names(Globals)) {
+	Globals$adjoint = FALSE
+} 
+if (! "default" %in% names(Settings)) {
+	Settings$default = "0"
+} else {
+	Settings$default = as.character(Settings$default)
+}
 if (! "unit" %in% names(Settings)) {
 	Settings$unit = "1"
 } else {
@@ -112,7 +204,7 @@ if (ADJOINT==1) {
 
 	Settings = rbind(Settings, data.frame(
 		name=paste(Globals$name,"InObj",sep=""),
-		derived=NA,equation=NA,comment=Globals$comment))
+		derived=NA,equation=NA,comment=Globals$comment,default="0", unit="1"))
 } else {
 	DensityAD = NULL
 	DensityAll = Density
@@ -120,9 +212,11 @@ if (ADJOINT==1) {
 
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 
+GlobalsD = Globals
+AddGlobal(name="Objective",comment="Objective function");
 
 Margin = data.frame(
-	name = paste("margin",1:27,sep=""),
+	name = paste("block",1:27,sep=""),
 	side = paste("side",1:27,sep=""),
 	dx   = rep(-1:1,times=9),
 	dy   = rep(rep(-1:1,times=3),each=3),
@@ -130,7 +224,9 @@ Margin = data.frame(
 	command=paste("Margin",1:27)
 )
 
-# Margin = Margin[1:19,]
+Margin$size = 0
+Margin=rows(Margin)
+
 
 GetMargins = function(dx,dy,dz) {
 	fun = function(dx,dy,dz) {
@@ -143,62 +239,93 @@ GetMargins = function(dx,dy,dz) {
 		}
 	}
 	c(
+		fun(NA,NA,NA),
 		fun(dx,NA,NA),
 		fun(NA,dy,NA),
-		fun(NA,NA,dz),
 		fun(dx,dy,NA),
-		fun(NA,dy,dz),
+		fun(NA,NA,dz),
 		fun(dx,NA,dz),
+		fun(NA,dy,dz),
 		fun(dx,dy,dz)
 	)
 }
 
-Margin$size = 0
-
 nx = PV("nx");
 ny = PV("ny");
 nz = PV("nz");
-SideSize = rbind(ny*nz, nx*nz, nx*ny, nz, nx, ny, 1);
+SideSize = rbind(nx*ny*nz, ny*nz, nx*nz, nz, nx*ny, ny, nx, 1);
 zero = PV(0);
-MarginSize =  zero
-for (i in 2:nrow(Margin)) MarginSize = rbind(MarginSize, zero)
+
+for (i in 1:length(Margin)) {
+	Margin[[i]]$Size = zero
+	Margin[[i]]$Offset = zero
+	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+}
 
 x = PV("node.x");
 y = PV("node.y");
 z = PV("node.z");
-SideOffset = rbind(y + z*ny, x + z*nx, x + y*nx, z, x, y, 0);
-MarginOffset =  zero
-for (i in 2:nrow(Margin)) MarginOffset = rbind(MarginOffset, zero)
+SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
 
-
-for (i in 1:nrow(DensityAll))
+for (x in rows(Density))
 {
-	x = DensityAll[i,]
 	w = GetMargins(x$dx,x$dy,x$dz)
-	for (k in 1:length(w)) {j = w[k];
+	for (k in 1:length(w)) {
+		j = w[k];
 		if (j != 0) {
-			Margin$size[j] = Margin$size[j] + 1
-			MarginSize[[j]] = MarginSize[[j]] + SideSize[[k]]
-			MarginOffset[[j]] = SideOffset[[k]]
+			Margin[[j]]$size   = Margin[[j]]$size + 1
+			Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[k]
+			Margin[[j]]$Offset = SideOffset[k]
 		}
 	}
 }
 
 
+NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
+NonEmptyMargin = Margin[NonEmptyMargin]
 
-NonEmptyMargin = which(Margin$size != 0)
+
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
+
+Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
+Dispatch$suffix = paste(
+	ifelse(Dispatch$globals,"_Globs",""),
+	ifelse(Dispatch$adjoint,"_Adj",""),
+	sep=""
+)
+
+Consts = NULL
+
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities")) {
+	v = get(n)
+	if (is.null(v)) v = data.frame()
+	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
+	if (nrow(v) > 0) {
+		v$index = 1:nrow(v)-1
+		v$nicename = gsub("[][ ]","",v$name)
+		v$Index = paste(" ",toupper(n), "_", v$nicename, " ", sep="")
+		Consts = rbind(Consts, data.frame(name=v$Index, value=v$index));
+		assign(n,v)
+	}
+	assign(n,v)
+}
+
+#Settings$index = 1:nrow(Settings)-1
+#Density$index = 1:nrow(Density)-1
+#Globals$index = 1:nrow(Globals)-1
+#Quantities$index = 1:nrow(Quantities)-1
+
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 version=git_version()
 
 clb_header = c(
 sprintf("-------------------------------------------------------------"),
-sprintf("   CLB                                                       "),
-sprintf("    CUDA Lattice Boltzmann                                   "),
-sprintf("    Author: Lukasz Laniewski-Wollk                           "),
-sprintf("    Developed at: Warsaw University of Technology - 2012     "),
+sprintf("  CLB - Cudne LB                                             "),
+sprintf("     CUDA based Adjoint Lattice Boltzmann Solver             "),
+sprintf("     Author: Lukasz Laniewski-Wollk                          "),
+sprintf("     Developed at: Warsaw University of Technology - 2012    "),
 sprintf("-------------------------------------------------------------")
 )
 
@@ -210,5 +337,5 @@ c_header = function() {
 
 hash_header = function() {
 	for (l in clb_header)
-	cat("#",l,"\n",sep="");
+	cat("# |",l,"|\n",sep="");
 }

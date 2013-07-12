@@ -44,6 +44,7 @@
 #include <GL/glut.h>
 #include <GL/glext.h>
 #include <GL/glx.h>
+#include <GL/freeglut.h>
 
 #define GET_PROC_ADDRESS( str ) glXGetProcAddress( (const GLubyte *)str )
 

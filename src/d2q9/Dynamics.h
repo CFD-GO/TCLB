@@ -1,3 +1,3 @@
-type_f f[9];
-type_f w;
-char B;
+real_t f[9];
+real_t w;
+flag_t NodeType;

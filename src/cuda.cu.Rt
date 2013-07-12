@@ -10,6 +10,12 @@
 #include "cross.h"
 #include "Global.h"
 
+class Node;
+class Node_Globs;
+#include "LatticeContainer.h"
+//class LatticeContainer;
+CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
+
 #ifdef ADJOINT
 	#include "ADTools.cu"
 #endif
@@ -19,58 +25,86 @@
 <?R
         for (i in 1:nrow(Settings)) {
                 v = Settings[i,]; ?>
-CudaDeviceFunction CudaConstantMemory type_f <?%s v$name ?> = 0.0; <?R
+CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0; <?R
 	} ?>
-CudaConstantMemory type_f c_sq = 1.0/3.;
+CudaConstantMemory real_t c_sq = 1.0/3.;
 
 
 #define NODE_H
-#define AddToObjective(x)
 
-<?R for (v in Globals$name) { ?>
-#define AddTo<?%s v ?>(x)<?R } ?>
-struct Node {
-int x,y,z;
-CudaDeviceFunction void inline Pre() {}
-#ifndef ADJOINT
-	#include "Dynamics.h"
-#endif
+<?R
+	for (tp in rows(Dispatch)) {
+	cat("\n")
+	ifdef(tp$adjoint)
+	suff=tp$suffix
+	for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) {
+		if (tp$globals) { ?>
+			#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + x <?R
+		} else { ?>
+			#define AddTo<?%s g$name ?>(x) <?R
+		}
+	} ?>
+struct Node<?%s suff ?> {
+	int x,y,z;
+	<?R
+		if (tp$globals) {
+			for (g in rows(GlobalsD)) { ?>
+				real_t <?%s g$name ?>; <?R
+			}
+		}
+	?>
+	CudaDeviceFunction void inline Pre() { <?R
+		if (tp$globals) { ?>
+			<?R
+				for (g in rows(GlobalsD)) { ?>
+					<?%s g$name ?> = 0.0; <?R
+				}
+		} ?>
+	}
+	CudaDeviceFunction void inline Glob() { <?R
+		if (tp$globals) {
+			i=0
+			for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) { ?>
+				atomicSum(&constContainer.Globals[<?%d i ?>], <?%s g$name ?>); <?R
+				i = i + 1;
+			}
+		} ?>
+	}
+	<?R
+		if (! tp$adjoint) { ?>
+			#include "Dynamics.h" <?R
+		} ?>
+#ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
-#ifdef ADJOINT
-	#include "Dynamics_b.c"
-	#include "Dynamics_adj.c"
+#else
+	#include "Dynamics_sp.c"
 #endif
-};
-#undef AddToObjective
-<?R for (v in Globals$name) { ?>
-#undef AddTo<?%s v ?><?R } ?>
+	<?R
+		if (tp$adjoint) { ?>
+			#include "Dynamics_b.c"
+			#include "Dynamics_adj.c" <?R
+		}
+	?>
+	CudaDeviceFunction inline void RunElement() { <?R
+		if (tp$adjoint) { ?>
+			constContainer.pop(*this);
+			constContainer.pop_adj(*this);
+			Run_b();
+			constContainer.push_adj(*this); <?R
+		} else { ?>
+		        constContainer.pop(*this); 
+			Run();
+			constContainer.push(*this); <?R
+		} ?>
+	}
+}; <?R
+	for (g in rows(GlobalsD)) { ?>
+		#undef AddTo<?%s g$name ?><?R
+	}
+} 
+cat("\n")
+ifdef()
+?>
 
-#define NODE_GLOBS_H
-#define AddToObjective(x) objective = objective + x
-<?R for (v in Globals$name) { ?>
-#define AddTo<?%s v ?>(x) <?%s v ?> = <?%s v ?> + x<?R } ?>
-
-struct Node_Globs {
-int x,y,z;
-type_f objective;
-<?R for (v in Globals$name) { ?>
-type_f <?%s v ?>;<?R } ?>
-
-CudaDeviceFunction void inline Pre() {
-	objective = 0.0;
-<?R for (v in Globals$name) { ?>
-	<?%s v ?> = 0.0;<?R } ?>
-}
-#ifndef ADJOINT
-	#include "Dynamics.h"
-#endif
-	#include "Dynamics.c"
-#ifdef ADJOINT
-	#include "Dynamics_b.c"
-	#include "Dynamics_adj.c"
-#endif
-};
-
-
-#include "LatticeContainer.h"
+//#include "LatticeContainer.h"
 #include "LatticeContainer.cu"

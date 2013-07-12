@@ -30,14 +30,14 @@ inline CudaDeviceFunction void popcontrol3b_(int * i) {
 	pushcontrol[CudaThread.x] >>= 3;
 }
 	
-CudaSharedMemory type_f pushval[512*6];
+CudaSharedMemory real_t pushval[512*6];
 CudaSharedMemory int pushvali[512];
 
 inline CudaDeviceFunction void ADclear () {
 	pushvali[CudaThread.x] = 0;
 }
 
-inline CudaDeviceFunction void pushreal (type_f f) {
+inline CudaDeviceFunction void pushreal (real_t f) {
 	pushval[CudaThread.x + pushvali[CudaThread.x]*CudaNumberOfThreads.x] = f;
 	pushvali[CudaThread.x] ++;
 }
@@ -45,11 +45,11 @@ inline CudaDeviceFunction void pushreal (type_f f) {
 inline CudaDeviceFunction void pushreal4_ (float f) { pushreal(f); }
 inline CudaDeviceFunction void pushreal8_ (double f) { pushreal(f); }
 
-inline CudaDeviceFunction void popreal (type_f * f) {
+inline CudaDeviceFunction void popreal (real_t * f) {
 	pushvali[CudaThread.x] --;
 	*f = pushval[CudaThread.x + pushvali[CudaThread.x]*CudaNumberOfThreads.x];
 }
 
-inline CudaDeviceFunction void popreal4_ (float  * f) { popreal((type_f*) f); }
-inline CudaDeviceFunction void popreal8_ (double * f) { popreal((type_f*) f); }
+inline CudaDeviceFunction void popreal4_ (float  * f) { popreal((real_t*) f); }
+inline CudaDeviceFunction void popreal8_ (double * f) { popreal((real_t*) f); }
 

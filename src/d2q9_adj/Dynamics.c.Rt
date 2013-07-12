@@ -2,14 +2,18 @@
 	source("conf.R") ;
 	c_header();
 ?>
-#define S2 1.3333
-#define S3 1.0
+#define S4 1.3333
 #define S5 1.0
+#define S6 1.0
 #define S7 1.0
 #define S8 omega
 #define S9 omega
 
 <?R
+	f = PV(Density$name[Density$group=="f"])
+	U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+
+
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	uf = PV("uf")
 	d = PV("d")
@@ -26,26 +30,26 @@
 	bounce = c(0,3,4,1,2,7,8,5,6)
 ?>
 
-CudaDeviceFunction type_f getRho(){
+CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
     
-CudaDeviceFunction type_v getU(){
-	type_f d = getRho();
-	type_v u;
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
 <?R C(PV(c("u.x","u.y")) == f %% U) ?>
 	u.x /= d;
 	u.y /= d;
 	return u;
 }
 
-CudaDeviceFunction type_f getW(){
+CudaDeviceFunction real_t getW(){
 	return w;
 }
 
 CudaDeviceFunction void BounceBack()
 {
-     type_f uf;
+     real_t uf;
 <?R
   V = cbind(1:9, bounce+1)
   sel = V[,1] > V[,2]
@@ -67,8 +71,8 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void EVelocity()
 {
-     type_f rho, ru;
-	const type_f ux0 = InletVelocity;
+     real_t rho, ru;
+	const real_t ux0 = InletVelocity;
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -78,8 +82,8 @@ CudaDeviceFunction void EVelocity()
 
 CudaDeviceFunction void WPressure()
 {
-     type_f ru, ux0;
-	const type_f rho = 1.0;
+     real_t ru, ux0;
+	const real_t rho = 1.0;
 	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / rho;
 	ru = rho * ux0;
 
@@ -90,16 +94,16 @@ CudaDeviceFunction void WPressure()
 
 CudaDeviceFunction void eqWVelocity()
 {
-     type_f rho;
-	const type_f u[2] = {InletVelocity,0.};
+     real_t rho;
+	const real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	SetEquilibrum(rho,u);
 }
 
 CudaDeviceFunction void WVelocity()
 {
-     type_f rho, ru;
-	const type_f u[2] = {InletVelocity,0.};
+     real_t rho, ru;
+	const real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 //	AddToObjective(rho);
 	ru = rho * u[0];
@@ -110,8 +114,8 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-     type_f ru, ux0;
-	const type_f rho = 1.0;
+     real_t ru, ux0;
+	const real_t rho = 1.0;
 	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / rho;
 	ru = rho * ux0;
 
@@ -124,7 +128,7 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
 //    AddToObjective(w*(1-w)/10);
-    switch (B & NODE_BOUNDARY) {
+    switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
@@ -142,7 +146,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    switch (B & NODE_COLLISION) {
+    switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
                 break;   
         case NODE_MRT:
@@ -151,8 +155,8 @@ CudaDeviceFunction void Run() {
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
-{	type_f usq, uf;
+CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+{	real_t usq, uf;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R
 	for (i in 1:9) {
@@ -171,17 +175,17 @@ CudaDeviceFunction void SetEquilibrum(const type_f d, const type_f u[2])
 
 CudaDeviceFunction void Init() {
 	w = 1;
-	type_f u[2] = {InletVelocity,0.};
-	type_f d = 1.0;
+	real_t u[2] = {InletVelocity,0.};
+	real_t d = 1.0;
 	SetEquilibrum(d,u);
 }
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        type_v u = getU();
-//        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
 //	ret.x=wb;
-//        if (B == NODE_Solid){
+//        if (NodeType == NODE_Solid){
 //                ret.y = 0;
 //        } else {
 //                ret.y = 1;
@@ -190,10 +194,10 @@ CudaDeviceFunction float2 Color() {
         return ret;
 }
 
-
 CudaDeviceFunction void CollisionMRT()
 {
-	type_f u[2], usq, d, R[6], uf;
+	real_t u[2], usq, d, R[6], uf;
+	vector_t F;
 <?R
         R = PV(c(
 		"d",
@@ -218,26 +222,55 @@ M = matrix(c(
 
 C( R == f %% M );
 ?>
-        if ((B & NODE_OBJECTIVE) == NODE_Outlet) {
-		AddToPressDiff(d);
-	}
-        if ((B & NODE_OBJECTIVE) == NODE_Inlet) {
-		AddToPressDiff(-d);
-	}
+//F = getF();
+//u[0] = u[0]+F.x*MagicF;
+//u[1] = u[1]+F.y*MagicF;
+<?R
+	d = PV("d");
+	dw = d
+	dw[[1]][1,2]=-1
+	C(usq == sum(u*u)*dw);
+	usq = PV("usq")
+	u = PV(c("u[0]","u[1]"))
+	Req = rbind(
+		d,
+		u,
+		d*(-2)+usq*3,
+		d - usq*3,
+		u[1]*(-1),
+		u[2]*(-1),
+		u[1]*u[1]*dw-u[2]*u[2]*dw,
+		u[1]*u[2]*dw
+	)
+
+?>
+<?R
+        Sy = PV(paste("S",1:19,"",sep=""))
+	selR = c(4,5,6,7,8,9);
+#	cr = calcReq[selR]
+	Mw = colSums(M**2)
+for (i in selR) {
+?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
+<?R
+}
+?>
+if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) AddToPressDiff(-d);
+if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) AddToPressDiff(d);
 u[0] = u[0]*w;
 u[1] = u[1]*w;
+//u[0]=u[0]+0.001;
 <?R
-	C(usq == sum(u*u));
-?>
-R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
-R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
-R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
-R[3] = R[3]*(1-S7)  +  S7*(-u[1]);
-R[4] = R[4]*(1-S8)  +  S8*(u[0]*u[0] - u[1]*u[1]);
-R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
+	C(usq == sum(u*u)*dw);
+for (i in selR) {
+?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
+<?R
+}
+for (i in 1:length(R)) {
+?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
+<?R
+}
+   C( f == R %% t(M) , float=F);
 
-<?R
-	C( f == R %% solve(M) );
 ?>
 }
 

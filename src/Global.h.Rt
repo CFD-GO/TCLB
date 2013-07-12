@@ -21,8 +21,8 @@
 struct NodeInfo {
     lbRegion region;
     int rank; <?R
-for (i in NonEmptyMargin) { ?>
-    int <?%s Margin$side[i] ?>;<?R
+for (m in NonEmptyMargin) { ?>
+    int <?%s m$side ?>;<?R
 } ?>
 };
 
@@ -37,10 +37,19 @@ struct MPIInfo {
 void fillSides(MPIInfo, int, int, int);
 
 struct FTabs {
- type_f* f;
-<?R for (i in NonEmptyMargin) { ?>
- type_f* <?%s Margin$name[i] ?>;
+<?R for (m in NonEmptyMargin) { ?>
+ real_t* <?%s m$name ?>;
 <?R } ?>
+void Alloc(int,int,int);
+void Clear(int,int,int);
+void PreAlloc(int,int,int);
+void Free();
+FTabs & operator=(const FTabs & in) {
+<?R for (m in NonEmptyMargin) { ?>
+	<?%s m$name ?> = in. <?%s m$name ?>;
+<?R } ?>
+	return *this;
+}
 };
 
 #define INFO_H 1
@@ -49,7 +58,7 @@ struct FTabs {
 #ifndef SETTINGS_H
 <?R
 	for (i in 1:nrow(Settings)) { ?>
-CudaExternConstantMemory(type_f <?%s Settings$name[i] ?>);<?R
+CudaExternConstantMemory(real_t <?%s Settings$name[i] ?>);<?R
 	} ?>
 void initSettings();
 #define SETTINGS_H 1
@@ -60,9 +69,23 @@ void initSettings();
 
 	#define DEBUG_SETRANK(x) D_MPI_RANK = x
 	#define DEBUG0(x) 
-	#define DEBUG1(x) x
+	#define DEBUG1(x)
 	#define DEBUG2(x) x
 	#define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
 	
 #define DEBUG_H 1
 #endif
+
+
+#ifndef CONSTS_H
+
+<?R
+	for (v in rows(Consts)) { ?>
+#define <?%s v$name ?> <?%s v$value ?> <?R
+	}
+?>
+	
+#define CONSTS_H 1
+#endif
+
+

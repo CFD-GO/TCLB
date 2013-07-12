@@ -18,15 +18,15 @@ Density = table_from_text("
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
 #  name - name of the field
-#  type - C type of the field, "type_f" - for single/double float, and "type_v" for 3D vector single/double float
+#  type - C type of the field, "real_t" - for single/double float, and "vector_t" for 3D vector single/double float
 # Every field must correspond to a function in "Dynamics.c".
 # If one have filed [something] with type [type], one have to define a function: 
 # [type] get[something]() { return ...; }
 
 Quantities = table_from_text("
 	name   type
-	Rho    type_f
-	U      type_v
+	Rho    real_t
+	U      vector_t
 ")
 
 # Settings - table of settings (constants) that are taken from a .clb file

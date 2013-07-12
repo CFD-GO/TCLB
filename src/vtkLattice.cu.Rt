@@ -1,4 +1,7 @@
-<?R source("conf.R") ?>
+<?R
+	source("conf.R")
+	c_header();
+?>
 #include <stdio.h>
 #include <assert.h>
 #include <mpi.h>
@@ -17,10 +20,10 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 	double spacing = 1/units.alt("m");	
 	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
-	{	flag_t * B = new flag_t[size];
-		lattice->GetFlags(reg, B);
-		vtkFile.WriteField("flag",B);
-		delete[] B;
+	{	flag_t * NodeType = new flag_t[size];
+		lattice->GetFlags(reg, NodeType);
+		vtkFile.WriteField("flag",NodeType);
+		delete[] NodeType;
 	}
 
 	<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
@@ -35,7 +38,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 
 // ------------------------------ DUMP ALL DENSITIES ----------------------------
 /* 
-	type_f* tmp = new type_f[size];
+	real_t* tmp = new real_t[size];
 	<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
 	{
 		lattice->Get_<?%s d$nicename ?>(reg, tmp);
@@ -97,6 +100,7 @@ int initMean(char * filename)
 	return 0;
 }
 
+/*
 int writeMean(char * filename, Lattice * lattice, int margin, int iter, double nu)
 {	
 	FILE * f = NULL;
@@ -127,24 +131,24 @@ int writeMean(char * filename, Lattice * lattice, int margin, int iter, double n
 			int num=0;
 			int size = reg.size();
 			if (size != 0) {
-				type_f * rho = new type_f[size];
-				flag_t * B = new flag_t[size];
+				real_t * rho = new real_t[size];
+				flag_t * NodeType = new flag_t[size];
 				double rho1;
 				lattice->GetRho(reg, rho);
-				lattice->GetFlags(reg, B);
+				lattice->GetFlags(reg, NodeType);
 				for (int i=0; i<size; i++) {
-					if (B[i] & NODE_COLLISION) {
+					if (NodeType[i] & NODE_COLLISION) {
 						rho1 = rho[i]-1;
 						num ++;
 						mean += rho1;
 						sd   += rho1*rho1;
 					}
 				}
-				type_v * v = new type_v[size];
+				vector_t * v = new vector_t[size];
 				double v2;
 				lattice->GetU(reg, v);
 				for (int i=0; i<size; i++) {
-					if (B[i] == (B[i] & NODE_COLLISION)) {
+					if (NodeType[i] == (NodeType[i] & NODE_COLLISION)) {
 						rho1 = (rho[i] - 1)/3;
 						v2 = rho[i] * (v[i].x*v[i].x + v[i].y*v[i].y + v[i].z * v[i].z )/2;
 						stream += (rho1 + v2) * v[i].x;
@@ -152,7 +156,7 @@ int writeMean(char * filename, Lattice * lattice, int margin, int iter, double n
 				}
 					
 				delete[] rho;
-				delete[] B;
+				delete[] NodeType;
 			}
 //			printf("%lf %lf %d %d\n", mean, sd, num, size);
 			{
@@ -185,3 +189,4 @@ int writeMean(char * filename, Lattice * lattice, int margin, int iter, double n
 	return 0;
 }
 
+*/

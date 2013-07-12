@@ -1,12 +1,24 @@
 <?R 
 	l = dir(path="src");
-	d=sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
+	d = sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
 	models=l[d]
+	
+	Models = do.call(rbind, lapply(models,function (m) {
+		pt = paste("src",m,sep="/");
+		cf = paste("src",m,"conf.mk",sep="/");
+		if (file.exists(cf)) {
+			source(cf);
+		} else {
+			ADJOINT=0;
+		}
+		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
+	}))
+	
 	rm(l,d) 
 	destinations=c("standalone","package/src");
 ?>
 # MODELS: 
-#	<?%s paste(models,collapse=", ") ?>
+#	<?%s paste(Models$name,collapse=", ") ?>
 
 ADJOINT=0        # calculate adjoint: 1-on, 0-off
 GRAPHICS=0       # GLUT graphics: 1-on, 0-off
@@ -17,12 +29,12 @@ DOUBLE=0         # precision: 1-double, 0-float
 
 #######################################################################################################################
 
-all: <?%s paste(models,collapse=" ") ?>
+all: <?%s paste(Models$name,collapse=" ") ?>
 
 .PHONY: all clean dummy
 
-makefile:src/makefile.main.Rt src/*
-	tools/RT -f $< -o $@
+#makefile:src/makefile.main.Rt src/*
+#	@tools/RT -q -f $< -o $@
 
 #Rpackage : source package/configure
 #	R CMD build package
@@ -32,6 +44,7 @@ makefile:src/makefile.main.Rt src/*
 #	@cd package; autoconf
 
 RT = tools/RT
+RS = R  --slave --quiet --vanilla -f
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
@@ -39,18 +52,17 @@ SRC=src
 
 #ifeq '$(strip $(STANDALONE))' '1'
  DEST=standalone
- ADDITIONALS=makefile model README.md
+ ADDITIONALS=makefile model README.md dep.mk
  SOURCE_CU+=main.cu
- HEADERS_H+=DataLine.h
 #else
 # DEST=package/src
 # ADDITIONALS=package/src/Makefile.in package/data/LB.RData
 #endif
 
-SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c inter.cpp Solver.cpp pugixml.cpp Geometry.cu def.cpp unit.cpp
+SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c Dynamics_sp.c inter.cpp Solver.cu Handlers.cu pugixml.cpp Geometry.cu def.cpp unit.cpp
 SOURCE_R=conf.R Dynamics.R
 SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
-HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
+HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
 HEADERS=$(addprefix $(DEST)/,$(HEADERS_H))
 
 ALL_FILES=$(SOURCE_CU) $(HEADERS_H) $(ADDITIONALS)
@@ -62,6 +74,10 @@ CC=nvcc
 CCTXT=NVCC
 
 RTOPT=
+
+RTOPT_ADJ=ADJOINT=1
+ALL_FILES_ADJ=Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
+OPT_ADJ=-D ADJOINT
 
 ifdef MODEL
  RTOPT+=MODEL=\"$(strip $(MODEL))\"
@@ -119,43 +135,52 @@ package/data/LB.RData: conf.R Dynamics.R
 
 clear:
 	@echo "  RM         ALL"
-	@rm `ls | grep -v -e ^makefile$$ -e .mk$$` 2>/dev/null; true
+	@./clear
 
-$(DEST)/Dynamics_b.c $(DEST)/Dynamics_b.h $(DEST)/types_b.h $(DEST)/ADpre_.h $(DEST)/ADpre__b.h : tapenade.run
-
-.INTERMEDIATE : tapenade.run
-
-tapenade.run : $(DEST)/Dynamics.c $(DEST)/ADpre.h $(DEST)/ADpre_b.h $(DEST)/Dynamics.h $(DEST)/Node_types.h $(DEST)/types.h $(DEST)/ADset.sh
-	@echo "  TAPENADE   $<"
-	@(cd standalone; ../tools/makeAD)
 
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
 ###############################################################################
 
-<?R for (m in models) { ?>
+<?R
+	for (i in 1:nrow(Models)) {
+		m = Models$name[i];
+		adjoint = Models$adjoint[i]
+?>
 <?%s m ?>:  | standalone/<?%s m ?>
 
 <?%s m ?>: standalone/<?%s m ?> standalone/<?%s m ?>/main
 	@echo "  DONE       $@"
-standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES))
+
+standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES)<?R if (adjoint) {?> $(ALL_FILES_ADJ)<?R }?>)
 	@cd standalone/<?%s m ?>; $(MAKE)
 
 standalone/<?%s m ?> :
 	mkdir -p $@
-<?R } ?>
-
-
-<?R for (m in models) { for (d in destinations) {?>
+<?R
+		for (d in destinations) {
+?>
 # for model <?%s m ?> and destination <?%s d ?>
+
+<?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run
+
+.INTERMEDIATE : tapenade.run
+
+<?%s d ?>/<?%s m ?>/tapenade.run : <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Node_types.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh
+	@echo "  TAPENADE   $<"
+	@(cd $<; ../../tools/makeAD)
+
+<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R $(addprefix <?%s d ?>/<?%s m ?>/,$(SOURCE_CU) $(HEADERS_H))
+	@echo "  AUTO-DEP   $@"
+	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT) MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT) MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
@@ -166,15 +191,17 @@ standalone/<?%s m ?> :
 	@cp $< $@
 <?R }} ?>
 
-
-
 %.hp:%.c
-	@echo "MAKEHEADERS  $<"
+	@echo "  MKHEADERS  $<"
 	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
 
 %.hp:%.cpp
-	@echo "MAKEHEADERS  $<"
+	@echo "  MKHEADERS  $<"
 	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
+
+%_sp.c:%.c
+	@echo "  SP-CONST   $@"
+	@cat $< | sed -r 's/[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?/&f/g' > $@
 

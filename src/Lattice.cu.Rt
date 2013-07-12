@@ -1,28 +1,78 @@
+<?R
+	source("conf.R")
+	c_header();
+?>
 #include "cross.h"
 #include "types.h"
 #include "Global.h"
-#include "Node.h"
+//#include "Node.h"
 #include "LatticeContainer.h"
 #include "Lattice.h"
 #include "mpi.h"
 #include "assert.h"
 
-<?R
-	source("conf.R")
-?>
-
+// Declaration of constContainer - a lattice container used to run all kernels
 CudaExternConstantMemory(LatticeContainer constContainer);
 
+// C-crazed function for calculating number of zeros at a end of a number.
+int SnapLevel(unsigned int i) {
+	unsigned int j = 16;
+	unsigned int w = 0;
+	unsigned int k = 0xFFFFu;
+	while(j) {
+		if (i & k) {
+			j = j >> 1;
+			k = k >> j;
+		} else {
+			w = w + j;
+			j = j >> 1;
+			k = k << j;
+		}
+	}
+	return w;
+}
+
+//Local (CPU) calculation of offset
 int Lattice::Offset(int x, int y, int z)
 {
 	return x+region.nx*y + region.nx*region.ny*z;
 }
 
-Lattice::Lattice(lbRegion _region):region(_region)
+//Constructor based on size
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 {
+	reverse_save=0;
+	total_iterations;
+	if (reverse_save) {
+		nSnaps=10;
+	} else {
+		nSnaps=2;
+	}
 	container = new LatticeContainer;
+	Snaps = new FTabs[nSnaps];
+	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
-	for (int i=0; i < <?%d nrow(Settings) ?>; i++) {
+	for (int i=0; i < nSnaps; i++) {
+		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
+	}
+	for (int i=0; i < maxSnaps; i++) {	
+		iSnaps[i]=-1;
+	}
+#ifdef ADJOINT
+	aSnaps = new FTabs[2];
+	aSnaps[0].PreAlloc(_region.nx,_region.ny,_region.nz);
+	aSnaps[1].PreAlloc(_region.nx,_region.ny,_region.nz);
+#endif
+	MPIInit(mpi);
+	CudaAllocFinalize();
+
+	container->in = Snaps[0];
+	container->out = Snaps[1];
+#ifdef ADJOINT
+	container->adjout = aSnaps[0];
+#endif
+	aSnap = 0;
+	for (int i=0; i < SETTINGS; i++) {
 		settings[i] = 0.0;
 	}
         CudaStreamCreate(&kernelStream);
@@ -38,30 +88,31 @@ Lattice::Lattice(lbRegion _region):region(_region)
 	        CudaEventCreate( &mpiEv[i] );
 }
 
+//Initialization of MPI buffors
 void Lattice::MPIInit(MPIInfo mpi_)
 {
-	mpi = mpi_;
 //--------- Initialize MPI buffors
 	bufnumber = 0;
 #ifndef DIRECT_MEM
 	printf("[%d] Allocating MPI buffors ...\n", D_MPI_RANK);
-	type_f * ptr = NULL;
+	real_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 <?R
-	for (i in NonEmptyMargin) {
+	for (m in NonEmptyMargin) {
 ?>
-	size = <?R C(MarginSize[i],float=F) ?> * sizeof(type_f);
-	from = mpi.node[mpi.rank].<?%s Margin$side[28-i] ?>;
-	to = mpi.node[mpi.rank].<?%s Margin$side[i] ?>;
-	if (mpi.rank != to) {
+	size = <?R C(m$Size,float=F) ?> * sizeof(real_t);
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if ((mpi.rank != to) && (size > 0)) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
-		gpuout[bufnumber] = container->out.<?%s Margin$name[i] ?>;
+		gpuout[bufnumber] = NULL; //container->out.<?%s m$name ?>;
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
-		gpuin[bufnumber] = container->in.<?%s Margin$name[i] ?>;
+//		gpuin[bufnumber] = NULL; //container->in.<?%s m$name ?>;
+		BPreAlloc((void**) & (gpubuf[bufnumber]), size);
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
 		bufnumber ++;
@@ -72,75 +123,239 @@ void Lattice::MPIInit(MPIInfo mpi_)
 #endif
 
 	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
-#ifdef GPU_CROSS_IND
-	printf("[%d] Starting MPI cross-indetification\n", D_MPI_RANK);
-	{
-		char to_name[MPI_MAX_PROCESSOR_NAME], from_name[MPI_MAX_PROCESSOR_NAME];
-		MPI_Status status;
-		{
-			int len;
-			MPI_Get_processor_name(from_name,&len);
-		}
-		printf("[%d] Running on: %s\n",D_MPI_RANK, from_name);
-		for (to = 0; to < mpi.size; to++)
-		for (from = 0; from < mpi.size; from++)
-		if (to != from) {
-		if ((to == mpi.rank) || (from == mpi.rank)) {
-			int sameproc = 0, gpu = -1;
-			if (to   == mpi.rank) {
-				MPI_Send(from_name, MPI_MAX_PROCESSOR_NAME, MPI_BYTE, from, 0, MPI_COMM_WORLD);
-				MPI_Send(&mpi.gpu,1,MPI_INT,from,1,MPI_COMM_WORLD);
-			}
-			if (from == mpi.rank) {
-				MPI_Recv(to_name,   MPI_MAX_PROCESSOR_NAME, MPI_BYTE, to,   0, MPI_COMM_WORLD, &status);
-				MPI_Recv(&gpu,1,MPI_INT,to,1,MPI_COMM_WORLD,&status);
-				printf("[%d] recived from [%d]: %s\n",D_MPI_RANK, to, to_name);
-				if (strcmp(to_name,from_name) == 0) {
-					printf("[%d] and [%d] are on the same machine (GPU%d, GPU%d)\n",D_MPI_RANK, to, mpi.gpu, gpu);
-				//	if (gpu != mpi.gpu) {
-						sameproc = 1;
-				//	}
-				}
-				MPI_Send(&sameproc,1,MPI_INT,to,0,MPI_COMM_WORLD);
-			}
-			if (to   == mpi.rank) MPI_Recv(&sameproc, 1, MPI_INT, from, 0, MPI_COMM_WORLD, &status);
-			if (sameproc) for (int i = 0; i < bufnumber; i++) {
-				if ((to ==   mpi.rank) && (from == nodein[i])) {
-					// I will be reciving data from 'from' and putting it in 'in'
-					MPI_Send(&gpuin[i],sizeof(type_f*),MPI_BYTE,from,i,MPI_COMM_WORLD);
-					nodein[i] = -1;
-				}
-				if ((to == nodeout[i]) && (from ==  mpi.rank)) {
-					// I will be sending data from 'out' to 'to'
-					type_f * ptr;
-					MPI_Recv(&ptr,sizeof(type_f*),MPI_BYTE,to,i,MPI_COMM_WORLD,&status);
-					printf("[%d] recv (i:%d) buffor: %p on GPU%d\n",D_MPI_RANK,i,ptr,gpu);
-					nodeout[i] = -(1+gpu);
-					mpiout[i] = ptr;
-				}
-			}
-		} MPI_Barrier(MPI_COMM_WORLD); }
-		printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
+}
+
+
+void Lattice::startRecord()
+{
+	if (reverse_save) {
+		std::cerr << "Nested record! Called startRecord while recording\n";
+		exit(-1);
 	}
+	if (Iter != 0) {
+		std::cerr << "Record tape is not rewinded (iter = " << Iter << ") maybe last adjoint didn't go all the way\n";
+		Iter = 0;
+	}
+	printf("[%d] Lattice is starting to record (usteady adjoint)\n",D_MPI_RANK);
+	if (Snap != 0) {
+		std::cerr << "Warning: Snap = "<< Snap << "\n";
+		
+	}
+	for (int i=0; i < maxSnaps; i++) {	
+		iSnaps[i]=-1;
+	}
+	{
+		char filename[STRING_LEN];
+		sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
+		iSnaps[getSnap(0)] = 0;
+		save(Snaps[Snap], filename);
+	}
+	if (Snap != 0) {
+		std::cerr << "Warning: Snap = "<< Snap << " Going through disk\n";
+	} else {
+		iSnaps[Snap] = 0;
+	}
+	reverse_save = 1;
+	clearAdjoint();
+	clearGlobals();
+}
+
+void Lattice::saveSolution(const char * filename) {
+	char fn[STRING_LEN];
+	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
+	save(Snaps[Snap], fn);
+#ifdef ADJOINT
+	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
+	save(aSnaps[aSnap], fn);
 #endif
 }
 
-void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::loadSolution(const char * filename) {
+	char fn[STRING_LEN];
+	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
+	if (load(Snaps[Snap], fn)) exit(-1);
+#ifdef ADJOINT
+	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
+	load(aSnaps[aSnap], fn);
+#endif
+}
+
+
+void Lattice::clearAdjoint()
+{
+#ifdef ADJOINT
+	printf("Clearing adjoint\n");
+	aSnaps[0].Clear(region.nx,region.ny,region.nz);
+	aSnaps[1].Clear(region.nx,region.ny,region.nz);
+#endif
+}
+
+void Lattice::clearDPar()
+{ <?R
+	for (d in rows(DensityAll)) if ((d$adjoint) && (d$parameter)) { ?>
+	Clear_<?%s d$nicename ?>(); <?R
+	}
+?>
+}
+
+void Lattice::stopRecord()
+{
+	if (Iter != 0) {
+		std::cerr << "Warning: Record tape is not rewinded (iter = " << Iter << ")\n";
+		Iter = 0;
+	}
+	reverse_save = 0;
+	printf("[%d] Stop recording\n", D_MPI_RANK);
+}
+
+
+void Lattice::Callback(int(*cb)(int, void*), void* data) {
+	callback = cb;
+	callback_data = data;
+}
+
+
+inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
+{
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+//	printf("%d -> %d %d\n", tab0, tab1, iter_type);
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		i ++;
+	} else {
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+	}
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+<?R
+	}
+?>
+	container->CopyToConst();
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunBorder (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder_Globs(kernelStream); break;
+	}	
+        CudaStreamSynchronize(kernelStream);
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	}
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunInterior (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInterior_Globs(kernelStream); break;
+	}	
+        CudaStreamSynchronize(outStream);
+	for (int i = 0; i < bufnumber; i++) {
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+	}
+	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+	}
+        CudaDeviceSynchronize();
+	Snap = tab1;
+	MarkIteration();
+};
+
+inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
+{
+#ifdef ADJOINT
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+//	printf("Adjoint %d -> %d\n", tab0, tab1);
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuout[i] = aSnaps[tab0].<?%s m$name ?>;
+		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+		i ++;
+	} else {
+		container->adjin.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;
+	}
+	container->in.<?%s m$name ?> = Snaps[Snap].<?%s m$name ?>;
+	container->adjout.<?%s m$name ?> = aSnaps[tab1].<?%s m$name ?>;
+<?R
+	}
+?>
+	container->CopyToConst();
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	        CudaEventRecord( outEv[i], outStream );
+	}
+
+	CudaEventRecord(kernelEv[2],kernelStream);
+	DEBUG_M;
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunInterior_Adj (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInterior_Globs_Adj(kernelStream); break;
+	}	
+        CudaStreamSynchronize(outStream);
+	DEBUG_M;
+	for (int i = 0; i < bufnumber; i++) {
+		DEBUG_M;
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+	}
+	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+		DEBUG_M;
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+	        CudaEventRecord( mpiEv[i], inStream );
+		DEBUG_M;
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+		DEBUG_M;
+	        CudaEventRecord( inEv[i], inStream );
+	}
+        CudaStreamSynchronize(inStream);
+	DEBUG_M;
+	CudaEventRecord(kernelEv[0],kernelStream);
+	DEBUG_M;
+	switch(iter_type){
+	case ITER_NORM:
+		container->RunBorder_Adj (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder_Globs_Adj(kernelStream); break;
+	}	
+	DEBUG_M;
+        CudaDeviceSynchronize();
+	aSnap = tab1;
+	MarkIteration();
+#else
+	std::cerr << "This model doesn't have adjoint!\n";
+	exit (-1);
+#endif
+};
+
+void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 	*maxsize = 0;
-	*n = <?%d length(NonEmptyMargin) ?> + 1;
+	*n = <?%d length(NonEmptyMargin) ?>;
 	*size = new size_t[*n];
 	*ptr = new void*[*n];
-	(*size)[j] = (size_t) nx*ny*nz*<?%d nrow(DensityAll) ?>*sizeof(type_f);
-	(*ptr)[j] = (void*) container->in.f;
-	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
-	j++;	
 <?R
-	for (i in NonEmptyMargin) {
+	for (m in NonEmptyMargin) {
 ?>
-	(*size)[j] = (size_t) <?R C(MarginSize[i],float=F) ?> * sizeof(type_f);
-	(*ptr)[j] = (void*) container->in.<?%s Margin$name[i] ?>;
+	(*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(real_t);
+	(*ptr)[j] = (void*) tab.<?%s m$name ?>;
 	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
@@ -148,7 +363,7 @@ void Lattice::listTabs(int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 ?>
 }
 
-int Lattice::save(char * filename) {
+int Lattice::save(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
 		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
@@ -162,7 +377,7 @@ int Lattice::save(char * filename) {
 	size_t maxsize;
 	int n;
 
-	listTabs(&n, &size, &ptr, &maxsize);
+	listTabs(tab, &n, &size, &ptr, &maxsize);
 	CudaMallocHost(&pt,maxsize);
 
 	for(int i=0; i<n; i++)
@@ -179,12 +394,12 @@ int Lattice::save(char * filename) {
 	return 0;
 }
 
-int Lattice::load(char * filename) {
+int Lattice::load(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "r");
 	printf("[%d] Loading Lattice data from %s\n", D_MPI_RANK, filename);
 	if (f == NULL) {
 		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
-		assert(f == NULL);
+//		assert(f == NULL);
 		return -1;
 	}
 
@@ -194,7 +409,7 @@ int Lattice::load(char * filename) {
 	size_t maxsize;
 	int n;
 
-	listTabs(&n, &size, &ptr, &maxsize);
+	listTabs(tab, &n, &size, &ptr, &maxsize);
 	CudaMallocHost(&pt,maxsize);
 
 	for(int i=0; i<n; i++)
@@ -214,11 +429,15 @@ int Lattice::load(char * filename) {
 Lattice::~Lattice()
 {
 	container->Free();
+	for (int i=0; i<nSnaps; i++) {
+		Snaps[i].Free();
+	}
+	delete[] Snaps;	
+	delete[] iSnaps;
 }
 
 void Lattice::Color(uchar4 * ptr) {
-	container->CopyToConst();
-	CudaKernelRun( nodes_to_color , BLOCKS , THREADS ,(ptr));
+	container->Color(ptr);
 }
 
 void Lattice::Init()
@@ -227,121 +446,138 @@ void Lattice::Init()
 //   CudaCopyToConstant("constContainer", constContainer, container, sizeof(LatticeContainer));
 //   printf("[%d] Sizeof(LatticeContainer) = %ld\n", D_MPI_RANK, sizeof(LatticeContainer));
 //   CudaKernelRun( nodes_fill , BLOCKS , THREADS ,(region.nx,region.ny));
+	container->out=Snaps[0];
    container->CopyToConst();
    container->Init();
-   Stream();
-   container->Init();
-   Stream();
+	iSnaps[getSnap(0)]=0;
+	iSnaps[0]=0;
+	Iter=0;
+	Snap=0;
+
+//   Stream();
+//   container->Init();
+//   Stream();
 }
 
 void Lattice::BeforeIt()
 {
 }
 
-void Lattice::IterateT(int iter_type)
-{
-	type_f * tmp;
-	int size, from, to;
-	MPI_Status status;
-	MPI_Request request;
-	int nx __attribute__ ((unused)) = region.nx;
-	int ny __attribute__ ((unused)) = region.ny;
-	int nz __attribute__ ((unused)) = region.nz;
-	DEBUG_M;
-	CudaEventRecord(kernelEv[0],kernelStream);
-	DEBUG_M;
-	switch(iter_type){
-	case ITER_NORM:
-		container->RunBorder (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunBorderG(kernelStream); break;
-	}	
-	DEBUG_M;
-	CudaEventRecord(kernelEv[1],kernelStream);
-	DEBUG_M;
-	CudaStreamWaitEvent(outStream, kernelEv[1], 0);
-        CudaEventRecord( outEv[0], outStream );
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
-		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
-	        CudaEventRecord( outEv[i], outStream );
-	}
-	CudaEventRecord(kernelEv[2],kernelStream);
-	DEBUG_M;
-	switch(iter_type){
-	case ITER_NORM:
-		container->RunInterior (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunInteriorG(kernelStream); break;
-	}	
-	DEBUG_M;
-	CudaEventRecord(kernelEv[3],kernelStream);
-	DEBUG_M;
-        CudaStreamSynchronize(outStream);
-	DEBUG_M;
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
-		DEBUG_M;
-//		CudaEventSynchronize(outEv[i]);
-		DEBUG_M;
-		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i], MPI_COMM_WORLD, &request);
-	}
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] < 0) {
-#ifdef GPU_CROSS_IND
-		printf("[%d] Device to Device copy %d:%p -> %d:%p\n",D_MPI_RANK, mpi.gpu, gpuout[i], -nodeout[i]-1, mpiout[i]);
-	        CudaEventRecord( outEv[i], outStream );
-		CudaMemcpyPeerAsync(mpiout[i],-nodeout[i]-1, gpuout[i], mpi.gpu, bufsize[i], outStream);
-	        CudaEventRecord( mpiEv[i], inStream );
-	        CudaEventRecord( inEv[i], outStream );
-#else
-		printf("[%d] Wrong node number in Stream!", D_MPI_RANK);
-		DEBUG_M;
-#endif
-	}
-	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
-		DEBUG_M;
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank, MPI_COMM_WORLD, &status);
-	        CudaEventRecord( mpiEv[i], inStream );
-		DEBUG_M;
-		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
-		DEBUG_M;
-	        CudaEventRecord( inEv[i], inStream );
-	}
-<?R
-	for (i in NonEmptyMargin) if ((Margin$dy[i] != 0) || (Margin$dz[i] != 0)) {
-?>
-	from = mpi.rank;
-	to = mpi.node[mpi.rank].<?%s Margin$side[i] ?>;
-	if (to == mpi.rank) {
-		tmp = container->in.<?%s Margin$name[i] ?>;
-	    	container->in.<?%s Margin$name[i] ?> = container->out.<?%s Margin$name[i] ?>;
-	    	container->out.<?%s Margin$name[i] ?> = tmp;
-	}
-	DEBUG_M;
-<?R
-	}
-	for (i in NonEmptyMargin) if ((Margin$dy[i] == 0) && (Margin$dz[i] == 0)) {
-?>
-	tmp = container->in.<?%s Margin$name[i] ?>;
-    	container->in.<?%s Margin$name[i] ?> = container->out.<?%s Margin$name[i] ?>;
-    	container->out.<?%s Margin$name[i] ?> = tmp;
-<?R
-	}
-?>
-	tmp = container->in.f;
-	container->in.f = container->out.f;
-	container->out.f = tmp;
+int Lattice::getSnap(int i) {
+	int s = SnapLevel(i) + 1;
+	return s;
+}
 
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_M;
-        CudaStreamSynchronize(inStream);
-	DEBUG_M;
-        CudaStreamSynchronize(outStream);
-	DEBUG_M;
-        CudaDeviceSynchronize();
-	DEBUG_M;
-	container->CopyToConst();
-	DEBUG_M;
-//	AfterIt();
-	DEBUG_M;
+
+void Lattice::IterateTill(int it, int iter_type)
+{
+	int s1,ls1,s2,ls2;
+	int mx = -1, imx = -1, i;
+	for (i=0;i<maxSnaps; i++) {
+		if ((iSnaps[i] > mx) && (iSnaps[i] <= it)) {
+			mx = iSnaps[i];
+			imx = i;
+		}
+	}
+	assert(imx >= 0);
+//	printf("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
+	if (imx >= nSnaps) {
+		if (reverse_save) {
+			printf("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
+			char filename[STRING_LEN];
+			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, imx);
+			if (load(Snaps[0], filename)) exit(-1);
+		} else {
+			printf("Fatal Error: I have to read from disk, but reverse_save is not switched on\n");
+			exit (-1);
+		}
+		iSnaps[0] = iSnaps[imx];
+		imx = 0;
+	}
+	s1 = imx;
+	Iter = mx;
+	Snap = s1;
+	for (i = mx; i < it; i++) {
+		int s2 = getSnap(i+1);
+		int s3 = s2;
+		if (s2 >= nSnaps) s3=0;
+		pop_settings();
+		Iteration(s1, s3, iter_type);
+		Iter = i+1;
+		if (s2 >= nSnaps){
+			if (reverse_save) {
+				printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
+				char filename[STRING_LEN];
+				sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, s2);
+				save(Snaps[0], filename);
+			}
+		}
+		iSnaps[s2] = i+1;
+		iSnaps[s3] = i+1;
+		s1 = s3;
+	}
+}
+
+void Lattice::Iterate(int niter, int iter_type)
+{
+	int ad = iter_type & ITER_ADJOINT;
+	int last_glob = iter_type & ITER_LASTGLOB;
+	int i;
+	iter_type = iter_type & ITER_TYPE;
+	if (iter_type & ITER_GLOBS) last_glob=0;
+	if (reverse_save) {
+		if (ad) {
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = ITER_GLOBS;
+				}
+				Iter -= 1;
+				if (Iter < 0) {
+					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
+					exit(-1);
+				}
+				IterateTill(Iter, ITER_NORM);
+				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+			}
+		} else {
+			if (last_glob) {
+				IterateTill(niter+Iter-1, iter_type);
+				container->clearGlobals();
+				IterateTill(Iter+1, ITER_GLOBS);
+			} else {
+				IterateTill(niter+Iter, iter_type);
+			}
+		}
+	} else {
+		if (ad) {
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = ITER_GLOBS;
+				}
+				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
+			}
+		} else {
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = ITER_GLOBS;
+				}
+				Iteration(Snap, (Snap+1) % 2, iter_type);
+			}
+		}
+	}
+	if (last_glob) {
+		if (ad) {
+			clearGlobals_Adj();
+		} else {
+			clearGlobals();
+		}
+		calcGlobals();
+	} else if ( iter_type == ITER_GLOBS ) {
+		calcGlobals();
+	}
 };
 
 void Lattice::AfterIt()
@@ -367,14 +603,14 @@ void Lattice::AfterIt()
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
 //	printf("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
-//	CudaMemcpy2D(container->B, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
+//	CudaMemcpy2D(container->NodeType, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
 	lbRegion inter = region.intersect(over);
 //        printf("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx;
         for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-                CudaMemcpy2D(&container->B[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
+                CudaMemcpy2D(&container->NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
         }
 
 }
@@ -392,11 +628,11 @@ void Lattice::GetRegion(lbRegion over, Node * tab)
         {
 //		printf("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&tab[over.offsetL(x,y,z)].B, sizeof(Node), &container->B[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+		CudaMemcpy2D(&tab[over.offsetL(x,y,z)].NodeType, sizeof(Node), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
                 for (int j=0; j<19; j++)
                 {
-//			printf("GetRegion: %d %d %d %d\n", x,y,z,j);
-			CudaMemcpy2D(&tab[over.offsetL(x,y,z)].f[j], sizeof(Node), &container->in.f[offset], sizeof(type_f), sizeof(type_f), inter.nx, cudaMemcpyDeviceToHost);
+			printf("GetRegion: %d %d %d %d\n", x,y,z,j);
+//			CudaMemcpy2D(&tab[over.offsetL(x,y,z)].f[j], sizeof(Node), &container->in.f[offset], sizeof(real_t), sizeof(real_t), inter.nx, cudaMemcpyDeviceToHost);
 			offset += region.sizeL();
 		}
 	}
@@ -404,7 +640,7 @@ void Lattice::GetRegion(lbRegion over, Node * tab)
 }
 */
 
-void Lattice::GetFlags(lbRegion over, flag_t * B)
+void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {
 //	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
 	size_t offset;
@@ -416,14 +652,14 @@ void Lattice::GetFlags(lbRegion over, flag_t * B)
         {
 //		printf("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&B[over.offsetL(x,y,z)], sizeof(flag_t), &container->B[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+		CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
 	}
 
 }
 
 <?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
 
-void Lattice::Get_<?%s d$nicename ?>(lbRegion over, type_f * tab)
+void Lattice::Get_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 {
 //	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
 	size_t offset;
@@ -434,18 +670,18 @@ void Lattice::Get_<?%s d$nicename ?>(lbRegion over, type_f * tab)
 //        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-//		printf("GetRegion: %d %d %d\n", x,y,z);
+		printf("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(
-			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(type_f),
-			&container->in.f[offset+<?%d i-1?>*region.sizeL()], region.nx*sizeof(type_f),
-			inter.nx*sizeof(type_f),
+/*		CudaMemcpy2D(
+			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(real_t),
+			&container->in.f[offset+<?%s d$Index ?>*region.sizeL()], region.nx*sizeof(real_t),
+			inter.nx*sizeof(real_t),
 			inter.ny,
 			cudaMemcpyDeviceToHost);
-	}
+*/	}
 }
 
-void Lattice::Set_<?%s d$nicename ?>(lbRegion over, type_f * tab)
+void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 {
 //	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
 	size_t offset;
@@ -456,23 +692,64 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, type_f * tab)
 //        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-//		printf("%dx%dx%d+%d,%d,%d\n", inter.nx,inter.ny,1, x,y,z);
+		printf("%dx%dx%d+%d,%d,%d\n", inter.nx,inter.ny,1, x,y,z);
 		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(
-			&container->in.f[offset+<?%d i-1?>*region.sizeL()], region.nx*sizeof(type_f),
-			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(type_f),
-			inter.nx*sizeof(type_f),
+/*		CudaMemcpy2D(
+			&container->in.f[offset+<?%s d$Index ?>*region.sizeL()], region.nx*sizeof(real_t),
+			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(real_t),
+			inter.nx*sizeof(real_t),
 			inter.ny,
 			cudaMemcpyHostToDevice);
+*/	}
+}
+
+<?R } ?>
+
+<?R
+	for (d in rows(rbind(Density,DensityAD))) { 
+	if (d$adjoint) {
+		from="aSnaps[aSnap]";
+	} else {
+		from="Snaps[Snap]";
 	}
+?>
+
+void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
+{
+	printf("Pulling all <?%s d$nicename ?>\n");
+	CudaMemcpy(
+		tab,
+		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
+		region.sizeL()*sizeof(real_t),
+		cudaMemcpyDeviceToHost);
+}
+
+void Lattice::Clear_<?%s d$nicename ?>()
+{
+	printf("Clearing all <?%s d$nicename ?>\n");
+	CudaMemset(
+		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
+		0,
+		region.sizeL()*sizeof(real_t));
+}
+
+void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
+{
+	printf("Setting all <?%s d$nicename ?>\n");
+	CudaMemcpy(
+		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
+		tab,
+		region.sizeL()*sizeof(real_t),
+		cudaMemcpyHostToDevice);
 }
 
 <?R } ?>
 
 <?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
 
-void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, type_f scale)
+void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {
+	container->out = Snaps[Snap];
 	lbRegion inter = region.intersect(over);
 //        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;
@@ -500,7 +777,7 @@ void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int 
 //        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;
 	<?%s tp ?> * buf;
-	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s tp ?>)<?R if (q$type == "type_v") { ?>*3<?R }?>);
+	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s tp ?>)<?R if (q$type == "vector_t") { ?>*3<?R }?>);
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {	lbRegion small = inter;
 		small.dz = z;
@@ -512,7 +789,7 @@ void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int 
 		CudaKernelRun( get<?%s q$name ?>_<?%s tp ?>, dim3(small.nx,small.ny) , dim3(1) , (small, buf, row));
 //	        printf("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
 		<?R 
-	if (q$type == "type_v")
+	if (q$type == "vector_t")
 	{ ?>
 		if (row == 0) {
 			CudaMemcpy(&tab[over.offsetL(x,y,z)*3], buf, small.sizeL()*sizeof(<?%s tp ?>)*3, cudaMemcpyDeviceToHost);
@@ -532,15 +809,100 @@ void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int 
 
 <?R }; ifdef() ?>
 
-  void Lattice::getGlobals(type_f * tab) {
-        type_f tabl[<?%d nrow(Globals) ?>];
+
+void Lattice::push_setting(int i, real_t old, real_t nw)
+{
+	settings_record.push_back(
+		std::pair< int, std::pair<int,std::pair<real_t,real_t> > >(
+			Iter,
+			std::pair<int,std::pair<real_t,real_t> >(
+				i,
+				std::pair<real_t,real_t> (
+					old,
+					nw
+				)
+			)
+		)
+	);
+	settings_i = settings_record.size();
+}
+
+void Lattice::pop_settings()
+{
+	while (settings_i > 0) {
+		if (settings_record[settings_i - 1].first <= Iter) break;
+		settings_i--;
+		printf("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
+	}
+	while (settings_i < settings_record.size()) {
+		if (settings_record[settings_i].first > Iter) break;
+		printf("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
+		settings_i++;
+	}
+
+}
+
+
+void Lattice::getGlobals(real_t * tab) {
+        real_t tabl[ GLOBALS ];
         container->getGlobals(tabl);
-        MPI_Reduce(tabl, tab, <?%d nrow(Globals) ?>, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
+        MPI_Reduce(tabl, tab, GLOBALS, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
+}
+
+void Lattice::calcGlobals() {
+        real_t tab[ GLOBALS ];
+        getGlobals(tab);
+	double obj =0;
+<?R
+	for (m in rows(Globals)) {
+		i = which(Settings$name == paste(m$name,"InObj",sep=""));
+		if (length(i) == 1) {
+			s = Settings[Settings$name == paste(m$name,"InObj",sep=""),]; ?>
+	obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
+		}
+	}
+?>	
+	tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
+	for (int i=0; i< GLOBALS ; i++) globals[i] += tab[i];
+	container->clearGlobals();
+}
+
+void Lattice::clearGlobals() { <?R
+	for( g in rows(Globals) ) if (!g$adjoint) { ?>
+	globals[<?%s g$Index ?>] = 0; <?R
+	}
+?>
+}
+
+void Lattice::clearGlobals_Adj() { <?R
+	for( g in rows(Globals) ) if (g$adjoint) { ?>
+	globals[<?%s g$Index ?>] = 0; <?R
+	}
+?>
+}
+
+double Lattice::getObjective() {
+	return globals[<?%s Globals$Index[Globals$name == "Objective"] ?>];
+}
+
+
+
+void Lattice::setSetting(int i, real_t tmp) {
+	settings[i] = tmp;
+	switch (i) {
+<?R
+        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
+	case <?%s v$Index ?>:
+	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
+		break; <?R
+        } ?>
+	}
+}
 
 <?R
-        for (i in 1:nrow(Settings)) {
-                v = Settings[i,];
+        for (v in rows(Settings)) {
                 if (is.na(v$derived)) {
                         tmp = paste(v$name,"_",sep="");
                 } else {
@@ -548,12 +910,11 @@ void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int 
                 }
         ?>
 
-void Lattice::<?%s v$FunName ?>(type_f <?%s tmp ?>) {
-	settings[<?%d i-1 ?>] = <?%s tmp ?>;
-        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>); <?R
-                if (is.na(v$derived)) { ?>
-        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &<?%s tmp ?>, sizeof(type_f)); <?R
-                } else {
+void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
+	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
+        printf("[%s] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
+	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
+                if (!is.na(v$derived)) {
                         i = which(as.character(Settings$name) == as.character(v$derived));
                         if (is.null(i)) stop(paste(v$derived, "was declared as derived of",v$name,". But", v$derived, "doesn't exist\n"));
                         sel = Settings[i[1],]; ?>

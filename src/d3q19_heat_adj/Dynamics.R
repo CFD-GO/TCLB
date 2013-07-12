@@ -54,34 +54,32 @@ MRTT = matrix(c(
 1, 0, 0, 1, 0, 0, 1, 
 1, 0, 0,-1, 0, 0, 1),7,7)
 
-Density = data.frame(
+AddDensity(
 	name = paste("f",0:18,sep=""),
 	dx   = MRTMAT[,selU[1]],
 	dy   = MRTMAT[,selU[2]],
 	dz   = MRTMAT[,selU[3]],
-	command=paste("density F",0:18),
+	comment=paste("density F",0:18),
 	group="f"
 )
 
 f = PV(Density$name)
 
-Density = rbind(Density,data.frame(
+AddDensity(
 	name = paste("T",1:nrow(MRTT)-1,sep=""),
 	dx   = MRTT[2,],
 	dy   = MRTT[3,],
 	dz   = MRTT[4,],
-	command=paste("density T",1:nrow(MRTT)-1),
+	comment=paste("density T",1:nrow(MRTT)-1),
 	group="T"
-))
+)
 
-Density = rbind(Density,data.frame(
+AddDensity(
 	name = "w",
-	dx   = 0,
-	dy   = 0,
-	dz   = 0,
-	command="weight fluid-solid",
-	group="w"
-))
+	comment="weight fluid-solid",
+	group="w",
+	parameter=T
+)
 
 f = PV(Density$name[Density$group=="f"])
 fT = PV(Density$name[Density$group=="T"])
@@ -176,35 +174,31 @@ Sy = rbind(
 }
 
 
-Quantities = data.frame(
-        name = c("Rho","U","T","RhoB","UB","TB","W","WB"),
-        type = c("type_f","type_v","type_f","type_f","type_v","type_f","type_f","type_f"),
-	adjoint = c(F,F,F,T,T,T,F,T)
-)
+AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="U",unit="m/s",vector=T)
+AddQuantity( name="T",unit="K")
+AddQuantity( name="RhoB",adjoint=T)
+AddQuantity( name="UB",adjoint=T,vector=T)
+AddQuantity( name="TB",adjoint=T)
+AddQuantity( name="W")
+AddQuantity( name="WB",adjoint=T)
 
+AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='inlet density')
+AddSetting(name="InletTemperature", comment='inlet temperature')
+AddSetting(name="HeaterTemperature", comment='temperature of the heater')
+AddSetting(name="LimitTemperature", comment='temperature of the heater')
+AddSetting(name="FluidAlpha", comment='heat conductivity of fluid')
+AddSetting(name="SolidAlpha", comment='heat conductivity of fluid')
+AddSetting(name="HeatSource", comment='heat conductivity of fluid')
+AddSetting(name="Inertia", comment='inertia of the transport equation')
 
-Settings = table_from_text("
-        name                 derived                equation   comment
-        omega                     NA                      NA   'one over relaxation time'
-        nu                     omega      '1.0/(3*nu + 0.5)'   'viscosity'
-        InletVelocity             NA                      NA   'inlet velocity'
-        InletPressure   InletDensity   '1.0+InletPressure/3'   'inlet pressure'
-        InletDensity              NA                      NA   'inlet density'
-        InletTemperature          NA                      NA   'inlet temperature'
-	HeaterTemperature	  NA			  NA   'temperature of the heater'
-	LimitTemperature	  NA			  NA   'temperature of the heater'
-	FluidAlpha		  NA			  NA   'heat conductivity of fluid'
-	SolidAlpha		  NA			  NA   'heat conductivity of fluid'
-	HeatSource		  NA			  NA   'heat conductivity of fluid'
-	Inertia                   NA                      NA   'inertia of the transport equation'
-")
-
-Globals = table_from_text("
-        name            in_objective   comment
-        HeatFlux    1              'pressure loss'
-        HeatSquareFlux    1              'pressure loss'
-        Flux    1              'pressure loss'
-	Temperature 1 'integral of temperature'
-	HighTemperature 1 'penalty for high temperature'
-	LowTemperature  1 'penalty for low temperature'
-")
+AddGlobal(name="HeatFlux", comment='pressure loss')
+AddGlobal(name="HeatSquareFlux", comment='pressure loss')
+AddGlobal(name="Flux", comment='pressure loss')
+AddGlobal(name="Temperature", comment='integral of temperature')
+AddGlobal(name="HighTemperature", comment='penalty for high temperature')
+AddGlobal(name="LowTemperature", comment='penalty for low temperature')

@@ -18,16 +18,16 @@ endif
 
 SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
 SOURCE=$(SOURCE_CU)
-HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h DataLine.h pugixml.hpp pugiconfig.hpp
+HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h pugixml.hpp pugiconfig.hpp
 
-OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o
+OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o Handlers.o
 
 AOUT=main
 
 NVCC=nvcc
 CCTXT=NVCC
 
-OPT=$(MPI_OPT) -g
+OPT=$(MPI_OPT) -g -lnlopt  -I../nlopt/include -L../nlopt/lib
 NVOPT=
 # OPT+=-D CROSS_SYNC
 
@@ -67,6 +67,8 @@ MODELPATH=$(strip $(MODEL))
 all:$(AOUT)
 	@echo "  DONE       $^"
 
+include dep.mk
+
 .PRECIOUS:$(SOURCE) $(HEADERS)
 
 source:Dynamics.R conf.R $(SOURCE) $(HEADERS)
@@ -76,7 +78,7 @@ ifdef CPU
 %.cpp:%.cu
 	cp $< $@
 
-%.o:%.cpp $(HEADERS)
+%.o:%.cpp
 	@echo "  G++        $<"
 	@g++ -c $< -o $@ $(OPT)
 
@@ -86,11 +88,11 @@ main:main.o $(OBJ)
 
 else
 
-%.o:%.cpp $(HEADERS)
+%.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ -I/home/llaniewski/cuwork/drivers/cuda/include/
+	@g++ -c $< -o $@ -I/home/llaniewski/cuwork/drivers/cuda/include/ $(OPT)
 
-%.o:%.cu $(HEADERS)
+%.o:%.cu
 	@echo "  NVCC       $<"
 	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NVOPT)
 

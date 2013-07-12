@@ -1,3 +1,6 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 inline void stripbare(char * str)
 {
 	int i = 0, j=0;
@@ -22,4 +25,5 @@ inline int myround(double v) {
 	if (v > 0) return v+0.5;
 	return v-0.5;
 }
-                
+
+#endif                

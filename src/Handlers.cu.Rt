@@ -1,0 +1,575 @@
+<?R
+        source("conf.R")
+	c_header();
+?>
+
+#include "pugixml.hpp"
+#include "Global.h"
+#include <mpi.h>
+#include "cross.h"
+#include "Region.h"
+#include "Node.h"
+#include "LatticeContainer.h"
+#include "Lattice.h"
+#include "vtkLattice.h"
+#include "Geometry.h"
+#include "def.h"
+#include "utils.h"
+#include "unit.h"
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <assert.h>
+
+#include "Solver.h"
+
+#include  <nlopt.h>
+
+#define ITERATION_STOP 1
+
+int vHandler::DoIt() {
+	printf("It is wrong (do it)!\n");
+	exit(-1);
+	return -1;
+};
+
+int vHandler::Init() {
+	printf("It is wrong (init)!\n");
+	exit(-1);
+	return -1;
+};
+
+int vHandler::Finish() {
+	printf("It is wrong (finish)!\n");
+	exit(-1);
+	return -1;
+};
+
+int vHandler::Type() {
+	return 0;
+};
+
+class Callback : public vHandler {
+public:
+	int DoIt() {
+	}
+	int Init() {
+		pugi::xml_attribute attr = node.attribute("Iterations");
+		startIter = solver->iter;
+		if (attr) {
+			double it = solver->units.alt(attr.value());
+			everyIter = it;
+			if (D_MPI_RANK == 0) {
+				std::cout << "[ ] Setting callback " << node.name() << " at " << it << " iterations\n";
+			}
+		} else {
+			everyIter = 0;
+//			std::cerr << "No Iterations attribute in " << node.name() << "\n";
+//			return -1;
+		}
+		return 0;
+	}
+	int Finish() {
+		return 0;
+	}
+	int Type() { return HANDLER_CALLBACK; }
+};
+
+class Action : public vHandler {
+public:
+	int DoIt() {
+	}
+	int Init() {
+		pugi::xml_attribute attr = node.attribute("Iterations");
+		if (attr) {
+			double it = solver->units.alt(attr.value());
+			startIter = solver->iter;
+			everyIter = it;
+			if (D_MPI_RANK == 0) {
+				std::cout << "[ ] Setting action " << node.name() << " at " << it << " iterations\n";
+			}
+		} else {
+			startIter = solver->iter;
+			everyIter = 0;
+		}
+		if (node.attribute("output")) {
+			solver->setOutput(node.attribute("output").value());
+		}
+		return 0;
+	}
+	int Finish() {
+		return 0;
+	}
+	int Type() { return HANDLER_ACTION; }
+};
+
+class cbVTK: public Callback {
+	std::string nm;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("name");
+		nm = "VTK";
+		if (attr) nm = attr.value();
+		return 0;
+	}
+	public:
+	int DoIt() {
+		Callback::DoIt();
+		return solver->writeVTK(nm.c_str());
+	};
+};
+
+class cbLog: public Callback {
+	std::string filename;
+	int old_iter_type;
+	public:
+	int Init() {
+		char fn[STRING_LEN];
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("name");
+		std::string nm = "Log";
+		if (attr) nm = attr.value();
+		solver->outIterFile(nm.c_str(), ".csv", fn);
+		filename = fn;
+		solver->initLog(filename.c_str());
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_LASTGLOB;
+		return 0;
+	}
+	int DoIt() {
+		Callback::DoIt();
+		solver->writeLog(filename.c_str());
+		return 0;
+	}
+	int Finish() {
+		solver->iter_type = old_iter_type;
+		Callback::Finish();
+	}
+};
+
+class cbStop: public Callback {
+	double stop;
+	double old_obj;
+	int old_iter_type;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("ObjectiveChange");
+		if (attr) {
+			stop = attr.as_double();
+		} else {
+			std::cerr << "No ObjectiveChange attribute in " << node.name() << "\n";
+			return -1;
+		}
+		old_obj=1e20;
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_LASTGLOB;
+		return 0;
+	}
+	int DoIt() {
+		Callback::DoIt();
+		double v = solver->lattice->globals[ GLOBALS_Objective ];
+		printf("%lf\n", fabs(old_obj - v));
+		if (fabs(old_obj - v) < stop) {
+			printf("------------ stop\n");
+			return ITERATION_STOP;
+		}
+		old_obj = v;
+		return 0;
+	}
+	int Finish() {
+		solver->iter_type = old_iter_type;
+		Callback::Finish();
+	}
+};
+
+class GenericAction: public Action {
+	int stack;
+	public:
+	int Init() {
+		stack=0;
+		Action::Init();
+	}
+	int ExecuteInternal() {
+		stack=0;
+                for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+			Handler hand(par, solver);
+			if (hand) {
+				if (hand.Type() & HANDLER_CALLBACK) {
+					if (hand.hand->everyIter) {
+						printf("adding %lf\n", hand.hand->everyIter);
+						solver->hands.push_back(hand);
+						stack++;
+					} else {
+						hand.DoIt();
+					}
+				}
+			} else return -1;
+                }
+		return 0;
+	}
+	int Unstack() {
+		while(stack--) {
+			solver->hands.pop_back();
+		}
+		return 0;
+	}
+	int Finish() {
+		if (stack > 0) {
+			std::cerr << "Warning: Generic action still stacked at finish\n";
+			Unstack();
+		}
+	}
+};
+
+class GenericContainer: public GenericAction {
+	public:
+	int Init() {
+		GenericAction::Init();
+		return GenericAction::ExecuteInternal();
+	}
+	int Finish() {
+		return GenericAction::Unstack();
+		GenericAction::Finish();
+	}
+};
+
+
+class acSolve: public GenericAction {
+	public:
+	int Init() {
+		GenericAction::Init();
+		if (GenericAction::ExecuteInternal()) return -1;
+		int stop=0;
+		do {
+			int next_it = Next(solver->iter);
+			for (int i=0; i<solver->hands.size(); i++) {
+				int it  = solver->hands[i].Next(solver->iter);
+				if ((it > 0) && (it < next_it)) next_it = it;
+			}
+			solver->steps = next_it;
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			solver->iter += solver->steps;
+			solver->lattice->Iterate(solver->steps, solver->iter_type);
+			CudaThreadSynchronize();
+			MPI_Barrier(MPI_COMM_WORLD);
+			for (int i=0; i<solver->hands.size(); i++) {
+				if (solver->hands[i].Now(solver->iter)) {
+					int ret = solver->hands[i].DoIt();
+					switch (ret) {
+					case ITERATION_STOP:
+						stop=1;
+					case 0:
+						break;
+					default:
+						return -1;
+					}
+				}
+			}
+			if (stop) break;
+		} while (!Now(solver->iter));
+		CudaThreadSynchronize();
+		MPI_Barrier(MPI_COMM_WORLD);
+		GenericAction::Unstack();
+		return 0;
+	}
+};
+
+class acUSAdjoint: public GenericAction {
+	int old_iter_type;
+	public:
+	int Init() {
+		GenericAction::Init();
+		old_iter_type = solver->iter_type;
+		solver->iter_type = ITER_GLOBS;
+		solver->lattice->startRecord();
+		GenericAction::ExecuteInternal();
+		everyIter = solver->iter - startIter;
+		if (everyIter <= 0) {
+			std::cerr << "No iterations done inside of Usteady Adjoint! Nothing to do\n";
+			return -1;
+		}
+		do {
+			int next_it = Prev(solver->iter);
+			for (int i=0; i<solver->hands.size(); i++) {
+				int it  = solver->hands[i].Prev(solver->iter);
+				if ((it > 0) && (it < next_it)) next_it = it;
+			}
+			solver->steps = next_it;
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			solver->iter -= solver->steps;
+			solver->lattice->Iterate(solver->steps, solver->iter_type | ITER_ADJOINT);
+			CudaThreadSynchronize();
+			MPI_Barrier(MPI_COMM_WORLD);
+			for (int i=0; i<solver->hands.size(); i++) {
+				if (solver->hands[i].Now(solver->iter)) {
+					solver->hands[i].DoIt();
+				}
+			}
+		} while (!Now(solver->iter));
+		solver->iter += everyIter*2;
+		solver->lattice->stopRecord();
+		CudaThreadSynchronize();
+		MPI_Barrier(MPI_COMM_WORLD);
+		GenericAction::Unstack();
+		solver->iter_type = old_iter_type;
+		return 0;
+	}
+};
+
+class acSAdjoint: public GenericAction {
+	int old_iter_type;
+	public:
+	int Init() {
+		GenericAction::Init();
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_LASTGLOB;
+		GenericAction::ExecuteInternal();
+		everyIter = max(everyIter,  (double) (solver->iter - startIter));
+		if (everyIter <= 0) {
+			std::cerr << "Warning: Zero iterations in steady adjoint. somethings is probaby wrong\n";
+			return 0;
+		}
+		do {
+			int next_it = Next(solver->iter);
+			for (int i=0; i<solver->hands.size(); i++) {
+				int it  = solver->hands[i].Next(solver->iter);
+				if ((it > 0) && (it < next_it)) next_it = it;
+			}
+			solver->steps = next_it;
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			solver->iter += solver->steps;
+			printf("iterate %d %d\n", solver->steps, solver->iter_type | ITER_ADJOINT);
+			solver->lattice->Iterate(solver->steps, solver->iter_type | ITER_ADJOINT);
+			CudaThreadSynchronize();
+			MPI_Barrier(MPI_COMM_WORLD);
+			for (int i=0; i<solver->hands.size(); i++) {
+				if (solver->hands[i].Now(solver->iter)) {
+					solver->hands[i].DoIt();
+				}
+			}
+		} while (!Now(solver->iter));
+		CudaThreadSynchronize();
+		MPI_Barrier(MPI_COMM_WORLD);
+		GenericAction::Unstack();
+		solver->iter_type = old_iter_type;
+		return 0;
+	}
+};
+
+double FOptimize(unsigned int n, const double * x, double * grad, void * data);
+
+class acOptimize: public GenericAction {
+	int par;
+	nlopt_opt opt;
+	public:
+	int Init() {
+		double val;
+		double * start = NULL;
+		GenericAction::Init();
+		par = solver->getPars();
+		if (par == 0) {
+			std::cerr << "Error: No parameters defined!\n";
+			return -1;
+		}			
+		if (solver->mpi_rank == 0) {
+			printf("[ ] Parameters: %d\n", par);
+			start = new double[par];
+		}
+		solver->getPar(start);
+		if (solver->mpi_rank == 0) {
+//			opt = nlopt_create(NLOPT_LD_LBFGS,par);
+			opt = nlopt_create(NLOPT_LD_MMA,par);
+			{
+				double * bound = new double[par];
+				for (int i=0;i<par; i++) bound[i] = 0;
+				nlopt_set_lower_bounds(opt, bound);
+				for (int i=0;i<par; i++) bound[i] = 1;
+				nlopt_set_upper_bounds(opt, bound);
+				delete[] bound;
+			}
+			nlopt_set_max_objective(opt, FOptimize, this);
+			nlopt_result res = nlopt_optimize(opt, start, &val);
+			printf("[ ] NLOpt result: %d\n", res);
+			printf("[ ] Final Objective value: %lf\n",val);
+			nlopt_destroy(opt);
+		}
+		return 0;
+	}
+	int Execute(const double * x, double * grad, double * f) {
+		solver->setPar(x);
+		if (GenericAction::ExecuteInternal()) return -1;
+		everyIter = solver->iter - startIter;
+		solver->getDPar(grad);
+		*f = solver->lattice->getObjective();
+		printf("[ ] Objective: %lg\n", *f);
+		return 0;
+	}
+	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);
+};
+
+double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
+	acOptimize * obj = (acOptimize *) data;
+	assert(n == obj->par);
+	double val;
+	int ret = obj->Execute(x, grad, &val);
+	if (ret) {
+		std::cerr << "Error while executing calculations in optimize. exiting loop.\n";
+		nlopt_force_stop(obj->opt);
+	}
+	return val;
+}
+
+
+class acParams: public Action {
+	public:
+	int Init() {
+		Action::Init();
+		pugi::xml_attribute attr;
+		<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+			attr = node.attribute("<?%s v$name?>");
+			if (attr) {
+				double val = solver->units.alt(attr.value());
+				solver->lattice-><?%s v$FunName ?>(val);
+			}
+		<?R } ?>
+	}
+};
+
+
+class acModel: public GenericContainer {
+	public:
+	int Init() {
+		GenericContainer::Init();
+		solver->iter = 0;
+		solver->lattice->Init();
+		return 0;
+	}
+};
+
+class acInit: public Action {
+	public:
+	int Init() {
+		Action::Init();
+		solver->lattice->Init();
+		return 0;
+	}
+};
+
+class acLoad: public Action {
+	public:
+	int Init() {
+		Action::Init();
+		pugi::xml_attribute attr = node.attribute("file");
+		if (!attr) {
+			attr = node.attribute("filename");
+			if (!attr) {
+				std::cerr << "No file specified in Load\n";
+				return -1;
+			}
+		}
+		solver->lattice->loadSolution(attr.value());
+		return 0;
+	}
+};
+
+class cbSave: public Callback {
+	std::string fn;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("file");
+		if (!attr) {
+			attr = node.attribute("filename");
+			if (!attr) {
+				char filename[STRING_LEN];
+				solver->outIterFile("Save", "", filename);
+				fn = filename;
+			} else fn = attr.value();
+		} else fn = attr.value();
+		return 0;
+	}
+	public:
+	int DoIt() {
+		Callback::DoIt();
+		solver->lattice->saveSolution(fn.c_str());
+		return 0;
+	};
+};
+
+class acGeometry: public Action {
+	public:
+	int Init() {
+			if (solver->geometry->load(node)) {
+				std::cerr << "Error while loading geometry\n";
+				return -1;
+			}
+			char filename[STRING_LEN];
+			solver->outIterFile("G", ".vti", filename);
+			solver->geometry->writeVTI(filename);
+			solver->lattice->FlagOverwrite(solver->geometry->geom,solver->geometry->region);
+			return 0;
+	}
+};
+
+vHandler * getHandler(pugi::xml_node node) {
+	vHandler * ret;
+	std::string name(node.name());
+	DEBUG1(std::cout << name << "\n";)
+	if (name=="VTK") {
+		ret = new cbVTK;
+        } else if (name=="Log") {
+		ret = new cbLog;
+        } else if (name=="Save") {
+		ret = new cbSave;
+        } else if (name=="Load") {
+		ret = new acLoad;
+        } else if (name=="Stop") {
+		ret = new cbStop;
+        } else if (name=="Solve") {
+		ret = new acSolve;
+        } else if (name=="Adjoint") {
+		pugi::xml_attribute attr = node.attribute("type");
+		if (attr) {
+			std::string type(attr.value());
+			if (type == "unsteady") {
+				ret = new acUSAdjoint;
+			} else if (type == "steady") {
+				ret = new acSAdjoint;
+			} else {
+				std::cerr << "Unknown type of adjoint in xml:" << type << "\n";
+			}
+		} else {
+			pugi::xml_attribute attr = node.attribute("Iterations");
+                	if (attr) {
+				ret = new acSAdjoint;
+				std::cerr << "Warning: Makin a steady adjoint, becuase you gave me Iterations - better to state type explicitly.\n";
+			} else {
+				std::cerr << "Warning: default adjoint is unsteady - better state type explicitly next time.\n";
+				ret = new acUSAdjoint;
+			}
+		}
+        } else if (name=="Params") {
+		ret = new acParams;
+        } else if (name=="Units") {
+		ret = new GenericContainer;
+        } else if (name=="Geometry") {
+		ret = new acGeometry;
+        } else if (name=="CLBConfig") {
+		ret = new GenericContainer;
+        } else if (name=="Model") {
+		ret = new acModel;
+        } else if (name=="Optimize") {
+		ret = new acOptimize;
+        } else if (name=="Init") {
+		ret = new acInit;
+        } else {
+		std::cerr << "Unknown element '" << node.name() << "' in xml\n";
+		return NULL;
+	}
+	ret->node = node;
+	return ret;
+}

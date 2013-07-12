@@ -46,6 +46,8 @@
     #endif
     #define CudaMemset(a__,b__,c__) HANDLE_ERROR( cudaMemset(a__, b__, c__) )
     #define CudaMalloc(a__,b__) HANDLE_ERROR( cudaMalloc(a__,b__) )
+    #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
+    #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( cudaMallocHost(a__,b__) )
     #define CudaFree(a__) HANDLE_ERROR( cudaFree(a__) )
     #define CudaFreeHost(a__) HANDLE_ERROR( cudaFreeHost(a__) )
@@ -72,13 +74,16 @@
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
 
+cudaError_t cudaPreAlloc(void ** ptr, size_t size);
+cudaError_t cudaAllocFinalize();
+
 void HandleError( cudaError_t err, const char *file, int line );
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 int GetMaxThreads();
 #define RunKernelMaxThreads (GetMaxThreads())
 
 __device__ int lock = 0;
-__device__ inline void atomicAddP(type_f* a, type_f b)
+__device__ inline void atomicAddP(real_t* a, real_t b)
 {
         while(atomicCAS(&lock, 0, 1)) {};
         a[0] += b;
@@ -86,9 +91,9 @@ __device__ inline void atomicAddP(type_f* a, type_f b)
 }
 
 
-__shared__ type_f sumtab[512];
+__shared__ real_t sumtab[1024];
 
-__device__ inline void atomicSum(type_f * sum, type_f val)
+__device__ inline void atomicSum(real_t * sum, real_t val)
 {
         int i = blockDim.x*blockDim.y;
         int k = blockDim.x*blockDim.y;
