@@ -46,7 +46,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
 	if (reverse_save) {
 		nSnaps=10;
 	} else {
-		nSnaps=10;
+		nSnaps=2;
 	}
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
