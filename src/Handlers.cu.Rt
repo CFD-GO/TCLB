@@ -489,7 +489,7 @@ class cbSave: public Callback {
 				solver->outIterFile("Save", "", filename);
 				fn = filename;
 			} else fn = attr.value();
-		} else fn = attr.value();
+		} else fn = ((std::string) solver->info.outpath) + "_" + attr.value();
 		return 0;
 	}
 	public:

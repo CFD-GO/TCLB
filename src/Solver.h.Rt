@@ -96,9 +96,9 @@ class Solver {
 	int initLog(const char * filename);
 	int writeLog(const char * filename);
 	int writeVTK(const char * nm);
-	int setSize(int,int,int);
+	int setSize(int,int,int,int);
 	int MPIDivision();
-	int InitAll();
+	int InitAll(int);
 	int RunMainLoop();
 	int EventLoop();
 

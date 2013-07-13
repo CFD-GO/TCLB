@@ -39,15 +39,11 @@ int Lattice::Offset(int x, int y, int z)
 }
 
 //Constructor based on size
-Lattice::Lattice(lbRegion _region, MPIInfo mpi_):region(_region), mpi(mpi_)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
 	reverse_save=0;
-	total_iterations;
-	if (reverse_save) {
-		nSnaps=10;
-	} else {
-		nSnaps=2;
-	}
+	total_iterations = 0;
+	nSnaps = ns;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
@@ -912,7 +908,7 @@ void Lattice::setSetting(int i, real_t tmp) {
 
 void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
-        printf("[%s] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
+        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
 	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
                 if (!is.na(v$derived)) {
                         i = which(as.character(Settings$name) == as.character(v$derived));

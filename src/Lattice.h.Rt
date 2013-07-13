@@ -59,7 +59,7 @@ public:
   double globals[<?%d nrow(Globals) ?>];
   lbRegion region;
   MPIInfo mpi;
-  Lattice (lbRegion region, MPIInfo);
+  Lattice (lbRegion region, MPIInfo, int);
   ~Lattice ();
   void MPIInit (MPIInfo);
   void Color(uchar4 *);

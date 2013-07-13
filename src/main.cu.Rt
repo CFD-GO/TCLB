@@ -90,6 +90,17 @@ int MainCallback(int iter, Solver* solver) {
 	return steps;
 }
 
+bool find_adjoint(pugi::xml_node node)
+{
+	if (strcmp(node.name(), "Adjoint") == 0) {
+		if (strcmp(node.attribute("type").value(), "steady") == 0) {
+			return false;
+		} else {
+			return true;
+		}
+	} else return false;
+}
+
 // main program function
 int main ( int argc, char * argv[] )
 {
@@ -195,13 +206,26 @@ int main ( int argc, char * argv[] )
 	XMLCHILD(geom, config, "Geometry");
 	readUnits(config, &solver);
 
-	int nx, ny, nz;
+	int nx, ny, nz, ns = 2;
 	nx = myround(solver.units.alt(geom.attribute("nx").value(),1));
 	ny = myround(solver.units.alt(geom.attribute("ny").value(),1));
 	nz = myround(solver.units.alt(geom.attribute("nz").value(),1));
 	printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,nx,ny,nz);
 
-	if (solver.setSize(nx,ny,nz)) return -1;
+	pugi::xml_node adj;
+	adj = configfile.find_node(find_adjoint);
+	if (adj) {
+		pugi::xml_attribute attr = adj.attribute("NumberOfSnaps");
+		if (attr) {
+			ns = attr.as_int();
+		} else {
+			ns = 10;
+		}
+		if (ns < 2) ns =2;
+		printf("[%d] Will be running nonstationary adjoint running at %d Snaps\n",D_MPI_RANK,ns);
+	}
+
+	if (solver.setSize(nx,ny,nz,ns)) return -1;
 
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );

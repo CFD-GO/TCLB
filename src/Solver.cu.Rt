@@ -164,7 +164,7 @@ void MainFree( Solver *d);
 		return ret;
 	}
 
-	int Solver::setSize(int nx, int ny, int nz) {
+	int Solver::setSize(int nx, int ny, int nz, int ns) {
 		info.region.nx = nx;
 		info.region.ny = ny;
 		info.region.nz = nz;
@@ -175,7 +175,7 @@ void MainFree( Solver *d);
 		}
 		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
 		MPIDivision();
-		InitAll();
+		InitAll(ns);
 		return 0;
 	}
 
@@ -260,7 +260,7 @@ void MainFree( Solver *d);
 		return 0;
 	}
 
-	int Solver::InitAll() {
+	int Solver::InitAll(int ns) {
 	        // Making a window
 	        #ifdef GRAPHICS
 	        	printf("[%d] Running graphics at %dx%d\n", D_MPI_RANK, region.nx, region.ny);
@@ -269,7 +269,7 @@ void MainFree( Solver *d);
 	        #endif
 	
 		// Creating Lattice (GPU allocation is here)
-		lattice = new Lattice(region, mpi);
+		lattice = new Lattice(region, mpi, ns);
 	   
 		// Setting global variables
 		initSettings();
