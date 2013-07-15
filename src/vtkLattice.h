@@ -8,6 +8,7 @@
 	#include "unit.h"
 
 	int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv);
+	int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units);
 	void screenDumpLattice(Lattice * lattice);
 	int initMean(char * filename);
 	int writeMean(char * filename, Lattice * lattice, int, int iter, double);

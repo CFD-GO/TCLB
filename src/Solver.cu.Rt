@@ -164,6 +164,14 @@ void MainFree( Solver *d);
 		return ret;
 	}
 
+	int Solver::writeBIN(const char * nm) {
+		print("writing bin");
+		char filename[STRING_LEN];
+		outIterFile(nm, "", filename);
+		int ret = binWriteLattice(filename, lattice, units);
+		return ret;
+	}
+
 	int Solver::setSize(int nx, int ny, int nz, int ns) {
 		info.region.nx = nx;
 		info.region.ny = ny;

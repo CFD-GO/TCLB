@@ -16,7 +16,6 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 	size = reg.size();
 	vtkFileOut vtkFile;
 	if (vtkFile.Open(filename)) {return -1;}
-//	vtkFile.Init(reg, "Scalars=\"rho\" Vectors=\"velocity\"");
 	double spacing = 1/units.alt("m");	
 	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
@@ -54,6 +53,38 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 }
 
 
+int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
+{
+	int size;
+	lbRegion reg = lattice->region;
+	FILE * f;
+	char fn[STRING_LEN];
+	size = reg.size();
+	<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
+	{
+		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+		lattice->Get<?%s q$name ?>(reg, tmp, 1);
+		sprintf(fn, "%s.<?%s q$name ?>.bin", filename);
+		f = fopen(fn,"w");
+		if (f == NULL) {
+			std::cerr << "Cannot open file: " << fn << "\n";
+			return -1;
+		}
+		fwrite(tmp, sizeof(<?%s q$type ?>), size, f);
+		fclose(f);
+		delete[] tmp;
+	}
+	<?R }; ifdef(); ?>
+	sprintf(fn, "%s.<?%s q$name ?>.bin", filename);
+	f = fopen(fn,"w");
+	if (f == NULL) {
+		std::cerr << "Cannot open file: " << fn << "\n";
+		return -1;
+	}
+	return 0;
+}
+
+
 
 
 void screenDumpLattice(Lattice *lattice)
@@ -84,109 +115,3 @@ void screenDumpLattice(Lattice *lattice)
 }
 
 
-#define zero lattice->mpi.rank == 0
-
-int initMean(char * filename)
-{	
-	FILE * f = NULL;
-	printf("Initializing %s\n",filename);
-	f = fopen(filename, "wt");
-	assert( f != NULL );
-	for (int k=0; k < 2; k++) {
-		fprintf(f,"\"mean_%d\",\"sd_%d\",\"stream_%d\",", k , k, k);
-	}
-	fprintf(f,"\"Iteration\",\"Nu\"\n");
-	fclose(f);	
-	return 0;
-}
-
-/*
-int writeMean(char * filename, Lattice * lattice, int margin, int iter, double nu)
-{	
-	FILE * f = NULL;
-	if (zero) {
-		f = fopen(filename, "at");
-		assert( f != NULL );
-	}
-	lbRegion region = lattice->mpi.totalregion;
-
-	region.nx = 1;
-
-	for (int k=0; k < 2; k++) {
-		switch (k) {
-			case 0: 
-				region.dx = margin;
-				break;
-			case 1:
-				region.dx = lattice->mpi.totalregion.nx - 1 - margin;
-				break;
-		}
-
-		lbRegion reg = lattice->region.intersect(region);
-//		reg.print();
-//		region.print();
-		{
-			double mean=0, sd=0;
-			double stream = 0;
-			int num=0;
-			int size = reg.size();
-			if (size != 0) {
-				real_t * rho = new real_t[size];
-				flag_t * NodeType = new flag_t[size];
-				double rho1;
-				lattice->GetRho(reg, rho);
-				lattice->GetFlags(reg, NodeType);
-				for (int i=0; i<size; i++) {
-					if (NodeType[i] & NODE_COLLISION) {
-						rho1 = rho[i]-1;
-						num ++;
-						mean += rho1;
-						sd   += rho1*rho1;
-					}
-				}
-				vector_t * v = new vector_t[size];
-				double v2;
-				lattice->GetU(reg, v);
-				for (int i=0; i<size; i++) {
-					if (NodeType[i] == (NodeType[i] & NODE_COLLISION)) {
-						rho1 = (rho[i] - 1)/3;
-						v2 = rho[i] * (v[i].x*v[i].x + v[i].y*v[i].y + v[i].z * v[i].z )/2;
-						stream += (rho1 + v2) * v[i].x;
-					}
-				}
-					
-				delete[] rho;
-				delete[] NodeType;
-			}
-//			printf("%lf %lf %d %d\n", mean, sd, num, size);
-			{
-				double buf;
-				MPI_Reduce(&mean, &buf, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-				mean = buf;
-				MPI_Reduce(&sd, &buf, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-				sd = buf;
-				MPI_Reduce(&stream, &buf, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-				stream = buf;
-				int i;
-				MPI_Reduce(&num, &i, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-				num = i;
-			}
-			if (zero) {
-//			printf("%lf %lf %d\n", mean, sd, num);
-
-				mean = mean / num;
-				sd = sd - mean*mean*num;
-				sd = sqrt(sd / (num - 1));
-				fprintf(f,"%.20le,%.18le,%.20le,", mean, sd, stream);
-				printf(",%lf(x:%d, p:%d)",mean,region.dx, num);
-			}
-		}
-	}
-	if (zero) {
-		fprintf(f,"%d,%le\n",iter,nu);
-		fclose(f);
-	}
-	return 0;
-}
-
-*/
