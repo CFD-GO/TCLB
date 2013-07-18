@@ -617,15 +617,11 @@ CudaGlobalFunction void nodes_fill( int width, int height) {
 	now.y = CudaThread.y+CudaBlock.x*CudaNumberOfThreads.y+constContainer.dy;
 	now.z = CudaBlock.y+constContainer.dz;
 	if (now.y < constContainer.fy) {
-		#ifndef GRID_3D
-			for (; now.x < constContainer.nx; now.x += CudaNumberOfThreads.x) {
-		#endif
-		constContainer.pop(now);
-	        now.Init();
-		constContainer.push(now);
-		#ifndef GRID_3D
-			}
-		#endif
+		for (; now.x < constContainer.nx; now.x += CudaNumberOfThreads.x) {
+			constContainer.pop(now);
+		        now.Init();
+			constContainer.push(now);
+		}
 	}
 }
 

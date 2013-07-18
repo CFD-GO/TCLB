@@ -177,9 +177,9 @@ Sy = rbind(
 AddQuantity( name="Rho",unit="kg/m3")
 AddQuantity( name="U",unit="m/s",vector=T)
 AddQuantity( name="T",unit="K")
-AddQuantity( name="RhoB",adjoint=T)
-AddQuantity( name="UB",adjoint=T,vector=T)
-AddQuantity( name="TB",adjoint=T)
+#AddQuantity( name="RhoB",adjoint=T)
+#AddQuantity( name="UB",adjoint=T,vector=T)
+#AddQuantity( name="TB",adjoint=T)
 AddQuantity( name="W")
 AddQuantity( name="WB",adjoint=T)
 

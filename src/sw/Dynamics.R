@@ -23,8 +23,11 @@ AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0P
 AddSetting(name="InletDensity", default=1, comment='inlet density')
 AddSetting(name="Gravity", default=1, comment='inlet density')
 AddSetting(name="SolidH", default=1, comment='inlet density')
+AddSetting(name="EnergySink", default=0, comment='inlet density')
 
 AddGlobal(name="PressDiff", comment='pressure loss')
 AddGlobal(name="TotalDiff", comment='total variation of velocity')
 AddGlobal(name="Material", comment='total material')
+AddGlobal(name="EnergyGain", comment='pressure loss')
+
 
