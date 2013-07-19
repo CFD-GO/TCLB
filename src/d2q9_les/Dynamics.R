@@ -1,42 +1,27 @@
-# Density - table of variables of LB Node to stream
-#  name - variable name to stream
-#  dx,dy,dz - direction of streaming
-#  comment - additional comment
+AddDensity( name="f0", dx= 0, dy= 0, group="f" )
+AddDensity( name="f1", dx= 1, dy= 0, group="f" )
+AddDensity( name="f2", dx= 0, dy= 1, group="f" )
+AddDensity( name="f3", dx=-1, dy= 0, group="f" )
+AddDensity( name="f4", dx= 0, dy=-1, group="f" )
+AddDensity( name="f5", dx= 1, dy= 1, group="f" )
+AddDensity( name="f6", dx=-1, dy= 1, group="f" )
+AddDensity( name="f7", dx=-1, dy=-1, group="f" )
+AddDensity( name="f8", dx= 1, dy=-1, group="f" )
+AddDensity( name="w", group="w", parameter=T )
 
-AddDensity( name="f[0]", dx= 0, dy= 0)
-AddDensity( name="f[1]", dx= 1, dy= 0)
-AddDensity( name="f[2]", dx= 0, dy= 1)
-AddDensity( name="f[3]", dx=-1, dy= 0)
-AddDensity( name="f[4]", dx= 0, dy=-1)
-AddDensity( name="f[5]", dx= 1, dy= 1)
-AddDensity( name="f[6]", dx=-1, dy= 1)
-AddDensity( name="f[7]", dx=-1, dy=-1)
-AddDensity( name="f[8]", dx= 1, dy=-1)
+AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="U",unit="m/s",vector=T)
+AddQuantity( name="RhoB",adjoint=T)
+AddQuantity( name="UB",adjoint=T,vector=T)
+AddQuantity( name="W")
+AddQuantity( name="WB",adjoint=T)
 
-# Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
-#  name - name of the field
-#  type - C type of the field, "real_t" - for single/double float, and "vector_t" for 3D vector single/double float
-# Every field must correspond to a function in "Dynamics.c".
-# If one have filed [something] with type [type], one have to define a function: 
-# [type] get[something]() { return ...; }
-
-AddQuantity(name="Rho",unit="kg/m3")
-AddQuantity(name="Q",unit="1")
-AddQuantity(name="U",unit="m/s",vector=T)
-
-# Settings - table of settings (constants) that are taken from a .xml file
-#  name - name of the constant variable
-#  comment - additional comment
-# You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
-
-AddSetting(name="tau0", comment='relaxation time')
+AddSetting(name="tau0", comment='one over relaxation time')
 AddSetting(name="nu", tau0='3*nu + 0.5', default=1.6666666, comment='viscosity')
 AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
 AddSetting(name="InletDensity", default=1, comment='inlet density')
-AddSetting(name="Smag", default=1, comment='Smagorinski constant')
-
-# Globals - table of global integrals that can be monitored and optimized
+AddSetting(name="Smag", default=1, comment='inlet density')
 
 AddGlobal(name="PressDiff", comment='pressure loss')
 AddGlobal(name="TotalPressureFlux", comment='pressure loss')

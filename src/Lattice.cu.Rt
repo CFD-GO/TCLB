@@ -154,6 +154,7 @@ void Lattice::startRecord()
 	reverse_save = 1;
 	clearAdjoint();
 	clearGlobals();
+	settings_record.clear();
 }
 
 void Lattice::saveSolution(const char * filename) {

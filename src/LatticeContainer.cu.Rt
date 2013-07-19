@@ -33,6 +33,7 @@ template <class N> dim3 GetThreads() {
 	DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
 	ret.x = 32;
 	ret.y = attr->maxThreadsPerBlock/32;
+	if (ret.y) > 16) ret.y=16;
 	ret.z = 1;
 	return ret;
 }
