@@ -2,9 +2,6 @@
 #define NODE_H 1
 
 #include "Node_types.h"
-#ifdef ADJOINT
-  #include "types_b.h"
-#endif
 
 struct
 //__align__(16)

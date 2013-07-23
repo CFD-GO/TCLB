@@ -488,7 +488,12 @@ class acLoad: public Action {
 				return -1;
 			}
 		}
-		solver->lattice->loadSolution(attr.value());
+		pugi::xml_attribute attr2= node.attribute("comp");
+		if (attr2) {
+			solver->saveComp(attr.value(), attr2.value());
+		} else {
+			solver->lattice->loadSolution(attr.value());
+		}
 		return 0;
 	}
 };
@@ -512,7 +517,12 @@ class cbSave: public Callback {
 	public:
 	int DoIt() {
 		Callback::DoIt();
-		solver->lattice->saveSolution(fn.c_str());
+		pugi::xml_attribute attr= node.attribute("comp");
+		if (attr) {
+			solver->saveComp(fn.c_str(), attr.value());
+		} else {
+			solver->lattice->saveSolution(fn.c_str());
+		}
 		return 0;
 	};
 };
