@@ -10,8 +10,9 @@ echo "#include \"Node_types.h\"" >> Dynamics_tmp.c
 echo "#include \"Dynamics.h\"" >> Dynamics_tmp.c
 echo "#include \"ADpre_.h\"" >> Dynamics_tmp.c
 cp ADpre.h ADpre_.h
-cat Dynamics.c >> Dynamics_tmp.c
-tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES"
+cat Dynamics.c | sed 's/pow(\([^,]*\),3)/((\1)*(\1)*(\1))/g' >> Dynamics_tmp.c
+echo tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES" -outvars "$VARIABLES"
+tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES" -outvars "$VARIABLES"
 test -f Dynamics_b.c || { echo "Tapenade failed"; exit -1; }
 Rscript $path_to_script/ADmod.R
 sed 's/0[.]D0/0/' Dynamics_b.c_ > Dynamics_b.c

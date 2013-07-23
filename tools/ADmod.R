@@ -17,10 +17,11 @@ begins = which(diff(a)==1)+2
 f = file("Dynamics_b.c_")
 open(f,"wt")
 pushi = grep("pushreal",lines)
+looki = grep("lookreal",lines)
 popi = grep("popreal",lines)
 
 begins = c(begins,length(lines))
-alli = sort(c(pushi,popi,begins))
+alli = sort(c(pushi,popi,begins,looki))
 idx = 0
 tmpname = "keep";
 si = 0
@@ -43,7 +44,7 @@ for (i in alli) {
 		decl = 0;
 	} else {
 		l = lines[i]
-		l1 = sub("[ pushpopreal]*","",l);
+		l1 = sub("[ pushpopreallook]*","",l);
 		l1 = sub("_.*$","",l1);
 		tp = switch(l1,"4"="float","8"="double");
 		l1 = sub("[^(]*[(]","",l);
@@ -57,6 +58,10 @@ for (i in alli) {
 				decl = idx;
 			}
 			buf = c(buf, paste(name,"=", var, "; //",l));
+		} else if (grepl("lookreal", l)) {
+			var = sub("^[&]","",var);
+			name = paste(tmpname, idx, sep="_")
+			buf = c(buf, paste(var, " = ", name,"; //",l));
 		} else {
 			var = sub("^[&]","",var);
 			name = paste(tmpname, idx, sep="_")
