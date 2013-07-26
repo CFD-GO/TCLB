@@ -1,8 +1,0 @@
-if [ -z "$1" ]
-then
-	echo "Usage: ./model [model name]"
-	echo "Avaliable models (* marks selected one):"
-	git branch
-	exit -1;
-fi
-git checkout $1
