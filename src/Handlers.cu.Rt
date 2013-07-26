@@ -490,7 +490,7 @@ class acLoad: public Action {
 		}
 		pugi::xml_attribute attr2= node.attribute("comp");
 		if (attr2) {
-			solver->saveComp(attr.value(), attr2.value());
+			solver->loadComp(attr.value(), attr2.value());
 		} else {
 			solver->lattice->loadSolution(attr.value());
 		}

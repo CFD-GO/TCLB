@@ -349,9 +349,15 @@ int Solver::saveComp(const char* filename, const char* comp) {
 	int n = region.size();
 	char fn[STRING_LEN];
 	real_t * buf = new real_t[n];
-	sprintf(fn,"%s_%s_%d.comp", filename, "<?%s d$nicename ?>", D_MPI_RANK);
-	FILE * f = fopen(fn,"w");
-	fwrite(buf, n, sizeof(real_t), f);
+	sprintf(fn,"%s_%s_%d.comp", filename, comp, D_MPI_RANK);
+	printf("[%d] Saving component %s to file %s\n", D_MPI_RANK, comp, fn);
+<?R for (d in rows(DensityAll)) { ?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Get_<?%s d$nicename ?>(buf); <?R
+} ?>
+	FILE * f = fopen(fn,"wb");
+	assert(f != NULL);
+//	for (int i=0; i<n;i ++) buf[i]=1.23;
+	fwrite(buf, sizeof(real_t), n, f);
 	fclose(f);
 	delete[] buf;
 	printf("...\n");
@@ -362,11 +368,16 @@ int Solver::loadComp(const char* filename, const char* comp) {
 	char fn[STRING_LEN];
 	real_t * buf = new real_t[n];
 	sprintf(fn,"%s_%d.comp", filename, D_MPI_RANK);
-	FILE * f = fopen(fn,"w");
-	fread(buf, n, sizeof(real_t), f);
+	printf("[%d] Loading component %s from file %s\n", D_MPI_RANK, comp, fn);
+	FILE * f = fopen(fn,"rb");
+	assert(f != NULL);
+	int nn = fread(buf, sizeof(real_t), n, f);
+	printf("%d\n", nn);
+	assert(n == nn);
 	fclose(f);
+//	for (int i=0; i<n;i ++) buf[i]=1.23;
 <?R for (d in rows(DensityAll)) { ?>
-	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Get_<?%s d$nicename ?>(buf); <?R
+	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Set_<?%s d$nicename ?>(buf); <?R
 } ?>
 
 	delete[] buf;
