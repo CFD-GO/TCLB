@@ -137,6 +137,9 @@ clear:
 	@echo "  RM         ALL"
 	@./clear
 
+$(MAKEHEADERS):tools/makeheaders.c
+	gcc -o $@ $<
+
 
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
@@ -191,12 +194,12 @@ standalone/<?%s m ?> :
 	@cp $< $@
 <?R }} ?>
 
-%.hp:%.c
+%.hp:%.c $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"
 	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
 
-%.hp:%.cpp
+%.hp:%.cpp $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"
 	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
