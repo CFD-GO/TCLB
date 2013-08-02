@@ -446,7 +446,7 @@ class acParams: public Action {
 	int Init() {
 		Action::Init();
 		pugi::xml_attribute attr;
-		<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+		<?R for (v in rows(Settings)) { ?>
 			attr = node.attribute("<?%s v$name?>");
 			if (attr) {
 				double val = solver->units.alt(attr.value());

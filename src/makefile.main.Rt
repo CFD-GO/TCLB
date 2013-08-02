@@ -52,7 +52,7 @@ SRC=src
 
 #ifeq '$(strip $(STANDALONE))' '1'
  DEST=standalone
- ADDITIONALS=makefile model README.md dep.mk
+ ADDITIONALS=makefile README.md dep.mk
  SOURCE_CU+=main.cu
 #else
 # DEST=package/src

@@ -657,7 +657,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 
 }
 
-<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
+<?R for (d in rows(DensityAll)) { ?>
 
 void Lattice::Get_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 {
@@ -745,7 +745,7 @@ void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 
 <?R } ?>
 
-<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {

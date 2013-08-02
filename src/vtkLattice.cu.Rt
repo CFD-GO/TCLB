@@ -25,7 +25,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 		delete[] NodeType;
 	}
 
-	<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
+	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	{
 		double v = units.alt("<?%s q$unit ?>");
 		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
@@ -38,7 +38,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 // ------------------------------ DUMP ALL DENSITIES ----------------------------
 /* 
 	real_t* tmp = new real_t[size];
-	<?R for (i in 1:nrow(DensityAll)) { d = DensityAll[i,,drop=F]; ?>
+	<?R for (d in rows(DensityAll)) { ?>
 	{
 		lattice->Get_<?%s d$nicename ?>(reg, tmp);
 		vtkFile.WriteField("<?%s d$nicename ?>",tmp);
@@ -60,7 +60,7 @@ int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 	FILE * f;
 	char fn[STRING_LEN];
 	size = reg.size();
-	<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint); ?>
+	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	{
 		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
 		lattice->Get<?%s q$name ?>(reg, tmp, 1);

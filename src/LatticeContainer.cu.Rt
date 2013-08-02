@@ -153,7 +153,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 //	<?%s inout ?>.Alloc(nx,ny,nz);
     <?R } ?>
 
-    size = (size_t) <?%d nrow(Globals) ?>*sizeof(real_t);
+    size = (size_t) GLOBALS * sizeof(real_t);
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
 	ALLOCPRINT2;
@@ -421,9 +421,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 CudaDeviceFunction void inline LatticeContainer::Glob(Node now) {}
 
 CudaDeviceFunction void inline LatticeContainer::Glob(Node_Globs now) {
-<?R for (i in 1:nrow(GlobalsD)) { v=GlobalsD$name[i]  ?>
-        atomicSum(&Globals[<?%d i-1 ?>], now.<?%s v ?>);
-//        atomicSum(&Globals[<?%d i-1 ?>], <?%d i ?>.0);
+<?R for (v in rows(Globals)) { ?>
+        atomicSum(&Globals[<?%s v$Index ?>], now.<?%s v$name ?>);
 <?R } ?>
 }
 */
@@ -434,15 +433,15 @@ template <class N> inline CudaDeviceFunction void RunElement(N& now)
 	#ifdef ADJOINT
 	        constContainer.pop_adj(now);
 		now.RunAdj();
-		real_t back[<?%d nrow(Density) ?>]; <?R
-			for (i in 1:nrow(Density))
+		real_t back[DENSITY]; <?R
+			for (d in rows(Density))
 			{ ?>
-		back[<?%d i-1 ?>] = now.<?%s Density$name[i] ?>; <?R
+		back[<?%s d$Index ?>] = now.<?%s d$name ?>; <?R
 			} ?>
 		now.Run_b(); <?R
-			for (i in 1:nrow(Density))
+			for (d in rows(Density))
 			{ ?>
-		now.<?%s Density$name[i] ?> = back[<?%d i-1 ?>]; <?R
+		now.<?%s d$name ?> = back[<?%s d$Index ?>]; <?R
 			} ?>
 	#endif
 	now.Run();

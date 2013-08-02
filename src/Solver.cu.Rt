@@ -74,14 +74,14 @@ void MainFree( Solver *d);
 			units.printGauge();
 		}
 	    <?R 
-		for (i in 1:nrow(Settings)) { ?>
-                    LogScales[<?%d i-1 ?>] = 1/units.alt("<?%s Settings$unit[i] ?>"); <?R
+		for (v in rows(Settings)) { ?>
+                    LogScales[<?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
 		}
-		for (i in 1:nrow(Globals)) { ?>
-                    LogScales[<?%d nrow(Settings)+i-1 ?>] = 1/units.alt("<?%s Globals$unit[i] ?>"); <?R
+		for (v in rows(Globals)) { ?>
+                    LogScales[SETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
 		}
-		for (i in 1:nrow(Scales)) { ?>
-                    LogScales[<?%d nrow(Settings)+nrow(Globals)+i-1 ?>] = 1/units.alt("<?%s Scales$unit[i] ?>"); <?R
+		for (v in rows(Scales)) { ?>
+                    LogScales[SETTINGS + GLOBALS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
 		}
  ?>
 	}
@@ -124,25 +124,22 @@ void MainFree( Solver *d);
 	        FILE * f = NULL;
 		double v;
 		double * glob = lattice->globals;
-//[<?%d nrow(Globals) ?>];
-//		print("writing Log");
-//		lattice->getGlobals(glob);
 	        if (mpi.rank == 0) {
 			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
 			fprintf(f,"%d",iter);
-			for (int i=0; i< <?%d nrow(Settings) ?>; i++) {
+			for (int i=0; i< SETTINGS; i++) {
 				v = lattice->settings[i];
 				fprintf(f,", %le, %le",v,v*LogScales[j]);
 				j++;
 			}
-			for (int i=0; i< <?%d nrow(Globals) ?>; i++) {
+			for (int i=0; i< GLOBALS; i++) {
 				v = glob[i];
 				fprintf(f,", %le, %le",v,v*LogScales[j]);
 				j++;
 			}
-			for (int i=0; i< <?%d nrow(Scales) ?>; i++) {
+			for (int i=0; i< SCALES; i++) {
 				fprintf(f,", %le",LogScales[j]);
 				j++;
 			}

@@ -7,6 +7,7 @@
 	#define MODEL "<?%s MODEL ?>"
 
 	#include "types.h"
+	#include <string>
 
 #ifndef GLOBAL_H
 	#define BOUNDARY_UX UX_mid
@@ -63,8 +64,8 @@ FTabs & operator=(const FTabs & in) {
 
 #ifndef SETTINGS_H
 <?R
-	for (i in 1:nrow(Settings)) { ?>
-CudaExternConstantMemory(real_t <?%s Settings$name[i] ?>);<?R
+	for (v in rows(Settings)) { ?>
+CudaExternConstantMemory(real_t <?%s v$name ?>);<?R
 	} ?>
 void initSettings();
 #define SETTINGS_H 1
@@ -90,8 +91,10 @@ void initSettings();
 #define <?%s v$name ?> <?%s v$value ?> <?R
 	}
 ?>
-	
+
 #define CONSTS_H 1
 #endif
+
+
 
 

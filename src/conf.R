@@ -297,7 +297,7 @@ Dispatch$suffix = paste(
 
 Consts = NULL
 
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -311,11 +311,7 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 	assign(n,v)
 }
 
-#Settings$index = 1:nrow(Settings)-1
-#Density$index = 1:nrow(Density)-1
-#Globals$index = 1:nrow(Globals)-1
-#Quantities$index = 1:nrow(Quantities)-1
-
+GlobalsD = Globals[-nrow(Globals),]
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 version=git_version()
@@ -328,7 +324,6 @@ sprintf("     Author: Lukasz Laniewski-Wollk                          "),
 sprintf("     Developed at: Warsaw University of Technology - 2012    "),
 sprintf("-------------------------------------------------------------")
 )
-
 
 c_header = function() {
 	for (l in clb_header)

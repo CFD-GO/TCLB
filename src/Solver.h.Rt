@@ -38,7 +38,7 @@ struct InfoBlock {
 	lbRegion region;
         lbRegion fileregion; // Size of input mesh
 <?R
-        for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+        for (v in rows(Settings)) { ?>
 	real_t setting_<?%s v$name ?>;
 	int ifset_<?%s v$name ?>; <?R
 	}
@@ -68,7 +68,7 @@ class Solver {
 	GPUAnimBitmap * bitmap;
 #endif
 	void print(const char * str);
-	double LogScales[<?%d nrow(Globals) ?> + <?%d nrow(Settings) ?> + <?%d nrow(Scales) ?>];
+	double LogScales[ GLOBALS + SETTINGS + SCALES ];
 	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
 	inline ~Solver() {
 		if (lattice) delete lattice;

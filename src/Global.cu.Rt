@@ -9,7 +9,7 @@ int D_MPI_RANK;
 
 void initSettings() {
 	real_t val = 0;
-<?R for (i in 1:nrow(Settings)) { v = Settings[i,];
+<?R for (v in rows(Settings)) {
 	if (is.na(v$derived)) { ?>
 			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
 	}} ?>

@@ -9,11 +9,8 @@ real_t <?%s v ?>;<?R } ?>
 
 typedef struct {float x,y; } float2;
 
-<?R
-for (i in 1:nrow(Settings)) { ?>
-	real_t <?%s Settings$name[i] ?>;
-//	#define <?%s Settings$name[i] ?> 321.<?%06d i?> <?R
-} ?>
+<?R for (v in rows(Settings)) { ?>
+	real_t <?%s v$name ?>; <?R
+    } ?>
 
 flag_t NodeType;
-//#define NodeType 1234321

@@ -77,7 +77,15 @@ cudaError_t cudaAllocFinalize() {
 		ptrlist[i].size=size;
 	}
 	char * tmp;
-	printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+	if (fullsize > 1e9) {
+		printf("[%d] Cumulative allocation of %d b (%.1f GB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e9);
+	} else if (fullsize > 1e6) {
+		printf("[%d] Cumulative allocation of %d b (%.1f MB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e6);
+	} else if (fullsize > 1e3) {
+		printf("[%d] Cumulative allocation of %d b (%.1f kB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e3);
+	} else {
+		printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+	}
 	cudaMalloc((void **) &tmp,fullsize);
 	if (tmp == NULL) {
 		std::cerr << "FATAL ERROR: Not enaught memory! tried to allocate (cumulatice): " << fullsize << " b\n";

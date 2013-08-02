@@ -55,8 +55,8 @@ public:
   int Iter;
   int Snap, aSnap;
 	int total_iterations;
-  real_t settings[<?%d nrow(Settings) ?>];  
-  double globals[<?%d nrow(Globals) ?>];
+  real_t settings[SETTINGS];  
+  double globals[GLOBALS];
   lbRegion region;
   MPIInfo mpi;
   Lattice (lbRegion region, MPIInfo, int);
@@ -114,7 +114,7 @@ public:
 	void Set_<?%s d$nicename ?>(real_t * tab);
 <?R } ?>
 
-<?R for (i in 1:nrow(Quantities)) { q = Quantities[i,,drop=F]; ifdef(q$adjoint);?>
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint);?>
 	void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
 	inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };
 	<?R tp = "double" ?>
@@ -127,7 +127,7 @@ public:
   void clearGlobals_Adj();
   double getObjective();
   void setSetting(int i, real_t tmp);
-<?R for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+<?R for (v in rows(Settings)) { ?>
 	void <?%s v$FunName ?>(real_t);<?R } ?>
 
 };

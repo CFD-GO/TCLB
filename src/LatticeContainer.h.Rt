@@ -76,18 +76,18 @@ class LatticeContainer {
   void WaitBorder();
 
   inline void clearGlobals() {
-        CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(real_t));
+        CudaMemset(Globals, 0, GLOBALS*sizeof(real_t));
   }
 
-  <?R for (i in 1:nrow(Globals)) { v=Globals$name[i]; ?>
-        inline real_t get<?%s v ?>(){
+  <?R for (v in rows(Globals)) { ?>
+        inline real_t get<?%s v$name ?>(){
                 real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%d i-1 ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
 	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, <?%d nrow(Globals) ?>*sizeof(real_t), cudaMemcpyDeviceToHost);
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
 	}
 };
 
@@ -96,10 +96,7 @@ CudaGlobalFunction void nodes_to_color( uchar4 *optr);
 CudaGlobalFunction void nodes_fill( int width, int height);
 
 <?R
-for (i in 1:nrow(Quantities))
-{
-	q = Quantities[i,,drop=F];
-	ifdef(q$adjoint);
+for (q in rows(Quantities)) { ifdef(q$adjoint);
 ?>
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))

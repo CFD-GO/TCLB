@@ -35,4 +35,5 @@ int xml_def_init() {
                         std::cerr << "Error while parsing in-program default settings xml: " << result.description() << std::endl;
                         return -1;
         }
+        return 0;
 }
