@@ -1,0 +1,111 @@
+# JOE syntax highlight file for PHP
+# modified by Eric Lin
+
+# TODO:
+#  * heredoc support (as good as possible)
+#  * highlight function and class names?
+
+# Define no. sync lines
+# You can say:
+# -200     means 200 lines
+# -        means always start parsing from beginning of file when we lose sync
+#          if nothing is specified, the default is -50
+
+-
+
+# Define colors
+
+=Idle
+=R 	green
+=Var 	cyan
+=Tags 	magenta
+=Format	bold magenta
+=Error	bold red
+=Wierd	red
+
+# Call HTML highlighter.  It will call the PHP highlighter subroutine in this file.
+
+:idle Idle
+	* idle
+	"<" st1
+	"?" maybe_error_idle
+
+:maybe_error_idle Idle
+	* idle
+	">" error recolor=-2
+
+
+:st1 Idle
+	* idle
+	"?" st2 recolor=-2
+
+:st2 Tags
+	* WR
+	"R" st3
+	"%" st31 recolor=-1
+
+:st3 Idle
+	* WR
+	" \t\n" beginRT recolor=-4
+
+:st31 Format
+	* WrongFormat noeat recolor=-2
+	"+-0123456789." st31
+	"sdfgex" st31_end
+
+:st31_end Format
+	* WrongFormat noeat recolor=-2
+	" \t\n" Rp
+
+:WrongFormat Error
+	* WR
+
+:WR Wierd
+	* WR
+	"<" maybe_error_WR
+	"?" st42
+
+
+:maybe_error_RT Wierd
+	* WR
+	"?" error recolor=-2
+
+:beginRT Tags
+	* RT noeat
+
+:RT R
+	* RT
+	"<" maybe_error_RT
+	"?" st4
+
+:maybe_error_RT R
+	* RT
+	"?" error recolor=-2
+
+:error Error
+	* error
+
+:Rp Var
+	* Rp
+	"<" maybe_error_Rp
+	"?" st41
+
+:maybe_error_Rp R
+	* Rp
+	"?" error recolor=-2
+
+:st4 R
+	* RT
+	">" endTag recolor=-2
+
+:st41 Var
+	* Rp
+	">" endTag recolor=-2
+
+:st42 Wierd
+	* Rp
+	">" endTag recolor=-2
+
+:endTag Tags
+	* idle noeat
+
