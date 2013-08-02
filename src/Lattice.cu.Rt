@@ -770,43 +770,6 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 	CudaFree(buf);
 }
 
-<?R tp = "double" ?>
-void Lattice::Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int row)
-{
-	lbRegion inter = region.intersect(over);
-//        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx, y = inter.dy;
-	<?%s tp ?> * buf;
-	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s tp ?>)<?R if (q$type == "vector_t") { ?>*3<?R }?>);
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-        {	lbRegion small = inter;
-		small.dz = z;
-		small.nz = 1;
-		small.dx -= region.dx;
-		small.dy -= region.dy;
-		small.dz -= region.dz;
-//	        printf("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
-		CudaKernelRun( get<?%s q$name ?>_<?%s tp ?>, dim3(small.nx,small.ny) , dim3(1) , (small, buf, row));
-//	        printf("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
-		<?R 
-	if (q$type == "vector_t")
-	{ ?>
-		if (row == 0) {
-			CudaMemcpy(&tab[over.offsetL(x,y,z)*3], buf, small.sizeL()*sizeof(<?%s tp ?>)*3, cudaMemcpyDeviceToHost);
-		} else {
-			for (int i = 0; i < 3; i++)
-			CudaMemcpy(&tab[over.offsetL(x,y,z) + over.sizeL()*i], &buf[small.sizeL()*i], small.sizeL()*sizeof(<?%s tp ?>), cudaMemcpyDeviceToHost);
-		} <?R
-	} else { ?>
-		CudaMemcpy(&tab[over.offsetL(x,y,z)], buf, small.sizeL()*sizeof(<?%s tp ?>), cudaMemcpyDeviceToHost);
-		<?R
-	} ?>
-	}
-	CudaFree(buf);
-//	printf("%lf\n",tab[0]);
-}
-
-
 <?R }; ifdef() ?>
 
 

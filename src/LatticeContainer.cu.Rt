@@ -676,47 +676,6 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 		tab[r.offset(x,y,z)] = w;
 	}
 } <?R
-	for (tp in c("float","double"))
-	{ ?>
-
-CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion r, <?%s tp ?> * tab, int row)
-{
-	int x = CudaBlock.x+r.dx;
-	int y = CudaBlock.y+r.dy;
-	<?R if (q$adjoint) { ?>
-		Node_Adj now;
-	<?R } else { ?>
-		Node now;
-	<?R } ?>
-	int z;
-	for (z = r.dz; z < r.dz + r.nz; z ++) {
-		now.x = x;
-                now.y = y;
-                now.z = z;
-		constContainer.pull(now);
-		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t")
-		{ ?>
-		if (row == 0) { <?R
-			for (j in 1:3)
-			{
-				coef = c("x","y","z")[j] ?>
-			tab[3*r.offset(x,y,z) + <?%d j-1 ?>] = w.<?%s coef ?>; <?R
-			} ?>
-		} else { <?R
-			for (j in 1:3)
-			{
-				coef = c("x","y","z")[j] ?>
-			tab[r.offset(x,y,z) + r.size()*<?%d j-1 ?>] = w.<?%s coef ?>; <?R
-			} ?>
-		} <?R
-		} else { ?>
-		tab[r.offset(x,y,z)] = w; <?R
-		} ?>
-	}
 }
-<?R
-	}
-}
- ifdef();?>
+ifdef();?>
 

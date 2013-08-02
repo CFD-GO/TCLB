@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
+<CLBConfig version="2.0" output="output/">
         <Geometry nx="100" ny="50" nz="50">
 		<MRT><Box/></MRT>
 		<WVelocity zone="Inlet"/>
@@ -18,11 +18,7 @@
 		InletTemperature="0.0" HeaterTemperature="1.0"
 		InitTemperature="0.0" FluidAlpha="0.006" SolidAlpha="2.0"/>
 	</Model>
-	<Solve Iterations="500000" output="output/">
-		<VTK Iterations="10000"/>
+	<Solve Iterations="5000">
+		<VTK Iterations="100"/>
  	</Solve>
-        <Solve Iterations="500000" output="output/">
-                <VTK Iterations="10000"/>
-		<Params HeatFluxInObj="15.0"/>
-        </Solve>
 </CLBConfig>
