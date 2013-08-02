@@ -5,7 +5,6 @@
 #include "cross.h"
 #include "types.h"
 #include "Global.h"
-//#include "Node.h"
 #include "LatticeContainer.h"
 #include "Lattice.h"
 #include "mpi.h"
@@ -103,11 +102,10 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	if ((mpi.rank != to) && (size > 0)) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
-		gpuout[bufnumber] = NULL; //container->out.<?%s m$name ?>;
+		gpuout[bufnumber] = NULL; 
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
-//		gpuin[bufnumber] = NULL; //container->in.<?%s m$name ?>;
 		BPreAlloc((void**) & (gpubuf[bufnumber]), size);
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
@@ -386,7 +384,6 @@ int Lattice::save(FTabs& tab, const char * filename) {
 	}
 
 	CudaFreeHost(pt);
-//	printf("[%d] Maxsize:%d\n",D_MPI_RANK, maxsize);
 	fclose(f);
 	delete[] size;
 	delete[] ptr;
@@ -398,7 +395,6 @@ int Lattice::load(FTabs& tab, const char * filename) {
 	printf("[%d] Loading Lattice data from %s\n", D_MPI_RANK, filename);
 	if (f == NULL) {
 		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
-//		assert(f == NULL);
 		return -1;
 	}
 
@@ -418,7 +414,6 @@ int Lattice::load(FTabs& tab, const char * filename) {
 	}
 
 	CudaFreeHost(pt);
-//	printf("[%d] Maxsize:%d\n",D_MPI_RANK, maxsize);
 	fclose(f);
 	delete[] size;
 	delete[] ptr;
@@ -443,10 +438,7 @@ void Lattice::Color(uchar4 * ptr) {
 void Lattice::Init()
 {
    printf("[%d] Initializing Lattice ...\n", D_MPI_RANK);
-//   CudaCopyToConstant("constContainer", constContainer, container, sizeof(LatticeContainer));
-//   printf("[%d] Sizeof(LatticeContainer) = %ld\n", D_MPI_RANK, sizeof(LatticeContainer));
-//   CudaKernelRun( nodes_fill , BLOCKS , THREADS ,(region.nx,region.ny));
-	container->out=Snaps[0];
+   container->out=Snaps[0];
    container->CopyToConst();
    container->Init();
 	iSnaps[getSnap(0)]=0;
@@ -614,31 +606,6 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
         }
 
 }
-
-/*
-
-void Lattice::GetRegion(lbRegion over, Node * tab)
-{
-	size_t offset;
-	lbRegion inter = region.intersect(over);
-//        printf("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(char), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
-        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-        {
-//		printf("GetRegion: %d %d %d\n", x,y,z);
-		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&tab[over.offsetL(x,y,z)].NodeType, sizeof(Node), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
-                for (int j=0; j<19; j++)
-                {
-			printf("GetRegion: %d %d %d %d\n", x,y,z,j);
-//			CudaMemcpy2D(&tab[over.offsetL(x,y,z)].f[j], sizeof(Node), &container->in.f[offset], sizeof(real_t), sizeof(real_t), inter.nx, cudaMemcpyDeviceToHost);
-			offset += region.sizeL();
-		}
-	}
-
-}
-*/
 
 void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {

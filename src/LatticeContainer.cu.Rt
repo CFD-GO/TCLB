@@ -69,7 +69,7 @@ void * BAlloc(size_t size) {
       CudaMalloc( (void**)&tmp, size );
     #endif
     ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    CudaMemset( tmp, 0, size ); 
 	return (void *) tmp;
 }
 
@@ -89,7 +89,7 @@ void FTabs::Alloc(int nx,int ny,int nz) {
       CudaMalloc( (void**)&tmp, size );
     #endif
     ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    CudaMemset( tmp, 0, size ); 
     <?%s m$name ?>=  (real_t*)tmp;
   <?R } ?>
 }
@@ -110,16 +110,20 @@ void FTabs::Clear(int nx,int ny,int nz) {
   <?R } ?>
 }
 
-void FTabs::Free() {
-    <?R for (m in NonEmptyMargin) { ?>
-	if ( <?%s m$name ?> != NULL) {
-	#ifdef DIRECT_MEM
-	    	CudaFreeHost( <?%s m$name ?> );
+inline void MyFree(void * ptr) {
+    if (ptr != NULL) {
+        #ifdef DIRECT_MEM
+	    CudaFreeHost( ptr );
 	#else
-	    	CudaFree( <?%s m$name ?> );
+	    CudaFree( ptr );
 	#endif
-	}
-    <?R } ?>
+    }
+}
+
+void FTabs::Free() { <?R
+    for (m in NonEmptyMargin) { ?>
+    MyFree(<?%s m$name ?>); <?R
+    } ?>
 }
 
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
@@ -141,17 +145,8 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
 	ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    CudaMemset( tmp, 0, size ); 
     NodeType = (flag_t*)tmp;
-
-    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
-//        <?%s inout ?>.<?%s m$name ?> =  (real_t*)tmp;
-    <?R } ?>
-
-
-    <?R for (inout in c("in","out")) { ?>
-//	<?%s inout ?>.Alloc(nx,ny,nz);
-    <?R } ?>
 
     size = (size_t) GLOBALS * sizeof(real_t);
 	ALLOCPRINT1;
@@ -159,7 +154,6 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
     Globals = (real_t*)tmp;
-
 }
 
 void LatticeContainer::Free()
@@ -417,16 +411,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 }
 #endif
 
-/*
-CudaDeviceFunction void inline LatticeContainer::Glob(Node now) {}
-
-CudaDeviceFunction void inline LatticeContainer::Glob(Node_Globs now) {
-<?R for (v in rows(Globals)) { ?>
-        atomicSum(&Globals[<?%s v$Index ?>], now.<?%s v$name ?>);
-<?R } ?>
-}
-*/
-
 template <class N> inline CudaDeviceFunction void RunElement(N& now)
 {
         constContainer.pop(now);
@@ -461,7 +445,6 @@ template <class N> CudaGlobalFunction void RunKernel()
 		if (now.y < constContainer.fy) {
 			now.RunElement();
 		}
-		//now.Glob();
 		now.Glob();
 	#ifndef GRID_3D
 		}
@@ -540,9 +523,6 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderS
     #endif
 };
 
-//void LatticeContainer::RunBorderG(CudaStream_t borderStream) { clearGlobals(); RunBorderT<Node_Globs>(borderStream); };
-//void LatticeContainer::RunBorder (CudaStream_t borderStream) {                 RunBorderT<Node      >(borderStream); };
-
 template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
     int nnz;
     ky = getKY<N>();
@@ -558,8 +538,6 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
     #endif
 };
 
-//void LatticeContainer::RunInteriorG(CudaStream_t interiorStream) { RunInteriorT<Node_Globs>(interiorStream); };
-//void LatticeContainer::RunInterior (CudaStream_t interiorStream) { RunInteriorT<Node      >(interiorStream); };
 <?R for(tp in rows(Dispatch)) {
 ifdef(tp$adjoint) ?>
 void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream) { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
@@ -569,7 +547,7 @@ ifdef(); ?>
  
 CudaDeviceFunction void node_to_color( int x, int y, uchar4 *optr )
 {
-    int offset = x+y*constContainer.nx;//constContainer.Offset(_z_);
+    int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     Node now;
@@ -631,7 +609,6 @@ void LatticeContainer::Init() {
 	fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
    CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
-//   CudaKernelRun( nodes_fill_o , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
 };
 
 void LatticeContainer::Color( uchar4 *optr ) {
