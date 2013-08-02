@@ -2,8 +2,8 @@
 	source("conf.R")
         c_header()
 ?>
+#include "Consts.h"
 #include "Global.h"
-#include "Node.h"
 #include "Lattice.h"
 
 #define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
@@ -642,40 +642,41 @@ void LatticeContainer::Color( uchar4 *optr ) {
 };
 
 <?R
-for (q in rows(Quantities))
-{
-	ifdef(q$adjoint); ?>
+        for (q in rows(Quantities))
+        {
+                ifdef(q$adjoint); ?>
 
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
 	int x = CudaBlock.x+r.dx;
-	int y = CudaBlock.y+r.dy;
-	<?R if (q$adjoint) { ?>
-		Node_Adj now;
-	<?R } else { ?>
-		Node now;
-	<?R } ?>
+	int y = CudaBlock.y+r.dy; <?R
+	if (q$adjoint) { ?>
+	Node_Adj now; <?R
+        } else { ?>
+	Node now; <?R
+        } ?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
 		now.x = x;
 		now.y = y;
 		now.z = z;
-		constContainer.pull(now);
-		<?R if (q$adjoint) { ?>
-			constContainer.pull_adj(now);
-		<?R } ?>
+		constContainer.pull(now); <?R
+		if (q$adjoint) { ?>
+		constContainer.pull_adj(now); <?R
+                } ?>
 		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
 		if (q$type == "vector_t")
 		{
-		  for (coef in c("x","y","z")) { ?>
-			w.<?%s coef ?> *= scale; <?R
+                  for (coef in c("x","y","z")) { ?>
+		w.<?%s coef ?> *= scale; <?R
 		  }
 		} else { ?>
-			w *= scale;
-		<?R } ?>
+		w *= scale; <?R
+                } ?>
 		tab[r.offset(x,y,z)] = w;
 	}
 } <?R
-}
-ifdef();?>
+        }
+        ifdef();
+?>
 

@@ -62,7 +62,7 @@ SRC=src
 SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c Dynamics_sp.c inter.cpp Solver.cu Handlers.cu pugixml.cpp Geometry.cu def.cpp unit.cpp
 SOURCE_R=conf.R Dynamics.R
 SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
-HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Node.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Node_types.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
+HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
 HEADERS=$(addprefix $(DEST)/,$(HEADERS_H))
 
 ALL_FILES=$(SOURCE_CU) $(HEADERS_H) $(ADDITIONALS)
@@ -169,7 +169,7 @@ standalone/<?%s m ?> :
 
 .INTERMEDIATE : tapenade.run
 
-<?%s d ?>/<?%s m ?>/tapenade.run : <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Node_types.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh
+<?%s d ?>/<?%s m ?>/tapenade.run : <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 

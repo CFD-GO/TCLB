@@ -3,6 +3,7 @@
 	c_header()
 ?>
 #include "cross.h"
+#include "Consts.h"
 #include "Global.h"
 
 class Node;
@@ -15,10 +16,8 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 	#include "ADTools.cu"
 #endif
 
-#include "Node_types.h"
-
 <?R for (v in rows(Settings)) { ?>
-CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0; <?R
+CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
     } ?>
 CudaConstantMemory real_t c_sq = 1.0/3.;
 
@@ -49,7 +48,7 @@ struct Node<?%s suff ?> {
 	CudaDeviceFunction void inline Pre() { <?R
 		if (tp$globals) {
 				for (g in rows(GlobalsD)) { ?>
-		<?%s g$name ?> = 0.0; <?R
+		<?%s g$name ?> = 0.0f; <?R
 				}
 		} ?>
 	}

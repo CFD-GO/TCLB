@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "cross.h"
 #include "Global.h"
-#include "Node.h"
+//#include "Node.h"
 #include "LatticeContainer.h"
 #include <vector>
 #include <algorithm>
@@ -30,7 +30,7 @@ void HandleError( cudaError_t err,
     }
 }
 
-int GetMaxThreads()
+/*int GetMaxThreads()
 {
             cudaFuncAttributes * attr = new cudaFuncAttributes;
             HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<Node>) );
@@ -41,7 +41,7 @@ int GetMaxThreads()
             printf( "Shared   mem:%ld\n", attr->sharedSizeBytes);
             return attr->maxThreadsPerBlock;
 }
-
+*/
 struct ptrpair {
 	void ** ptr;
 	size_t size;
