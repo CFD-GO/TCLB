@@ -2,7 +2,8 @@
         source("conf.R")
 	c_header();
 ?>
-
+#define CROSS_CPP
+#include "cuda.h"
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
@@ -11,7 +12,8 @@
 #endif
 #include "cross.h"
 #include "Region.h"
-#include "LatticeContainer.h"
+//#include "LatticeContainer.h"
+class LatticeContainer;
 #include "Lattice.h"
 #include "vtkLattice.h"
 #include "Geometry.h"

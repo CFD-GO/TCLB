@@ -1,7 +1,7 @@
 #ifndef VTKLATTICE_H
 
 	#include "Global.h"
-	#include "LatticeContainer.h"
+//	#include "LatticeContainer.h"
 	#include "Lattice.h"
 	#include "vtkOutput.h"
 	#include "unit.h"

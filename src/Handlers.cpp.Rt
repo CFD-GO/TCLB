@@ -344,7 +344,7 @@ class acSAdjoint: public GenericAction {
 		old_iter_type = solver->iter_type;
 		solver->iter_type |= ITER_LASTGLOB;
 		GenericAction::ExecuteInternal();
-		everyIter = max(everyIter,  (double) (solver->iter - startIter));
+		everyIter = std::max(everyIter,  (double) (solver->iter - startIter));
 		if (everyIter <= 0) {
 			std::cerr << "Warning: Zero iterations in steady adjoint. somethings is probaby wrong\n";
 			return 0;

@@ -1,39 +1,65 @@
 #include "types.h"
 
+#ifndef __CUDACC__
+  #define CROSS_CPP
+#endif
+
 #ifndef CROSS_H
 
-  #ifdef CROSS_CPU
-    #define CROSS_CPP
-  #endif
-
-  #ifdef CROSS_CPP
-    #define CudaDeviceFunction
-    #define CudaHostFunction
-    #define CudaGlobalFunction
-    template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
-    template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
-  #else
-    #define CudaDeviceFunction __device__
-    #define CudaHostFunction __host__
-    #define CudaGlobalFunction __global__
-  #endif
-
   #ifndef CROSS_CPU
-    #define CudaConstantMemory __constant__
-    #define CudaExternConstantMemory(x)
-    #define CudaSharedMemory __shared__
-    #define CudaSyncThreads __syncthreads
-
-    #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() )
-    #ifdef CROSS_SYNC
-      #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
+    #ifdef CROSS_CPP
+      #include "cuda_runtime.h"
+      #define CudaDeviceFunction
+      #define CudaHostFunction
+      #define CudaGlobalFunction
+      #define CudaConstantMemory
+      template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
+      template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
     #else
-      #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
-    #endif      
-//    #define CudaKernelRun(a__,b__,c__,d__) {dim3 _b_(b__.x,b__.y,1); int max_z_ = b__.z; for (int _z_=0; _z_<max_z_; _z_++) a__<<<_b_,c__>>>d__;}
-    #define CudaBlock blockIdx
-    #define CudaThread threadIdx
-    #define CudaNumberOfThreads blockDim
+      #define CudaDeviceFunction __device__
+      #define CudaHostFunction __host__
+      #define CudaGlobalFunction __global__
+      #define CudaConstantMemory __constant__
+      #define CudaSharedMemory __shared__
+      #define CudaSyncThreads __syncthreads
+      #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() )
+      #ifdef CROSS_SYNC
+        #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
+      #else
+        #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
+      #endif      
+      #define CudaBlock blockIdx
+      #define CudaThread threadIdx
+      #define CudaNumberOfThreads blockDim
+      __device__ int lock = 0;
+      __device__ inline void atomicAddP(real_t* a, real_t b)
+      {
+              while(atomicCAS(&lock, 0, 1)) {};
+              a[0] += b;
+              lock = 0;
+      }
+
+
+      __shared__ real_t sumtab[1024];
+
+      __device__ inline void atomicSum(real_t * sum, real_t val)
+      {
+              int i = blockDim.x*blockDim.y;
+              int k = blockDim.x*blockDim.y;
+              int j = blockDim.x*threadIdx.y + threadIdx.x;
+              sumtab[j] = val;
+              __syncthreads();
+              while (i> 1) {
+                      k = i >> 1;
+                      i = i - k;
+                      if (j<k) sumtab[j] += sumtab[j+i];
+                      __syncthreads();
+              }
+              if (j==0) atomicAddP(sum,sumtab[0]);
+      }
+    #endif
+    #define CudaExternConstantMemory(x)
+
     #define CudaCopyToConstant(a__,b__,c__,d__) HANDLE_ERROR( cudaMemcpyToSymbol(a__, c__, d__, 0, cudaMemcpyHostToDevice))
     #define CudaMemcpy2D(a__,b__,c__,d__,e__,f__,g__) HANDLE_ERROR( cudaMemcpy2D(a__, b__, c__, d__, e__, f__, g__) )
     #define CudaMemcpy(a__,b__,c__,d__) HANDLE_ERROR( cudaMemcpy(a__, b__, c__, d__) )
@@ -74,40 +100,13 @@
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
 
-cudaError_t cudaPreAlloc(void ** ptr, size_t size);
-cudaError_t cudaAllocFinalize();
+    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
+    cudaError_t cudaAllocFinalize();
 
-void HandleError( cudaError_t err, const char *file, int line );
-#define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
-int GetMaxThreads();
-#define RunKernelMaxThreads (GetMaxThreads())
-
-__device__ int lock = 0;
-__device__ inline void atomicAddP(real_t* a, real_t b)
-{
-        while(atomicCAS(&lock, 0, 1)) {};
-        a[0] += b;
-        lock = 0;
-}
-
-
-__shared__ real_t sumtab[1024];
-
-__device__ inline void atomicSum(real_t * sum, real_t val)
-{
-        int i = blockDim.x*blockDim.y;
-        int k = blockDim.x*blockDim.y;
-        int j = blockDim.x*threadIdx.y + threadIdx.x;
-        sumtab[j] = val;
-        __syncthreads();
-        while (i> 1) {
-                k = i >> 1;
-                i = i - k;
-                if (j<k) sumtab[j] += sumtab[j+i];
-                __syncthreads();
-        }
-        if (j==0) atomicAddP(sum,sumtab[0]);
-}
+    void HandleError( cudaError_t err, const char *file, int line );
+    #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
+    int GetMaxThreads();
+    #define RunKernelMaxThreads (GetMaxThreads())
                                                                                                                                 
   #else
     #include <assert.h>
@@ -116,7 +115,21 @@ __device__ inline void atomicSum(real_t * sum, real_t val)
     #include <cstdlib>
     #include <cstring>
     #include <math.h>
-            
+    template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
+    template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
+    struct float2 { float x,y; };
+    struct float3 { float x,y,z; };
+    struct double2 { double x,y; };
+    struct double3 { double x,y,z; };
+    struct uint3 { unsigned int x,y,z; };
+    struct dim3 {
+      unsigned int x,y,z;
+      inline dim3(int x_, int y_, int z_):x(x_),y(y_),z(z_) {};
+      inline dim3(int x_, int y_):x(x_),y(y_),z(1) {};
+      inline dim3(int x_):x(x_),y(1),z(1) {};
+    };
+    struct uchar4 { unsigned char x,y,z,w; };
+
     #define CudaDeviceFunction
     #define CudaHostFunction
     #define CudaGlobalFunction
@@ -161,31 +174,15 @@ __device__ inline void atomicSum(real_t * sum, real_t val)
     #define CudaGetDeviceCount(a__) *a__ = 1;
 
     #define RunKernelMaxThreads 1
-    struct float2 { float x,y; };
-    struct float3 { float x,y,z; };
-    struct double2 { double x,y; };
-    struct double3 { double x,y,z; };
-    struct uint3 { unsigned int x,y,z; };
-    struct dim3 {
-      unsigned int x,y,z;
-      inline dim3(int x_, int y_, int z_):x(x_),y(y_),z(z_) {};
-      inline dim3(int x_, int y_):x(x_),y(y_),z(1) {};
-      inline dim3(int x_):x(x_),y(1),z(1) {};
-    };
-    struct uchar4 { unsigned char x,y,z,w; };
-
     extern uint3 CpuBlock;
     extern uint3 CpuThread;
     extern uint3 CpuSize;
-    
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
     inline void atomicSum(float * sum, float val)
     {
       sum[0] += val;
     }
-
-
   #endif
 #endif
 #define CROSS_H

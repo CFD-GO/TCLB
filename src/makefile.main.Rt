@@ -52,14 +52,14 @@ SRC=src
 
 #ifeq '$(strip $(STANDALONE))' '1'
  DEST=standalone
- ADDITIONALS=makefile README.md dep.mk
- SOURCE_CU+=main.cu
+ ADDITIONALS=makefile conf.mk.in configure tools README.md dep.mk
+ SOURCE_CU+=main.cpp
 #else
 # DEST=package/src
 # ADDITIONALS=package/src/Makefile.in package/data/LB.RData
 #endif
 
-SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c Dynamics_sp.c inter.cpp Solver.cu Handlers.cu pugixml.cpp Geometry.cu def.cpp unit.cpp
+SOURCE_CU+=Global.cu Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.cu Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_R=conf.R Dynamics.R
 SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
 HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
@@ -185,13 +185,21 @@ standalone/<?%s m ?> :
 	@echo "  RT         $@ (model)"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
+<?%s d ?>/<?%s m ?>/configure:$(SRC)/configure.ac
+	@echo "  AUTOCONF   $@"
+	@autoconf -o $@ $<
+
+#<?%s d ?>/<?%s m ?>/makefile:<?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile.in <?%s d ?>/<?%s m ?>/configure
+#	@echo "  CONFIGURE  $@"
+#	@(cd $<; ./configure)
+
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
 	@cp $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%
 	@echo "  CP         $@"
-	@cp $< $@
+	@cp -r $< $@
 <?R }} ?>
 
 %.hp:%.c $(MAKEHEADERS)
