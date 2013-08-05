@@ -10,22 +10,16 @@
 			source(cf);
 		} else {
 			ADJOINT=0;
+			return(NULL)
 		}
 		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
 	}))
 	
 	rm(l,d) 
-	destinations=c("standalone","package/src");
+	destinations=c("CLB");
 ?>
 # MODELS: 
 #	<?%s paste(Models$name,collapse=", ") ?>
-
-ADJOINT=0        # calculate adjoint: 1-on, 0-off
-GRAPHICS=0       # GLUT graphics: 1-on, 0-off
-GRID3D=0         # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
-ARCH=sm_11       # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 1.3 etc.
-DOUBLE=0         # precision: 1-double, 0-float
-
 
 #######################################################################################################################
 
@@ -33,105 +27,27 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 .PHONY: all clean dummy
 
-#makefile:src/makefile.main.Rt src/*
-#	@tools/RT -q -f $< -o $@
-
-#Rpackage : source package/configure
-#	R CMD build package
-	
-#package/configure:package/configure.ac
-#	@echo "AUTOCONF     $@"
-#	@cd package; autoconf
-
 RT = tools/RT
-RS = R  --slave --quiet --vanilla -f
+RS = R --slave --quiet --vanilla -f
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
+RTOPT=
+RTOPT_ADJ=ADJOINT=1
 SRC=src
+DEST=CLB
 
-#ifeq '$(strip $(STANDALONE))' '1'
- DEST=standalone
- ADDITIONALS=makefile conf.mk.in configure tools README.md dep.mk
- SOURCE_CU+=main.cpp
-#else
-# DEST=package/src
-# ADDITIONALS=package/src/Makefile.in package/data/LB.RData
-#endif
-
-SOURCE_CU+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.cu Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
-SOURCE_R=conf.R Dynamics.R
-SOURCE=$(addprefix $(DEST)/,$(SOURCE_CU))
-HEADERS_H+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp Geometry.h def.h utils.h unit.h
-HEADERS=$(addprefix $(DEST)/,$(HEADERS_H))
-
-ALL_FILES=$(SOURCE_CU) $(HEADERS_H) $(ADDITIONALS)
-DEST_FILES=$(addprefix $(DEST)/,$(ALL_FILES))
+SOURCE_ALL+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.cu
+SOURCE_ALL+=Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
+SOURCE_ALL+=main.cpp
+SOURCE_ALL+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h
+SOURCE_ALL+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp
+SOURCE_ALL+=Geometry.h def.h utils.h unit.h
+SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
+SOURCE_REST=makefile dep.mk
+ADDITIONALS=conf.mk.in configure tools README.md
 
 AOUT=main
-
-CC=nvcc
-CCTXT=NVCC
-
-RTOPT=
-
-RTOPT_ADJ=ADJOINT=1
-ALL_FILES_ADJ=Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
-OPT_ADJ=-D ADJOINT
-
-ifdef MODEL
- RTOPT+=MODEL=\"$(strip $(MODEL))\"
-endif
-
-ifdef ADJOINT
- RTOPT+=ADJOINT=$(strip $(ADJOINT))
-endif
-
-ifdef DOUBLE
- RTOPT+=DOUBLE=$(strip $(DOUBLE))
-endif
-
-ifdef GRAPHICS
- RTOPT+=GRAPHICS=$(strip $(GRAPHICS))
-endif
-
-ifeq '$(strip $(ADJOINT))' '1'
- OPT+=-D ADJOINT
- SOURCE_CU+=Dynamics_b.c ADTools.cu Dynamics_adj.c
- HEADERS_H+=Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
-endif
-
-ifeq '$(strip $(GRAPHICS))' '1'
- OPT+=-D GRAPHICS -lglut
-endif
-
-ifeq '$(strip $(DIRECT_MEM))' '1'
- OPT+=-D DIRECT_MEM
-endif
-
-ifdef ARCH
- OPT+=-arch $(strip $(ARCH))
-endif
-
-ifeq '$(strip $(GRID3D))' '1'
- OPT+=-D GRID_3D
-endif
-
-ifeq '$(strip $(DOUBLE))' '1'
- OPT+=-D CALC_DOUBLE_PRECISION
-endif
-
-MODELPATH=$(strip $(MODEL))
-
-.PRECIOUS:$(DEST_FILES)
-
-source:Dynamics.R conf.R $(DEST_FILES)
-	@cd $(DEST); git add $(ALL_FILES)
-
-
-package/data/LB.RData: conf.R Dynamics.R
-	@echo "MAKEDATA     $@"
-	@Rscript tools/makeData.R
 
 clear:
 	@echo "  RM         ALL"
@@ -146,23 +62,31 @@ $(MAKEHEADERS):tools/makeheaders.c
 ###############################################################################
 
 <?R
+for (d in destinations) {
 	for (i in 1:nrow(Models)) {
 		m = Models$name[i];
 		adjoint = Models$adjoint[i]
+		dest = paste(d,"/",m,"/",sep="")
+		src = "$(SOURCE_ALL)"
+		if (adjoint) src = paste(src, "$(SOURCE_ADJ)")
+		src_all = paste(src, "$(SOURCE_REST)")
+		src = paste("$(addprefix ",dest,",",src,")",sep="");
+		src_all = paste("$(addprefix ",dest,",",src_all,")",sep="");
+		src_all = paste(dest,src_all)
+		add = paste("$(addprefix ",d,"/,$(ADDITIONALS))",sep="")
+		src_all = paste(src_all,add)
 ?>
-<?%s m ?>:  | standalone/<?%s m ?>
+<?%s m ?>:  | <?%s d ?>/<?%s m ?>
 
-<?%s m ?>: standalone/<?%s m ?> standalone/<?%s m ?>/main
+<?%s m ?>: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/main
 	@echo "  DONE       $@"
 
-standalone/<?%s m ?>/main:standalone/<?%s m ?> $(addprefix standalone/<?%s m ?>/,$(ALL_FILES)<?R if (adjoint) {?> $(ALL_FILES_ADJ)<?R }?>)
-	@cd standalone/<?%s m ?>; $(MAKE)
+<?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
+	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
 
-standalone/<?%s m ?> :
+<?%s d ?>/<?%s m ?> :
 	mkdir -p $@
-<?R
-		for (d in destinations) {
-?>
+
 # for model <?%s m ?> and destination <?%s d ?>
 
 <?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run
@@ -173,7 +97,7 @@ standalone/<?%s m ?> :
 	@echo "  TAPENADE   $<"
 	@(cd $<; ../../tools/makeAD)
 
-<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R $(addprefix <?%s d ?>/<?%s m ?>/,$(SOURCE_CU) $(HEADERS_H))
+<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
 	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
@@ -185,10 +109,6 @@ standalone/<?%s m ?> :
 	@echo "  RT         $@ (model)"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
-<?%s d ?>/<?%s m ?>/configure:$(SRC)/configure.ac
-	@echo "  AUTOCONF   $@"
-	@autoconf -o $@ $<
-
 #<?%s d ?>/<?%s m ?>/makefile:<?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile.in <?%s d ?>/<?%s m ?>/configure
 #	@echo "  CONFIGURE  $@"
 #	@(cd $<; ./configure)
@@ -199,8 +119,19 @@ standalone/<?%s m ?> :
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%
 	@echo "  CP         $@"
+	@cp $< $@
+<?R } ?>
+
+<?%s d ?>/configure:$(SRC)/configure.ac
+	@echo "  AUTOCONF   $@"
+	@autoconf -o $@ $<
+
+<?%s d ?>/%:$(SRC)/%
+	@echo "  CP         $@"
 	@cp -r $< $@
-<?R }} ?>
+<?R } ?>
+
+
 
 %.hp:%.c $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"

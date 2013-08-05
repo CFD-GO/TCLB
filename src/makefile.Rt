@@ -1,13 +1,22 @@
 <?R source("conf.R"); hash_header(); ?>
 
+MODEL=<?%s MODEL ?>       # model (directory) to use
+ADJOINT=<?%s ADJOINT ?>   # calculate adjoint: 1-on, 0-off
+GRAPHICS=0 # GLUT graphics: 1-on, 0-off
+DOUBLE=0     # precision: 1-double, 0-float
+GRID3D=0                  # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
+ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 
+#CPU=1
+
+
 all:main
 	@echo "  DONE       $^"
 
-include conf.mk
+include ../conf.mk
 include dep.mk
 
-conf.mk:conf.mk.in configure
-	./configure
+../conf.mk:../conf.mk.in ../configure
+	cd ..; ./configure
 
 .PRECIOUS:$(SOURCE) $(HEADERS)
 

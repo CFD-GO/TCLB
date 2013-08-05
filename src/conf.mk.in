@@ -1,13 +1,3 @@
-<?R source("conf.R"); hash_header(); ?>
-
-MODEL=<?%s MODEL ?>       # model (directory) to use
-ADJOINT=<?%s ADJOINT ?>   # calculate adjoint: 1-on, 0-off
-GRAPHICS=<?%s GRAPHICS ?> # GLUT graphics: 1-on, 0-off
-DOUBLE=<?%s DOUBLE ?>     # precision: 1-double, 0-float
-GRID3D=0                  # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
-ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 
-#CPU=1
-
 #MPI_INCLUDES = /usr/include/mpi/
 #MPI_LIBS     = /usr/lib/mpich/lib/
 MPI_INCLUDES = @MPI_INCLUDE@
