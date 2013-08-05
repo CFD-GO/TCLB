@@ -20,7 +20,7 @@ ifdef CPU
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(OPT)
+	@g++ -c $< -o $@ $(OPT) $(CPP_OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@"
@@ -30,7 +30,7 @@ else
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ -I/home/llaniewski/cuwork/drivers/cuda/include/ $(OPT)
+	@g++ -c $< -o $@ $(OPT) $(CPP_OPT)
 
 %.o:%.cu
 	@echo "  NVCC       $<"

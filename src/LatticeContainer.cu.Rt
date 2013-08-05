@@ -652,7 +652,8 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
                 } ?>
 		tab[r.offset(x,y,z)] = w;
 	}
-} <?R
+}
+<?R
         }
         ifdef();
 ?>

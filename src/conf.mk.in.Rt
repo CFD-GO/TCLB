@@ -25,7 +25,8 @@ AOUT=main
 NVCC=nvcc
 CCTXT=NVCC
 
-OPT=-I$(MPI_INCLUDES) -I../nlopt/include -Wwrite-strings
+OPT=-I$(MPI_INCLUDES) -I../nlopt/include 
+CPP_OPT=-Wno-write-strings -I@CUDA_HOME@\include
 LD_OPT=@DEVICEOPTS@ @RPATHFLAG@ @LIBS@ -L$(MPI_LIBS) -lmpi -lmpi_cxx -L../nlopt/lib -lnlopt
 NVOPT=
 # OPT+=-D CROSS_SYNC
