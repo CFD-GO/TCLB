@@ -1,0 +1,26 @@
+AddDensity( name="f0", dx= 0, dy= 0, group="f" )
+AddDensity( name="f1", dx= 1, dy= 0, group="f" )
+AddDensity( name="f2", dx= 0, dy= 1, group="f" )
+AddDensity( name="f3", dx=-1, dy= 0, group="f" )
+AddDensity( name="f4", dx= 0, dy=-1, group="f" )
+AddDensity( name="f5", dx= 1, dy= 1, group="f" )
+AddDensity( name="f6", dx=-1, dy= 1, group="f" )
+AddDensity( name="f7", dx=-1, dy=-1, group="f" )
+AddDensity( name="f8", dx= 1, dy=-1, group="f" )
+AddDensity( name="r", group="r" )
+AddDensity( name="w", group="w", parameter=T )
+
+AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="RhoB",adjoint=T)
+AddQuantity( name="W")
+AddQuantity( name="R")
+AddQuantity( name="WB",adjoint=T)
+
+AddSetting(name="nu0", default=1.6666666, comment='viscosity')
+AddSetting(name="nu1", default=1.6666666, comment='viscosity')
+AddSetting(name="InitDensity", default="0Pa", comment='inlet pressure')
+AddSetting(name="InletDensity", default="0Pa", comment='inlet pressure')
+AddSetting(name="OutletDensity", default="0Pa", comment='inlet pressure')
+
+AddGlobal(name="Diff", comment='pressure loss')
+

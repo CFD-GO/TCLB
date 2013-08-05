@@ -24,10 +24,10 @@ table_from_text = function(text) {
 	tab
 }
 
-Density = NULL
-Globals = NULL
-Settings = NULL
-Quantities = NULL
+Density = data.frame()
+Globals = data.frame()
+Settings = data.frame()
+Quantities = data.frame()
 
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
@@ -156,14 +156,16 @@ if (! "unit" %in% names(Quantities)) {
 } else {
 	Quantities$unit = as.character(Quantities$unit)
 }
-if (! "unit" %in% names(Globals)) {
-	Globals$unit = "1"
-} else {
-	Globals$unit = as.character(Globals$unit)
+if (nrow(Globals) > 0) {
+	if (! "unit" %in% names(Globals)) {
+		Globals$unit = "1"
+	} else {
+		Globals$unit = as.character(Globals$unit)
+	}
+	if (! "adjoint" %in% names(Globals)) {
+		Globals$adjoint = FALSE
+	} 
 }
-if (! "adjoint" %in% names(Globals)) {
-	Globals$adjoint = FALSE
-} 
 if (! "default" %in% names(Settings)) {
 	Settings$default = "0"
 } else {

@@ -1,0 +1,34 @@
+<?R
+	source("conf.R");
+	c_header();
+        f = PV(Density$name[Density$group=="f"])
+        U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+
+?>
+
+CudaDeviceFunction real_t getRhoB(){
+        return <?R C(sum(PV(DensityAD$name[DensityAD$group == "f"]))) ?>;
+}
+
+CudaDeviceFunction real_t getWB(){
+        return wb;
+}
+
+CudaDeviceFunction vector_t getUB(){
+        vector_t u;
+	<?R C(PV(c("u.x","u.y")) == PV(DensityAD$name[DensityAD$group == "f"]) %% U) ?>;
+	u.z=0;
+	return u;
+}
+
+CudaDeviceFunction void RunAdj(){
+	if (NodeType & NODE_DesignSpace ) {
+		wb /= 1000;
+//		if (wb > 0.00001)  wb =  0.01;
+//		if (wb < -0.00001) wb = -0.01;
+		w += wb;
+		if (w > 1.0) w=1.0;
+		if (w < 0.01) w=0.01;
+	}
+	wb=0;
+}

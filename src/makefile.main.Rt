@@ -124,7 +124,7 @@ for (d in destinations) {
 
 <?%s d ?>/configure:$(SRC)/configure.ac
 	@echo "  AUTOCONF   $@"
-	@autoconf -o $@ $<
+	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
 
 <?%s d ?>/%:$(SRC)/%
 	@echo "  CP         $@"

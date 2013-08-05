@@ -36,25 +36,25 @@ MRTT = matrix(c(
 1, 0, 0, 1, 0, 0, 1, 
 1, 0, 0,-1, 0, 0, 1),7,7)
 
-Density = data.frame(
+AddDensity(
 	name = paste("f",0:18,sep=""),
 	dx   = MRTMAT[,selU[1]],
 	dy   = MRTMAT[,selU[2]],
 	dz   = MRTMAT[,selU[3]],
-	command=paste("density F",0:18),
+	comment=paste("density F",0:18),
 	group="f"
 )
 
 f = PV(Density$name)
 
-Density = rbind(Density,data.frame(
+AddDensity(
 	name = paste("T",1:nrow(MRTT)-1,sep=""),
 	dx   = MRTT[2,],
 	dy   = MRTT[3,],
 	dz   = MRTT[4,],
-	command=paste("density T",1:nrow(MRTT)-1),
+	comment=paste("density T",1:nrow(MRTT)-1),
 	group="T"
-))
+)
 
 f = PV(Density$name[Density$group=="f"])
 fT = PV(Density$name[Density$group=="T"])
@@ -147,21 +147,17 @@ Sy = rbind(
 	
 }
 
-
-Quantities = data.frame(
-        name = c("Rho","U","T"),
-        type = c("real_t","vector_t","real_t")
-)
+AddQuantity( name="Rho" )
+AddQuantity( name="T" )
+AddQuantity( name="U", vector=T )
 
 
-Settings = table_from_text("
-        name                 derived                equation   comment
-        omega                     NA                      NA   'one over relaxation time'
-        nu                     omega      '1.0/(3*nu + 0.5)'   'viscosity'
-        InletVelocity             NA                      NA   'inlet velocity'
-        InletPressure   InletDensity   '1.0+InletPressure/3'   'inlet pressure'
-        InletDensity              NA                      NA   'inlet density'
-        InletTemperature          NA                      NA   'inlet temperature'
-	HeaterTemperature	  NA			  NA   'temperature of the heater'
-	FluidAlpha		  NA			  NA   'heat conductivity of fluid'
-")
+AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='inlet density')
+AddSetting(name="InletTemperature", default=1, comment='inlet density')
+AddSetting(name="HeaterTemperature", default=1, comment='inlet density')
+AddSetting(name="FluidAlpha", default=1, comment='inlet density')
+
