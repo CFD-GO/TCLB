@@ -27,37 +27,44 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 <?R
 	for (tp in rows(Dispatch)) {
 	cat("\n")
-	ifdef(tp$adjoint)
+	ifdef(tp$adjoint || (tp$Globals == "Obj"))
 	suff=tp$suffix ?>
-//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Adjoint:<?%5s tp$adjoint ?> Globals:<?%5s tp$globals ?> ]-------------------- <?R
+//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Adjoint:<?%5s tp$Adjoint ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) {
-		if (tp$globals) { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + x <?R
+		if (tp$Globals == "Globs") { ?>
+#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + (x) <?R
+		} else if (tp$Globals == "Obj") { ?>
+#define AddTo<?%s g$name ?>(x) Objective = Objective + (x) * <?%s g$name ?>InObj <?R
 		} else { ?>
 #define AddTo<?%s g$name ?>(x) <?R
 		}
 	} ?>
 struct Node<?%s suff ?> {
 	int x,y,z; <?R
-		if (tp$globals) {
-			for (g in rows(GlobalsD)) { ?>
-        real_t <?%s g$name ?>; <?R
-			}
-		}
-	?>
+		if (tp$Globals == "Globs") {
+                        for (g in rows(GlobalsD)) { ?>
+	real_t <?%s g$name ?>; <?R
+                        }
+		} else if (tp$Globals == "Obj") { ?>
+        real_t Objective; <?R
+		} else { } ?>
 	CudaDeviceFunction void inline Pre() { <?R
-		if (tp$globals) {
+		if (tp$Globals == "Globs") {
 				for (g in rows(GlobalsD)) { ?>
 		<?%s g$name ?> = 0.0f; <?R
 				}
-		} ?>
+		} else if (tp$Globals == "Obj") { ?>
+		Objective = 0.0f; <?R
+		} else { } ?>
 	}
 	CudaDeviceFunction void inline Glob() { <?R
-		if (tp$globals) {
-			for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) { ?>
+		if (tp$Globals == "Globs") {
+                        for (g in rows(GlobalsD)) { ?>
 		atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$name ?>); <?R
-			}
-		} ?>
+                        }
+		} else if (tp$Globals == "Obj") { ?>
+		atomicSum(&constContainer.Globals[ GLOBALS_Objective ], Objective); <?R
+		} else { } ?>
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
@@ -73,8 +80,25 @@ struct Node<?%s suff ?> {
 		}
 	?>
 	CudaDeviceFunction inline void RunElement() { <?R
-		if (tp$adjoint) { ?>
+		if (tp$Adjoint == "Adj") { ?>
 		constContainer.pop(*this);
+		constContainer.pop_adj(*this);
+		Run_b();
+		constContainer.push_adj(*this); <?R
+		} else if (tp$Adjoint == "Opt") { ?>
+                constContainer.pop(*this); <?R
+		        for (i in 1:nrow(Density)) {
+		                d=Density[i,];
+                                da=DensityAD[i,];?>
+		<?%s da$name ?> = <?%s d$name ?>; <?R
+		        } ?>
+		Run();
+		constContainer.push(*this); <?R
+		        for (i in 1:nrow(Density)) {
+		                d=Density[i,];
+                                da=DensityAD[i,];?>
+		<?%s d$name ?> = <?%s da$name ?>; <?R
+		        } ?>
 		constContainer.pop_adj(*this);
 		Run_b();
 		constContainer.push_adj(*this); <?R
@@ -93,5 +117,4 @@ cat("\n")
 ifdef()
 ?>
 
-//#include "LatticeContainer.h"
 #include "LatticeContainer.cu"

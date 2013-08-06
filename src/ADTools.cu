@@ -1,4 +1,6 @@
-CudaSharedMemory int pushcontrol[512];
+#include "Consts.h"
+
+CudaSharedMemory int pushcontrol[MAX_THREADS];
 
 inline CudaDeviceFunction void pushcontrol1b_(int i) {
 	const int cths=CudaThread.x + CudaThread.y*CudaNumberOfThreads.x;
@@ -37,8 +39,8 @@ inline CudaDeviceFunction void popcontrol3b_(int * i) {
 }
 
 /*	
-CudaSharedMemory real_t pushval[512*6];
-CudaSharedMemory int pushvali[512];
+CudaSharedMemory real_t pushval[MAX_THREADS*6];
+CudaSharedMemory int pushvali[MAX_THREADS];
 
 inline CudaDeviceFunction void ADclear () {
 	pushvali[CudaThread.x] = 0;

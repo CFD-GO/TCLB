@@ -7,6 +7,10 @@
 #define VERSION "<?%s version ?>"
 #define MODEL "<?%s MODEL ?>"
 #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
+
+#define MAX_THREADS 512
+#define X_BLOCK 32
+
 <?R
   for (n in names(Node)) { ?>
 #define NODE_<?%-20s n ?> 0x<?%08x Node[n] ?> <?R

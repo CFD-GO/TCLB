@@ -290,12 +290,24 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
-Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
-Dispatch$suffix = paste(
-	ifelse(Dispatch$globals,"_Globs",""),
-	ifelse(Dispatch$adjoint,"_Adj",""),
-	sep=""
+#Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
+Dispatch = data.frame(
+	Globals=c(   "No",  "Globs",  "Obj",   "No",      "Globs",   "No",      "Globs"),
+	Adjoint=c(   "No",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,     TRUE,   TRUE,  FALSE,         TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,    FALSE,  FALSE,   TRUE,         TRUE,   TRUE,         TRUE),
+	suffix =c(     "", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
 )
+
+#Dispatch = expand.grid(Globals=c("No","Globs","Obj"), Adjoint=c("No","Adj","Opt"))
+#Dispatch$adjoint = Dispatch$Adjoint != "No"
+#Dispatch$globals = Dispatch$Globals != "No"
+
+#Dispatch$suffix = paste(
+#	ifelse(Dispatch$globals,paste("_",Dispatch$Globals,sep=""),""),
+#	ifelse(Dispatch$adjoint,paste("_",Dispatch$Adjoint,sep=""),""),
+#	sep="")
+
 
 Consts = NULL
 

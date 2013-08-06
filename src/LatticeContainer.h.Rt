@@ -7,6 +7,7 @@
 
 #include "Consts.h"
 
+/*
 #ifdef CROSS_CPU
 	#define XSDIM 1
 	#define YSDIM 1
@@ -17,23 +18,12 @@
 	#define DXSDIM blockDim.x
 #endif
 
-#ifdef GRID_3D
-//	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
-//	#define Y (CudaBlock.x)
-//	#define Z (CudaBlock.y)
-	#define BLOCKS dim3(region.ny,region.nz,container->kx)
-#else
-//	#define X (CudaThread.x+_z_*DXSDIM)
-//	#define Y (CudaBlock.x)
-//	#define Z (CudaBlock.y)
-	#define BLOCKS dim3(region.ny,region.nz,1)
-#endif
 #define THREADS dim3(XSDIM,1)
 //#define OFFSET (X + nx*Y + nx*ny*Z)
 
 extern int _xsdim;
 extern int _ysdim;
-
+*/
 class LatticeContainer {
 	public:
   FTabs in;

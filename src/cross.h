@@ -1,4 +1,5 @@
 #include "types.h"
+#include "Consts.h"
 
 #ifndef __CUDACC__
   #define CROSS_CPP
@@ -40,7 +41,7 @@
       }
 
 
-      __shared__ real_t sumtab[1024];
+      __shared__ real_t sumtab[MAX_THREADS];
 
       __device__ inline void atomicSum(real_t * sum, real_t val)
       {

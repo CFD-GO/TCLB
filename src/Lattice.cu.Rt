@@ -181,7 +181,7 @@ void Lattice::loadSolution(const char * filename) {
 void Lattice::clearAdjoint()
 {
 #ifdef ADJOINT
-	printf("Clearing adjoint\n");
+	printf("[%d] Clearing adjoint\n", D_MPI_RANK);
 	aSnaps[0].Clear(region.nx,region.ny,region.nz);
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 #endif
@@ -237,21 +237,25 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	}
 ?>
 	container->CopyToConst();
-	switch(iter_type){
-	case ITER_NORM:
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
 		container->RunBorder (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs(kernelStream); break;
+	case ITER_OBJ:
+		container->RunBorder_Obj(kernelStream); break;
 	}	
         CudaStreamSynchronize(kernelStream);
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
 		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
 	}
-	switch(iter_type){
-	case ITER_NORM:
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
 		container->RunInterior (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs(kernelStream); break;
+	case ITER_OBJ:
+		container->RunInterior_Obj(kernelStream); break;
 	}	
         CudaStreamSynchronize(outStream);
 	for (int i = 0; i < bufnumber; i++) {
@@ -300,8 +304,8 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 
 	CudaEventRecord(kernelEv[2],kernelStream);
 	DEBUG_M;
-	switch(iter_type){
-	case ITER_NORM:
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
 		container->RunInterior_Adj (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Adj(kernelStream); break;
@@ -325,8 +329,8 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	DEBUG_M;
 	CudaEventRecord(kernelEv[0],kernelStream);
 	DEBUG_M;
-	switch(iter_type){
-	case ITER_NORM:
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
 		container->RunBorder_Adj (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs_Adj(kernelStream); break;
@@ -512,17 +516,16 @@ void Lattice::IterateTill(int it, int iter_type)
 
 void Lattice::Iterate(int niter, int iter_type)
 {
-	int ad = iter_type & ITER_ADJOINT;
 	int last_glob = iter_type & ITER_LASTGLOB;
 	int i;
-	iter_type = iter_type & ITER_TYPE;
-	if (iter_type & ITER_GLOBS) last_glob=0;
+	if (iter_type & ITER_INTEG) last_glob=0;
 	if (reverse_save) {
-		if (ad) {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
 					container->clearGlobals();
-					iter_type = ITER_GLOBS;
+					iter_type = iter_type | ITER_GLOBS;
 				}
 				Iter -= 1;
 				if (Iter < 0) {
@@ -532,42 +535,65 @@ void Lattice::Iterate(int niter, int iter_type)
 				IterateTill(Iter, ITER_NORM);
 				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
 			}
-		} else {
+			break;
+                case ITER_NORM:
 			if (last_glob) {
 				IterateTill(niter+Iter-1, iter_type);
 				container->clearGlobals();
-				IterateTill(Iter+1, ITER_GLOBS);
+				IterateTill(Iter+1, iter_type | ITER_GLOBS);
 			} else {
 				IterateTill(niter+Iter, iter_type);
 			}
+			break;
+                case ITER_OPT:
+                        std::cerr << "Cannot do a OPT iteration in record mode\n";
+                        exit(-1);
+                        break;
 		}
 	} else {
-		if (ad) {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
 					container->clearGlobals();
-					iter_type = ITER_GLOBS;
+					iter_type |= ITER_GLOBS;
 				}
 				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
 			}
-		} else {
+			break;
+                case ITER_NORM:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
 					container->clearGlobals();
-					iter_type = ITER_GLOBS;
+					iter_type |= ITER_GLOBS;
 				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 			}
+			break;
+                case ITER_OPT:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+//				Iteration(Snap, (Snap+1) % 2, iter_type);
+			}
+                        break;
 		}
 	}
 	if (last_glob) {
-		if (ad) {
-			clearGlobals_Adj();
-		} else {
+	        switch (iter_type & ITER_TYPE) {
+                case ITER_OPT:
 			clearGlobals();
+	        case ITER_ADJOINT:
+			clearGlobals_Adj();
+			break;
+                case ITER_NORM:
+			clearGlobals();
+			break;
 		}
 		calcGlobals();
-	} else if ( iter_type == ITER_GLOBS ) {
+	} else if ( iter_type & ITER_INTEG ) {
 		calcGlobals();
 	}
 };
@@ -683,7 +709,7 @@ void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
 
 void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
 {
-	printf("Pulling all <?%s d$nicename ?>\n");
+	printf("[%d] Pulling all <?%s d$nicename ?>\n", D_MPI_RANK);
 	CudaMemcpy(
 		tab,
 		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
@@ -693,7 +719,7 @@ void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
 
 void Lattice::Clear_<?%s d$nicename ?>()
 {
-	printf("Clearing all <?%s d$nicename ?>\n");
+	printf("[%d] Clearing all <?%s d$nicename ?>\n", D_MPI_RANK);
 	CudaMemset(
 		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
 		0,
@@ -702,7 +728,7 @@ void Lattice::Clear_<?%s d$nicename ?>()
 
 void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 {
-	printf("Setting all <?%s d$nicename ?>\n");
+	printf("[%d] Setting all <?%s d$nicename ?>\n", D_MPI_RANK);
 	CudaMemcpy(
 		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
 		tab,

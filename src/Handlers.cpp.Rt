@@ -216,7 +216,7 @@ class GenericAction: public Action {
 			if (hand) {
 				if (hand.Type() & HANDLER_CALLBACK) {
 					if (hand.hand->everyIter) {
-						printf("adding %lf\n", hand.hand->everyIter);
+//						printf("adding %lf\n", hand.hand->everyIter);
 						solver->hands.push_back(hand);
 						stack++;
 					} else {
@@ -300,7 +300,7 @@ class acUSAdjoint: public GenericAction {
 	int Init() {
 		GenericAction::Init();
 		old_iter_type = solver->iter_type;
-		solver->iter_type = ITER_GLOBS;
+		solver->iter_type = ITER_NORM | ITER_GLOBS;
 		solver->lattice->startRecord();
 		GenericAction::ExecuteInternal();
 		everyIter = solver->iter - startIter;
@@ -308,6 +308,7 @@ class acUSAdjoint: public GenericAction {
 			std::cerr << "No iterations done inside of Usteady Adjoint! Nothing to do\n";
 			return -1;
 		}
+		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
 		do {
 			int next_it = Prev(solver->iter);
 			for (int i=0; i<solver->hands.size(); i++) {
@@ -317,7 +318,7 @@ class acUSAdjoint: public GenericAction {
 			solver->steps = next_it;
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			solver->iter -= solver->steps;
-			solver->lattice->Iterate(solver->steps, solver->iter_type | ITER_ADJOINT);
+			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
 			for (int i=0; i<solver->hands.size(); i++) {
@@ -326,8 +327,8 @@ class acUSAdjoint: public GenericAction {
 				}
 			}
 		} while (!Now(solver->iter));
-		solver->iter += everyIter*2;
 		solver->lattice->stopRecord();
+		solver->iter += everyIter*2;
 		CudaThreadSynchronize();
 		MPI_Barrier(MPI_COMM_WORLD);
 		GenericAction::Unstack();
@@ -349,6 +350,7 @@ class acSAdjoint: public GenericAction {
 			std::cerr << "Warning: Zero iterations in steady adjoint. somethings is probaby wrong\n";
 			return 0;
 		}
+		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
 		do {
 			int next_it = Next(solver->iter);
 			for (int i=0; i<solver->hands.size(); i++) {
@@ -358,8 +360,8 @@ class acSAdjoint: public GenericAction {
 			solver->steps = next_it;
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			solver->iter += solver->steps;
-			printf("iterate %d %d\n", solver->steps, solver->iter_type | ITER_ADJOINT);
-			solver->lattice->Iterate(solver->steps, solver->iter_type | ITER_ADJOINT);
+			printf("iterate %d %d\n", solver->steps, solver->iter_type);
+			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
 			for (int i=0; i<solver->hands.size(); i++) {
@@ -386,17 +388,23 @@ class acOptimize: public GenericAction {
 		double val;
 		double * start = NULL;
 		GenericAction::Init();
+		DEBUG_M;
 		par = solver->getPars();
-		if (par == 0) {
-			std::cerr << "Error: No parameters defined!\n";
-			return -1;
-		}			
+		DEBUG_M;
 		if (solver->mpi_rank == 0) {
+        		if (par == 0) {
+        			std::cerr << "Error: No parameters defined!\n";
+        			return -1;
+        		}			
 			printf("[ ] Parameters: %d\n", par);
 			start = new double[par];
 		}
+		DEBUG_M;
 		solver->getPar(start);
+		DEBUG_M;
+		int msg=0;
 		if (solver->mpi_rank == 0) {
+		DEBUG_M;
 //			opt = nlopt_create(NLOPT_LD_LBFGS,par);
 			opt = nlopt_create(NLOPT_LD_MMA,par);
 			{
@@ -408,14 +416,30 @@ class acOptimize: public GenericAction {
 				delete[] bound;
 			}
 			nlopt_set_max_objective(opt, FOptimize, this);
+		DEBUG_M;
 			nlopt_result res = nlopt_optimize(opt, start, &val);
+                        msg = -1;
+		DEBUG_M;
+                        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
 			printf("[ ] NLOpt result: %d\n", res);
 			printf("[ ] Final Objective value: %lf\n",val);
 			nlopt_destroy(opt);
+		} else {
+		DEBUG_M;
+		        double f;
+		        while (msg == 0) {
+		DEBUG_M;
+        		        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+        		        if (msg != 0) break;
+        		        Execute(NULL,NULL,&f);
+                        }
+                        
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 		return 0;
 	}
 	int Execute(const double * x, double * grad, double * f) {
+		DEBUG_M;
 		solver->setPar(x);
 		if (GenericAction::ExecuteInternal()) return -1;
 		everyIter = solver->iter - startIter;
@@ -431,6 +455,8 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	acOptimize * obj = (acOptimize *) data;
 	assert(n == obj->par);
 	double val;
+        int msg = 0;
+        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
 	int ret = obj->Execute(x, grad, &val);
 	if (ret) {
 		std::cerr << "Error while executing calculations in optimize. exiting loop.\n";

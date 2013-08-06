@@ -5,6 +5,7 @@
 #include "Consts.h"
 #include "Global.h"
 #include "Lattice.h"
+#include "mpi.h"
 
 #define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
 #define ALLOCPRINT2 printf("(%p - %p) \n", tmp, tmp+size)
@@ -28,12 +29,12 @@ template <class N> dim3 GetThreads() {
 	HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<N>) );
 	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
 	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
-	DEBUG2( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
+	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
 	DEBUG1( printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs) );
 	DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
-	ret.x = 32;
-	ret.y = attr->maxThreadsPerBlock/32;
-	if (ret.y > 16) ret.y=16;
+	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
+	ret.x = X_BLOCK;
+	ret.y = attr->maxThreadsPerBlock/ret.x;
 	ret.z = 1;
 	return ret;
 }
@@ -49,8 +50,15 @@ template < > inline int getSY< Node<?%s tp$suffix ?> >() { return sydim<?%s tp$s
 
 int InitDim(int ny) {
 	dim3 th; int ky;
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (D_MPI_RANK == 0) {
+          DEBUG2( printf( "[ ] |  Threads  |      Action  |\n") );
+        }
+	MPI_Barrier(MPI_COMM_WORLD);
 <?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint)
 ?>	th = GetThreads< Node<?%s tp$suffix ?> >();
+	DEBUG2( printf( "[%d] |  %3dx%-3d  |  %10s  |\n", D_MPI_RANK, th.x, th.y, "<?%s tp$suffix ?>") );
+	MPI_Barrier(MPI_COMM_WORLD);
 	sydim<?%s tp$suffix ?> = th.y;
 	ky = ny/th.y;
 	if (ky*th.y < ny) ky++;
@@ -132,9 +140,8 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     nx = nx_;
     ny = ny_;
     nz = nz_;
-    kx = nx/XSDIM;
-    ky = ny/YSDIM;
-    if (ky*YSDIM < ny) ky ++;
+    kx = nx/X_BLOCK;
+    ky = ny;
 
     InitDim(ny);
 
@@ -462,7 +469,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x = CudaThread.x + CudaBlock.y*DXSDIM;
+	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
 	now.z = CudaBlock.x;
 	now.Pre();
 #ifdef BORDER_Z
@@ -517,9 +524,9 @@ void LatticeContainer::CopyToConst() {
 
 template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
     #ifdef BORDER_Z
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(XSDIM),(),borderStream);
+	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
     #else
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(XSDIM),(),borderStream);
+	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
     #endif
 };
 
@@ -532,9 +539,9 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 	nnz = nz;
     #endif
     #ifdef GRID_3D
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(XSDIM,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(XSDIM,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
     #endif
 };
 
@@ -608,14 +615,14 @@ void LatticeContainer::Init() {
 	dx=dy=dz=0;
 	fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
+   CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(X_BLOCK) ,(nx,ny));
 };
 
 void LatticeContainer::Color( uchar4 *optr ) {
    dx=dy=dz=0;
    fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(XSDIM) ,(optr));
+   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
 };
 
 <?R

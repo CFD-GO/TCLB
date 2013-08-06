@@ -181,8 +181,6 @@ int main ( int argc, char * argv[] )
 	#endif
 
 
-	// 1024 threads not working. (Why?)
-	if (solver.info.xsdim > 512) solver.info.xsdim = 512;
 	printf("[%d] Running at %dx%d threads per block\n", D_MPI_RANK, solver.info.xsdim, solver.info.ysdim);
 	<?R for (tp in c("size_t","real_t","vector_t","flag_t")) { ?>
 		DEBUG0(printf("[%d] sizeof(<?%s tp?>) = %ld\n", D_MPI_RANK, sizeof(<?%s tp?>));)
