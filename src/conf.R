@@ -299,6 +299,9 @@ Dispatch = data.frame(
 	suffix =c(     "", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
 )
 
+Dispatch$adjoint_ver = Dispatch$adjoint
+Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
+
 #Dispatch = expand.grid(Globals=c("No","Globs","Obj"), Adjoint=c("No","Adj","Opt"))
 #Dispatch$adjoint = Dispatch$Adjoint != "No"
 #Dispatch$globals = Dispatch$Globals != "No"

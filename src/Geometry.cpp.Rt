@@ -124,8 +124,10 @@ lbRegion Geometry::getRegion(const pugi::xml_node& node)
 
 inline flag_t Geometry::Dot(int x, int y, int z)
 {
-	int i = region.offset(x,y,z);
-	return geom[i] = (geom[i] & (~fg_mask)) | fg;
+        if (region.isIn(x,y,z)) {
+        	int i = region.offset(x,y,z);
+        	return geom[i] = (geom[i] & (~fg_mask)) | fg;
+        }
 }
 
 inline int inSphere(double x, double y, double z) {
@@ -164,7 +166,7 @@ int Geometry::Draw(pugi::xml_node& node)
 				Dot(x,y,z);
 			}
 		} else if (strcmp(n.name(),"Sphere") == 0) {
-			reg = region.intersect(reg);
+//			reg = region.intersect(reg);
 			DEBUG1(std::cout <<"[" << D_MPI_RANK << "] " << "Filling sphere with flag " << fg << " (" << fg_mask << "): "; reg.print(); )
 			for (int x=reg.dx; x<reg.dx+reg.nx; x++)
 			for (int y=reg.dy; y<reg.dy+reg.ny; y++)
@@ -174,7 +176,7 @@ int Geometry::Draw(pugi::xml_node& node)
 				}
 			}
 		} else if (strcmp(n.name(),"Wedge") == 0) {
-			reg = region.intersect(reg);
+//			reg = region.intersect(reg);
 			DEBUG1(std::cout <<"[" << D_MPI_RANK << "] " << "Filling wedge with flag " << fg << " (" << fg_mask << "): "; reg.print(); )
 			const char * type = n.attribute("direction").value();
 			for (int x=reg.dx; x<reg.dx+reg.nx; x++)

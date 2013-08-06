@@ -243,7 +243,10 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	case ITER_GLOBS:
 		container->RunBorder_Globs(kernelStream); break;
 	case ITER_OBJ:
-		container->RunBorder_Obj(kernelStream); break;
+#ifdef ADJOINT
+		container->RunBorder_Obj(kernelStream);
+#endif
+                break;
 	}	
         CudaStreamSynchronize(kernelStream);
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
@@ -255,7 +258,10 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	case ITER_GLOBS:
 		container->RunInterior_Globs(kernelStream); break;
 	case ITER_OBJ:
-		container->RunInterior_Obj(kernelStream); break;
+#ifdef ADJOINT
+		container->RunInterior_Obj(kernelStream);
+#endif
+                break;
 	}	
         CudaStreamSynchronize(outStream);
 	for (int i = 0; i < bufnumber; i++) {

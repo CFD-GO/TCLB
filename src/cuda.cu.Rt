@@ -27,7 +27,7 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 <?R
 	for (tp in rows(Dispatch)) {
 	cat("\n")
-	ifdef(tp$adjoint || (tp$Globals == "Obj"))
+	ifdef(tp$adjoint_ver)
 	suff=tp$suffix ?>
 //-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Adjoint:<?%5s tp$Adjoint ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) {
