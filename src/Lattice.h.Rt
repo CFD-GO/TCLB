@@ -29,7 +29,7 @@ const int maxSnaps=33;
 class Lattice {
 private:
   LatticeContainer * container;
-  real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27], *gpubuf[27];
+  real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27];
   size_t bufsize[27];
   int nodein[27], nodeout[27];
   int bufnumber;
@@ -96,6 +96,7 @@ public:
   void        Iterate(int, int);
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
   void        Iteration_Adj(int, int, int);
+  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
   void        IterateTill(int,int);
   void        Iteration(int, int, int);
   void inline Iterate()  { IterateT(ITER_NORM);   };

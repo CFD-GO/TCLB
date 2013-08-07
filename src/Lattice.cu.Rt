@@ -93,6 +93,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	real_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
+	for (int i=0; i<2; i++) {
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -107,6 +108,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
 		BPreAlloc((void**) & (gpubuf[bufnumber]), size);
+		BPreAlloc((void**) & (gpubuf2[bufnumber]), size);
 		nodein[bufnumber] = from;
 		bufsize[bufnumber] = size;
 		bufnumber ++;
@@ -114,6 +116,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 <?R
 	}
 ?>
+        }
 #endif
 
 	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
@@ -351,6 +354,108 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 #endif
 };
 
+inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+{
+#ifdef ADJOINT
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+//	printf("Adjoint %d -> %d\n", tab0, tab1);
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
+		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+		container->out.<?%s m$name ?> = gpubuf2[i];
+		i ++;
+	} else {
+		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+	}
+	container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+<?R
+	}
+?>
+	container->CopyToConst();
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	        CudaEventRecord( outEv[i], outStream );
+	}
+
+	CudaEventRecord(kernelEv[2],kernelStream);
+	DEBUG_M;
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
+		container->RunInterior_Opt (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInterior_Globs_Opt(kernelStream); break;
+	}	
+        CudaStreamSynchronize(outStream);
+	DEBUG_M;
+	for (int i = 0; i < bufnumber; i++) {
+		DEBUG_M;
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+	}
+	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+		DEBUG_M;
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+	        CudaEventRecord( mpiEv[i], inStream );
+		DEBUG_M;
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+		DEBUG_M;
+	        CudaEventRecord( inEv[i], inStream );
+	}
+        CudaStreamSynchronize(inStream);
+	DEBUG_M;
+	CudaEventRecord(kernelEv[0],kernelStream);
+	DEBUG_M;
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
+		container->RunBorder_Opt (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder_Globs_Opt(kernelStream); break;
+	}	
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = container->out.<?%s m$name ?>;
+		i ++;
+	}
+<?R
+	}
+?>
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	}
+        CudaStreamSynchronize(outStream);
+	for (int i = 0; i < bufnumber; i++) {
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+	}
+	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+	}
+        CudaDeviceSynchronize();
+	Snap = tab1;
+	aSnap = tab1;
+	MarkIteration();
+#else
+	std::cerr << "This model doesn't have adjoint!\n";
+	exit (-1);
+#endif
+};
+
+
 void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -582,7 +687,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					container->clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
-//				Iteration(Snap, (Snap+1) % 2, iter_type);
+				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
 			}
                         break;
 		}
