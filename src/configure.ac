@@ -37,6 +37,11 @@ AC_ARG_WITH([graphics],
 	AC_HELP_STRING([--with-graphics],
 		[make a GUI version]))
 
+AC_ARG_WITH([cuda-arch],
+	AC_HELP_STRING([--with-cuda-arch=arch],
+		[specify the desired CUDA architecture (sm_10/sm_13/sm_20)]),
+	[CUDA_ARCH="$withval"])
+
 if test "$with_graphics" == "yes"
 then
 	AC_MSG_NOTICE([Graphics enabled])
@@ -134,6 +139,24 @@ else
 	fi
 	AC_MSG_RESULT([Using ${R_INCLUDE} for R header files])
 	AC_MSG_RESULT([Using ${R_LIB} for R shared libraries])
+fi
+
+GRID3D=""
+AC_MSG_CHECKING([CUDA arch])
+if test -z "${CUDA_ARCH}"; then
+	AC_MSG_RESULT([using arch sm_11])
+	CUDA_ARCH="sm_11"
+else
+	if test "$CUDA_ARCH" == "sm_11"
+	then
+		AC_MSG_RESULT([using ${CUDA_ARCH}])
+	elif test "$CUDA_ARCH" == "sm_20"
+	then
+		AC_MSG_RESULT([using ${CUDA_ARCH}])
+		GRID3D="-D GRID3D"
+	else
+		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
+	fi
 fi
 
 

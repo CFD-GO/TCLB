@@ -44,6 +44,8 @@ class LatticeContainer {
   void Free();
   CudaDeviceFunction void fill();
   template<class N>  CudaDeviceFunction void push(N & f);
+  template<class N>  CudaDeviceFunction void push_param(N & f);
+  template<class N>  CudaDeviceFunction void push_noparam(N & f);
   template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
   template<class N>  CudaDeviceFunction void getType(N & f);

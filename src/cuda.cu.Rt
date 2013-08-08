@@ -78,7 +78,21 @@ struct Node<?%s suff ?> {
         #include "Dynamics_b.c"
 	#include "Dynamics_adj.c" <?R
 		}
-	?>
+		if (tp$Adjoint == "Opt") { ?>
+	CudaDeviceFunction inline void Opt() {
+	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
+		        for (i in 1:nrow(Density)) {
+		                d=Density[i,];
+                                da=DensityAD[i,];
+                                if (d$parameter) { ?>
+                <?%s d$name ?> += <?%s da$name ?>*1;
+                if (<?%s d$name ?> > 1) <?%s d$name ?> = 1;
+                if (<?%s d$name ?> < 0.01) <?%s d$name ?> = 0.01; <?R
+                                }
+                        }?>
+                }
+        } <?R
+	        } ?>
 	CudaDeviceFunction inline void RunElement() { <?R
 		if (tp$Adjoint == "Adj") { ?>
 		constContainer.pop(*this);
@@ -93,7 +107,7 @@ struct Node<?%s suff ?> {
 		<?%s da$name ?> = <?%s d$name ?>; <?R
 		        } ?>
 		Run();
-		constContainer.push(*this); <?R
+		constContainer.push_noparam(*this); <?R
 		        for (i in 1:nrow(Density)) {
 		                d=Density[i,];
                                 da=DensityAD[i,];?>
@@ -104,7 +118,9 @@ struct Node<?%s suff ?> {
 		<?%s d$name ?> = 0; <?R
 		        } ?>
 		Run_b();
-		constContainer.push_adj(*this); <?R
+		constContainer.push_adj(*this);
+		Opt();
+		constContainer.push_param(*this); <?R
 		} else { ?>
 	        constContainer.pop(*this); 
 		Run();

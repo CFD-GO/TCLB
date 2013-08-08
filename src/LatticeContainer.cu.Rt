@@ -223,9 +223,10 @@ void LatticeContainer::Free()
 		}
 	} 
 
-	push = function(dens,dx,dy,dz,...) { ?>
-//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------//
-<?R
+	push = function(dens,dx,dy,dz,sel=TRUE,...) { 
+	        if (sel) { ?>
+//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------// <?R
+                }
 		gdens <<- dens;
 
 		w = GetMargins(dx,dy,dz);
@@ -246,28 +247,33 @@ void LatticeContainer::Free()
 		H[7] = X + dx
 		H[8] = PV(0)
 
+		
+		if (sel) {
+                    for (i in 1:length(w)) if (w[i] > 0) {
+                            off = Margin[[w[i]]]$POffset
+                            noff = Margin[[w[i]]]$PSize + H[i]
+                            v = ToC(noff - off,float=F);
+                            if (v != "   0") { ?>
+        pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
+                            }
+			    Margin[[w[i]]]$POffset <<- noff;
+                    }
+		    p = rep("ItCannotHappen",length(w))
+                    p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
+                    pushZ(
+                            p[1],
+                            p[2],
+                            p[3],
+                            p[4],
+                            p[5],
+                            p[6],
+                            p[7],
+                            p[8],
+                            dx, dy, dz,...);
+                }
 		for (i in 1:length(w)) if (w[i] > 0) {
-			off = Margin[[w[i]]]$POffset
-			noff = Margin[[w[i]]]$PSize + H[i]
 			Margin[[w[i]]]$PSize <<- Margin[[w[i]]]$PSize + SideSize[i]
-			v = ToC(noff - off,float=F);
-			if (v != "   0") { ?>
-	pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
-			}
-			Margin[[w[i]]]$POffset <<- noff;
 		}
-		p = rep("ItCannotHappen",length(w))
-		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
-		pushZ(
-			p[1],
-			p[2],
-			p[3],
-			p[4],
-			p[5],
-			p[6],
-			p[7],
-			p[8],
-			dx, dy, dz,...);
 	} 
 
 	popX = function(dens,a,b,dx) {
@@ -350,7 +356,9 @@ void LatticeContainer::Free()
 		}
 	} 
 
-	InOut = function(type, pocket, density) { ?>
+	InOut = function(type, pocket, density, sel) {
+                if (missing(sel)) sel = rep(TRUE, nrow(density));
+                density$selected = sel; ?>
 	FTabs pocket = <?%s pocket ?>; <?R
 		pull=F
 		if ((type == "push") || (type == "pull")) {
@@ -359,7 +367,7 @@ void LatticeContainer::Free()
 			for ( i in 1:length(Margin) ) Margin[[i]]$PSize <<- PV(0)
 			gdens = ""
 			for (d in rows(density)) {
-				push(d$name, d$dx, d$dy, d$dz, pull=pull)
+				push(d$name, d$dx, d$dy, d$dz, pull=pull, sel=d$selected)
 			}
 		} else if (type == "pop") { ?>
 	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
@@ -384,6 +392,16 @@ void LatticeContainer::Free()
 template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
 {
 <?R	InOut("push", "out", Density); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
+{
+<?R	InOut("push", "out", Density, sel=Density$parameter); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
+{
+<?R	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
 }
 
 template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
