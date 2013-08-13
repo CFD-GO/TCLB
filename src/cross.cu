@@ -1,7 +1,7 @@
 #include <stdio.h>
+#include "Consts.h"
 #include "cross.h"
 #include "Global.h"
-//#include "Node.h"
 #include "LatticeContainer.h"
 #include <vector>
 #include <algorithm>

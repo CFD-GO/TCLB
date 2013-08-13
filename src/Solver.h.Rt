@@ -2,7 +2,7 @@
         source("conf.R")
 	c_header();
 ?>
-
+#include "Consts.h"
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
@@ -109,5 +109,21 @@ class Solver {
 	int setPar(const double * w);
 	int saveComp(const char*, const char*);
 	int loadComp(const char*, const char*);
+
+	inline int getGlobal(const char * nm) { <?R
+        for (v in rows(Globals)) { ?>
+        	if (strcmp(nm,"<?%s v$name ?>") == 0) return <?%s v$Index ?>; <?R
+	} ?>
+	        return -1;
+	};
+	inline char * getGlobal(const int i) {
+	        switch(i) { <?R
+	for (v in rows(Globals)) { ?>
+                	case <?%s v$Index ?>: return "<?%s v$name ?>"; <?R
+	} ?>
+	        }
+	        return "UNKNOWN";
+	};
+	
 };   
 

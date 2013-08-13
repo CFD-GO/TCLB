@@ -1,12 +1,22 @@
 <?R
   source("conf.R")
   c_header(); ?>
+
+#ifndef CONFIG_H
+  #include "../config.h"
+  #define CONFIG_H 
+#endif
+
 #ifndef CONSTS_H
 #define CONSTS_H 
 
 #define VERSION "<?%s version ?>"
 #define MODEL "<?%s MODEL ?>"
 #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
+
+#define MAX_THREADS 512
+#define X_BLOCK 32
+
 <?R
   for (n in names(Node)) { ?>
 #define NODE_<?%-20s n ?> 0x<?%08x Node[n] ?> <?R

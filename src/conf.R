@@ -24,10 +24,10 @@ table_from_text = function(text) {
 	tab
 }
 
-Density = NULL
-Globals = NULL
-Settings = NULL
-Quantities = NULL
+Density = data.frame()
+Globals = data.frame()
+Settings = data.frame()
+Quantities = data.frame()
 
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
@@ -156,14 +156,16 @@ if (! "unit" %in% names(Quantities)) {
 } else {
 	Quantities$unit = as.character(Quantities$unit)
 }
-if (! "unit" %in% names(Globals)) {
-	Globals$unit = "1"
-} else {
-	Globals$unit = as.character(Globals$unit)
+if (nrow(Globals) > 0) {
+	if (! "unit" %in% names(Globals)) {
+		Globals$unit = "1"
+	} else {
+		Globals$unit = as.character(Globals$unit)
+	}
+	if (! "adjoint" %in% names(Globals)) {
+		Globals$adjoint = FALSE
+	} 
 }
-if (! "adjoint" %in% names(Globals)) {
-	Globals$adjoint = FALSE
-} 
 if (! "default" %in% names(Settings)) {
 	Settings$default = "0"
 } else {
@@ -205,6 +207,9 @@ if (ADJOINT==1) {
 	Settings = rbind(Settings, data.frame(
 		name=paste(Globals$name,"InObj",sep=""),
 		derived=NA,equation=NA,comment=Globals$comment,default="0", unit="1"))
+	Settings = rbind(Settings, data.frame(
+		name="Descent",
+		derived=NA,equation=NA,comment="Optimization Descent",default="0", unit="1"))
 } else {
 	DensityAD = NULL
 	DensityAll = Density
@@ -288,12 +293,27 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
-Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
-Dispatch$suffix = paste(
-	ifelse(Dispatch$globals,"_Globs",""),
-	ifelse(Dispatch$adjoint,"_Adj",""),
-	sep=""
+#Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
+Dispatch = data.frame(
+	Globals=c(   "No",  "Globs",  "Obj",   "No",      "Globs",   "No",      "Globs"),
+	Adjoint=c(   "No",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,     TRUE,   TRUE,  FALSE,         TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,    FALSE,  FALSE,   TRUE,         TRUE,   TRUE,         TRUE),
+	suffix =c(     "", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
 )
+
+Dispatch$adjoint_ver = Dispatch$adjoint
+Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
+
+#Dispatch = expand.grid(Globals=c("No","Globs","Obj"), Adjoint=c("No","Adj","Opt"))
+#Dispatch$adjoint = Dispatch$Adjoint != "No"
+#Dispatch$globals = Dispatch$Globals != "No"
+
+#Dispatch$suffix = paste(
+#	ifelse(Dispatch$globals,paste("_",Dispatch$Globals,sep=""),""),
+#	ifelse(Dispatch$adjoint,paste("_",Dispatch$Adjoint,sep=""),""),
+#	sep="")
+
 
 Consts = NULL
 

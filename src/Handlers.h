@@ -1,3 +1,4 @@
+#include "Consts.h"
 #include "pugixml.hpp"
 
 #define HANDLER_CALLBACK 0x01

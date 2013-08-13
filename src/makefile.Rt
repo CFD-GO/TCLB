@@ -2,72 +2,21 @@
 
 MODEL=<?%s MODEL ?>       # model (directory) to use
 ADJOINT=<?%s ADJOINT ?>   # calculate adjoint: 1-on, 0-off
-GRAPHICS=<?%s GRAPHICS ?> # GLUT graphics: 1-on, 0-off
-DOUBLE=<?%s DOUBLE ?>     # precision: 1-double, 0-float
+GRAPHICS=0 # GLUT graphics: 1-on, 0-off
+DOUBLE=0     # precision: 1-double, 0-float
 GRID3D=0                  # use 3D block grid (only avaliable on capability 2.x): 1-on, 0-off
 ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 
 #CPU=1
 
-MPI_INCLUDES = /usr/include/mpi/
-MPI_LIBS     = /usr/lib/mpich/lib/
-MPI_OPT      = -L$(MPI_LIBS) -I$(MPI_INCLUDES) -lmpi #-Xptxas -v
 
-ifdef MPI
-	MPI_OPT+= -L$(MPI)/lib -I$(MPI)/include
-endif
-
-SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
-SOURCE=$(SOURCE_CU)
-HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h pugixml.hpp pugiconfig.hpp
-
-OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o Handlers.o
-
-AOUT=main
-
-NVCC=nvcc
-CCTXT=NVCC
-
-OPT=$(MPI_OPT) -lnlopt  -I../nlopt/include -L../nlopt/lib
-NVOPT=
-# OPT+=-D CROSS_SYNC
-
-
-ifeq '$(strip $(ADJOINT))' '1'
- OPT+=-D ADJOINT
- SOURCE_CU+=Dynamics_b.c ADTools.cu
- HEADERS+=Dynamics_b.hp 
- RTOPT+=ADJOINT=1
-endif
-
-ifeq '$(strip $(GRAPHICS))' '1'
- OPT+=-D GRAPHICS -lglut
-endif
-
-ifeq '$(strip $(DIRECT_MEM))' '1'
- OPT+=-D DIRECT_MEM
-endif
-
-ifdef ARCH
- NVOPT+=-arch $(strip $(ARCH))
-endif
-
-ifeq '$(strip $(GRID3D))' '1'
- OPT+=-D GRID_3D
-endif
-
-ifeq '$(strip $(DOUBLE))' '1'
- OPT+=-D CALC_DOUBLE_PRECISION
-endif
-
-ifeq '$(strip $(CPU))' '1'
- OPT+=-D CROSS_CPU
-endif
-
-MODELPATH=$(strip $(MODEL))
-all:$(AOUT)
+all:main
 	@echo "  DONE       $^"
 
+include ../config.mk
 include dep.mk
+
+../config.mk:../config.mk.in ../configure
+	cd ..; ./configure
 
 .PRECIOUS:$(SOURCE) $(HEADERS)
 
@@ -80,25 +29,26 @@ ifdef CPU
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(OPT)
+	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@"
-	@mpic++ $^ -o $@ $(OPT)
+	@mpic++ $^ -o $@ $(LD_OPT)
 
 else
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ -I/home/llaniewski/cuwork/drivers/cuda/include/ $(OPT)
+	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
 
 %.o:%.cu
 	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NVOPT)
+	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NV_OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
-	@$(NVCC) $^ -o $@ $(OPT) $(NVOPT) -lcudart
+	@mpic++ $^  -L/home/llaniewski/cuwork/drivers/cuda/lib64 -lcudart -o $@ $(LD_OPT)
+#	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
 
 endif
 

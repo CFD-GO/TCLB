@@ -1,0 +1,22 @@
+
+OPT = @CPPFLAGS@
+CPP_OPT = -Wno-write-strings
+LD_OPT = @LDFLAGS@ @LIBS@
+NV_OPT = @NVFLAGS@
+
+SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
+SOURCE=$(SOURCE_CU)
+HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h pugixml.hpp pugiconfig.hpp
+
+OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o Handlers.o
+
+AOUT=main
+
+NVCC=nvcc
+CCTXT=NVCC
+
+ifeq '$(strip $(ADJOINT))' '1'
+ OPT+=-D ADJOINT
+ SOURCE_CU+=Dynamics_b.c ADTools.cu
+ HEADERS+=Dynamics_b.hp 
+endif

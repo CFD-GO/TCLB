@@ -1,0 +1,56 @@
+#MPI_INCLUDES = /usr/include/mpi/
+#MPI_LIBS     = /usr/lib/mpich/lib/
+MPI_INCLUDES = @MPI_INCLUDE@
+MPI_LIBS     = @MPI_LIB@
+MPI_OPT      = -L$(MPI_LIBS) -I$(MPI_INCLUDES) -lmpi
+
+SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
+SOURCE=$(SOURCE_CU)
+HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h pugixml.hpp pugiconfig.hpp
+
+OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o Handlers.o
+
+AOUT=main
+
+NVCC=nvcc
+CCTXT=NVCC
+
+OPT=-I$(MPI_INCLUDES) -I../nlopt/include 
+CPP_OPT=-Wno-write-strings -I@CUDA_HOME@/include
+LD_OPT=@DEVICEOPTS@ @RPATHFLAG@ @LIBS@ -L$(MPI_LIBS) -lmpi -lmpi_cxx -L../nlopt/lib -lnlopt
+NVOPT=
+# OPT+=-D CROSS_SYNC
+
+ifeq '$(strip $(ADJOINT))' '1'
+ OPT+=-D ADJOINT
+ SOURCE_CU+=Dynamics_b.c ADTools.cu
+ HEADERS+=Dynamics_b.hp 
+ RTOPT+=ADJOINT=1
+endif
+
+ifeq '$(strip $(GRAPHICS))' '1'
+ OPT+=-D GRAPHICS
+ LD_OPT+=-lglut
+endif
+
+ifeq '$(strip $(DIRECT_MEM))' '1'
+ OPT+=-D DIRECT_MEM
+endif
+
+ifdef ARCH
+ NVOPT+=-arch $(strip $(ARCH))
+endif
+
+ifeq '$(strip $(GRID3D))' '1'
+ OPT+=-D GRID_3D
+endif
+
+ifeq '$(strip $(DOUBLE))' '1'
+ OPT+=-D CALC_DOUBLE_PRECISION
+endif
+
+ifeq '$(strip $(CPU))' '1'
+ OPT+=-D CROSS_CPU
+endif
+
+MODELPATH=$(strip $(MODEL))

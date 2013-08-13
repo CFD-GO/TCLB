@@ -3,10 +3,24 @@
 	c_header()
 ?>
 
+
+#ifndef SETTINGS_H
+<?R
+	for (v in rows(Settings)) { ?>
+    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
+	} ?>
+    void initSettings();
+    void setConstSetting(int i, real_t tmp);
+
+#define SETTINGS_H 1
+#endif
+
+
 #ifndef LATTICECONTAINER_H
 
 #include "Consts.h"
 
+/*
 #ifdef CROSS_CPU
 	#define XSDIM 1
 	#define YSDIM 1
@@ -17,23 +31,12 @@
 	#define DXSDIM blockDim.x
 #endif
 
-#ifdef GRID_3D
-//	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
-//	#define Y (CudaBlock.x)
-//	#define Z (CudaBlock.y)
-	#define BLOCKS dim3(region.ny,region.nz,container->kx)
-#else
-//	#define X (CudaThread.x+_z_*DXSDIM)
-//	#define Y (CudaBlock.x)
-//	#define Z (CudaBlock.y)
-	#define BLOCKS dim3(region.ny,region.nz,1)
-#endif
 #define THREADS dim3(XSDIM,1)
 //#define OFFSET (X + nx*Y + nx*ny*Z)
 
 extern int _xsdim;
 extern int _ysdim;
-
+*/
 class LatticeContainer {
 	public:
   FTabs in;
@@ -54,6 +57,8 @@ class LatticeContainer {
   void Free();
   CudaDeviceFunction void fill();
   template<class N>  CudaDeviceFunction void push(N & f);
+  template<class N>  CudaDeviceFunction void push_param(N & f);
+  template<class N>  CudaDeviceFunction void push_noparam(N & f);
   template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
   template<class N>  CudaDeviceFunction void getType(N & f);

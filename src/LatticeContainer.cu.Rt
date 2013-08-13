@@ -5,6 +5,7 @@
 #include "Consts.h"
 #include "Global.h"
 #include "Lattice.h"
+#include "mpi.h"
 
 #define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
 #define ALLOCPRINT2 printf("(%p - %p) \n", tmp, tmp+size)
@@ -22,18 +23,38 @@ CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
 }
 
+void initSettings() {
+	real_t val = 0;
+<?R for (v in rows(Settings)) {
+	if (is.na(v$derived)) { ?>
+			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
+	}} ?>
+}
+
+void setConstSetting(int i, real_t tmp) {
+	switch (i) {
+<?R
+        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
+	case <?%s v$Index ?>:
+	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
+		break; <?R
+        } ?>
+	}
+}
+
+
 template <class N> dim3 GetThreads() {
 	dim3 ret;
 	cudaFuncAttributes * attr = new cudaFuncAttributes;
 	HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<N>) );
 	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
 	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
-	DEBUG2( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
+	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
 	DEBUG1( printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs) );
 	DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
-	ret.x = 32;
-	ret.y = attr->maxThreadsPerBlock/32;
-	if (ret.y > 16) ret.y=16;
+	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
+	ret.x = X_BLOCK;
+	ret.y = attr->maxThreadsPerBlock/ret.x;
 	ret.z = 1;
 	return ret;
 }
@@ -41,7 +62,7 @@ template <class N> dim3 GetThreads() {
 template < class N > inline int getKY() { return 0; }
 template < class N > inline int getSY() { return 0; }
 
-<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint)
+<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint_ver)
 ?>int kydim<?%s tp$suffix ?>, sydim<?%s tp$suffix ?>;
 template < > inline int getKY< Node<?%s tp$suffix ?> >() { return kydim<?%s tp$suffix ?>; }
 template < > inline int getSY< Node<?%s tp$suffix ?> >() { return sydim<?%s tp$suffix ?>; }
@@ -49,8 +70,15 @@ template < > inline int getSY< Node<?%s tp$suffix ?> >() { return sydim<?%s tp$s
 
 int InitDim(int ny) {
 	dim3 th; int ky;
-<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint)
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (D_MPI_RANK == 0) {
+          DEBUG2( printf( "[ ] |  Threads  |      Action  |\n") );
+        }
+	MPI_Barrier(MPI_COMM_WORLD);
+<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint_ver)
 ?>	th = GetThreads< Node<?%s tp$suffix ?> >();
+	DEBUG2( printf( "[%d] |  %3dx%-3d  |  %10s  |\n", D_MPI_RANK, th.x, th.y, "<?%s tp$suffix ?>") );
+	MPI_Barrier(MPI_COMM_WORLD);
 	sydim<?%s tp$suffix ?> = th.y;
 	ky = ny/th.y;
 	if (ky*th.y < ny) ky++;
@@ -132,9 +160,8 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     nx = nx_;
     ny = ny_;
     nz = nz_;
-    kx = nx/XSDIM;
-    ky = ny/YSDIM;
-    if (ky*YSDIM < ny) ky ++;
+    kx = nx/X_BLOCK;
+    ky = ny;
 
     InitDim(ny);
 
@@ -216,9 +243,10 @@ void LatticeContainer::Free()
 		}
 	} 
 
-	push = function(dens,dx,dy,dz,...) { ?>
-//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------//
-<?R
+	push = function(dens,dx,dy,dz,sel=TRUE,...) { 
+	        if (sel) { ?>
+//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------// <?R
+                }
 		gdens <<- dens;
 
 		w = GetMargins(dx,dy,dz);
@@ -239,28 +267,33 @@ void LatticeContainer::Free()
 		H[7] = X + dx
 		H[8] = PV(0)
 
+		
+		if (sel) {
+                    for (i in 1:length(w)) if (w[i] > 0) {
+                            off = Margin[[w[i]]]$POffset
+                            noff = Margin[[w[i]]]$PSize + H[i]
+                            v = ToC(noff - off,float=F);
+                            if (v != "   0") { ?>
+        pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
+                            }
+			    Margin[[w[i]]]$POffset <<- noff;
+                    }
+		    p = rep("ItCannotHappen",length(w))
+                    p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
+                    pushZ(
+                            p[1],
+                            p[2],
+                            p[3],
+                            p[4],
+                            p[5],
+                            p[6],
+                            p[7],
+                            p[8],
+                            dx, dy, dz,...);
+                }
 		for (i in 1:length(w)) if (w[i] > 0) {
-			off = Margin[[w[i]]]$POffset
-			noff = Margin[[w[i]]]$PSize + H[i]
 			Margin[[w[i]]]$PSize <<- Margin[[w[i]]]$PSize + SideSize[i]
-			v = ToC(noff - off,float=F);
-			if (v != "   0") { ?>
-	pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
-			}
-			Margin[[w[i]]]$POffset <<- noff;
 		}
-		p = rep("ItCannotHappen",length(w))
-		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
-		pushZ(
-			p[1],
-			p[2],
-			p[3],
-			p[4],
-			p[5],
-			p[6],
-			p[7],
-			p[8],
-			dx, dy, dz,...);
 	} 
 
 	popX = function(dens,a,b,dx) {
@@ -343,7 +376,9 @@ void LatticeContainer::Free()
 		}
 	} 
 
-	InOut = function(type, pocket, density) { ?>
+	InOut = function(type, pocket, density, sel) {
+                if (missing(sel)) sel = rep(TRUE, nrow(density));
+                density$selected = sel; ?>
 	FTabs pocket = <?%s pocket ?>; <?R
 		pull=F
 		if ((type == "push") || (type == "pull")) {
@@ -352,7 +387,7 @@ void LatticeContainer::Free()
 			for ( i in 1:length(Margin) ) Margin[[i]]$PSize <<- PV(0)
 			gdens = ""
 			for (d in rows(density)) {
-				push(d$name, d$dx, d$dy, d$dz, pull=pull)
+				push(d$name, d$dx, d$dy, d$dz, pull=pull, sel=d$selected)
 			}
 		} else if (type == "pop") { ?>
 	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
@@ -377,6 +412,16 @@ void LatticeContainer::Free()
 template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
 {
 <?R	InOut("push", "out", Density); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
+{
+<?R	InOut("push", "out", Density, sel=Density$parameter); ?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
+{
+<?R	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
 }
 
 template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
@@ -462,7 +507,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x = CudaThread.x + CudaBlock.y*DXSDIM;
+	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
 	now.z = CudaBlock.x;
 	now.Pre();
 #ifdef BORDER_Z
@@ -517,9 +562,9 @@ void LatticeContainer::CopyToConst() {
 
 template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
     #ifdef BORDER_Z
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(XSDIM),(),borderStream);
+	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
     #else
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(XSDIM),(),borderStream);
+	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
     #endif
 };
 
@@ -532,14 +577,14 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 	nnz = nz;
     #endif
     #ifdef GRID_3D
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(XSDIM,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(XSDIM,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
     #endif
 };
 
 <?R for(tp in rows(Dispatch)) {
-ifdef(tp$adjoint) ?>
+ifdef(tp$adjoint_ver) ?>
 void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream) { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
 void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
 <?R }
@@ -608,14 +653,14 @@ void LatticeContainer::Init() {
 	dx=dy=dz=0;
 	fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
+   CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(X_BLOCK) ,(nx,ny));
 };
 
 void LatticeContainer::Color( uchar4 *optr ) {
    dx=dy=dz=0;
    fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(XSDIM) ,(optr));
+   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
 };
 
 <?R
@@ -652,7 +697,8 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
                 } ?>
 		tab[r.offset(x,y,z)] = w;
 	}
-} <?R
+}
+<?R
         }
         ifdef();
 ?>
