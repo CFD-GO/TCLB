@@ -72,10 +72,37 @@ for (m in NonEmptyMargin) { ?>
     extern int D_MPI_RANK;
 
     #define DEBUG_SETRANK(x) D_MPI_RANK = x
-    #define DEBUG0(x) 
+#if DEBUG_LEVEL < 1
+    #define DEBUG0(x) x
     #define DEBUG1(x) x
     #define DEBUG2(x) x
+    #define DEBUG3(x) x
+#elif DEBUG_LEVEL < 2
+    #define DEBUG0(x)
+    #define DEBUG1(x) x
+    #define DEBUG2(x) x
+    #define DEBUG3(x) x
+#elif DEBUG_LEVEL < 3
+    #define DEBUG0(x)
+    #define DEBUG1(x)
+    #define DEBUG2(x) x
+    #define DEBUG3(x) x
+#elif DEBUG_LEVEL < 4
+    #define DEBUG0(x)
+    #define DEBUG1(x)
+    #define DEBUG2(x)
+    #define DEBUG3(x) x
+#else
+    #define DEBUG0(x)
+    #define DEBUG1(x)
+    #define DEBUG2(x)
+    #define DEBUG3(x)
+#endif
     #define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG0_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG1_M DEBUG1(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG2_M DEBUG2(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG3_M DEBUG3(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
 	
 #define DEBUG_H 1
 #endif

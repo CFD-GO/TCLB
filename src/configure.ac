@@ -40,6 +40,14 @@ AC_ARG_WITH([cuda-arch],
 AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
 		[specify the full path to your nlopt library]))
+
+AC_ARG_WITH([debug],
+	AC_HELP_STRING([--with-debug=level],
+		[specify level of debug messages 0-3]))
+
+AC_ARG_ENABLE([debug],
+	AC_HELP_STRING([--with-debug],
+		[enables debug version (gcc -g)]))
 		
 NVFLAGS=""
 
@@ -83,10 +91,13 @@ then
 	CUDA_LIB_DIR=""
 	AC_CHECK_FILE([${CUDA_HOME}/lib64/libcudart.so], [CUDA_LIB_DIR="/lib64"])
 	if test -z "${CUDA_LIB_DIR}"; then
-		AC_CHECK_FILE([${CUDA_HOME}/lib/libcudart.so], [CUDA_LIB_DIR="/lib"], [AC_MSG_ERROR([Didn't find libcublas.so])])
+		AC_CHECK_FILE([${CUDA_HOME}/lib/libcudart.so], [CUDA_LIB_DIR="/lib"], [CUDA_LIB_DIR=""])
 	fi
-	LDFLAGS="${LDFLAGS} -L${CUDA_HOME}${CUDA_LIB_DIR}"
-	CPPFLAGS="${CPPFLAGS} -I${CUDA_HOME}/include"
+	if test "x${CUDA_LIB_DIR}" != "x"
+	then
+		LDFLAGS="${LDFLAGS} -L${CUDA_HOME}${CUDA_LIB_DIR}"
+		CPPFLAGS="${CPPFLAGS} -I${CUDA_HOME}/include"
+	fi
 	AC_CHECK_HEADERS([cuda.h],[],[AC_MSG_ERROR([Didn't find cuda.h])])
 	AC_CHECK_LIB([cudart], [cudaMalloc],[],[AC_MSG_ERROR([Didn't find CUDA Run-time Library])])
 	if test "x${enable_graphics}" == "xyes"
@@ -205,6 +216,39 @@ then
 		AC_DEFINE([WITH_NLOPT], [1], [Using NLOpt])
 	fi
 fi
+
+if test "x${enable_debug}" == "xyes"
+then
+	if test "x${with_debug}" == "x"
+	then
+		with_debug="0"
+	fi
+	AC_DEFINE([CROSS_SYNC], [1], [Sync calls])
+	CPPFLAGS="${CPPFLAGS} -g"
+fi
+
+if test "x${with_debug}" == "x0"
+then
+	AC_DEFINE([DEBUG_LEVEL], [0], [Making a double precision version])
+elif test "x${with_debug}" == "x1"
+then
+	AC_DEFINE([DEBUG_LEVEL], [1], [Making a double precision version])
+elif test "x${with_debug}" == "x2"
+then
+	AC_DEFINE([DEBUG_LEVEL], [2], [Making a double precision version])
+elif test "x${with_debug}" == "x3"
+then
+	AC_DEFINE([DEBUG_LEVEL], [3], [Making a double precision version])
+elif test "x${with_debug}" == "x"
+then
+	AC_DEFINE([DEBUG_LEVEL], [10], [Making a double precision version])
+elif test "x${with_debug}" == "xno"
+then
+	AC_DEFINE([DEBUG_LEVEL], [10], [Making a double precision version])
+else
+	AC_MSG_ERROR([Unknown debug level: ${with_debug}])
+fi
+
 
 # Checks for typedefs, structures, and compiler characteristics.
 #AC_HEADER_STDBOOL

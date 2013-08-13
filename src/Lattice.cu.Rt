@@ -94,7 +94,6 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	real_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
-	for (int i=0; i<2; i++) {
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -117,7 +116,6 @@ void Lattice::MPIInit(MPIInfo mpi_)
 <?R
 	}
 ?>
-        }
 #endif
 
 	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
