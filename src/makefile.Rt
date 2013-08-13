@@ -12,10 +12,10 @@ ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 f
 all:main
 	@echo "  DONE       $^"
 
-include ../conf.mk
+include ../config.mk
 include dep.mk
 
-../conf.mk:../conf.mk.in ../configure
+../config.mk:../config.mk.in ../configure
 	cd ..; ./configure
 
 .PRECIOUS:$(SOURCE) $(HEADERS)
@@ -29,7 +29,7 @@ ifdef CPU
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(OPT) $(CPP_OPT)
+	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@"
@@ -39,16 +39,16 @@ else
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(OPT) $(CPP_OPT)
+	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
 
 %.o:%.cu
 	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NVOPT)
+	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NV_OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
 	@mpic++ $^  -L/home/llaniewski/cuwork/drivers/cuda/lib64 -lcudart -o $@ $(LD_OPT)
-#	@$(NVCC) $^ -o $@ $(OPT) $(NVOPT) -lcudart
+#	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
 
 endif
 

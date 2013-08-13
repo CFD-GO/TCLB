@@ -3,6 +3,7 @@
 	c_header()
 ?>
 
+#include "Consts.h"
 #include "types.h"
 #include <string>
 
@@ -56,7 +57,7 @@ for (m in NonEmptyMargin) { ?>
 
 #define INFO_H 1
 #endif
-
+/*
 #ifndef SETTINGS_H
 <?R
 	for (v in rows(Settings)) { ?>
@@ -66,7 +67,7 @@ for (m in NonEmptyMargin) { ?>
 
 #define SETTINGS_H 1
 #endif
-
+*/
 #ifndef DEBUG_H   
     extern int D_MPI_RANK;
 

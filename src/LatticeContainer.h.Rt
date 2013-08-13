@@ -3,6 +3,19 @@
 	c_header()
 ?>
 
+
+#ifndef SETTINGS_H
+<?R
+	for (v in rows(Settings)) { ?>
+    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
+	} ?>
+    void initSettings();
+    void setConstSetting(int i, real_t tmp);
+
+#define SETTINGS_H 1
+#endif
+
+
 #ifndef LATTICECONTAINER_H
 
 #include "Consts.h"

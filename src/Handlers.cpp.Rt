@@ -3,6 +3,7 @@
 	c_header();
 ?>
 
+#include "Consts.h"
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
@@ -24,7 +25,9 @@
 
 #include "Solver.h"
 
-#include  <nlopt.h>
+#ifdef WITH_NLOPT
+        #include  <nlopt.h>
+#endif
 
 #define ITERATION_STOP 1
 
@@ -421,6 +424,7 @@ class acSAdjoint: public GenericAction {
 	}
 };
 
+#ifdef WITH_NLOPT
 double FOptimize(unsigned int n, const double * x, double * grad, void * data);
 
 class acOptimize: public GenericAction {
@@ -507,7 +511,7 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	}
 	return val;
 }
-
+#endif
 
 class acParams: public Action {
 	public:
@@ -662,7 +666,12 @@ vHandler * getHandler(pugi::xml_node node) {
         } else if (name=="Model") {
 		ret = new acModel;
         } else if (name=="Optimize") {
+#ifdef WITH_NLOPT
 		ret = new acOptimize;
+#else
+                std::cerr << "No NLOpt support. configure with --with-nlopt to use Optimize element\n";
+                exit(-1);
+#endif
         } else if (name=="Init") {
 		ret = new acInit;
         } else {

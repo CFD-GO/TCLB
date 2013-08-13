@@ -2,11 +2,12 @@
 	source("conf.R")
 	c_header()
 ?>
+#include "Consts.h"
 #include "cross.h"
 #include "Global.h"
 
 int D_MPI_RANK;
-
+/*
 void initSettings() {
 	real_t val = 0;
 <?R for (v in rows(Settings)) {
@@ -14,7 +15,7 @@ void initSettings() {
 			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
 	}} ?>
 }
-
+*/
 void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 {
 	int x, y, z, k, j;

@@ -2,8 +2,8 @@
         source("conf.R")
 	c_header()
 ?>
-#include "cross.h"
 #include "Consts.h"
+#include "cross.h"
 #include "Global.h"
 
 class Node;
@@ -85,7 +85,7 @@ struct Node<?%s suff ?> {
 		                d=Density[i,];
                                 da=DensityAD[i,];
                                 if (d$parameter) { ?>
-                <?%s d$name ?> += <?%s da$name ?>*1;
+                <?%s d$name ?> += <?%s da$name ?>*Descent;
                 if (<?%s d$name ?> > 1) <?%s d$name ?> = 1;
                 if (<?%s d$name ?> < 0.01) <?%s d$name ?> = 0.01; <?R
                                 }

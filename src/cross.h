@@ -1,5 +1,5 @@
-#include "types.h"
 #include "Consts.h"
+#include "types.h"
 
 #ifndef __CUDACC__
   #define CROSS_CPP

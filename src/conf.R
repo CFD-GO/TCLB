@@ -207,6 +207,9 @@ if (ADJOINT==1) {
 	Settings = rbind(Settings, data.frame(
 		name=paste(Globals$name,"InObj",sep=""),
 		derived=NA,equation=NA,comment=Globals$comment,default="0", unit="1"))
+	Settings = rbind(Settings, data.frame(
+		name="Descent",
+		derived=NA,equation=NA,comment="Optimization Descent",default="0", unit="1"))
 } else {
 	DensityAD = NULL
 	DensityAll = Density

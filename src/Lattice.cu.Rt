@@ -2,6 +2,7 @@
 	source("conf.R")
 	c_header();
 ?>
+#include "Consts.h"
 #include "cross.h"
 #include "types.h"
 #include "Global.h"
@@ -958,14 +959,7 @@ double Lattice::getObjective() {
 
 void Lattice::setSetting(int i, real_t tmp) {
 	settings[i] = tmp;
-	switch (i) {
-<?R
-        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
-	case <?%s v$Index ?>:
-	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
-		break; <?R
-        } ?>
-	}
+	setConstSetting(i,tmp);
 }
 
 <?R

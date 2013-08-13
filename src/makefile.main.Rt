@@ -45,7 +45,7 @@ SOURCE_ALL+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handler
 SOURCE_ALL+=Geometry.h def.h utils.h unit.h
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
 SOURCE_REST=makefile dep.mk
-ADDITIONALS=conf.mk.in configure tools README.md
+ADDITIONALS=config.mk.in config.h.in configure tools README.md
 
 AOUT=main
 
@@ -79,6 +79,11 @@ for (d in destinations) {
 <?%s m ?>:  | <?%s d ?>/<?%s m ?>
 
 <?%s m ?>: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/main
+	@echo "  DONE       $@"
+
+<?%s m ?>/source:  | <?%s d ?>/<?%s m ?>
+
+<?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
 	@echo "  DONE       $@"
 
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
