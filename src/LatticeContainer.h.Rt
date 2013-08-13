@@ -20,23 +20,6 @@
 
 #include "Consts.h"
 
-/*
-#ifdef CROSS_CPU
-	#define XSDIM 1
-	#define YSDIM 1
-	#define DXSDIM 1
-#else
-	#define XSDIM _xsdim
-	#define YSDIM _ysdim
-	#define DXSDIM blockDim.x
-#endif
-
-#define THREADS dim3(XSDIM,1)
-//#define OFFSET (X + nx*Y + nx*ny*Z)
-
-extern int _xsdim;
-extern int _ysdim;
-*/
 class LatticeContainer {
 	public:
   FTabs in;
