@@ -2,6 +2,12 @@
 	source("conf.R")
 	c_header();
 ?>
+/*  File defining Lattice                                      */
+/*     Lattice is the low level class defining functionality   */
+/*       of Adjoint LBM solver. It realizes all the LBM        */
+/*       calculations and data transfer                        */
+/*-------------------------------------------------------------*/
+
 #include "Consts.h"
 #include "cross.h"
 #include "types.h"
@@ -32,13 +38,13 @@ int SnapLevel(unsigned int i) {
 	return w;
 }
 
-//Local (CPU) calculation of offset
+// Local (CPU) calculation of offset
 int Lattice::Offset(int x, int y, int z)
 {
 	return x+region.nx*y + region.nx*region.ny*z;
 }
 
-//Constructor based on size
+// Constructor based on size
 Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
 	reverse_save=0;
@@ -84,7 +90,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	        CudaEventCreate( &mpiEv[i] );
 }
 
-//Initialization of MPI buffors
+// Initialization of MPI buffors
 void Lattice::MPIInit(MPIInfo mpi_)
 {
 //--------- Initialize MPI buffors
@@ -121,7 +127,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
 }
 
-
+// Starting of unsteady adjoint recording
 void Lattice::startRecord()
 {
 	if (reverse_save) {
@@ -157,6 +163,7 @@ void Lattice::startRecord()
 	settings_record.clear();
 }
 
+// Saves solution to files
 void Lattice::saveSolution(const char * filename) {
 	char fn[STRING_LEN];
 	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
@@ -167,8 +174,7 @@ void Lattice::saveSolution(const char * filename) {
 #endif
 }
 
-
-
+// Loads calculated solution from a file
 void Lattice::loadSolution(const char * filename) {
 	char fn[STRING_LEN];
 	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
@@ -179,7 +185,7 @@ void Lattice::loadSolution(const char * filename) {
 #endif
 }
 
-
+// Clear the adjoint solution buffers
 void Lattice::clearAdjoint()
 {
 #ifdef ADJOINT
@@ -189,6 +195,7 @@ void Lattice::clearAdjoint()
 #endif
 }
 
+// Clear the derivatives of the parameters
 void Lattice::clearDPar()
 { <?R
 	for (d in rows(DensityAll)) if ((d$adjoint) && (d$parameter)) { ?>
@@ -197,6 +204,7 @@ void Lattice::clearDPar()
 ?>
 }
 
+// Finish unsteady adjoint record
 void Lattice::stopRecord()
 {
 	if (Iter != 0) {
@@ -207,13 +215,13 @@ void Lattice::stopRecord()
 	printf("[%d] Stop recording\n", D_MPI_RANK);
 }
 
-
+// Setting main callback
 void Lattice::Callback(int(*cb)(int, void*), void* data) {
 	callback = cb;
 	callback_data = data;
 }
 
-
+// Normal (Primal) Iteration
 inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 {
 	real_t * tmp;
@@ -278,6 +286,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	MarkIteration();
 };
 
+// Adjoint Iteration
 inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 {
 #ifdef ADJOINT
@@ -353,6 +362,7 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 #endif
 };
 
+// Combined Primal+Adjoint Iteration
 inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
@@ -362,6 +372,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	MPI_Request request;
 	int i=0;
 //	printf("Adjoint %d -> %d\n", tab0, tab1);
+        i = 0;
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -381,6 +392,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 <?R
 	}
 ?>
+        assert(i == bufnumber);
 	container->CopyToConst();
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
 		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
@@ -419,7 +431,8 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 		container->RunBorder_Opt (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs_Opt(kernelStream); break;
-	}	
+	}
+	i = 0;	
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -433,6 +446,8 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 <?R
 	}
 ?>
+        assert(i == bufnumber);
+        CudaStreamSynchronize(kernelStream);
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
 		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
 	}
@@ -446,7 +461,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	}
         CudaDeviceSynchronize();
 	Snap = tab1;
-	aSnap = tab1;
+	aSnap = adjtab1;
 	MarkIteration();
 #else
 	std::cerr << "This model doesn't have adjoint!\n";
@@ -454,7 +469,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 #endif
 };
 
-
+// Function listing all buffers in FTabs
 void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -474,6 +489,7 @@ void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t *
 ?>
 }
 
+// Save a FTabs
 int Lattice::save(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
@@ -504,6 +520,7 @@ int Lattice::save(FTabs& tab, const char * filename) {
 	return 0;
 }
 
+// Load a FTabs
 int Lattice::load(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "r");
 	printf("[%d] Loading Lattice data from %s\n", D_MPI_RANK, filename);
@@ -534,7 +551,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 	return 0;
 }
 
-
+// Destructor
 Lattice::~Lattice()
 {
 	container->Free();
@@ -545,10 +562,12 @@ Lattice::~Lattice()
 	delete[] iSnaps;
 }
 
+// Draw graphics
 void Lattice::Color(uchar4 * ptr) {
 	container->Color(ptr);
 }
 
+// Initialization of lattice nodes
 void Lattice::Init()
 {
    printf("[%d] Initializing Lattice ...\n", D_MPI_RANK);
@@ -569,12 +588,15 @@ void Lattice::BeforeIt()
 {
 }
 
+// Function for calculating the number of a Snapshot related to a specific iteration
 int Lattice::getSnap(int i) {
 	int s = SnapLevel(i) + 1;
 	return s;
 }
 
-
+// Function which reconstructs a state in iteration "it"
+//   by reading a snapshot and iterating from it.
+//   Used in usteady adjoint
 void Lattice::IterateTill(int it, int iter_type)
 {
 	int s1,ls1,s2,ls2;
@@ -624,6 +646,10 @@ void Lattice::IterateTill(int it, int iter_type)
 	}
 }
 
+// Main iteration function.
+//   makes "niter" iterations of type "iter_type"
+//   dispatches specific iteration methods for each type
+//   takes care of calculation of globals
 void Lattice::Iterate(int niter, int iter_type)
 {
 	int last_glob = iter_type & ITER_LASTGLOB;

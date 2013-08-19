@@ -346,8 +346,8 @@ sprintf("-------------------------------------------------------------")
 )
 
 c_header = function() {
-	for (l in clb_header)
-	cat("/*",l,"*/\n",sep="");
+#	for (l in clb_header)
+	cat(paste("/*",clb_header,"*/",collapse="\n",sep=""),sep="");
 }
 
 hash_header = function() {

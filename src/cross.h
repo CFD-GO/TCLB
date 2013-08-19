@@ -61,7 +61,7 @@
     #endif
     #define CudaExternConstantMemory(x)
 
-    #define CudaCopyToConstant(a__,b__,c__,d__) HANDLE_ERROR( cudaMemcpyToSymbol(a__, c__, d__, 0, cudaMemcpyHostToDevice))
+    #define CudaCopyToConstant(a__,b__,c__,d__) HANDLE_ERROR( cudaMemcpyToSymbol(b__, c__, d__, 0, cudaMemcpyHostToDevice))
     #define CudaMemcpy2D(a__,b__,c__,d__,e__,f__,g__) HANDLE_ERROR( cudaMemcpy2D(a__, b__, c__, d__, e__, f__, g__) )
     #define CudaMemcpy(a__,b__,c__,d__) HANDLE_ERROR( cudaMemcpy(a__, b__, c__, d__) )
     #ifdef CROSS_SYNC

@@ -2,6 +2,17 @@
         source("conf.R")
 	c_header()
 ?>
+/*  Main CUDA C file                                           */
+/*     Here we nearly all the CUDA C code. It includes:        */          
+/*          LatticeContainer.h                                 */
+/*          LatticeContainer.c                                 */
+/*          Dynamics.c                                         */
+/*          Dynamics.h                                         */
+/*          Dynamics_b.c (adjoint)                             */
+/*          Dynamics_adj.c (adjoint)                           */
+/*          ADTools.c (adjoint)                                */
+/*-------------------------------------------------------------*/
+
 #include "Consts.h"
 #include "cross.h"
 #include "Global.h"
