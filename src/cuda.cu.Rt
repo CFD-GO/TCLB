@@ -40,7 +40,7 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix ?>
-//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Adjoint:<?%5s tp$Adjoint ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
+//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Action ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) {
 		if (tp$Globals == "Globs") { ?>
 #define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + (x) <?R
@@ -89,7 +89,7 @@ struct Node<?%s suff ?> {
         #include "Dynamics_b.c"
 	#include "Dynamics_adj.c" <?R
 		}
-		if (tp$Adjoint == "Opt") { ?>
+		if (tp$Action == "Opt") { ?>
 	CudaDeviceFunction inline void Opt() {
 	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
 		        for (i in 1:nrow(Density)) {
@@ -105,18 +105,20 @@ struct Node<?%s suff ?> {
         } <?R
 	        } ?>
 	CudaDeviceFunction inline void RunElement() { <?R
-		if (tp$Adjoint == "Adj") { ?>
+		if (tp$Action == "Adj") { ?>
 		constContainer.pop(*this);
 		constContainer.pop_adj(*this);
 		Run_b();
 		constContainer.push_adj(*this); <?R
-		} else if (tp$Adjoint == "Opt") { ?>
+		} else if (tp$Action == "Opt") { ?>
+
                 constContainer.pop(*this); <?R
 		        for (i in 1:nrow(Density)) {
 		                d=Density[i,];
                                 da=DensityAD[i,];?>
 		<?%s da$name ?> = <?%s d$name ?>; <?R
 		        } ?>
+
 		Run();
 		constContainer.push_noparam(*this); <?R
 		        for (i in 1:nrow(Density)) {
@@ -131,11 +133,22 @@ struct Node<?%s suff ?> {
 		Run_b();
 		constContainer.push_adj(*this);
 		Opt();
-		constContainer.push_param(*this); <?R
-		} else { ?>
+		constContainer.push_param(*this);
+/*
+                constContainer.pop(*this);
+		constContainer.push(*this);
+		constContainer.pop_adj(*this);
+		constContainer.push_adj(*this); */<?R
+		} else if (tp$Action == "Init") { ?>
+		constContainer.getType(*this);
+		Init();
+		constContainer.push(*this); <?R
+		} else if (tp$Action == "No") { ?>
 	        constContainer.pop(*this); 
 		Run();
 		constContainer.push(*this); <?R
+		} else {
+		        stop(paste("Unknown Action:",tp$Action,"in Dispatch (conf.R)"));
 		} ?>
 	}
 }; <?R

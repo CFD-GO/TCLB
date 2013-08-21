@@ -295,11 +295,12 @@ Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
 #Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
 Dispatch = data.frame(
-	Globals=c(   "No",  "Globs",  "Obj",   "No",      "Globs",   "No",      "Globs"),
-	Adjoint=c(   "No",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
-	globals=c(  FALSE,     TRUE,   TRUE,  FALSE,         TRUE,  FALSE,         TRUE),
-	adjoint=c(  FALSE,    FALSE,  FALSE,   TRUE,         TRUE,   TRUE,         TRUE),
-	suffix =c(     "", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
+	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",   "No",      "Globs"),
+	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
+	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,   TRUE,         TRUE),
+	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
 )
 
 Dispatch$adjoint_ver = Dispatch$adjoint

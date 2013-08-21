@@ -42,6 +42,8 @@ void HandleError( cudaError_t err,
             return attr->maxThreadsPerBlock;
 }
 */
+
+#ifndef CROSS_SYNCALLOC
 struct ptrpair {
 	void ** ptr;
 	size_t size;
@@ -94,7 +96,7 @@ cudaError_t cudaAllocFinalize() {
 	CudaMemset( tmp, 0, fullsize );
 	while (!ptrlist.empty()) {
 		ptr = ptrlist.back();
-//		printf("Allocation of %d b\n", (int) ptr.size);
+		DEBUG1(printf("[%d] Preallocation gave %d b\n", D_MPI_RANK, (int) ptr.size);)
 //		cudaMalloc(ptr.ptr,ptr.size);
 		*(ptr.ptr) = (void **)tmp;
 		tmp += ptr.size;
@@ -103,5 +105,19 @@ cudaError_t cudaAllocFinalize() {
 	return cudaSuccess;
 }
 
+#else
+
+cudaError_t cudaPreAlloc(void ** ptr, size_t size) {
+        DEBUG1(printf("Preallocation of %d b\n", (int) size);)
+        cudaError_t ret = cudaMalloc(ptr, size);
+        cudaMemset( *ptr, 0, size );
+        return ret;
+}
+
+cudaError_t cudaAllocFinalize() {
+	return cudaSuccess;
+}
+
+#endif
 
 #endif

@@ -229,7 +229,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-//	printf("%d -> %d %d\n", tab0, tab1, iter_type);
+	DEBUG1(printf("[%d] Iteration %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -250,6 +250,8 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunBorder (kernelStream); break;
+	case ITER_INIT:
+		container->RunBorder_Init(kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs(kernelStream); break;
 	case ITER_OBJ:
@@ -265,6 +267,9 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunInterior (kernelStream); break;
+	case ITER_INIT:
+	        printf("Running Init kernel\n");
+		container->RunInterior_Init(kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs(kernelStream); break;
 	case ITER_OBJ:
@@ -295,7 +300,7 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-//	printf("Adjoint %d -> %d\n", tab0, tab1);
+	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -371,7 +376,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-//	printf("Adjoint %d -> %d\n", tab0, tab1);
+	DEBUG1(printf("[%d] Iteration_Opt %d -> %d, %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, adjtab0, adjtab1, iter_type);)
         i = 0;
 <?R
 	for (m in NonEmptyMargin) {
@@ -411,11 +416,11 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	DEBUG_M;
 	for (int i = 0; i < bufnumber; i++) {
 		DEBUG_M;
-		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i, MPI_COMM_WORLD, &request);
 	}
-	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+	for (int i = 0; i < bufnumber; i++) {
 		DEBUG_M;
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i, MPI_COMM_WORLD, &status);
 	        CudaEventRecord( mpiEv[i], inStream );
 		DEBUG_M;
 		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
@@ -448,18 +453,19 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 ?>
         assert(i == bufnumber);
         CudaStreamSynchronize(kernelStream);
-	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+	for (int i = 0; i < bufnumber; i++) {
 		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
 	}
         CudaStreamSynchronize(outStream);
 	for (int i = 0; i < bufnumber; i++) {
-		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], mpi.rank*mpi.size + nodeout[i]+bufsize[i], MPI_COMM_WORLD, &request);
+		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+bufnumber, MPI_COMM_WORLD, &request);
 	}
-	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+	for (int i = 0; i < bufnumber; i++) {
+		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+bufnumber, MPI_COMM_WORLD, &status);
 		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
 	}
         CudaDeviceSynchronize();
+        MPI_Barrier(MPI_COMM_WORLD);
 	Snap = tab1;
 	aSnap = adjtab1;
 	MarkIteration();
@@ -571,13 +577,16 @@ void Lattice::Color(uchar4 * ptr) {
 void Lattice::Init()
 {
    printf("[%d] Initializing Lattice ...\n", D_MPI_RANK);
-   container->out=Snaps[0];
-   container->CopyToConst();
-   container->Init();
+//   container->out=Snaps[0];
+//   container->CopyToConst();
+//   container->Init();
 	iSnaps[getSnap(0)]=0;
 	iSnaps[0]=0;
 	Iter=0;
 	Snap=0;
+   MPI_Barrier(MPI_COMM_WORLD);
+   Iteration(1,0,ITER_INIT);
+   MPI_Barrier(MPI_COMM_WORLD);
 
 //   Stream();
 //   container->Init();

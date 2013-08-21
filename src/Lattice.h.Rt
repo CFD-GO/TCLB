@@ -18,11 +18,12 @@ class LatticeContainer;
 #define ITER_ADJOINT  0x02
 #define ITER_OPT      0x03
 #define ITER_TYPE     0x03
-#define ITER_GLOBS    0x04
 #define ITER_NO       0x00
-#define ITER_OBJ      0x08
-#define ITER_INTEG    0x0C
-#define ITER_LASTGLOB 0x10
+#define ITER_GLOBS    0x10
+#define ITER_OBJ      0x20
+#define ITER_INIT     0x30
+#define ITER_INTEG    0x30
+#define ITER_LASTGLOB 0x40
 
 const int maxSnaps=33;
 

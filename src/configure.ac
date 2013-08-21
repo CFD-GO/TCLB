@@ -224,6 +224,7 @@ then
 		with_debug="0"
 	fi
 	AC_DEFINE([CROSS_SYNC], [1], [Sync calls])
+	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
 	CPPFLAGS="${CPPFLAGS} -g"
 fi
 

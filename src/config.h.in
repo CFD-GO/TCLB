@@ -23,6 +23,9 @@
 /* Calling only syncronious CUDA functions */
 #undef CROSS_SYNC
 
+/* Calling CUDA malloc where it is (no preallocation) */
+#undef CROSS_SYNCALLOC
+
 /* Debug Level */
 #define DEBUG_LEVEL 10
 
