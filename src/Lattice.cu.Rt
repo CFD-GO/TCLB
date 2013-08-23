@@ -375,6 +375,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	int size, from, to;
 	MPI_Status status;
 	MPI_Request request;
+	MPI_Request recvreq[bufnumber];
 	int i=0;
 	DEBUG1(printf("[%d] Iteration_Opt %d -> %d, %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, adjtab0, adjtab1, iter_type);)
         i = 0;
@@ -418,14 +419,15 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 		DEBUG_M;
 		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i, MPI_COMM_WORLD, &request);
 	}
+	DEBUG_M;
 	for (int i = 0; i < bufnumber; i++) {
-		DEBUG_M;
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i, MPI_COMM_WORLD, &status);
-	        CudaEventRecord( mpiEv[i], inStream );
-		DEBUG_M;
+		MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i, MPI_COMM_WORLD, &recvreq[i]);
+        }
+	DEBUG_M;
+	MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
+	DEBUG_M;
+	for (int i = 0; i < bufnumber; i++) {
 		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
-		DEBUG_M;
-	        CudaEventRecord( inEv[i], inStream );
 	}
         CudaStreamSynchronize(inStream);
 	DEBUG_M;
@@ -458,12 +460,26 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	}
         CudaStreamSynchronize(outStream);
 	for (int i = 0; i < bufnumber; i++) {
+		MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+bufnumber, MPI_COMM_WORLD, &recvreq[i]);
+        }
+	for (int i = 0; i < bufnumber; i++) {
 		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+bufnumber, MPI_COMM_WORLD, &request);
 	}
-	for (int i = 0; i < bufnumber; i++) {
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+bufnumber, MPI_COMM_WORLD, &status);
+#ifdef FAST_COPY
+	DEBUG_M;
+	for (int j = 0; j < bufnumber; j++) {
+	        int i;
+        	MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
 		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
 	}
+#else
+	DEBUG_M;
+	MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
+	DEBUG_M;
+	for (int i = 0; i < bufnumber; i++) {
+		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+	}
+#endif
         CudaDeviceSynchronize();
         MPI_Barrier(MPI_COMM_WORLD);
 	Snap = tab1;
