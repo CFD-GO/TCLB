@@ -267,6 +267,7 @@ inline void Lattice::MPIStream_B(int tag)
                 }
         #endif
 #endif
+        CudaStreamSynchronize(inStream);
 }
 
 // Normal (Primal) Iteration
@@ -371,13 +372,9 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Adj(kernelStream); break;
 	}	
-        CudaStreamSynchronize(outStream);
 
         MPIStream_B();
 
-        CudaStreamSynchronize(inStream);
-	DEBUG_M;
-	CudaEventRecord(kernelEv[0],kernelStream);
 	DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
@@ -437,13 +434,9 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Opt(kernelStream); break;
 	}	
-        CudaStreamSynchronize(outStream);
 
 	MPIStream_B();
 
-        CudaStreamSynchronize(inStream);
-	DEBUG_M;
-	CudaEventRecord(kernelEv[0],kernelStream);
 	DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
@@ -473,7 +466,6 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	MPIStream_B(bufnumber);
 	
         CudaDeviceSynchronize();
-        MPI_Barrier(MPI_COMM_WORLD);
 	Snap = tab1;
 	aSnap = adjtab1;
 	MarkIteration();
