@@ -1,3 +1,15 @@
+#-----------------------------------------
+#  Main R file.
+#    defines all additiona functions
+#    reads model-specific configuration
+#    creates all needed tables of:
+#      Densities
+#      Quantities
+#      Settings
+#      Globals
+#      Consts
+#-----------------------------------------
+
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 
