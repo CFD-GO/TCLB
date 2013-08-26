@@ -94,6 +94,10 @@ public:
   void BeforeIt();
   void AfterIt();
   int getSnap(int );
+  void        MPIStream_A();
+  void        MPIStream_B(int );
+  inline void MPIStream_B() { MPIStream_B(0); };
+  
   void        Iterate(int, int);
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
   void        Iteration_Adj(int, int, int);

@@ -46,8 +46,12 @@ AC_ARG_WITH([debug],
 		[specify level of debug messages 0-3]))
 
 AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--with-debug],
+	AC_HELP_STRING([--enable-waitany],
 		[enables debug version (gcc -g)]))
+
+AC_ARG_ENABLE([waitany],
+	AC_HELP_STRING([--enable-waitany],
+		[enables MPI WaitAny (default)]))
 		
 NVFLAGS=""
 
@@ -133,7 +137,7 @@ then
 	then
 		AC_MSG_ERROR([CUDA_ARCH should be set by now])
 	else
-		AC_DEFINE([CUDA_ARCH], [${CUDA_ARCH}], [target CUDA arch])
+		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
 		NVFLAGS="${NVFLAGS} -arch ${CUDA_ARCH}"
 	fi
 else
@@ -248,6 +252,11 @@ then
 	AC_DEFINE([DEBUG_LEVEL], [10], [Making a double precision version])
 else
 	AC_MSG_ERROR([Unknown debug level: ${with_debug}])
+fi
+
+if test "x${enable_waitany}" != "xno"
+then
+	AC_DEFINE([CROSS_MPI_WAITANY], [1], [MPI WAIT ANY])
 fi
 
 
