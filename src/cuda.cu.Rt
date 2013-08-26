@@ -133,12 +133,7 @@ struct Node<?%s suff ?> {
 		Run_b();
 		constContainer.push_adj(*this);
 		Opt();
-		constContainer.push_param(*this);
-/*
-                constContainer.pop(*this);
-		constContainer.push(*this);
-		constContainer.pop_adj(*this);
-		constContainer.push_adj(*this); */<?R
+		constContainer.push_param(*this); <?R
 		} else if (tp$Action == "Init") { ?>
 		constContainer.getType(*this);
 		Init();

@@ -50,10 +50,6 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void pull_adj(N & f);
   template<class N>  CudaDeviceFunction void pop_adj(N & f);
 #endif
-//  CudaDeviceFunction void Glob(Node);
-//  CudaDeviceFunction void Glob(Node_Globs);
-//  template<class N>  CudaDeviceFunction void Glob(N & f);
-  void Init();
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
@@ -82,8 +78,7 @@ class LatticeContainer {
 };
 
 template<class N> CudaGlobalFunction void RunKernel();
-CudaGlobalFunction void nodes_to_color( uchar4 *optr);
-CudaGlobalFunction void nodes_fill( int width, int height);
+CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);

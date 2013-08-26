@@ -795,54 +795,6 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 
 }
 
-<?R for (d in rows(DensityAll)) { ?>
-
-void Lattice::Get_<?%s d$nicename ?>(lbRegion over, real_t * tab)
-{
-//	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
-	size_t offset;
-	lbRegion inter = region.intersect(over);
-//        printf("Getting flags region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
-	int y = inter.dy;
-//        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-        {
-		printf("GetRegion: %d %d %d\n", x,y,z);
-		offset = region.offsetL(x,y,z);
-/*		CudaMemcpy2D(
-			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(real_t),
-			&container->in.f[offset+<?%s d$Index ?>*region.sizeL()], region.nx*sizeof(real_t),
-			inter.nx*sizeof(real_t),
-			inter.ny,
-			cudaMemcpyDeviceToHost);
-*/	}
-}
-
-void Lattice::Set_<?%s d$nicename ?>(lbRegion over, real_t * tab)
-{
-//	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
-	size_t offset;
-	lbRegion inter = region.intersect(over);
-        printf("Setting <?%s d$nicename ?> in region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
-	int y = inter.dy;
-//        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-        {
-		printf("%dx%dx%d+%d,%d,%d\n", inter.nx,inter.ny,1, x,y,z);
-		offset = region.offsetL(x,y,z);
-/*		CudaMemcpy2D(
-			&container->in.f[offset+<?%s d$Index ?>*region.sizeL()], region.nx*sizeof(real_t),
-			&tab[over.offsetL(x,y,z)], inter.nx*sizeof(real_t),
-			inter.nx*sizeof(real_t),
-			inter.ny,
-			cudaMemcpyHostToDevice);
-*/	}
-}
-
-<?R } ?>
-
 <?R
 	for (d in rows(rbind(Density,DensityAD))) { 
 	if (d$adjoint) {

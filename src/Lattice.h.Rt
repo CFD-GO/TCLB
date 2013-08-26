@@ -8,9 +8,7 @@
 #include <vector>
 #include <utility>
 
-// #include "Region.h"
 class lbRegion;
-// #include "LatticeContainer.h"
 class LatticeContainer;
 
 #define ITER_STREAM   0x00
@@ -89,8 +87,6 @@ public:
       total_iterations = 0;
     }
   }
-//  inline void Run()  { container->Run(borderStream,interiorStream);  };
-//  inline void RunG() { container->RunG(borderStream,interiorStream); };
   void BeforeIt();
   void AfterIt();
   int getSnap(int );
@@ -107,13 +103,8 @@ public:
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };
-//  void GetRegion(int, int, int, int, Node *);
-//  void GetRegion(lbRegion, Node *);
-//  void SetRegion(int, int, int, int, Node *);
   void GetFlags(lbRegion, flag_t *);
 <?R for (d in rows(DensityAll)) { ?>
-  void Get_<?%s d$nicename ?>(lbRegion over, real_t * tab);
-  void Set_<?%s d$nicename ?>(lbRegion over, real_t * tab);
   void Get_<?%s d$nicename ?>(real_t * tab);
   void Clear_<?%s d$nicename ?>();
   void Set_<?%s d$nicename ?>(real_t * tab);

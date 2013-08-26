@@ -510,29 +510,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 }
 #endif
 
-// UNUSED
-/*
-template <class N> inline CudaDeviceFunction void RunElement(N& now)
-{
-        constContainer.pop(now);
-	#ifdef ADJOINT
-	        constContainer.pop_adj(now);
-		now.RunAdj();
-		real_t back[DENSITY]; <?R
-			for (d in rows(Density))
-			{ ?>
-		back[<?%s d$Index ?>] = now.<?%s d$name ?>; <?R
-			} ?>
-		now.Run_b(); <?R
-			for (d in rows(Density))
-			{ ?>
-		now.<?%s d$name ?> = back[<?%s d$Index ?>]; <?R
-			} ?>
-	#endif
-	now.Run();
-        constContainer.push(now);
-}
-*/
 
 // Main Kernel
 //   iterates over all elements and runs them with RunElement function
@@ -658,7 +635,7 @@ ifdef(); ?>
  
 // Old function for graphics output
 //   calculates the color for one node
-CudaDeviceFunction void node_to_color( int x, int y, uchar4 *optr )
+CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
 {
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
@@ -694,45 +671,19 @@ CudaDeviceFunction void node_to_color( int x, int y, uchar4 *optr )
 }
 
 // kernel for graphics output
-CudaGlobalFunction void nodes_to_color( uchar4 *optr )
+CudaGlobalFunction void ColorKernel( uchar4 *optr )
 {
-  node_to_color(
+  NodeToColor(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
     optr
   );
 }
 
-// initialization kernel
-CudaGlobalFunction void nodes_fill( int width, int height) {
-	Node now;
-	now.x = CudaThread.x+CudaBlock.z*CudaNumberOfThreads.x+constContainer.dx;
-	now.y = CudaThread.y+CudaBlock.x*CudaNumberOfThreads.y+constContainer.dy;
-	now.z = CudaBlock.y+constContainer.dz;
-	if (now.y < constContainer.fy) {
-		for (; now.x < constContainer.nx; now.x += CudaNumberOfThreads.x) {
-			constContainer.pop(now);
-		        now.Init();
-			constContainer.push(now);
-		}
-	}
-}
-
-// Runs initialization
-void LatticeContainer::Init() {
-   printf("[%d] Initializing Lattice %d(%d)x%dx%d...\n", D_MPI_RANK,nx,kx,ny,nz); 
-	dx=dy=dz=0;
-	fx=nx;fy=ny;fz=nz;
-   CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(X_BLOCK) ,(nx,ny));
-};
-
 // Runs graphics kernel
 void LatticeContainer::Color( uchar4 *optr ) {
-   dx=dy=dz=0;
-   fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
+   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
 };
 
 // Functions for getting quantities
