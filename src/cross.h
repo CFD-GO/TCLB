@@ -32,15 +32,40 @@
       #define CudaBlock blockIdx
       #define CudaThread threadIdx
       #define CudaNumberOfThreads blockDim
-      __device__ int lock = 0;
-      __device__ inline void atomicAddP(real_t* a, real_t b)
-      {
-              while(atomicCAS(&lock, 0, 1)) {};
-              a[0] += b;
-              lock = 0;
-      }
-
-
+      
+      #ifdef CROSS_OLD_ATOMIC
+        __device__ int lock = 0;
+        __device__ inline void atomicAddP(real_t* a, real_t b)
+        {
+                while(atomicCAS(&lock, 0, 1)) {};
+                a[0] += b;
+                lock = 0;
+        }
+      #else
+        #ifdef CALC_DOUBLE_PRECITION
+          typedef long long int real_t_i;
+          #define R2I(x) __double_as_longlong(x)
+          #define I2R(x) __longlong_as_double(x)
+        #else
+//         typedef unsigned long int      real_t_i;
+          #define R2I(x) __float_as_int(x)
+          #define I2R(x) __int_as_float(x)
+          typedef int      real_t_i;
+        #endif
+        __device__ inline void atomicAddP(real_t* address, real_t val)
+        {
+            if (val != 0.0) {
+              real_t_i* address_as_ull = (real_t_i*) address;
+              real_t_i  old = *address_as_ull;
+              real_t_i  assumed, nw;
+              do {
+                  assumed = old;
+                  nw = R2I(val + I2R(assumed));
+                  old = atomicCAS(address_as_ull, assumed, nw);
+              } while (assumed != old);
+            }
+        }
+      #endif
       __shared__ real_t sumtab[MAX_THREADS];
 
       __device__ inline void atomicSum(real_t * sum, real_t val)

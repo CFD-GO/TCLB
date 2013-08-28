@@ -227,6 +227,10 @@ if (ADJOINT==1) {
 	DensityAll = Density
 }
 
+	Settings = rbind(Settings, data.frame(
+		name="Threshold",
+		derived=NA,equation=NA,comment="Parameters threshold",default="0.5", unit="1"))
+
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 
 GlobalsD = Globals

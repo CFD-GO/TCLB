@@ -172,6 +172,7 @@ class cbLog: public Callback {
 class cbStop: public Callback {
 	double stop;
 	double old_obj;
+	int times, score;
 	int old_iter_type;
 	public:
 	int Init() {
@@ -183,7 +184,18 @@ class cbStop: public Callback {
 			std::cerr << "No ObjectiveChange attribute in " << node.name() << "\n";
 			return -1;
 		}
-		old_obj=1e20;
+		attr = node.attribute("Times");
+		if (attr) {
+			times = attr.as_int();
+			if (times < 1) {
+			        std::cerr << "Minimal number for Times attribute is 1\n";
+                                return -1;
+                        }
+		} else {
+		        times = 1;
+		}
+		score = 0;
+		old_obj = 1e20;
 		old_iter_type = solver->iter_type;
 		solver->iter_type |= ITER_LASTGLOB;
 		return 0;
@@ -191,11 +203,20 @@ class cbStop: public Callback {
 	int DoIt() {
 		Callback::DoIt();
 		double v = solver->lattice->globals[ GLOBALS_Objective ];
-		printf("%lf\n", fabs(old_obj - v));
 		if (fabs(old_obj - v) < stop) {
-			printf("------------ stop\n");
+		        score++;
+		} else {
+		        score=0;
+                }
+                if (D_MPI_RANK == 0) {
+        		printf("[ ] Stop criterium: %4lg / %4lg (score: %d)\n", fabs(old_obj - v), stop, score);
+                }
+                if (score >= times) {
+                        if (D_MPI_RANK == 0) {
+                		printf("[ ] Stop.\n");
+                        }
 			return ITERATION_STOP;
-		}
+                }
 		old_obj = v;
 		return 0;
 	}
@@ -513,6 +534,53 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 }
 #endif
 
+class acThreshold: public GenericAction {
+	int par;
+	int levels;
+	public:
+	int Init() {
+		double val;
+		double * start = NULL;
+		double * slice = NULL;
+		levels = 5;
+		GenericAction::Init();
+		pugi::xml_attribute attr = node.attribute("Levels");
+		if (attr) {
+			levels = attr.as_double();
+		} else {
+		        levels = 5;
+			std::cout << "Warning: Using default Levels in " << node.name() << ": 5\n";
+		}
+		                        
+		DEBUG_M;
+		par = solver->getPars();
+		DEBUG_M;
+		if (solver->mpi_rank == 0) {
+        		if (par == 0) {
+        			std::cerr << "Error: No parameters defined!\n";
+        			return -1;
+        		}			
+			printf("[ ] Parameters: %d\n", par);
+			start = new double[par];
+			slice = new double[par];
+		}
+		DEBUG_M;
+		solver->getPar(start);
+		DEBUG_M;
+		int msg=0;
+		
+		for (int i=0; i < levels; i++) {
+		        double th = (1.0 * i)/(levels-1);
+		        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(th);
+		        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>th ? 1 : 0.01;
+        		solver->setPar(slice);
+        		if (GenericAction::ExecuteInternal()) return -1;
+                }
+		return 0;
+	}
+};
+
+
 class acParams: public Action {
 	public:
 	int Init() {
@@ -661,6 +729,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new GenericContainer;
         } else if (name=="Geometry") {
 		ret = new acGeometry;
+        } else if (name=="Threshold") {
+		ret = new acThreshold;
         } else if (name=="CLBConfig") {
 		ret = new GenericContainer;
         } else if (name=="Model") {

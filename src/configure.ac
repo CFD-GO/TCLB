@@ -35,7 +35,7 @@ AC_ARG_ENABLE([double],
 
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
-		[specify the desired CUDA architecture (sm_10/sm_13/sm_20)]))
+		[specify the desired CUDA architecture (sm_11/sm_13/sm_20)]))
 
 AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
@@ -124,6 +124,13 @@ then
 		if test "x${enable_double}" == "xyes"
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_11])
+		fi
+	elif test "$CUDA_ARCH" == "sm_13"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		if test "x${enable_double}" == "xyes"
+		then
+			AC_MSG_ERROR([Double precision not supported in sm_13])
 		fi
 	elif test "$CUDA_ARCH" == "sm_20"
 	then
