@@ -230,7 +230,9 @@ inline void Lattice::MPIStream_A()
 
 inline void Lattice::MPIStream_B(int tag)
 {
+       	DEBUG_M;
         CudaStreamSynchronize(outStream);
+       	DEBUG_M;
 #ifdef CROSS_MPI_OLD
 	MPI_Status status;
 	MPI_Request request;
@@ -245,12 +247,15 @@ inline void Lattice::MPIStream_B(int tag)
 	MPI_Status status;
 	MPI_Request request;
 	MPI_Request recvreq[bufnumber];
+	DEBUG_M;
 	for (int i = 0; i < bufnumber; i++) {
 		MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
         }
+	DEBUG_M;
 	for (int i = 0; i < bufnumber; i++) {
 		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
 	}
+	DEBUG_M;
 	#ifdef CROSS_MPI_WAITANY
         	DEBUG_M;
         	for (int j = 0; j < bufnumber; j++) {
@@ -267,7 +272,9 @@ inline void Lattice::MPIStream_B(int tag)
                 }
         #endif
 #endif
+       	DEBUG_M;
         CudaStreamSynchronize(inStream);
+       	DEBUG_M;
 }
 
 // Normal (Primal) Iteration
@@ -424,19 +431,19 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	}
 ?>
         assert(i == bufnumber);
+        DEBUG_M;
 	container->CopyToConst();
-	
+        DEBUG_M;
 	MPIStream_A();
-
+        DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunInterior_Opt (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Opt(kernelStream); break;
 	}	
-
+        DEBUG_M;
 	MPIStream_B();
-
 	DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
@@ -444,6 +451,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	case ITER_GLOBS:
 		container->RunBorder_Globs_Opt(kernelStream); break;
 	}
+	DEBUG_M;
 	i = 0;	
 <?R
 	for (m in NonEmptyMargin) {
@@ -459,16 +467,19 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	}
 ?>
         assert(i == bufnumber);
+	DEBUG_M;
         CudaStreamSynchronize(kernelStream);
-
+	DEBUG_M;
 	MPIStream_A();
-
+	DEBUG_M;
 	MPIStream_B(bufnumber);
-	
+	DEBUG_M;
         CudaDeviceSynchronize();
+	DEBUG_M;
 	Snap = tab1;
 	aSnap = adjtab1;
 	MarkIteration();
+	DEBUG_M;
 #else
 	std::cerr << "This model doesn't have adjoint!\n";
 	exit (-1);

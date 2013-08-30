@@ -283,8 +283,9 @@ for (i in selR) {
 <?R
 }
 ?>
-	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
-	omT = exp(log(w)*omT);
+//	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
+//	omT = exp(log(w)*omT);
+        omT = w;
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;
