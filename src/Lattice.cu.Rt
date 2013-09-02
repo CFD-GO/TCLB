@@ -247,17 +247,17 @@ inline void Lattice::MPIStream_B(int tag)
 	MPI_Status status;
 	MPI_Request request;
 	MPI_Request recvreq[bufnumber];
-	DEBUG_M;
+//	DEBUG_M;
 	for (int i = 0; i < bufnumber; i++) {
 		MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
         }
-	DEBUG_M;
+//	DEBUG_M;
 	for (int i = 0; i < bufnumber; i++) {
 		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
 	}
-	DEBUG_M;
+//	DEBUG_M;
 	#ifdef CROSS_MPI_WAITANY
-        	DEBUG_M;
+//        	DEBUG_M;
         	for (int j = 0; j < bufnumber; j++) {
         	        int i;
                 	MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
@@ -435,23 +435,23 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
 	container->CopyToConst();
         DEBUG_M;
 	MPIStream_A();
-        DEBUG_M;
+//        DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunInterior_Opt (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Opt(kernelStream); break;
 	}	
-        DEBUG_M;
+//        DEBUG_M;
 	MPIStream_B();
-	DEBUG_M;
+//	DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunBorder_Opt (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs_Opt(kernelStream); break;
 	}
-	DEBUG_M;
+//	DEBUG_M;
 	i = 0;	
 <?R
 	for (m in NonEmptyMargin) {
@@ -471,7 +471,7 @@ inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1,
         CudaStreamSynchronize(kernelStream);
 	DEBUG_M;
 	MPIStream_A();
-	DEBUG_M;
+//	DEBUG_M;
 	MPIStream_B(bufnumber);
 	DEBUG_M;
         CudaDeviceSynchronize();
