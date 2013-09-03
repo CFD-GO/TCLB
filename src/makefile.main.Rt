@@ -29,6 +29,7 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 RT = tools/RT
 RS = R --slave --quiet --vanilla -f
+INDENT = tools/myindent
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
@@ -109,10 +110,12 @@ for (d in destinations) {
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(INDENT) $@
 
 #<?%s d ?>/<?%s m ?>/makefile:<?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile.in <?%s d ?>/<?%s m ?>/configure
 #	@echo "  CONFIGURE  $@"

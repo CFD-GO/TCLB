@@ -1,0 +1,9 @@
+filename=$1
+test -z "${filename}" && exit -1
+test -f "${filename}" || exit -1
+extension="${filename##*.}"
+if test "x${extension}" = "xcu" || test "x${extension}" = "xc" || test "x${extension}" = "xcpp"
+then
+	mv ${filename} ${filename}_
+	indent -l800 -kr -sob ${filename}_ -o ${filename}
+fi

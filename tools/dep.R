@@ -5,7 +5,7 @@ w = w[sel,]
 dep = do.call(c,as.list(by(w,w$file,function(x) paste(x[1,1],paste(x[,2],collapse=" "),sep=" : ") )))
 f=file("dep.mk")
 if (length(dep) > 0) {
-	cat(paste(dep,"\n#\t@echo \"  DEP        $@ <-- $?\"\n\t@touch $@\n\n",sep=""),sep="", file=f)
+	cat(paste(dep,"\n#\t@echo \"  DEP        $@ <-- $?\"\n\t@test -f $@ && touch $@\n\n",sep=""),sep="", file=f)
 } else {
 	cat("# no dep\n",file=f);
 }
