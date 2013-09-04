@@ -230,51 +230,53 @@ inline void Lattice::MPIStream_A()
 
 inline void Lattice::MPIStream_B(int tag)
 {
-       	DEBUG_M;
-        CudaStreamSynchronize(outStream);
-       	DEBUG_M;
-#ifdef CROSS_MPI_OLD
-	MPI_Status status;
-	MPI_Request request;
-	for (int i = 0; i < bufnumber; i++) {
-		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
-	}
-	for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
-		MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
-		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
-	}
-#else
-	MPI_Status status;
-	MPI_Request request;
-	MPI_Request recvreq[bufnumber];
-//	DEBUG_M;
-	for (int i = 0; i < bufnumber; i++) {
-		MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
-        }
-//	DEBUG_M;
-	for (int i = 0; i < bufnumber; i++) {
-		MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
-	}
-//	DEBUG_M;
-	#ifdef CROSS_MPI_WAITANY
-//        	DEBUG_M;
-        	for (int j = 0; j < bufnumber; j++) {
-        	        int i;
-                	MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
-        		CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
-        	}
-        #else
-        	DEBUG_M;
-                MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
+        if (bufnumber > 0) {
                 DEBUG_M;
+                CudaStreamSynchronize(outStream);
+                DEBUG_M;
+        #ifdef CROSS_MPI_OLD
+                MPI_Status status;
+                MPI_Request request;
                 for (int i = 0; i < bufnumber; i++) {
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
+                }
+                for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
                         CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
                 }
+        #else
+                MPI_Status status;
+                MPI_Request request;
+                MPI_Request recvreq[bufnumber];
+        //	DEBUG_M;
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
+                }
+        //	DEBUG_M;
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
+                }
+        //	DEBUG_M;
+                #ifdef CROSS_MPI_WAITANY
+        //        	DEBUG_M;
+                        for (int j = 0; j < bufnumber; j++) {
+                                int i;
+                                MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                        }
+                #else
+                        DEBUG_M;
+                        MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
+                        DEBUG_M;
+                        for (int i = 0; i < bufnumber; i++) {
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                        }
+                #endif
         #endif
-#endif
-       	DEBUG_M;
-        CudaStreamSynchronize(inStream);
-       	DEBUG_M;
+                DEBUG_M;
+                CudaStreamSynchronize(inStream);
+                DEBUG_M;
+        }
 }
 
 // Normal (Primal) Iteration
