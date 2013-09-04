@@ -541,6 +541,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 // The model is 2D (no BORDER_Z)
 <?R } ?>
 
+/*
 // Border Kernel
 //   iterates over border elements and runs them with RunElement function
 template <class N> CudaGlobalFunction void RunBorderKernel()
@@ -578,6 +579,35 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.Glob();
 	now.Pre();
 	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
+                now.z = constContainer.nz - 1;
+                now.RunElement();
+	}
+	now.Glob();
+#endif
+}
+*/
+
+// Border Kernel
+//   iterates over border elements and runs them with RunElement function
+template <class N> CudaGlobalFunction void RunBorderKernel()
+{
+	N now;
+	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.z = CudaBlock.x;
+	now.Pre();
+#ifdef BORDER_Z
+	if (now.z < constContainer.nz) {
+#endif
+		now.y = 0;
+		now.RunElement();
+		now.y = constContainer.ny - 1;
+		now.RunElement();
+#ifdef BORDER_Z
+	}
+	now.y = CudaBlock.x;
+	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
+		now.z = 0;
+                now.RunElement();
                 now.z = constContainer.nz - 1;
                 now.RunElement();
 	}
