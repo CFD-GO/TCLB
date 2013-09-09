@@ -150,6 +150,7 @@ Node = c(
 , HeatSource  =0x0200
 , Wet         =0x0300
 , Dry         =0x0400
+, Propagate   =0x0500
 
 , Inlet       =0x1000
 , Outlet      =0x2000

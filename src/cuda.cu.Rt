@@ -30,7 +30,7 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 <?R for (v in rows(Settings)) { ?>
 CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
     } ?>
-CudaConstantMemory real_t c_sq = 1.0/3.;
+//CudaConstantMemory real_t c_sq = 1.0/3.;
 
 
 #define NODE_H
@@ -97,8 +97,8 @@ struct Node<?%s suff ?> {
                                 da=DensityAD[i,];
                                 if (d$parameter) { ?>
                 <?%s d$name ?> += <?%s da$name ?>*Descent;
-                if (<?%s d$name ?> > 1) <?%s d$name ?> = 1;
-                if (<?%s d$name ?> < 0.01) <?%s d$name ?> = 0.01; <?R
+                if (<?%s d$name ?> > 1.0f) <?%s d$name ?> = 1.0f;
+                if (<?%s d$name ?> < 0.0f) <?%s d$name ?> = 0.0f; <?R
                                 }
                         }?>
                 }

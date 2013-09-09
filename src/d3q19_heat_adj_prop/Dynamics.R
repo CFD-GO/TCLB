@@ -75,6 +75,13 @@ AddDensity(
 )
 
 AddDensity(
+	name = paste("w",1:2-1,sep=""),
+	dx=c(-1,1),
+	comment="weight fluid-solid moving in X",
+	group="wm"
+)
+
+AddDensity(
 	name = "w",
 	comment="weight fluid-solid",
 	group="w",
@@ -181,6 +188,7 @@ AddQuantity( name="T",unit="K")
 #AddQuantity( name="UB",adjoint=T,vector=T)
 #AddQuantity( name="TB",adjoint=T)
 AddQuantity( name="W")
+AddQuantity( name="W0")
 AddQuantity( name="WB",adjoint=T)
 
 AddSetting(name="omega", comment='one over relaxation time')
@@ -203,3 +211,5 @@ AddGlobal(name="Temperature", comment='integral of temperature')
 AddGlobal(name="HighTemperature", comment='penalty for high temperature')
 AddGlobal(name="LowTemperature", comment='penalty for low temperature')
 AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate material parameter')
+
+AddSetting(name="PropagateX", comment='inertia of the transport equation')

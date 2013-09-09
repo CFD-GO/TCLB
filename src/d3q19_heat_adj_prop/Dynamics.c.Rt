@@ -24,6 +24,11 @@ CudaDeviceFunction real_t getW(){
 	return w;
 }
 
+CudaDeviceFunction real_t getW0(){
+	return w0;
+}
+    
+
 CudaDeviceFunction real_t getT(){
 	return (<?R C(sum(fT)) ?>)/(<?R C(sum(f)) ?>);
 }
@@ -96,9 +101,7 @@ CudaDeviceFunction void eqWVelocity()
 	X = U[,1]
 	Y = U[,2]
 	Z = U[,3]
-?>
-
-<?R Inlet = function() { ?>
+Inlet = function() { ?>
 	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2.;
 	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2.;
 
@@ -115,8 +118,7 @@ CudaDeviceFunction void eqWVelocity()
         <?R
 		RTeq = PV("rho")*rbind(PV(1),PV("ux"),0,0,p,p,p)
 		C(fT == solve(MRTT) %% RTeq)
-        ?>
-<?R } ?>
+} ?>
 
 CudaDeviceFunction void WVelocity()
 {
@@ -128,7 +130,6 @@ CudaDeviceFunction void WVelocity()
 	C(rho == sum(f[X == 0]) + 2 * rho, float=F)
 ?>
 	rho = rho / (1. - ux);
-
 <?R Inlet(); ?>
 }
 
@@ -196,6 +197,11 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
+    if ((NodeType & NODE_ADDITIONALS) == NODE_Propagate) {
+            w1 = w0 = w - PropagateX*(1-w1);
+    } else {
+            w1 = w0 = w;
+    }
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_WPressureL:
 		WPressureLimited();
@@ -222,7 +228,7 @@ CudaDeviceFunction void Run() {
 		break;
     }
     if (NodeType & NODE_DESIGNSPACE) {
-            AddToMaterialPenalty(w*(1-w));
+            AddToMaterialPenalty(w0*(1-w0));
     }
 }
 
@@ -238,6 +244,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 		C(calcTeq);
 	?>
 	w = 1;
+	w0=w1= 1;
 }
 
 CudaDeviceFunction void Init() {
@@ -288,7 +295,7 @@ for (i in selR) {
 ?>
 //	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
 //	omT = exp(log(w)*omT);
-        omT = w;
+        omT = w0;
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;
@@ -309,7 +316,7 @@ for (i in 1:length(R)) {
         Jy /= rho * <?%f Mw[1] / Mw[selU[1]] ?>;
         Jz /= rho * <?%f Mw[1] / Mw[selU[1]] ?>;
 
-	omT = w*FluidAlpha + (1-w)*SolidAlpha;
+	omT = w0*FluidAlpha + (1-w0)*SolidAlpha;
 	omT = 1/(0.5+omT*4);
 <?R
 		R = PV(c("T", paste("R",1:6,sep="")));

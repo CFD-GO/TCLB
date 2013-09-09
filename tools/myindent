@@ -6,4 +6,5 @@ if test "x${extension}" = "xcu" || test "x${extension}" = "xc" || test "x${exten
 then
 	mv ${filename} ${filename}_
 	indent -l800 -kr -sob ${filename}_ -o ${filename}
+	rm ${filename}_
 fi

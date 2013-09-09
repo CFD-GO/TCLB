@@ -20,15 +20,3 @@ CudaDeviceFunction vector_t getUB(){
 	u.z=0;
 	return u;
 }
-
-CudaDeviceFunction void RunAdj(){
-	if (NodeType & NODE_DesignSpace ) {
-		wb /= 1000;
-//		if (wb > 0.00001)  wb =  0.01;
-//		if (wb < -0.00001) wb = -0.01;
-		w += wb;
-		if (w > 1.0) w=1.0;
-		if (w < 0.01) w=0.01;
-	}
-	wb=0;
-}
