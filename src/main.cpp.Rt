@@ -212,7 +212,7 @@ int main ( int argc, char * argv[] )
 			ns = 10;
 		}
 		if (ns < 2) ns =2;
-		printf("[%d] Will be running nonstationary adjoint running at %d Snaps\n",D_MPI_RANK,ns);
+		printf("[%d] Will be running nonstationary adjoint at %d Snaps\n", D_MPI_RANK, ns);
 	}
 
 	// Initializing the lattice of a specific size
