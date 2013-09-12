@@ -1,0 +1,6 @@
+<?R	source("conf.R");
+	c_header();
+	for (n in Density$name) { ?>
+ real_t <?%s n ?>; <?R
+	} ?>
+ flag_t NodeType;
