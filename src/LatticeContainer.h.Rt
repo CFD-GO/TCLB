@@ -3,34 +3,22 @@
 	c_header()
 ?>
 
+
+#ifndef SETTINGS_H
+<?R
+	for (v in rows(Settings)) { ?>
+    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
+	} ?>
+    void initSettings();
+    void setConstSetting(int i, real_t tmp);
+
+#define SETTINGS_H 1
+#endif
+
+
 #ifndef LATTICECONTAINER_H
 
-#ifdef CROSS_CPU
-	#define XSDIM 1
-	#define YSDIM 1
-	#define DXSDIM 1
-#else
-	#define XSDIM _xsdim
-	#define YSDIM _ysdim
-	#define DXSDIM blockDim.x
-#endif
-
-#ifdef GRID_3D
-//	#define X (CudaThread.x+CudaBlock.z*DXSDIM)
-//	#define Y (CudaBlock.x)
-//	#define Z (CudaBlock.y)
-	#define BLOCKS dim3(region.ny,region.nz,container->kx)
-#else
-//	#define X (CudaThread.x+_z_*DXSDIM)
-//	#define Y (CudaBlock.x)
-//	#define Z (CudaBlock.y)
-	#define BLOCKS dim3(region.ny,region.nz,1)
-#endif
-#define THREADS dim3(XSDIM,1)
-//#define OFFSET (X + nx*Y + nx*ny*Z)
-
-extern int _xsdim;
-extern int _ysdim;
+#include "Consts.h"
 
 class LatticeContainer {
 	public:
@@ -52,6 +40,8 @@ class LatticeContainer {
   void Free();
   CudaDeviceFunction void fill();
   template<class N>  CudaDeviceFunction void push(N & f);
+  template<class N>  CudaDeviceFunction void push_param(N & f);
+  template<class N>  CudaDeviceFunction void push_noparam(N & f);
   template<class N>  CudaDeviceFunction void pull(N & f);
   template<class N>  CudaDeviceFunction void pop(N & f);
   template<class N>  CudaDeviceFunction void getType(N & f);
@@ -60,10 +50,6 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void pull_adj(N & f);
   template<class N>  CudaDeviceFunction void pop_adj(N & f);
 #endif
-//  CudaDeviceFunction void Glob(Node);
-//  CudaDeviceFunction void Glob(Node_Globs);
-//  template<class N>  CudaDeviceFunction void Glob(N & f);
-  void Init();
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
@@ -76,30 +62,26 @@ class LatticeContainer {
   void WaitBorder();
 
   inline void clearGlobals() {
-        CudaMemset(Globals, 0, <?%d nrow(Globals) ?>*sizeof(real_t));
+        CudaMemset(Globals, 0, GLOBALS*sizeof(real_t));
   }
 
-  <?R for (i in 1:nrow(Globals)) { v=Globals$name[i]; ?>
-        inline real_t get<?%s v ?>(){
+  <?R for (v in rows(Globals)) { ?>
+        inline real_t get<?%s v$name ?>(){
                 real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%d i-1 ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
 	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, <?%d nrow(Globals) ?>*sizeof(real_t), cudaMemcpyDeviceToHost);
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
 	}
 };
 
 template<class N> CudaGlobalFunction void RunKernel();
-CudaGlobalFunction void nodes_to_color( uchar4 *optr);
-CudaGlobalFunction void nodes_fill( int width, int height);
+CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
-for (i in 1:nrow(Quantities))
-{
-	q = Quantities[i,,drop=F];
-	ifdef(q$adjoint);
+for (q in rows(Quantities)) { ifdef(q$adjoint);
 ?>
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))

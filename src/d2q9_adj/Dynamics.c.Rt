@@ -130,6 +130,7 @@ CudaDeviceFunction void Run() {
 //    AddToObjective(w*(1-w)/10);
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
+	        break;
 	case NODE_Wall:
 		BounceBack();
 		break;
@@ -178,6 +179,7 @@ CudaDeviceFunction void Init() {
 	real_t u[2] = {InletVelocity,0.};
 	real_t d = 1.0;
 	SetEquilibrum(d,u);
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) w = 0;
 }
 
 CudaDeviceFunction float2 Color() {

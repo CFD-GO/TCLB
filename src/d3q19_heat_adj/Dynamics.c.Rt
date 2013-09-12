@@ -221,6 +221,12 @@ CudaDeviceFunction void Run() {
 		CollisionMRT();
 		break;
     }
+    if (NodeType & NODE_DESIGNSPACE) {
+            AddToMaterialPenalty(w*(1-w));
+    }
+    if (NodeType == 0) {
+            <?R for (d in Density$name[!Density$parameter]) { ?><?%s d ?> = <?R } ?> 0.0;
+    }
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz, real_t T)
@@ -240,7 +246,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 CudaDeviceFunction void Init() {
 	SetEquilibrum(1.0, InletVelocity, 0., 0.,InletTemperature);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
-		w = 0.01;
+		w = 0.0;
 	}
 }
 
@@ -283,8 +289,9 @@ for (i in selR) {
 <?R
 }
 ?>
-	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
-	omT = exp(log(w)*omT);
+//	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
+//	omT = exp(log(w)*omT);
+        omT = w;
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;

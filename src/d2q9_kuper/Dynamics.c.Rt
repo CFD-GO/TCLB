@@ -71,10 +71,10 @@ CudaDeviceFunction vector_t getF() {
 }
 
 CudaDeviceFunction real_t getP(){
-	const double a2 = 3.852462271644162;
-        const double b2 = 0.1304438860971524 * 4.0 ;
-        const double c2 = 2.785855170470555;
-        const double t = Temperature;
+	 double a2 = 3.852462271644162;
+         double b2 = 0.1304438860971524 * 4.0 ;
+         double c2 = 2.785855170470555;
+         double t = Temperature;
         double p;
 	double rho2;
 	rho2 = <?R C(sum(fs)) ?>;
@@ -137,7 +137,7 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void MovingWall()
 {
 	real_t rho, ru;
-	const real_t ux0 = MovingWallVelocity;
+	 real_t ux0 = MovingWallVelocity;
 	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
 	ru = rho * ux0;
 	f2 = f4;
@@ -152,7 +152,7 @@ CudaDeviceFunction void MovingWall()
 CudaDeviceFunction void EVelocity()
 {
      real_t rho, ru;
-	const real_t ux0 = InletVelocity;
+	 real_t ux0 = InletVelocity;
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -166,7 +166,7 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void WPressure()
 {
      real_t ru;
-	const real_t rho = InletDensity;
+	 real_t rho = InletDensity;
 	ru = rho - ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) );
 
 	f1 = f3 + (2./3.) * ru;
@@ -177,7 +177,7 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void eqWVelocity()
 {
      real_t rho;
-	const real_t u[2] = {InletVelocity,0.};
+	 real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	SetEquilibrum(rho,u);
 }
@@ -185,7 +185,7 @@ CudaDeviceFunction void eqWVelocity()
 CudaDeviceFunction void WVelocity()
 {
 	real_t rho2;
-	const real_t u[2] = {InletVelocity,0.};
+	 real_t u[2] = {InletVelocity,0.};
 	rho2 = InletDensity;
         switch (NodeType & NODE_ADDITIONALS) {
 		case NODE_Wet:
@@ -201,7 +201,7 @@ CudaDeviceFunction void WVelocity()
 CudaDeviceFunction void EPressure()
 {
         real_t ru;
-	const real_t rho = OutletDensity;
+	 real_t rho = OutletDensity;
 	ru = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) - rho;
 
 	f3 = f1 - (2./3.) * ru;
@@ -229,10 +229,10 @@ CudaDeviceFunction void switch_f() {
 
 
 CudaDeviceFunction void calc_phi0() {
-	const double a2 = 3.852462271644162;
-        const double b2 = 0.1304438860971524 * 4.0 ;
-        const double c2 = 2.785855170470555;
-        const double t = Temperature;
+	 double a2 = 3.852462271644162;
+         double b2 = 0.1304438860971524 * 4.0 ;
+         double c2 = 2.785855170470555;
+         double t = Temperature;
         double p;
 	double rho2;
 	rho2 = <?R C(sum(fs)) ?>;
@@ -344,7 +344,7 @@ CudaDeviceFunction void Run() {
 	calc_phi();
 }
 
-CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+CudaDeviceFunction void SetEquilibrum( real_t d,  real_t u[2])
 {	real_t usq, uf;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R

@@ -1,7 +1,7 @@
 #include <stdio.h>
+#include "Consts.h"
 #include "cross.h"
 #include "Global.h"
-#include "Node.h"
 #include "LatticeContainer.h"
 #include <vector>
 #include <algorithm>
@@ -30,7 +30,7 @@ void HandleError( cudaError_t err,
     }
 }
 
-int GetMaxThreads()
+/*int GetMaxThreads()
 {
             cudaFuncAttributes * attr = new cudaFuncAttributes;
             HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<Node>) );
@@ -41,7 +41,9 @@ int GetMaxThreads()
             printf( "Shared   mem:%ld\n", attr->sharedSizeBytes);
             return attr->maxThreadsPerBlock;
 }
+*/
 
+#ifndef CROSS_SYNCALLOC
 struct ptrpair {
 	void ** ptr;
 	size_t size;
@@ -77,7 +79,15 @@ cudaError_t cudaAllocFinalize() {
 		ptrlist[i].size=size;
 	}
 	char * tmp;
-	printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+	if (fullsize > 1e9) {
+		printf("[%d] Cumulative allocation of %d b (%.1f GB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e9);
+	} else if (fullsize > 1e6) {
+		printf("[%d] Cumulative allocation of %d b (%.1f MB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e6);
+	} else if (fullsize > 1e3) {
+		printf("[%d] Cumulative allocation of %d b (%.1f kB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e3);
+	} else {
+		printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+	}
 	cudaMalloc((void **) &tmp,fullsize);
 	if (tmp == NULL) {
 		std::cerr << "FATAL ERROR: Not enaught memory! tried to allocate (cumulatice): " << fullsize << " b\n";
@@ -86,7 +96,7 @@ cudaError_t cudaAllocFinalize() {
 	CudaMemset( tmp, 0, fullsize );
 	while (!ptrlist.empty()) {
 		ptr = ptrlist.back();
-//		printf("Allocation of %d b\n", (int) ptr.size);
+		DEBUG1(printf("[%d] Preallocation gave %d b\n", D_MPI_RANK, (int) ptr.size);)
 //		cudaMalloc(ptr.ptr,ptr.size);
 		*(ptr.ptr) = (void **)tmp;
 		tmp += ptr.size;
@@ -95,5 +105,19 @@ cudaError_t cudaAllocFinalize() {
 	return cudaSuccess;
 }
 
+#else
+
+cudaError_t cudaPreAlloc(void ** ptr, size_t size) {
+        DEBUG1(printf("Preallocation of %d b\n", (int) size);)
+        cudaError_t ret = cudaMalloc(ptr, size);
+        cudaMemset( *ptr, 0, size );
+        return ret;
+}
+
+cudaError_t cudaAllocFinalize() {
+	return cudaSuccess;
+}
+
+#endif
 
 #endif

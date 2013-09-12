@@ -162,6 +162,9 @@ CudaDeviceFunction void Init() {
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		d=SolidH;
 	}
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
+		w = 1-EnergySink;
+	}
 	SetEquilibrum(d,InletVelocity,0);
 }
 
@@ -236,9 +239,13 @@ for (i in selR) {
 ?>
 if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
 	AddToTotalDiff( ux*ux + uy*uy);
+	AddToEnergyGain( ux*ux + uy*uy);
 }
 ux *= w;
 uy *= w;
+if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
+	AddToEnergyGain( -(ux*ux + uy*uy));
+}
 <?R
 	C(usq == sum(u*u)*dw);
 for (i in selR) {

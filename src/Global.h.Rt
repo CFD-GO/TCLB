@@ -3,89 +3,106 @@
 	c_header()
 ?>
 
-	#define VERSION "<?%s version ?>"
-	#define MODEL "<?%s MODEL ?>"
-
-	#include "types.h"
+#include "Consts.h"
+#include "types.h"
+#include <string>
 
 #ifndef GLOBAL_H
-	#define BOUNDARY_UX UX_mid
-	#define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
+    #define BOUNDARY_UX UX_mid
+    #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
 #define GLOBAL_H 1
 #endif
 
 #ifndef INFO_H
-	#include "cross.h"
-	#include "Region.h"
+    #include "cross.h"
+    #include "Region.h"
+    typedef struct {
+        float x;
+        float y;
+    } vector_t_b;
 
-struct NodeInfo {
-    lbRegion region;
-    int rank; <?R
+    struct NodeInfo {
+        lbRegion region;
+        int rank; <?R
 for (m in NonEmptyMargin) { ?>
-    int <?%s m$side ?>;<?R
+        int <?%s m$side ?>; <?R
 } ?>
-};
+    };
 
-struct MPIInfo {
-    NodeInfo * node;
-    lbRegion totalregion;
-    int size;
-    int rank;
-    int gpu;
-};
+    struct MPIInfo {
+        NodeInfo * node;
+        lbRegion totalregion;
+        int size;
+        int rank;
+        int gpu;
+    };
 
-void fillSides(MPIInfo, int, int, int);
+    void fillSides(MPIInfo, int, int, int);
 
-struct FTabs {
-<?R for (m in NonEmptyMargin) { ?>
- real_t* <?%s m$name ?>;
-<?R } ?>
-void Alloc(int,int,int);
-void Clear(int,int,int);
-void PreAlloc(int,int,int);
-void Free();
-FTabs & operator=(const FTabs & in) {
-<?R for (m in NonEmptyMargin) { ?>
-	<?%s m$name ?> = in. <?%s m$name ?>;
-<?R } ?>
-	return *this;
-}
-};
+    struct FTabs { <?R
+    for (m in NonEmptyMargin) { ?>
+        real_t* <?%s m$name ?>; <?R
+    } ?>
+        void Alloc(int,int,int);
+        void Clear(int,int,int);
+        void PreAlloc(int,int,int);
+        void Free();
+        FTabs & operator=(const FTabs & in) { <?R
+    for (m in NonEmptyMargin) { ?>
+            <?%s m$name ?> = in. <?%s m$name ?>; <?R
+    } ?>
+	    return *this;
+        }
+    };
 
 #define INFO_H 1
 #endif
-
+/*
 #ifndef SETTINGS_H
 <?R
-	for (i in 1:nrow(Settings)) { ?>
-CudaExternConstantMemory(real_t <?%s Settings$name[i] ?>);<?R
+	for (v in rows(Settings)) { ?>
+    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
 	} ?>
-void initSettings();
+    void initSettings();
+
 #define SETTINGS_H 1
 #endif
-
+*/
 #ifndef DEBUG_H   
-	extern int D_MPI_RANK;
+    extern int D_MPI_RANK;
 
-	#define DEBUG_SETRANK(x) D_MPI_RANK = x
-	#define DEBUG0(x) 
-	#define DEBUG1(x)
-	#define DEBUG2(x) x
-	#define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG_SETRANK(x) D_MPI_RANK = x
+#if DEBUG_LEVEL < 1
+    #define DEBUG0(x) x; fflush(stdout);
+    #define DEBUG1(x) x; fflush(stdout);
+    #define DEBUG2(x) x; fflush(stdout);
+    #define DEBUG3(x) x; fflush(stdout);
+#elif DEBUG_LEVEL < 2
+    #define DEBUG0(x)
+    #define DEBUG1(x) x
+    #define DEBUG2(x) x
+    #define DEBUG3(x) x
+#elif DEBUG_LEVEL < 3
+    #define DEBUG0(x)
+    #define DEBUG1(x)
+    #define DEBUG2(x) x
+    #define DEBUG3(x) x
+#elif DEBUG_LEVEL < 4
+    #define DEBUG0(x)
+    #define DEBUG1(x)
+    #define DEBUG2(x)
+    #define DEBUG3(x) x
+#else
+    #define DEBUG0(x)
+    #define DEBUG1(x)
+    #define DEBUG2(x)
+    #define DEBUG3(x)
+#endif
+    #define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG0_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG1_M DEBUG1(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG2_M DEBUG2(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG3_M DEBUG3(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
 	
 #define DEBUG_H 1
 #endif
-
-
-#ifndef CONSTS_H
-
-<?R
-	for (v in rows(Consts)) { ?>
-#define <?%s v$name ?> <?%s v$value ?> <?R
-	}
-?>
-	
-#define CONSTS_H 1
-#endif
-
-

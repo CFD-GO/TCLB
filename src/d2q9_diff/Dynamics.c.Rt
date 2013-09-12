@@ -1,0 +1,136 @@
+<?R
+	source("conf.R") ;
+	c_header();
+?>
+#define S4 1.3333
+#define S5 1.0
+#define S6 1.0
+#define S7 1.0
+#define S8 omega
+#define S9 omega
+
+<?R
+	f = PV(Density$name[Density$group=="f"])
+	d = PV("d");
+	ws = c(16,4,4,4,4,1,1,1,1)/36
+	feq = d*ws;
+	om = PV("om");
+	uf = PV("uf");
+	bounce = c(0,3,4,1,2,7,8,5,6)
+?>
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?>;
+}
+    
+CudaDeviceFunction real_t getW(){
+	return w;
+}
+
+CudaDeviceFunction real_t getR(){
+	return r;
+}
+
+CudaDeviceFunction void BounceBack()
+{
+     real_t uf;
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	w = list(
+           uf==f[V[i,1]],
+           f[V[i,1]]==f[V[i,2]],
+           f[V[i,2]]==uf
+	)
+	for (h in w) C(h)
+   }
+?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+	real_t d = InletDensity;
+	f1 = (2./9.) * d - f3;
+	f5 = d/18. - f7;
+	f8 = d/18. - f6;
+}
+
+CudaDeviceFunction void EPressure()
+{
+	real_t d = OutletDensity;
+	f3 = (2./9.) * d - f1;
+	f7 = d/18. - f5;
+	f6 = d/18. - f8;
+}
+
+
+CudaDeviceFunction void Run() {
+	real_t di;
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    }
+    switch (NodeType & NODE_COLLISION) {
+        case NODE_MRT:
+                CollisionMRT();
+                break;
+    }
+	switch(NodeType & NODE_OBJECTIVE) {
+	case NODE_Obj1:
+		di = <?R C(sum(f)) ?> -r;
+		AddToDiff(di*di);
+		break;
+	case NODE_Obj2:
+		r=<?R C(sum(f)) ?>;
+		break;
+	}
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t d)
+{
+<?R
+	C( f == d*ws )
+?>
+}
+
+CudaDeviceFunction void Init() {
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
+		w = 0;
+	} else {
+		w = 1;
+	} 
+	r=0;
+	real_t d = InitDensity;
+	SetEquilibrum(d);
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        real_t d = getRho();
+	ret.x = d;
+	ret.y = w;
+        return ret;
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+	real_t d, om;
+	om = nu0 + w*(nu1-nu0);
+	om = 1./(3.*om + .5);
+<?R
+	C( d == sum(f) );
+	C( f == f + (feq-f)*om);
+?>
+}
+
+

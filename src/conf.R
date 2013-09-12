@@ -1,3 +1,15 @@
+#-----------------------------------------
+#  Main R file.
+#    defines all additiona functions
+#    reads model-specific configuration
+#    creates all needed tables of:
+#      Densities
+#      Quantities
+#      Settings
+#      Globals
+#      Consts
+#-----------------------------------------
+
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 
@@ -24,10 +36,10 @@ table_from_text = function(text) {
 	tab
 }
 
-Density = NULL
-Globals = NULL
-Settings = NULL
-Quantities = NULL
+Density = data.frame()
+Globals = data.frame()
+Settings = data.frame()
+Quantities = data.frame()
 
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
@@ -138,6 +150,7 @@ Node = c(
 , HeatSource  =0x0200
 , Wet         =0x0300
 , Dry         =0x0400
+, Propagate   =0x0500
 
 , Inlet       =0x1000
 , Outlet      =0x2000
@@ -156,14 +169,16 @@ if (! "unit" %in% names(Quantities)) {
 } else {
 	Quantities$unit = as.character(Quantities$unit)
 }
-if (! "unit" %in% names(Globals)) {
-	Globals$unit = "1"
-} else {
-	Globals$unit = as.character(Globals$unit)
+if (nrow(Globals) > 0) {
+	if (! "unit" %in% names(Globals)) {
+		Globals$unit = "1"
+	} else {
+		Globals$unit = as.character(Globals$unit)
+	}
+	if (! "adjoint" %in% names(Globals)) {
+		Globals$adjoint = FALSE
+	} 
 }
-if (! "adjoint" %in% names(Globals)) {
-	Globals$adjoint = FALSE
-} 
 if (! "default" %in% names(Settings)) {
 	Settings$default = "0"
 } else {
@@ -205,10 +220,17 @@ if (ADJOINT==1) {
 	Settings = rbind(Settings, data.frame(
 		name=paste(Globals$name,"InObj",sep=""),
 		derived=NA,equation=NA,comment=Globals$comment,default="0", unit="1"))
+	Settings = rbind(Settings, data.frame(
+		name="Descent",
+		derived=NA,equation=NA,comment="Optimization Descent",default="0", unit="1"))
 } else {
 	DensityAD = NULL
 	DensityAll = Density
 }
+
+	Settings = rbind(Settings, data.frame(
+		name="Threshold",
+		derived=NA,equation=NA,comment="Parameters threshold",default="0.5", unit="1"))
 
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 
@@ -288,16 +310,32 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
-Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
-Dispatch$suffix = paste(
-	ifelse(Dispatch$globals,"_Globs",""),
-	ifelse(Dispatch$adjoint,"_Adj",""),
-	sep=""
+#Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
+Dispatch = data.frame(
+	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",   "No",      "Globs"),
+	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
+	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,   TRUE,         TRUE),
+	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
 )
+
+Dispatch$adjoint_ver = Dispatch$adjoint
+Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
+
+#Dispatch = expand.grid(Globals=c("No","Globs","Obj"), Adjoint=c("No","Adj","Opt"))
+#Dispatch$adjoint = Dispatch$Adjoint != "No"
+#Dispatch$globals = Dispatch$Globals != "No"
+
+#Dispatch$suffix = paste(
+#	ifelse(Dispatch$globals,paste("_",Dispatch$Globals,sep=""),""),
+#	ifelse(Dispatch$adjoint,paste("_",Dispatch$Adjoint,sep=""),""),
+#	sep="")
+
 
 Consts = NULL
 
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -311,11 +349,7 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 	assign(n,v)
 }
 
-#Settings$index = 1:nrow(Settings)-1
-#Density$index = 1:nrow(Density)-1
-#Globals$index = 1:nrow(Globals)-1
-#Quantities$index = 1:nrow(Quantities)-1
-
+GlobalsD = Globals[-nrow(Globals),]
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 version=git_version()
@@ -329,10 +363,9 @@ sprintf("     Developed at: Warsaw University of Technology - 2012    "),
 sprintf("-------------------------------------------------------------")
 )
 
-
 c_header = function() {
-	for (l in clb_header)
-	cat("/*",l,"*/\n",sep="");
+#	for (l in clb_header)
+	cat(paste("/*",clb_header,"*/",collapse="\n",sep=""),sep="");
 }
 
 hash_header = function() {

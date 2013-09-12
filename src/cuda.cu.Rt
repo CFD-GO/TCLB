@@ -2,32 +2,35 @@
         source("conf.R")
 	c_header()
 ?>
+/*  Main CUDA C file                                           */
+/*     Here we nearly all the CUDA C code. It includes:        */          
+/*          LatticeContainer.h                                 */
+/*          LatticeContainer.c                                 */
+/*          Dynamics.c                                         */
+/*          Dynamics.h                                         */
+/*          Dynamics_b.c (adjoint)                             */
+/*          Dynamics_adj.c (adjoint)                           */
+/*          ADTools.c (adjoint)                                */
+/*-------------------------------------------------------------*/
 
-#ifdef ADJOINT
-	#include "types_b.h"
-#endif
-
+#include "Consts.h"
 #include "cross.h"
 #include "Global.h"
 
 class Node;
 class Node_Globs;
+
 #include "LatticeContainer.h"
-//class LatticeContainer;
 CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 
 #ifdef ADJOINT
 	#include "ADTools.cu"
 #endif
 
-#include "Node_types.h"
-
-<?R
-        for (i in 1:nrow(Settings)) {
-                v = Settings[i,]; ?>
-CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0; <?R
-	} ?>
-CudaConstantMemory real_t c_sq = 1.0/3.;
+<?R for (v in rows(Settings)) { ?>
+CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
+    } ?>
+//CudaConstantMemory real_t c_sq = 1.0/3.;
 
 
 #define NODE_H
@@ -35,76 +38,121 @@ CudaConstantMemory real_t c_sq = 1.0/3.;
 <?R
 	for (tp in rows(Dispatch)) {
 	cat("\n")
-	ifdef(tp$adjoint)
-	suff=tp$suffix
+	ifdef(tp$adjoint_ver)
+	suff=tp$suffix ?>
+//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Action ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) {
-		if (tp$globals) { ?>
-			#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + x <?R
+		if (tp$Globals == "Globs") { ?>
+#define AddTo<?%s g$name ?>(x) <?%s g$name ?> = <?%s g$name ?> + (x) <?R
+		} else if (tp$Globals == "Obj") { ?>
+#define AddTo<?%s g$name ?>(x) Objective = Objective + (x) * <?%s g$name ?>InObj <?R
 		} else { ?>
-			#define AddTo<?%s g$name ?>(x) <?R
+#define AddTo<?%s g$name ?>(x) <?R
 		}
 	} ?>
 struct Node<?%s suff ?> {
-	int x,y,z;
-	<?R
-		if (tp$globals) {
-			for (g in rows(GlobalsD)) { ?>
-				real_t <?%s g$name ?>; <?R
-			}
-		}
-	?>
+	int x,y,z; <?R
+		if (tp$Globals == "Globs") {
+                        for (g in rows(GlobalsD)) { ?>
+	real_t <?%s g$name ?>; <?R
+                        }
+		} else if (tp$Globals == "Obj") { ?>
+        real_t Objective; <?R
+		} else { } ?>
 	CudaDeviceFunction void inline Pre() { <?R
-		if (tp$globals) { ?>
-			<?R
+		if (tp$Globals == "Globs") {
 				for (g in rows(GlobalsD)) { ?>
-					<?%s g$name ?> = 0.0; <?R
+		<?%s g$name ?> = 0.0f; <?R
 				}
-		} ?>
+		} else if (tp$Globals == "Obj") { ?>
+		Objective = 0.0f; <?R
+		} else { } ?>
 	}
 	CudaDeviceFunction void inline Glob() { <?R
-		if (tp$globals) {
-			i=0
-			for (g in rows(GlobalsD)) if ((! g$adjoint) || (tp$adjoint)) { ?>
-				atomicSum(&constContainer.Globals[<?%d i ?>], <?%s g$name ?>); <?R
-				i = i + 1;
-			}
-		} ?>
-	}
-	<?R
+		if (tp$Globals == "Globs") {
+                        for (g in rows(GlobalsD)) { ?>
+		atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$name ?>); <?R
+                        }
+		} else if (tp$Globals == "Obj") { ?>
+		atomicSum(&constContainer.Globals[ GLOBALS_Objective ], Objective); <?R
+		} else { } ?>
+	} <?R
 		if (! tp$adjoint) { ?>
-			#include "Dynamics.h" <?R
+	#include "Dynamics.h" <?R
 		} ?>
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
 	#include "Dynamics_sp.c"
-#endif
-	<?R
+#endif <?R
 		if (tp$adjoint) { ?>
-			#include "Dynamics_b.c"
-			#include "Dynamics_adj.c" <?R
+        #include "Dynamics_b.c"
+	#include "Dynamics_adj.c" <?R
 		}
-	?>
+		if (tp$Action == "Opt") { ?>
+	CudaDeviceFunction inline void Opt() {
+	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
+		        for (i in 1:nrow(Density)) {
+		                d=Density[i,];
+                                da=DensityAD[i,];
+                                if (d$parameter) { ?>
+                <?%s d$name ?> += <?%s da$name ?>*Descent;
+                if (<?%s d$name ?> > 1.0f) <?%s d$name ?> = 1.0f;
+                if (<?%s d$name ?> < 0.0f) <?%s d$name ?> = 0.0f; <?R
+                                }
+                        }?>
+                }
+        } <?R
+	        } ?>
 	CudaDeviceFunction inline void RunElement() { <?R
-		if (tp$adjoint) { ?>
-			constContainer.pop(*this);
-			constContainer.pop_adj(*this);
-			Run_b();
-			constContainer.push_adj(*this); <?R
-		} else { ?>
-		        constContainer.pop(*this); 
-			Run();
-			constContainer.push(*this); <?R
+		if (tp$Action == "Adj") { ?>
+		constContainer.pop(*this);
+		constContainer.pop_adj(*this);
+		Run_b();
+		constContainer.push_adj(*this); <?R
+		} else if (tp$Action == "Opt") { ?>
+
+                constContainer.pop(*this); <?R
+		        for (i in 1:nrow(Density)) {
+		                d=Density[i,];
+                                da=DensityAD[i,];?>
+		<?%s da$name ?> = <?%s d$name ?>; <?R
+		        } ?>
+
+		Run();
+		constContainer.push_noparam(*this); <?R
+		        for (i in 1:nrow(Density)) {
+		                d=Density[i,];
+                                da=DensityAD[i,];?>
+		<?%s d$name ?> = <?%s da$name ?>; <?R
+		        } ?>
+		constContainer.pop_adj(*this); <?R
+		        for (d in rows(DensityAD)) if (d$parameter) { ?>
+		<?%s d$name ?> = 0; <?R
+		        } ?>
+		Run_b();
+		constContainer.push_adj(*this);
+		Opt();
+		constContainer.push_param(*this); <?R
+		} else if (tp$Action == "Init") { ?>
+		constContainer.getType(*this);
+		Init();
+		constContainer.push(*this); <?R
+		} else if (tp$Action == "No") { ?>
+	        constContainer.pop(*this); 
+		Run();
+		constContainer.push(*this); <?R
+		} else {
+		        stop(paste("Unknown Action:",tp$Action,"in Dispatch (conf.R)"));
 		} ?>
 	}
 }; <?R
 	for (g in rows(GlobalsD)) { ?>
-		#undef AddTo<?%s g$name ?><?R
+#undef AddTo<?%s g$name ?><?R
 	}
 } 
 cat("\n")
 ifdef()
 ?>
 
-//#include "LatticeContainer.h"
 #include "LatticeContainer.cu"

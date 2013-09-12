@@ -1,15 +1,16 @@
 <?R
  source("conf.R")
 ?>
-#define AddToObjective(x) objective += x
-real_t objective;
+//#define AddToObjective(x) objective += x
+//real_t objective;
 <?R for (v in Globals$name) { ?>
 #define AddTo<?%s v ?>(x) <?%s v ?> += x;
 real_t <?%s v ?>;<?R } ?>
 
 typedef struct {float x,y; } float2;
 
-<?R
-for (i in 1:nrow(Settings)) { ?>
-	real_t <?%s Settings$name[i] ?>; <?R
-} ?>
+<?R for (v in rows(Settings)) { ?>
+	real_t <?%s v$name ?>; <?R
+    } ?>
+
+flag_t NodeType;

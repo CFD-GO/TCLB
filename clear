@@ -13,8 +13,12 @@ rm $LIST 2>/dev/null
 LIST=output/*
 rm $LIST 2>/dev/null
 
-LIST=standalone/*
-rm -r $LIST 2>/dev/null
+LIST=CLB/*
+for i in $LIST; do
+	if test -d $i; then
+		rm -r $i 2>/dev/null
+	fi
+done
 
 LIST=CLB_*.tar.gz
 rm $LIST 2>/dev/null

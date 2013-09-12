@@ -2,13 +2,12 @@
         source("conf.R")
 	c_header();
 ?>
-
+#include "Consts.h"
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
 #include "cross.h"
 #include "Region.h"
-#include "Node.h"
 #include "LatticeContainer.h"
 #include "Lattice.h"
 #include "vtkLattice.h"
@@ -38,7 +37,7 @@ struct InfoBlock {
 	lbRegion region;
         lbRegion fileregion; // Size of input mesh
 <?R
-        for (i in 1:nrow(Settings)) { v = Settings[i,]; ?>
+        for (v in rows(Settings)) { ?>
 	real_t setting_<?%s v$name ?>;
 	int ifset_<?%s v$name ?>; <?R
 	}
@@ -68,7 +67,7 @@ class Solver {
 	GPUAnimBitmap * bitmap;
 #endif
 	void print(const char * str);
-	double LogScales[<?%d nrow(Globals) ?> + <?%d nrow(Settings) ?> + <?%d nrow(Scales) ?>];
+	double LogScales[ GLOBALS + SETTINGS + SCALES ];
 	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
 	inline ~Solver() {
 		if (lattice) delete lattice;
@@ -96,9 +95,10 @@ class Solver {
 	int initLog(const char * filename);
 	int writeLog(const char * filename);
 	int writeVTK(const char * nm);
-	int setSize(int,int,int);
+	int writeBIN(const char * nm);
+	int setSize(int,int,int,int);
 	int MPIDivision();
-	int InitAll();
+	int InitAll(int);
 	int RunMainLoop();
 	int EventLoop();
 
@@ -107,5 +107,23 @@ class Solver {
 	int getDPar(double * wb);
 	int getPar(double * wb);
 	int setPar(const double * w);
+	int saveComp(const char*, const char*);
+	int loadComp(const char*, const char*);
+
+	inline int getGlobal(const char * nm) { <?R
+        for (v in rows(Globals)) { ?>
+        	if (strcmp(nm,"<?%s v$name ?>") == 0) return <?%s v$Index ?>; <?R
+	} ?>
+	        return -1;
+	};
+	inline char * getGlobal(const int i) {
+	        switch(i) { <?R
+	for (v in rows(Globals)) { ?>
+                	case <?%s v$Index ?>: return "<?%s v$name ?>"; <?R
+	} ?>
+	        }
+	        return "UNKNOWN";
+	};
+	
 };   
 

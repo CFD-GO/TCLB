@@ -22,20 +22,33 @@ MRTMAT = matrix(c(
 0,0,0,0,0,0,0,0,0,0,0,1,1,-1,-1,-1,-1,1,1
 ),19,19)
 
+v = diag(t(MRTMAT) %*% MRTMAT)
+MRTMAT.inv = diag(1/v) %*% t(MRTMAT)
+
 selU = c(4,6,8)
 
-
-
-Density = data.frame(
-	name = paste("f[",0:18,"]"),
+AddDensity(
+	name = paste("f",0:18,sep=""),
 	dx   = MRTMAT[,selU[1]],
 	dy   = MRTMAT[,selU[2]],
 	dz   = MRTMAT[,selU[3]],
-	command=paste("density F",0:18)
+	comment=paste("density F",0:18),
+	group="f"
 )
 
+f = PV(Density$name)
+
+AddDensity(
+	name = "w",
+	comment="weight fluid-solid",
+	group="w",
+	parameter=T
+)
+
+f = PV(Density$name[Density$group=="f"])
+
 rho = PV("rho")
-J = PV(paste("J[",1:3-1,"]"))
+J = PV(c("Jx","Jy","Jz"))
 rho0 = 1
 
 if (FALSE) {
@@ -70,19 +83,22 @@ Req = rbind(
 	wxx*pww,
 	pxy,
 	pyz,
-	pxx,
+	pxz,
 	0,
 	0,
 	0
 )
 
 U = MRTMAT[,selU]
-f = PV(Density$name)
+#f = PV(Density$name)
 R = PV(paste("R",0:18,sep=""))
+
 
 R[1] = rho
 R[c(4,6,8)] = J
+R[-c(1,4,6,8)] = PV(paste("R",0:14,sep=""))
 selR = c(2,3,5,7,9:19)
+
 #R[[1]] = rho[[1]]
 #R[[4]] = J[[1]]
 #R[[6]] = J[[2]]
@@ -120,23 +136,19 @@ Sy = rbind(
 }
 
 
-Quantities = data.frame(
-        name = c("Rho","U"),
-        type = c("real_t","vector_t"),
-	adjoint=F
-)
+AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="U",unit="m/s",vector=T)
+AddQuantity( name="W")
+AddQuantity( name="WB",adjoint=T)
 
+AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='inlet density')
 
-Density = rbind(Density,data.frame(
-	name = "w",
-	dx   = 0,
-	dy   = 0,
-	dz   = 0,
-	command="porocity"
-))
-
-Quantities = rbind(Quantities, data.frame(
-        name = c("RhoB", "UB", "W", "WB"),
-        type = c("real_t","vector_t","real_t","real_t"),
-	adjoint=T
-))
+AddGlobal(name="Flux", comment='pressure loss')
+AddGlobal(name="EnergyFlux", comment='pressure loss')
+AddGlobal(name="PressureFlux", comment='pressure loss')
+AddGlobal(name="PressureDiff", comment='pressure loss')
+AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate material parameter')

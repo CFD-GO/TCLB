@@ -1,0 +1,461 @@
+<?R
+        source("conf.R")
+	c_header();
+?>
+#include "Consts.h"
+#include "cuda.h"
+#include "pugixml.hpp"
+#include "Global.h"
+#include <mpi.h>
+#ifdef GRAPHICS
+	#include "gpu_anim.h"
+#endif
+#include "cross.h"
+#include "Region.h"
+//#include "LatticeContainer.h"
+class LatticeContainer;
+#include "Lattice.h"
+#include "vtkLattice.h"
+#include "Geometry.h"
+#include "def.h"
+#include "utils.h"
+#include "unit.h"
+
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <iomanip>
+#include <assert.h>
+
+#include "Solver.h"
+
+using namespace std;
+
+void MouseMove( Solver * data, int x, int y, int nx, int ny );
+int MainLoop( uchar4* outputBitmap, Solver *d, int ticks );
+void MainFree( Solver *d);
+
+	void Solver::Init() {
+		iter = 0;
+		iter_type = ITER_NORM;
+		mpi_rank = 0;
+		mpi_size = 1;
+		steps = 1;
+		saveN = 0;
+		saveI = 0;
+		saveFile = NULL;
+		info.outpath[0] ='\0';
+	}
+
+
+	void Solver::saveInit(int n){
+		n++;
+		if (saveN != 0) {
+			free(saveFile[0]);
+			free(saveFile);
+		}
+		saveN=n;
+		n++;
+		saveFile = (char**) malloc(sizeof(char*)*n);
+		char * fn = (char*) malloc(sizeof(char )*n*STRING_LEN);
+		for (int i=0;i<n;i++) {
+			saveFile[i] = &(fn[i*STRING_LEN]);
+			saveFile[i][0] = '\0';
+		}
+		outGlobalFile("SAVE", ".txt", saveFile[saveN]);
+	}
+
+	void Solver::setUnit(std::string nm, std::string val, std::string gauge) {
+		units.setUnit(nm, units(val)/units(gauge), 1);
+	}
+
+	void Solver::Gauge() {
+		units.makeGauge();
+		if (mpi_rank == 0) {
+			units.printGauge();
+		}
+	    <?R 
+		for (v in rows(Settings)) { ?>
+                    LogScales[<?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+		for (v in rows(Globals)) { ?>
+                    LogScales[SETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+		for (v in rows(Scales)) { ?>
+                    LogScales[SETTINGS + GLOBALS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+ ?>
+	}
+
+	void Solver::setOutput(const char * out) {
+		char _confname[STRING_LEN];
+		strcpy(_confname,info.conffile);
+		stripbare(_confname);
+		sprintf(info.outpath, "%s%s", out, _confname);
+		printf("[%d] Setting output path to: %s\n", D_MPI_RANK, info.outpath);
+	}
+
+	int Solver::initLog(const char * filename)
+	{ 
+		if (mpi.rank == 0) {
+                    FILE * f = NULL;
+                    printf("[ ] Initializing %s\n",filename);
+                    f = fopen(filename, "wt");
+                    assert( f != NULL );
+			
+                    fprintf(f,"\"Iteration\"");
+		    <?R for (v in Settings$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
+		    <?R } ?>
+		    <?R for (v in Globals$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
+		    <?R } ?>
+		    <?R for (v in Scales$name) { ?>
+	                    fprintf(f,",\"<?%s v ?>_si\"");
+		    <?R } ?>
+                    fprintf(f,"\n");
+
+                    fclose(f);
+		}
+                return 0;
+	}
+
+	int Solver::writeLog(const char * filename)
+	{ 
+	        FILE * f = NULL;
+		double v;
+		double * glob = lattice->globals;
+	        if (mpi.rank == 0) {
+			int j=0;
+	                f = fopen(filename, "at");  
+	                assert( f != NULL );
+			fprintf(f,"%d",iter);
+			for (int i=0; i< SETTINGS; i++) {
+				v = lattice->settings[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< GLOBALS; i++) {
+				v = glob[i];
+				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< SCALES; i++) {
+				fprintf(f,", %le",LogScales[j]);
+				j++;
+			}
+			fprintf(f,"\n");
+	                fclose(f);  
+        	}
+		return 0;
+	}
+
+	void Solver::print(const char * str) {
+		printf("[%d] %8d it                      %s\n", D_MPI_RANK, iter, str);
+	}
+
+	int Solver::writeVTK(const char * nm) {
+		print("writing vtk");
+		char filename[STRING_LEN];
+		outIterFile(nm, ".vti", filename);
+		int ret = vtkWriteLattice(filename, lattice, units);
+		return ret;
+	}
+
+	int Solver::writeBIN(const char * nm) {
+		print("writing bin");
+		char filename[STRING_LEN];
+		outIterFile(nm, "", filename);
+		int ret = binWriteLattice(filename, lattice, units);
+		return ret;
+	}
+
+	int Solver::setSize(int nx, int ny, int nz, int ns) {
+		info.region.nx = nx;
+		info.region.ny = ny;
+		info.region.nz = nz;
+		printf("[%d] Mesh size in config file: %dx%dx%d\n",D_MPI_RANK,info.region.nx,info.region.ny,info.region.nz);
+		if (info.region.nx < info.xsdim) {
+			info.xsdim = info.region.nx - 1 + 32 - ((info.region.nx - 1) % 32);
+			printf("[%d] small mesh: resetting number of threads to: %dx%d\n", D_MPI_RANK, info.xsdim, info.ysdim);
+		}
+		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
+		MPIDivision();
+		InitAll(ns);
+		return 0;
+	}
+
+	int Solver::MPIDivision() {
+		if (mpi_rank == 0) {
+			Par_sizes = new int[mpi_size];
+			Par_disp = new int[mpi_size];
+			printf("[ ] Mesh size: %dx%dx%d\n",info.region.nx, info.region.ny, info.region.nz);
+			int divz,divy;
+			float com, mincom, optcom;
+			mincom = (1+mpi_size) * (info.region.ny+info.region.nz);
+			optcom = 2 * sqrt((float) info.region.ny*info.region.nz*mpi_size);
+			for (divz = 1; divz <= mpi_size; divz ++)
+				if (mpi_size % divz == 0) {
+	                                divy = mpi_size / divz;
+	                                com = divz * info.region.ny + divy * info.region.nz;
+	                                printf("[ ] MPI division %d x %d. Communication: %f (%3.0f%%) ", divz, divy, com, 100*(com/optcom - 1));
+	                                if (com < mincom) {
+	                                        mincom = com;
+	                                        int * zlens = new int[divz];
+	                                        int * ylens = new int[divy];
+	                                        int mz,my;
+	                                        mz = info.region.nz;
+	                                        my = info.region.ny;
+	                                        if (mz >= divz && my >= divy) {
+	                                                printf("Division:");
+	                                                for (int i=0; i<divy; i++)
+	                                                {	ylens[i] = my/(divy-i);
+	                                                        my -= ylens[i];
+	                                                        printf(" %d",ylens[i]);
+	                                                }
+	                                                printf(" x");
+	                                                for (int i=0; i<divz; i++)
+	                                                {	zlens[i] = mz/(divz-i);
+	                                                        mz -= zlens[i];
+	                                                        printf(" %d",zlens[i]);
+	                                                }
+	                                                printf("\n");
+	                                                int dz=0,dy=0,k=0;;
+	                                                for (int i=0; i<divz; i++) {
+								dy=0;
+		                                                for (int j=0; j<divy; j++) {
+	                                                                mpi.node[k].region.dz = dz;
+	                                                                mpi.node[k].region.dy = dy;
+	                                                                mpi.node[k].region.nz = zlens[i];
+	                                                                mpi.node[k].region.ny = ylens[j];
+	                                                                mpi.node[k].region.dx = info.region.dx;
+	                                                                mpi.node[k].region.nx = info.region.nx;
+	                                                                dy += ylens[j];
+	                                                                k++;
+	                                                        }
+	                                                        dz += zlens[i];
+	                                                }
+	                                                fillSides(mpi, 1, divy, divz);
+	                                        } else {
+	                                                printf("Mesh too small to divide\n");
+	                                        }
+	                                        delete[] zlens;
+	                                        delete[] ylens;
+	                                } else {
+						printf("\n");
+					}
+	                	}
+	                int k = 0;
+	                for (int i=0; i < mpi_size; i++) {
+	                        printf("[ ] Processor %d will get: %dx%dx%d\n", i, mpi.node[i].region.nx, mpi.node[i].region.ny,mpi.node[i].region.nz);
+	                        if (k < mpi.node[i].region.size()) k = mpi.node[i].region.size();
+	                }
+	                float overhead = ((double)(  k*mpi_size - info.region.size()  )) / info.region.size();
+	                printf("[ ] Max region size: %d. Mesh size %d. Overhead: %2.f%%\n", k, info.region.size(), overhead * 100);
+		}
+	
+	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPI_COMM_WORLD);
+	        region = mpi.node[mpi_rank].region;
+	        mpi.totalregion = info.region;
+	        printf("[%d] Lattice size: %dx%dx%d\n", D_MPI_RANK, region.nx, region.ny,region.nz);
+		return 0;
+	}
+
+	int Solver::InitAll(int ns) {
+	        // Making a window
+	        #ifdef GRAPHICS
+	        	printf("[%d] Running graphics at %dx%d\n", D_MPI_RANK, region.nx, region.ny);
+			bitmap = new GPUAnimBitmap( region.nx, region.ny, this );
+			RunMainLoop();
+	        #endif
+	
+		// Creating Lattice (GPU allocation is here)
+		lattice = new Lattice(region, mpi, ns);
+	   
+		// Setting global variables
+		initSettings();
+
+		geometry = new Geometry(region, units);
+
+		return 0;
+	}
+
+	int Solver::RunMainLoop() {
+		#ifdef GRAPHICS
+        		bitmap->mouse_move( (void (*)(void*,int,int,int,int)) MouseMove);
+		        bitmap->anim_and_exit( (int (*)(uchar4*,void*,int)) MainLoop, (void (*)(void*))MainFree );
+			glutMainLoopEvent();
+		#endif
+		return 0;
+	}
+	int Solver::EventLoop(){
+		#ifdef GRAPHICS
+			bitmap->idle_func();
+			glutMainLoopEvent();
+		#endif
+		return 0;
+	}
+
+
+int Solver::getPars() {
+	int n = region.size();
+	int j=0;
+	for (int i=0; i<n; i++) {
+		if (geometry->geom[i] & NODE_DesignSpace) {
+			j++;
+		}
+	}
+	Par_size = j * <?%d sum(Density$parameter==T) ?>;
+	printf("Par_size:%d\n",Par_size);
+	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if (mpi_rank == 0) {
+		int i;
+		Par_disp[0] = 0;
+		for (i=0; i<mpi_size-1; i++) Par_disp[i+1] = Par_disp[i] + Par_sizes[i];
+		for (i=0; i<mpi_size; i++) printf("[ ] Proc: %d Parameters: %d Disp: %d\n", i, Par_sizes[i], Par_disp[i]);
+		return Par_disp[mpi_size-1] + Par_sizes[mpi_size-1];
+	}
+	return 0;
+}
+
+int Solver::getPar(double * wb) {
+	int n = region.size();
+	int k = Par_size;
+	real_t * buf = new real_t[n];
+	double * wb_l = new double[Par_size];
+	int j=0;
+<?R for (d in rows(DensityAll)) if ((d$parameter) && (!d$adjoint)) { ?>
+	lattice->Get_<?%s d$nicename ?>(buf);
+	for (int i=0; i<n; i++) {
+		if (geometry->geom[i] & NODE_DesignSpace) {
+			wb_l[j] = buf[i];
+			j++;
+		}
+	}
+<?R } ?>
+	assert(j == Par_size);
+	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	delete[] wb_l;
+	delete[] buf;
+} 
+
+int Solver::saveComp(const char* filename, const char* comp) {
+	int n = region.size();
+	char fn[STRING_LEN];
+	real_t * buf = new real_t[n];
+	sprintf(fn,"%s_%s_%d.comp", filename, comp, D_MPI_RANK);
+	printf("[%d] Saving component %s to file %s\n", D_MPI_RANK, comp, fn);
+<?R for (d in rows(DensityAll)) { ?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Get_<?%s d$nicename ?>(buf); <?R
+} ?>
+	FILE * f = fopen(fn,"wb");
+	assert(f != NULL);
+//	for (int i=0; i<n;i ++) buf[i]=1.23;
+	fwrite(buf, sizeof(real_t), n, f);
+	fclose(f);
+	delete[] buf;
+} 
+
+int Solver::loadComp(const char* filename, const char* comp) {
+	int n = region.size();
+	char fn[STRING_LEN];
+	real_t * buf = new real_t[n];
+	sprintf(fn,"%s_%d.comp", filename, D_MPI_RANK);
+	printf("[%d] Loading component %s from file %s\n", D_MPI_RANK, comp, fn);
+	FILE * f = fopen(fn,"rb");
+	assert(f != NULL);
+	int nn = fread(buf, sizeof(real_t), n, f);
+	printf("%d\n", nn);
+	assert(n == nn);
+	fclose(f);
+//	for (int i=0; i<n;i ++) buf[i]=1.23;
+<?R for (d in rows(DensityAll)) { ?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Set_<?%s d$nicename ?>(buf); <?R
+} ?>
+
+	delete[] buf;
+} 
+
+int Solver::getDPar(double * wb) {
+	int n = region.size();
+	int k = Par_size;
+	real_t * buf = new real_t[n];
+	double * wb_l = new double[Par_size];
+	int j=0;
+	double sum=0;
+<?R for (d in rows(DensityAll)) if ((d$parameter) && (d$adjoint)) { ?>
+	lattice->Get_<?%s d$nicename ?>(buf);
+	for (int i=0; i<n; i++) {
+		if (geometry->geom[i] & NODE_DesignSpace) {
+			wb_l[j] = buf[i];
+			sum += wb_l[j]*wb_l[j];
+			j++;
+		}
+	}
+<?R } ?>
+	printf("[%d] Gradient L2 norm: %lg\n", D_MPI_RANK, sqrt(sum));
+	assert(j == Par_size);
+	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	delete[] wb_l;
+	delete[] buf;
+} 
+
+int Solver::setPar(const double * w) {
+	static int en=0;
+	en++;
+	int n = region.size();
+	real_t * buf = new real_t[n];
+	double * w_l = new double[Par_size];
+	DEBUG_M;
+	MPI_Scatterv(const_cast<double *>(w), Par_sizes, Par_disp,  MPI_DOUBLE, w_l, Par_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	DEBUG_M;
+	int j=0;
+	double sum =0;
+	double diff;
+<?R for (d in rows(DensityAll)) if ((d$parameter) && (!d$adjoint)) { ?>
+	DEBUG_M;
+	lattice->Get_<?%s d$nicename ?>(buf);
+	DEBUG_M;
+	for (int i=0; i<n; i++) {
+		if (geometry->geom[i] & NODE_DesignSpace) {
+			diff = buf[i];
+			buf[i] = w_l[j];
+			assert(w[j] <= 1.001);
+			assert(w_l[j] <= 1.001);
+			diff -= buf[i];
+			sum += diff*diff;
+			j++;
+		}
+	}
+	DEBUG_M;
+	lattice->Set_<?%s d$nicename ?>(buf);
+	DEBUG_M;
+<?R } ?> 
+	assert(j == Par_size);
+	printf("[%d] Parameter change L2 norm: %lg\n", D_MPI_RANK, sqrt(sum));
+	delete[] w_l;
+	delete[] buf;
+} 
+
+void MouseMove( Solver * data, int x, int y, int nx, int ny )
+{
+	lbRegion r(
+		x,
+		data->region.ny - y - 1,
+		0,
+	1,1,1);
+	flag_t NodeType = NODE_Wall;
+	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+}
+
+// Main loop function
+int MainLoop( uchar4* outputBitmap, Solver *d, int ticks )
+{
+	d->lattice->Color(outputBitmap); // Updating graphics
+	return 0;
+}
+
+// Function for cleanup. Free memory, etc.
+void MainFree( Solver *d ) {
+
+}

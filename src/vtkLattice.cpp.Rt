@@ -1,0 +1,116 @@
+<?R
+	source("conf.R")
+	c_header();
+?>
+#include <stdio.h>
+#include <assert.h>
+#include <mpi.h>
+#include "cross.h"
+#include "vtkLattice.h"
+
+int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
+{
+	int size;
+	lbRegion reg = lattice->region;
+	size = reg.size();
+	vtkFileOut vtkFile;
+	if (vtkFile.Open(filename)) {return -1;}
+	double spacing = 1/units.alt("m");	
+	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
+
+	{	flag_t * NodeType = new flag_t[size];
+		lattice->GetFlags(reg, NodeType);
+		vtkFile.WriteField("flag",NodeType);
+		delete[] NodeType;
+	}
+
+	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	{
+		double v = units.alt("<?%s q$unit ?>");
+		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+		lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+		vtkFile.WriteField("<?%s q$name ?>",tmp);
+		delete[] tmp;
+	}
+	<?R }; ifdef(); ?>
+
+// ------------------------------ DUMP ALL DENSITIES ----------------------------
+/* 
+	real_t* tmp = new real_t[size];
+	<?R for (d in rows(DensityAll)) { ?>
+	{
+		lattice->Get_<?%s d$nicename ?>(reg, tmp);
+		vtkFile.WriteField("<?%s d$nicename ?>",tmp);
+	}
+	<?R } ?>
+	delete[] tmp;
+*/
+	
+	vtkFile.Finish();
+	vtkFile.Close();
+	return 0;
+}
+
+
+int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
+{
+	int size;
+	lbRegion reg = lattice->region;
+	FILE * f;
+	char fn[STRING_LEN];
+	size = reg.size();
+	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	{
+		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+		lattice->Get<?%s q$name ?>(reg, tmp, 1);
+		sprintf(fn, "%s.<?%s q$name ?>.bin", filename);
+		f = fopen(fn,"w");
+		if (f == NULL) {
+			std::cerr << "Cannot open file: " << fn << "\n";
+			return -1;
+		}
+		fwrite(tmp, sizeof(<?%s q$type ?>), size, f);
+		fclose(f);
+		delete[] tmp;
+	}
+	<?R }; ifdef(); ?>
+	sprintf(fn, "%s.<?%s q$name ?>.bin", filename);
+	f = fopen(fn,"w");
+	if (f == NULL) {
+		std::cerr << "Cannot open file: " << fn << "\n";
+		return -1;
+	}
+	return 0;
+}
+
+
+
+
+void screenDumpLattice(Lattice *lattice)
+{
+/*
+	int w,h,size;
+	w = lattice->region.nx;
+	h = lattice->region.ny;
+	size = w*h;
+	printf("Dumping lattice\n");
+	Node * nodes = new Node[size];
+	lattice->GetRegion(0,0,w,h,nodes);
+	int x,y,i;
+	for (i = 0; i < 19; i++) {
+//	i = 5; {
+		printf("-------F%d-------\n",i);
+		for (y = h-1; y >=0; y--) {
+			for (x = 0; x < w; x++) {
+				printf("%5f,", nodes[x+w*y].f[i]);
+			}
+			printf("\n");
+		}
+	}
+
+
+	delete[] nodes;
+*/
+}
+
+

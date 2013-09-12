@@ -1,0 +1,50 @@
+#ifndef CONFIG_H
+  #define CONFIG_H
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Making a CPU version */
+#undef CROSS_CPU
+
+/* Making a GUI version */
+#undef GRAPHICS
+
+/* Making a double precision version */
+#undef CALC_DOUBLE_PRECISION
+
+/* Using 3D block grid in CUDA */
+#undef GRID3D
+
+/* Using NLOpt */
+#undef WITH_NLOPT
+
+/* CUDA ARCH */
+#undef CUDA_ARCH
+
+/* Calling only syncronious CUDA functions */
+#undef CROSS_SYNC
+
+/* Calling CUDA malloc where it is (no preallocation) */
+#undef CROSS_SYNCALLOC
+
+/* Calling CUDA malloc where it is (no preallocation) */
+#undef CROSS_MPI_WAITANY
+
+/* Debug Level */
+#define DEBUG_LEVEL 10
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+#endif

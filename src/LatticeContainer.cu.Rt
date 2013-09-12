@@ -2,9 +2,18 @@
 	source("conf.R")
         c_header()
 ?>
+/*  File defining LatticeContainer and some additional CUDA f. */
+/*     LatticeContainer is the container class which           */
+/*       owns all the data needed by the kernels on device     */
+/*       like pointers to the global gpu memory etc.           */
+/*       It defines push/pull/pop functions allowing access    */
+/*       to node data stored in memory.                        */
+/*-------------------------------------------------------------*/
+
+#include "Consts.h"
 #include "Global.h"
-#include "Node.h"
 #include "Lattice.h"
+#include "mpi.h"
 
 #define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
 #define ALLOCPRINT2 printf("(%p - %p) \n", tmp, tmp+size)
@@ -12,44 +21,79 @@
 int _xsdim = 0;
 int _ysdim = 1;
 
+// Fast modulo for one k
 CudaDeviceFunction inline int mymod(int x, int k){
         if (x >= k) return x-k;   
         if (x < 0) return x+k;
         return x;
 }
 
+// clear mem (unused)
 CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
 }
 
+// Init settings in const memory
+void initSettings() {
+	real_t val = 0;
+<?R for (v in rows(Settings)) {
+	if (is.na(v$derived)) { ?>
+			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
+	}} ?>
+}
+
+// Set setting in const memory
+void setConstSetting(int i, real_t tmp) {
+	switch (i) {
+<?R
+        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
+	case <?%s v$Index ?>:
+	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
+		break; <?R
+        } ?>
+	}
+}
+
+// Get maximal number of threads for all the kernels on runtime
 template <class N> dim3 GetThreads() {
 	dim3 ret;
 	cudaFuncAttributes * attr = new cudaFuncAttributes;
 	HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<N>) );
 	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
 	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
-	DEBUG2( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
+	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
 	DEBUG1( printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs) );
 	DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
-	ret.x = 32;
-	ret.y = attr->maxThreadsPerBlock/32;
+	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
+	ret.x = X_BLOCK;
+	ret.y = attr->maxThreadsPerBlock/ret.x;
 	ret.z = 1;
 	return ret;
 }
 
+// SY - number of threads in Y direction
+// KY - number of blocks needed in Y direction to fill y
 template < class N > inline int getKY() { return 0; }
 template < class N > inline int getSY() { return 0; }
 
-<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint)
+<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint_ver)
 ?>int kydim<?%s tp$suffix ?>, sydim<?%s tp$suffix ?>;
 template < > inline int getKY< Node<?%s tp$suffix ?> >() { return kydim<?%s tp$suffix ?>; }
 template < > inline int getSY< Node<?%s tp$suffix ?> >() { return sydim<?%s tp$suffix ?>; }
 <?R }; ifdef();?>
 
+// Initialize LatticeContainer
 int InitDim(int ny) {
 	dim3 th; int ky;
-<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint)
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (D_MPI_RANK == 0) {
+          DEBUG2( printf( "[ ] |  Threads  |      Action  |\n") );
+        }
+	MPI_Barrier(MPI_COMM_WORLD);
+<?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint_ver)
 ?>	th = GetThreads< Node<?%s tp$suffix ?> >();
+	DEBUG2( printf( "[%d] |  %3dx%-3d  |  %10s  |\n", D_MPI_RANK, th.x, th.y, "<?%s tp$suffix ?>") );
+	MPI_Barrier(MPI_COMM_WORLD);
 	sydim<?%s tp$suffix ?> = th.y;
 	ky = ny/th.y;
 	if (ky*th.y < ny) ky++;
@@ -57,8 +101,7 @@ int InitDim(int ny) {
 <?R }; ifdef();
 ?>}
 
-
-
+// Allocation of a buffer
 void * BAlloc(size_t size) {
   char * tmp;
     ALLOCPRINT1;
@@ -68,14 +111,16 @@ void * BAlloc(size_t size) {
       CudaMalloc( (void**)&tmp, size );
     #endif
     ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    CudaMemset( tmp, 0, size ); 
 	return (void *) tmp;
 }
 
+// Preallocation of a buffer (combines allocation into one big allocation)
 void BPreAlloc(void ** ptr, size_t size) {
     CudaMalloc( ptr, size );
 }
 
+// Allocation of a FTabs (table with pointers to buffers)
 void FTabs::Alloc(int nx,int ny,int nz) {
   size_t size;
   char * tmp;
@@ -88,11 +133,12 @@ void FTabs::Alloc(int nx,int ny,int nz) {
       CudaMalloc( (void**)&tmp, size );
     #endif
     ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    CudaMemset( tmp, 0, size ); 
     <?%s m$name ?>=  (real_t*)tmp;
   <?R } ?>
 }
 
+// Preallocation of a FTabs (table with pointers to buffers)
 void FTabs::PreAlloc(int nx,int ny,int nz) {
   size_t size;
   <?R for (m in NonEmptyMargin) { ?>
@@ -101,6 +147,7 @@ void FTabs::PreAlloc(int nx,int ny,int nz) {
   <?R } ?>
 }
 
+// Clearing of a FTags
 void FTabs::Clear(int nx,int ny,int nz) {
   size_t size;
   <?R for (m in NonEmptyMargin) { ?>
@@ -109,27 +156,33 @@ void FTabs::Clear(int nx,int ny,int nz) {
   <?R } ?>
 }
 
-void FTabs::Free() {
-    <?R for (m in NonEmptyMargin) { ?>
-	if ( <?%s m$name ?> != NULL) {
-	#ifdef DIRECT_MEM
-	    	CudaFreeHost( <?%s m$name ?> );
+// Safe free
+inline void MyFree(void * ptr) {
+    if (ptr != NULL) {
+        #ifdef DIRECT_MEM
+	    CudaFreeHost( ptr );
 	#else
-	    	CudaFree( <?%s m$name ?> );
+	    CudaFree( ptr );
 	#endif
-	}
-    <?R } ?>
+    }
 }
 
+// Free FTabs
+void FTabs::Free() { <?R
+    for (m in NonEmptyMargin) { ?>
+    MyFree(<?%s m$name ?>); <?R
+    } ?>
+}
+
+// Allocation of Container
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 {
     iter = 0;
     nx = nx_;
     ny = ny_;
     nz = nz_;
-    kx = nx/XSDIM;
-    ky = ny/YSDIM;
-    if (ky*YSDIM < ny) ky ++;
+    kx = nx/X_BLOCK;
+    ky = ny;
 
     InitDim(ny);
 
@@ -140,34 +193,33 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
 	ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    CudaMemset( tmp, 0, size ); 
     NodeType = (flag_t*)tmp;
 
-    <?R for (inout in c("in","out")) for (m in NonEmptyMargin) { ?>
-//        <?%s inout ?>.<?%s m$name ?> =  (real_t*)tmp;
-    <?R } ?>
-
-
-    <?R for (inout in c("in","out")) { ?>
-//	<?%s inout ?>.Alloc(nx,ny,nz);
-    <?R } ?>
-
-    size = (size_t) <?%d nrow(Globals) ?>*sizeof(real_t);
+    size = (size_t) GLOBALS * sizeof(real_t);
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
 	ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
     Globals = (real_t*)tmp;
-
 }
 
+// Destroy Container (cannot do a constructor and destructor - because this class lives on GPU)
 void LatticeContainer::Free()
 {
     CudaFree( NodeType );
 }
 
-
 <?R
+# Here is the R code for push/pull/pop functions
+#   It simply puts the values from right places in the memory into right variables in the Node class
+#   Happy reading ...
+
+# Push/pull is constructed as a 3 level call
+#   in which every level dispatches every dimension in order: Z Y X
+#   in each dimension we check if we're goint out of our region
+#   and write to the border buffer in such case
+
 	push0 = function(a,pull=FALSE) {
 		if (pull) { ?>
 				node.<?%s gdens ?> = <?%s a ?>[ 0]; <?R
@@ -221,9 +273,12 @@ void LatticeContainer::Free()
 		}
 	} 
 
-	push = function(dens,dx,dy,dz,...) { ?>
-//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------//
-<?R
+# Main push/pull function for a specific density
+
+	push = function(dens,dx,dy,dz,sel=TRUE,...) { 
+	        if (sel) { ?>
+//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------// <?R
+                }
 		gdens <<- dens;
 
 		w = GetMargins(dx,dy,dz);
@@ -244,29 +299,39 @@ void LatticeContainer::Free()
 		H[7] = X + dx
 		H[8] = PV(0)
 
+		
+		if (sel) {
+                    for (i in 1:length(w)) if (w[i] > 0) {
+                            off = Margin[[w[i]]]$POffset
+                            noff = Margin[[w[i]]]$PSize + H[i]
+                            v = ToC(noff - off,float=F);
+                            if (v != "   0") { ?>
+        pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
+                            }
+			    Margin[[w[i]]]$POffset <<- noff;
+                    }
+		    p = rep("ItCannotHappen",length(w))
+                    p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
+                    pushZ(
+                            p[1],
+                            p[2],
+                            p[3],
+                            p[4],
+                            p[5],
+                            p[6],
+                            p[7],
+                            p[8],
+                            dx, dy, dz,...);
+                }
 		for (i in 1:length(w)) if (w[i] > 0) {
-			off = Margin[[w[i]]]$POffset
-			noff = Margin[[w[i]]]$PSize + H[i]
 			Margin[[w[i]]]$PSize <<- Margin[[w[i]]]$PSize + SideSize[i]
-			v = ToC(noff - off,float=F);
-			if (v != "   0") { ?>
-	pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
-			}
-			Margin[[w[i]]]$POffset <<- noff;
 		}
-		p = rep("ItCannotHappen",length(w))
-		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
-		pushZ(
-			p[1],
-			p[2],
-			p[3],
-			p[4],
-			p[5],
-			p[6],
-			p[7],
-			p[8],
-			dx, dy, dz,...);
 	} 
+
+# Pop is constructed as a 3 level call
+#   in which every level dispatches every dimension in order: Z Y X
+#   in each dimension we check if we're goint out of our region
+#   and read from a border buffer in such case
 
 	popX = function(dens,a,b,dx) {
 		if (dx > 0) { ?>
@@ -320,6 +385,8 @@ void LatticeContainer::Free()
 		}
 	}
 
+# Main pop function for a specific density
+
 	pop = function(dens,dx,dy,dz) { ?>
 //----------------------------- GETTING <?%s dens ?> FROM DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------//
 //	CudaSyncThreads(); <?R
@@ -348,7 +415,16 @@ void LatticeContainer::Free()
 		}
 	} 
 
-	InOut = function(type, pocket, density) { ?>
+
+# InOut function outputs the code for a push/pull/pop for a set of densities
+#   pop - Gets densities for the point where we are.
+#   push - Puts densities in the neighbours according to streaming direction
+#   pull - Direct opposite of push
+#   type - Gets only the NodeType from the memory
+
+	InOut = function(type, pocket, density, sel) {
+                if (missing(sel)) sel = rep(TRUE, nrow(density));
+                density$selected = sel; ?>
 	FTabs pocket = <?%s pocket ?>; <?R
 		pull=F
 		if ((type == "push") || (type == "pull")) {
@@ -357,7 +433,7 @@ void LatticeContainer::Free()
 			for ( i in 1:length(Margin) ) Margin[[i]]$PSize <<- PV(0)
 			gdens = ""
 			for (d in rows(density)) {
-				push(d$name, d$dx, d$dy, d$dz, pull=pull)
+				push(d$name, d$dx, d$dy, d$dz, pull=pull, sel=d$selected)
 			}
 		} else if (type == "pop") { ?>
 	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
@@ -378,76 +454,66 @@ void LatticeContainer::Free()
 	}
 ?>
 
-
+// Push all densities
 template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
 {
 <?R	InOut("push", "out", Density); ?>
 }
 
+// Push only parameters
+template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
+{
+<?R	InOut("push", "out", Density, sel=Density$parameter); ?>
+}
+
+// Push everything exept parameters
+template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
+{
+<?R	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
+}
+
+// Opposite of push
 template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
 {
 <?R	InOut("pull", "out", Density); ?>
 }
 
+// Get densities
 template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
 {
 <?R	InOut("pop", "in", Density); ?>
 }
 
+// Get only type of node
 template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
 {
 <?R	InOut("type", "in", Density); ?>
 }
 
 #ifdef ADJOINT
+// Push all adjoint densities
 template <class N> CudaDeviceFunction void LatticeContainer::push_adj(N & node) 
 {
 <?R	InOut("push", "adjout", DensityAD); ?>
 }
 
+// Opposite of push_adj
 template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node) 
 {
 <?R	InOut("pull", "adjout", DensityAD); ?>
 }
 
+// Get adjoint densities
 template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
 {
 <?R	InOut("pop", "adjin", DensityAD); ?>
 }
 #endif
 
-/*
-CudaDeviceFunction void inline LatticeContainer::Glob(Node now) {}
 
-CudaDeviceFunction void inline LatticeContainer::Glob(Node_Globs now) {
-<?R for (i in 1:nrow(GlobalsD)) { v=GlobalsD$name[i]  ?>
-        atomicSum(&Globals[<?%d i-1 ?>], now.<?%s v ?>);
-//        atomicSum(&Globals[<?%d i-1 ?>], <?%d i ?>.0);
-<?R } ?>
-}
-*/
-
-template <class N> inline CudaDeviceFunction void RunElement(N& now)
-{
-        constContainer.pop(now);
-	#ifdef ADJOINT
-	        constContainer.pop_adj(now);
-		now.RunAdj();
-		real_t back[<?%d nrow(Density) ?>]; <?R
-			for (i in 1:nrow(Density))
-			{ ?>
-		back[<?%d i-1 ?>] = now.<?%s Density$name[i] ?>; <?R
-			} ?>
-		now.Run_b(); <?R
-			for (i in 1:nrow(Density))
-			{ ?>
-		now.<?%s Density$name[i] ?> = back[<?%d i-1 ?>]; <?R
-			} ?>
-	#endif
-	now.Run();
-        constContainer.push(now);
-}
-
+// Main Kernel
+//   iterates over all elements and runs them with RunElement function
+//   constContainer.dx/dy is to calculate only internal nodes
 template <class N> CudaGlobalFunction void RunKernel()
 {
 	N now;
@@ -461,25 +527,27 @@ template <class N> CudaGlobalFunction void RunKernel()
 		if (now.y < constContainer.fy) {
 			now.RunElement();
 		}
-		//now.Glob();
 		now.Glob();
 	#ifndef GRID_3D
 		}
 	#endif
 }
 
-
+// BORDER_Z defines if we need to take Z direction in consiredation border/interior
+//   if a model is 2D everything in the Z direction is interior
 <?R if (any(DensityAll$dz != 0)) {?>
 #define BORDER_Z // The model is 3D
 <?R } else { ?>
 // The model is 2D (no BORDER_Z)
 <?R } ?>
 
-
+/*
+// Border Kernel
+//   iterates over border elements and runs them with RunElement function
 template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x = CudaThread.x + CudaBlock.y*DXSDIM;
+	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
 	now.z = CudaBlock.x;
 	now.Pre();
 #ifdef BORDER_Z
@@ -517,7 +585,37 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.Glob();
 #endif
 }
+*/
 
+// Border Kernel
+//   iterates over border elements and runs them with RunElement function
+template <class N> CudaGlobalFunction void RunBorderKernel()
+{
+	N now;
+	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.z = CudaBlock.x;
+	now.Pre();
+#ifdef BORDER_Z
+	if (now.z < constContainer.nz) {
+#endif
+		now.y = 0;
+		now.RunElement();
+		now.y = constContainer.ny - 1;
+		now.RunElement();
+#ifdef BORDER_Z
+	}
+	now.y = CudaBlock.x;
+	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
+		now.z = 0;
+                now.RunElement();
+                now.z = constContainer.nz - 1;
+                now.RunElement();
+	}
+	now.Glob();
+#endif
+}
+
+// Copies me(LatticeContainer) to the const gpu memory
 void LatticeContainer::CopyToConst() {
     fx=nx;
     fy=ny-1;
@@ -532,17 +630,16 @@ void LatticeContainer::CopyToConst() {
     CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));
 }
 
+// Run the border kernel
 template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
     #ifdef BORDER_Z
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(XSDIM),(),borderStream);
+	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
     #else
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(XSDIM),(),borderStream);
+	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
     #endif
 };
 
-//void LatticeContainer::RunBorderG(CudaStream_t borderStream) { clearGlobals(); RunBorderT<Node_Globs>(borderStream); };
-//void LatticeContainer::RunBorder (CudaStream_t borderStream) {                 RunBorderT<Node      >(borderStream); };
-
+// Run the interior kernel
 template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
     int nnz;
     ky = getKY<N>();
@@ -552,24 +649,25 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 	nnz = nz;
     #endif
     #ifdef GRID_3D
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(XSDIM,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(XSDIM,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
     #endif
 };
 
-//void LatticeContainer::RunInteriorG(CudaStream_t interiorStream) { RunInteriorT<Node_Globs>(interiorStream); };
-//void LatticeContainer::RunInterior (CudaStream_t interiorStream) { RunInteriorT<Node      >(interiorStream); };
+// Type specific runs
 <?R for(tp in rows(Dispatch)) {
-ifdef(tp$adjoint) ?>
+ifdef(tp$adjoint_ver) ?>
 void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream) { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
 void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
 <?R }
 ifdef(); ?>
  
-CudaDeviceFunction void node_to_color( int x, int y, uchar4 *optr )
+// Old function for graphics output
+//   calculates the color for one node
+CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
 {
-    int offset = x+y*constContainer.nx;//constContainer.Offset(_z_);
+    int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     Node now;
@@ -602,125 +700,60 @@ CudaDeviceFunction void node_to_color( int x, int y, uchar4 *optr )
     optr[offset].w = 255;
 }
 
-CudaGlobalFunction void nodes_to_color( uchar4 *optr )
+// kernel for graphics output
+CudaGlobalFunction void ColorKernel( uchar4 *optr )
 {
-  node_to_color(
+  NodeToColor(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
     optr
   );
 }
 
-CudaGlobalFunction void nodes_fill( int width, int height) {
-	Node now;
-	now.x = CudaThread.x+CudaBlock.z*CudaNumberOfThreads.x+constContainer.dx;
-	now.y = CudaThread.y+CudaBlock.x*CudaNumberOfThreads.y+constContainer.dy;
-	now.z = CudaBlock.y+constContainer.dz;
-	if (now.y < constContainer.fy) {
-		#ifndef GRID_3D
-			for (; now.x < constContainer.nx; now.x += CudaNumberOfThreads.x) {
-		#endif
-		constContainer.pop(now);
-	        now.Init();
-		constContainer.push(now);
-		#ifndef GRID_3D
-			}
-		#endif
-	}
-}
-
-void LatticeContainer::Init() {
-   printf("[%d] Initializing Lattice %d(%d)x%dx%d...\n", D_MPI_RANK,nx,kx,ny,nz); 
-	dx=dy=dz=0;
-	fx=nx;fy=ny;fz=nz;
-   CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_fill , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
-//   CudaKernelRun( nodes_fill_o , dim3(ny,nz,1), dim3(XSDIM) ,(nx,ny));
-};
-
+// Runs graphics kernel
 void LatticeContainer::Color( uchar4 *optr ) {
-   dx=dy=dz=0;
-   fx=nx;fy=ny;fz=nz;
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( nodes_to_color , dim3(kx,ny,1), dim3(XSDIM) ,(optr));
+   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
 };
 
+// Functions for getting quantities
 <?R
-for (q in rows(Quantities))
-{
-	ifdef(q$adjoint); ?>
-
+        for (q in rows(Quantities))
+        {
+                ifdef(q$adjoint); ?>
+// Kernel to calculate quantity <?%s q$name ?> over a region
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
 	int x = CudaBlock.x+r.dx;
-	int y = CudaBlock.y+r.dy;
-	<?R if (q$adjoint) { ?>
-		Node_Adj now;
-	<?R } else { ?>
-		Node now;
-	<?R } ?>
+	int y = CudaBlock.y+r.dy; <?R
+	if (q$adjoint) { ?>
+	Node_Adj now; <?R
+        } else { ?>
+	Node now; <?R
+        } ?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
 		now.x = x;
 		now.y = y;
 		now.z = z;
-		constContainer.pull(now);
-		<?R if (q$adjoint) { ?>
-			constContainer.pull_adj(now);
-		<?R } ?>
+		constContainer.pull(now); <?R
+		if (q$adjoint) { ?>
+		constContainer.pull_adj(now); <?R
+                } ?>
 		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
 		if (q$type == "vector_t")
 		{
-		  for (coef in c("x","y","z")) { ?>
-			w.<?%s coef ?> *= scale; <?R
+                  for (coef in c("x","y","z")) { ?>
+		w.<?%s coef ?> *= scale; <?R
 		  }
 		} else { ?>
-			w *= scale;
-		<?R } ?>
+		w *= scale; <?R
+                } ?>
 		tab[r.offset(x,y,z)] = w;
-	}
-} <?R
-	for (tp in c("float","double"))
-	{ ?>
-
-CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion r, <?%s tp ?> * tab, int row)
-{
-	int x = CudaBlock.x+r.dx;
-	int y = CudaBlock.y+r.dy;
-	<?R if (q$adjoint) { ?>
-		Node_Adj now;
-	<?R } else { ?>
-		Node now;
-	<?R } ?>
-	int z;
-	for (z = r.dz; z < r.dz + r.nz; z ++) {
-		now.x = x;
-                now.y = y;
-                now.z = z;
-		constContainer.pull(now);
-		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t")
-		{ ?>
-		if (row == 0) { <?R
-			for (j in 1:3)
-			{
-				coef = c("x","y","z")[j] ?>
-			tab[3*r.offset(x,y,z) + <?%d j-1 ?>] = w.<?%s coef ?>; <?R
-			} ?>
-		} else { <?R
-			for (j in 1:3)
-			{
-				coef = c("x","y","z")[j] ?>
-			tab[r.offset(x,y,z) + r.size()*<?%d j-1 ?>] = w.<?%s coef ?>; <?R
-			} ?>
-		} <?R
-		} else { ?>
-		tab[r.offset(x,y,z)] = w; <?R
-		} ?>
 	}
 }
 <?R
-	}
-}
- ifdef();?>
+        }
+        ifdef();
+?>
 

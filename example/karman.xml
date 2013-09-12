@@ -1,28 +1,33 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="1024" ny="100" predef="none" model="MRT">
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="1024" ny="100">
 		<MRT><Box/></MRT>
-		<WVelocity zone="Inlet"/>
-		<EPressure zone="Outlet"/>
-        	<Wall mask="ALL">
+		<WVelocity><Inlet/></WVelocity>
+		<EPressure><Outlet/></EPressure>
+		<Inlet nx='1' dx='5'><Box/></Inlet>
+		<Outlet nx='1' dx='-5'><Box/></Outlet>
+		<Wall mask="ALL">
+			<Channel/>
 			<Wedge dx="120" nx="20" dy="50" ny="20" direction="LowerRight"/>
 			<Wedge dx="120" nx="20" dy="30" ny="20" direction="UpperRight"/>
 			<Wedge dx="140" nx="20" dy="50" ny="20" direction="LowerLeft"/>
 			<Wedge dx="140" nx="20" dy="30" ny="20" direction="UpperLeft"/>
 		</Wall>
-		<Inlet nx='1' dx='5'><Box/></Inlet>
-		<Outlet nx='1' dx='-5'><Box/></Outlet>
-		<Wall zone="Channel" mask="ALL"/>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.01"/>
 		<Params InletDensity="1.03"/>
 		<Params nu="0.02"/>
-		<Params InletTemperature="1" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.01" EOSScale="0.05" PressDiffInObj="1"/>
+		<Params InletTemperature="1"
+			InitTemperature="0"
+			FluidAlfa="0.01"
+			SolidAlfa="0.166"
+			Coriolis="0.001"
+			Tension="0.01"
+			EOSScale="0.05"
+			PressDiffInObj="1"
+		/>
 	</Model>
-	<Solve Iterations="1000" output="output/">
-		<VTK Iterations="100"/>
-	</Solve>
+	<VTK Iterations="100"/>
+	<Solve Iterations="1000"/>
 </CLBConfig>
