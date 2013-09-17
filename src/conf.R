@@ -223,6 +223,9 @@ if (ADJOINT==1) {
 	Settings = rbind(Settings, data.frame(
 		name="Descent",
 		derived=NA,equation=NA,comment="Optimization Descent",default="0", unit="1"))
+	Settings = rbind(Settings, data.frame(
+		name="GradientSmooth",
+		derived=NA,equation=NA,comment="Gradient Smoothing",default="0", unit="1"))
 } else {
 	DensityAD = NULL
 	DensityAll = Density

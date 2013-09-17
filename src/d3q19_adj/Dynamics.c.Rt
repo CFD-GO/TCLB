@@ -265,7 +265,7 @@ for (i in selR) {
 ?>
 //	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
 //	omT = exp(log(w)*omT);
-        omT = w;
+        omT = exp(log(w+0.0001)*Theta);
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;

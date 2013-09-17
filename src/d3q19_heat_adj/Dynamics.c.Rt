@@ -224,9 +224,9 @@ CudaDeviceFunction void Run() {
     if (NodeType & NODE_DESIGNSPACE) {
             AddToMaterialPenalty(w*(1-w));
     }
-    if (NodeType == 0) {
-            <?R for (d in Density$name[!Density$parameter]) { ?><?%s d ?> = <?R } ?> 0.0;
-    }
+//    if (NodeType == 0) {
+//            <?R for (d in Density$name[!Density$parameter]) { ?><?%s d ?> = <?R } ?> 0.0;
+//    }
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz, real_t T)
@@ -291,7 +291,8 @@ for (i in selR) {
 ?>
 //	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
 //	omT = exp(log(w)*omT);
-        omT = w;
+
+        omT = w / (1-PorocityGamma*(1-w));
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;
