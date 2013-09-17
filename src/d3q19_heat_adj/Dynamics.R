@@ -196,6 +196,10 @@ AddSetting(name="SolidAlpha", comment='heat conductivity of fluid')
 AddSetting(name="HeatSource", comment='heat conductivity of fluid')
 AddSetting(name="Inertia", comment='inertia of the transport equation')
 
+AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of porocity (-infty,1)')
+AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
+
+
 AddGlobal(name="HeatFlux", comment='pressure loss')
 AddGlobal(name="HeatSquareFlux", comment='pressure loss')
 AddGlobal(name="Flux", comment='pressure loss')

@@ -202,23 +202,26 @@ class cbStop: public Callback {
 	}
 	int DoIt() {
 		Callback::DoIt();
-		double v = solver->lattice->globals[ GLOBALS_Objective ];
-		if (fabs(old_obj - v) < stop) {
-		        score++;
-		} else {
-		        score=0;
-                }
-                if (D_MPI_RANK == 0) {
-        		printf("[ ] Stop criterium: %4lg / %4lg (score: %d)\n", fabs(old_obj - v), stop, score);
-                }
-                if (score >= times) {
-                        if (D_MPI_RANK == 0) {
-                		printf("[ ] Stop.\n");
+		double ret=0;
+                if (solver->mpi_rank == 0) {
+                        double v = solver->lattice->globals[ GLOBALS_Objective ];
+                        if (fabs(old_obj - v) < stop) {
+                                score++;
+                        } else {
+                                score=0;
                         }
-			return ITERATION_STOP;
+                        if (D_MPI_RANK == 0) {
+                                printf("[ ] Stop criterium: %4lg / %4lg (score: %d)\n", fabs(old_obj - v), stop, score);
+                        }
+                        if (score >= times) {
+                                if (D_MPI_RANK == 0) {
+                                        printf("[ ] Stop.\n");
+                                }
+                                ret = ITERATION_STOP;
+                        }
+                        old_obj = v;
                 }
-		old_obj = v;
-		return 0;
+		return ret;
 	}
 	int Finish() {
 		solver->iter_type = old_iter_type;
