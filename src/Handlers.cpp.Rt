@@ -202,7 +202,7 @@ class cbStop: public Callback {
 	}
 	int DoIt() {
 		Callback::DoIt();
-		double ret=0;
+		int ret=0;
                 if (solver->mpi_rank == 0) {
                         double v = solver->lattice->globals[ GLOBALS_Objective ];
                         if (fabs(old_obj - v) < stop) {
@@ -221,6 +221,7 @@ class cbStop: public Callback {
                         }
                         old_obj = v;
                 }
+                MPI_Bcast(&ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
 		return ret;
 	}
 	int Finish() {
