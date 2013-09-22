@@ -292,7 +292,7 @@ for (i in selR) {
 //	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
 //	omT = exp(log(w)*omT);
 
-        omT = w / (1-PorocityGamma*(1-w));
+        omT = w / (1.0-PorocityGamma*(1.0-w));
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;
