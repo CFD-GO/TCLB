@@ -128,9 +128,22 @@ public:
   };
   inline double si(const std::string str) {return readText(str).val;};
   inline double alt(const std::string str) {
-    UnitVal v = readText(str);
-    double ret = v.val;
-    for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
+    double ret = 0;
+    int i=0, j=0;
+    while (str[i]) {
+      switch(str[j]) {
+      case '-':      
+      case '+':
+      case '\0':
+        if (j>i) {
+          UnitVal v = readText(str.substr(i,j-i));
+          ret += alt(v);
+        }
+        i = j;
+        break;
+      }
+      j++;
+    }                                                                                                               
     return ret;
   };
   inline double si(const std::string str, double def) { if (str.length() > 0) return si(str); else return def;};
