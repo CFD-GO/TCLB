@@ -602,7 +602,31 @@ class acOptimize: public GenericAction {
         			        exit(-1);
                                 }
                         }
-                        nlopt_set_xtol_rel(opt, 1e-5);
+<?R
+        tab=data.frame(
+                attr=c("XAbsTolerance","RelTolerance","AbsTolerance","StopAtValue","MaxEvaluations"),
+                nlopt=c("xtol_abs1","ftol_rel","ftol_abs","stopval","maxeval"),
+                positive=c(T,T,T,F,T),
+                type=c(rep("double",4),"int")
+        )
+        for (crit in rows(tab)) { ?>
+        		attr = node.attribute("<?%s crit$attr ?>");
+        		if (attr) {
+                                <?%s crit$type ?> crit = attr.as_<?%s crit$type ?>(); <?R
+                if (crit$positive) { ?>
+                                if (crit > 0) { <?R
+                } ?>
+                                        std::cout << "[ ] Setting <?%s crit$attr ?> to " << crit << "\n";
+                                        nlopt_set_<?%s crit$nlopt ?>(opt, crit); <?R
+                if (crit$positive) { ?>
+                                } else {
+        			        std::cerr << "<?%s crit$attr ?> in Optimize have to be above 0\n";
+        			        exit(-1);
+                                } <?R
+                } ?>
+                        } <?R
+        }
+?>
 		DEBUG_M;
 			nlopt_result res = nlopt_optimize(opt, start, &val);
                         msg = -1;
@@ -633,7 +657,7 @@ class acOptimize: public GenericAction {
 		everyIter = solver->iter - startIter;
 		solver->getDPar(grad);
 		*f = solver->lattice->getObjective();
-		printf("[ ] Objective: %lg\n", *f);
+		printf("[ ] Evaluated objective: %lg\n", *f);
 		return 0;
 	}
 	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);
@@ -645,7 +669,8 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	acOptimize * obj = (acOptimize *) data;
 	assert(n == obj->par);
 	double val;
-        int msg = 0;
+        int msg = 0; 
+        printf("[ ] ------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
         MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
 	int ret = obj->Execute(x, grad, &val);
 	if (ret) {
