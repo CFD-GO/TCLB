@@ -174,7 +174,8 @@ Sy = rbind(
 }
 
 
-AddQuantity( name="Rho",unit="kg/m3")
+#AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="P",unit="Pa")
 AddQuantity( name="U",unit="m/s",vector=T)
 AddQuantity( name="T",unit="K")
 #AddQuantity( name="RhoB",adjoint=T)
@@ -186,7 +187,7 @@ AddQuantity( name="WB",adjoint=T)
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
 AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure*3', default="0Pa", comment='inlet pressure')
 AddSetting(name="InletDensity", default=1, comment='inlet density')
 AddSetting(name="InletTemperature", comment='inlet temperature')
 AddSetting(name="HeaterTemperature", comment='temperature of the heater')
@@ -200,10 +201,10 @@ AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of 
 AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
 
 
-AddGlobal(name="HeatFlux", comment='pressure loss')
-AddGlobal(name="HeatSquareFlux", comment='pressure loss')
-AddGlobal(name="Flux", comment='pressure loss')
-AddGlobal(name="Temperature", comment='integral of temperature')
+AddGlobal(name="HeatFlux", comment='pressure loss', unit="Km3/s")
+AddGlobal(name="HeatSquareFlux", comment='pressure loss', unit="K2m3/s")
+AddGlobal(name="Flux", comment='pressure loss', unit="m3/s")
+AddGlobal(name="Temperature", comment='integral of temperature', unit="K")
 AddGlobal(name="HighTemperature", comment='penalty for high temperature')
 AddGlobal(name="LowTemperature", comment='penalty for low temperature')
-AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate material parameter')
+AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate material parameter', unit="m3")

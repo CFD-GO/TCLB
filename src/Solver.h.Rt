@@ -55,6 +55,7 @@ class Solver {
 	Geometry * geometry;
 	lbRegion region;
         int iter; // Iteration Number
+        int opt_iter;
 	int mpi_rank;
 	int mpi_size;
 	std::vector<Handler> hands;
@@ -127,3 +128,27 @@ class Solver {
 	
 };   
 
+
+inline int SettingByName(const char * str) { <?R
+ for (v in rows(Settings)) { ?>
+  if (strcmp("<?%s v$name?>",str) == 0) return <?%s v$Index ?>; <?R
+ } ?>
+ return -1;
+}
+
+inline int GlobalByName(const char * str) { <?R
+ for (v in rows(Globals)) { ?>
+  if (strcmp("<?%s v$name?>",str) == 0) return <?%s v$Index ?>; <?R
+ } ?>
+ return -1;
+}
+
+inline int GlobalInObj(int i) { <?R 
+   i = which(Settings$name == paste(Globals$name[1],"InObj",sep=""));
+   if (is.null(i)) { ?>
+// Probably no adjoint
+   return -1; <?R
+   } else { ?>
+   return i + <?%s Settings$Index[i] ?>; <?R
+   } ?>
+}

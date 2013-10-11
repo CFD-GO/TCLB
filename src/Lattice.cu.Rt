@@ -49,6 +49,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 {
 	reverse_save=0;
 	total_iterations = 0;
+	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
@@ -957,6 +958,7 @@ double Lattice::getObjective() {
 
 void Lattice::setSetting(int i, real_t tmp) {
 	settings[i] = tmp;
+        printf("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
 	setConstSetting(i,tmp);
 }
 

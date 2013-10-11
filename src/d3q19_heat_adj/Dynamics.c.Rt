@@ -20,6 +20,10 @@ CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
 
+CudaDeviceFunction real_t getP(){
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+
 CudaDeviceFunction real_t getW(){
 	return w;
 }

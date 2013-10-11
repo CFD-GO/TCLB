@@ -141,6 +141,14 @@ public:
         }
         i = j;
         break;
+      case 'e':
+      case 'E':
+        switch (str[j+1]) {
+          case '-':
+          case '+':
+            j++;
+            break;
+        }
       }
       j++;
     }                                                                                                               
