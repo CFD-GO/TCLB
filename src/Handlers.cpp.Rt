@@ -633,6 +633,19 @@ class acOptimize: public GenericAction {
 		DEBUG_M;
                         MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
 			printf("[ ] NLOpt result: %d\n", res);
+			switch(res) {
+                                case NLOPT_SUCCESS: printf("[ ] Optimization generic success!\n"); break;
+                                case NLOPT_STOPVAL_REACHED: printf("[ ] Optimization reached desired value (StopAtValue) !\n"); break;
+                                case NLOPT_FTOL_REACHED: printf("[ ] Optimization stoped with change of objective below tolerance (RelTolerance/AbsTolerance) !\n"); break;
+                                case NLOPT_XTOL_REACHED: printf("[ ] Optimization stoped with change of parameters below tolerance (XAbsTolerance) !\n"); break;
+                                case NLOPT_MAXEVAL_REACHED: printf("[ ] Optimization stoped, because maximal number of iterations was made (MaxIterations) !\n"); break;
+                                case NLOPT_FAILURE: printf("[ ] Optimization failed, I don't know why!\n"); break;
+                                case NLOPT_INVALID_ARGS: printf("[ ] Optimization call failed. Some wrong arguments!\n"); break;
+                                case NLOPT_OUT_OF_MEMORY: printf("[ ] Optimization call failed. Out of memory!\n"); break;
+                                case NLOPT_ROUNDOFF_LIMITED: printf("[ ] Optimization failed. Changes were below numeric tolerance (good?)\n"); break;
+                                case NLOPT_FORCED_STOP: printf("[ ] Optimization failed. It was stoped from within the objective function (why?)\n"); break;
+                                default: printf("[ ] NLOpt result: %d\n", res); break;
+                        }
 			printf("[ ] Final Objective value: %lf\n",val);
 			nlopt_destroy(opt);
 		} else {
