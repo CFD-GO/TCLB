@@ -36,7 +36,7 @@ table_from_text = function(text) {
 	tab
 }
 
-Density = data.frame()
+DensityAll = data.frame()
 Globals = data.frame()
 Settings = data.frame()
 Quantities = data.frame()
@@ -56,12 +56,12 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", p
 		group=group,
 		parameter=parameter
 	)
-	Density <<- rbind(Density,d)
+	DensityAll <<- rbind(DensityAll,d)
 }
 
-AddSetting = function(name,  comment="", default=0, ...) {
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
-	if (comment == "") {
+	if (missing(comment)) {
 		comment = name
 	}
 	der = list(...)
@@ -78,7 +78,9 @@ AddSetting = function(name,  comment="", default=0, ...) {
 		name=name,
 		derived=derived,
 		equation=equation,
+		unit=unit,
 		default=default,
+		adjoint=adjoint,
 		comment=comment
 	)
 	Settings <<- rbind(Settings,s)
@@ -164,38 +166,38 @@ Node = c(
 
 source("Dynamics.R")
 
-if (! "unit" %in% names(Quantities)) {
-	Quantities$unit = "1"
-} else {
-	Quantities$unit = as.character(Quantities$unit)
-}
-if (nrow(Globals) > 0) {
-	if (! "unit" %in% names(Globals)) {
-		Globals$unit = "1"
-	} else {
-		Globals$unit = as.character(Globals$unit)
-	}
-	if (! "adjoint" %in% names(Globals)) {
-		Globals$adjoint = FALSE
-	} 
-}
-if (! "default" %in% names(Settings)) {
-	Settings$default = "0"
-} else {
-	Settings$default = as.character(Settings$default)
-}
-if (! "unit" %in% names(Settings)) {
-	Settings$unit = "1"
-} else {
-	Settings$unit = as.character(Settings$unit)
-}
+
+#if (! "unit" %in% names(Quantities)) {
+#	Quantities$unit = "1"
+#} else {
+#	Quantities$unit = as.character(Quantities$unit)
+#}
+#if (nrow(Globals) > 0) {
+#	if (! "unit" %in% names(Globals)) {
+#		Globals$unit = "1"
+#	} else {
+#		Globals$unit = as.character(Globals$unit)
+#	}
+#	if (! "adjoint" %in% names(Globals)) {
+#		Globals$adjoint = FALSE
+#	} 
+#}
+#if (! "default" %in% names(Settings)) {
+#	Settings$default = "0"
+#} else {
+#	Settings$default = as.character(Settings$default)
+#}
+#if (! "unit" %in% names(Settings)) {
+#	Settings$unit = "1"
+#} else {
+#	Settings$unit = as.character(Settings$unit)
+#}
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
 
-
-if (! "adjoint" %in% names(Quantities)) {
-	Quantities$adjoint = F
-}
+#if (! "adjoint" %in% names(Quantities)) {
+#	Quantities$adjoint = F
+#}
 
 ifdef.global.mark = F
 ifdef = function(val=F, tag="ADJOINT") {
@@ -205,37 +207,43 @@ ifdef = function(val=F, tag="ADJOINT") {
 }
 
 if (ADJOINT==1) {
-	Density$adjoint = F
-	DensityAD = Density
-	DensityAD$dx = -Density$dx
-	DensityAD$dy = -Density$dy
-	DensityAD$dz = -Density$dz
-	DensityAD$name = as.character(DensityAD$name);
-	i = grepl("[[]", Density$name)
-	DensityAD$name[i] = sub("[[]","b[", Density$name[i])
-	DensityAD$name[!i] = paste(Density$name[!i], "b",sep="")
-	DensityAD$adjoint = T
-	DensityAll = rbind(Density,DensityAD)
-
-	Settings = rbind(Settings, data.frame(
-		name=paste(Globals$name,"InObj",sep=""),
-		derived=NA,equation=NA,comment=Globals$comment,default="0", unit="1"))
-	Settings = rbind(Settings, data.frame(
-		name="Descent",
-		derived=NA,equation=NA,comment="Optimization Descent",default="0", unit="1"))
-	Settings = rbind(Settings, data.frame(
-		name="GradientSmooth",
-		derived=NA,equation=NA,comment="Gradient Smoothing",default="0", unit="1"))
+	for (d in rows(DensityAll)) {
+		n = as.character(d$name)
+		if (grepl("[[]", n)) {
+			n = sub("[[]","b[", n)
+		} else {
+			n = paste(n, "b", sep="")
+		}
+		AddDensity(
+			name=n,
+			dx=-d$dx,
+			dy=-d$dy,
+			dz=-d$dz,
+			comment=paste("adjoint to",d$comment),
+			group=d$group,
+			adjoint=T
+		)
+	}
+	for (g in rows(Globals)) {
+		AddSetting(
+			name=paste(g$name,"InObj",sep=""),
+			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
+			adjoint=T
+		)
+	}
+	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)
+	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
 } else {
 	DensityAD = NULL
 	DensityAll = Density
 }
 
-	Settings = rbind(Settings, data.frame(
-		name="Threshold",
-		derived=NA,equation=NA,comment="Parameters threshold",default="0.5", unit="1"))
 
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
+Density   = DensityAll[! DensityAll$adjoint, ]
+DensityAD = DensityAll[  DensityAll$adjoint, ]
+
+AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 GlobalsD = Globals
 AddGlobal(name="Objective",comment="Objective function");

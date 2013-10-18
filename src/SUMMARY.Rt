@@ -1,0 +1,8 @@
+<?R
+  source("conf.R")
+  save.image(file="SUMMARY.Rdata")
+  write.table(DensityAll,row.names=F)
+  write.table(Settings,row.names=F)
+  write.table(Globals,row.names=F)
+  write.table(Quantities,row.names=F)
+?>
