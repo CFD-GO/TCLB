@@ -502,13 +502,7 @@ class acSAdjoint: public GenericAction {
 			solver->steps = next_it;
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
 			solver->iter += solver->steps;
-			if (!Now(solver->iter)) {
-        			solver->lattice->Iterate(solver->steps, solver->iter_type);
-                        } else {
-        			solver->lattice->Iterate(solver->steps-1, solver->iter_type);
-        			solver->lattice->clearDPar();
-        			solver->lattice->Iterate(1, solver->iter_type);
-                        }
+       			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
 			for (int i=0; i<solver->hands.size(); i++) {

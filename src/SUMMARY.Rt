@@ -1,8 +1,9 @@
 <?R
   source("conf.R")
   save.image(file="SUMMARY.Rdata")
-  write.table(DensityAll,row.names=F)
-  write.table(Settings,row.names=F)
-  write.table(Globals,row.names=F)
-  write.table(Quantities,row.names=F)
+  options(width=4000)
+  cat("\n\nDensities:\n"); print(DensityAll);
+  cat("\n\nSettings:\n"); print(Settings)
+  cat("\n\nGlobals:\n"); print(Globals)
+  cat("\n\nQuantities:\n"); print(Quantities)
 ?>

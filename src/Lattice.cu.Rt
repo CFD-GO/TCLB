@@ -354,7 +354,7 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
+	printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -391,6 +391,10 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 		container->RunBorder_Adj (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs_Adj(kernelStream); break;
+	case ITER_NO | ITER_STEADY:
+		container->RunBorder_SAdj (kernelStream); break;
+	case ITER_GLOBS | ITER_STEADY:
+		container->RunBorder_Globs_SAdj(kernelStream); break;
 	}	
 	DEBUG_M;
         CudaDeviceSynchronize();
@@ -712,6 +716,7 @@ void Lattice::Iterate(int niter, int iter_type)
 	} else {
 	        switch (iter_type & ITER_TYPE) {
 	        case ITER_ADJOINT:
+	                iter_type |= ITER_STEADY;
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
 					container->clearGlobals();

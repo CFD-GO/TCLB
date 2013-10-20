@@ -86,13 +86,15 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, ...) {
 	Settings <<- rbind(Settings,s)
 }
 
-AddGlobal = function(name, comment="", unit="1", adjoint=F) {
+AddGlobal = function(name, var, comment="", unit="1", adjoint=F) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
+	if (missing(var)) var=name
 	if (comment == "") {
 		comment = name
 	}
 	g = data.frame(
 		name=name,
+		var=var,
 		comment=comment,
 		unit=unit,
 		adjoint=adjoint
@@ -221,10 +223,19 @@ if (ADJOINT==1) {
 			dz=-d$dz,
 			comment=paste("adjoint to",d$comment),
 			group=d$group,
+			parameter=d$parameter,
 			adjoint=T
 		)
 	}
-	for (g in rows(Globals)) {
+	for (s in rows(Settings)) {
+		AddGlobal(
+			name=paste(s$name,"_D",sep=""),
+			var=paste(s$name,"b",sep=""),
+			comment=paste("Gradient of objective with respect to [",s$comment,"]",sep=""),
+			adjoint=T
+		)
+	}
+	for (g in rows(Globals)) if (! g$adjoint){
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
 			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
@@ -233,6 +244,7 @@ if (ADJOINT==1) {
 	}
 	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)
 	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
+	AddGlobal(name="AdjointRes", comment="L2 change of adjoint change", adjoint=T)
 } else {
 	DensityAD = NULL
 	DensityAll = Density
@@ -323,12 +335,13 @@ Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
 #Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
 Dispatch = data.frame(
-	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",   "No",      "Globs"),
-	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
-	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",  "Opt",        "Opt"),
-	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,  FALSE,         TRUE),
-	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,   TRUE,         TRUE),
-	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_Opt", "_Globs_Opt")
+	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
+	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
+	zeropar=c(  FALSE,   FALSE,    FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
+	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
 )
 
 Dispatch$adjoint_ver = Dispatch$adjoint
