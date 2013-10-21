@@ -354,7 +354,7 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);
+	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -381,6 +381,10 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 		container->RunInterior_Adj (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Adj(kernelStream); break;
+	case ITER_NO | ITER_STEADY:
+		container->RunInterior_SAdj (kernelStream); break;
+	case ITER_GLOBS | ITER_STEADY:
+		container->RunInterior_Globs_SAdj(kernelStream); break;
 	}	
 
         MPIStream_B();
