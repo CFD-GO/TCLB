@@ -1,19 +1,111 @@
 <?R
 	source("conf.R") 
+        c_header();
+?>
+/*  Dynamics for d3q19 model with heat transfer                */
+/*     with adjoint                                            */
+/*-------------------------------------------------------------*/
 
-calcRhoJ = rbind(
-        rho == sum(f),
-        J == f %% U
-)
+<?R
+	f = PV(Density$name[Density$group=="f"])
+	fT = PV(Density$name[Density$group=="T"])
 
-calcRfromF = R == f %% MRTMAT
-calcReq = R == Req
-calcFfromR = f == R %% MRTMAT.inv
-calcFeq = f == Req %% MRTMAT.inv
+	rho = PV("rho")
+	J = PV(c("Jx","Jy","Jz"))
+	rho0 = 1
 
-p=PV(1/4)
-RTeq = PV("T")*rbind(PV(1),J[1],J[2],J[3],p,p,p)
-calcTeq = fT == solve(MRTT) %% RTeq
+	if (FALSE) {
+        	we = 0
+        	weJ = -475/63
+        	wxx = 0
+        } else {
+        	we = 3
+        	weJ = -11/2
+        	wxx = -1/2
+        }
+
+        pxx = 1/(3*rho0) * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3]) 
+        pww = 1/(rho0) * (J[2] * J[2] - J[3] * J[3]) 
+        pxy = 1/(rho0) * (J[1]*J[2]) 
+        pyz = 1/(rho0) * (J[2]*J[3]) 
+        pxz = 1/(rho0) * (J[1]*J[3]) 
+
+
+# EQUILIBRUM MOMENTS
+        Req = rbind(
+                rho,
+                -11*rho + 19/rho0*sum(J*J),
+                we*rho + weJ/rho0*sum(J*J),
+                J[1],
+                -2/3*J[1],
+                J[2],
+                -2/3*J[2],
+                J[3],
+                -2/3*J[3],
+                pxx*3,
+                wxx*pxx*3,
+                pww,
+                wxx*pww,
+                pxy,
+                pyz,
+                pxz,
+                0,
+                0,
+                0
+        )
+
+
+        U = MRTMAT[,selU]
+
+        R = PV(paste("R",0:18,sep=""))
+        R[1] = rho
+        R[c(4,6,8)] = J
+        R[-c(1,4,6,8)] = PV(paste("R",0:14,sep=""))
+        selR = c(2,3,5,7,9:19)
+
+        renum = c(19, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 9, 13, 10, 14, 15, 17, 16, 18)
+
+        I = rep(0, 19)
+        I[renum] = 1:19
+
+        if (FALSE) {
+        Sy = rbind(
+                PV(0),
+                PV(1.19),
+                PV(1.4),
+                PV(0),
+                PV(1.2),
+                PV(0),
+                PV(1.2),
+                PV(0),
+                PV(1.2),
+                PV("omega"),
+                PV(1.4),
+                PV("omega"),
+                PV(1.4),
+                PV("omega"),
+                PV("omega"),
+                PV("omega"),
+                PV(1.98),
+                PV(1.98),
+                PV(1.98)
+        )
+                
+        }
+
+        calcRhoJ = rbind(
+                rho == sum(f),
+                J == f %% U
+        )
+
+        calcRfromF = R == f %% MRTMAT
+        calcReq = R == Req
+        calcFfromR = f == R %% MRTMAT.inv
+        calcFeq = f == Req %% MRTMAT.inv
+
+        p=PV(1/4)
+        RTeq = PV("T")*rbind(PV(1),J[1],J[2],J[3],p,p,p)
+        calcTeq = fT == solve(MRTT) %% RTeq
 ?>
 
 CudaDeviceFunction real_t getRho(){
@@ -280,19 +372,20 @@ CudaDeviceFunction void CollisionMRT()
 	#define S19 1.0//98
 <?R
         Sy = PV(paste("S",1:19,"",sep=""))
-
-#C( calcRhoJ )
-C( calcRfromF ,float =F);
-#   C( calcReq[selR] , eqstring = "-=" )
-#   C( f == (R * Sy)[selR] %% MRTMAT.inv[selR,] , eqstring = "-=");
-
-cr = calcReq[selR]
-   Mw = colSums(MRTMAT**2)
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-<?R
-}
-?>
+        omega = PV("omega")
+        oneR = c(F,T,T,F,T,F,T,F,T,F,T,F,T,F,F,F,T,T,T)
+        selRone=selR[oneR[selR]]
+        selRnone=selR[!oneR[selR]]
+#        C( calcRfromF[selRnone] ,float =F);
+        cr = calcReq[selR]
+        Mw = colSums(MRTMAT**2)
+   
+        for (i in selR) if (oneR[i]) {
+                C( calcRfromF[i] ,float =F);
+                ?><?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
+<?R } else {
+                ?><?%s ToC(R[i]) ?> = 0.0;
+<?R } ?>
 //	omT = sqrt(Jx*Jx+Jy*Jy+Jz*Jz);
 //	omT = exp(log(w)*omT);
 
