@@ -379,6 +379,7 @@ CudaDeviceFunction void CollisionMRT()
 #        C( calcRfromF[selRnone] ,float =F);
         cr = calcReq[selR]
         Mw = colSums(MRTMAT**2)
+        C( calcRfromF[-selR] ,float =F);
    
         for (i in selR) if (oneR[i]) {
                 C( calcRfromF[i] ,float =F);
