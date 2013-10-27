@@ -145,7 +145,7 @@ inline int GlobalByName(const char * str) { <?R
 
 inline int GlobalInObj(int i) { <?R 
    i = which(Settings$name == paste(Globals$name[1],"InObj",sep=""));
-   if (is.null(i)) { ?>
+   if (length(i) != 1) { ?>
 // Probably no adjoint
    return -1; <?R
    } else { ?>

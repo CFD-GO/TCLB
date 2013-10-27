@@ -59,21 +59,25 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", p
 	DensityAll <<- rbind(DensityAll,d)
 }
 
-AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, ...) {
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (missing(comment)) {
 		comment = name
 	}
-	der = list(...)
-	if (length(der) == 0) {
-		derived = NA;
-		equation = NA;
-	} else if (length(der) == 1) {
-		derived = names(der);
-		equation = as.character(der[[1]]);
+	if (missing(derived)) {
+		der = list(...)
+		if (length(der) == 0) {
+			derived = NA;
+			equation = NA;
+		} else if (length(der) == 1) {
+			derived = names(der);
+			equation = as.character(der[[1]]);
+		} else {
+			stop("Only one derived setting allowed in AddSetting!");
+		} 
 	} else {
-		stop("Only one derived setting allowed in AddSetting!");
-	} 
+		if (missing(equation)) stop("'derived' provided, but no 'equation' in AddSetting")
+	}
 	s = data.frame(
 		name=name,
 		derived=derived,
@@ -244,10 +248,10 @@ if (ADJOINT==1) {
 	}
 	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)
 	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
-	AddGlobal(name="AdjointRes", comment="L2 change of adjoint change", adjoint=T)
+	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
 } else {
-	DensityAD = NULL
-	DensityAll = Density
+#	DensityAD = NULL
+#	DensityAll = Density
 }
 
 

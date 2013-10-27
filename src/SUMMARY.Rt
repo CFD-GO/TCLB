@@ -2,8 +2,26 @@
   source("conf.R")
 #  save.image(file="SUMMARY.Rdata")
   options(width=4000)
-  cat("\n\nDensities:\n"); print(DensityAll);
-  cat("\n\nSettings:\n"); print(Settings)
-  cat("\n\nGlobals:\n"); print(Globals)
-  cat("\n\nQuantities:\n"); print(Quantities)
+  cat(sprintf("%-31s               |Adj| comment", "name"),"\n");
+  for (d in rows(DensityAll)) {
+    if (d$parameter) {
+    cat(sprintf("%-31s parameter     | %1s | %s", d$name, ifelse(d$adjoint, "X"," "), d$comment),"\n");
+    } else {
+    cat(sprintf("%-31s [%3d,%3d,%3d] | %1s | %s", d$name, d$dx, d$dy, d$dz, ifelse(d$adjoint, "X"," "), d$comment),"\n");
+    }
+  }
+  for (s in rows(Settings)) {
+    if (s$name %in% Settings$derived) {
+     eq = Settings$equation[Settings$derived %in% s$name]
+     cat(sprintf("%-16s [=%25s] | %1s | %s", s$name, eq, ifelse(s$adjoint, "X"," "), s$comment),"\n");
+    } else {
+     cat(sprintf("%-45s | %1s | %s",s$name, ifelse(s$adjoint, "X"," "), s$comment),"\n");
+    }
+  }
+  for (s in rows(Globals)) {
+    cat(sprintf("%-35s [%7s] | %1s | %s",s$name, s$unit, ifelse(s$adjoint, "X"," "), s$comment),"\n");
+  }
+  for (s in rows(Quantities)) {
+    cat(sprintf("%-35s [%7s] | %1s | %s",s$name, s$unit, ifelse(s$adjoint, "X"," "), s$comment),"\n");
+  }
 ?>

@@ -101,6 +101,7 @@ AddSetting(name="FluidAlpha", comment='Heat conductivity of fluid')
 AddSetting(name="SolidAlpha", comment='Heat conductivity of solid')
 AddSetting(name="HeatSource", comment='Heat input at heat source')
 AddSetting(name="Inertia", comment='Inertia of the transport equation')
+AddSetting(name="Buoyancy", comment='Buoyancy coefficient of temperature')
 
 AddSetting(name="PorocityGamma", comment='Gamma in hiperbolic transformation of porocity (-infty,1)')
 AddSetting(name="PorocityTheta", comment='Theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')

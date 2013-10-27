@@ -370,6 +370,7 @@ CudaDeviceFunction void CollisionMRT()
 	#define S17 1.0//98
 	#define S18 1.0//98
 	#define S19 1.0//98
+	T = <?R C(sum(fT)) ?>;
 <?R
         Sy = PV(paste("S",1:19,"",sep=""))
         omega = PV("omega")
@@ -381,7 +382,7 @@ CudaDeviceFunction void CollisionMRT()
         Mw = colSums(MRTMAT**2)
         C( calcRfromF[-selR] ,float =F);
    
-        for (i in selR) if (oneR[i]) {
+        for (i in selR) if (!oneR[i]) {
                 C( calcRfromF[i] ,float =F);
                 ?><?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
 <?R } else {
@@ -391,6 +392,7 @@ CudaDeviceFunction void CollisionMRT()
 //	omT = exp(log(w)*omT);
 
         omT = w / (1.0-PorocityGamma*(1.0-w));
+        Jy += Buoyancy*T;
         Jx *= omT;
         Jy *= omT;  
         Jz *= omT;
