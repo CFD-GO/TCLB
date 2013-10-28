@@ -40,6 +40,7 @@ DensityAll = data.frame()
 Globals = data.frame()
 Settings = data.frame()
 Quantities = data.frame()
+NodeTypes = data.frame()
 
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
@@ -126,6 +127,39 @@ AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 	Quantities <<- rbind(Quantities,q)
 }	
 
+AddNodeType = function(name, group) {
+	NodeTypes <<- rbind(NodeTypes, data.frame(
+		name=name,
+		group=group
+	))
+}
+
+AddNodeType("BGK","COLLISION")
+AddNodeType("MRT","COLLISION")
+AddNodeType("MR","COLLISION")
+AddNodeType("Entropic","COLLISION")
+AddNodeType("Wall","BOUNDARY")
+AddNodeType("Solid","BOUNDARY")
+AddNodeType("WVelocity","BOUNDARY")
+AddNodeType("WPressure","BOUNDARY")
+AddNodeType("WPressureL","BOUNDARY")
+AddNodeType("EPressure","BOUNDARY")
+AddNodeType("EVelocity","BOUNDARY")
+AddNodeType("MovingWall","BOUNDARY")
+AddNodeType("Heater","ADDITIONALS")
+AddNodeType("HeatSource","ADDITIONALS")
+AddNodeType("Wet","ADDITIONALS")
+AddNodeType("Dry","ADDITIONALS")
+AddNodeType("Propagate","ADDITIONALS")
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")
+AddNodeType("Obj1","OBJECTIVE")
+AddNodeType("Obj2","OBJECTIVE")
+AddNodeType("Obj3","OBJECTIVE")
+AddNodeType("Thermometer","OBJECTIVE")
+AddNodeType("DesignSpace","DESIGNSPACE")
+
+
 Node_Group = c(
   NONE        =0x0000
 , COLLISION   =0x0070
@@ -171,6 +205,31 @@ Node = c(
 )
 
 source("Dynamics.R")
+
+NodeShift = 1
+NodeTypes = unique(NodeTypes)
+NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
+	n = nrow(tab)
+	l = ceiling(log2(n+1))
+	tab$index = 1:n
+	tab$Index = tab$name
+	tab$value = NodeShift*(1:n)
+	tab$mask  = NodeShift*((2^l)-1)
+	NodeShift <<- NodeShift * (2^l)
+	tab
+}))
+
+if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
+
+Node=NodeTypes$value
+names(Node) = NodeTypes$name
+Node["None"] = 0
+
+i = !duplicated(NodeTypes$group)
+Node_Group=NodeTypes$mask[i]
+names(Node_Group) = NodeTypes$group[i]
+Node_Group["ALL"] = sum(Node_Group)
+
 
 
 #if (! "unit" %in% names(Quantities)) {

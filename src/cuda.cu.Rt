@@ -3,7 +3,7 @@
 	c_header()
 ?>
 /*  Main CUDA C file                                           */
-/*     Here we nearly all the CUDA C code. It includes:        */          
+/*     Here is nearly all of the CUDA C code. It includes:     */          
 /*          LatticeContainer.h                                 */
 /*          LatticeContainer.c                                 */
 /*          Dynamics.c                                         */
@@ -94,8 +94,12 @@ struct Node<?%s suff ?> {
 #else
 	#include "Dynamics_sp.c"
 #endif <?R
-		if (tp$adjoint) { ?>
-        #include "Dynamics_b.c"
+		if (tp$adjoint) {
+		        if (tp$Globals == "Globs") { ?>
+        #include "DynamicsS_b.c" <?R
+                        } else { ?>
+        #include "Dynamics_b.c" <?R
+                        } ?>
 	#include "Dynamics_adj.c" <?R
 		}
 		if (tp$Action == "Opt") { ?>
