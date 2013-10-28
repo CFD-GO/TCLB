@@ -36,6 +36,14 @@ table_from_text = function(text) {
 	tab
 }
 
+ifdef.global.mark = F
+ifdef = function(val=F, tag="ADJOINT") {
+	if ((!ifdef.global.mark) && ( val)) cat("#ifdef",tag,"\n");
+	if (( ifdef.global.mark) && (!val)) cat("#endif //",tag,"\n");
+	ifdef.global.mark <<- val
+}
+
+
 DensityAll = data.frame()
 Globals = data.frame()
 Settings = data.frame()
@@ -159,51 +167,6 @@ AddNodeType("Obj3","OBJECTIVE")
 AddNodeType("Thermometer","OBJECTIVE")
 AddNodeType("DesignSpace","DESIGNSPACE")
 
-
-Node_Group = c(
-  NONE        =0x0000
-, COLLISION   =0x0070
-, BOUNDARY    =0x000F
-, ADDITIONALS =0x0F00
-, OPTIMIZATION=0xF000
-, OBJECTIVE   =0x7000
-, DESIGNSPACE =0x8000
-, ALL         =0xFFFF
-)
-
-Node = c(
-  None        =0x0000
-, BGK         =0x0010
-, MRT         =0x0020
-, MR          =0x0030
-, Entropic    =0x0040
-, Default     =0x0020
-
-, Wall        =0x0001
-, Solid       =0x0002
-, WVelocity   =0x0003
-, WPressure   =0x0004
-, WPressureL  =0x0005
-, EPressure   =0x0006
-, EVelocity   =0x0007
-, MovingWall  =0x0008
-
-, Heater      =0x0100
-, HeatSource  =0x0200
-, Wet         =0x0300
-, Dry         =0x0400
-, Propagate   =0x0500
-
-, Inlet       =0x1000
-, Outlet      =0x2000
-, Obj1        =0x3000
-, Obj2        =0x4000
-, Obj3        =0x5000
-, Thermometer =0x6000
-
-, DesignSpace =0x8000
-)
-
 source("Dynamics.R")
 
 NodeShift = 1
@@ -232,44 +195,7 @@ Node_Group["ALL"] = sum(Node_Group)
 
 
 
-#if (! "unit" %in% names(Quantities)) {
-#	Quantities$unit = "1"
-#} else {
-#	Quantities$unit = as.character(Quantities$unit)
-#}
-#if (nrow(Globals) > 0) {
-#	if (! "unit" %in% names(Globals)) {
-#		Globals$unit = "1"
-#	} else {
-#		Globals$unit = as.character(Globals$unit)
-#	}
-#	if (! "adjoint" %in% names(Globals)) {
-#		Globals$adjoint = FALSE
-#	} 
-#}
-#if (! "default" %in% names(Settings)) {
-#	Settings$default = "0"
-#} else {
-#	Settings$default = as.character(Settings$default)
-#}
-#if (! "unit" %in% names(Settings)) {
-#	Settings$unit = "1"
-#} else {
-#	Settings$unit = as.character(Settings$unit)
-#}
-
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
-
-#if (! "adjoint" %in% names(Quantities)) {
-#	Quantities$adjoint = F
-#}
-
-ifdef.global.mark = F
-ifdef = function(val=F, tag="ADJOINT") {
-	if ((!ifdef.global.mark) && ( val)) cat("#ifdef",tag,"\n");
-	if (( ifdef.global.mark) && (!val)) cat("#endif //",tag,"\n");
-	ifdef.global.mark <<- val
-}
 
 if (ADJOINT==1) {
 	for (d in rows(DensityAll)) {
@@ -308,11 +234,7 @@ if (ADJOINT==1) {
 	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)
 	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
 	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
-} else {
-#	DensityAD = NULL
-#	DensityAll = Density
 }
-
 
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 Density   = DensityAll[! DensityAll$adjoint, ]
@@ -334,7 +256,6 @@ Margin = data.frame(
 
 Margin$size = 0
 Margin=rows(Margin)
-
 
 GetMargins = function(dx,dy,dz) {
 	fun = function(dx,dy,dz) {
@@ -396,7 +317,6 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
-#Dispatch = expand.grid(globals=c(FALSE,TRUE), adjoint=c(FALSE,TRUE))
 Dispatch = data.frame(
 	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
 	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
@@ -410,18 +330,7 @@ Dispatch = data.frame(
 Dispatch$adjoint_ver = Dispatch$adjoint
 Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
 
-#Dispatch = expand.grid(Globals=c("No","Globs","Obj"), Adjoint=c("No","Adj","Opt"))
-#Dispatch$adjoint = Dispatch$Adjoint != "No"
-#Dispatch$globals = Dispatch$Globals != "No"
-
-#Dispatch$suffix = paste(
-#	ifelse(Dispatch$globals,paste("_",Dispatch$Globals,sep=""),""),
-#	ifelse(Dispatch$adjoint,paste("_",Dispatch$Adjoint,sep=""),""),
-#	sep="")
-
-
 Consts = NULL
-
 for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
@@ -439,7 +348,6 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 GlobalsD = Globals[-nrow(Globals),]
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
-version=git_version()
 
 clb_header = c(
 sprintf("-------------------------------------------------------------"),
