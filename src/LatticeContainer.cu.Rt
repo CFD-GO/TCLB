@@ -658,7 +658,7 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 // Type specific runs
 <?R for(tp in rows(Dispatch)) {
 ifdef(tp$adjoint_ver) ?>
-void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream) { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
+void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream)   { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
 void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
 <?R }
 ifdef(); ?>

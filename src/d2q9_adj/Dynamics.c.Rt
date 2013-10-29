@@ -104,10 +104,10 @@ CudaDeviceFunction void eqWVelocity()
 CudaDeviceFunction void WVelocity()
 {
      real_t rho, ru;
-	real_t u[2] = {InletVelocity,0.};
-	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
+	real_t u = InletVelocity;
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u);
 //	AddToObjective(rho);
-	ru = rho * u[0];
+	ru = rho * u;
 	f1 = f3 + (2./3.) * ru;
 	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
 	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
