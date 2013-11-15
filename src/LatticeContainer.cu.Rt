@@ -681,6 +681,8 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
      w = v.y;
     }
 
+if (isfinite(l)) {
+
     l = l * 111;
     if (               (l <-111)) {r = 255; g = 255; b = 255; }
     if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
@@ -693,7 +695,11 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
     r=r*w;
     g=g*w + (1-w)*255;
     b=b*w;
-  
+} else {
+    r=255;
+    b=255;
+    g=0;
+}
     optr[offset].x = r;  
     optr[offset].y = g;  
     optr[offset].z = b;  
