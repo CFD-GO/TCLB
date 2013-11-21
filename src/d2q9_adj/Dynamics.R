@@ -30,3 +30,7 @@ AddGlobal(name="Material", comment='material')
 
 AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of porocity (-infty,1)')
 AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
+
+AddNodeType("Porous","ADDITIONALS")
+AddSetting(name="InitPorocity", comment='initial porocity of Porous nodes')
+

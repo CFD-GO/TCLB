@@ -226,14 +226,17 @@ if (length(args) > 0) {
 	)
 }
 
-if (opt$workdir != "") {
-	addcode = c(addcode, paste("setwd(\"",opt$includedir,"\")",sep=""))
-}
-
 if (opt$includedir != "") {
 	opt$includedir = strsplit(opt$includedir,",")[[1]]
-	addcode = c(addcode, paste("include.dir = c(include.dir,\"",opt$includedir,"\")",sep=""))
+	addcode = c(addcode, paste("include.dir =
+c(include.dir,paste(getwd(),\"",opt$includedir,"\",sep=\"/\"))",sep=""))
 }
+
+
+if (opt$workdir != "") {
+	addcode = c(addcode, paste("setwd(\"",opt$workdir,"\")",sep=""))
+}
+
 
 if (opt$include != "") {
 	opt$include = strsplit(opt$include,",")[[1]]

@@ -185,7 +185,7 @@ CudaDeviceFunction void Init() {
 	real_t d = 1.0;
 	SetEquilibrum(d,u);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) w = 0;
-	if ((NodeType & NODE_ADDITIONALS) == NODE_Dry) w = 0.5;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Porous) w = InitPorocity;
 }
 
 CudaDeviceFunction float2 Color() {

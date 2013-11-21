@@ -13,7 +13,7 @@
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 
-source("tools/fun_v3.R")
+source("fun_v3.R")
 
 rows = function(x) {
 	rows_df= function(x) {

@@ -27,7 +27,8 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 .PHONY: all clean dummy
 
-RT = tools/RT
+TOOLS = tools
+RT = $(TOOLS)/RT
 RS = R --slave --quiet --vanilla -f
 INDENT = tools/myindent
 ADMOD = tools/ADmod.R
@@ -110,12 +111,12 @@ for (d in destinations) {
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(SRC),$(SRC)/<?%s m ?> -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
 #<?%s d ?>/<?%s m ?>/makefile:<?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile.in <?%s d ?>/<?%s m ?>/configure
