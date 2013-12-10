@@ -164,13 +164,15 @@ inline void MyFree(void * ptr) {
 	#else
 	    CudaFree( ptr );
 	#endif
+	ptr = NULL;
     }
 }
 
 // Free FTabs
 void FTabs::Free() { <?R
     for (m in NonEmptyMargin) { ?>
-    MyFree(<?%s m$name ?>); <?R
+    MyFree(<?%s m$name ?>); 
+    <?%s m$name ?> = NULL;<?R
     } ?>
 }
 

@@ -48,6 +48,15 @@ void MainFree( Solver *d);
 		info.outpath[0] ='\0';
 	}
 
+	Solver::~Solver() {
+		if (lattice) delete lattice;
+#ifdef GRAPHICS
+		printf("CZESC\n");
+		if (bitmap) delete bitmap;
+		printf("CZESC\n");
+#endif
+		if (geometry) delete geometry;
+	}
 
 	void Solver::saveInit(int n){
 		n++;
