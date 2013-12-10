@@ -54,7 +54,11 @@ AOUT=main
 
 clear:
 	@echo "  RM         ALL"
-	@./clear
+	@./tools/clear
+
+clean:
+	@echo "  RM         ALL"
+	@./tools/clear
 
 $(MAKEHEADERS):tools/makeheaders.c
 	gcc -o $@ $<
