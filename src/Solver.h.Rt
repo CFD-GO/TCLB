@@ -70,13 +70,7 @@ class Solver {
 	void print(const char * str);
 	double LogScales[ GLOBALS + SETTINGS + SCALES ];
 	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
-	inline ~Solver() {
-		if (lattice) delete lattice;
-#ifdef GRAPHICS
-		if (bitmap) delete bitmap;
-#endif
-		if (geometry) delete geometry;
-	}
+	~Solver();
 	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_) { Init(); };
 	void Init();
 	void saveInit(int n);
@@ -145,7 +139,7 @@ inline int GlobalByName(const char * str) { <?R
 
 inline int GlobalInObj(int i) { <?R 
    i = which(Settings$name == paste(Globals$name[1],"InObj",sep=""));
-   if (is.null(i)) { ?>
+   if (length(i) != 1) { ?>
 // Probably no adjoint
    return -1; <?R
    } else { ?>

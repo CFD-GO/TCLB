@@ -164,13 +164,15 @@ inline void MyFree(void * ptr) {
 	#else
 	    CudaFree( ptr );
 	#endif
+	ptr = NULL;
     }
 }
 
 // Free FTabs
 void FTabs::Free() { <?R
     for (m in NonEmptyMargin) { ?>
-    MyFree(<?%s m$name ?>); <?R
+    MyFree(<?%s m$name ?>); 
+    <?%s m$name ?> = NULL;<?R
     } ?>
 }
 
@@ -658,7 +660,7 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 // Type specific runs
 <?R for(tp in rows(Dispatch)) {
 ifdef(tp$adjoint_ver) ?>
-void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream) { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
+void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream)   { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
 void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
 <?R }
 ifdef(); ?>
@@ -681,6 +683,8 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
      w = v.y;
     }
 
+if (isfinite(l)) {
+
     l = l * 111;
     if (               (l <-111)) {r = 255; g = 255; b = 255; }
     if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
@@ -693,7 +697,11 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
     r=r*w;
     g=g*w + (1-w)*255;
     b=b*w;
-  
+} else {
+    r=255;
+    b=255;
+    g=0;
+}
     optr[offset].x = r;  
     optr[offset].y = g;  
     optr[offset].z = b;  
