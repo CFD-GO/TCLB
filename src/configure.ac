@@ -136,6 +136,10 @@ then
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+	elif test "$CUDA_ARCH" == "sm_30"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
