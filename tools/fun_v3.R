@@ -33,7 +33,12 @@ aggregate.P = function(p)
 {
 	if (nrow(p) > 0) {
                 class(p) = "data.frame"
-                ret = aggregate(p[,".M",drop=F], p[,attr(p,"var"),drop=F], sum)
+		if (length(attr(p,"var")) == 0) {
+	                ret = p[1,,drop=F]
+			ret$.M = sum(p$.M)
+		} else {
+	                ret = aggregate(p[,".M",drop=F], p[,attr(p,"var"),drop=F], sum)
+		}
                 ret = ret[ret$.M != 0,,drop=F]
                 attr(ret,"var") = attr(p,"var")
                 class(ret) = c("P","data.frame")

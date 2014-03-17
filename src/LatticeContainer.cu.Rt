@@ -667,7 +667,7 @@ ifdef(); ?>
  
 // Old function for graphics output
 //   calculates the color for one node
-CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
+CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
@@ -675,7 +675,7 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
     Node now;
     now.x = x;
     now.y = y;
-    now.z = 0;
+    now.z = z;
     constContainer.pull(now);
     {
      float2 v = now.Color();
@@ -709,11 +709,12 @@ if (isfinite(l)) {
 }
 
 // kernel for graphics output
-CudaGlobalFunction void ColorKernel( uchar4 *optr )
+CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
   NodeToColor(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
+    z,
     optr
   );
 }
@@ -721,7 +722,7 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr )
 // Runs graphics kernel
 void LatticeContainer::Color( uchar4 *optr ) {
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
+   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr, nz/2));
 };
 
 // Functions for getting quantities
