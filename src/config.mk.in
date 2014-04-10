@@ -20,3 +20,5 @@ ifeq '$(strip $(ADJOINT))' '1'
  SOURCE_CU+=Dynamics_b.c ADTools.cu
  HEADERS+=Dynamics_b.hp 
 endif
+
+CPU = @CROSS_CPU@

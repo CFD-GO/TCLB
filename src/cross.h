@@ -84,6 +84,10 @@
               if (j==0) atomicAddP(sum,sumtab[0]);
       }
     #endif
+
+
+    #define CudaError cudaError_t
+    #define CudaSuccess cudaSuccess
     #define CudaExternConstantMemory(x)
 
     #define CudaCopyToConstant(a__,b__,c__,d__) HANDLE_ERROR( cudaMemcpyToSymbol(b__, c__, d__, 0, cudaMemcpyHostToDevice))
@@ -103,7 +107,8 @@
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( cudaMallocHost(a__,b__) )
     #define CudaFree(a__) HANDLE_ERROR( cudaFree(a__) )
     #define CudaFreeHost(a__) HANDLE_ERROR( cudaFreeHost(a__) )
-
+    #define CudaAllocFreeAll() HANDLE_ERROR( cudaAllocFreeAll() )  
+    
     #define CudaDeviceCanAccessPeer(a__, b__, c__) HANDLE_ERROR( cudaDeviceCanAccessPeer(a__, b__, c__) )
     #define CudaDeviceEnablePeerAccess(a__, b__) HANDLE_ERROR( cudaDeviceEnablePeerAccess(a__, b__) )
 
@@ -126,14 +131,16 @@
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
 
-    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
-    cudaError_t cudaAllocFinalize();
+//    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
+//    cudaError_t cudaAllocFinalize();
 
     void HandleError( cudaError_t err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
     int GetMaxThreads();
     #define RunKernelMaxThreads (GetMaxThreads())
-                                                                                                                                
+    #define CudaFuncAttributes cudaFuncAttributes
+    #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( cudaFuncGetAttributes(a__, b__) )
+            
   #else
     #include <assert.h>
     #include <time.h>
@@ -153,8 +160,32 @@
       inline dim3(int x_, int y_, int z_):x(x_),y(y_),z(z_) {};
       inline dim3(int x_, int y_):x(x_),y(y_),z(1) {};
       inline dim3(int x_):x(x_),y(1),z(1) {};
+      inline dim3():x(1),y(1),z(1) {};
     };
     struct uchar4 { unsigned char x,y,z,w; };
+
+    struct CudaFuncAttributes_ {
+      int 	binaryVersion;
+      size_t 	constSizeBytes;
+      size_t 	localSizeBytes;
+      int 	maxThreadsPerBlock;
+      int 	numRegs;
+      int 	ptxVersion;
+      size_t 	sharedSizeBytes;
+    };
+
+    #define CudaError int
+    #define CudaSuccess -1
+    #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
+    #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
+    #define CudaAllocFreeAll() HANDLE_ERROR( cudaAllocFreeAll() )
+
+    #define HANDLE_ERROR( err ) (assert( err == CudaSuccess ))
+
+    
+    #define CudaFuncAttributes CudaFuncAttributes_
+    #define CudaFuncGetAttributes(a__,b__) {a__->binaryVersion=0; a__->constSizeBytes=-1; a__->localSizeBytes = -1; a__->maxThreadsPerBlock = 1; a__->numRegs = -1;\
+      a__->ptxVersion = -1; a__->sharedSizeBytes = -1; }
 
     #define CudaDeviceFunction
     #define CudaHostFunction
@@ -187,9 +218,11 @@
     #define CudaEventDestroy(a__)
     #define CudaEventRecord(a__,b__) a__ = b__
     #define CudaEventSynchronize(a__) a__ = clock()
+    #define CudaEventQuery(a__) CudaSuccess
     #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (1000*((float)(c__ -  b__)))/CLOCKS_PER_SEC
     #define CudaThreadSynchronize()
-
+    #define CudaDeviceSynchronize()
+    
     #define CudaStream_t int
     #define CudaStreamCreate(a__)
     #define CudaStreamSynchronize(a__)
@@ -209,7 +242,14 @@
     {
       sum[0] += val;
     }
+
+
   #endif
+
+    CudaError cudaPreAlloc(void ** ptr, size_t size);
+    CudaError cudaAllocFinalize();
+    CudaError cudaAllocFreeAll();
+
 #endif
 #define CROSS_H
     

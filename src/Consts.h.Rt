@@ -14,8 +14,13 @@
 #define MODEL "<?%s MODEL ?>"
 #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
 
-#define MAX_THREADS 512
-#define X_BLOCK 32
+#ifdef CROSS_CPU
+  #define MAX_THREADS 1
+  #define X_BLOCK 1
+#else
+  #define MAX_THREADS 512
+  #define X_BLOCK 32
+#endif
 
 <?R
   for (n in names(Node)) { ?>

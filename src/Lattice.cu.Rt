@@ -583,6 +583,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 // Destructor
 Lattice::~Lattice()
 {
+        CudaAllocFreeAll();
 	container->Free();
 	for (int i=0; i<nSnaps; i++) {
 		Snaps[i].Free();

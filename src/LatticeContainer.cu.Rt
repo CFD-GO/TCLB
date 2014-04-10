@@ -57,8 +57,8 @@ void setConstSetting(int i, real_t tmp) {
 // Get maximal number of threads for all the kernels on runtime
 template <class N> dim3 GetThreads() {
 	dim3 ret;
-	cudaFuncAttributes * attr = new cudaFuncAttributes;
-	HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<N>) );
+	CudaFuncAttributes * attr = new CudaFuncAttributes;
+	CudaFuncGetAttributes(attr, RunKernel<N>) ;
 	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
 	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
 	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );

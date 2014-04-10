@@ -153,6 +153,7 @@ then
 	fi
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
+	CROSS_CPU=1
 	if test "x${enable_graphics}" == "xyes"
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with CPU version])
@@ -287,5 +288,6 @@ fi
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
 
 AC_SUBST(NVFLAGS)
+AC_SUBST(CROSS_CPU)
 AC_CONFIG_FILES([config.mk])
 AC_OUTPUT
