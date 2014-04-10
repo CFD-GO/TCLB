@@ -194,10 +194,17 @@
     #define CudaExternConstantMemory(x) extern x
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
-    #define CudaKernelRun(a__,b__,c__,d__) for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
+    #ifdef CROSS_OPENMP
+      #define OMP_PARALLEL_FOR _Pragma("omp parallel private(CpuBlock)")
+    #else
+      #define OMP_PARALLEL_FOR
+    #endif
+    #define CudaKernelRun(a__,b__,c__,d__) { OMP_PARALLEL_FOR \
+                                       for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                          for (CpuThread.x = 0; CpuThread.x < c__.x; CpuThread.x++) \
-                                          for (CpuThread.y = 0; CpuThread.y < c__.y; CpuThread.y++) a__ d__
+                                          for (CpuThread.y = 0; CpuThread.y < c__.y; CpuThread.y++) a__ d__; \
+                                          }
     #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) CudaKernelRun(a__,b__,c__,d__);
     #define CudaBlock CpuBlock
     #define CudaThread CpuThread

@@ -52,6 +52,11 @@ AC_ARG_ENABLE([debug],
 AC_ARG_ENABLE([waitany],
 	AC_HELP_STRING([--enable-waitany],
 		[enables MPI WaitAny (default)]))
+
+AC_ARG_ENABLE([openmp],
+	AC_HELP_STRING([--enable-openmp],
+		[enable openMP in the CPU code]))
+
 		
 NVFLAGS=""
 
@@ -151,12 +156,22 @@ then
 		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
 		NVFLAGS="${NVFLAGS} -arch ${CUDA_ARCH}"
 	fi
+	if test "x${enable_openmp}" == "xyes"
+	then
+		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
+	fi
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
 	CROSS_CPU=1
 	if test "x${enable_graphics}" == "xyes"
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with CPU version])
+	fi
+	if test "x${enable_openmp}" == "xyes"
+	then
+		CPPFLAGS="${CPPFLAGS} -fopenmp"
+		LDFLAGS="${CPPFLAGS} -fopenmp"
+		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
 fi
 
