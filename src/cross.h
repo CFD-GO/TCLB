@@ -148,6 +148,9 @@
     #include <cstdlib>
     #include <cstring>
     #include <math.h>
+    #ifdef CROSS_OPENMP
+      #include <omp.h>
+    #endif
     template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
     template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
     struct float2 { float x,y; };
@@ -184,7 +187,7 @@
 
     
     #define CudaFuncAttributes CudaFuncAttributes_
-    #define CudaFuncGetAttributes(a__,b__) {a__->binaryVersion=0; a__->constSizeBytes=-1; a__->localSizeBytes = -1; a__->maxThreadsPerBlock = 1; a__->numRegs = -1;\
+    #define CudaFuncGetAttributes(a__,b__) {a__->binaryVersion=0; a__->constSizeBytes=-1; a__->localSizeBytes = -1; a__->maxThreadsPerBlock = 32; a__->numRegs = -1;\
       a__->ptxVersion = -1; a__->sharedSizeBytes = -1; }
 
     #define CudaDeviceFunction
@@ -195,16 +198,28 @@
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
     #ifdef CROSS_OPENMP
-      #define OMP_PARALLEL_FOR _Pragma("omp parallel private(CpuBlock)")
+      #define OMP_PARALLEL_FOR _Pragma("omp parallel for")
+      #define CudaKernelRun(a__,b__,c__,d__) \
+                                      OMP_PARALLEL_FOR \
+                                       for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
+                                        for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
+                                            a__ d__; \
+                                          }
+//      #define CudaKernelRun(a__,b__,c__,d__) \
+//                                      OMP_PARALLEL_FOR \
+//                                       for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
+//                                        for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
+//                                         for (CpuThread.x = 0; CpuThread.x < c__.x; CpuThread.x++) \
+//                                          for (CpuThread.y = 0; CpuThread.y < c__.y; CpuThread.y++) \
+//                                            a__ d__; \
+//                                          }
     #else
-      #define OMP_PARALLEL_FOR
-    #endif
-    #define CudaKernelRun(a__,b__,c__,d__) { OMP_PARALLEL_FOR \
+    #define CudaKernelRun(a__,b__,c__,d__)
                                        for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
-                                         for (CpuThread.x = 0; CpuThread.x < c__.x; CpuThread.x++) \
-                                          for (CpuThread.y = 0; CpuThread.y < c__.y; CpuThread.y++) a__ d__; \
-                                          }
+                                           a__ d__;
+    #endif
+
     #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) CudaKernelRun(a__,b__,c__,d__);
     #define CudaBlock CpuBlock
     #define CudaThread CpuThread
@@ -220,13 +235,17 @@
     #define CudaFreeHost(a__) free(a__)
 
 
-    #define CudaEvent_t clock_t
+    #define CudaEvent_t double
     #define CudaEventCreate(a__) *a__ = 0
     #define CudaEventDestroy(a__)
     #define CudaEventRecord(a__,b__) a__ = b__
-    #define CudaEventSynchronize(a__) a__ = clock()
+    #ifdef CROSS_OPENMP
+      #define CudaEventSynchronize(a__) a__ = omp_get_wtime()*1000
+    #else
+      #define CudaEventSynchronize(a__) a__ = 1000*((double) clock())/CLOCKS_PER_SEC
+    #endif
     #define CudaEventQuery(a__) CudaSuccess
-    #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (1000*((float)(c__ -  b__)))/CLOCKS_PER_SEC
+    #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (c__ -  b__)
     #define CudaThreadSynchronize()
     #define CudaDeviceSynchronize()
     
@@ -241,6 +260,7 @@
 
     #define RunKernelMaxThreads 1
     extern uint3 CpuBlock;
+    #pragma omp threadprivate(CpuBlock)
     extern uint3 CpuThread;
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
