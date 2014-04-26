@@ -10,6 +10,12 @@
 #define S9 omega
 
 <?R
+
+U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+f  = PV(Density$name[Density$group=="f"])
+fs = PV(Density$name[Density$group=="fs"])
+ph = PV(Density$name[Density$group=="phi"])
+
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	uf = PV("uf")
 	d = PV("d")

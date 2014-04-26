@@ -36,6 +36,25 @@ table_from_text = function(text) {
 	tab
 }
 
+c_table_decl = function(d) {
+	d = as.character(d)
+	sel = grepl("\\[",d)
+	if(any(sel)) {
+		w = d[sel]
+		w = regmatches(w,regexec("([^[]*)\\[([^\\]]*)]",w))
+		w = do.call(rbind,w)
+		w = data.frame(w)
+		w[,3] = as.integer(as.character(w[,3]))
+		w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
+		w = do.call(c,as.list(w))
+	} else {
+		w = c()
+	}
+	w = c(w,d[!sel])
+	w
+}
+
+
 ifdef.global.mark = F
 ifdef = function(val=F, tag="ADJOINT") {
 	if ((!ifdef.global.mark) && ( val)) cat("#ifdef",tag,"\n");
@@ -361,9 +380,11 @@ sprintf("-------------------------------------------------------------")
 c_header = function() {
 #	for (l in clb_header)
 	cat(paste("/*",clb_header,"*/",collapse="\n",sep=""),sep="");
+	cat("\n");
 }
 
 hash_header = function() {
 	for (l in clb_header)
 	cat("# |",l,"|\n",sep="");
+	cat("\n");
 }

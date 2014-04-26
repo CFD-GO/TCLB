@@ -1,14 +1,13 @@
 
-AddDensity(
-	name = paste("f",0:8,sep=""),
-	dx   = c( 0, 1, 0,-1, 0, 1,-1,-1, 1),
-	dy   = c( 0, 0, 1, 0,-1, 1, 1,-1,-1),
-	dz   = c( 0, 0, 0, 0, 0, 0, 0, 0, 0),
-	comment = paste("streamed density F",0:8),
-	group = "f"
-)
-
-U = as.matrix(Density[,c("dx","dy")])
+AddDensity( name="f0", dx= 0, dy= 0, group="f")
+AddDensity( name="f1", dx= 1, dy= 0, group="f")
+AddDensity( name="f2", dx= 0, dy= 1, group="f")
+AddDensity( name="f3", dx=-1, dy= 0, group="f")
+AddDensity( name="f4", dx= 0, dy=-1, group="f")
+AddDensity( name="f5", dx= 1, dy= 1, group="f")
+AddDensity( name="f6", dx=-1, dy= 1, group="f")
+AddDensity( name="f7", dx=-1, dy=-1, group="f")
+AddDensity( name="f8", dx= 1, dy=-1, group="f")
 
 AddDensity(
 	name = paste("fs",0:8,sep=""),
@@ -32,10 +31,6 @@ AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="P", unit="Pa");
 AddQuantity(name="F", unit="N", vector=T);
-
-f  = PV(Density$name[Density$group=="f"])
-fs = PV(Density$name[Density$group=="fs"])
-ph = PV(Density$name[Density$group=="phi"])
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')

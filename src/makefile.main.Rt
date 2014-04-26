@@ -48,7 +48,7 @@ SOURCE_ALL+=Geometry.h def.h utils.h unit.h
 SOURCE_ALL+=SUMMARY
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
 SOURCE_REST=makefile dep.mk
-ADDITIONALS=config.mk.in config.h.in configure tools README.md
+ADDITIONALS=config.mk.in config.h.in tools README.md
 
 AOUT=main
 
@@ -137,7 +137,7 @@ for (d in destinations) {
 
 <?R } ?>
 
-<?%s d ?>/configure:$(SRC)/configure.ac
+configure:$(SRC)/configure.ac
 	@echo "  AUTOCONF   $@"
 	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
 

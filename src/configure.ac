@@ -1,10 +1,11 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+
 AC_PREREQ([2.68])
 AC_INIT([CLB], 0.01)
-AC_CONFIG_AUX_DIR([tools])
-AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_AUX_DIR([CLB/tools])
+AC_CONFIG_HEADERS([CLB/config.h])
 
 AC_ARG_WITH([gcc],
 	AC_HELP_STRING([--with-gcc=compiler_bindir],
@@ -304,5 +305,5 @@ fi
 
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
-AC_CONFIG_FILES([config.mk])
+AC_CONFIG_FILES([CLB/config.mk])
 AC_OUTPUT
