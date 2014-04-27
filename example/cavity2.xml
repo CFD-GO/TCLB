@@ -37,11 +37,11 @@
 			MovingWallVelocity="0.1"
 		/>
 	</Model>
+	<Params Wetting="0.5"/>
 	<Solve Iterations="100" output="output/">
-		<Params Wetting="0.5"/>
 	</Solve>
-	<Solve Iterations="1000" output="output/">
-		<Params Wetting="1.0"/>
+	<Params Wetting="1.0"/>
+	<Solve Iterations="10000" output="output/">
 		<Log Iterations="100"/>
 		<VTK Iterations="1000"/>
 	</Solve>
