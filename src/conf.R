@@ -46,7 +46,6 @@ m.regmatches = function(a,r) {
 	})
 }
 
-
 c_table_decl = function(d) {
 	d = as.character(d)
 	sel = grepl("\\[",d)
