@@ -40,6 +40,7 @@ CudaDeviceFunction vector_t getU(){
 <?R C(PV(c("u.x","u.y")) == f %% U) ?>
 	u.x /= d;
 	u.y /= d;
+	u.z = 0;
 	return u;
 }
 
@@ -72,7 +73,7 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
      real_t rho, ru;
-	const real_t ux0 = InletVelocity;
+	real_t ux0 = InletVelocity;
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -83,7 +84,7 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void WPressure()
 {
      real_t ru, ux0;
-	const real_t rho = 1.0;
+	real_t rho = 1.0;
 	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / rho;
 	ru = rho * ux0;
 
@@ -95,7 +96,7 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void eqWVelocity()
 {
      real_t rho;
-	const real_t u[2] = {InletVelocity,0.};
+	real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	SetEquilibrum(rho,u);
 }
@@ -103,10 +104,10 @@ CudaDeviceFunction void eqWVelocity()
 CudaDeviceFunction void WVelocity()
 {
      real_t rho, ru;
-	const real_t u[2] = {InletVelocity,0.};
-	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
+	real_t u = InletVelocity;
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u);
 //	AddToObjective(rho);
-	ru = rho * u[0];
+	ru = rho * u;
 	f1 = f3 + (2./3.) * ru;
 	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
 	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
@@ -115,7 +116,7 @@ CudaDeviceFunction void WVelocity()
 CudaDeviceFunction void EPressure()
 {
      real_t ru, ux0;
-	const real_t rho = 1.0;
+	real_t rho = 1.0;
 	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / rho;
 	ru = rho * ux0;
 
@@ -154,9 +155,13 @@ CudaDeviceFunction void Run() {
                 CollisionMRT();
                 break;
     }
+    if (NodeType & NODE_DESIGNSPACE) {
+        AddToMaterialPenalty(w*(1-w));
+        AddToMaterial(1-w);
+    }
 }
 
-CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 {	real_t usq, uf;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R
@@ -180,6 +185,7 @@ CudaDeviceFunction void Init() {
 	real_t d = 1.0;
 	SetEquilibrum(d,u);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) w = 0;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Porous) w = InitPorocity;
 }
 
 CudaDeviceFunction float2 Color() {
@@ -198,7 +204,7 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t u[2], usq, d, R[6], uf;
+	real_t u[2], usq, d, R[6], uf, nw;
 	vector_t F;
 <?R
         R = PV(c(
@@ -258,8 +264,13 @@ for (i in selR) {
 ?>
 if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) AddToPressDiff(-d);
 if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) AddToPressDiff(d);
-u[0] = u[0]*w;
-u[1] = u[1]*w;
+
+nw = w / (1.0-PorocityGamma*(1.0-w));
+AddToDrag((1-nw)*u[0]);
+AddToLift((1-nw)*u[1]);
+u[0] = u[0]*nw;
+u[1] = u[1]*nw;
+
 //u[0]=u[0]+0.001;
 <?R
 	C(usq == sum(u*u)*dw);

@@ -15,8 +15,14 @@ all:main
 include ../config.mk
 include dep.mk
 
-../config.mk:../config.mk.in ../configure
-	cd ..; ./configure
+#../config.mk:../config.mk.in ../configure
+#	cd ..; ./configure
+
+../config.mk:
+	@echo "!---------------------------!"
+	@echo "!  Run configure            !"
+	@echo "!---------------------------!"
+	@exit 1
 
 .PRECIOUS:$(SOURCE) $(HEADERS)
 

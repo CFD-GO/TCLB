@@ -57,8 +57,8 @@ void setConstSetting(int i, real_t tmp) {
 // Get maximal number of threads for all the kernels on runtime
 template <class N> dim3 GetThreads() {
 	dim3 ret;
-	cudaFuncAttributes * attr = new cudaFuncAttributes;
-	HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<N>) );
+	CudaFuncAttributes * attr = new CudaFuncAttributes;
+	CudaFuncGetAttributes(attr, RunKernel<N>) ;
 	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
 	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
 	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
@@ -164,13 +164,15 @@ inline void MyFree(void * ptr) {
 	#else
 	    CudaFree( ptr );
 	#endif
+	ptr = NULL;
     }
 }
 
 // Free FTabs
 void FTabs::Free() { <?R
     for (m in NonEmptyMargin) { ?>
-    MyFree(<?%s m$name ?>); <?R
+    MyFree(<?%s m$name ?>); 
+    <?%s m$name ?> = NULL;<?R
     } ?>
 }
 
@@ -658,14 +660,14 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 // Type specific runs
 <?R for(tp in rows(Dispatch)) {
 ifdef(tp$adjoint_ver) ?>
-void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream) { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
+void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream)   { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
 void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
 <?R }
 ifdef(); ?>
  
 // Old function for graphics output
 //   calculates the color for one node
-CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
+CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
@@ -673,13 +675,15 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
     Node now;
     now.x = x;
     now.y = y;
-    now.z = 0;
+    now.z = z;
     constContainer.pull(now);
     {
      float2 v = now.Color();
      l = v.x;
      w = v.y;
     }
+
+if (isfinite(l)) {
 
     l = l * 111;
     if (               (l <-111)) {r = 255; g = 255; b = 255; }
@@ -693,7 +697,11 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
     r=r*w;
     g=g*w + (1-w)*255;
     b=b*w;
-  
+} else {
+    r=255;
+    b=255;
+    g=0;
+}
     optr[offset].x = r;  
     optr[offset].y = g;  
     optr[offset].z = b;  
@@ -701,11 +709,12 @@ CudaDeviceFunction void NodeToColor( int x, int y, uchar4 *optr )
 }
 
 // kernel for graphics output
-CudaGlobalFunction void ColorKernel( uchar4 *optr )
+CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
   NodeToColor(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
+    z,
     optr
   );
 }
@@ -713,7 +722,7 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr )
 // Runs graphics kernel
 void LatticeContainer::Color( uchar4 *optr ) {
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr));
+   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr, nz/2));
 };
 
 // Functions for getting quantities

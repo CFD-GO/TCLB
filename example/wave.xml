@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="300" ny="300">
+        	<MRT><Box/></MRT>
+        	<DesignSpace><Box/></DesignSpace>
+		<None mask="DESIGNSPACE">
+			<Sphere dx="30" nx="40" ny="40" dy="10"/>
+			<Sphere dx="-32" dy="-62" nx="14" ny="14"/>
+		</None>
+		<Solid>
+			<Sphere dx="40" nx="20" ny="20" dy="20"/>
+		</Solid>
+        	<Wall mask="ALL">
+			<Channel/>
+			<Inlet/>
+			<Outlet/>
+		</Wall>
+		<Obj1>
+			<Sphere dx="-30" dy="-60" nx="10" ny="10"/>
+		</Obj1>
+	</Geometry>
+	<Model>
+		<Params nu="0.166666" Gravity=".1" SolidH="1.01"/>
+		<Params TotalDiffInObj="1e6"/>
+	</Model>
+	<VTK Iterations="2000"/>
+	<Log Iterations="1000"/>
+	<Optimize>
+		<Adjoint NumberOfSnaps="14" type="unsteady">
+			<Save file="Save"/>
+			<Solve Iterations="2000">
+			</Solve>
+		</Adjoint>
+	</Optimize>
+</CLBConfig>

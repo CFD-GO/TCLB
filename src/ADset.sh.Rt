@@ -3,4 +3,5 @@
 	hash_header()
 ?>
 MAIN_FUN=Run
-VARIABLES="<?%s paste(Density$name,Globals$name, collapse=" ") ?>"
+VARIABLES="<?%s paste(Density$name,collapse=" ") ?> <?%s paste(Globals$name[! Globals$adjoint],collapse=" ") ?>"
+SETTINGS="<?%s paste(Settings$name[! Settings$adjoint],collapse=" ") ?>"

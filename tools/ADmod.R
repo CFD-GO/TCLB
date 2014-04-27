@@ -1,4 +1,18 @@
-f = file("Dynamics_b.c")
+#!/usr/bin/env Rscript
+
+library(optparse)
+options <- list(
+        make_option(c("-f","--file"), "store", default="", help="Input file", type="character"),
+        make_option(c("-o","--out"), "store", default="", help="Output file", type="character")
+)
+
+opt <- parse_args(OptionParser(usage="Usage: ADmod -f inputfile [-o outputfile]", options))
+
+if (opt$file == "") stop("Input file not specified\nUsage: ADmod -f file\n");
+if (opt$out == "") { opt$out = paste(opt$file, "_",sep="") }
+
+
+f = file(opt$file)
 
 lines = readLines(f)
 close(f)
@@ -14,7 +28,7 @@ a = cumsum(a-b)
 a[a>1]=1
 begins = which(diff(a)==1)+2
 
-f = file("Dynamics_b.c_")
+f = file(opt$out)
 open(f,"wt")
 pushi = grep("pushreal",lines)
 looki = grep("lookreal",lines)

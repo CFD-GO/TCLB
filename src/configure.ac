@@ -1,10 +1,11 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
+
 AC_PREREQ([2.68])
 AC_INIT([CLB], 0.01)
-AC_CONFIG_AUX_DIR([tools])
-AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_AUX_DIR([CLB/tools])
+AC_CONFIG_HEADERS([CLB/config.h])
 
 AC_ARG_WITH([gcc],
 	AC_HELP_STRING([--with-gcc=compiler_bindir],
@@ -52,6 +53,11 @@ AC_ARG_ENABLE([debug],
 AC_ARG_ENABLE([waitany],
 	AC_HELP_STRING([--enable-waitany],
 		[enables MPI WaitAny (default)]))
+
+AC_ARG_ENABLE([openmp],
+	AC_HELP_STRING([--enable-openmp],
+		[enable openMP in the CPU code]))
+
 		
 NVFLAGS=""
 
@@ -136,6 +142,10 @@ then
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+	elif test "$CUDA_ARCH" == "sm_30"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -147,11 +157,22 @@ then
 		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
 		NVFLAGS="${NVFLAGS} -arch ${CUDA_ARCH}"
 	fi
+	if test "x${enable_openmp}" == "xyes"
+	then
+		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
+	fi
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
+	CROSS_CPU=1
 	if test "x${enable_graphics}" == "xyes"
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with CPU version])
+	fi
+	if test "x${enable_openmp}" == "xyes"
+	then
+		CPPFLAGS="${CPPFLAGS} -fopenmp"
+		LDFLAGS="${CPPFLAGS} -fopenmp"
+		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
 fi
 
@@ -283,5 +304,6 @@ fi
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
 
 AC_SUBST(NVFLAGS)
-AC_CONFIG_FILES([config.mk])
+AC_SUBST(CROSS_CPU)
+AC_CONFIG_FILES([CLB/config.mk])
 AC_OUTPUT

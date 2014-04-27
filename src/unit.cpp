@@ -71,10 +71,12 @@ std::string strFromDouble(double val) {
     units["mm"]=readText("1e-3m");
     units["cm"]=readText("1e-2m");
     units["km"]=readText("1e+3m");
+    units["h"]=readText("3600s");
     units["ns"]=readText("1e-6s");
     units["ms"]=readText("1e-3s");
     units["g"]=readText("1e-3kg");
     units["mg"]=readText("1e-6kg");
+    units["d"]=atan(1.0)*4.0/180.;
   };
   UnitVal UnitEnv::readUnitOne( std::string val ) {
     if (units.count(val) > 0) {

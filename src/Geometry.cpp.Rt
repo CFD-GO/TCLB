@@ -39,6 +39,10 @@ int Geometry::val(pugi::xml_attribute attr) {
 	return myround(units.alt(attr.value()));
 }
 
+double Geometry::val_d(pugi::xml_attribute attr) {
+	return units.alt(attr.value());
+}
+
 int Geometry::setFlag(const pugi::char_t * name) {
 	pugi::xml_node node = fg_xml.find_child_by_attribute("Type","name",name);
 	if (! node) {
@@ -153,6 +157,152 @@ inline int inWedge(double x, double y, double z,const char * type) {
 	return (x-y) < 1e-10;
 }
 
+inline int Geometry::transformSTL( int ntri, STL_tri * tri, pugi::xml_node n) {
+        if (n.attribute("Xrot")) {
+                double v = units.alt(n.attribute("Xrot").value());
+                printf("STL: rotating X axis %lf (%lf deg)\n",v,v/4./atan(1.)*180);
+                double y,z;
+                for (int i=0; i<ntri; i++) {
+                        y = tri[i].p1[1]; z = tri[i].p1[2];
+                        tri[i].p1[1] = cos(v) * y - sin(v) * z;
+                        tri[i].p1[2] = sin(v) * y + cos(v) * z;
+                        y = tri[i].p2[1]; z = tri[i].p2[2];
+                        tri[i].p2[1] = cos(v) * y - sin(v) * z;
+                        tri[i].p2[2] = sin(v) * y + cos(v) * z;
+                        y = tri[i].p3[1]; z = tri[i].p3[2];
+                        tri[i].p3[1] = cos(v) * y - sin(v) * z;
+                        tri[i].p3[2] = sin(v) * y + cos(v) * z;
+                }
+        }
+        if (n.attribute("scale")) {
+                double v = units.alt(n.attribute("scale").value());
+                printf("STL: scaling %lf\n",v);
+                for (int i=0; i<ntri; i++) {
+                        tri[i].p1[0] = v * tri[i].p1[0];
+                        tri[i].p2[0] = v * tri[i].p2[0];
+                        tri[i].p3[0] = v * tri[i].p3[0];
+                        tri[i].p1[1] = v * tri[i].p1[1];
+                        tri[i].p2[1] = v * tri[i].p2[1];
+                        tri[i].p3[1] = v * tri[i].p3[1];
+                        tri[i].p1[2] = v * tri[i].p1[2];
+                        tri[i].p2[2] = v * tri[i].p2[2];
+                        tri[i].p3[2] = v * tri[i].p3[2];
+                }
+        }
+        if (n.attribute("x")) {
+                double v = units.alt(n.attribute("x").value());
+                printf("STL: move in x %lf\n",v);
+                for (int i=0; i<ntri; i++) {
+                        tri[i].p1[0] += v;
+                        tri[i].p2[0] += v;
+                        tri[i].p3[0] += v;
+                }
+        }
+        if (n.attribute("y")) {
+                double v = units.alt(n.attribute("y").value());
+                printf("STL: move in y %lf\n",v);
+                for (int i=0; i<ntri; i++) {
+                        tri[i].p1[1] += v;
+                        tri[i].p2[1] += v;
+                        tri[i].p3[1] += v;
+                }
+        }
+        if (n.attribute("z")) {
+                double v = units.alt(n.attribute("z").value());
+                printf("STL: move in z %lf\n",v);
+                for (int i=0; i<ntri; i++) {
+                        tri[i].p1[2] += v;
+                        tri[i].p2[2] += v;
+                        tri[i].p3[2] += v;
+                }
+        }
+        for (int i=0; i<ntri; i++) {
+                tri[i].p1[0] += 1e-7 - 0.5;
+                tri[i].p2[0] += 1e-7 - 0.5;
+                tri[i].p3[0] += 1e-7 - 0.5;
+                tri[i].p1[1] += 1e-7 - 0.5;
+                tri[i].p2[1] += 1e-7 - 0.5;
+                tri[i].p3[1] += 1e-7 - 0.5;
+                tri[i].p1[2] += 1e-7 - 0.5;
+                tri[i].p2[2] += 1e-7 - 0.5;
+                tri[i].p3[2] += 1e-7 - 0.5;
+        }
+}
+
+inline int Geometry::loadSTL( lbRegion reg, pugi::xml_node n) {
+        char header[80];
+        STL_tri * tri;
+        int ntri;
+	if (! n.attribute("file")) {
+		std::cerr << "No 'file' attribute in 'STL' element in xml conf\n";
+		return -1;
+	}
+	printf("------ STL -----\n");
+	FILE * f = fopen(n.attribute("file").value(),"rb");
+	if (f == NULL) {
+		std::cerr << "'STL' element:" << n.attribute("file").value() << "doesn't exists or cannot be opened\n";
+		return -1;
+	}
+	fread(header, 80, sizeof(char), f);
+	fread(&ntri, 1, sizeof(int), f);
+	tri = (STL_tri*) malloc(ntri * sizeof(STL_tri));
+	char * lev = (char*) malloc(reg.size() * sizeof(char));
+	for (int i=0; i<reg.size(); i++) lev[i] = 0;
+	printf("%d x %d = %d\n",ntri,sizeof(STL_tri),ntri * sizeof(STL_tri));
+ 	fread(tri, ntri, sizeof(STL_tri), f);
+	fclose(f);
+	
+	printf("Number of triangles: %d\n", ntri);
+	transformSTL(ntri, tri, n);
+	for (int i=0; i<ntri; i++) {
+                int minx, maxx, minz, maxz;
+                minx = ceil(tri[i].p1[0]);
+                if (tri[i].p2[0] < minx) minx = ceil(tri[i].p2[0]);
+                if (tri[i].p3[0] < minx) minx = ceil(tri[i].p3[0]);
+                maxx = floor(tri[i].p1[0]);
+                if (tri[i].p2[0] > maxx) maxx = floor(tri[i].p2[0]);
+                if (tri[i].p3[0] > maxx) maxx = floor(tri[i].p3[0]);
+                minz = ceil(tri[i].p1[2]);
+                if (tri[i].p2[2] < minz) minz = ceil(tri[i].p2[2]);
+                if (tri[i].p3[2] < minz) minz = ceil(tri[i].p3[2]);
+                maxz = floor(tri[i].p1[2]);
+                if (tri[i].p2[2] > maxz) maxz = floor(tri[i].p2[2]);
+                if (tri[i].p3[2] > maxz) maxz = floor(tri[i].p3[2]);
+                double v[2],v1[2],v2[2],c0,c1,c2,c3;
+                v1[0] = tri[i].p2[0] - tri[i].p1[0];
+                v1[1] = tri[i].p2[2] - tri[i].p1[2];
+                v2[0] = tri[i].p3[0] - tri[i].p1[0];
+                v2[1] = tri[i].p3[2] - tri[i].p1[2];
+                c0 = v1[0]*v2[1] - v1[1]*v2[0];
+        	for (int x=minx; x<=maxx; x++)
+        	for (int z=minz; z<=maxz; z++) {
+        	        v[0] = x - tri[i].p1[0];
+        	        v[1] = z - tri[i].p1[2];
+        	        c1 = v1[0]*v[1] - v1[1]*v[0];
+        	        c2 = v[0]*v2[1] - v[1]*v2[0];
+                        c1 /= c0; c2 /= c0;
+                        if ((c1 >= 0) && (c2 >= 0) && (c1+c2 <= 1)) {
+                                c3 = 1. - c1 - c2;
+                                double h = tri[i].p1[1]*c3 + tri[i].p2[1]*c1 + tri[i].p3[1]*c2;
+                                for (int y=reg.dy; y<=h; y++) {
+//                                        printf("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
+                                        if (reg.isIn(x,y,z)) lev[reg.offset(x,y,z)] ++;
+                                }
+                        }                                
+        	}
+	}
+	for (int x=reg.dx; x<reg.dx+reg.nx; x++)
+	for (int y=reg.dy; y<reg.dy+reg.ny; y++)
+	for (int z=reg.dz; z<reg.dz+reg.nz; z++) {
+	        if (lev[reg.offset(x,y,z)] % 2 == 1) {
+//                        printf("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
+	                Dot(x,y,z);
+                }
+	}
+	free(tri);
+	free(lev);
+	return 0;
+}
 
 int Geometry::Draw(pugi::xml_node& node)
 {
@@ -187,6 +337,9 @@ int Geometry::Draw(pugi::xml_node& node)
 					Dot(x,y,z);
 				}
 			}
+		} else if (strcmp(n.name(),"STL") == 0) {
+			DEBUG1(std::cout <<"[" << D_MPI_RANK << "] " << "Filling stl geometry with flag " << fg << " (" << fg_mask << "): "; reg.print(); )
+			if (loadSTL(reg, n)) return -1;
 		} else if (strcmp(n.name(),"Text") == 0) {
 			lbRegion crop = getRegion(n.parent());
 			crop = region.intersect(crop);

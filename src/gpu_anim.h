@@ -173,9 +173,9 @@ struct GPUAnimBitmap {
         switch (key) {
             case 27:
                 GPUAnimBitmap*   bitmap = *(get_bitmap_ptr());
-//                if (bitmap->animExit) bitmap->animExit( bitmap->dataBlock );
-//                bitmap->free_resources();
-//                exit(0);
+                if (bitmap->animExit) bitmap->animExit( bitmap->dataBlock );
+                bitmap->free_resources();
+                exit(0);
         }
     }
 

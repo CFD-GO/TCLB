@@ -49,6 +49,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 {
 	reverse_save=0;
 	total_iterations = 0;
+	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
@@ -161,6 +162,7 @@ void Lattice::startRecord()
 	clearAdjoint();
 	clearGlobals();
 	settings_record.clear();
+	settings_i=0;
 }
 
 // Saves solution to files
@@ -380,6 +382,10 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 		container->RunInterior_Adj (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior_Globs_Adj(kernelStream); break;
+	case ITER_NO | ITER_STEADY:
+		container->RunInterior_SAdj (kernelStream); break;
+	case ITER_GLOBS | ITER_STEADY:
+		container->RunInterior_Globs_SAdj(kernelStream); break;
 	}	
 
         MPIStream_B();
@@ -390,6 +396,10 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 		container->RunBorder_Adj (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder_Globs_Adj(kernelStream); break;
+	case ITER_NO | ITER_STEADY:
+		container->RunBorder_SAdj (kernelStream); break;
+	case ITER_GLOBS | ITER_STEADY:
+		container->RunBorder_Globs_SAdj(kernelStream); break;
 	}	
 	DEBUG_M;
         CudaDeviceSynchronize();
@@ -573,6 +583,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 // Destructor
 Lattice::~Lattice()
 {
+        CudaAllocFreeAll();
 	container->Free();
 	for (int i=0; i<nSnaps; i++) {
 		Snaps[i].Free();
@@ -711,6 +722,7 @@ void Lattice::Iterate(int niter, int iter_type)
 	} else {
 	        switch (iter_type & ITER_TYPE) {
 	        case ITER_ADJOINT:
+	                iter_type |= ITER_STEADY;
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
 					container->clearGlobals();
@@ -957,6 +969,7 @@ double Lattice::getObjective() {
 
 void Lattice::setSetting(int i, real_t tmp) {
 	settings[i] = tmp;
+        printf("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
 	setConstSetting(i,tmp);
 }
 

@@ -3,6 +3,15 @@
 
 #include "unit.h"
 
+struct __attribute__((__packed__)) STL_tri {
+        float norm[3];
+        float p1[3];
+        float p2[3];
+        float p3[3];
+        short int v;
+};
+
+
 class Geometry {
 public:
   flag_t * geom;
@@ -20,9 +29,12 @@ private:
   int setMask(const pugi::char_t * name);
   int Draw(pugi::xml_node&);
   int loadZone(const char * name);
+  int loadSTL( lbRegion reg, pugi::xml_node n);
+  int transformSTL( int, STL_tri*, pugi::xml_node n);
   lbRegion getRegion(const pugi::xml_node& node);
   int val(pugi::xml_attribute attr, int def);
   int val(pugi::xml_attribute attr);
+  double val_d(pugi::xml_attribute attr);
   flag_t Dot(int x, int y, int z);
 };
 

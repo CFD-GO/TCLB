@@ -23,4 +23,14 @@ AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0P
 AddSetting(name="InletDensity", default=1, comment='inlet density')
 
 AddGlobal(name="PressDiff", comment='pressure loss')
+AddGlobal(name="Drag", comment='pressure loss')
+AddGlobal(name="Lift", comment='pressure loss')
+AddGlobal(name="MaterialPenalty", comment='material penalty')
+AddGlobal(name="Material", comment='material')
+
+AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of porocity (-infty,1)')
+AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
+
+AddNodeType("Porous","ADDITIONALS")
+AddSetting(name="InitPorocity", comment='initial porocity of Porous nodes')
 

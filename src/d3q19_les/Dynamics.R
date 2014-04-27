@@ -36,7 +36,6 @@ AddDensity(
 	group="f"
 )
 
-f = PV(Density$name)
 
 AddDensity(
 	name = "w",
@@ -45,7 +44,7 @@ AddDensity(
 	parameter=T
 )
 
-f = PV(Density$name[Density$group=="f"])
+f = PV(DensityAll$name[DensityAll$group=="f"])
 
 rho = PV("rho")
 J = PV(c("Jx","Jy","Jz"))
@@ -133,6 +132,28 @@ Sy = rbind(
 	PV(1.98)
 )
 	
+} else {
+Sy = rbind(
+	PV(0),
+	PV(1),
+	PV(1),
+	PV(0),
+	PV(1),
+	PV(0),
+	PV(1),
+	PV(0),
+	PV(1),
+	PV("omega"),
+	PV(1),
+	PV("omega"),
+	PV(1),
+	PV("omega"),
+	PV("omega"),
+	PV("omega"),
+	PV(1),
+	PV(1),
+	PV(1)
+)
 }
 
 
@@ -141,8 +162,9 @@ AddQuantity( name="U",unit="m/s",vector=T)
 AddQuantity( name="W")
 AddQuantity( name="WB",adjoint=T)
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+# AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="tau0", comment='relaxation time')
+AddSetting(name="nu", tau0='(3*nu + 0.5)', default=1.6666666, comment='viscosity')
 AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
 AddSetting(name="InletDensity", default=1, comment='inlet density')
@@ -153,3 +175,16 @@ AddGlobal(name="EnergyFlux", comment='pressure loss')
 AddGlobal(name="PressureFlux", comment='pressure loss')
 AddGlobal(name="PressureDiff", comment='pressure loss')
 AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate material parameter')
+
+AddSetting(name="Smag", default=0, comment='Smagorynsky constant')
+
+
+
+
+SecondMoments = cbind(U**2,U[,1]*U[,2],U[,2]*U[,3],U[,3]*U[,1])
+Qtens = R[selR] %% (MRTMAT.inv %*% SecondMoments)[selR,]
+Qnorm2 = sum(Qtens * Qtens * c(1,1,1,2,2,2))
+tau_t = PV("tau_t")
+
+
+
