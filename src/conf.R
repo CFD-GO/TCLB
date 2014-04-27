@@ -36,22 +36,21 @@ table_from_text = function(text) {
 	tab
 }
 
-m.regmatches = function(a,r) {
-	lapply(1:length(r), function(i) {
-		a_=a[[i]]
-		s =r[[i]]
-		sapply(1:length(s),function(j) {
-			substr(a_,s[j],s[j]+attr(s,"match.length")[j]-1)
-		})
-	})
-}
-
 c_table_decl = function(d) {
 	d = as.character(d)
 	sel = grepl("\\[",d)
 	if(any(sel)) {
 		w = d[sel]
-		w = m.regmatches(w,regexec("([^[]*)\\[([^\\]]*)]",w))
+#		w = regmatches(w,regexec("([^[]*)\\[([^\\]]*)]",w))
+		r = regexpr("\\[([^\\]]*)]",w)
+		w = lapply(1:length(r), function(i) {
+			a_=w[i]
+			c(a_,
+				substr(a_,1,r[i]-1),
+				substr(a_,r[i]+1,r[i]+attr(r,"match.length")[i]-2)
+			)
+		})
+
 		w = do.call(rbind,w)
 		w = data.frame(w)
 		w[,3] = as.integer(as.character(w[,3]))
