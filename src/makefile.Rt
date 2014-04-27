@@ -19,7 +19,9 @@ include dep.mk
 #	cd ..; ./configure
 
 ../config.mk:
-	@echo "No config.mk. run configure!"
+	@echo "!---------------------------!"
+	@echo "!  Run configure            !"
+	@echo "!---------------------------!"
 	@exit 1
 
 .PRECIOUS:$(SOURCE) $(HEADERS)
