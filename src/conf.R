@@ -198,6 +198,7 @@ AddNodeType("DesignSpace","DESIGNSPACE")
 source("Dynamics.R")
 
 NodeShift = 1
+NodeShiftNum = 0
 NodeTypes = unique(NodeTypes)
 NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	n = nrow(tab)
@@ -206,7 +207,9 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	tab$Index = tab$name
 	tab$value = NodeShift*(1:n)
 	tab$mask  = NodeShift*((2^l)-1)
-	NodeShift <<- NodeShift * (2^l)
+	tab$shift = NodeShiftNum
+	NodeShift    <<- NodeShift * (2^l)
+	NodeShiftNum <<- NodeShiftNum + l
 	tab
 }))
 
@@ -220,7 +223,6 @@ i = !duplicated(NodeTypes$group)
 Node_Group=NodeTypes$mask[i]
 names(Node_Group) = NodeTypes$group[i]
 Node_Group["ALL"] = sum(Node_Group)
-
 
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));

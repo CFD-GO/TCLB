@@ -20,7 +20,21 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 
 	{	flag_t * NodeType = new flag_t[size];
 		lattice->GetFlags(reg, NodeType);
-		vtkFile.WriteField("flag",NodeType);
+		if (false) {
+			vtkFile.WriteField("flag",NodeType);
+		} else {
+			unsigned char * small = new unsigned char[size];
+			<?R
+			i = !duplicated(NodeTypes$group)
+			for (n in rows(NodeTypes[i,])) {
+				?>
+				for (size_t i=0;i<size;i++) {
+					small[i] = (NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>;
+				}
+				vtkFile.WriteField("<?%s n$group ?>",small);
+			<?R } ?>
+			delete[] small;
+		}
 		delete[] NodeType;
 	}
 
