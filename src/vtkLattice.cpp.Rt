@@ -8,7 +8,7 @@
 #include "cross.h"
 #include "vtkLattice.h"
 
-int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
+int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what)
 {
 	int size;
 	lbRegion reg = lattice->region;
@@ -20,31 +20,34 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 
 	{	flag_t * NodeType = new flag_t[size];
 		lattice->GetFlags(reg, NodeType);
-		if (false) {
+		if (what->in("flag")) {
 			vtkFile.WriteField("flag",NodeType);
-		} else {
-			unsigned char * small = new unsigned char[size];
-			<?R
-			i = !duplicated(NodeTypes$group)
-			for (n in rows(NodeTypes[i,])) {
-				?>
+		}
+		unsigned char * small = new unsigned char[size];
+		<?R
+		i = !duplicated(NodeTypes$group)
+		for (n in rows(NodeTypes[i,])) {
+		?>
+			if (what->in("<?%s n$group ?>")) {
 				for (size_t i=0;i<size;i++) {
 					small[i] = (NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>;
 				}
 				vtkFile.WriteField("<?%s n$group ?>",small);
-			<?R } ?>
-			delete[] small;
-		}
+			}
+		<?R } ?>
+		delete[] small;
 		delete[] NodeType;
 	}
 
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	{
-		double v = units.alt("<?%s q$unit ?>");
-		<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-		lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
-		vtkFile.WriteField("<?%s q$name ?>",tmp);
-		delete[] tmp;
+		if (what->in("<?%s q$name ?>")) {
+			double v = units.alt("<?%s q$unit ?>");
+			<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+			lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+			vtkFile.WriteField("<?%s q$name ?>",tmp);
+			delete[] tmp;
+		}
 	}
 	<?R }; ifdef(); ?>
 
