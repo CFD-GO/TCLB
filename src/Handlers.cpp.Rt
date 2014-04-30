@@ -126,7 +126,6 @@ class cbVTK: public Callback {
 	}
 	public:
 	int DoIt() {
-	        s.print();
 		Callback::DoIt();
 		return solver->writeVTK(nm.c_str(), &s);
 	};
