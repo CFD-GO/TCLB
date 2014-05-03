@@ -46,6 +46,7 @@ SOURCE_ALL+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice
 SOURCE_ALL+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp
 SOURCE_ALL+=Geometry.h def.h utils.h unit.h
 SOURCE_ALL+=SUMMARY
+SOURCE_ALL+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
 SOURCE_REST=makefile dep.mk
 ADDITIONALS=config.mk.in config.h.in tools README.md
@@ -91,6 +92,10 @@ for (d in destinations) {
 <?%s m ?>/source:  | <?%s d ?>/<?%s m ?>
 
 <?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
+	@echo "  DONE       $@"
+
+<?%s m ?>/doc: <?%s m ?>/source
+	@cd <?%s d ?>/<?%s m ?>; doxygen conf.doxygen
 	@echo "  DONE       $@"
 
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
