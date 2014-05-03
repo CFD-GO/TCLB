@@ -35,6 +35,10 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny );
 int MainLoop( uchar4* outputBitmap, Solver *d, int ticks );
 void MainFree( Solver *d);
 
+/// Solver initializer
+/**
+	This stuff should be probably in the constructor
+*/
 	void Solver::Init() {
 		iter = 0;
 		iter_type = ITER_NORM;
@@ -48,6 +52,7 @@ void MainFree( Solver *d);
 		info.outpath[0] ='\0';
 	}
 
+/// Solver destructor. Deletes most of the stuff
 	Solver::~Solver() {
 		if (lattice) delete lattice;
 #ifdef GRAPHICS
@@ -58,6 +63,8 @@ void MainFree( Solver *d);
 		if (geometry) delete geometry;
 	}
 
+
+/// Initializes the Save mechanism
 	void Solver::saveInit(int n){
 		n++;
 		if (saveN != 0) {
@@ -74,11 +81,23 @@ void MainFree( Solver *d);
 		}
 		outGlobalFile("SAVE", ".txt", saveFile[saveN]);
 	}
-
+	
+/// Add a unit gauge
+/**
+	Add an equation for the units like "1m/s=10"
+	\param nm Name of the setting/equation (only for keeping score)
+	\param val Value of the setting (eg. 1m/s)
+	\param gauge How much it should be equal (eg. 10)
+*/
 	void Solver::setUnit(std::string nm, std::string val, std::string gauge) {
 		units.setUnit(nm, units(val)/units(gauge), 1);
 	}
 
+/// Calculate the scales
+/**
+	Runs the Gauge procedure on the Units object connected to the solver
+	This causes the calculate all the unit scales
+*/
 	void Solver::Gauge() {
 		units.makeGauge();
 		if (mpi_rank == 0) {
@@ -105,6 +124,11 @@ void MainFree( Solver *d);
 		printf("[%d] Setting output path to: %s\n", D_MPI_RANK, info.outpath);
 	}
 
+/// Inits the csv Log file
+/*
+	Inits the csv Log file with the header
+	/param filename Path to the Log file
+*/
 	int Solver::initLog(const char * filename)
 	{ 
 		if (mpi.rank == 0) {
@@ -130,6 +154,10 @@ void MainFree( Solver *d);
                 return 0;
 	}
 
+/// Writes to the csv Log file.
+/** Oh, yes it does
+	\param filename Path to the Log file
+*/
 	int Solver::writeLog(const char * filename)
 	{ 
 	        FILE * f = NULL;
@@ -164,6 +192,13 @@ void MainFree( Solver *d);
 		printf("[%d] %8d it                      %s\n", D_MPI_RANK, iter, str);
 	}
 
+
+///	Writes state of lattive to VTK.
+/**
+	Writes all Quantities and Geometry features to a VTI file with vtkWriteLattice
+	\param nm Appendix added to the name of the vti file written
+	\param s Set of fields/quantities/geometry features to write
+*/
 	int Solver::writeVTK(const char * nm, name_set * s) {
 		print("writing vtk");
 		char filename[STRING_LEN];
@@ -172,6 +207,13 @@ void MainFree( Solver *d);
 		return ret;
 	}
 
+
+
+///	Writes state of lattive to a binary file.
+/**
+	Writes all the data of the lattice with vtkWriteLattice
+	\param nm Appendix added to the name of the bin file written
+*/
 	int Solver::writeBIN(const char * nm) {
 		print("writing bin");
 		char filename[STRING_LEN];
@@ -180,6 +222,14 @@ void MainFree( Solver *d);
 		return ret;
 	}
 
+///	Sets the size of the Lattice
+/**
+	Sets the size and allocates all the needed buffers etc.
+	\param nx X size of the lattice
+	\param ny Y size of the lattice
+	\param nz Z size of the lattice (1 for 3D)
+	\param ns Number of Snapshots allocated
+*/
 	int Solver::setSize(int nx, int ny, int nz, int ns) {
 		info.region.nx = nx;
 		info.region.ny = ny;
@@ -195,6 +245,10 @@ void MainFree( Solver *d);
 		return 0;
 	}
 
+///	Decompose the lattice for parallel processing
+/**
+	Divides the lattice into simmilar-size parts for MPI parallel processing
+*/
 	int Solver::MPIDivision() {
 		if (mpi_rank == 0) {
 			Par_sizes = new int[mpi_size];
@@ -271,6 +325,12 @@ void MainFree( Solver *d);
 		return 0;
 	}
 
+
+/// Initializes all the internals of the Solver
+/**
+	Initializes Lattice, settings, etc.
+	\param ns Number of Snapshots to allocate
+*/
 	int Solver::InitAll(int ns) {
 	        // Making a window
 	        #ifdef GRAPHICS
@@ -290,6 +350,10 @@ void MainFree( Solver *d);
 		return 0;
 	}
 
+/// Runs the main loop (GUI)
+/**
+	Runs the main loop in the case of the GUI version
+*/
 	int Solver::RunMainLoop() {
 		#ifdef GRAPHICS
         		bitmap->mouse_move( (void (*)(void*,int,int,int,int)) MouseMove);
@@ -298,6 +362,11 @@ void MainFree( Solver *d);
 		#endif
 		return 0;
 	}
+
+/// Idle function of main loop (GUI)
+/**
+	Part of the loop in the case of GUI version
+*/
 	int Solver::EventLoop(){
 		#ifdef GRAPHICS
 			bitmap->idle_func();
@@ -307,6 +376,11 @@ void MainFree( Solver *d);
 	}
 
 
+/// Get the dimension of the parameter space
+/**
+	Gives the dimension of the parameter space defined (Now)
+	Only non-zero on 0-rank process
+*/
 int Solver::getPars() {
 	int n = region.size();
 	int j=0;
@@ -328,6 +402,12 @@ int Solver::getPars() {
 	return 0;
 }
 
+
+/// Get the parameter vector
+/**
+	Retrives the parameter vector (gather on 0-rank process)
+	\param wb vector of doubles to store the parameter vector
+*/
 int Solver::getPar(double * wb) {
 	int n = region.size();
 	int k = Par_size;
@@ -349,6 +429,12 @@ int Solver::getPar(double * wb) {
 	delete[] buf;
 } 
 
+/// Save component/density
+/**
+	Saves a component/density in a binary file
+	\param filename Path/prefix of the file to save
+	\param comp Density name to save
+*/
 int Solver::saveComp(const char* filename, const char* comp) {
 	int n = region.size();
 	char fn[STRING_LEN];
@@ -366,6 +452,12 @@ int Solver::saveComp(const char* filename, const char* comp) {
 	delete[] buf;
 } 
 
+/// Load component/density
+/**
+	Loades a compoment/density from a binary file
+	\param filename Path/prefix of the file to save
+	\param comp Density name to load
+*/
 int Solver::loadComp(const char* filename, const char* comp) {
 	int n = region.size();
 	char fn[STRING_LEN];
@@ -386,6 +478,12 @@ int Solver::loadComp(const char* filename, const char* comp) {
 	delete[] buf;
 } 
 
+
+/// Get the gradient wrt. parameter vector
+/**
+	Retrives the gradient of the objective wrt. parameter vector (gather on 0-rank process)
+	\param wb vector of doubles to store the parameter vector
+*/
 int Solver::getDPar(double * wb) {
 	int n = region.size();
 	int k = Par_size;
@@ -410,6 +508,11 @@ int Solver::getDPar(double * wb) {
 	delete[] buf;
 } 
 
+/// Set the parameter vector
+/**
+	Sets the parameter vector (scatter from 0-rank process)
+	\param w vector of doubles to with parameter values
+*/
 int Solver::setPar(const double * w) {
 	static int en=0;
 	en++;
@@ -447,6 +550,10 @@ int Solver::setPar(const double * w) {
 	delete[] buf;
 } 
 
+/// Mouse Move callback (GUI)
+/**
+	Function called when mouse is moved, wile button pressed in GUI version
+*/
 void MouseMove( Solver * data, int x, int y, int nx, int ny )
 {
 	lbRegion r(
@@ -458,14 +565,21 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
 }
 
-// Main loop function
+/// Refresh callback (GUI)
+/**
+	Function called when refresh of the window is needed.
+	Renders the graphics inside of the window in GUI version
+*/
 int MainLoop( uchar4* outputBitmap, Solver *d, int ticks )
 {
 	d->lattice->Color(outputBitmap); // Updating graphics
 	return 0;
 }
 
-// Function for cleanup. Free memory, etc.
+/// Clean-up
+/**
+	Empty now. TODO
+*/
 void MainFree( Solver *d ) {
 
 }

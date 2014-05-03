@@ -46,29 +46,33 @@ struct InfoBlock {
         char outpath[STRING_LEN];
 };
 
+
+/// Main solver class
+/// Some more
 class Solver {
     public:
-	InfoBlock info;
-	MPIInfo mpi;
-	MPI_Comm mpi_comm;
-        Lattice * lattice; // Main lattice object
-	Geometry * geometry;
-	lbRegion region;
-        int iter; // Iteration Number
-        int opt_iter;
-	int mpi_rank;
-	int mpi_size;
-	std::vector<Handler> hands;
-	int steps;
-	int saveN, saveI;
-	char ** saveFile;
-	UnitEnv units;
-	int iter_type;
+	InfoBlock info; ///< Information common among the cores
+	MPIInfo mpi; ///< Information on MPI connectivity
+	MPI_Comm mpi_comm; ///< Solver's MPI_COMM_WORLD
+        Lattice * lattice; ///< Main Lattice object
+	Geometry * geometry; ///< Main Geometry object
+	lbRegion region; ///< Global region
+        int iter; ///< Iteration (Now)
+        int opt_iter; ///< Optimization iteration
+	int mpi_rank; ///< MPI rank
+	int mpi_size; ///< MPI size
+	std::vector<Handler> hands; ///< Stack of handlers
+	int steps; ///< steps to the next monitor-callback
+	int saveN, saveI; ///< No idea what it is TODO
+	char ** saveFile; ///< It shouldn't be here TODO
+	UnitEnv units; ///< Units object connected to this lattice
+	int iter_type; ///< Iteration type (Now) - primal/adjoint/etc.
 #ifdef GRAPHICS
-	GPUAnimBitmap * bitmap;
+	GPUAnimBitmap * bitmap; ///< Maybe we have a bitmap for animation
 #endif
 	void print(const char * str);
 	double LogScales[ GLOBALS + SETTINGS + SCALES ];
+	
 	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
 	~Solver();
 	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_) { Init(); };
@@ -78,12 +82,29 @@ class Solver {
         inline void setHeight(int &h){region.ny = h;};
         inline int getWidth(){return region.nx;};
         inline int getHeight(){return region.ny;};
+/// Generate a Iteration-specific filename
+/**
+ Generate a filename starting with the output prefix, continuing with the name, process number,
+ iteration number and suffix
+ \param name Appendix added to the filename
+ \param suffix Suffix (.vti, .csv, etc) of the file
+ \param out Buffer for the returned file name
+*/
         inline void outIterFile(const char * name, const char * suffix, char * out) {
                 sprintf(out, "%s_%s_P%02d_%08d%s", info.outpath, name, mpi_rank, iter, suffix);
         };
+/// Generate a Case-specific filename
+/**
+ Generate a filename starting with the output prefix, continuing with the name, process number,
+ and finishing with a suffix
+ \param name Appendix added to the filename
+ \param suffix Suffix (.vti, .csv, etc) of the file
+ \param out Buffer for the returned file name
+*/
         inline void outGlobalFile(const char * name, const char * suffix, char * out) {
                 sprintf(out, "%s_%s_P%02d%s", info.outpath, name, mpi_rank, suffix);
         };
+/// Set output prefix
 	void setOutput(const char * out);
 	void setUnit(std::string, std::string, std::string);
 	void Gauge();
@@ -97,7 +118,9 @@ class Solver {
 	int RunMainLoop();
 	int EventLoop();
 
-	int Par_size, *Par_sizes, *Par_disp;
+	int Par_size; ///< Parameter space dimension
+	int *Par_sizes; ///< Parameter space dimensions on all the processors
+	int *Par_disp; ///< Offsets in the Parameter vector for all the processors
 	int getPars();
 	int getDPar(double * wb);
 	int getPar(double * wb);
@@ -105,12 +128,25 @@ class Solver {
 	int saveComp(const char*, const char*);
 	int loadComp(const char*, const char*);
 
+/// Gets a Global index by name
+/**
+ Gets the index of a Global by it's name
+ \param nm Name of the Global
+ \return Index of the Global requested
+*/
 	inline int getGlobal(const char * nm) { <?R
         for (v in rows(Globals)) { ?>
         	if (strcmp(nm,"<?%s v$name ?>") == 0) return <?%s v$Index ?>; <?R
 	} ?>
 	        return -1;
 	};
+
+/// Gets a Global name by index
+/**
+ Gets the string name of a Global by it's index
+ \param i Index of the Global
+ \return char * constant name of the Global requested, or "UNKNOWN" if the index is wrong
+*/
 	inline char * getGlobal(const int i) {
 	        switch(i) { <?R
 	for (v in rows(Globals)) { ?>
@@ -122,7 +158,12 @@ class Solver {
 	
 };   
 
-
+/// Gets a Setting index by name
+/**
+ Gets the index of a Setting by it's name
+ \param str Name of the Setting
+ \return Index of the Setting requested
+*/
 inline int SettingByName(const char * str) { <?R
  for (v in rows(Settings)) { ?>
   if (strcmp("<?%s v$name?>",str) == 0) return <?%s v$Index ?>; <?R
@@ -130,6 +171,12 @@ inline int SettingByName(const char * str) { <?R
  return -1;
 }
 
+/// Gets a Global index by name
+/**
+ Gets the index of a Global by it's name
+ \param str Name of the Global
+ \return Index of the Global requested
+*/
 inline int GlobalByName(const char * str) { <?R
  for (v in rows(Globals)) { ?>
   if (strcmp("<?%s v$name?>",str) == 0) return <?%s v$Index ?>; <?R
@@ -137,6 +184,13 @@ inline int GlobalByName(const char * str) { <?R
  return -1;
 }
 
+
+/// Gets the index of the Setting related to a weight of a Global in the objective
+/**
+ Gets the index of the Setting for the weight of some Global in the objective
+ \param i Index of the Global
+ \return Index of the Setting related to the Global
+*/
 inline int GlobalInObj(int i) { <?R 
    i = which(Settings$name == paste(Globals$name[1],"InObj",sep=""));
    if (length(i) != 1) { ?>
