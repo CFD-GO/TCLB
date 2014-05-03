@@ -32,23 +32,28 @@
 
 using namespace std;
 
+/// Class storing all the processor-common information
+/**
+ It is used to broadcast all the common information among the processes
+ */
 struct InfoBlock {
-	char conffile[STRING_LEN];
-	lbRegion region;
-        lbRegion fileregion; // Size of input mesh
+	char conffile[STRING_LEN]; ///< Path to the config file
+	lbRegion region; ///< Global region of the lattice
 <?R
         for (v in rows(Settings)) { ?>
-	real_t setting_<?%s v$name ?>;
-	int ifset_<?%s v$name ?>; <?R
+	real_t setting_<?%s v$name ?>; ///< Value of [<?%s v$comment ?>]
+	int ifset_<?%s v$name ?>; ///< True if [<?%s v$comment ?>] was set<?R
 	}
 ?>
-	int xsdim,ysdim;
-        char outpath[STRING_LEN];
+	int xsdim,ysdim; ///< X and Y thread divisions
+        char outpath[STRING_LEN]; ///< Output prefix
 };
 
 
 /// Main solver class
-/// Some more
+/**
+ This class is responsible for the solver initialization and run
+*/
 class Solver {
     public:
 	InfoBlock info; ///< Information common among the cores
