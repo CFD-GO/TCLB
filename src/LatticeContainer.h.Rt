@@ -2,7 +2,9 @@
 	source("conf.R");
 	c_header()
 ?>
-
+/** \file LatticeContainer.h
+  File defining LatticeContainer and some additional CUDA functions
+*/
 
 #ifndef SETTINGS_H
 <?R
@@ -22,7 +24,12 @@
 
 /// Container class used for storing all the data needed on GPU
 /**
-  Main class for storing the data needed on GPU and running kernels
+  Main class for storing the data needed on GPU and running kernels.
+  LatticeContainer is the container class which
+  owns all the data needed by the kernels on device
+  like pointers to the global gpu memory etc.
+  It defines push/pull/pop functions allowing access
+  to node data stored in memory.
 */
 class LatticeContainer {
 	public:

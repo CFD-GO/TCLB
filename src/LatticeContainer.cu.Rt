@@ -2,13 +2,9 @@
 	source("conf.R")
         c_header()
 ?>
-/*  File defining LatticeContainer and some additional CUDA f. */
-/*     LatticeContainer is the container class which           */
-/*       owns all the data needed by the kernels on device     */
-/*       like pointers to the global gpu memory etc.           */
-/*       It defines push/pull/pop functions allowing access    */
-/*       to node data stored in memory.                        */
-/*-------------------------------------------------------------*/
+/** \file LatticeContainer.cu
+  File defining LatticeContainer and some additional CUDA functions
+*/
 
 #include "Consts.h"
 #include "Global.h"
