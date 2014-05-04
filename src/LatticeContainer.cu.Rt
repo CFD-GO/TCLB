@@ -21,19 +21,19 @@
 int _xsdim = 0;
 int _ysdim = 1;
 
-// Fast modulo for one k
+/// Fast modulo for one k
 CudaDeviceFunction inline int mymod(int x, int k){
         if (x >= k) return x-k;   
         if (x < 0) return x+k;
         return x;
 }
 
-// clear mem (unused)
+/// Clear mem (unused)
 CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
 }
 
-// Init settings in const memory
+/// Init Settings with 0 in GPU constant memory
 void initSettings() {
 	real_t val = 0;
 <?R for (v in rows(Settings)) {
@@ -42,7 +42,12 @@ void initSettings() {
 	}} ?>
 }
 
-// Set setting in const memory
+/// Set Setting in GPU constant memory
+/**
+  Sets a Setting in the constant memory of GPU
+  \param i Index of the Setting
+  \param tmp value of the Setting
+*/
 void setConstSetting(int i, real_t tmp) {
 	switch (i) {
 <?R
@@ -54,7 +59,7 @@ void setConstSetting(int i, real_t tmp) {
 	}
 }
 
-// Get maximal number of threads for all the kernels on runtime
+/// Get maximal number of threads for all the kernels on runtime
 template <class N> dim3 GetThreads() {
 	dim3 ret;
 	CudaFuncAttributes * attr = new CudaFuncAttributes;
@@ -71,9 +76,9 @@ template <class N> dim3 GetThreads() {
 	return ret;
 }
 
-// SY - number of threads in Y direction
-// KY - number of blocks needed in Y direction to fill y
+/// Returns the number of blocks in Y direction
 template < class N > inline int getKY() { return 0; }
+/// Returns the number of threads in Y direction
 template < class N > inline int getSY() { return 0; }
 
 <?R for(tp in rows(Dispatch)) { ifdef(tp$adjoint_ver)
@@ -82,7 +87,7 @@ template < > inline int getKY< Node<?%s tp$suffix ?> >() { return kydim<?%s tp$s
 template < > inline int getSY< Node<?%s tp$suffix ?> >() { return sydim<?%s tp$suffix ?>; }
 <?R }; ifdef();?>
 
-// Initialize LatticeContainer
+/// Initialize Thread/Block number variables
 int InitDim(int ny) {
 	dim3 th; int ky;
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -101,7 +106,7 @@ int InitDim(int ny) {
 <?R }; ifdef();
 ?>}
 
-// Allocation of a buffer
+/// Allocation of a GPU memory Buffer
 void * BAlloc(size_t size) {
   char * tmp;
     ALLOCPRINT1;
@@ -115,12 +120,12 @@ void * BAlloc(size_t size) {
 	return (void *) tmp;
 }
 
-// Preallocation of a buffer (combines allocation into one big allocation)
+/// Preallocation of a buffer (combines allocation into one big allocation)
 void BPreAlloc(void ** ptr, size_t size) {
     CudaMalloc( ptr, size );
 }
 
-// Allocation of a FTabs (table with pointers to buffers)
+/// Allocation of memory for an FTabs
 void FTabs::Alloc(int nx,int ny,int nz) {
   size_t size;
   char * tmp;
@@ -138,7 +143,10 @@ void FTabs::Alloc(int nx,int ny,int nz) {
   <?R } ?>
 }
 
-// Preallocation of a FTabs (table with pointers to buffers)
+/// Preallocation of a FTabs
+/**
+  Aglomerates all the allocation into one big memory chunk
+*/
 void FTabs::PreAlloc(int nx,int ny,int nz) {
   size_t size;
   <?R for (m in NonEmptyMargin) { ?>
@@ -147,7 +155,7 @@ void FTabs::PreAlloc(int nx,int ny,int nz) {
   <?R } ?>
 }
 
-// Clearing of a FTags
+/// Clearing (zero-ing) of a FTabs
 void FTabs::Clear(int nx,int ny,int nz) {
   size_t size;
   <?R for (m in NonEmptyMargin) { ?>
@@ -156,7 +164,7 @@ void FTabs::Clear(int nx,int ny,int nz) {
   <?R } ?>
 }
 
-// Safe free
+/// NULL-safe free
 inline void MyFree(void * ptr) {
     if (ptr != NULL) {
         #ifdef DIRECT_MEM
@@ -168,7 +176,7 @@ inline void MyFree(void * ptr) {
     }
 }
 
-// Free FTabs
+/// Free FTabs memory
 void FTabs::Free() { <?R
     for (m in NonEmptyMargin) { ?>
     MyFree(<?%s m$name ?>); 
@@ -176,7 +184,7 @@ void FTabs::Free() { <?R
     } ?>
 }
 
-// Allocation of Container
+/// Allocation of memory of a container
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 {
     iter = 0;
@@ -206,7 +214,10 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     Globals = (real_t*)tmp;
 }
 
-// Destroy Container (cannot do a constructor and destructor - because this class lives on GPU)
+/// Destroy Container
+/**
+  cannot do a constructor and destructor - because this class lives on GPU
+*/
 void LatticeContainer::Free()
 {
     CudaFree( NodeType );
@@ -220,7 +231,7 @@ void LatticeContainer::Free()
 # Push/pull is constructed as a 3 level call
 #   in which every level dispatches every dimension in order: Z Y X
 #   in each dimension we check if we're goint out of our region
-#   and write to the border buffer in such case
+#   and write to the margin buffer in such case
 
 	push0 = function(a,pull=FALSE) {
 		if (pull) { ?>
@@ -333,7 +344,7 @@ void LatticeContainer::Free()
 # Pop is constructed as a 3 level call
 #   in which every level dispatches every dimension in order: Z Y X
 #   in each dimension we check if we're goint out of our region
-#   and read from a border buffer in such case
+#   and read from a margin buffer in such case
 
 	popX = function(dens,a,b,dx) {
 		if (dx > 0) { ?>
@@ -456,56 +467,56 @@ void LatticeContainer::Free()
 	}
 ?>
 
-// Push all densities
+/// Push all densities
 template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
 {
 <?R	InOut("push", "out", Density); ?>
 }
 
-// Push only parameters
+/// Push only parameters
 template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
 {
 <?R	InOut("push", "out", Density, sel=Density$parameter); ?>
 }
 
-// Push everything exept parameters
+/// Push everything exept parameters
 template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
 {
 <?R	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
 }
 
-// Opposite of push
+/// Opposite of push
 template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
 {
 <?R	InOut("pull", "out", Density); ?>
 }
 
-// Get densities
+/// Get densities
 template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
 {
 <?R	InOut("pop", "in", Density); ?>
 }
 
-// Get only type of node
+/// Get only type of node
 template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
 {
 <?R	InOut("type", "in", Density); ?>
 }
 
 #ifdef ADJOINT
-// Push all adjoint densities
+/// Push all adjoint densities
 template <class N> CudaDeviceFunction void LatticeContainer::push_adj(N & node) 
 {
 <?R	InOut("push", "adjout", DensityAD); ?>
 }
 
-// Opposite of push_adj
+/// Opposite of push_adj
 template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node) 
 {
 <?R	InOut("pull", "adjout", DensityAD); ?>
 }
 
-// Get adjoint densities
+/// Get adjoint densities
 template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
 {
 <?R	InOut("pop", "adjin", DensityAD); ?>
@@ -513,9 +524,11 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 #endif
 
 
-// Main Kernel
-//   iterates over all elements and runs them with RunElement function
-//   constContainer.dx/dy is to calculate only internal nodes
+/// Main Kernel
+/**
+  iterates over all elements and runs them with RunElement function.
+  constContainer.dx/dy is to calculate only internal nodes
+*/
 template <class N> CudaGlobalFunction void RunKernel()
 {
 	N now;
@@ -535,7 +548,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 	#endif
 }
 
-// BORDER_Z defines if we need to take Z direction in consiredation border/interior
+/// BORDER_Z defines if we need to take Z direction in consiredation border/interior
 //   if a model is 2D everything in the Z direction is interior
 <?R if (any(DensityAll$dz != 0)) {?>
 #define BORDER_Z // The model is 3D
@@ -589,8 +602,10 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 }
 */
 
-// Border Kernel
-//   iterates over border elements and runs them with RunElement function
+/// Border Kernel
+/**
+  iterates over border elements and runs them with RunElement function
+*/
 template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
@@ -617,7 +632,11 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 #endif
 }
 
-// Copies me(LatticeContainer) to the const gpu memory
+/// Copy oneself to the GPU constant memory
+/**
+  Copiers the container object to constContainer variable
+  in the constant memory of the GPU
+*/
 void LatticeContainer::CopyToConst() {
     fx=nx;
     fy=ny-1;
@@ -632,7 +651,11 @@ void LatticeContainer::CopyToConst() {
     CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));
 }
 
-// Run the border kernel
+/// Run the border kernel
+/**
+  Dispatch the kernel running RunElement on all border elements of the Lattice
+  \param borderStream CUDA Stream to which add the kernel run
+*/
 template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
     #ifdef BORDER_Z
 	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
@@ -641,7 +664,11 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderS
     #endif
 };
 
-// Run the interior kernel
+/// Run the interior kernel
+/**
+  Dispatch the kernel running RunElement on all interior elements of the lattice
+  \param interiorStream CUDA Stream to which add the kernel run
+*/
 template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
     int nnz;
     ky = getKY<N>();
@@ -657,16 +684,21 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
     #endif
 };
 
-// Type specific runs
+// Type specific runs (template specializations)
 <?R for(tp in rows(Dispatch)) {
 ifdef(tp$adjoint_ver) ?>
+/// Runs a Node_<?%s tp$suffix ?> dynamics on all border nodes
 void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream)   { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
+
+/// Runs a Node_<?%s tp$suffix ?> dynamics on all interior nodes
 void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
 <?R }
 ifdef(); ?>
  
-// Old function for graphics output
-//   calculates the color for one node
+/// Old function for graphics output
+/**
+  calculates the color for one node
+*/
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
     int offset = x+y*constContainer.nx;
@@ -708,7 +740,7 @@ if (isfinite(l)) {
     optr[offset].w = 255;
 }
 
-// kernel for graphics output
+/// Kernel for graphics output
 CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
   NodeToColor(
@@ -719,7 +751,11 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
   );
 }
 
-// Runs graphics kernel
+/// Runs kernel for rendering graphics
+/**
+  Runs the kernel for rendering graphics 
+  \param optr 4-component graphics buffer
+*/
 void LatticeContainer::Color( uchar4 *optr ) {
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
    CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr, nz/2));
@@ -730,7 +766,13 @@ void LatticeContainer::Color( uchar4 *optr ) {
         for (q in rows(Quantities))
         {
                 ifdef(q$adjoint); ?>
-// Kernel to calculate quantity <?%s q$name ?> over a region
+/// Calculate quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  \param r Lattice region to calculate the quantity
+  \param tab buffor to put the calculated result
+  \param scale Scale to rescale the result (for units)
+*/
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
 	int x = CudaBlock.x+r.dx;
