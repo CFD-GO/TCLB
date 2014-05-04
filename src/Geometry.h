@@ -3,6 +3,7 @@
 
 #include "unit.h"
 
+/// STL triangle structure
 struct __attribute__((__packed__)) STL_tri {
         float norm[3];
         float p1[3];
@@ -11,20 +12,20 @@ struct __attribute__((__packed__)) STL_tri {
         short int v;
 };
 
-
+/// Class responsible for constructing the table of flags/NodeTypes
 class Geometry {
 public:
-  flag_t * geom;
-  lbRegion region;
-  UnitEnv units;
+  flag_t * geom; ///< Main table of flags/NodeType's
+  lbRegion region; ///< Global Lattive region
+  UnitEnv units; ///< Units object for unit calculations
   Geometry(const lbRegion& r, const UnitEnv& units_);
   ~Geometry();
   int load(pugi::xml_node&);
   void writeVTI(char * filename);
 private:
-  flag_t fg;
-  flag_t fg_mask;
-  pugi::xml_node fg_xml;
+  flag_t fg; ///< Foreground flag used for filling
+  flag_t fg_mask; ///< Foreground flag mask used for filling
+  pugi::xml_node fg_xml; ///< Foreground flag XML element
   int setFlag(const pugi::char_t * name);
   int setMask(const pugi::char_t * name);
   int Draw(pugi::xml_node&);
