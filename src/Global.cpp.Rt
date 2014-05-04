@@ -2,6 +2,11 @@
 	source("conf.R")
 	c_header()
 ?>
+/**
+	\file Global.cpp
+	Implementation of global functions
+*/
+
 #include "Consts.h"
 #include "cross.h"
 #include "Global.h"
@@ -15,6 +20,15 @@ void initSettings() {
 			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
 	}} ?>
 }
+*/
+
+/// Generate the connectivity information
+/*
+	Generate the connectivity information for a 3D torus MPI topology
+	\param mpi MPI information table to fill
+	\param nx Number of segments in X direction
+	\param ny Number of segments in Y direction
+	\param nz Number of segments in Z direction
 */
 void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 {
