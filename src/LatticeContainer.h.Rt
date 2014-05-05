@@ -2,7 +2,9 @@
 	source("conf.R");
 	c_header()
 ?>
-
+/** \file LatticeContainer.h
+  File defining LatticeContainer and some additional CUDA functions
+*/
 
 #ifndef SETTINGS_H
 <?R
@@ -20,21 +22,30 @@
 
 #include "Consts.h"
 
+/// Container class used for storing all the data needed on GPU
+/**
+  Main class for storing the data needed on GPU and running kernels.
+  LatticeContainer is the container class which
+  owns all the data needed by the kernels on device
+  like pointers to the global gpu memory etc.
+  It defines push/pull/pop functions allowing access
+  to node data stored in memory.
+*/
 class LatticeContainer {
 	public:
-  FTabs in;
-  FTabs out;
+  FTabs in; ///< Main FTabs used for Primal iteration as input
+  FTabs out; ///< Main FTabs used for Primal iteration as output
 #ifdef ADJOINT
-  FTabs adjout;
-  FTabs adjin;
+  FTabs adjout; ///< FTabs used for Adjoint iteration as output
+  FTabs adjin; ///< FTabs used for Adjoint iteration as input
 #endif
-  flag_t * NodeType;
-  real_t * Globals;
-  int dx, dy, dz;
-  int nx, ny, nz;
-  int fx, fy, fz;
-  int kx,ky;
-  int iter;
+  flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
+  real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
+  int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
+  int nx, ny, nz; ///< Size of the Lattice region
+  int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
+  int kx,ky; ///< X and Y thread division
+  int iter; ///< Iteration number
 
   void Alloc (int,int,int);
   void Free();
@@ -66,12 +77,14 @@ class LatticeContainer {
   }
 
   <?R for (v in rows(Globals)) { ?>
+/// Get [<?%s v$comment ?>] from GPU memory
         inline real_t get<?%s v$name ?>(){
                 real_t ret;
                 CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
+/// Get all the globals from GPU memory
 	inline void getGlobals(real_t * tab) {
                 CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
 	}

@@ -2,7 +2,10 @@
         source("conf.R")
 	c_header()
 ?>
-
+/**
+    \file Global.h
+    Declaration of global variables and functions. Including MPI connectivity info.
+*/
 #include "Consts.h"
 #include "types.h"
 #include <string>
@@ -21,33 +24,42 @@
         float y;
     } vector_t_b;
 
+/// Information on connectivity of a processor
     struct NodeInfo {
-        lbRegion region;
-        int rank; <?R
+        lbRegion region; ///< Local Lattice region
+        int rank; ///< MPI rank of the processor <?R
 for (m in NonEmptyMargin) { ?>
-        int <?%s m$side ?>; <?R
+        int <?%s m$side ?>; ///< MPI rank of the processor on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] side <?R
 } ?>
     };
 
+/// Gathered connectivity info
     struct MPIInfo {
-        NodeInfo * node;
-        lbRegion totalregion;
-        int size;
-        int rank;
-        int gpu;
+        NodeInfo * node; ///< Table of all processors info
+        lbRegion totalregion; ///< Global Lattice region
+        int size; ///< MPI size
+        int rank; ///< (My) MPI rank
+        int gpu; ///< (My) GPU selected
     };
 
     void fillSides(MPIInfo, int, int, int);
 
+/// Main data structure for the lattice
+/**
+    Main data structure for storing solution (Snapshots)
+    in the lattice. It stores the internal part of the fields
+    and margins.
+*/
     struct FTabs { <?R
     for (m in NonEmptyMargin) { ?>
-        real_t* <?%s m$name ?>; <?R
+        real_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
     } ?>
         void Alloc(int,int,int);
         void Clear(int,int,int);
         void PreAlloc(int,int,int);
         void Free();
-        FTabs & operator=(const FTabs & in) { <?R
+/// Assign operator (no alloc)
+        inline FTabs & operator=(const FTabs & in) { <?R
     for (m in NonEmptyMargin) { ?>
             <?%s m$name ?> = in. <?%s m$name ?>; <?R
     } ?>

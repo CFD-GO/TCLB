@@ -2,16 +2,17 @@
         source("conf.R")
 	c_header()
 ?>
-/*  Main CUDA C file                                           */
-/*     Here is nearly all of the CUDA C code. It includes:     */          
-/*          LatticeContainer.h                                 */
-/*          LatticeContainer.c                                 */
-/*          Dynamics.c                                         */
-/*          Dynamics.h                                         */
-/*          Dynamics_b.c (adjoint)                             */
-/*          Dynamics_adj.c (adjoint)                           */
-/*          ADTools.c (adjoint)                                */
-/*-------------------------------------------------------------*/
+/** \file cuda.cu
+        Main CUDA C file
+        Here is nearly all of the CUDA C code. It includes:
+          LatticeContainer.h
+          LatticeContainer.c
+          Dynamics.c
+          Dynamics.h
+          Dynamics_b.c (adjoint)
+          Dynamics_adj.c (adjoint)
+          ADTools.c (adjoint)
+*/
 
 #include "Consts.h"
 #include "cross.h"
@@ -28,6 +29,7 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 #endif
 
 <?R for (v in rows(Settings)) { ?>
+/// GPU Constant memory variable for [<?%s v$comment?>]
 CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
     } ?>
 //CudaConstantMemory real_t c_sq = 1.0/3.;
@@ -71,10 +73,16 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
                 Globs = NULL
         } 	
 ?>
+
+/// Node class for dispatch:  Node<?%s suff ?>
+/**
+        Action:<?%5s tp$Action ?>
+        Globals:<?%5s tp$Globals ?>
+*/
 struct Node<?%s suff ?> {
 	int x,y,z; <?R
 	for (g in rows(Globs)) { ?>
-	real_t <?%s g$var ?>; <?R
+	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
         } ?>
 	CudaDeviceFunction void inline Pre() { <?R
 	for (g in rows(Globs)) { ?>

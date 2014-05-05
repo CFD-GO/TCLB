@@ -26,39 +26,45 @@ class LatticeContainer;
 
 const int maxSnaps=33;
 
+/// Class for computations
+/**
+  Class for all the memory allocation, storage, calculation
+  recording for unsteady adjoint etc.
+*/
 class Lattice {
 private:
-  LatticeContainer * container;
-  real_t *mpiin[27], *mpiout[27], *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27];
-  size_t bufsize[27];
-  int nodein[27], nodeout[27];
-  int bufnumber;
-  int nSnaps;
-  FTabs * Snaps;
-  int * iSnaps;
+  LatticeContainer * container; ///< Main Container object
+  real_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
+  real_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
+  size_t bufsize[27]; ///< Sizes of the Buffers
+  int nodein[27], nodeout[27]; ///< MPI Ranks of sources and destinations for Buffers
+  int bufnumber; ///< Number of non-NULL Buffers
+  int nSnaps; ///< Number of Snapshots
+  FTabs * Snaps; ///< Snapshots
+  int * iSnaps; ///< Snapshot number (Now)
 #ifdef ADJOINT
-  FTabs * aSnaps;
+  FTabs * aSnaps; ///< Adjoint Snapshots
 #endif
-  CudaStream_t kernelStream;
-  CudaStream_t inStream;
-  CudaStream_t outStream;
-  CudaEvent_t kernelEv[4];
-  CudaEvent_t inEv[28];
-  CudaEvent_t outEv[28];
-  CudaEvent_t mpiEv[28];
-  int reverse_save;
+  CudaStream_t kernelStream; ///< CUDA Stream for kernel runs
+  CudaStream_t inStream; ///< CUDA Stream for CPU->GPU momory copy
+  CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
+  CudaEvent_t kernelEv[4]; ///< Not used TODO
+  CudaEvent_t inEv[28]; ///< Not used TODO
+  CudaEvent_t outEv[28]; ///< Not used TODO
+  CudaEvent_t mpiEv[28]; ///< Not used TODO
+  int reverse_save; ///< Flag stating if recording (Now)
 public:
-  std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record;
-  int settings_i;
-  void push_setting(int,real_t,real_t);
-  void pop_settings();
-  int Iter;
-  int Snap, aSnap;
-  int total_iterations;
-  real_t settings[SETTINGS];  
-  double globals[GLOBALS];
-  lbRegion region;
-  MPIInfo mpi;
+  std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
+  int settings_i; ///< Index in settings_record that is on the CUDA const
+  void push_setting(int,real_t,real_t); ///< Set the setting (and push to settings_record if recording)
+  void pop_settings(); ///< Pop the setting from settings_record
+  int Iter; ///< Recorded iteration number (Now)
+  int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
+  int total_iterations; ///< Total iteration number counter
+  real_t settings[SETTINGS];  ///< Table of Settings (Now)
+  double globals[GLOBALS]; ///< Table of Globals
+  lbRegion region; ///< Local lattice region
+  MPIInfo mpi; ///< MPI information
   Lattice (lbRegion region, MPIInfo, int);
   ~Lattice ();
   void MPIInit (MPIInfo);
@@ -127,5 +133,5 @@ public:
     } ?>
 };
 
-#endif
 #define LATTICE_H 1
+#endif

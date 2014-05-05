@@ -15,14 +15,22 @@ std::string strFromDouble(double val);
 const int m_unit = 7;
 const std::string m_units[]={"m","s","kg","K", "x", "y", "z"};
 
+/// Variable with unit
+/**
+  Type for a variable with unit, capable of calculations.
+  The variable is represented as:
+  val * m^uni[0] * s^uni[1] * kg^uni[2] * ...
+*/
 class UnitVal {
 public:
-  double val;
-  int uni[m_unit];
+  double val; ///< Value
+  int uni[m_unit]; ///< Powers of units
+  /// Conversion from double
   inline UnitVal(double v) {
       val=v;
       for (int i=0; i<m_unit; i++) uni[i]=0;
   };
+  /// Constructor of a base unit variable
   inline void base_unit(int k) {
     if ((k>=0) && (k<m_unit)) {
       val=1;
@@ -33,32 +41,38 @@ public:
       throw(std::string("Wrong number of unit at initializer"));
     }
   };
+  /// Default constructor creates a variable equal to zero
   inline UnitVal() {
     val=0;
     for (int i=0; i<m_unit; i++) uni[i]=0;
   };
+  /// Copy constructor
   inline UnitVal(const UnitVal& e) {
     val=e.val;
     for (int i=0; i<m_unit; i++) uni[i]=e.uni[i];
   };
+  /// Multiplication operator
   inline UnitVal operator* (const UnitVal& A) const {
       UnitVal B;
       B.val = val * A.val;
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i] + A.uni[i];
       return B;
   };
+  /// Power function
   inline UnitVal pow (int n) {
       UnitVal B;
       B.val = std::pow(val,n);
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i]*n;
       return B;
   };
+  /// Division operator
   inline UnitVal operator/ (const UnitVal& A) const {
       UnitVal B;
       B.val = val / A.val;
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i] - A.uni[i];
       return B;
   };
+  /// Addition operator (fails if units mismatch)
   inline UnitVal operator+ (const UnitVal& A) const  {
       UnitVal B;
       B.val = val + A.val;
@@ -71,24 +85,29 @@ public:
       }
       return B;
   };
+  /// Assignment operator
   inline void operator= (double v) {
       val = v;
       for (int i=0; i<m_unit; i++) uni[i]=0;
   };
+  /// Assignment operator
   inline void operator= (const UnitVal & A) {
       val = A.val;
       for (int i=0; i<m_unit; i++) uni[i]=A.uni[i];
   };
+  /// Check if two variables have the same unit
   inline bool sameUnit (const UnitVal& A) {
     bool ret = true;
     for (int i=0; i<m_unit; i++) ret = ret && (uni[i] == A.uni[i]);
     return ret;
   };
+  /// Print value and unit
   inline void print () const{
     printf("%lg [ ",val);
     for (int i=0; i<m_unit; i++) printf("%s^%d ",m_units[i].c_str(),uni[i]);
     printf("]\n");
   };
+  /// Convert to string
   inline std::string toString () const{
     std::string str = strFromDouble(val);
     std::string div = "/";
@@ -109,6 +128,11 @@ inline UnitVal pow( UnitVal & A, int b) {
 
 class UnitVar;
 
+/// Unit environment
+/**
+  Stores a set of gauging variables to calculate
+  the scale of all the units
+*/
 class UnitEnv {
   std::map < std::string, UnitVal > units;
   std::map < std::string, UnitVal > gauge;
