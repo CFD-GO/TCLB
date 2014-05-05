@@ -77,14 +77,16 @@ Globals = data.frame()
 Settings = data.frame()
 Quantities = data.frame()
 NodeTypes = data.frame()
+Fields = data.frame()
 
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	comment = ifelse(comment == "", name, comment);
 	d = data.frame(
 		name=name,
+		field=field,
 		dx=dx,
 		dy=dy,
 		dz=dz,
@@ -94,6 +96,27 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", p
 		parameter=parameter
 	)
 	DensityAll <<- rbind(DensityAll,d)
+	if (any(Fields$name == field)) {
+		i = which(Fields$name == field)
+		Fields$minx[i] <<- min(Fields$minx[i], dx)
+		Fields$maxx[i] <<- max(Fields$maxx[i], dx)
+		Fields$miny[i] <<- min(Fields$miny[i], dy)
+		Fields$maxy[i] <<- max(Fields$maxy[i], dy)
+		Fields$minz[i] <<- min(Fields$minz[i], dz)
+		Fields$maxz[i] <<- max(Fields$maxz[i], dz)
+	} else {
+		d = data.frame(
+			name=field,
+			minx=dx,maxx=dx,
+			miny=dy,maxy=dy,
+			minz=dz,maxz=dz,
+			comment=comment,
+			adjoint=adjoint,
+			group=group,
+			parameter=parameter
+		)
+		Fields <<- rbind(Fields, d)
+	}
 }
 
 AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, ...) {
@@ -195,7 +218,7 @@ AddNodeType("Obj3","OBJECTIVE")
 AddNodeType("Thermometer","OBJECTIVE")
 AddNodeType("DesignSpace","DESIGNSPACE")
 
-source("Dynamics.R")
+source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
 NodeShift = 1
 NodeShiftNum = 0
@@ -284,6 +307,17 @@ Margin = data.frame(
 	command=paste("Margin",1:27)
 )
 
+Margin$side = c(
+	 8, 7, 8,
+	 6, 5, 6,
+	 8, 7, 8,
+	 4, 3, 4,
+	 2, 1, 2,
+	 4, 3, 4,
+	 8, 7, 8,
+	 6, 5, 6,
+	 8, 7, 8
+)
 Margin$size = 0
 Margin=rows(Margin)
 
@@ -312,19 +346,19 @@ GetMargins = function(dx,dy,dz) {
 nx = PV("nx");
 ny = PV("ny");
 nz = PV("nz");
-SideSize = rbind(nx*ny*nz, ny*nz, nx*nz, nz, nx*ny, ny, nx, 1);
 zero = PV(0);
+x = PV("node.x");
+y = PV("node.y");
+z = PV("node.z");
+
+SideSize = rbind(nx*ny*nz, ny*nz, nx*nz, nz, nx*ny, ny, nx, 1);
+SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
 
 for (i in 1:length(Margin)) {
 	Margin[[i]]$Size = zero
 	Margin[[i]]$Offset = zero
 	Margin[[i]]$opposite_side = Margin[[28-i]]$side
 }
-
-x = PV("node.x");
-y = PV("node.y");
-z = PV("node.z");
-SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
 
 for (x in rows(Density))
 {
@@ -342,6 +376,28 @@ for (x in rows(Density))
 
 NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
 NonEmptyMargin = Margin[NonEmptyMargin]
+
+
+DensityPlace = rep(list(list()), nrow(Density))
+
+
+for (i in 1:length(Margin)) {
+	Margin[[i]]$Size = zero
+	Margin[[i]]$Offset = zero
+	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+}
+
+for (x in rows(Fields))
+{
+	w = c(	GetMargins(x$minx,x$miny,x$minz),
+		GetMargins(x$maxx,x$maxy,x$maxz) )
+	w = unique(w[w !=0])
+	for (j in w) {
+		Margin[[j]]$size   = Margin[[j]]$size + 1
+		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$side]
+		Margin[[j]]$Offset = SideOffset[Margin[[j]]$side]
+	}
+}
 
 
 
