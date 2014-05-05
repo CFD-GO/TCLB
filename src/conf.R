@@ -381,7 +381,7 @@ git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f);
 
 clb_header = c(
 sprintf("-------------------------------------------------------------"),
-sprintf("  CLB - Cudne LB                                             "),
+sprintf("  CLB - Cudne LB - Stencil Version                           "),
 sprintf("     CUDA based Adjoint Lattice Boltzmann Solver             "),
 sprintf("     Author: Lukasz Laniewski-Wollk                          "),
 sprintf("     Developed at: Warsaw University of Technology - 2012    "),
