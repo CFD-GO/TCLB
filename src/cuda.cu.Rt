@@ -28,6 +28,12 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 	#include "ADTools.cu"
 #endif
 
+<?R
+        for (d in rows(Fields)) { ?>
+#define <?%s d$nicename ?>(x__,y__,z__) constLattice.pop_<?%s d$nicename ?>(x + (x__), y + (y__), z + (z__)) <?R
+        }
+?>
+
 <?R for (v in rows(Settings)) { ?>
 /// GPU Constant memory variable for [<?%s v$comment?>]
 CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R

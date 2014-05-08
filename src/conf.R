@@ -119,6 +119,27 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 	}
 }
 
+AddField = function(name, stencil2d=0, stencil3d=0, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+	if (missing(name)) stop("Have to supply name in AddField!")
+	comment = ifelse(comment == "", name, comment);
+
+		d = data.frame(
+			name=name,
+			minx=min(dx,-stencil2d,-stencil3d),
+			maxx=max(dx, stencil2d, stencil3d),
+			miny=min(dy,-stencil2d,-stencil3d),
+			maxy=max(dy, stencil2d, stencil3d),
+			minz=min(dz,           -stencil3d),
+			maxz=max(dz,            stencil3d),
+			comment=comment,
+			adjoint=adjoint,
+			group=group,
+			parameter=parameter
+		)
+		Fields <<- rbind(Fields, d)
+}
+
+
 AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (missing(comment)) {
@@ -293,6 +314,9 @@ DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 Density   = DensityAll[! DensityAll$adjoint, ]
 DensityAD = DensityAll[  DensityAll$adjoint, ]
 
+Fields$nicename = gsub("[][ ]","",Fields$name)
+
+
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 GlobalsD = Globals
@@ -378,29 +402,6 @@ NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
 NonEmptyMargin = Margin[NonEmptyMargin]
 
 
-DensityPlace = rep(list(list()), nrow(Density))
-
-
-for (i in 1:length(Margin)) {
-	Margin[[i]]$Size = zero
-	Margin[[i]]$Offset = zero
-	Margin[[i]]$opposite_side = Margin[[28-i]]$side
-}
-
-for (x in rows(Fields))
-{
-	w = c(	GetMargins(x$minx,x$miny,x$minz),
-		GetMargins(x$maxx,x$maxy,x$maxz) )
-	w = unique(w[w !=0])
-	for (j in w) {
-		Margin[[j]]$size   = Margin[[j]]$size + 1
-		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$side]
-		Margin[[j]]$Offset = SideOffset[Margin[[j]]$side]
-	}
-}
-
-
-
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
 Dispatch = data.frame(
@@ -417,7 +418,7 @@ Dispatch$adjoint_ver = Dispatch$adjoint
 Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
 
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -432,6 +433,52 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 }
 
 GlobalsD = Globals[-nrow(Globals),]
+
+
+for (i in 1:length(Margin)) {
+	Margin[[i]]$Size = zero
+	Margin[[i]]$Offset = zero
+	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+}
+
+offset.fun = function(j_) {
+	baseOffset = do.call(rbind,lapply(Margin, function(x) x$Size))
+	nx = PV("nx");
+	ny = PV("ny");
+	nz = PV("nz");
+	i = sapply(Margin, function(x) x$side)
+	if (missing(j_)) {
+		j = NULL
+	} else {
+		j= (1:length(baseOffset))[-j_]
+	}
+	function(x,y,z) {
+		elementsOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
+		ret = elementsOffset[i] + baseOffset
+		ret[j] = PV(0)
+		ret
+	}
+}
+
+FieldOffset = list()
+
+for (x in rows(Fields))
+{
+	w = c(	GetMargins(x$minx,x$miny,x$minz),
+		GetMargins(x$maxx,x$maxy,x$maxz) )
+	w = unique(w[w !=0])
+	FieldOffset[[x$index+1]] = offset.fun(j)
+	for (j in w) {
+		Margin[[j]]$size   = Margin[[j]]$size + 1
+		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$side]
+		Margin[[j]]$Offset = SideOffset[Margin[[j]]$side]
+	}
+}
+
+
+
+
+
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 
