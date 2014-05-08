@@ -522,6 +522,22 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 /// Push all densities
 
 <?R
+  MarginPocket = ""
+  MarginPocketMove = FALSE
+  
+  set.buf = function(buf, pocket=FALSE) {
+    if (missing(buf)) stop("No Buffor provided");
+    if (pocket) {
+      MarginPocket <<- "pocket" ?>
+      FTabs <?%s MarginPocket ?> = <?%s buf ?>; <?R
+      MarginPocketMove <<- TRUE
+    } else {
+      MarginPocket <<- buf
+      MarginPocketMove <<- FALSE
+    }
+    clear.pocket()
+  }
+  
   clear.pocket = function() {
     for ( i in 1:length(Margin) ) Margin[[i]]$POffset <<- PV(0)
   }
@@ -530,7 +546,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
       off = Margin[[i]]$POffset
       v = ToC(offset - off,float=F);
       if (v != "   0") { ?>
-        pocket.<?%s Margin[[i]]$name ?> += <?%s v ?>; <?R
+        <?%s MarginPocket?>.<?%s Margin[[i]]$name ?> += <?%s v ?>; <?R
       }
       Margin[[i]]$POffset <<- offset;
   }  
@@ -540,11 +556,52 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
   load.field = function(d,f,p,dp) {
     pp = p + PV(dp)
     noff = f$Offset(pp[1],pp[2],pp[3])
-    for (i in GetMargins(dp[1],dp[2],dp[3])) if (i != 0) move.pocket(i,noff[i])
-
+    if (MarginPocketMove)
+      for (i in GetMargins(dp[1],dp[2],dp[3]))
+        if (i != 0)
+          move.pocket(i, noff[i])
     load.one = function(i, m) {
-      if (i == 0) { ?>
-        <?%s d ?> = pocket.<?%s Margin[[m]]$name ?>[0]; <?R
+      if (i == 0) {
+        if (MarginPocketMove) {?>
+          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[0]; <?R
+        } else {?>
+          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[<?R C(noff[m],float=F) ?>]; <?R
+        }
+      } else {
+        dm = 3^(i-1)
+        if (dp[i] < 0) {?>
+          if (<?R C(pp[i],float=F) ?> < 0) { <?R
+            load.one(i-1,m-dm) ?>
+          } else {<?R
+        }
+        if (dp[i] > 0) {?>
+          if (<?R C(pp[i],float=F) ?> >= <?R C(main.size[i],float=F) ?>) { <?R
+            load.one(i-1,m+dm) ?>
+          } else {<?R
+        }
+        load.one(i-1,m)
+        if (dp[i] != 0) {?>
+          }<?R
+        }
+      }
+    }
+    load.one(3,14);
+  }
+
+  save.field = function(d,f,p,dp) {
+    pp = p + PV(dp)
+    noff = f$Offset(pp[1],pp[2],pp[3])
+    if (MarginPocketMove)
+      for (i in GetMargins(dp[1],dp[2],dp[3]))
+        if (i != 0)
+          move.pocket(i, noff[i])
+    load.one = function(i, m) {
+      if (i == 0) {
+        if (MarginPocketMove) {?>
+          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[0]; <?R
+        } else {?>
+          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[<?R C(noff[m],float=F) ?>]; <?R
+        }
       } else {
         dm = 3^(i-1)
         if (dp[i] < 0) {?>
@@ -570,7 +627,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 template <class N> CudaDeviceFunction void LatticeContainer::pop_new(N & node) 
 {
 <?R
-  clear.pocket();
+  set.buf("in",pocket=TRUE);
   for (d in rows(Density)) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
     f = Fields[[d$field]]
@@ -582,19 +639,22 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_new(N & node)
 
 
 <?R
-  for (f in Fields) { 
-    for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) {
+  for (f in Fields) { ?>
+//template <class N, int dx, int dy, int dz>
+//CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> (const N & node) ; <?R
+  }
 ?>
 
-template <class N> CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (N & node) 
-{
-  real_t ret;
 <?R
-  clear.pocket();
+  for (f in Fields) { 
+    for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
+template <class N> CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> < N, <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const N & node) 
+{
+  real_t ret; <?R
+  set.buf("in");
   p = PV(c("node.x","node.y","node.z"));
   dp = c(dx, dy, dz)
-  load.field("ret", f, p, dp)
-  ?>
+  load.field("ret", f, p, dp) ?>
   return ret;
 }
 <?R }} ?>
