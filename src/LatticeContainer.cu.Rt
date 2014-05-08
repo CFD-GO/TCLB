@@ -519,6 +519,86 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 }
 #endif
 
+/// Push all densities
+
+<?R
+  clear.pocket = function() {
+    for ( i in 1:length(Margin) ) Margin[[i]]$POffset <<- PV(0)
+  }
+  
+  move.pocket = function(i,offset) {
+      off = Margin[[i]]$POffset
+      v = ToC(offset - off,float=F);
+      if (v != "   0") { ?>
+        pocket.<?%s Margin[[i]]$name ?> += <?%s v ?>; <?R
+      }
+      Margin[[i]]$POffset <<- offset;
+  }  
+  
+  main.size = PV(c("nx","ny","nz"))
+  
+  load.field = function(d,f,p,dp) {
+    pp = p + PV(dp)
+    noff = f$Offset(pp[1],pp[2],pp[3])
+    for (i in GetMargins(dp[1],dp[2],dp[3])) if (i != 0) move.pocket(i,noff[i])
+
+    load.one = function(i, m) {
+      if (i == 0) { ?>
+        <?%s d ?> = pocket.<?%s Margin[[m]]$name ?>[0]; <?R
+      } else {
+        dm = 3^(i-1)
+        if (dp[i] < 0) {?>
+          if (<?R C(pp[i],float=F) ?> < 0) { <?R
+            load.one(i-1,m-dm) ?>
+          } else {<?R
+        }
+        if (dp[i] > 0) {?>
+          if (<?R C(pp[i],float=F) ?> >= <?R C(main.size[i],float=F) ?>) { <?R
+            load.one(i-1,m+dm) ?>
+          } else {<?R
+        }
+        load.one(i-1,m)
+        if (dp[i] != 0) {?>
+          }<?R
+        }
+      }
+    }
+    load.one(3,14);
+  }
+?>
+
+template <class N> CudaDeviceFunction void LatticeContainer::pop_new(N & node) 
+{
+<?R
+  clear.pocket();
+  for (d in rows(Density)) { ?>
+//--------------------------- <?%s d$name ?> ----------------------<?R
+    f = Fields[[d$field]]
+    p = PV(c("node.x","node.y","node.z"));
+    dp = c(d$dx, d$dy, d$dz)
+    load.field(d$name, f, p, dp)
+  }?>
+}
+
+
+<?R
+  for (f in Fields) { 
+    for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) {
+?>
+
+template <class N> CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (N & node) 
+{
+  real_t ret;
+<?R
+  clear.pocket();
+  p = PV(c("node.x","node.y","node.z"));
+  dp = c(dx, dy, dz)
+  load.field("ret", f, p, dp)
+  ?>
+  return ret;
+}
+<?R }} ?>
+
 
 /// Main Kernel
 /**

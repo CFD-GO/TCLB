@@ -30,7 +30,7 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 
 <?R
         for (d in rows(Fields)) { ?>
-#define <?%s d$nicename ?>(x__,y__,z__) constLattice.pop_<?%s d$nicename ?>(x + (x__), y + (y__), z + (z__)) <?R
+#define <?%s d$nicename ?>(x__,y__,z__) constLattice.load_<?%s d$nicename ?> < x__, y__, z__ > (*this) <?R
         }
 ?>
 

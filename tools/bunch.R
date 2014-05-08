@@ -116,7 +116,12 @@ indexes.bunch = function(x,i) {
 
 
 print.bunch = function(x) {
-	ret=do.call(rbind,lapply(x,data.frame))
+	ret=do.call(rbind,lapply(x,function(x) {
+		for (i in 1:length(x)) {
+			if (! (class(x[[i]]) %in% c("numeric","character","factor","integer","logical"))) x[[i]] = class(x[[i]]);
+		}
+		data.frame(x)
+	}))
 	print(ret)
 	ret
 }

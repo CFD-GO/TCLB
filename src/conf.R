@@ -14,6 +14,7 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 
 source("fun_v3.R")
+source("bunch.R")
 
 rows = function(x) {
 	rows_df= function(x) {
@@ -316,6 +317,7 @@ DensityAD = DensityAll[  DensityAll$adjoint, ]
 
 Fields$nicename = gsub("[][ ]","",Fields$name)
 
+Fields = bunch(Fields)
 
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
@@ -460,14 +462,16 @@ offset.fun = function(j_) {
 	}
 }
 
-FieldOffset = list()
+Fields$Offset = rep(list(NULL),length(Fields))
 
-for (x in rows(Fields))
+save.image(file="test.Rdata")
+
+for (x in Fields)
 {
 	w = c(	GetMargins(x$minx,x$miny,x$minz),
 		GetMargins(x$maxx,x$maxy,x$maxz) )
 	w = unique(w[w !=0])
-	FieldOffset[[x$index+1]] = offset.fun(j)
+	Fields$Offset[[x$index+1]] = offset.fun(w)
 	for (j in w) {
 		Margin[[j]]$size   = Margin[[j]]$size + 1
 		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$side]
