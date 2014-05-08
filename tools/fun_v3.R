@@ -34,12 +34,12 @@ aggregate.P = function(p)
 	if (nrow(p) > 0) {
                 class(p) = "data.frame"
 		if (length(attr(p,"var")) == 0) {
-	                ret = p[1,,drop=F]
+	                ret = p[1,,drop=FALSE]
 			ret$.M = sum(p$.M)
 		} else {
-	                ret = aggregate(p[,".M",drop=F], p[,attr(p,"var"),drop=F], sum)
+	                ret = aggregate(p[,".M",drop=FALSE], p[,attr(p,"var"),drop=FALSE], sum)
 		}
-                ret = ret[ret$.M != 0,,drop=F]
+                ret = ret[ret$.M != 0,,drop=FALSE]
                 attr(ret,"var") = attr(p,"var")
                 class(ret) = c("P","data.frame")
                 ret
@@ -99,7 +99,7 @@ print.P = function(p)
                 v = union(names(p1), names(p2))
 		v = setdiff(v , ".M")
 		if (length(v) != 0) {
-	                p = p1[i,v,drop=F] + p2[j,v,drop=F]
+	                p = p1[i,v,drop=FALSE] + p2[j,v,drop=FALSE]
         	        p$.M = p1$.M[i] * p2$.M[j]
 		} else {
 			p = P(p1$.M[i] * p2$.M[j])
@@ -240,7 +240,7 @@ sum.PV = function(p,...){
 ToC = function (x, ...) 
 UseMethod("ToC")
 
-ToC.PV = function(p, eq = TRUE, eqstring="=", float=T, minimal=0.0)
+ToC.PV = function(p, eq = TRUE, eqstring="=", float=TRUE, minimal=0.0)
 {
 	ret = sapply(p,function(x){ToC(x,float=float,minimal=minimal)})
 	if (!is.null(names(ret)) && eq) {
@@ -249,7 +249,7 @@ ToC.PV = function(p, eq = TRUE, eqstring="=", float=T, minimal=0.0)
 	ret
 }
 
-ToC_row = function(x,float=T,minimal=0.0)
+ToC_row = function(x,float=TRUE,minimal=0.0)
 {
 	if (abs(x[".M"]) < minimal) x[".M"] = 0;
 	if (x[".M"] != 0) {
@@ -290,7 +290,7 @@ ToC_row = function(x,float=T,minimal=0.0)
 	ret
 }
 
-ToC.P = function(p,float=T, minimal=0.0)
+ToC.P = function(p,float=TRUE, minimal=0.0)
 {
 #	print(p)
 	if (nrow(p) > 0) {
@@ -311,7 +311,7 @@ Cassign = function(a,b)
 
 "==.PV" = function(a,b)
 {
-	a = ToC(a,eq=F);
+	a = ToC(a,eq=FALSE);
 	a = sub('[[:space:]]+$', '', a)
 	a = sub('^[[:space:]]+', '', a)
 	attr(b,"vvar") = a
@@ -391,7 +391,7 @@ der.PV = function(x)
 			j = (p[,v] > 0)
 			if (any(j))
 			{
-				np = p[j,,drop=F];
+				np = p[j,,drop=FALSE];
 				np[,".M"] = np[,".M"] * np[,v]
 				np[,v] = np[,v] - 1;
 				np[,der(out)] = 1
