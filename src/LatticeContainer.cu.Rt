@@ -588,14 +588,21 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
     load.one(3,14);
   }
 
-  save.field = function(d,f,p,dp) {
-    pp = p + PV(dp)
+  save.field = function(d,f,pp,dp) {
     noff = f$Offset(pp[1],pp[2],pp[3])
-    if (MarginPocketMove)
-      for (i in GetMargins(dp[1],dp[2],dp[3]))
+    if (MarginPocketMove) {
+      span = expand.grid(x=dp$x[1]:dp$x[2],y=dp$y[1]:dp$y[2],z=dp$z[1]:dp$z[2])
+      w = NULL
+      for (i in rows(span)) {
+        w = c(w,GetMargins(i$x,i$y,i$z))
+      }
+      w = unique(w)
+      w = sort(w)
+      for (i in w)
         if (i != 0)
           move.pocket(i, noff[i])
-    load.one = function(i, m) {
+    }
+    save.one = function(i, m) {
       if (i == 0) {
         if (MarginPocketMove) {?>
           <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[0]; <?R
@@ -604,23 +611,20 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
         }
       } else {
         dm = 3^(i-1)
-        if (dp[i] < 0) {?>
+        if (dp[1,i] < 0) {?>
           if (<?R C(pp[i],float=F) ?> < 0) { <?R
-            load.one(i-1,m-dm) ?>
-          } else {<?R
+            save.one(i-1,m-dm) ?>
+          } <?R
         }
-        if (dp[i] > 0) {?>
+        if (dp[2,i] > 0) {?>
           if (<?R C(pp[i],float=F) ?> >= <?R C(main.size[i],float=F) ?>) { <?R
-            load.one(i-1,m+dm) ?>
-          } else {<?R
+            save.one(i-1,m+dm) ?>
+          } <?R
         }
-        load.one(i-1,m)
-        if (dp[i] != 0) {?>
-          }<?R
-        }
+        save.one(i-1,m)
       }
     }
-    load.one(3,14);
+    save.one(3,14);
   }
 ?>
 
@@ -633,7 +637,19 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_new(N & node)
     f = Fields[[d$field]]
     p = PV(c("node.x","node.y","node.z"));
     dp = c(d$dx, d$dy, d$dz)
-    load.field(d$name, f, p, dp)
+    load.field(paste("node",d$name,sep="."), f, p, dp)
+  }?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::push_new(N & node) 
+{
+<?R
+  set.buf("out",pocket=TRUE);
+  for (f in Fields) { ?>
+//--------------------------- <?%s f$name ?> ----------------------<?R
+    p = PV(c("node.x","node.y","node.z"));
+    dp = data.frame(x=c(f$minx,f$maxx),y=c(f$miny,f$maxy),z=c(f$minz,f$maxz))
+    save.field(paste("node",d$name,sep="."), f, p, dp)
   }?>
 }
 

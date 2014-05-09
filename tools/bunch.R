@@ -118,7 +118,13 @@ indexes.bunch = function(x,i) {
 print.bunch = function(x) {
 	ret=do.call(rbind,lapply(x,function(x) {
 		for (i in 1:length(x)) {
-			if (! (class(x[[i]]) %in% c("numeric","character","factor","integer","logical"))) x[[i]] = class(x[[i]]);
+			if (! (class(x[[i]]) %in% c("numeric","character","factor","integer","logical"))) {
+				if (class(x[[i]]) %in% "PV") {
+					x[[i]] = ToC(x[[i]])
+				} else {
+					x[[i]] = class(x[[i]]);
+				}
+			}
 		}
 		data.frame(x)
 	}))
