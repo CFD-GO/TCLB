@@ -34,7 +34,7 @@ AddDensity(
 	group="f"
 )
 
-f = PV(Density$name[Density$group=="f"])
+f = PV(DensityAll$name[DensityAll$group=="f"])
 
 rho = PV("rho")
 J = PV(c("Jx","Jy","Jz"))

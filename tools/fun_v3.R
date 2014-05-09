@@ -240,7 +240,7 @@ sum.PV = function(p,...){
 ToC = function (x, ...) 
 UseMethod("ToC")
 
-ToC.PV = function(p, eq = TRUE, eqstring="=", float=TRUE, minimal=0.0)
+ToC.PV = function(p, eq = TRUE, eqstring="=", float=TRUE, minimal=1e-10)
 {
 	ret = sapply(p,function(x){ToC(x,float=float,minimal=minimal)})
 	if (!is.null(names(ret)) && eq) {
@@ -249,7 +249,7 @@ ToC.PV = function(p, eq = TRUE, eqstring="=", float=TRUE, minimal=0.0)
 	ret
 }
 
-ToC_row = function(x,float=TRUE,minimal=0.0)
+ToC_row = function(x,float=TRUE,minimal=1e-10)
 {
 	if (abs(x[".M"]) < minimal) x[".M"] = 0;
 	if (x[".M"] != 0) {
@@ -290,17 +290,24 @@ ToC_row = function(x,float=TRUE,minimal=0.0)
 	ret
 }
 
-ToC.P = function(p,float=TRUE, minimal=0.0)
+ToC.P = function(p,float=TRUE, minimal=1e-10)
 {
-#	print(p)
-	if (nrow(p) > 0) {
-		ret = apply(p,1,function(x) {ToC_row(x,float=float,minimal=minimal)})
-	} else { ret = "   0"; }
-	ret = paste(ret,collapse="");
-	if (substr(ret,2,2) == "+") substr(ret,2,2) = " ";
-	if (ret == "") { ret = "   0"; }
-	ret
+	nToC(p, min=minimal)
 }
+
+#ToC.P = function(p,float=TRUE, minimal=1e-10)
+#{
+#	print(p)
+#	if (nrow(p) > 0) {
+#		ret = apply(p,1,function(x) {ToC_row(x,float=float,minimal=minimal)})
+#	} else { ret = "   0"; }
+#	ret = paste(ret,collapse="");
+#	if (substr(ret,2,2) == "+") substr(ret,2,2) = " ";
+#	if (ret == "") { ret = "   0"; }
+#	ret
+#}
+
+
 
 Cassign = function(a,b)
 {
@@ -448,3 +455,90 @@ rbind.PV = function(...) {
 
 
 C = function(x,...) {cat(ToC(x,...), sep="");}
+
+nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
+	tab = tab[abs(tab$.M) > min,,drop=F]
+	if (nrow(tab) < 1) {
+		if (second) {
+			ret = " + 0"
+		} else {
+			ret = "0"
+		}
+	} else {
+		tab = tab[order(tab$.M,decreasing=TRUE),,drop=F]
+		i1=colSums(tab > 0)
+		i2=colSums(tab < 0)
+		i1[".M"] = -1
+		i2[".M"] = -1
+		if (any(c(i1,i2) > 0)) {
+			if (max(i1) > max(i2)) {
+				i = which.max(i1)
+				sel = tab[,i] > 0
+				positive=TRUE
+				ntab = tab[sel,,drop=F]
+				ntab[,i] = ntab[,i]-1
+			} else {
+				i = which.max(i2)
+				sel = tab[,i] < 0
+				positive=FALSE
+				ntab = tab[sel,,drop=F]
+				ntab[,i] = ntab[,i]+1
+			}
+			if (any(!sel)) {
+				v1 = nToC(ntab,bracket=T,second=TRUE)
+			} else {
+				v1 = nToC(ntab,bracket=T,second=second)
+			}
+			if (positive) {
+				if (v1 == "1") {
+					v1 = paste(names(tab)[i],sep="")
+				} else if (v1 == " + 1") {
+					v1 = paste(" + ",names(tab)[i],sep="")
+				} else if (v1 == "-1") {
+					v1 = paste("-",names(tab)[i],sep="")
+				} else if (v1 == " - 1") {
+					v1 = paste(" - ",names(tab)[i],sep="")
+				} else {
+					v1 = paste(v1,"*",names(tab)[i],sep="")
+				}
+			} else {
+				v1 = paste(v1,"/",names(tab)[i],sep="")
+			}
+			if (any(!sel)) {
+				if (bracket) {
+					v2 = nToC(tab[!sel,,drop=F],second=FALSE)
+					if (second) {
+						ret = paste(" + ( ",v2,v1," )",sep="")
+					} else {
+						ret = paste("( ",v2,v1," )",sep="")
+					}
+				} else {
+					v2 = nToC(tab[!sel,,drop=F],second=second)
+					ret = paste(v2,v1,sep="")
+				}
+			} else {
+				ret = v1
+			}
+		} else {
+			v = sum(tab$.M)
+			if (abs(round(v) - v) < min) {
+				v = round(v)
+				ret = sprintf("%d",abs(v))
+			} else {
+				ret = sprintf("%.16f",abs(v))
+			}
+			if (second) {
+				if (v < 0) {
+					ret = paste(" - ",ret,sep="")
+				} else {
+					ret = paste(" + ",ret,sep="")
+				}
+			} else {
+				if (v < 0) {
+					ret = paste("-",ret,sep="")
+				} 
+			}
+		}
+	}
+	ret
+}
