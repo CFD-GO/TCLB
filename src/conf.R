@@ -521,6 +521,96 @@ for (x in Fields)
 
 
 
+
+offsets = function(d2=FALSE) {
+	mw = PV(c("nx","ny","nz"))
+
+	if2d3d = c(FALSE,FALSE,d2 == TRUE)
+	one = PV(c(1,1,1))
+	bp = expand.grid(x=1:3,y=1:3,z=1:3)
+
+	p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
+	tab1 = c(1,-1,0)
+	tab2 = c(0,-1,1)
+	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
+
+
+	sizes = rbind(one,mw,one)
+
+	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1)
+	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
+
+	MarginNSize = PV(rep(0,27))
+	ret = lapply(Fields, function (f) 
+
+	{
+
+		mins = c(f$minx,f$miny,f$minz)
+		maxs = c(f$maxx,f$maxy,f$maxz)
+
+		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
+		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+
+		mins = pmin(mins,0)
+		maxs = pmax(maxs,0)
+		nsizes = rbind(PV(-mins),one,PV(maxs))
+
+
+		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+
+		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
+
+		mSize = MarginNSize
+
+		MarginNSize <<- mSize + nsize
+
+		offset.p = function(positions) {
+
+			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0)
+
+			offset =   positions[p$x] +
+				  (positions[p$y] +
+
+				  (positions[p$z]
+					) * sizes[p$y] * nsizes[p$y]
+					) * sizes[p$x]* nsizes[p$x] +
+				  mSize * size
+
+		}
+
+		list(get_offsets = 
+
+			function(w,dw) {
+
+				offset = offset.p(rbind(w+dw - PV(mins),w+dw,w+dw - mw))
+				cond = rbind(w+dw,mw-w-dw-one)
+
+				list(Offset=offset,Conditions=cond,Table=get_tab)
+
+			},
+			put_offsets = 
+
+			function(w) {
+
+				offset = offset.p(rbind(w - mw + PV(mins),w,w))
+				cond = rbind(w+PV(-maxs),mw-w+PV(mins)-one)
+
+				list(Offset=offset,Conditions=cond,Table=put_tab)
+
+			},
+			fOffset=mSize*size
+		)
+	})
+
+	ret
+}
+
+
+ret.. = offsets()
+
+
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 
 clb_header = c(
