@@ -542,3 +542,48 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 	}
 	ret
 }
+
+subst = function (obj_, ...) UseMethod("subst")
+
+subst.P = function(obj_, ...) {
+	arg = list(...)
+	if (length(arg) == 0) return(obj_)
+	if (is.null(names(arg))) names(arg) = rep("", length(arg))
+	sel = names(arg) == ""
+	narg = arg[!sel]
+	for (l in arg[sel]) {
+		narg = c(narg,l)
+	}
+	arg=narg
+	if (any(names(arg) == "")) stop("All arguments to subst have to be named")
+	sel = names(arg) %in% names(obj_)
+	arg = arg[sel]
+	if (length(arg) == 0) return(obj_)
+	for (n in names(arg)) {
+		v = arg[[n]]
+		if (is.numeric(v)) v = P(v)
+		if (!"P" %in% class(v)) stop("Substitutions have to be numeric of P type in subst")
+		arg[[n]] = v
+	}
+	sel = names(obj_) %in% names(arg)
+	sum = P(0)
+	for (i in 1:nrow(obj_)) {
+		K = as.matrix(obj_[i,names(arg)])
+		ret = obj_[i,!sel,drop=F]
+		print(K)
+		for (j in 1:length(arg)) {
+			print(K[j])
+			if (K[j] < 0) stop("Negative powers not supported in subst")
+			if (K[j] > 0) for (l in 1:K[j]) ret = ret * arg[[j]]
+		}
+		sum = sum + ret
+	}
+	print(sum)
+	sum
+}
+
+subst.PV = function(obj_, ...) {
+	ret = lapply(unclass(obj_),subst.P,...)	
+	class(ret) = "PV"
+	ret
+}
