@@ -463,12 +463,6 @@ void LatticeContainer::Free()
 	}
 ?>
 
-/// Push all densities
-template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
-{
-<?R	InOut("push", "out", Density); ?>
-}
-
 /// Push only parameters
 template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
 {
@@ -485,12 +479,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & no
 template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
 {
 <?R	InOut("pull", "out", Density); ?>
-}
-
-/// Get densities
-template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
-{
-<?R	InOut("pop", "in", Density); ?>
 }
 
 /// Get only type of node
@@ -553,7 +541,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
   
   main.size = PV(c("nx","ny","nz"))
   
-  load.field = function(d,f,p,dp) {
+  load.field. = function(d,f,p,dp) {
     pp = p + PV(dp)
     noff = f$Offset(pp[1],pp[2],pp[3])
     if (MarginPocketMove)
@@ -626,9 +614,118 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
     }
     save.one(3,14);
   }
+  if.stack = NULL;
+  if.state = NULL;
+  if.cond = NULL;
+  if.start = function(conditions) {
+    if.cond <<- conditions
+    if.state <<- rep(0,length(conditions));
+    if.stack <<- NULL
+  }
+  if.set = function(state) {
+    if (length(state) != length(if.cond)) stop("Wrong state in if.set function")
+    for (i in seq_along(if.stack)) {
+      old = if.state[i]
+      new = state[if.stack[i]]
+      if (old != new) {
+        for (j in seq_along(if.stack)[-(1:i)]) { ?> } <?R }
+        if.stack <<- if.stack[1:i]
+        if (new == 0) { ?>
+        } <?R
+        if.stack <<- if.stack[-i]
+        } else { ?>
+        } else { <?R
+        } 
+        break;
+      }
+    }
+    if (is.null(if.stack)) {
+      sel = seq_along(state)
+    } else {
+      sel = seq_along(state)[-if.stack]
+    }
+    for (i in sel) {
+      old = 0
+      new = state[i]
+      if (new != 0) {
+        if (new == 1) { ?>
+        if (<?R C(if.cond[i],float=F) ?> < 0) { <?R
+        } else {?>
+        if (<?R C(if.cond[i],float=F) ?> >= 0) { <?R
+        }
+        if.stack <<- c(if.stack,i)
+        if.state[length(if.stack)] <<- new
+      }
+    }
+  }
+  if.finish = function() {
+    if.set(rep(0,length(if.cond)))
+    if.cond <<- NULL
+    if.state <<- NULL
+  }
+
+
+  if.apply = function(table, conditions, selection, fun) {
+    n = length(conditions)
+    if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
+    ord = do.call(order,data.frame(table))
+    ord = ord[selection[ord]]
+    req = function(j,l) {
+#      cat("// j:",paste(j,collapse=","),l,"\n");
+      if (l > n) {
+        sapply(j,fun)
+      } else {
+        v = table[j,l]
+#        cat("// v:",paste(v,collapse=","),"\n");
+        sel1 = v == 1
+        sel2 = v == -1
+        sel3 = v == 0
+        if (any(sel1)) { ?>
+                 if (<?R C(conditions[l],float=F) ?> < 0) { <?R
+          req(j[sel1],l+1);
+          if (any(sel2)) {?>
+                 } else { <?R
+            req(j[sel2],l+1);
+          } ?>
+                 } <?R
+        } else if (any(sel2)) { ?>
+                 if (<?R C(conditions[l],float=F) ?> >= 0) { <?R
+          req(j[sel2],l+1); ?>
+                 } <?R
+        }
+        if (any(sel3)) {
+          req(j[sel3],l+1);
+        }
+      }
+    }
+    req(ord,1)
+  }
+     
+  load.field = function(d,f,p,dp) {
+    ret = f$get_offsets(p,dp)
+    if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
+      move.pocket(m, ret$Offset[m])
+    }
+    if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
+      ?>
+     <?%s d ?> = <?%s MarginPocket ?>.<?%s Margin[[m]]$name ?>[<?R C(ret$Offset[m] - Margin[[m]]$POffset,float=F) ?>]; <?R
+    })
+  }
+
+  save.field = function(d,f,p) {
+    ret = f$put_offsets(p)
+    if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
+      move.pocket(m, ret$Offset[m])
+    }
+    if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
+      ?>
+     <?%s MarginPocket ?>.<?%s Margin[[m]]$name ?>[<?R C(ret$Offset[m] - Margin[[m]]$POffset,float=F) ?>] = <?%s d ?>; <?R
+    })
+  }
+
 ?>
 
-template <class N> CudaDeviceFunction void LatticeContainer::pop_new(N & node) 
+template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
 {
 <?R
   set.buf("in",pocket=TRUE);
@@ -636,44 +733,43 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_new(N & node)
 //--------------------------- <?%s d$name ?> ----------------------<?R
     f = Fields[[d$field]]
     p = PV(c("node.x","node.y","node.z"));
-    dp = c(d$dx, d$dy, d$dz)
+    dp = c(-d$dx, -d$dy, -d$dz)
     load.field(paste("node",d$name,sep="."), f, p, dp)
   }?>
 }
 
-template <class N> CudaDeviceFunction void LatticeContainer::push_new(N & node) 
-{
-<?R
-  set.buf("out",pocket=TRUE);
-  for (f in Fields) { ?>
-//--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x","node.y","node.z"));
-    dp = data.frame(x=c(f$minx,f$maxx),y=c(f$miny,f$maxy),z=c(f$minz,f$maxz))
-    save.field(paste("node",d$name,sep="."), f, p, dp)
-  }?>
-}
-
-
 <?R
   for (f in Fields) { ?>
-//template <class N, int dx, int dy, int dz>
-//CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> (const N & node) ; <?R
+//template <int dx, int dy, int dz>
+//CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) ; <?R
   }
 ?>
 
 <?R
   for (f in Fields) { 
     for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
-template <class N> CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> < N, <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const N & node) 
+template <> CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
 {
   real_t ret; <?R
   set.buf("in");
-  p = PV(c("node.x","node.y","node.z"));
+  p = PV(c("x","y","z"));
   dp = c(dx, dy, dz)
   load.field("ret", f, p, dp) ?>
   return ret;
 }
 <?R }} ?>
+
+
+template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
+{
+<?R
+  set.buf("out",pocket=TRUE);
+  for (f in Fields) { ?>
+//--------------------------- <?%s f$name ?> ----------------------<?R
+    p = PV(c("node.x","node.y","node.z"));
+    save.field(paste("node",f$name,sep="."), f, p)
+  }?>
+}
 
 
 /// Main Kernel

@@ -99,18 +99,18 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 	DensityAll <<- rbind(DensityAll,d)
 	if (any(Fields$name == field)) {
 		i = which(Fields$name == field)
-		Fields$minx[i] <<- min(Fields$minx[i], dx)
-		Fields$maxx[i] <<- max(Fields$maxx[i], dx)
-		Fields$miny[i] <<- min(Fields$miny[i], dy)
-		Fields$maxy[i] <<- max(Fields$maxy[i], dy)
-		Fields$minz[i] <<- min(Fields$minz[i], dz)
-		Fields$maxz[i] <<- max(Fields$maxz[i], dz)
+		Fields$minx[i] <<- min(Fields$minx[i], -dx)
+		Fields$maxx[i] <<- max(Fields$maxx[i], -dx)
+		Fields$miny[i] <<- min(Fields$miny[i], -dy)
+		Fields$maxy[i] <<- max(Fields$maxy[i], -dy)
+		Fields$minz[i] <<- min(Fields$minz[i], -dz)
+		Fields$maxz[i] <<- max(Fields$maxz[i], -dz)
 	} else {
 		d = data.frame(
 			name=field,
-			minx=dx,maxx=dx,
-			miny=dy,maxy=dy,
-			minz=dz,maxz=dz,
+			minx=-dx,maxx=-dx,
+			miny=-dy,maxy=-dy,
+			minz=-dz,maxz=-dz,
 			comment=comment,
 			adjoint=adjoint,
 			group=group,
@@ -333,7 +333,7 @@ Margin = data.frame(
 	command=paste("Margin",1:27)
 )
 
-Margin$side = c(
+Margin$sides = c(
 	 8, 7, 8,
 	 6, 5, 6,
 	 8, 7, 8,
@@ -448,7 +448,7 @@ offset.fun = function(j_) {
 	nx = PV("nx");
 	ny = PV("ny");
 	nz = PV("nz");
-	i = sapply(Margin, function(x) x$side)
+	i = sapply(Margin, function(x) x$sides)
 	if (missing(j_)) {
 		j = NULL
 	} else {
@@ -464,8 +464,6 @@ offset.fun = function(j_) {
 
 Fields$Offset = rep(list(NULL),length(Fields))
 
-save.image(file="test.Rdata")
-
 for (x in Fields)
 {
 	w = c(	GetMargins(x$minx,x$miny,x$minz),
@@ -474,8 +472,8 @@ for (x in Fields)
 	Fields$Offset[[x$index+1]] = offset.fun(w)
 	for (j in w) {
 		Margin[[j]]$size   = Margin[[j]]$size + 1
-		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$side]
-		Margin[[j]]$Offset = SideOffset[Margin[[j]]$side]
+		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$sides]
+		Margin[[j]]$Offset = SideOffset[Margin[[j]]$sides]
 	}
 }
 
@@ -522,94 +520,87 @@ for (x in Fields)
 
 
 
-offsets = function(d2=FALSE) {
+offsets = function(d2=FALSE, cpu=FALSE) {
+	def.cpu = cpu
 	mw = PV(c("nx","ny","nz"))
-
 	if2d3d = c(FALSE,FALSE,d2 == TRUE)
 	one = PV(c(1,1,1))
 	bp = expand.grid(x=1:3,y=1:3,z=1:3)
-
 	p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
 	tab1 = c(1,-1,0)
 	tab2 = c(0,-1,1)
 	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
-
-
 	sizes = rbind(one,mw,one)
-
 	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1)
 	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
-
 	MarginNSize = PV(rep(0,27))
 	ret = lapply(Fields, function (f) 
-
 	{
-
 		mins = c(f$minx,f$miny,f$minz)
 		maxs = c(f$maxx,f$maxy,f$maxz)
-
 		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
 		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+		tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
 		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
-
+		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
 		mins = pmin(mins,0)
 		maxs = pmax(maxs,0)
 		nsizes = rbind(PV(-mins),one,PV(maxs))
-
-
 		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
 		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-
 		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
-
 		mSize = MarginNSize
-
 		MarginNSize <<- mSize + nsize
-
-		offset.p = function(positions) {
-
+		offset.p = function(positions,cpu) {
 			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0)
-
-			offset =   positions[p$x] +
+			if (cpu) {
+			offset =  (positions[p$x] +
 				  (positions[p$y] +
-
 				  (positions[p$z]
 					) * sizes[p$y] * nsizes[p$y]
-					) * sizes[p$x]* nsizes[p$x] +
+					) * sizes[p$x] * nsizes[p$x]
+					) * MarginNSize +
+				  mSize
+			} else {
+			offset =   positions[p$x] +
+				  (positions[p$y] +
+				  (positions[p$z]
+					) * sizes[p$y] * nsizes[p$y]
+					) * sizes[p$x] * nsizes[p$x] +
 				  mSize * size
-
+			}
+			offset
 		}
-
-		list(get_offsets = 
-
-			function(w,dw) {
-
-				offset = offset.p(rbind(w+dw - PV(mins),w+dw,w+dw - mw))
-				cond = rbind(w+dw,mw-w-dw-one)
-
-				list(Offset=offset,Conditions=cond,Table=get_tab)
-
+		c(f,list(
+			get_offsets = 
+			function(w,dw,cpu=def.cpu) {
+				tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
+				tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
+				tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+				get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+				get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+				offset = offset.p(rbind(w+PV(dw) - PV(mins),w+PV(dw),w+PV(dw) - mw),cpu=cpu)
+				cond = rbind(w+PV(dw),mw-w-PV(dw)-one)
+				list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
 			},
 			put_offsets = 
-
-			function(w) {
-
-				offset = offset.p(rbind(w - mw + PV(mins),w,w))
+			function(w,cpu=def.cpu) {
+				offset = offset.p(rbind(w - mw + PV(mins),w,w),cpu=cpu)
 				cond = rbind(w+PV(-maxs),mw-w+PV(mins)-one)
-
-				list(Offset=offset,Conditions=cond,Table=put_tab)
-
+				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
 			},
 			fOffset=mSize*size
-		)
+		))
 	})
-
+	class(ret) = "bunch"
+	attr(ret,"cols") = names(ret[[1]])
 	ret
 }
 
+Fields = offsets()
 
-ret.. = offsets()
 
+################################################################################
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 

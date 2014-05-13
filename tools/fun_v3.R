@@ -570,15 +570,12 @@ subst.P = function(obj_, ...) {
 	for (i in 1:nrow(obj_)) {
 		K = as.matrix(obj_[i,names(arg)])
 		ret = obj_[i,!sel,drop=F]
-		print(K)
 		for (j in 1:length(arg)) {
-			print(K[j])
 			if (K[j] < 0) stop("Negative powers not supported in subst")
 			if (K[j] > 0) for (l in 1:K[j]) ret = ret * arg[[j]]
 		}
 		sum = sum + ret
 	}
-	print(sum)
 	sum
 }
 
