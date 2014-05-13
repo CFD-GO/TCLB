@@ -292,132 +292,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
       Margin[[i]]$POffset <<- offset;
   }  
   
-  main.size = PV(c("nx","ny","nz"))
-  
-  load.field. = function(d,f,p,dp) {
-    pp = p + PV(dp)
-    noff = f$Offset(pp[1],pp[2],pp[3])
-    if (MarginPocketMove)
-      for (i in GetMargins(dp[1],dp[2],dp[3]))
-        if (i != 0)
-          move.pocket(i, noff[i])
-    load.one = function(i, m) {
-      if (i == 0) {
-        if (MarginPocketMove) {?>
-          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[0]; <?R
-        } else {?>
-          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[<?R C(noff[m],float=F) ?>]; <?R
-        }
-      } else {
-        dm = 3^(i-1)
-        if (dp[i] < 0) {?>
-          if (<?R C(pp[i],float=F) ?> < 0) { <?R
-            load.one(i-1,m-dm) ?>
-          } else {<?R
-        }
-        if (dp[i] > 0) {?>
-          if (<?R C(pp[i],float=F) ?> >= <?R C(main.size[i],float=F) ?>) { <?R
-            load.one(i-1,m+dm) ?>
-          } else {<?R
-        }
-        load.one(i-1,m)
-        if (dp[i] != 0) {?>
-          }<?R
-        }
-      }
-    }
-    load.one(3,14);
-  }
-
-  save.field = function(d,f,pp,dp) {
-    noff = f$Offset(pp[1],pp[2],pp[3])
-    if (MarginPocketMove) {
-      span = expand.grid(x=dp$x[1]:dp$x[2],y=dp$y[1]:dp$y[2],z=dp$z[1]:dp$z[2])
-      w = NULL
-      for (i in rows(span)) {
-        w = c(w,GetMargins(i$x,i$y,i$z))
-      }
-      w = unique(w)
-      w = sort(w)
-      for (i in w)
-        if (i != 0)
-          move.pocket(i, noff[i])
-    }
-    save.one = function(i, m) {
-      if (i == 0) {
-        if (MarginPocketMove) {?>
-          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[0]; <?R
-        } else {?>
-          <?%s d ?> = <?%s MarginPocket?>.<?%s Margin[[m]]$name ?>[<?R C(noff[m],float=F) ?>]; <?R
-        }
-      } else {
-        dm = 3^(i-1)
-        if (dp[1,i] < 0) {?>
-          if (<?R C(pp[i],float=F) ?> < 0) { <?R
-            save.one(i-1,m-dm) ?>
-          } <?R
-        }
-        if (dp[2,i] > 0) {?>
-          if (<?R C(pp[i],float=F) ?> >= <?R C(main.size[i],float=F) ?>) { <?R
-            save.one(i-1,m+dm) ?>
-          } <?R
-        }
-        save.one(i-1,m)
-      }
-    }
-    save.one(3,14);
-  }
-  if.stack = NULL;
-  if.state = NULL;
-  if.cond = NULL;
-  if.start = function(conditions) {
-    if.cond <<- conditions
-    if.state <<- rep(0,length(conditions));
-    if.stack <<- NULL
-  }
-  if.set = function(state) {
-    if (length(state) != length(if.cond)) stop("Wrong state in if.set function")
-    for (i in seq_along(if.stack)) {
-      old = if.state[i]
-      new = state[if.stack[i]]
-      if (old != new) {
-        for (j in seq_along(if.stack)[-(1:i)]) { ?> } <?R }
-        if.stack <<- if.stack[1:i]
-        if (new == 0) { ?>
-        } <?R
-        if.stack <<- if.stack[-i]
-        } else { ?>
-        } else { <?R
-        } 
-        break;
-      }
-    }
-    if (is.null(if.stack)) {
-      sel = seq_along(state)
-    } else {
-      sel = seq_along(state)[-if.stack]
-    }
-    for (i in sel) {
-      old = 0
-      new = state[i]
-      if (new != 0) {
-        if (new == 1) { ?>
-        if (<?R C(if.cond[i],float=F) ?> < 0) { <?R
-        } else {?>
-        if (<?R C(if.cond[i],float=F) ?> >= 0) { <?R
-        }
-        if.stack <<- c(if.stack,i)
-        if.state[length(if.stack)] <<- new
-      }
-    }
-  }
-  if.finish = function() {
-    if.set(rep(0,length(if.cond)))
-    if.cond <<- NULL
-    if.state <<- NULL
-  }
-
-
   if.apply = function(table, conditions, selection, fun) {
     n = length(conditions)
     if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
@@ -453,11 +327,18 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
     }
     req(ord,1)
   }
+
+#  No x move:
+  no.x.move = TRUE
      
   load.field = function(d,f,p,dp) {
     ret = f$get_offsets(p,dp)
     if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
-      move.pocket(m, ret$Offset[m])
+      if (no.x.move) {
+        move.pocket(m, subst(ret$Offset[m],p[1]==-dp[1]))
+      } else {
+        move.pocket(m, ret$Offset[m])
+      }
     }
     if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
       ?>
@@ -468,7 +349,11 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
   save.field = function(d,f,p) {
     ret = f$put_offsets(p)
     if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
-      move.pocket(m, subst(ret$Offset[m],p[1]==0))
+      if (no.x.move) {
+        move.pocket(m, subst(ret$Offset[m],p[1]==0))
+      } else {
+        move.pocket(m, ret$Offset[m])
+      }
     }
     if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
       ?>
