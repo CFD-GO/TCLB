@@ -10,8 +10,7 @@ P = function(a){
 	} else {
 		stop("Unknow type in P()\n");
 	}
-	class(ret) = c("P","data.frame")
-	ret
+	finish.P(ret)
 }	
 
 scalar = function(v,a){
@@ -24,8 +23,7 @@ scalar = function(v,a){
 		ret$.M = v;
 		attr(ret,"var") = levels(a)
 	} else {stop("a have to be a factor in scalar()");}
-	class(ret) = c("P","data.frame")
-	ret
+	finish.P(ret)
 }	
 
 
@@ -41,10 +39,19 @@ aggregate.P = function(p)
 		}
                 ret = ret[ret$.M != 0,,drop=FALSE]
                 attr(ret,"var") = attr(p,"var")
-                class(ret) = c("P","data.frame")
-                ret
+                finish.P(ret)
 	}else {p}
 }
+
+finish.P = function(p) {
+	v = names(p)
+	sel = v %in% ".M"
+	if (all(!sel)) stop("There should be a .M in P object")
+	class(p) = c("P","data.frame")
+	attr(p,"var") = v[!sel]
+	p
+}
+	
 
 rbind.P = function(p1,p2)
 {
@@ -58,12 +65,15 @@ rbind.P = function(p1,p2)
 	p1[,col] = 0;
 	ret = rbind(p1,p2)
 	attr(ret,"var") = c(attr(p1,"var"),col)
-	class(ret) = c("P","data.frame")
-        ret
+	finish.P(ret)
 }
 
 print.P = function(p)
-{class(p) = "data.frame"; print(p)}
+{
+	class(p) = "data.frame";
+	print(p)
+	print(attr(p,"var"))
+}
 
 "+.P" <- function(p1,p2){
 	p = rbind(p1,p2)
@@ -569,7 +579,7 @@ subst.P = function(obj_, ...) {
 	sum = P(0)
 	for (i in 1:nrow(obj_)) {
 		K = as.matrix(obj_[i,names(arg)])
-		ret = obj_[i,!sel,drop=F]
+		ret = finish.P(obj_[i,!sel,drop=F])
 		for (j in 1:length(arg)) {
 			if (K[j] < 0) stop("Negative powers not supported in subst")
 			if (K[j] > 0) for (l in 1:K[j]) ret = ret * arg[[j]]

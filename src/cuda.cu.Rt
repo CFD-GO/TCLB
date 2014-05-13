@@ -131,7 +131,8 @@ struct Node<?%s suff ?> {
                 }
         } <?R
 	        } ?>
-	CudaDeviceFunction inline void RunElement() { <?R
+	CudaDeviceFunction inline void RunElement() {
+	        constContainer.getType(*this); <?R
 		if (tp$Action == "Adj") { ?>
 		constContainer.pop(*this);
 		constContainer.pop_adj(*this);<?R
@@ -185,7 +186,7 @@ struct Node<?%s suff ?> {
 		Run();
 		constContainer.push(*this); <?R
 		} else {
-		        stop(paste("Unknown Action:",tp$Action,"in Dispatch (conf.R)"));
+		        stop(paste("Unknown Action:",tp$Action,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
 	}
 }; <?R

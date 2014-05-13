@@ -219,291 +219,44 @@ void LatticeContainer::Free()
     CudaFree( NodeType );
 }
 
-<?R
-# Here is the R code for push/pull/pop functions
-#   It simply puts the values from right places in the memory into right variables in the Node class
-#   Happy reading ...
-
-# Push/pull is constructed as a 3 level call
-#   in which every level dispatches every dimension in order: Z Y X
-#   in each dimension we check if we're goint out of our region
-#   and write to the margin buffer in such case
-
-	push0 = function(a,pull=FALSE) {
-		if (pull) { ?>
-				node.<?%s gdens ?> = <?%s a ?>[ 0]; <?R
-		} else { ?>
-				<?%s a ?>[ 0] = node.<?%s gdens ?>; <?R
-		}
-	}
-
-	pushX = function(a,b,dx,...) {
-		if (dx < 0) { ?>
-			if (node.x !=   0) {<?R
-		} 
-		if (dx > 0) { ?>
-			if (node.x != nx-1) {<?R
-		} 
-		push0(a,...);
-		if (dx != 0) { ?>
-			} else { <?R
-			push0(b,...); ?>
-			} <?R
-		}
-	}
-
-	pushY = function(a, b, c, d, dx,dy,...) {
-		if (dy < 0) { ?>
-		if (node.y !=   0) {<?R
-		} 
-		if (dy > 0) { ?>
-		if (node.y != ny-1) {<?R
-		}
-		pushX(a, b, dx,...);
-		if (dy != 0) {?>
-		} else {<?R
-			pushX(c, d, dx,...);	?>
-		}<?R
-		}
-	}
-
-	pushZ = function(a, b, c, d, e, f, g, h, dx, dy, dz,...) {
-		if (dz < 0) { ?>
-	if (node.z !=   0) {<?R
-		} 
-		if (dz > 0) { ?>
-	if (node.z != nz-1) {<?R
-		}
-		pushY(a, b, c, d, dx, dy,...);
-		if (dz != 0) {?>
-	} else {<?R
-			pushY(e, f, g, h, dx, dy,...); ?>
-	}<?R
-		}
-	} 
-
-# Main push/pull function for a specific density
-
-	push = function(dens,dx,dy,dz,sel=TRUE,...) { 
-	        if (sel) { ?>
-//----------------------------- STREAMING <?%s dens ?> DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------// <?R
-                }
-		gdens <<- dens;
-
-		w = GetMargins(dx,dy,dz);
-		nx = PV("nx")
-		ny = PV("ny")
-		nz = PV("nz")
-		X = PV("node.x")
-		Y = PV("node.y")
-		Z = PV("node.z")
-
-		H = PV(rep(0,8))
-		H[1] = X + dx + nx * (Y + dy) + nx * ny * (Z + dz)
-		H[2] = ny * (Z + dz) + (Y + dy)
-		H[3] = nx * (Z + dz) + X+dx
-		H[4] = Z + dz
-		H[5] = nx * (Y + dy) + X+dx
-		H[6] = Y + dy
-		H[7] = X + dx
-		H[8] = PV(0)
-
-		
-		if (sel) {
-                    for (i in 1:length(w)) if (w[i] > 0) {
-                            off = Margin[[w[i]]]$POffset
-                            noff = Margin[[w[i]]]$PSize + H[i]
-                            v = ToC(noff - off,float=F);
-                            if (v != "   0") { ?>
-        pocket.<?%s Margin[[w[i]]]$name ?> += <?%s v ?>; <?R
-                            }
-			    Margin[[w[i]]]$POffset <<- noff;
-                    }
-		    p = rep("ItCannotHappen",length(w))
-                    p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "", sep="")
-                    pushZ(
-                            p[1],
-                            p[2],
-                            p[3],
-                            p[4],
-                            p[5],
-                            p[6],
-                            p[7],
-                            p[8],
-                            dx, dy, dz,...);
-                }
-		for (i in 1:length(w)) if (w[i] > 0) {
-			Margin[[w[i]]]$PSize <<- Margin[[w[i]]]$PSize + SideSize[i]
-		}
-	} 
-
-# Pop is constructed as a 3 level call
-#   in which every level dispatches every dimension in order: Z Y X
-#   in each dimension we check if we're goint out of our region
-#   and read from a margin buffer in such case
-
-	popX = function(dens,a,b,dx) {
-		if (dx > 0) { ?>
-			if (node.x >= nx - <?%d dx ?>) {
-				node.<?%s dens ?> = <?%s b ?>;
-			} else {
-				node.<?%s dens ?> = <?%s a ?>;
-			} <?R
-		} else if (dx < 0) { ?>
-			if (node.x < <?%d -dx ?>) {
-				node.<?%s dens ?> = <?%s b ?>;
-			} else {
-				node.<?%s dens ?> = <?%s a ?>;
-			} <?R
-		} else { ?>
-			node.<?%s dens ?> = <?%s a ?>; <?R
-		}
-	}
-
-	popY = function(dens,a,b,c,d,dx,dy) {
-		if (dy > 0) { ?>
-		if (node.y  >= ny - <?%d dy ?>) { <?R
-		}
-		if (dy < 0) { ?>
-		if (node.y  < <?%d -dy ?>) { <?R
-		}
-		if (dy != 0) {
-			popX(dens, c, d, dx) ?>
-		} else { <?R
-		} 
-		popX(dens, a, b, dx)
-		if (dy != 0) { ?>
-		} <?R
-		}
-	} 
-
-	popZ = function(dens,a,b,c,d,e,f,g,h,dx,dy,dz) {
-		if (dz > 0) { ?>
-	if (node.z  >= nz - <?%d dz ?>) { <?R
-		}
-		if (dz < 0) { ?>
-	if (node.z  < <?%d -dz ?>) { <?R
-		}
-		if (dz != 0) {
-			popY(dens, e, f, g, h, dx, dy) ?>
-	} else { <?R
-		} 
-		popY(dens, a, b, c, d, dx, dy)
-		if (dz != 0) { ?>
-	} <?R
-		}
-	}
-
-# Main pop function for a specific density
-
-	pop = function(dens,dx,dy,dz) { ?>
-//----------------------------- GETTING <?%s dens ?> FROM DIRECTION: (<?%2d dx ?>,<?%2d dy ?>,<?%2d dz ?>) ----------------------------------------------//
-//	CudaSyncThreads(); <?R
-		w = GetMargins(dx,dy,dz);
-		dx = -dx
-		dy = -dy
-		dz = -dz
-		p = rep("ItCannotHappen",length(w))
-		p[w > 0] = paste("pocket.", sapply(Margin[w],function(x) x$name), "[0]", sep="")
-		popZ(	dens,
-			p[1],
-			p[2],
-			p[3],
-			p[4],
-			p[5],
-			p[6],
-			p[7],
-			p[8],
-			dx,dy,dz)
-		cat("\n")
-		for (j in 1:length(w)) {
-			i = w[j];
-			if (i != 0) {
-				?>	pocket.<?%s Margin[[i]]$name?> += <?R C(SideSize[j],float=F) ?>;
-<?R			}
-		}
-	} 
-
-
-# InOut function outputs the code for a push/pull/pop for a set of densities
-#   pop - Gets densities for the point where we are.
-#   push - Puts densities in the neighbours according to streaming direction
-#   pull - Direct opposite of push
-#   type - Gets only the NodeType from the memory
-
-	InOut = function(type, pocket, density, sel) {
-                if (missing(sel)) sel = rep(TRUE, nrow(density));
-                density$selected = sel; ?>
-	FTabs pocket = <?%s pocket ?>; <?R
-		pull=F
-		if ((type == "push") || (type == "pull")) {
-			if (type == "pull") pull=T
-			for ( i in 1:length(Margin) ) Margin[[i]]$POffset <<- PV(0)
-			for ( i in 1:length(Margin) ) Margin[[i]]$PSize <<- PV(0)
-			gdens = ""
-			for (d in rows(density)) {
-				push(d$name, d$dx, d$dy, d$dz, pull=pull, sel=d$selected)
-			}
-		} else if (type == "pop") { ?>
-	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
-			for (m in NonEmptyMargin) {
-				v = ToC(m$Offset,float=F);
-				if (v != "") { ?>
-	pocket.<?%s m$name ?> += <?%s v ?>; <?R
-				}
-			}
-			for (d in rows(density)) {
-				pop(d$name, d$dx, d$dy, d$dz)
-			}
-		} else if (type == "type") { ?>
-	node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)]; <?R
-		} else {
-			stop("Unknown type in InOut");
-		}
-	}
-?>
 
 /// Push only parameters
 template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
 {
-<?R	InOut("push", "out", Density, sel=Density$parameter); ?>
+<?R #	InOut("push", "out", Density, sel=Density$parameter); ?>
 }
 
 /// Push everything exept parameters
 template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
 {
-<?R	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
-}
-
-/// Opposite of push
-template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
-{
-<?R	InOut("pull", "out", Density); ?>
+<?R #	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
 }
 
 /// Get only type of node
 template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
 {
-<?R	InOut("type", "in", Density); ?>
+  node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)];
+        
+<?R #	InOut("type", "in", Density); ?>
 }
 
 #ifdef ADJOINT
 /// Push all adjoint densities
 template <class N> CudaDeviceFunction void LatticeContainer::push_adj(N & node) 
 {
-<?R	InOut("push", "adjout", DensityAD); ?>
+<?R #	InOut("push", "adjout", DensityAD); ?>
 }
 
 /// Opposite of push_adj
 template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node) 
 {
-<?R	InOut("pull", "adjout", DensityAD); ?>
+<?R #	InOut("pull", "adjout", DensityAD); ?>
 }
 
 /// Get adjoint densities
 template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
 {
-<?R	InOut("pop", "adjin", DensityAD); ?>
+<?R #	InOut("pop", "adjin", DensityAD); ?>
 }
 #endif
 
@@ -715,7 +468,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
   save.field = function(d,f,p) {
     ret = f$put_offsets(p)
     if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
-      move.pocket(m, ret$Offset[m])
+      move.pocket(m, subst(ret$Offset[m],p[1]==0))
     }
     if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
       ?>
@@ -737,6 +490,20 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node)
     load.field(paste("node",d$name,sep="."), f, p, dp)
   }?>
 }
+
+template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
+{
+<?R
+  set.buf("in",pocket=TRUE);
+  for (d in rows(Density)) { ?>
+//--------------------------- <?%s d$name ?> ----------------------<?R
+    f = Fields[[d$field]]
+    p = PV(c("node.x","node.y","node.z"));
+    dp = c(-d$dx, -d$dy, -d$dz)
+    load.field(paste("node",d$name,sep="."), f, p, dp)
+  }?>
+}
+
 
 <?R
   for (f in Fields) { ?>

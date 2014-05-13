@@ -369,37 +369,6 @@ GetMargins = function(dx,dy,dz) {
 	)
 }
 
-nx = PV("nx");
-ny = PV("ny");
-nz = PV("nz");
-zero = PV(0);
-x = PV("node.x");
-y = PV("node.y");
-z = PV("node.z");
-
-SideSize = rbind(nx*ny*nz, ny*nz, nx*nz, nz, nx*ny, ny, nx, 1);
-SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
-
-for (i in 1:length(Margin)) {
-	Margin[[i]]$Size = zero
-	Margin[[i]]$Offset = zero
-	Margin[[i]]$opposite_side = Margin[[28-i]]$side
-}
-
-for (x in rows(Density))
-{
-	w = GetMargins(x$dx,x$dy,x$dz)
-	for (k in 1:length(w)) {
-		j = w[k];
-		if (j != 0) {
-			Margin[[j]]$size   = Margin[[j]]$size + 1
-			Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[k]
-			Margin[[j]]$Offset = SideOffset[k]
-		}
-	}
-}
-
-
 NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
 NonEmptyMargin = Margin[NonEmptyMargin]
 
@@ -435,90 +404,6 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 }
 
 GlobalsD = Globals[-nrow(Globals),]
-
-
-for (i in 1:length(Margin)) {
-	Margin[[i]]$Size = zero
-	Margin[[i]]$Offset = zero
-	Margin[[i]]$opposite_side = Margin[[28-i]]$side
-}
-
-offset.fun = function(j_) {
-	baseOffset = do.call(rbind,lapply(Margin, function(x) x$Size))
-	nx = PV("nx");
-	ny = PV("ny");
-	nz = PV("nz");
-	i = sapply(Margin, function(x) x$sides)
-	if (missing(j_)) {
-		j = NULL
-	} else {
-		j= (1:length(baseOffset))[-j_]
-	}
-	function(x,y,z) {
-		elementsOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
-		ret = elementsOffset[i] + baseOffset
-		ret[j] = PV(0)
-		ret
-	}
-}
-
-Fields$Offset = rep(list(NULL),length(Fields))
-
-for (x in Fields)
-{
-	w = c(	GetMargins(x$minx,x$miny,x$minz),
-		GetMargins(x$maxx,x$maxy,x$maxz) )
-	w = unique(w[w !=0])
-	Fields$Offset[[x$index+1]] = offset.fun(w)
-	for (j in w) {
-		Margin[[j]]$size   = Margin[[j]]$size + 1
-		Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[Margin[[j]]$sides]
-		Margin[[j]]$Offset = SideOffset[Margin[[j]]$sides]
-	}
-}
-
-  new.load.field = function(d,f,p,dp) {
-    pp = p + PV(dp)
-    main.size = PV(c("nx","ny","nz"))
-    noff = f$Offset(pp[1],pp[2],pp[3])
-	cond = rbind(
-		pp[1],
-		pp[2],
-		pp[3],
-		main.size[1] - 1 - pp[1],
-		main.size[2] - 1 - pp[2],
-		main.size[3] - 1 - pp[3]
-	)
-	tab = matrix(NA,length(noff),length(cond))
-	
-    load.one = function(i, m,mask) {
-      if (i == 0) {
-	tab[m,]<<-mask
-      } else {
-        dm = 3^(i-1)
-	mask[i]=0
-	mask[3+i]=0
-        if (dp[i] < 0) {
-		mask[i]=1
-		load.one(i-1,m-dm,mask)
-		mask[i]=-1
-        }
-        if (dp[i] > 0) {
-		mask[3+i]=1
-		load.one(i-1,m+dm,mask)
-		mask[3+i]=-1
-        }
-        load.one(i-1,m,mask)
-      }
-    }
-    load.one(3, 14, rep(0,length(cond)));
-#	sel = apply(tab,1,function(x) any(!is.na(x)))
-	sel = !is.na(tab[,1])
-	list(Offsets=noff, Conditions=cond, Table=tab, Selected=sel)
-  }
-
-
-
 
 offsets = function(d2=FALSE, cpu=FALSE) {
 	def.cpu = cpu
@@ -594,10 +479,24 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	})
 	class(ret) = "bunch"
 	attr(ret,"cols") = names(ret[[1]])
-	ret
+	list(Fields=ret, MarginSizes=MarginNSize * size)
 }
 
-Fields = offsets()
+ret = offsets(cpu=FALSE)
+Fields = ret$Fields
+
+for (i in 1:length(Margin)) {
+	Margin[[i]]$Size = ret$MarginSizes[i]
+	if (ToC(Margin[[i]]$Size) != "0") {
+		 Margin[[i]]$size = 1;
+	} else {
+		Margin[[i]]$size = 0
+	}
+	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+}
+
+NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
+NonEmptyMargin = Margin[NonEmptyMargin]
 
 
 ################################################################################
