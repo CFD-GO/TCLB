@@ -1,7 +1,7 @@
 <?R
   source("conf.R");
   c_header();
-  for (n in c_table_decl(Density$name)) { ?>
+  for (n in c_table_decl(unique(c(Density$name,Fields$name)))) { ?>
     real_t <?%s n ?>; <?R
   } ?>
     flag_t NodeType; ///< Node flag/type

@@ -12,6 +12,7 @@
 
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
+options(stringsAsFactors=FALSE)
 
 source("fun_v3.R")
 source("bunch.R")
@@ -239,6 +240,18 @@ AddNodeType("Obj2","OBJECTIVE")
 AddNodeType("Obj3","OBJECTIVE")
 AddNodeType("Thermometer","OBJECTIVE")
 AddNodeType("DesignSpace","DESIGNSPACE")
+
+AddStage = function(
+	level,
+	main,
+	load.densities=TRUE,
+	save.fields=TRUE,
+	decl.vars=c()
+) {
+
+}
+
+AddStage(level=0, main="Run", load.densities=TRUE, save.fields=TRUE)
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 

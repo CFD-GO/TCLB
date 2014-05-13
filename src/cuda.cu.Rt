@@ -28,9 +28,12 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 	#include "ADTools.cu"
 #endif
 
+
+
 <?R
-        for (d in rows(Fields)) { ?>
-#define <?%s d$nicename ?>(x__,y__,z__) constLattice.load_<?%s d$nicename ?> < x__, y__, z__ > (*this) <?R
+        for (f in Fields) { ?>
+#define <?%s f$nicename ?>(x__,y__,z__) constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x,y,z)
+#define <?%s f$nicename ?>(x__,y__) constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x,y,z) <?R
         }
 ?>
 
@@ -39,6 +42,14 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
     } ?>
 //CudaConstantMemory real_t c_sq = 1.0/3.;
+
+
+<?R
+	for (tp in rows(Dispatch)) { ?>
+//struct Node<?%s tp$suffix ?>; <?R
+        } ?>
+
+#include "LatticeAccess.cu"
 
 
 #define NODE_H

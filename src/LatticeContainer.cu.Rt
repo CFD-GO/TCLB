@@ -220,210 +220,6 @@ void LatticeContainer::Free()
 }
 
 
-/// Push only parameters
-template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
-{
-<?R #	InOut("push", "out", Density, sel=Density$parameter); ?>
-}
-
-/// Push everything exept parameters
-template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
-{
-<?R #	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
-}
-
-/// Get only type of node
-template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
-{
-  node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)];
-        
-<?R #	InOut("type", "in", Density); ?>
-}
-
-#ifdef ADJOINT
-/// Push all adjoint densities
-template <class N> CudaDeviceFunction void LatticeContainer::push_adj(N & node) 
-{
-<?R #	InOut("push", "adjout", DensityAD); ?>
-}
-
-/// Opposite of push_adj
-template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node) 
-{
-<?R #	InOut("pull", "adjout", DensityAD); ?>
-}
-
-/// Get adjoint densities
-template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
-{
-<?R #	InOut("pop", "adjin", DensityAD); ?>
-}
-#endif
-
-/// Push all densities
-
-<?R
-  MarginPocket = ""
-  MarginPocketMove = FALSE
-  
-  set.buf = function(buf, pocket=FALSE) {
-    if (missing(buf)) stop("No Buffor provided");
-    if (pocket) {
-      MarginPocket <<- "pocket" ?>
-      FTabs <?%s MarginPocket ?> = <?%s buf ?>; <?R
-      MarginPocketMove <<- TRUE
-    } else {
-      MarginPocket <<- buf
-      MarginPocketMove <<- FALSE
-    }
-    clear.pocket()
-  }
-  
-  clear.pocket = function() {
-    for ( i in 1:length(Margin) ) Margin[[i]]$POffset <<- PV(0)
-  }
-  
-  move.pocket = function(i,offset) {
-      off = Margin[[i]]$POffset
-      v = ToC(offset - off,float=F);
-      if (v != "   0") { ?>
-        <?%s MarginPocket?>.<?%s Margin[[i]]$name ?> += <?%s v ?>; <?R
-      }
-      Margin[[i]]$POffset <<- offset;
-  }  
-  
-  if.apply = function(table, conditions, selection, fun) {
-    n = length(conditions)
-    if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
-    ord = do.call(order,data.frame(table))
-    ord = ord[selection[ord]]
-    req = function(j,l) {
-#      cat("// j:",paste(j,collapse=","),l,"\n");
-      if (l > n) {
-        sapply(j,fun)
-      } else {
-        v = table[j,l]
-#        cat("// v:",paste(v,collapse=","),"\n");
-        sel1 = v == 1
-        sel2 = v == -1
-        sel3 = v == 0
-        if (any(sel1)) { ?>
-                 if (<?R C(conditions[l],float=F) ?> < 0) { <?R
-          req(j[sel1],l+1);
-          if (any(sel2)) {?>
-                 } else { <?R
-            req(j[sel2],l+1);
-          } ?>
-                 } <?R
-        } else if (any(sel2)) { ?>
-                 if (<?R C(conditions[l],float=F) ?> >= 0) { <?R
-          req(j[sel2],l+1); ?>
-                 } <?R
-        }
-        if (any(sel3)) {
-          req(j[sel3],l+1);
-        }
-      }
-    }
-    req(ord,1)
-  }
-
-#  No x move:
-  no.x.move = FALSE
-     
-  load.field = function(d,f,p,dp) {
-    ret = f$get_offsets(p,dp)
-    if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
-      if (no.x.move) {
-        move.pocket(m, subst(ret$Offset[m],p[1]==-dp[1]))
-      } else {
-        move.pocket(m, ret$Offset[m])
-      }
-    }
-    if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
-      ?>
-     <?%s d ?> = <?%s MarginPocket ?>.<?%s Margin[[m]]$name ?>[<?R C(ret$Offset[m] - Margin[[m]]$POffset,float=F) ?>]; <?R
-    })
-  }
-
-  save.field = function(d,f,p) {
-    ret = f$put_offsets(p)
-    if (MarginPocketMove) for (m in 1:27) if (ret$Selection[m]) {
-      if (no.x.move) {
-        move.pocket(m, subst(ret$Offset[m],p[1]==0))
-      } else {
-        move.pocket(m, ret$Offset[m])
-      }
-    }
-    if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
-      ?>
-     <?%s MarginPocket ?>.<?%s Margin[[m]]$name ?>[<?R C(ret$Offset[m] - Margin[[m]]$POffset,float=F) ?>] = <?%s d ?>; <?R
-    })
-  }
-
-?>
-
-template <class N> CudaDeviceFunction void LatticeContainer::pop(N & node) 
-{
-<?R
-  set.buf("in",pocket=TRUE);
-  for (d in rows(Density)) { ?>
-//--------------------------- <?%s d$name ?> ----------------------<?R
-    f = Fields[[d$field]]
-    p = PV(c("node.x","node.y","node.z"));
-    dp = c(-d$dx, -d$dy, -d$dz)
-    load.field(paste("node",d$name,sep="."), f, p, dp)
-  }?>
-}
-
-template <class N> CudaDeviceFunction void LatticeContainer::pull(N & node) 
-{
-<?R
-  set.buf("in",pocket=TRUE);
-  for (d in rows(Density)) { ?>
-//--------------------------- <?%s d$name ?> ----------------------<?R
-    f = Fields[[d$field]]
-    p = PV(c("node.x","node.y","node.z"));
-    dp = c(-d$dx, -d$dy, -d$dz)
-    load.field(paste("node",d$name,sep="."), f, p, dp)
-  }?>
-}
-
-
-<?R
-  for (f in Fields) { ?>
-//template <int dx, int dy, int dz>
-//CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) ; <?R
-  }
-?>
-
-<?R
-  for (f in Fields) { 
-    for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
-template <> CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
-{
-  real_t ret; <?R
-  set.buf("in");
-  p = PV(c("x","y","z"));
-  dp = c(dx, dy, dz)
-  load.field("ret", f, p, dp) ?>
-  return ret;
-}
-<?R }} ?>
-
-
-template <class N> CudaDeviceFunction void LatticeContainer::push(N & node) 
-{
-<?R
-  set.buf("out",pocket=TRUE);
-  for (f in Fields) { ?>
-//--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x","node.y","node.z"));
-    save.field(paste("node",f$name,sep="."), f, p)
-  }?>
-}
-
-
 /// Main Kernel
 /**
   iterates over all elements and runs them with RunElement function.
@@ -599,12 +395,13 @@ ifdef(); ?>
 /**
   calculates the color for one node
 */
+template <class N>
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
-    Node now;
+    N now;
     now.x = x;
     now.y = y;
     now.z = z;
@@ -643,7 +440,7 @@ if (isfinite(l)) {
 /// Kernel for graphics output
 CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
-  NodeToColor(
+  NodeToColor<Node>(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
     z,
@@ -677,11 +474,11 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 {
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy; <?R
-	if (q$adjoint) { ?>
-	Node_Adj now; <?R
+        if (q$adjoint) { ?>
+          Node_Adj now; <?R
         } else { ?>
-	Node now; <?R
-        } ?>
+          Node now; <?R
+        }?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
 		now.x = x;

@@ -104,8 +104,13 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);
+        if (q$adjoint) {
+          node = "Node_Adj"
+        } else {
+          node = "Node"
+        }
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
+CudaGlobalFunction inline void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
         { ?>
 CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
