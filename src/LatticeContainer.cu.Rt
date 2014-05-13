@@ -329,7 +329,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
   }
 
 #  No x move:
-  no.x.move = TRUE
+  no.x.move = FALSE
      
   load.field = function(d,f,p,dp) {
     ret = f$get_offsets(p,dp)
