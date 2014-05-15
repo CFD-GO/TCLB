@@ -47,7 +47,7 @@ void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 	for (z=0; z<nz; z++) {
 		k = x + y * nx + z * nx * ny;
 <?R
-	for (m in NonEmptyMargin) {
+	for (m in Margin) {
 		sides(m$side, m$dx, m$dy, m$dz);
 	}
 ?>

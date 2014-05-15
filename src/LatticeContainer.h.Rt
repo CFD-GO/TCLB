@@ -22,6 +22,8 @@
 
 #include "Consts.h"
 
+template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
+
 /// Container class used for storing all the data needed on GPU
 /**
   Main class for storing the data needed on GPU and running kernels.
@@ -64,8 +66,10 @@ class LatticeContainer {
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in Fields) { ?>
-  template <int dx, int dy, int dz>
-  CudaDeviceFunction real_t& load_<?%s f$nicename ?> (const int & x, const int & y, const int & z); <?R
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t& load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
+    typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
+  }; <?R
   } ?>
 //  template <class N> CudaDeviceFunction void push_new(N & node);
 

@@ -246,7 +246,8 @@ AddStage = function(
 	main,
 	load.densities=TRUE,
 	save.fields=TRUE,
-	decl.vars=c()
+	decl.vars=c(),
+	results=c()
 ) {
 
 }
@@ -483,7 +484,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 			},
 			put_offsets = 
 			function(w,cpu=def.cpu) {
-				offset = offset.p(rbind(w - mw + PV(mins),w,w),cpu=cpu)
+				offset = offset.p(rbind(w - mw - PV(mins),w,w),cpu=cpu)
 				cond = rbind(w+PV(-maxs),mw-w+PV(mins)-one)
 				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
 			},
