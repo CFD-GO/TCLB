@@ -241,20 +241,52 @@ AddNodeType("Obj3","OBJECTIVE")
 AddNodeType("Thermometer","OBJECTIVE")
 AddNodeType("DesignSpace","DESIGNSPACE")
 
-AddStage = function(
-	level,
-	main,
-	load.densities=TRUE,
-	save.fields=TRUE,
-	decl.vars=c(),
-	results=c()
-) {
+Stages=NULL
 
+AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE) {
+	s = data.frame(
+		name = name,
+		level = level,
+		main = main,
+		adjoint = FALSE
+	)
+	if (any(Stages$level == level)) {
+		if (no.overwrite) return();
+		s$index = Stages$index[Stages$level == level]
+		s$Index = Stages$Index[Stages$level == level]
+		Stages[Stages$level == level,] <<- s
+	} else {
+		if (is.null(Stages)) {
+			s$index = 1
+		} else {
+			s$index = nrow(Stages) + 1
+		}
+		s$Index = paste("S",s$index,sep="__")
+		Stages <<- rbind(Stages,s)
+	}
+	if (is.character(load.densities)) {
+		sel = load.densities %in% DensityAll$name
+		if (any(!sel)) stop(paste("Unknown densities in AddStage:", load.densities[!sel]))
+		load.densities = DensityAll$name %in% load.densities
+	}
+	if (is.logical(load.densities)) {
+		DensityAll[,s$Index] <<- load.densities
+	} else stop("load.densities should be logical or character")
+
+	if (is.character(save.fields)) {
+		sel = save.fields %in% Fields$name
+		if (any(!sel)) stop(paste("Unknown fields in AddStage:", save.fields[!sel]))
+		save.fields = Fields$name %in% save.fields
+	}
+	if (is.logical(save.fields)) {
+		Fields[,s$Index] <<- save.fields
+	} else stop("save.fields should be logical or character in AddStage")
 }
 
-AddStage(level=0, main="Run", load.densities=TRUE, save.fields=TRUE)
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
+
+AddStage(level=0, main="Run", load.densities=TRUE, save.fields=TRUE,no.overwrite=TRUE)
 
 NodeShift = 1
 NodeShiftNum = 0
