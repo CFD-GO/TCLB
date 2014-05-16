@@ -253,7 +253,7 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 	if (any(Stages$level == level)) {
 		if (no.overwrite) return();
 		s$index = Stages$index[Stages$level == level]
-		s$Index = Stages$Index[Stages$level == level]
+		s$tag = Stages$tag[Stages$level == level]
 		Stages[Stages$level == level,] <<- s
 	} else {
 		if (is.null(Stages)) {
@@ -261,7 +261,7 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 		} else {
 			s$index = nrow(Stages) + 1
 		}
-		s$Index = paste("S",s$index,sep="__")
+		s$tag = paste("S",s$index,sep="__")
 		Stages <<- rbind(Stages,s)
 	}
 	if (is.character(load.densities)) {
@@ -270,7 +270,7 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 		load.densities = DensityAll$name %in% load.densities
 	}
 	if (is.logical(load.densities)) {
-		DensityAll[,s$Index] <<- load.densities
+		DensityAll[,s$tag] <<- load.densities
 	} else stop("load.densities should be logical or character")
 
 	if (is.character(save.fields)) {
@@ -279,14 +279,25 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 		save.fields = Fields$name %in% save.fields
 	}
 	if (is.logical(save.fields)) {
-		Fields[,s$Index] <<- save.fields
+		Fields[,s$tag] <<- save.fields
 	} else stop("save.fields should be logical or character in AddStage")
 }
 
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
-AddStage(level=0, main="Run", load.densities=TRUE, save.fields=TRUE,no.overwrite=TRUE)
+AddStage(level=0, main="Run", name="MainIter", load.densities=TRUE, save.fields=TRUE,no.overwrite=TRUE)
+
+if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
+ntag = paste("Stage",Stages$name,sep="_")
+i = match(Stages$tag,names(DensityAll))
+if (any(is.na(i))) stop("Some stage didn't load properly")
+names(DensityAll)[i] = ntag
+i = match(Stages$tag,names(Fields))
+if (any(is.na(i))) stop("Some stage didn't load properly")
+names(Fields)[i] = ntag
+Stages$tag = ntag
+Stages = Stages[order(Stages$level),]
 
 NodeShift = 1
 NodeShiftNum = 0
@@ -430,12 +441,23 @@ Dispatch = data.frame(
 	zeropar=c(  FALSE,   FALSE,    FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
 	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
 )
-
 Dispatch$adjoint_ver = Dispatch$adjoint
 Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
 
+p = expand.grid(x=seq_len(nrow(Dispatch)), y=seq_len(nrow(Stages)+1))
+Dispatch = cbind(
+	Dispatch[p$x,],
+	data.frame(
+		stage = c(FALSE,rep(TRUE,nrow(Stages))),
+		stage_name  = c("", Stages$name),
+		stage_index = c(0,Stages$index)
+	)[p$y,]
+)
+sel = Dispatch$stage
+Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel], sep="")
+
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));

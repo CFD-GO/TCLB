@@ -50,6 +50,17 @@ dim.bunch = function(x) {
 	}
 }
 
+getcol.bunch = function(x,name) {
+	if ( name %in% attr(x,"cols") ) {
+		sapply(x,function(x) { x[[name]] })
+	} else {
+		NULL
+	}
+}
+
+
+
+
 "$<-.bunch" = function(x,name,value) {
 	if (length(value) == length(x)) {
 	} else if (length(value) == 1) {
@@ -82,13 +93,22 @@ indexes.bunch = function(x,i) {
 	}
 }
 
-"[.bunch" = function(x,i) {
-	ni = indexes.bunch(x,substitute(i))
-	y = unclass(x)[ni]
-        class(y) = "bunch"
-	attr(y,"cols") = attr(x,"cols")
-        y
+"[.bunch" = function(x,i,j) {
+	if (missing(i)) {
+		y=x
+	} else {
+		ni = indexes.bunch(x,substitute(i))
+		y = unclass(x)[ni]
+		class(y) = "bunch"
+		attr(y,"cols") = attr(x,"cols")
+	}
+	if (missing(j)) {
+		y
+	} else {
+		getcol.bunch(y,j)
+	}	
 }
+
 
 "[<-.bunch" = function(x,i,value) {
 	if (class(value) == "list") {

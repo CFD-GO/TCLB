@@ -56,6 +56,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 <?R
 	for (tp in rows(Dispatch)) {
+	s = Stages[Stages$name == tp$stage_name, ]
 	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix
@@ -127,6 +128,7 @@ struct Node<?%s suff ?> {
                         } ?>
 	#include "Dynamics_adj.c" <?R
 		}
+	if (tp$stage) { ################################################################
 		if (tp$Action == "Opt") { ?>
 	CudaDeviceFunction inline void Opt() {
 	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
@@ -145,8 +147,8 @@ struct Node<?%s suff ?> {
 	CudaDeviceFunction inline void RunElement() {
 	        constContainer.getType(*this); <?R
 		if (tp$Action == "Adj") { ?>
-		constContainer.pop(*this);
-		constContainer.pop_adj(*this);<?R
+		constContainer.pop_<?%s s$name ?>(*this);
+		constContainer.pop_adj_<?%s s$name ?>(*this);<?R
 		        for (d in rows(DensityAD)) if (d$parameter) {
         		        if (tp$Globals == "Globs") { ?>
                 real_t old_<?%s d$name ?> = <?%s d$name ?>; <?R
@@ -160,24 +162,24 @@ struct Node<?%s suff ?> {
                 old_<?%s d$name ?> -= <?%s d$name ?>;
                 AddToAdjointRes(old_<?%s d$name ?>*old_<?%s d$name ?>); <?R
                         } ?>
-		constContainer.push_adj(*this); <?R
+		constContainer.push_adj_<?%s s$name ?>(*this); <?R
 		} else if (tp$Action == "Opt") { ?>
 
-                constContainer.pop(*this); <?R
+                constContainer.pop_<?%s s$name ?>(*this); <?R
 		        for (i in 1:nrow(Density)) {
 		                d=Density[i,];
                                 da=DensityAD[i,];?>
 		<?%s da$name ?> = <?%s d$name ?>; <?R
 		        } ?>
 
-		Run();
-		constContainer.push_noparam(*this); <?R
+		<?%s s$main ?>();
+		constContainer.push_noparam_<?%s s$name ?>(*this); <?R
 		        for (i in 1:nrow(Density)) {
 		                d=Density[i,];
                                 da=DensityAD[i,];?>
 		<?%s d$name ?> = <?%s da$name ?>; <?R
 		        } ?>
-		constContainer.pop_adj(*this); <?R
+		constContainer.pop_adj_<?%s s$name ?>(*this); <?R
 		        for (d in rows(DensityAD)) if (d$parameter) { ?>
 		<?%s d$name ?> = GradientSmooth*<?%s d$name ?>; <?R
 		        } ?>
@@ -185,21 +187,22 @@ struct Node<?%s suff ?> {
 		        for (d in rows(DensityAD)) if (d$parameter) { ?>
                 <?%s d$name ?> /= 1.+GradientSmooth; <?R
                         } ?>
-		constContainer.push_adj(*this);
+		constContainer.push_adj_<?%s s$name ?>(*this);
 		Opt();
-		constContainer.push_param(*this); <?R
+		constContainer.push_param_<?%s s$name ?>(*this); <?R
 		} else if (tp$Action == "Init") { ?>
 		constContainer.getType(*this);
 		Init();
-		constContainer.push(*this); <?R
+		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else if (tp$Action == "No") { ?>
-	        constContainer.pop(*this); 
-		Run();
-		constContainer.push(*this); <?R
+	        constContainer.pop_<?%s s$name ?>(*this); 
+		<?%s s$main ?>();
+		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Action,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
-	}
+	} <?R
+	} #################################################################################### ?>
 }; <?R
 	for (g in rows(GlobalsD)) { ?>
 #undef AddTo<?%s g$name ?><?R

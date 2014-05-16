@@ -52,17 +52,30 @@ class LatticeContainer {
   void Alloc (int,int,int);
   void Free();
   CudaDeviceFunction void fill();
-  template<class N>  CudaDeviceFunction void push(N & f);
-  template<class N>  CudaDeviceFunction void push_param(N & f);
-  template<class N>  CudaDeviceFunction void push_noparam(N & f);
-  template<class N>  CudaDeviceFunction void pull(N & f);
-  template<class N>  CudaDeviceFunction void pop(N & f);
-  template<class N>  CudaDeviceFunction void getType(N & f);
+<?R for (s in c(rows(Stages),list(NULL))) {
+  if (is.null(s)) {
+    s$load.densities = rep(TRUE, nrow(DensityAll))
+    s$save.fields = rep(TRUE, length(Fields))
+    s$suffix=""
+  } else {
+    s$load.densities = DensityAll[,s$tag];
+    s$save.fields = Fields[,s$tag];
+    s$suffix = paste("_",s$name,sep="")
+  } 
+  ?>
+  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void push_param<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void push_noparam<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>(N & f);
 #ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push_adj(N & f);
-  template<class N>  CudaDeviceFunction void pull_adj(N & f);
-  template<class N>  CudaDeviceFunction void pop_adj(N & f);
+  template<class N>  CudaDeviceFunction void push_adj<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void pull_adj<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void pop_adj<?%s s$suffix ?>(N & f);
 #endif
+<?R } ?>
+
+  template<class N>  CudaDeviceFunction void getType(N & f);
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in Fields) { ?>
@@ -77,7 +90,7 @@ class LatticeContainer {
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-<?R for(tp in rows(Dispatch)) { ?>
+<?R for(tp in rows(Dispatch)) if (tp$stage) { ?>
   void RunBorder<?%s tp$suffix ?>(CudaStream_t);
   void RunInterior<?%s tp$suffix ?>(CudaStream_t);
 <?R } ?>

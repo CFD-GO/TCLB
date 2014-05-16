@@ -358,18 +358,26 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
 <?R
 	}
-?>
+	old_stage_level = -Inf
+         for (stage in rows(Stages)) { ?>
+//---------------- STAGE: <?%s stage$name ?> --- LEVEL: <?%d stage$level ?> -------------------- <?R
+
+                 if ((stage$level > 0) && (old_stage_level <= 0)) { 
+                         m = Margin[[14]]; ?>
+                 container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; //In-place for levels > 0 <?R
+                 }
+                 old_stage_level = stage$level ?>
 	container->CopyToConst();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunBorder (kernelStream); break;
+		container->RunBorder_<?%s stage$name ?> (kernelStream); break;
 	case ITER_INIT:
-		container->RunBorder_Init(kernelStream); break;
+		container->RunBorder_<?%s stage$name ?>_Init(kernelStream); break;
 	case ITER_GLOBS:
-		container->RunBorder_Globs(kernelStream); break;
+		container->RunBorder_<?%s stage$name ?>_Globs(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunBorder_Obj(kernelStream);
+		container->RunBorder_<?%s stage$name ?>_Obj(kernelStream);
 #endif
                 break;
 	}	
@@ -379,15 +387,15 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunInterior (kernelStream); break;
+		container->RunInterior_<?%s stage$name ?> (kernelStream); break;
 	case ITER_INIT:
 	        printf("Running Init kernel\n");
-		container->RunInterior_Init(kernelStream); break;
+		container->RunInterior_<?%s stage$name ?>_Init(kernelStream); break;
 	case ITER_GLOBS:
-		container->RunInterior_Globs(kernelStream); break;
+		container->RunInterior_<?%s stage$name ?>_Globs(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunInterior_Obj(kernelStream);
+		container->RunInterior_<?%s stage$name ?>_Obj(kernelStream);
 #endif
                 break;
 	}	
@@ -395,6 +403,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	MPIStream_B();
 
         CudaDeviceSynchronize();
+<?R } ?>
 	Snap = tab1;
 	MarkIteration();
 };
