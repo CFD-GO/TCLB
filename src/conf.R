@@ -286,7 +286,7 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
-AddStage(level=0, main="Run", name="MainIter", load.densities=TRUE, save.fields=TRUE,no.overwrite=TRUE)
+AddStage(level=0, main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE,no.overwrite=TRUE)
 
 if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
 ntag = paste("Stage",Stages$name,sep="_")
@@ -566,6 +566,25 @@ for (i in 1:length(Margin)) {
 NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
 NonEmptyMargin = Margin[NonEmptyMargin]
 
+
+Enums = list(
+	eOperationType=c("Primal","Tangent","Adjoint"),
+	eCalculateGlobals=c("NoGlobals", "ItegrateGlobals", "OnlyObjective"),
+	eModel=as.character(MODEL),
+	eAction=c("Init","Iteration"),
+	eStage=c("BaseInit","BaseIteration","Get")
+)
+
+AllKernels = expand.grid(
+	Op=Enums$eOperationType,
+	Globals=Enums$eCalculateGlobals,
+	Model=Enums$eModel,
+	Stage=Enums$eStage
+)
+
+AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))
+AllKernels$TemplateArgs = paste(AllKernels$Op, ",", AllKernels$Globals, ",", AllKernels$Stage)
+AllKernels$Node = paste("Node_Run <", AllKernels$TemplateArgs, ">")
 
 ################################################################################
 

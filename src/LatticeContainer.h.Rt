@@ -90,10 +90,9 @@ class LatticeContainer {
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-<?R for(tp in rows(Dispatch)) if (tp$stage) { ?>
-  void RunBorder<?%s tp$suffix ?>(CudaStream_t);
-  void RunInterior<?%s tp$suffix ?>(CudaStream_t);
-<?R } ?>
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
+  
   void CopyToConst();
   void WaitAll();
   void WaitBorder();
@@ -138,6 +137,7 @@ ifdef() ?>
 
 void * BAlloc(size_t size);
 void BPreAlloc(void **, size_t size);
+
 
 #endif
 #define LATTICECONTAINER_H 1

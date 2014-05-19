@@ -335,7 +335,7 @@ inline void Lattice::MPIStream_B(int tag)
         \param tab1 Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
+  inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 {
 	real_t * tmp;
 	int size, from, to;
@@ -370,14 +370,14 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	container->CopyToConst();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunBorder_<?%s stage$name ?> (kernelStream); break;
+		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_INIT:
-		container->RunBorder_<?%s stage$name ?>_Init(kernelStream); break;
+		container->RunBorder< Primal, NoGlobals, BaseInit >(kernelStream); break;
 	case ITER_GLOBS:
-		container->RunBorder_<?%s stage$name ?>_Globs(kernelStream); break;
+		container->RunBorder< Primal, ItegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunBorder_<?%s stage$name ?>_Obj(kernelStream);
+		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
 #endif
                 break;
 	}	
@@ -387,15 +387,15 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunInterior_<?%s stage$name ?> (kernelStream); break;
+		container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_INIT:
 	        printf("Running Init kernel\n");
-		container->RunInterior_<?%s stage$name ?>_Init(kernelStream); break;
+		container->RunInterior< Primal, NoGlobals, BaseInit >(kernelStream); break;
 	case ITER_GLOBS:
-		container->RunInterior_<?%s stage$name ?>_Globs(kernelStream); break;
+		container->RunInterior< Primal, ItegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunInterior_<?%s stage$name ?>_Obj(kernelStream);
+		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
 #endif
                 break;
 	}	

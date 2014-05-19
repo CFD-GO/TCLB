@@ -56,7 +56,7 @@ void setConstSetting(int i, real_t tmp) {
 }
 
 /// Get maximal number of threads for all the kernels on runtime
-template <class N> dim3 GetThreads() {
+template < class N > dim3 GetThreads() {
 	dim3 ret;
 	CudaFuncAttributes * attr = new CudaFuncAttributes;
 	CudaFuncGetAttributes(attr, RunKernel<N>) ;
@@ -72,35 +72,40 @@ template <class N> dim3 GetThreads() {
 	return ret;
 }
 
-/// Returns the number of blocks in Y direction
-template < class N > inline int getKY() { return 0; }
-/// Returns the number of threads in Y direction
-template < class N > inline int getSY() { return 0; }
 
-<?R for(tp in rows(Dispatch)) if (tp$stage) { ifdef(tp$adjoint_ver)
-?>int kydim<?%s tp$suffix ?>, sydim<?%s tp$suffix ?>;
-template < > inline int getKY< Node<?%s tp$suffix ?> >() { return kydim<?%s tp$suffix ?>; }
-template < > inline int getSY< Node<?%s tp$suffix ?> >() { return sydim<?%s tp$suffix ?>; }
-<?R }; ifdef();?>
-
-/// Initialize Thread/Block number variables
-int InitDim(int ny) {
-	dim3 th; int ky;
-	MPI_Barrier(MPI_COMM_WORLD);
-	if (D_MPI_RANK == 0) {
-          DEBUG2( printf( "[ ] |  Threads  |      Action  |\n") );
-        }
-	MPI_Barrier(MPI_COMM_WORLD);
-<?R for(tp in rows(Dispatch)) if (tp$stage) { ifdef(tp$adjoint_ver)
-?>	th = GetThreads< Node<?%s tp$suffix ?> >();
-	DEBUG2( printf( "[%d] |  %3dx%-3d  |  %10s  |\n", D_MPI_RANK, th.x, th.y, "<?%s tp$suffix ?>") );
-	MPI_Barrier(MPI_COMM_WORLD);
-	sydim<?%s tp$suffix ?> = th.y;
+template < class N > class ThreadNumber {
+  public:
+  static int ky, sy;
+  static void Init(int ny) {
+	dim3 th = GetThreads< N >();
+	sy = th.y;
 	ky = ny/th.y;
 	if (ky*th.y < ny) ky++;
-	kydim<?%s tp$suffix ?> = ky;
-<?R }; ifdef();
-?>}
+  }
+  static inline int getKY() { return ky; }
+  static inline int getSY() { return sy; }
+};
+
+template < class N > int ThreadNumber< N >::ky = 0;
+template < class N > int ThreadNumber< N >::sy = 0;
+  
+/// Initialize Thread/Block number variables
+int InitDim(int ny) {
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (D_MPI_RANK == 0) {
+          DEBUG2( printf( "[ ] |  Threads  |      Action\n") );
+        }
+	MPI_Barrier(MPI_COMM_WORLD);
+<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
+        ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(ny); <?R
+	}; ifdef(); ?>
+	MPI_Barrier(MPI_COMM_WORLD);
+<?R	for (tp in rows(AllKernels)) { ifdef(tp$adjoint) ?>
+	DEBUG2( printf( "[%d] |  %3dx%-3d  |  %10s  |\n", D_MPI_RANK, X_BLOCK, ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::getSY(), "<?%s tp$TemplateArgs ?>") );<?R
+	}; ifdef();
+?>
+
+}
 
 /// Allocation of a GPU memory Buffer
 void * BAlloc(size_t size) {
@@ -367,30 +372,25 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderS
 */
 template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
     int nnz;
-    ky = getKY<N>();
+    ky = ThreadNumber< N >::getKY();
     #ifdef BORDER_Z
 	nnz = nz - 2;
     #else
 	nnz = nz;
     #endif
     #ifdef GRID_3D
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,getSY<N>()),(),interiorStream);
+        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
     #endif
 };
 
-// Type specific runs (template specializations)
-<?R for(tp in rows(Dispatch)) if (tp$stage) {
-ifdef(tp$adjoint_ver) ?>
-/// Runs a Node_<?%s tp$suffix ?> dynamics on all border nodes
-void LatticeContainer::RunBorder<?%s tp$suffix ?>(CudaStream_t stream)   { RunBorderT< Node<?%s tp$suffix ?> >(stream); };
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
 
-/// Runs a Node_<?%s tp$suffix ?> dynamics on all interior nodes
-void LatticeContainer::RunInterior<?%s tp$suffix ?>(CudaStream_t stream) { RunInteriorT< Node<?%s tp$suffix ?> >(stream); };
-<?R }
-ifdef(); ?>
- 
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+  
 /// Old function for graphics output
 /**
   calculates the color for one node
@@ -440,7 +440,7 @@ if (isfinite(l)) {
 /// Kernel for graphics output
 CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
-  NodeToColor<Node>(
+  NodeToColor< Node_Run< Primal, NoGlobals, Get > >(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
     z,
@@ -475,9 +475,9 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy; <?R
         if (q$adjoint) { ?>
-          Node_Adj now; <?R
+          Node_Run< Adjoint, NoGlobals, Get > now; <?R
         } else { ?>
-          Node now; <?R
+          Node_Run< Primal, NoGlobals, Get > now; <?R
         }?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
@@ -505,3 +505,8 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         ifdef();
 ?>
 
+
+<?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
+template void LatticeContainer::RunBorder < <?%s tp$TemplateArgs ?> > (CudaStream_t stream);
+template void LatticeContainer::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
+         }; ifdef(); ?>
