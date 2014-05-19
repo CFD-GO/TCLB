@@ -363,8 +363,13 @@ inline void Lattice::MPIStream_B(int tag)
 //---------------- STAGE: <?%s stage$name ?> --- LEVEL: <?%d stage$level ?> -------------------- <?R
 
                  if ((stage$level > 0) && (old_stage_level <= 0)) { 
-                         m = Margin[[14]]; ?>
-                 container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; //In-place for levels > 0 <?R
+                	for (m in NonEmptyMargin) { ?>
+	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
+                        } ?>
+                        if ((iter_type & ITER_INTEG) == ITER_INIT) {
+                        	Snap = tab1;
+                        	return;
+                        } <?R
                  }
                  old_stage_level = stage$level ?>
 	container->CopyToConst();
@@ -374,7 +379,7 @@ inline void Lattice::MPIStream_B(int tag)
 	case ITER_INIT:
 		container->RunBorder< Primal, NoGlobals, BaseInit >(kernelStream); break;
 	case ITER_GLOBS:
-		container->RunBorder< Primal, ItegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
+		container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
 		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
@@ -392,7 +397,7 @@ inline void Lattice::MPIStream_B(int tag)
 	        printf("Running Init kernel\n");
 		container->RunInterior< Primal, NoGlobals, BaseInit >(kernelStream); break;
 	case ITER_GLOBS:
-		container->RunInterior< Primal, ItegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
+		container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
 		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);

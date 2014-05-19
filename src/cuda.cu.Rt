@@ -61,7 +61,7 @@ template < eCalculateGlobals G > struct Node_Globals : Node_Base {
         } ?>
 };
 
-template <> struct Node_Globals < ItegrateGlobals > : Node_Base { <?R
+template <> struct Node_Globals < IntegrateGlobals > : Node_Base { <?R
         G = rows(GlobalsD)[!GlobalsD$adjoint]
 	for (g in G) { ?>
 	        real_t <?%s g$var ?>; <?R
@@ -125,7 +125,7 @@ template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < G > {
 	#include "Dynamics_adj.c"
 };
 
-template < > struct Node_Dynamics < Adjoint, ItegrateGlobals > : Node_Globals < G > {
+template < > struct Node_Dynamics < Adjoint, IntegrateGlobals > : Node_Globals < G > {
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
@@ -139,17 +139,34 @@ template < > struct Node_Dynamics < Adjoint, ItegrateGlobals > : Node_Globals < 
 template < eOperationType I, eCalculateGlobals G, eStage S > struct Node_Stage : Node_Dynamics< I, G > {
         CudaDeviceFunction void Run_Stage() {
         }
-};
-
-template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, BaseIteration >: Node_Dynamics< I, G > {
-        CudaDeviceFunction void Run_Stage() {
-                this->Run();
+        CudaDeviceFunction void pop() {
+        }
+        CudaDeviceFunction void push() {
         }
 };
+
+<?R for (s in rows(Stages)) { ?>
+template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, <?%s s$name ?> >: Node_Dynamics< I, G > {
+        CudaDeviceFunction void Run_Stage() {
+                this-><?%s s$main ?>();
+        }
+        CudaDeviceFunction void pop() {
+                constContainer.pop_<?%s s$name ?>(*this);
+        }
+        CudaDeviceFunction void push() {
+                constContainer.push_<?%s s$name ?>(*this);
+        }
+};
+<?R } ?>
 
 template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, BaseInit >: Node_Dynamics< I, G > {
         CudaDeviceFunction void Run_Stage() {
                 this->Init();
+        }
+        CudaDeviceFunction void pop() {
+        }
+        CudaDeviceFunction void push() {
+                constContainer.push(*this);
         }
 };
 
@@ -162,9 +179,9 @@ template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run : No
 template < eCalculateGlobals G, eStage S > struct Node_Run <Primal, G, S>  : Node_Stage< Primal, G, S > {
 	CudaDeviceFunction inline void RunElement() {
 	        constContainer.getType(*this);
-	        constContainer.pop(*this); 
+	        this->pop(); 
 		this->Run_Stage();
-		constContainer.push(*this);
+		this->push();
 	}
 };
 

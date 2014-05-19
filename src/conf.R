@@ -568,16 +568,17 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 
 Enums = list(
-	eOperationType=c("Primal","Tangent","Adjoint"),
-	eCalculateGlobals=c("NoGlobals", "ItegrateGlobals", "OnlyObjective"),
+	eOperationType=c("Primal","Tangent","Adjoint","Opt"),
+	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
 	eModel=as.character(MODEL),
 	eAction=c("Init","Iteration"),
-	eStage=c("BaseInit","BaseIteration","Get")
+	eStage=c("BaseInit",Stages$name,"Get"),
+	eTape = c("NoTape", "RecordTape")
 )
 
 AllKernels = expand.grid(
 	Op=Enums$eOperationType,
-	Globals=Enums$eCalculateGlobals,
+	Globals=Enums$eCalculateGlobals[1:3],
 	Model=Enums$eModel,
 	Stage=Enums$eStage
 )
