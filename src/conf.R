@@ -279,6 +279,18 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 		save.fields = Fields$name %in% save.fields
 	}
 	if (is.logical(save.fields)) {
+		if (nrow(Stages) > 1) {
+			rest = Stages$tag[!(Stages$tag %in% s$tag)]
+			rest = Fields[,rest,drop=F]
+			rest = apply(rest,1,any)
+			if (any(save.fields & rest)) {
+				if (no.overwrite) {
+					save.fields = save.fields & (!rest)
+				} else {
+					stop("Any field can be save only by one stage")
+				}
+			}
+		}
 		Fields[,s$tag] <<- save.fields
 	} else stop("save.fields should be logical or character in AddStage")
 }
