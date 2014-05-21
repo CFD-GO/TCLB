@@ -159,17 +159,6 @@ template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, <?%
 };
 <?R } ?>
 
-template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, BaseInit >: Node_Dynamics< I, G > {
-        CudaDeviceFunction void Run_Stage() {
-                this->Init();
-        }
-        CudaDeviceFunction void pop() {
-        }
-        CudaDeviceFunction void push() {
-                constContainer.push(*this);
-        }
-};
-
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run : Node_Stage< I, G, S > {
         inline CudaDeviceFunction void RunElement() {}

@@ -243,18 +243,18 @@ AddNodeType("DesignSpace","DESIGNSPACE")
 
 Stages=NULL
 
-AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE) {
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE) {
 	s = data.frame(
 		name = name,
-		level = level,
 		main = main,
 		adjoint = FALSE
 	)
-	if (any(Stages$level == level)) {
+	sel = Stages$name == name
+	if (any(sel)) {
 		if (no.overwrite) return();
-		s$index = Stages$index[Stages$level == level]
-		s$tag = Stages$tag[Stages$level == level]
-		Stages[Stages$level == level,] <<- s
+		s$index = Stages$index[sel]
+		s$tag = Stages$tag[sel]
+		Stages[sel,] <<- s
 	} else {
 		if (is.null(Stages)) {
 			s$index = 1
@@ -270,6 +270,7 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 		load.densities = DensityAll$name %in% load.densities
 	}
 	if (is.logical(load.densities)) {
+		if ((length(load.densities) != 1) && (length(load.densities) != nrow(DensityAll))) stop("Wrong length of load.densities in AddStage")
 		DensityAll[,s$tag] <<- load.densities
 	} else stop("load.densities should be logical or character")
 
@@ -279,26 +280,34 @@ AddStage = function(level, main, name=main, load.densities=FALSE, save.fields=FA
 		save.fields = Fields$name %in% save.fields
 	}
 	if (is.logical(save.fields)) {
-		if (nrow(Stages) > 1) {
-			rest = Stages$tag[!(Stages$tag %in% s$tag)]
-			rest = Fields[,rest,drop=F]
-			rest = apply(rest,1,any)
-			if (any(save.fields & rest)) {
-				if (no.overwrite) {
-					save.fields = save.fields & (!rest)
-				} else {
-					stop("Any field can be save only by one stage")
-				}
-			}
-		}
+		if ((length(save.fields) != 1) && (length(save.fields) != nrow(Fields))) stop("Wrong length of save.fields in AddStage")
 		Fields[,s$tag] <<- save.fields
 	} else stop("save.fields should be logical or character in AddStage")
 }
 
+Actions = list()
+
+AddAction = function(name, stages) {
+	Actions[[name]] <<- stages
+}
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
-AddStage(level=0, main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE,no.overwrite=TRUE)
+
+if (!"Iteration" %in% names(Actions)) {
+	AddAction(name="Iteration", stages=c("BaseIteration"))
+}
+if (!"Init" %in% names(Actions)) {
+	AddAction(name="Init", stages=c("BaseInit"))
+}
+AllStages = do.call(c,Actions)
+
+if (("BaseIteration" %in% AllStages) && (!"BaseIteration" %in% Stages$name)) {
+	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, no.overwrite=TRUE)
+}
+if (("BaseInit" %in% AllStages) && (!"BaseInit" %in% Stages$name)) {
+	AddStage(main="Init", name="BaseInit", load.densities=FALSE, save.fields=TRUE, no.overwrite=TRUE)
+}
 
 if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
 ntag = paste("Stage",Stages$name,sep="_")
@@ -309,7 +318,21 @@ i = match(Stages$tag,names(Fields))
 if (any(is.na(i))) stop("Some stage didn't load properly")
 names(Fields)[i] = ntag
 Stages$tag = ntag
-Stages = Stages[order(Stages$level),]
+#Stages = Stages[order(Stages$level),]
+row.names(Stages)=Stages$name
+
+for (n in names(Actions)) { a = Actions[[n]]
+	if (length(a) != 0) {
+		sel = Stages[a,"tag"]
+		f = Fields[,sel,drop=F]
+		s = apply(f,1,sum)
+		if (any(s) > 1) {
+			stop(paste("Field", Fields$name[s>1],"is saved more then once in Action",n))
+		}
+	} else {
+		stop(paste("There is a empty Action:",n))
+	}
+}
 
 NodeShift = 1
 NodeShiftNum = 0
@@ -583,8 +606,8 @@ Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Opt"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
 	eModel=as.character(MODEL),
-	eAction=c("Init","Iteration"),
-	eStage=c("BaseInit",Stages$name,"Get"),
+	eAction=names(Actions),
+	eStage=c(Stages$name,"Get"),
 	eTape = c("NoTape", "RecordTape")
 )
 
