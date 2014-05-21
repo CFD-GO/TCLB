@@ -1,0 +1,53 @@
+
+AddDensity( name="f0", dx= 0, dy= 0, group="f")
+AddDensity( name="f1", dx= 1, dy= 0, group="f")
+AddDensity( name="f2", dx= 0, dy= 1, group="f")
+AddDensity( name="f3", dx=-1, dy= 0, group="f")
+AddDensity( name="f4", dx= 0, dy=-1, group="f")
+AddDensity( name="f5", dx= 1, dy= 1, group="f")
+AddDensity( name="f6", dx=-1, dy= 1, group="f")
+AddDensity( name="f7", dx=-1, dy=-1, group="f")
+AddDensity( name="f8", dx= 1, dy=-1, group="f")
+
+AddField("phi",stencil2d=1);
+
+AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
+AddStage("CalcPhi", save="phi",load=DensityAll$group == "f")
+AddStage("BaseInit", "Init", save=Fields$group == "f", load=DensityAll$group == "f")
+
+AddAction("Iteration", c("BaseIteration","CalcPhi"))
+AddAction("Init", c("BaseInit","CalcPhi"))
+
+AddQuantity(name="Rho", unit="kg/m3");
+AddQuantity(name="U", unit="m/s", vector=T);
+AddQuantity(name="P", unit="Pa");
+AddQuantity(name="F", unit="N", vector=T);
+
+AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='inlet density')
+AddSetting(name="OutletDensity", default=1, comment='inlet density')
+AddSetting(name="InitDensity", comment='inlet density')
+AddSetting(name="WallDensity", comment='vapor/liquid density of wall')
+AddSetting(name="Temperature", comment='temperature of the liquid/gas')
+AddSetting(name="FAcc", comment='Multiplier of potential')
+AddSetting(name="Magic", comment='K')
+AddSetting(name="MagicA", comment='A in force calculation')
+AddSetting(name="MagicF", comment='Force multiplier')
+AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
+AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
+AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall')
+AddSetting(name="WetDensity", comment='wet density')
+AddSetting(name="DryDensity", comment='dry density')
+AddSetting(name="Wetting", comment='wetting factor')
+
+AddGlobal(name="MovingWallForceX", comment='force x')
+AddGlobal(name="MovingWallForceY", comment='force y')
+AddGlobal(name="Pressure1",        comment='pressure at Obj1')
+AddGlobal(name="Pressure2",        comment='pressure at Obj2')
+AddGlobal(name="Pressure3",        comment='pressure at Obj3')
+AddGlobal(name="Density1",         comment='density at Obj1')
+AddGlobal(name="Density2",         comment='density at Obj2')
+AddGlobal(name="Density3",         comment='density at Obj3')
