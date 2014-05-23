@@ -9,14 +9,17 @@ AddDensity( name="f6", dx=-1, dy= 1, group="f")
 AddDensity( name="f7", dx=-1, dy=-1, group="f")
 AddDensity( name="f8", dx= 1, dy=-1, group="f")
 
-AddField("phi",stencil2d=1);
+AddField("rho",stencil2d=2);
+AddField("lambda",stencil2d=2);
 
 AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
-AddStage("CalcPhi", save="phi",load=DensityAll$group == "f")
-AddStage("BaseInit", "Init", save=Fields$group == "f", load=DensityAll$group == "f")
+AddStage("CalcRho", save="rho", load=DensityAll$group == "f")
+AddStage("CalcLambda", save="lambda", load=FALSE)
+AddStage("InitRho", save="rho", load=FALSE)
+AddStage("InitF", save=Fields$group == "f", load=FALSE)
 
-AddAction("Iteration", c("BaseIteration","CalcPhi"))
-AddAction("Init", c("BaseInit","CalcPhi"))
+AddAction("Iteration", c("BaseIteration","CalcRho","CalcLambda"))
+AddAction("Init", c("InitRho","CalcLambda","InitF"))
 
 AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
