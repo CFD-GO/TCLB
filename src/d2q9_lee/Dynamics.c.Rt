@@ -368,23 +368,6 @@ CudaDeviceFunction void InitRho() {
         }
 }
 
-<?R
-  r._1 = PV(paste("rho(",-U[,1],",",-U[,2],")"))
-  r.0 = PV(paste("rho(",0,",",0,")"))
-  r.1 = PV(paste("rho(",U[,1],",",U[,2],")"))
-  r.2 = PV(paste("rho(",2*U[,1],",",2*U[,2],")"))
-?>
-
-CudaDeviceFunction void CalcLambda() {
-  real_t lap; <?R
-  lap = PV("lap")
-  C( lap == sum((r.1-r.0*2+r._1)*(wi/c_sq))*6 ) ?>
-  lap = lap / 6.;
-  double r = rho(0,0);
-  double lambda0 = 2*Beta*(r-LiquidDensity)*(r-VaporDensity)*(2*r-VaporDensity-LiquidDensity);
-  lambda = lambda0 - Kappa * lap;
-}
-
 CudaDeviceFunction void CalcRho() {
         rho = <?R C(sum(f)) ?>;
         switch (NodeType & NODE_BOUNDARY) {
@@ -511,15 +494,34 @@ M = matrix(c(
   make.vector = function(what) {
           ( what * (wi/c_sq) ) %% U
   }
-  C( lap == make.scalar(eLap("rho")) )
 ?>
+
+
+CudaDeviceFunction void CalcNu() {
+  real_t lap; <?R
+  lap = PV("lap")
+  C( lap == make.scalar(eLap("rho")) ) ?>
+  double r = rho(0,0);
+  double nu0 = 2*Beta*(r-LiquidDensity)*(r-VaporDensity)*(2*r-VaporDensity-LiquidDensity);
+  nu = nu0 - Kappa * lap;
+}
 
 
 CudaDeviceFunction void Feq(double d, double u[2], double feq[9]) { <?R
 	Req = Req_fun(d, u);
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	feq = PV(paste("feq[",1:9-1,"]",sep=""))
-	C( feq == Req %% solve(M) , float=F); ?>
+	C( feq == Req %% solve(M) ); ?>
+}
+
+
+real_t fB[9],fC[9];
+
+CudaDeviceFunction void fillF() { <?R
+  fB = PV(paste("fB[",1:9-1,"]",sep=""))
+  fC = PV(paste("fC[",1:9-1,"]",sep=""))
+  C( fB == eNablaB("rho") * c_sq - d * eNablaB("nu") ); 
+  C( fC == eNablaC("rho") * c_sq - d * eNablaC("nu") ); ?>
 }
 
 

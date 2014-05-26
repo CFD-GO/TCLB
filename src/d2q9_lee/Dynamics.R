@@ -14,12 +14,12 @@ AddField("lambda",stencil2d=2);
 
 AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
 AddStage("CalcRho", save="rho", load=DensityAll$group == "f")
-AddStage("CalcLambda", save="lambda", load=FALSE)
+AddStage("CalcNu", save="lambda", load=FALSE)
 AddStage("InitRho", save="rho", load=FALSE)
 AddStage("InitF", save=Fields$group == "f", load=FALSE)
 
-AddAction("Iteration", c("BaseIteration","CalcRho","CalcLambda"))
-AddAction("Init", c("InitRho","CalcLambda","InitF"))
+AddAction("Iteration", c("BaseIteration","CalcRho","CalcNu"))
+AddAction("Init", c("InitRho","CalcNu","InitF"))
 
 AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
@@ -34,17 +34,18 @@ AddSetting(name="InletDensity", default=1, comment='inlet density')
 AddSetting(name="OutletDensity", default=1, comment='inlet density')
 AddSetting(name="InitDensity", comment='inlet density')
 AddSetting(name="WallDensity", comment='vapor/liquid density of wall')
-AddSetting(name="Temperature", comment='temperature of the liquid/gas')
-AddSetting(name="FAcc", comment='Multiplier of potential')
-AddSetting(name="Magic", comment='K')
-AddSetting(name="MagicA", comment='A in force calculation')
-AddSetting(name="MagicF", comment='Force multiplier')
+
 AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
 AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
 AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall')
 AddSetting(name="WetDensity", comment='wet density')
 AddSetting(name="DryDensity", comment='dry density')
 AddSetting(name="Wetting", comment='wetting factor')
+
+AddSetting(name="LiquidDensity", comment="Density of liquid phase")
+AddSetting(name="VaporDensity", comment="Density of vapor phase")
+AddSetting(name="Beta", comment="Beta of Lee model")
+AddSetting(name="Kappa", comment="Capilarity")
 
 AddGlobal(name="MovingWallForceX", comment='force x')
 AddGlobal(name="MovingWallForceY", comment='force y')
