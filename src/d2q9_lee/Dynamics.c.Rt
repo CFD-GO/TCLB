@@ -1,5 +1,6 @@
 <?R
-	source("conf.R") ;
+#	source("conf.R") ;
+        load("SUMMARY.Rdata");
 	c_header();
 ?>
 #define S4 1.3333
@@ -27,6 +28,7 @@ ph = PV(paste("phi(",-U[,1],",",-U[,2],")"))
 	t3 = 1/36
 	c_sq = 1/3
 	wi = c(t1,t2,t2,t2,t2,t3,t3,t3,t3)
+	
 	tn = diag(wi)
 	bounce = c(0,3,4,1,2,7,8,5,6)
 ?>
@@ -407,10 +409,9 @@ CudaDeviceFunction void CalcRho() {
 	}
 }
 
-CudaDeviceFunction void CalcFeq() {
+CudaDeviceFunction void CalcFeq(double rho, double) {
 
 }
-
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
@@ -428,10 +429,6 @@ CudaDeviceFunction float2 Color() {
 }
 
 
-CudaDeviceFunction void CollisionMRT()
-{
-	real_t u[2], usq, d, R[6], uf;
-	vector_t F;
 <?R
         R = PV(c(
 		"d",
@@ -454,28 +451,88 @@ M = matrix(c(
       0,  1, -1,  1, -1,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-	C( R == f %% M , float=F);
 
 	d = PV("d");
 	dw = d
 	dw[[1]][1,2]=-1
-	C(usq == sum(u*u)*dw);
 	usq = PV("usq")
 	u = PV(c("u[0]","u[1]"))
-	Req = rbind(
+	Req_fun = function(d,u,usq) {
+	  if(missing(usq)) usq = sum(u*u)
+	  rbind(
 		d,
-		u,
-		d*(-2)+usq*3,
-		d - usq*3,
-		u[1]*(-1),
-		u[2]*(-1),
-		u[1]*u[1]*dw-u[2]*u[2]*dw,
-		u[1]*u[2]*dw
+		u*d,
+		d*(-2)+usq*d*3,
+		d - usq*d*3,
+		d*u[1]*(-1),
+		d*u[2]*(-1),
+		d*u[1]*u[1]-d*u[2]*u[2],
+		d*u[1]*u[2]
 	)
+	}
         Sy = PV(paste("S",1:19,"",sep=""))
 	selR = c(4,5,6,7,8,9);
 #	cr = calcReq[selR]
 	Mw = colSums(M**2)
+?>
+
+<?R
+  r._1 = PV(paste("rho(",-U[,1],",",-U[,2],")"))
+  r.0 = PV(paste("rho(",0,",",0,")"))
+  r.1 = PV(paste("rho(",U[,1],",",U[,2],")"))
+  r.2 = PV(paste("rho(",2*U[,1],",",2*U[,2],")"))
+  m._1 = PV(paste("mu(",-U[,1],",",-U[,2],")"))
+  m.0 = PV(paste("mu(",0,",",0,")"))
+  m.1 = PV(paste("mu(",U[,1],",",U[,2],")"))
+  m.2 = PV(paste("mu(",2*U[,1],",",2*U[,2],")"))
+
+  get.stencil = function(what) list(
+          "-1" = PV(paste(what,"(",-U[,1],",",-U[,2],")",sep=""))
+          ,"0" = PV(paste(what,"(",0,",",0,")",sep=""))
+          ,"1" = PV(paste(what,"(",U[,1],",",U[,2],")",sep=""))
+          ,"2" = PV(paste(what,"(",2*U[,1],",",2*U[,2],")",sep=""))
+  )
+  
+  eLap = function(what) {
+          w = get.stencil(what)
+          (w$'1' - w$'0'*2 + w$'-1')
+  }
+  eNablaB = function(what) {
+          w = get.stencil(what)
+          ((-1) * w$'2' + 4 * w$'1' - 3 * w$'0')*0.5
+  }
+  eNablaC = function(what) {
+          w = get.stencil(what)
+          (w$'1' - w$'-1')*0.5
+  }
+  make.scalar = function(what) {
+          sum( what * (wi/c_sq) )
+  }
+  make.vector = function(what) {
+          ( what * (wi/c_sq) ) %% U
+  }
+  C( lap == make.scalar(eLap("rho")) )
+?>
+
+
+CudaDeviceFunction void Feq(double d, double u[2], double feq[9]) { <?R
+	Req = Req_fun(d, u);
+	u = PV(paste("u[",1:2-1,"]",sep=""))
+	feq = PV(paste("feq[",1:9-1,"]",sep=""))
+	C( feq == Req %% solve(M) , float=F); ?>
+}
+
+
+CudaDeviceFunction void CollisionMRT()
+{
+	real_t J[2], usq, d, R[6], uf;
+	vector_t F;
+<?R
+	J = PV(c("J[0]","J[1]"))
+
+	C( R == f %% M , float=F);
+	C( usq == sum(J*J)*dw );
+	Req = Req_fun(d, J*dw, usq*dw);
 for (i in selR) {
 ?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
 <?R

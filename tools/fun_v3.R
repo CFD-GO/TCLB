@@ -464,10 +464,35 @@ rbind.PV = function(...) {
 }
 
 
+M.max = 10
+M.val = outer(1:M.max,1:M.max,"/")
+M.PV = outer(1:M.max,1:M.max,function(x,y) paste(x,"/",y) )
+#M.PV = PV(M.str)
+M.sel = !duplicated(as.vector(M.val))
+M.val = M.val[M.sel]
+M.PV = M.PV[M.sel]
+
+
 C = function(x,...) {cat(ToC(x,...), sep="");}
 
+is.int = function(x,min=1e-6) {
+	abs(x - round(x)) < min
+}
+
+divisible = function(x,y,min=1e-6) {
+	M.w = outer(x, y, "/")
+	M.h = outer(!is.int(x),is.int(y),"|")
+	is.int(M.w) & M.h
+}
+
+no.ones = function(tab,min=1e-6) {
+	x = tab$val
+	sel = pmin(abs(x - 1),abs(x),abs(x+1)) < min
+	tab[!sel,,drop=FALSE]
+}
+
 nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
-	tab = tab[abs(tab$.M) > min,,drop=F]
+	tab = tab[abs(tab$.M) > min,,drop=FALSE]
 	if (nrow(tab) < 1) {
 		if (second) {
 			ret = " + 0"
@@ -475,24 +500,54 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 			ret = "0"
 		}
 	} else {
-		tab = tab[order(tab$.M,decreasing=TRUE),,drop=F]
+		tab = tab[order(tab$.M,decreasing=TRUE),,drop=FALSE]
 		i1=colSums(tab > 0)
 		i2=colSums(tab < 0)
+		Md = data.frame(
+			val = c(1:36,1/(1:36)),
+			str = paste(c(1:36,1:36),"",sep=""),
+			positive = rep(c(TRUE,FALSE),each=36)
+		)
+		Md = Md[c(36:1,1:36+36),]
+		Md.val = tab$.M
+		Md = rbind(Md, data.frame(
+			val = Md.val,
+			str = paste(tab$.M,"",sep=""),
+			positive = TRUE
+		))
+		Md = no.ones(Md)
+		if (nrow(Md) > 0) {
+			i3t = divisible(tab$.M, Md$val)
+			i3 = colSums(i3t)
+		} else {
+			i3 = 0
+		}
 		i1[".M"] = -1
 		i2[".M"] = -1
-		if (any(c(i1,i2) > 0)) {
-			if (max(i1) > max(i2)) {
+		if (any(c(i1,i2,i3) > 0)) {
+			wh = which.max(c(max(i3),max(i2),max(i1)))
+			
+			if (wh == 1) {
+				i = which.max(i3)
+				sel = i3t[,i]
+				positive = Md$positive[i]
+				ntab = tab[sel,,drop=FALSE]
+				ntab$.M = ntab$.M / Md$val[i]
+				pull = Md$str[i]
+			} else if (wh == 3) {
 				i = which.max(i1)
 				sel = tab[,i] > 0
 				positive=TRUE
-				ntab = tab[sel,,drop=F]
+				ntab = tab[sel,,drop=FALSE]
 				ntab[,i] = ntab[,i]-1
-			} else {
+				pull = names(tab)[i]
+			} else if (wh == 2) {
 				i = which.max(i2)
 				sel = tab[,i] < 0
 				positive=FALSE
-				ntab = tab[sel,,drop=F]
+				ntab = tab[sel,,drop=FALSE]
 				ntab[,i] = ntab[,i]+1
+				pull = names(tab)[i]
 			}
 			if (any(!sel)) {
 				v1 = nToC(ntab,bracket=T,second=TRUE)
@@ -501,29 +556,29 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 			}
 			if (positive) {
 				if (v1 == "1") {
-					v1 = paste(names(tab)[i],sep="")
+					v1 = paste(pull,sep="")
 				} else if (v1 == " + 1") {
-					v1 = paste(" + ",names(tab)[i],sep="")
+					v1 = paste(" + ",pull,sep="")
 				} else if (v1 == "-1") {
-					v1 = paste("-",names(tab)[i],sep="")
+					v1 = paste("-",pull,sep="")
 				} else if (v1 == " - 1") {
-					v1 = paste(" - ",names(tab)[i],sep="")
+					v1 = paste(" - ",pull,sep="")
 				} else {
-					v1 = paste(v1,"*",names(tab)[i],sep="")
+					v1 = paste(v1,"*",pull,sep="")
 				}
 			} else {
-				v1 = paste(v1,"/",names(tab)[i],sep="")
+				v1 = paste(v1,"/",pull,sep="")
 			}
 			if (any(!sel)) {
 				if (bracket) {
-					v2 = nToC(tab[!sel,,drop=F],second=FALSE)
+					v2 = nToC(tab[!sel,,drop=FALSE],second=FALSE)
 					if (second) {
 						ret = paste(" + ( ",v2,v1," )",sep="")
 					} else {
 						ret = paste("( ",v2,v1," )",sep="")
 					}
 				} else {
-					v2 = nToC(tab[!sel,,drop=F],second=second)
+					v2 = nToC(tab[!sel,,drop=FALSE],second=second)
 					ret = paste(v2,v1,sep="")
 				}
 			} else {
@@ -579,7 +634,7 @@ subst.P = function(obj_, ...) {
 	sum = P(0)
 	for (i in 1:nrow(obj_)) {
 		K = as.matrix(obj_[i,names(arg)])
-		ret = finish.P(obj_[i,!sel,drop=F])
+		ret = finish.P(obj_[i,!sel,drop=FALSE])
 		for (j in 1:length(arg)) {
 			if (K[j] < 0) stop("Negative powers not supported in subst")
 			if (K[j] > 0) for (l in 1:K[j]) ret = ret * arg[[j]]
