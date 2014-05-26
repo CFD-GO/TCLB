@@ -367,16 +367,16 @@ CudaDeviceFunction void InitRho() {
 }
 
 <?R
-r._1 = PV(paste("rho(",-U[,1],",",-U[,2],")"))
-r.0 = PV(paste("rho(",0,",",0,")"))
-r.1 = PV(paste("rho(",U[,1],",",U[,2],")"))
-r.2 = PV(paste("rho(",2*U[,1],",",2*U[,2],")"))
+  r._1 = PV(paste("rho(",-U[,1],",",-U[,2],")"))
+  r.0 = PV(paste("rho(",0,",",0,")"))
+  r.1 = PV(paste("rho(",U[,1],",",U[,2],")"))
+  r.2 = PV(paste("rho(",2*U[,1],",",2*U[,2],")"))
 ?>
 
 CudaDeviceFunction void CalcLambda() {
-	real_t lap; <?R
+  real_t lap; <?R
   lap = PV("lap")
-  C( lap == sum((r.1+r.0*(-2)+r._1)*(wi/c_sq))*6 ) ?>
+  C( lap == sum((r.1-r.0*2+r._1)*(wi/c_sq))*6 ) ?>
   lap = lap / 6.;
   double r = rho(0,0);
   double lambda0 = 2*Beta*(r-LiquidDensity)*(r-VaporDensity)*(2*r-VaporDensity-LiquidDensity);
@@ -384,7 +384,27 @@ CudaDeviceFunction void CalcLambda() {
 }
 
 CudaDeviceFunction void CalcRho() {
-  rho = <?R C(sum(f)) ?>;
+        rho = <?R C(sum(f)) ?>;
+        switch (NodeType & NODE_BOUNDARY) {
+		case NODE_Wall:
+		case NODE_MovingWall:
+			rho = WallDensity;
+	        	switch (NodeType & NODE_ADDITIONALS) {
+				case NODE_Wet:
+	        	        	rho = WetDensity;
+					break;
+				case NODE_Dry:
+	        	        	rho = DryDensity;
+					break;
+		        }
+			break;
+		case NODE_EPressure:
+			rho = OutletDensity;
+			break;
+		case NODE_WPressure:
+			rho = InletDensity;
+			break;
+	}
 }
 
 CudaDeviceFunction void CalcFeq() {
