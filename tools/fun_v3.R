@@ -55,6 +55,8 @@ finish.P = function(p) {
 
 rbind.P = function(p1,p2)
 {
+	if (is.null(p1)) return(p2)
+	if (is.null(p2)) return(p1)
 	if (nrow(p1) == 0) return(p2);
 	if (nrow(p2) == 0) return(p1);
 	class(p1) = "data.frame"
@@ -144,6 +146,8 @@ PV = function(a){
 
 "+.PV" = function(p1,p2)
 {
+	if (is.numeric(p1)) { p1 = scalar(p1,p2[[1]]) }
+	if ("P" %in% class(p1)) { p1 = PV(p1) }
 	if (is.numeric(p2)) { p2 = scalar(p2,p1[[1]]) }
 	if ("P" %in% class(p2)) { p2 = PV(p2) }
 	if ("PV" %in% class(p2)) {
@@ -505,7 +509,7 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 		i2=colSums(tab < 0)
 		Md = data.frame(
 			val = c(1:36,1/(1:36)),
-			str = paste(c(1:36,1:36),"",sep=""),
+			str = paste(c(1:36,1:36),rep(c("","."),each=36),sep=""),
 			positive = rep(c(TRUE,FALSE),each=36)
 		)
 		Md = Md[c(36:1,1:36+36),]
