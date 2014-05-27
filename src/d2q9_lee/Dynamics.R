@@ -16,10 +16,12 @@ AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group
 AddStage("CalcRho", save="rho", load=DensityAll$group == "f")
 AddStage("CalcNu", save="nu", load=FALSE)
 AddStage("InitRho", save="rho", load=FALSE)
-AddStage("InitF", save=Fields$group == "f", load=FALSE)
+AddStage("InitF",  save=Fields$group == "f", load=FALSE)
+AddStage("InitF2", save=Fields$group == "f", load=FALSE)
 
 AddAction("Iteration", c("BaseIteration","CalcRho","CalcNu"))
-AddAction("Init", c("InitRho","CalcNu","InitF"))
+#AddAction("Init", c("InitRho","CalcNu","InitF"))
+AddAction("Init", c("InitF2", "CalcRho","CalcNu"))
 
 AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);

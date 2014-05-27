@@ -393,6 +393,18 @@ CudaDeviceFunction void InitF() {
     <?R	C( f == feq ); ?>
 }
 
+CudaDeviceFunction void InitF2() { 
+    real_t d;
+    real_t u[2];
+    InitRho();
+    d = rho;
+    u[0] = InletVelocity;
+    u[1] = 0.;
+    Feq(d,u);
+    <?R	C( f == feq ); ?>
+}
+
+
 
 
 CudaDeviceFunction void CollisionBGK()
@@ -412,17 +424,18 @@ CudaDeviceFunction void CollisionBGK()
         F = make.vector(what);
         uF = sum(u*F)
       }
-      ret = what + uF * (-1)
+      ret = what - uF
       ret = ret * dw
       ret = ret * (1 / c_sq)
       ret * feq 
     }
     uF = PV("uF");
-    C(f == f - feq);
-    C(uF == sum(u * make.vector(fC)))
-    C(f == f + 0.5*force(fC,uF) )
-    C(f == f * (1-omega) )
-    C(f == f + feq);
+#    C(f == f - feq);
+#    C(uF == sum(u * make.vector(fC)))
+#    C(f == f + 0.5*force(fC,uF) )
+#    C(f == f * (1-omega) )
+#    C(f == f + feq);
+    C(f == feq);
     C(uF == sum(u * make.vector(fB)))
     C(f == f + 0.5*force(fB,uF) )
   ?>
@@ -436,23 +449,18 @@ CudaDeviceFunction void CollisionMRT()
 	vector_t F;
 <?R
 	J = PV(c("J[0]","J[1]"))
-
-	C( R == f %% M , float=F);
+	C( uF == sum(u * make.vector(fC)) );
+	C( f == f + 0.5*force(fC,uF) );
+	C( R == f %% M );
 	C( usq == sum(J*J)*dw );
 	Req = Req_fun(d, J*dw, usq*dw);
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-<?R
-}
-?>
-F = getF();
-u[0] = u[0]+F.x*MagicF + (GravitationX)*d;
-u[1] = u[1]+F.y*MagicF + (GravitationY)*d;
-<?R
-	C(usq == sum(u*u)*dw);
-	C(R[selR] == Req[selR], eqstring="+=");
-	C(R == PV(Mw), eqstring="/=", float=F);
-	C( f == R %% t(M) , float=F);
+	C(( R == R - Req )[selR]);
+#	C(( R == -((Sy-1) * R) )[selR]);
+	C( usq == sum(u*u)*dw );
+	C(( R == R + Req )[selR]);
+	C( f == R %% solve(M) );
+	C(uF == sum(u * make.vector(fB)))
+	C(f == f + 0.5*force(fB,uF) )
 ?>
 */
 }
