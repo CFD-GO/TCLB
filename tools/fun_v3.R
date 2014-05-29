@@ -10,8 +10,7 @@ P = function(a){
 	} else {
 		stop("Unknow type in P()\n");
 	}
-	class(ret) = c("P","data.frame")
-	ret
+	finish.P(ret)
 }	
 
 scalar = function(v,a){
@@ -24,8 +23,7 @@ scalar = function(v,a){
 		ret$.M = v;
 		attr(ret,"var") = levels(a)
 	} else {stop("a have to be a factor in scalar()");}
-	class(ret) = c("P","data.frame")
-	ret
+	finish.P(ret)
 }	
 
 
@@ -34,20 +32,31 @@ aggregate.P = function(p)
 	if (nrow(p) > 0) {
                 class(p) = "data.frame"
 		if (length(attr(p,"var")) == 0) {
-	                ret = p[1,,drop=F]
+	                ret = p[1,,drop=FALSE]
 			ret$.M = sum(p$.M)
 		} else {
-	                ret = aggregate(p[,".M",drop=F], p[,attr(p,"var"),drop=F], sum)
+	                ret = aggregate(p[,".M",drop=FALSE], p[,attr(p,"var"),drop=FALSE], sum)
 		}
-                ret = ret[ret$.M != 0,,drop=F]
+                ret = ret[ret$.M != 0,,drop=FALSE]
                 attr(ret,"var") = attr(p,"var")
-                class(ret) = c("P","data.frame")
-                ret
+                finish.P(ret)
 	}else {p}
 }
 
+finish.P = function(p) {
+	v = names(p)
+	sel = v %in% ".M"
+	if (all(!sel)) stop("There should be a .M in P object")
+	class(p) = c("P","data.frame")
+	attr(p,"var") = v[!sel]
+	p
+}
+	
+
 rbind.P = function(p1,p2)
 {
+	if (is.null(p1)) return(p2)
+	if (is.null(p2)) return(p1)
 	if (nrow(p1) == 0) return(p2);
 	if (nrow(p2) == 0) return(p1);
 	class(p1) = "data.frame"
@@ -58,12 +67,15 @@ rbind.P = function(p1,p2)
 	p1[,col] = 0;
 	ret = rbind(p1,p2)
 	attr(ret,"var") = c(attr(p1,"var"),col)
-	class(ret) = c("P","data.frame")
-        ret
+	finish.P(ret)
 }
 
 print.P = function(p)
-{class(p) = "data.frame"; print(p)}
+{
+	class(p) = "data.frame";
+	print(p)
+	print(attr(p,"var"))
+}
 
 "+.P" <- function(p1,p2){
 	p = rbind(p1,p2)
@@ -99,7 +111,7 @@ print.P = function(p)
                 v = union(names(p1), names(p2))
 		v = setdiff(v , ".M")
 		if (length(v) != 0) {
-	                p = p1[i,v,drop=F] + p2[j,v,drop=F]
+	                p = p1[i,v,drop=FALSE] + p2[j,v,drop=FALSE]
         	        p$.M = p1$.M[i] * p2$.M[j]
 		} else {
 			p = P(p1$.M[i] * p2$.M[j])
@@ -134,6 +146,8 @@ PV = function(a){
 
 "+.PV" = function(p1,p2)
 {
+	if (is.numeric(p1)) { p1 = scalar(p1,p2[[1]]) }
+	if ("P" %in% class(p1)) { p1 = PV(p1) }
 	if (is.numeric(p2)) { p2 = scalar(p2,p1[[1]]) }
 	if ("P" %in% class(p2)) { p2 = PV(p2) }
 	if ("PV" %in% class(p2)) {
@@ -240,7 +254,7 @@ sum.PV = function(p,...){
 ToC = function (x, ...) 
 UseMethod("ToC")
 
-ToC.PV = function(p, eq = TRUE, eqstring="=", float=T, minimal=0.0)
+ToC.PV = function(p, eq = TRUE, eqstring="=", float=TRUE, minimal=1e-10)
 {
 	ret = sapply(p,function(x){ToC(x,float=float,minimal=minimal)})
 	if (!is.null(names(ret)) && eq) {
@@ -249,7 +263,7 @@ ToC.PV = function(p, eq = TRUE, eqstring="=", float=T, minimal=0.0)
 	ret
 }
 
-ToC_row = function(x,float=T,minimal=0.0)
+ToC_row = function(x,float=TRUE,minimal=1e-10)
 {
 	if (abs(x[".M"]) < minimal) x[".M"] = 0;
 	if (x[".M"] != 0) {
@@ -290,9 +304,14 @@ ToC_row = function(x,float=T,minimal=0.0)
 	ret
 }
 
-ToC.P = function(p,float=T, minimal=0.0)
+ToC.P = function(p,float=TRUE, minimal=1e-10)
 {
-#	print(p)
+	nToC(p, min=minimal)
+#	oToC(p, minimal=minimal,float=float)
+}
+
+oToC = function(p,float=TRUE, minimal=1e-10)
+{
 	if (nrow(p) > 0) {
 		ret = apply(p,1,function(x) {ToC_row(x,float=float,minimal=minimal)})
 	} else { ret = "   0"; }
@@ -301,6 +320,10 @@ ToC.P = function(p,float=T, minimal=0.0)
 	if (ret == "") { ret = "   0"; }
 	ret
 }
+
+is.zero.P = function(p) all(p$.M == 0)
+is.zero.PV = function(p) all(sapply(p,is.zero.P))
+is.zero = function (x, ...) UseMethod("is.zero")
 
 Cassign = function(a,b)
 {
@@ -311,7 +334,7 @@ Cassign = function(a,b)
 
 "==.PV" = function(a,b)
 {
-	a = ToC(a,eq=F);
+	a = ToC(a,eq=FALSE);
 	a = sub('[[:space:]]+$', '', a)
 	a = sub('^[[:space:]]+', '', a)
 	attr(b,"vvar") = a
@@ -391,7 +414,7 @@ der.PV = function(x)
 			j = (p[,v] > 0)
 			if (any(j))
 			{
-				np = p[j,,drop=F];
+				np = p[j,,drop=FALSE];
 				np[,".M"] = np[,".M"] * np[,v]
 				np[,v] = np[,v] - 1;
 				np[,der(out)] = 1
@@ -447,4 +470,188 @@ rbind.PV = function(...) {
 }
 
 
+M.max = 10
+M.val = outer(1:M.max,1:M.max,"/")
+M.PV = outer(1:M.max,1:M.max,function(x,y) paste(x,"/",y) )
+#M.PV = PV(M.str)
+M.sel = !duplicated(as.vector(M.val))
+M.val = M.val[M.sel]
+M.PV = M.PV[M.sel]
+
+
 C = function(x,...) {cat(ToC(x,...), sep="");}
+
+is.int = function(x,min=1e-6) {
+	abs(x - round(x)) < min
+}
+
+divisible = function(x,y,min=1e-6) {
+	M.w = outer(x, y, "/")
+	M.h = outer(!is.int(x),is.int(y),"|")
+	is.int(M.w) & M.h
+}
+
+no.ones = function(tab,min=1e-6) {
+	x = tab$val
+	sel = pmin(abs(x - 1),abs(x),abs(x+1)) < min
+	tab[!sel,,drop=FALSE]
+}
+
+nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
+	tab = tab[abs(tab$.M) > min,,drop=FALSE]
+	if (nrow(tab) < 1) {
+		if (second) {
+			ret = " + 0"
+		} else {
+			ret = "0"
+		}
+	} else {
+		tab = tab[order(tab$.M,decreasing=TRUE),,drop=FALSE]
+		i1=colSums(tab > 0)
+		i2=colSums(tab < 0)
+		Md = data.frame(
+			val = c(1:36,1/(1:36)),
+			str = paste(c(1:36,1:36),rep(c("","."),each=36),sep=""),
+			positive = rep(c(TRUE,FALSE),each=36)
+		)
+		Md = Md[c(36:1,1:36+36),]
+		Md.val = tab$.M
+		Md = rbind(Md, data.frame(
+			val = Md.val,
+			str = paste(tab$.M,"",sep=""),
+			positive = TRUE
+		))
+		Md = no.ones(Md)
+		if (nrow(Md) > 0) {
+			i3t = divisible(tab$.M, Md$val)
+			i3 = colSums(i3t)
+		} else {
+			i3 = 0
+		}
+		i1[".M"] = -1
+		i2[".M"] = -1
+		if (any(c(i1,i2,i3) > 0)) {
+			wh = which.max(c(max(i3),max(i2),max(i1)))
+			
+			if (wh == 1) {
+				i = which.max(i3)
+				sel = i3t[,i]
+				positive = Md$positive[i]
+				ntab = tab[sel,,drop=FALSE]
+				ntab$.M = ntab$.M / Md$val[i]
+				pull = Md$str[i]
+			} else if (wh == 3) {
+				i = which.max(i1)
+				sel = tab[,i] > 0
+				positive=TRUE
+				ntab = tab[sel,,drop=FALSE]
+				ntab[,i] = ntab[,i]-1
+				pull = names(tab)[i]
+			} else if (wh == 2) {
+				i = which.max(i2)
+				sel = tab[,i] < 0
+				positive=FALSE
+				ntab = tab[sel,,drop=FALSE]
+				ntab[,i] = ntab[,i]+1
+				pull = names(tab)[i]
+			}
+			if (any(!sel)) {
+				v1 = nToC(ntab,bracket=T,second=TRUE)
+			} else {
+				v1 = nToC(ntab,bracket=T,second=second)
+			}
+			if (positive) {
+				if (v1 == "1") {
+					v1 = paste(pull,sep="")
+				} else if (v1 == " + 1") {
+					v1 = paste(" + ",pull,sep="")
+				} else if (v1 == "-1") {
+					v1 = paste("-",pull,sep="")
+				} else if (v1 == " - 1") {
+					v1 = paste(" - ",pull,sep="")
+				} else {
+					v1 = paste(v1,"*",pull,sep="")
+				}
+			} else {
+				v1 = paste(v1,"/",pull,sep="")
+			}
+			if (any(!sel)) {
+				if (bracket) {
+					v2 = nToC(tab[!sel,,drop=FALSE],second=FALSE)
+					if (second) {
+						ret = paste(" + ( ",v2,v1," )",sep="")
+					} else {
+						ret = paste("( ",v2,v1," )",sep="")
+					}
+				} else {
+					v2 = nToC(tab[!sel,,drop=FALSE],second=second)
+					ret = paste(v2,v1,sep="")
+				}
+			} else {
+				ret = v1
+			}
+		} else {
+			v = sum(tab$.M)
+			if (abs(round(v) - v) < min) {
+				v = round(v)
+				ret = sprintf("%d",abs(v))
+			} else {
+				ret = sprintf("%.16f",abs(v))
+			}
+			if (second) {
+				if (v < 0) {
+					ret = paste(" - ",ret,sep="")
+				} else {
+					ret = paste(" + ",ret,sep="")
+				}
+			} else {
+				if (v < 0) {
+					ret = paste("-",ret,sep="")
+				} 
+			}
+		}
+	}
+	ret
+}
+
+subst = function (obj_, ...) UseMethod("subst")
+
+subst.P = function(obj_, ...) {
+	arg = list(...)
+	if (length(arg) == 0) return(obj_)
+	if (is.null(names(arg))) names(arg) = rep("", length(arg))
+	sel = names(arg) == ""
+	narg = arg[!sel]
+	for (l in arg[sel]) {
+		narg = c(narg,l)
+	}
+	arg=narg
+	if (any(names(arg) == "")) stop("All arguments to subst have to be named")
+	sel = names(arg) %in% names(obj_)
+	arg = arg[sel]
+	if (length(arg) == 0) return(obj_)
+	for (n in names(arg)) {
+		v = arg[[n]]
+		if (is.numeric(v)) v = P(v)
+		if (!"P" %in% class(v)) stop("Substitutions have to be numeric of P type in subst")
+		arg[[n]] = v
+	}
+	sel = names(obj_) %in% names(arg)
+	sum = P(0)
+	for (i in 1:nrow(obj_)) {
+		K = as.matrix(obj_[i,names(arg)])
+		ret = finish.P(obj_[i,!sel,drop=FALSE])
+		for (j in 1:length(arg)) {
+			if (K[j] < 0) stop("Negative powers not supported in subst")
+			if (K[j] > 0) for (l in 1:K[j]) ret = ret * arg[[j]]
+		}
+		sum = sum + ret
+	}
+	sum
+}
+
+subst.PV = function(obj_, ...) {
+	ret = lapply(unclass(obj_),subst.P,...)	
+	class(ret) = "PV"
+	ret
+}

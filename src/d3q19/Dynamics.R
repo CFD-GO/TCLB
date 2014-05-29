@@ -34,19 +34,26 @@ AddDensity(
 	group="f"
 )
 
+AddQuantity( name="P",unit="Pa")
+AddQuantity( name="U",unit="m/s",vector=T)
 
-AddQuantity( name="Rho" )
-AddQuantity( name="U", vector=T )
+AddSetting(name="omega", comment='One over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='Viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='Inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure*3', default="0Pa", comment='Inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='Inlet density')
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
+AddSetting(name="ForceX", comment='Force force X')
+AddSetting(name="ForceY", comment='Force force Y')
+AddSetting(name="ForceZ", comment='Force force Z')
 
-AddGlobal(name="InletFlux", comment="flux of mass on inlet")
-AddGlobal(name="OutletFlux", comment="flux of mass on outlet")
-AddGlobal(name="InletPressure", comment="integral of pressure on inlet")
-AddGlobal(name="InletTotalPressureFlux", comment="flux of total pressure on inlet")
-AddGlobal(name="OutletPressure", comment="integral of pressure on outlet")
-AddGlobal(name="OutletTotalPressureFlux", comment="flux of total pressure on outlet")
+AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
+
+AddNodeType("XYslice",group="ADDITIONALS");
+AddNodeType("XZslice",group="ADDITIONALS");
+AddNodeType("YZslice",group="ADDITIONALS");
+
+AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
+AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")
+AddGlobal(name="ZFlux", comment='Volume flux', unit="m3/s")
+
