@@ -9,6 +9,8 @@
 #include "vtkLattice.h"
 #include <unistd.h>
 
+#define CROSS_NOFORK
+
 #ifdef CROSS_NOFORK
 
 int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what)
@@ -79,6 +81,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	lbRegion reg = lattice->region;
 	size = reg.size();
 
+
 	flag_t * NodeType = new flag_t[size];
 	lattice->GetFlags(reg, NodeType);
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
@@ -89,6 +92,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 			lattice->Get<?%s q$name ?>(reg, tmp_<?%s q$name ?>, 1/v);
 		}
 	<?R } ?>
+
 
 
 	if (fork() == 0) {
@@ -130,6 +134,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		}
 	<?R }; ifdef(); ?>
 	delete[] NodeType;
+
 
 	return 0;
 }

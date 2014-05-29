@@ -86,7 +86,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	comment = ifelse(comment == "", name, comment);
-	d = data.frame(
+	dd = data.frame(
 		name=name,
 		field=field,
 		dx=dx,
@@ -97,27 +97,29 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		group=group,
 		parameter=parameter
 	)
-	DensityAll <<- rbind(DensityAll,d)
-	if (any(Fields$name == field)) {
-		i = which(Fields$name == field)
-		Fields$minx[i] <<- min(Fields$minx[i], -dx)
-		Fields$maxx[i] <<- max(Fields$maxx[i], -dx)
-		Fields$miny[i] <<- min(Fields$miny[i], -dy)
-		Fields$maxy[i] <<- max(Fields$maxy[i], -dy)
-		Fields$minz[i] <<- min(Fields$minz[i], -dz)
-		Fields$maxz[i] <<- max(Fields$maxz[i], -dz)
+	DensityAll <<- rbind(DensityAll,dd)
+	for (d in rows(dd)) {
+	if (any(Fields$name == d$field)) {
+		i = which(Fields$name == d$field)
+		Fields$minx[i] <<- min(Fields$minx[i], -d$dx)
+		Fields$maxx[i] <<- max(Fields$maxx[i], -d$dx)
+		Fields$miny[i] <<- min(Fields$miny[i], -d$dy)
+		Fields$maxy[i] <<- max(Fields$maxy[i], -d$dy)
+		Fields$minz[i] <<- min(Fields$minz[i], -d$dz)
+		Fields$maxz[i] <<- max(Fields$maxz[i], -d$dz)
 	} else {
-		d = data.frame(
-			name=field,
-			minx=-dx,maxx=-dx,
-			miny=-dy,maxy=-dy,
-			minz=-dz,maxz=-dz,
-			comment=comment,
-			adjoint=adjoint,
-			group=group,
-			parameter=parameter
+		f = data.frame(
+			name=d$field,
+			minx=-d$dx,maxx=-d$dx,
+			miny=-d$dy,maxy=-d$dy,
+			minz=-d$dz,maxz=-d$dz,
+			comment=d$comment,
+			adjoint=d$adjoint,
+			group=d$group,
+			parameter=d$parameter
 		)
-		Fields <<- rbind(Fields, d)
+		Fields <<- rbind(Fields, f)
+	}
 	}
 }
 

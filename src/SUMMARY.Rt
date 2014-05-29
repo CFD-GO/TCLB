@@ -10,6 +10,13 @@
     cat(sprintf("%-31s [%3d,%3d,%3d] | %1s | %s", d$name, d$dx, d$dy, d$dz, ifelse(d$adjoint, "X"," "), d$comment),"\n");
     }
   }
+  for (d in Fields) {
+    if (d$parameter) {
+    cat(sprintf("%-31s parameter     | %1s | %s", d$name, ifelse(d$adjoint, "X"," "), d$comment),"\n");
+    } else {
+    cat(sprintf("%-19s [%3d|%-3d,%3d|%-3d,%3d|%-3d] | %1s | %s", d$name, d$minx, d$maxx, d$miny, d$maxy, d$minz, d$maxz, ifelse(d$adjoint, "X"," "), d$comment),"\n");
+    }
+  }
   for (s in rows(Settings)) {
     if (s$name %in% Settings$derived) {
      eq = Settings$equation[Settings$derived %in% s$name]

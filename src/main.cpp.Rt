@@ -56,22 +56,46 @@ CudaEvent_t     start, stop; // CUDA events to measure time
 
 // Main callback function called every some iterations to display speed
 int MainCallback(int iter, Solver* solver) {
+	static int cum_iter =0;
+	static double cum_time = 0;
 	int steps;
 	float   elapsedTime; // Elapsed times
 	CudaEventRecord( stop, 0 );
 	CudaEventSynchronize( stop );
 	CudaEventElapsedTime( &elapsedTime, start, stop );
 	if (D_MPI_RANK == 0) {
-       		int ups = (float) (1000.*iter)/elapsedTime; // Steps made per second
-       		double lbups=1.0;
-       		lbups *= solver->info.region.nx;
-		lbups *= solver->info.region.ny;
-       		lbups *= solver->info.region.nz;
-       		lbups *= iter;
-		lbups /= elapsedTime;
-		int desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
-		printf("[ ] %8.1f MLBUps   %7.2f GB/s                        \r", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
-		fflush(stdout);
+		int desired_steps;		
+		if (iter >= 0) {
+			cum_iter += iter;
+			cum_time += elapsedTime;
+	       		int ups = (float) (1000.*iter)/elapsedTime; // Steps made per second
+       			double lbups=1.0;
+       			lbups *= solver->info.region.nx;
+			lbups *= solver->info.region.ny;
+       			lbups *= solver->info.region.nz;
+       			lbups *= iter;
+			lbups /= elapsedTime;
+			desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
+			printf("[ ] %8.1f MLBUps   %7.2f GB/s                        \r", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+			fflush(stdout);
+		} else {
+			cum_iter += - iter - 1;
+			cum_time += elapsedTime;
+	       		int ups = (float) (1000.*cum_iter)/cum_time; // Steps made per second
+       			double lbups=1.0;
+       			lbups *= solver->info.region.nx;
+			lbups *= solver->info.region.ny;
+       			lbups *= solver->info.region.nz;
+       			lbups *= cum_iter;
+			lbups /= cum_time;
+			desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
+			printf("[ ] %8.1f MLBUps   %7.2f GB/s (avg)                  \n",
+				((double)lbups)/1000,
+				( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+			fflush(stdout);
+			cum_iter = 0;
+			cum_time = 0;
+		}
 		steps = desired_steps;
 		if (steps < 1) steps = 1;
 		if (steps % 2 == 1) steps ++;

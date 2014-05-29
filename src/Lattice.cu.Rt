@@ -864,6 +864,7 @@ void Lattice::Iterate(int niter, int iter_type)
 	} else if ( iter_type & ITER_INTEG ) {
 		calcGlobals();
 	}
+	FinalIteration();
 };
 
 void Lattice::AfterIt()

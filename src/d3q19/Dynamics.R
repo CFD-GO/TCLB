@@ -34,100 +34,25 @@ AddDensity(
 	group="f"
 )
 
-f = PV(DensityAll$name[DensityAll$group=="f"])
+AddQuantity( name="P",unit="Pa")
+AddQuantity( name="U",unit="m/s",vector=T)
 
-rho = PV("rho")
-J = PV(c("Jx","Jy","Jz"))
-rho0 = 1
+AddSetting(name="omega", comment='One over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='Viscosity')
+AddSetting(name="InletVelocity", default="0m/s", comment='Inlet velocity')
+AddSetting(name="InletPressure", InletDensity='1.0+InletPressure*3', default="0Pa", comment='Inlet pressure')
+AddSetting(name="InletDensity", default=1, comment='Inlet density')
 
-if (FALSE) {
-	we = 0
-	weJ = -475/63
-	wxx = 0
-} else {
-	we = 3
-	weJ = -11/2
-	wxx = -1/2
-}
+AddSetting(name="ForceX", comment='Force force X')
+AddSetting(name="ForceY", comment='Force force Y')
+AddSetting(name="ForceZ", comment='Force force Z')
 
-pxx = 1/(3*rho0) * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3]) 
-pww = 1/(rho0) * (J[2] * J[2] - J[3] * J[3]) 
-pxy = 1/(rho0) * (J[1]*J[2]) 
-pyz = 1/(rho0) * (J[2]*J[3]) 
-pxz = 1/(rho0) * (J[1]*J[3]) 
+AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-Req = rbind(
-	rho,
-	-11*rho + 19/rho0*sum(J*J),
-	we*rho + weJ/rho0*sum(J*J),
-	J[1],
-	-2/3*J[1],
-	J[2],
-	-2/3*J[2],
-	J[3],
-	-2/3*J[3],
-	pxx*3,
-	wxx*pxx*3,
-	pww,
-	wxx*pww,
-	pxy,
-	pyz,
-	pxz,
-	0,
-	0,
-	0
-)
+AddNodeType("XYslice",group="ADDITIONALS");
+AddNodeType("XZslice",group="ADDITIONALS");
+AddNodeType("YZslice",group="ADDITIONALS");
 
-U = MRTMAT[,selU]
-R = PV(paste("R",0:18,sep=""))
-
-R[1] = rho
-R[c(4,6,8)] = J
-R[-c(1,4,6,8)] = PV(paste("R",0:14,sep=""))
-selR = c(2,3,5,7,9:19)
-
-renum = c(19, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 9, 13, 10, 14, 15, 17, 16, 18)
-
-I = rep(0, 19)
-I[renum] = 1:19
-
-if (FALSE) {
-        Sy = rbind(
-                PV(0),
-                PV(1.19),
-                PV(1.4),
-                PV(0),
-                PV(1.2),
-                PV(0),
-                PV(1.2),
-                PV(0),
-                PV(1.2),
-                PV("omega"),
-                PV(1.4),
-                PV("omega"),
-                PV(1.4),
-                PV("omega"),
-                PV("omega"),
-		PV("omega"),
-		PV(1.98),
-		PV(1.98),
-		PV(1.98)
-	)
-}
-
-
-AddQuantity( name="Rho" )
-AddQuantity( name="U", vector=T )
-
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
-
-AddGlobal(name="InletFlux", comment="flux of mass on inlet")
-AddGlobal(name="OutletFlux", comment="flux of mass on outlet")
-AddGlobal(name="InletPressure", comment="integral of pressure on inlet")
-AddGlobal(name="InletTotalPressureFlux", comment="flux of total pressure on inlet")
-AddGlobal(name="OutletPressure", comment="integral of pressure on outlet")
-AddGlobal(name="OutletTotalPressureFlux", comment="flux of total pressure on outlet")
+AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
+AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")
+AddGlobal(name="ZFlux", comment='Volume flux', unit="m3/s")

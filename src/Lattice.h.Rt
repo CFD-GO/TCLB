@@ -94,6 +94,11 @@ public:
       total_iterations = 0;
     }
   }
+  inline void FinalIteration() {
+    total_iterations ++;
+    if (callback) callback_iter = callback(-total_iterations, callback_data);
+    total_iterations = 0;
+  }
   void BeforeIt();
   void AfterIt();
   int getSnap(int );
