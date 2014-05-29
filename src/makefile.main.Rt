@@ -49,7 +49,7 @@ SOURCE_ALL+=SUMMARY
 SOURCE_ALL+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
 SOURCE_REST=makefile dep.mk
-ADDITIONALS=config.mk.in config.h.in tools README.md
+ADDITIONALS=config.mk.in config.h.in tools README.md dictionary.h
 
 AOUT=main
 
@@ -149,6 +149,12 @@ configure:$(SRC)/configure.ac
 <?%s d ?>/%:$(SRC)/%
 	@echo "  CP         $@"
 	@cp -r $< $@
+
+<?%s d ?>/%:$(SRC)/%.Rt
+	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(TOOLS) -w $(SRC)/ -o $@ $(RTOPT) || rm $@
+	@$(INDENT) $@
+
 <?R } ?>
 
 
