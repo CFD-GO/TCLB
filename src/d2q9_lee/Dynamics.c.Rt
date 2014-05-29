@@ -435,6 +435,7 @@ CudaDeviceFunction void InitF2() {
 CudaDeviceFunction void CollisionBGK()
 {
   real_t uF,d,u[2];
+  real_t F[2];
   fillF();
   <?R
     C( d == sum(f) );
@@ -463,6 +464,9 @@ CudaDeviceFunction void CollisionBGK()
     C(f == feq);
     C(uF == sum(u * make.vector(fB)))
     C(f == f + 0.5*force(fB,uF) )
+#    FF = PV(paste("F[",1:2-1,"]",sep=""))
+#    C(FF == make.vector(fB));
+#    C(f == f + 0.5*(FF %% t(U) - sum(FF*u) )*dw*(1/c_sq)*feq)
   ?>
 }
 

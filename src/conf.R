@@ -323,6 +323,7 @@ row.names(Stages)=Stages$name
 
 for (n in names(Actions)) { a = Actions[[n]]
 	if (length(a) != 0) {
+		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
 		sel = Stages[a,"tag"]
 		f = Fields[,sel,drop=F]
 		s = apply(f,1,sum)
@@ -590,7 +591,7 @@ Fields = ret$Fields
 
 for (i in 1:length(Margin)) {
 	Margin[[i]]$Size = ret$MarginSizes[i]
-	if (ToC(Margin[[i]]$Size) != "0") {
+	if (! is.zero(Margin[[i]]$Size)) {
 		 Margin[[i]]$size = 1;
 	} else {
 		Margin[[i]]$size = 0

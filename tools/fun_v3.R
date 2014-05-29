@@ -307,21 +307,23 @@ ToC_row = function(x,float=TRUE,minimal=1e-10)
 ToC.P = function(p,float=TRUE, minimal=1e-10)
 {
 	nToC(p, min=minimal)
+#	oToC(p, minimal=minimal,float=float)
 }
 
-#ToC.P = function(p,float=TRUE, minimal=1e-10)
-#{
-#	print(p)
-#	if (nrow(p) > 0) {
-#		ret = apply(p,1,function(x) {ToC_row(x,float=float,minimal=minimal)})
-#	} else { ret = "   0"; }
-#	ret = paste(ret,collapse="");
-#	if (substr(ret,2,2) == "+") substr(ret,2,2) = " ";
-#	if (ret == "") { ret = "   0"; }
-#	ret
-#}
+oToC = function(p,float=TRUE, minimal=1e-10)
+{
+	if (nrow(p) > 0) {
+		ret = apply(p,1,function(x) {ToC_row(x,float=float,minimal=minimal)})
+	} else { ret = "   0"; }
+	ret = paste(ret,collapse="");
+	if (substr(ret,2,2) == "+") substr(ret,2,2) = " ";
+	if (ret == "") { ret = "   0"; }
+	ret
+}
 
-
+is.zero.P = function(p) all(p$.M == 0)
+is.zero.PV = function(p) all(sapply(p,is.zero.P))
+is.zero = function (x, ...) UseMethod("is.zero")
 
 Cassign = function(a,b)
 {
