@@ -28,7 +28,8 @@ AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="Rho2", unit="kg/m3");
 AddQuantity(name="Nu", unit="kg/m3");
 #AddQuantity(name="P", unit="Pa");
-#AddQuantity(name="F", unit="N", vector=T);
+AddQuantity(name="FC", unit="N", vector=T);
+AddQuantity(name="FB", unit="N", vector=T);
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')

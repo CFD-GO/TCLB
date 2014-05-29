@@ -357,6 +357,31 @@ CudaDeviceFunction vector_t getU(){
   return u;
 }
 
+CudaDeviceFunction vector_t getFC(){
+  real_t uF,d;
+  vector_t u;
+  fillF();
+  <?R
+    uv = PV(c("u.x","u.y"))
+    C( uv == make.vector(fC) );
+  ?>
+  u.z = 0;
+  return u;
+}
+
+CudaDeviceFunction vector_t getFB(){
+  real_t uF,d;
+  vector_t u;
+  fillF();
+  <?R
+    uv = PV(c("u.x","u.y"))
+    C( uv == make.vector(fB) );
+  ?>
+  u.z = 0;
+  return u;
+}
+
+
 
 CudaDeviceFunction void CalcNu() {
   real_t lap; <?R
