@@ -43,7 +43,7 @@
         }
       #else
         #ifdef CALC_DOUBLE_PRECISION
-          typedef long long int real_t_i;
+          typedef unsigned long long int real_t_i;
           #define R2I(x) __double_as_longlong(x)
           #define I2R(x) __longlong_as_double(x)
         #else
