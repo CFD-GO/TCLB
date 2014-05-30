@@ -124,6 +124,7 @@ then
 		CUDA_ARCH="${with_cuda_arch}"
 	fi
 	AC_MSG_CHECKING([target CUDA architecture])
+	CUDA_SUFF=""
 	if test "$CUDA_ARCH" == "sm_11"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
@@ -131,6 +132,7 @@ then
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_11])
 		fi
+		CUDA_SUFF="11"
 	elif test "$CUDA_ARCH" == "sm_13"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
@@ -138,14 +140,18 @@ then
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_13])
 		fi
+		CUDA_SUFF="13"
 	elif test "$CUDA_ARCH" == "sm_20"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+		CUDA_SUFF="20"
 	elif test "$CUDA_ARCH" == "sm_30"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+		CUDA_SUFF="30"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -155,7 +161,7 @@ then
 		AC_MSG_ERROR([CUDA_ARCH should be set by now])
 	else
 		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
-		NVFLAGS="${NVFLAGS} -arch ${CUDA_ARCH}"
+		NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
 	fi
 	if test "x${enable_openmp}" == "xyes"
 	then
