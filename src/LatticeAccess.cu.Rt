@@ -207,7 +207,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
 <?R
   for (f in Fields) { 
     for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
-template <> CudaDeviceFunction real_t& LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
+template <> 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
 {
   real_t ret; <?R
   set.buf("in");

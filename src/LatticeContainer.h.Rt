@@ -80,7 +80,7 @@ class LatticeContainer {
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in Fields) { ?>
   template <int DX, int DY, int DZ>
-  CudaDeviceFunction real_t& load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
     typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
   }; <?R
   } ?>
@@ -126,7 +126,7 @@ for (q in rows(Quantities)) { ifdef(q$adjoint);
           node = "Node"
         }
 ?>
-CudaGlobalFunction inline void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
         { ?>
 CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);

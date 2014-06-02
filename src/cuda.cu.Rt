@@ -30,10 +30,13 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 
 
 
+#define GET_MACRO(_1,_2,_3,NAME,...) NAME
+#define FOO(...) GET_MACRO(__VA_ARGS__, FOO3, FOO2)(__VA_ARGS__)
 <?R
         for (f in Fields) { ?>
-#define <?%s f$nicename ?>(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (Node_Base::x,Node_Base::y,Node_Base::z))
-#define <?%s f$nicename ?>(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (Node_Base::x,Node_Base::y,Node_Base::z)) <?R
+#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (Node_Base::x,Node_Base::y,Node_Base::z))
+#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (Node_Base::x,Node_Base::y,Node_Base::z))
+#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__) <?R
         }
 	for (g in rows(GlobalsD)) { ?>
 #define AddTo<?%s g$name ?>(x) Node_Globals< G >::AddTo<?%s g$name ?>_(x) <?R
