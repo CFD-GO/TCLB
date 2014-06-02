@@ -1065,8 +1065,17 @@ void Lattice::pop_settings()
 */
 void Lattice::getGlobals(real_t * tab) {
         real_t tabl[ GLOBALS ];
-        container->getGlobals(tabl);
-        MPI_Reduce(tabl, tab, GLOBALS, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
+        container->getGlobals(tabl); <?R
+        by(Globals,Globals$op,function(G) { n = nrow(G); ?>
+                MPI_Reduce(
+                        &tabl[<?%s G$Index[1] ?>],
+                        &tab[<?%s G$Index[1] ?>],
+                        <?%s G$Index[n] ?> - <?%s G$Index[1] ?> + 1,
+                        MPI_TYPE_F,
+                        MPI_<?%s G$op[1] ?>,
+                        0,
+                        MPI_COMM_WORLD); <?R
+        }) ?>
 }
 
 

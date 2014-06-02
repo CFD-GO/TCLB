@@ -340,17 +340,30 @@ CudaDeviceFunction void CollisionMRT()
 <?R } else {
                 ?><?%s ToC(R[i]) ?> = 0.0;
 <?R } ?>
+    real_t ux,uy,uz;
+    ux = Jx / rho;
+    uy = Jy / rho;
+    uz = Jz / rho;
     switch (NodeType & NODE_ADDITIONALS) {
-    case NODE_XYslice:
-     AddToZFlux(Jz + rho*ForceZ/2);
+    <?R for (plane in c("XY","XZ","YZ")) { ?>
+    case NODE_<?%s plane ?>slice:
+     AddTo<?%s plane ?>vx(ux);
+     AddTo<?%s plane ?>vy(uy);
+     AddTo<?%s plane ?>vz(uz);
+     AddTo<?%s plane ?>rho(rho);
+     AddTo<?%s plane ?>area(1);
      break;
-    case NODE_XZslice:
-     AddToYFlux(Jy + rho*ForceY/2);
-     break;
-    case NODE_YZslice:
-     AddToXFlux(Jx + rho*ForceX/2);
-     break;
+    <?R } ?>
     }
+    AddToVOLvx(ux);
+    AddToVOLvy(uy);
+    AddToVOLvz(uz);
+    AddToVOLpx(Jx);
+    AddToVOLpy(Jy);
+    AddToVOLpz(Jz);
+    AddToVOLrho(rho);
+    AddToVOLvolume(1);
+    AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
 Jx += rho*ForceX;
 Jy += rho*ForceY;
 Jz += rho*ForceZ;

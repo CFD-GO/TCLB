@@ -167,19 +167,19 @@ void MainFree( Solver *d);
 			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
-			fprintf(f,"%d, %le, %d",iter, LogScales[SETTINGS+GLOBALS+SCALES_dt] * iter, opt_iter);
+			fprintf(f,"%d, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+SCALES_dt] * iter, opt_iter);
 			for (int i=0; i< SETTINGS; i++) {
 				v = lattice->settings[i];
-				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
 			for (int i=0; i< GLOBALS; i++) {
 				v = glob[i];
-				fprintf(f,", %le, %le",v,v*LogScales[j]);
+				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
 			for (int i=0; i< SCALES; i++) {
-				fprintf(f,", %le",LogScales[j]);
+				fprintf(f,", %.13le",LogScales[j]);
 				j++;
 			}
 			fprintf(f,"\n");

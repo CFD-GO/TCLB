@@ -146,7 +146,6 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
-		break;
 	case NODE_Wall:
 		BounceBack();
 		break;

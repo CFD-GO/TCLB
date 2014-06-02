@@ -65,6 +65,20 @@
               } while (assumed != old);
             }
         }
+
+        __device__ inline void atomicMaxP(real_t* address, real_t val)
+        {
+            if (val != 0.0) {
+              real_t_i* address_as_ull = (real_t_i*) address;
+              real_t_i  old = *address_as_ull;
+              real_t_i  assumed, nw;
+              do {
+                  assumed = old;
+                  nw = R2I(max(val,I2R(assumed)));
+                  old = atomicCAS(address_as_ull, assumed, nw);
+              } while (assumed != old);
+            }
+        }
       #endif
       __shared__ real_t sumtab[MAX_THREADS];
 
@@ -82,6 +96,22 @@
                       __syncthreads();
               }
               if (j==0) atomicAddP(sum,sumtab[0]);
+      }
+
+      __device__ inline void atomicMax(real_t * sum, real_t val)
+      {
+              int i = blockDim.x*blockDim.y;
+              int k = blockDim.x*blockDim.y;
+              int j = blockDim.x*threadIdx.y + threadIdx.x;
+              sumtab[j] = val;
+              __syncthreads();
+              while (i> 1) {
+                      k = i >> 1;
+                      i = i - k;
+                      if (j<k) sumtab[j] = max(sumtab[j],sumtab[j+i]);
+                      __syncthreads();
+              }
+              if (j==0) atomicMaxP(sum,sumtab[0]);
       }
     #endif
 

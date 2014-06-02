@@ -315,7 +315,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     char *lev = (char *) malloc(reg.size() * sizeof(char));
     for (int i = 0; i < reg.size(); i++)
 	lev[i] = 0;
-    printf("%d x %d = %d\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
+    printf("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     fread(tri, ntri, sizeof(STL_tri), f);
     fclose(f);
 

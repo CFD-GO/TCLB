@@ -175,18 +175,21 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 	Settings <<- rbind(Settings,s)
 }
 
-AddGlobal = function(name, var, comment="", unit="1", adjoint=F) {
+AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=0.0) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
 	if (missing(var)) var=name
 	if (comment == "") {
 		comment = name
 	}
+	if (!(op %in% c("SUM","MAX"))) stop("Operation (op) in AddGlobal have to be SUM or MAX")
 	g = data.frame(
 		name=name,
 		var=var,
 		comment=comment,
 		unit=unit,
-		adjoint=adjoint
+		adjoint=adjoint,
+		op=op,
+		base_value=base
 	)
 	Globals <<- rbind(Globals,g)
 }
@@ -494,6 +497,9 @@ Dispatch = cbind(
 sel = Dispatch$stage
 Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel], sep="")
 
+Globals = Globals[order(Globals$op),]
+
+
 Consts = NULL
 for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages")) {
 	v = get(n)
@@ -624,6 +630,7 @@ AllKernels = expand.grid(
 AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))
 AllKernels$TemplateArgs = paste(AllKernels$Op, ",", AllKernels$Globals, ",", AllKernels$Stage)
 AllKernels$Node = paste("Node_Run <", AllKernels$TemplateArgs, ">")
+
 
 ################################################################################
 

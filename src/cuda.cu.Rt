@@ -67,18 +67,26 @@ template <> struct Node_Globals < IntegrateGlobals > : Node_Base { <?R
 	        real_t <?%s g$var ?>; <?R
         }
 	for (g in G) { ?>
-        CudaDeviceFunction void AddTo<?%s g$name ?>_(real_t x) {
-                <?%s g$var ?> += x;
+        CudaDeviceFunction void AddTo<?%s g$name ?>_(real_t x) { <?R
+                if (g$op == "SUM") { ?>
+                    <?%s g$var ?> += x; <?R
+                } else if (g$op == "MAX") { ?>
+                    <?%s g$var ?> = max(<?%s g$var ?>,x); <?R
+                } ?>
         } <?R
         } ?>
 	CudaDeviceFunction void inline Pre() { <?R
 	for (g in G) { ?>
-		<?%s g$var ?> = 0.0f; <?R
+		<?%s g$var ?> = <?%f g$base_value ?>f; <?R
         } ?>
 	}
 	CudaDeviceFunction void inline Glob() { <?R
-        for (g in G) { ?>
-		atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+        for (g in G) {
+                if (g$op == "SUM") { ?>
+		        atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+		} else if (g$op == "MAX") { ?>
+		        atomicMax(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                } 
         } ?>
 	}
 };
