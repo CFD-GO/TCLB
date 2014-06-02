@@ -262,6 +262,10 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
+
+    
+//    AddToVOLrho(<?R C(sum(f)) ?>);
+  
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_WPressureL:
 		WPressureLimited();
@@ -303,25 +307,26 @@ CudaDeviceFunction void CollisionMRT()
 	real_t Jx,Jy,Jz, rho, omT;
 	real_t <?R cat(ToC(R[selR]), sep=",") ?>;
 
-	#define S1  0.0
-	#define S2  1.0//19
-	#define S3  1.0//4
-	#define S4  0.0
-	#define S5  1.0//2
-	#define S6  0.0
-	#define S7  1.0//2
-	#define S8  0.0
-	#define S9  1.0//2
-	#define S10 omega
-	#define S11 1.0//4
-	#define S12 omega
-	#define S13 1.0//4
-	#define S14 omega
-	#define S15 omega
-	#define S16 omega
-	#define S17 1.0//98
-	#define S18 1.0//98
-	#define S19 1.0//98
+        #define S1 0.0
+        #define S2 omega
+        #define S3 omega
+        #define S4 0.0
+        #define S5 omega2
+        #define S6 0.0
+        #define S7 omega2
+        #define S8 0.0
+        #define S9 omega2
+        #define S10 omega
+        #define S11 omega
+        #define S12 omega
+        #define S13 omega
+        #define S14 omega
+        #define S15 omega
+        #define S16 omega
+        #define S17 omega2
+        #define S18 omega2
+        #define S19 omega2
+        real_t omega2 = 8.0 * ( 2.0 - omega )/( 8.0 - omega );
 <?R
         Sy = PV(paste("S",1:19,"",sep=""))
         omega = PV("omega")
@@ -372,10 +377,12 @@ for (i in selR) {
 ?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
 <?R
 }
+
 for (i in 1:length(R)) {
 ?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
 <?R
 }
    C( f == R %% t(MRTMAT) , float=F);
+#   C( f == R %% solve(MRTMAT) , float=F);
 ?>
 }
