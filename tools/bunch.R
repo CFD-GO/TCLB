@@ -80,24 +80,26 @@ getcol.bunch = function(x,name) {
 }
 
 indexes.bunch = function(x,i) {
-	if (length(x) < 1) {
-		NULL
-	} else {
-		w = data.frame(row.names=1:length(x))
-		for (j in names(x)) {
-			h = get("$.bunch")(x,j)
-			if (class(h) %in% c("numeric","character","factor","integer","logical"))
-				w[,j]=h
-		}
-		(1:length(x))[eval(i,w)]
-	}
+#	if (length(x) < 1) {
+#		NULL
+#	} else {
+#		w = data.frame(row.names=1:length(x))
+#		for (j in names(x)) {
+#			h = get("$.bunch")(x,j)
+#			if (class(h) %in% c("numeric","character","factor","integer","logical"))
+#				w[,j]=h
+#		}
+#		(1:length(x))[eval(i,w)]
+#	}
+	(1:length(x))[i]
 }
 
 "[.bunch" = function(x,i,j) {
 	if (missing(i)) {
 		y=x
 	} else {
-		ni = indexes.bunch(x,substitute(i))
+#		ni = indexes.bunch(x,substitute(i))
+		ni = indexes.bunch(x,i)
 		y = unclass(x)[ni]
 		class(y) = "bunch"
 		attr(y,"cols") = attr(x,"cols")
@@ -121,7 +123,8 @@ indexes.bunch = function(x,i) {
 		stop("Wrong convertion in bunch [<-")
 	if (!all(attr(value,"cols") %in% attr(x,"cols")))
 		stop("Wrong names in bunch [<-")
-	ni = indexes.bunch(x,substitute(i))
+#	ni = indexes.bunch(x,substitute(i))
+	ni = indexes.bunch(x,i)
 	if (length(ni) == 0) {
 		x
 	} else {

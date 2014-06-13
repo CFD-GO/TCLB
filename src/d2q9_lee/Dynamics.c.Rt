@@ -374,7 +374,12 @@ CudaDeviceFunction vector_t getFB(){
   fillF();
   <?R
     uv = PV(c("u.x","u.y"))
-    C( uv == make.vector(fB) );
+    C( d == sum(f) );
+    C( uv == f %% U );
+#    C( uv == uv + 0.5 * make.vector(fC) );
+    C( uv == uv * dw );
+#    uv = PV(c("u.x","u.y"))
+#    C( uv == make.vector(fB) );
   ?>
   u.z = 0;
   return u;
@@ -398,7 +403,9 @@ CudaDeviceFunction void Feq(real_t d, real_t u[2]) { <?R
 	Req = Req_fun(d, u);
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	feq = PV(paste("feq[",1:9-1,"]",sep=""))
-	C( feq == Req %% solve(M) ); ?>
+	C( feq == Req %% solve(M) );
+        C( feq == wi*((u %% t(U))*( 1/ c_sq) + ((u %% t(U)) * (u %% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
+    ?>
 }
 
 CudaDeviceFunction void fillF() {
@@ -439,7 +446,8 @@ CudaDeviceFunction void CollisionBGK()
   <?R
     C( d == sum(f) );
     C( u == f %% U );
-    C( u == u + 0.5 * make.vector(fC) );
+#    C( u == u + 0.5 * make.vector(fC) );
+    C( u == u + make.vector(fC) );
     C( u == u * dw );
   ?>
   Feq(d,u);
@@ -461,8 +469,8 @@ CudaDeviceFunction void CollisionBGK()
 #    C(f == f * (1-omega) )
 #    C(f == f + feq);
     C(f == feq);
-    C(uF == sum(u * make.vector(fB)))
-    C(f == f + 0.5*force(fB,uF) )
+#    C(uF == sum(u * make.vector(fB)))
+#    C(f == f + 0.5*force(fB,uF) )
 #    FF = PV(paste("F[",1:2-1,"]",sep=""))
 #    C(FF == make.vector(fB));
 #    C(f == f + 0.5*(FF %% t(U) - sum(FF*u) )*dw*(1/c_sq)*feq)
