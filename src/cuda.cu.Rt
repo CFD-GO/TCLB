@@ -39,7 +39,7 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__) <?R
         }
 	for (g in rows(GlobalsD)) { ?>
-#define AddTo<?%s g$name ?>(x) Node_Globals< G >::AddTo<?%s g$name ?>_(x) <?R
+#define AddTo<?%s g$name ?>(x) this->AddTo<?%s g$name ?>_(x) <?R
 	}
 	for (v in rows(Settings)) { ?>
 /// GPU Constant memory variable for [<?%s v$comment?>]
@@ -55,7 +55,7 @@ struct Node_Base {
 	int x,y,z;
 };
 
-template < eCalculateGlobals G > struct Node_Globals : Node_Base {
+template < eOperationType I, eCalculateGlobals G > struct Node_Globals : Node_Base {
         CudaDeviceFunction void Pre() {};
         CudaDeviceFunction void Glob() {}; <?R
         G = rows(GlobalsD)[!GlobalsD$adjoint]
@@ -64,7 +64,7 @@ template < eCalculateGlobals G > struct Node_Globals : Node_Base {
         } ?>
 };
 
-template <> struct Node_Globals < IntegrateGlobals > : Node_Base { <?R
+template < > struct Node_Globals < Primal, IntegrateGlobals > : Node_Base { <?R
         G = rows(GlobalsD)[!GlobalsD$adjoint]
 	for (g in G) { ?>
 	        real_t <?%s g$var ?>; <?R
@@ -94,9 +94,43 @@ template <> struct Node_Globals < IntegrateGlobals > : Node_Base { <?R
 	}
 };
 
+template < > struct Node_Globals < Adjoint, IntegrateGlobals > : Node_Base { <?R
+        G = rows(GlobalsD)[GlobalsD$adjoint]
+	for (g in G) { ?>
+	        real_t <?%s g$var ?>; <?R
+        }
+	for (g in G) { ?>
+        CudaDeviceFunction void AddTo<?%s g$name ?>_(real_t x) { <?R
+                if (g$op == "SUM") { ?>
+                    <?%s g$var ?> += x; <?R
+                } else if (g$op == "MAX") { ?>
+                    <?%s g$var ?> = max(<?%s g$var ?>,x); <?R
+                } ?>
+        } <?R
+        }
+	for (g in rows(GlobalsD)[!GlobalsD$adjoint]) { ?>
+        CudaDeviceFunction void AddTo<?%s g$name ?>_(real_t x) {} <?R
+        } ?>
+	CudaDeviceFunction void inline Pre() { <?R
+	for (g in G) { ?>
+		<?%s g$var ?> = <?%f g$base_value ?>f; <?R
+        } ?>
+	}
+	CudaDeviceFunction void inline Glob() { <?R
+        for (g in G) {
+                if (g$op == "SUM") { ?>
+		        atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+		} else if (g$op == "MAX") { ?>
+		        atomicMax(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                } 
+        } ?>
+	}
+};
+
 #ifdef ADJOINT
-template <> struct Node_Globals < OnlyObjective > : Node_Base {
+template <> struct Node_Globals < Primal, OnlyObjective > : Node_Base {
         real_t Objective; <?R
+        G = rows(GlobalsD)[!GlobalsD$adjoint]
 	for (g in G) { ?>
         CudaDeviceFunction void AddTo<?%s g$name ?>_(real_t x) {
                 Objective = Objective + (x) * <?%s g$name ?>InObj;
@@ -114,9 +148,9 @@ template <> struct Node_Globals < OnlyObjective > : Node_Base {
 #endif
 
 //Primal,Tangent,Adjoint
-template < eOperationType I, eCalculateGlobals G > struct Node_Dynamics : Node_Globals < G > { };
+template < eOperationType I, eCalculateGlobals G > struct Node_Dynamics : Node_Globals < I, G > { };
 
-template < eCalculateGlobals G > struct Node_Dynamics < Primal, G > : Node_Globals < G > {
+template < eCalculateGlobals G > struct Node_Dynamics < Primal, G > : Node_Globals < Primal, G > {
 	#include "Dynamics.h"
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
@@ -126,7 +160,7 @@ template < eCalculateGlobals G > struct Node_Dynamics < Primal, G > : Node_Globa
 };
 
 #ifdef ADJOINT
-template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < G > {
+template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < Adjoint, NoGlobals > {
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
@@ -136,7 +170,7 @@ template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < G > {
 	#include "Dynamics_adj.c"
 };
 
-template < > struct Node_Dynamics < Adjoint, IntegrateGlobals > : Node_Globals < G > {
+template < > struct Node_Dynamics < Adjoint, IntegrateGlobals > : Node_Globals < Adjoint, IntegrateGlobals > {
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else

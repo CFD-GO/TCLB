@@ -69,9 +69,9 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>(N & f);
   template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>(N & f);
 #ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push_adj<?%s s$suffix ?>(N & f);
-  template<class N>  CudaDeviceFunction void pull_adj<?%s s$suffix ?>(N & f);
-  template<class N>  CudaDeviceFunction void pop_adj<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>_adj(N & f);
 #endif
 <?R } ?>
 

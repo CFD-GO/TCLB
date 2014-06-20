@@ -99,48 +99,45 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 	)
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
-	if (any(Fields$name == d$field)) {
-		i = which(Fields$name == d$field)
-		Fields$minx[i] <<- min(Fields$minx[i], -d$dx)
-		Fields$maxx[i] <<- max(Fields$maxx[i], -d$dx)
-		Fields$miny[i] <<- min(Fields$miny[i], -d$dy)
-		Fields$maxy[i] <<- max(Fields$maxy[i], -d$dy)
-		Fields$minz[i] <<- min(Fields$minz[i], -d$dz)
-		Fields$maxz[i] <<- max(Fields$maxz[i], -d$dz)
-	} else {
-		f = data.frame(
-			name=d$field,
-			minx=-d$dx,maxx=-d$dx,
-			miny=-d$dy,maxy=-d$dy,
-			minz=-d$dz,maxz=-d$dz,
+		AddField(name=d$field,
+			dx=-d$dx,dy=-d$dy,dz=-d$dz,
 			comment=d$comment,
 			adjoint=d$adjoint,
 			group=d$group,
 			parameter=d$parameter
 		)
-		Fields <<- rbind(Fields, f)
-	}
 	}
 }
 
-AddField = function(name, stencil2d=0, stencil3d=0, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
 	if (missing(name)) stop("Have to supply name in AddField!")
 	comment = ifelse(comment == "", name, comment);
 
 		d = data.frame(
 			name=name,
-			minx=min(dx,-stencil2d,-stencil3d),
-			maxx=max(dx, stencil2d, stencil3d),
-			miny=min(dy,-stencil2d,-stencil3d),
-			maxy=max(dy, stencil2d, stencil3d),
-			minz=min(dz,           -stencil3d),
-			maxz=max(dz,            stencil3d),
+			minx=min(dx,-stencil2d,-stencil3d,na.rm=T),
+			maxx=max(dx, stencil2d, stencil3d,na.rm=T),
+			miny=min(dy,-stencil2d,-stencil3d,na.rm=T),
+			maxy=max(dy, stencil2d, stencil3d,na.rm=T),
+			minz=min(dz,           -stencil3d,na.rm=T),
+			maxz=max(dz,            stencil3d,na.rm=T),
 			comment=comment,
 			adjoint=adjoint,
 			group=group,
 			parameter=parameter
 		)
-		Fields <<- rbind(Fields, d)
+
+		if (any(Fields$name == d$name)) {
+			i = which(Fields$name == d$name)
+			Fields$minx[i] <<- min(Fields$minx[i], d$minx)
+			Fields$maxx[i] <<- max(Fields$maxx[i], d$maxx)
+			Fields$miny[i] <<- min(Fields$miny[i], d$miny)
+			Fields$maxy[i] <<- max(Fields$maxy[i], d$maxy)
+			Fields$minz[i] <<- min(Fields$minz[i], d$minz)
+			Fields$maxz[i] <<- max(Fields$maxz[i], d$maxz)
+		} else {
+			Fields <<- rbind(Fields, d)
+		}
 }
 
 
@@ -356,6 +353,25 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	tab
 }))
 
+if (NodeShiftNum > 16) {
+	stop("NodeTypes exceeds short int")
+} else {
+	k = 16 - NodeShiftNum
+	if (k == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
+	Zones = 2^k
+	NodeTypes = rbind(NodeTypes,data.frame(
+		name=paste("SettingZone",1:Zones,sep=""),
+		group="SETTINGZONE",
+		index=1:Zones,
+		Index=paste("SettingZone",1:Zones,sep=""),
+		value=(1:Zones-1)*NodeShift,
+		mask=(Zones-1)*NodeShift,
+		shift=NodeShiftNum
+	))
+	NodeShiftNum = 16
+	NodeShift = 2^NodeShiftNum
+}
+
 if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
 
 Node=NodeTypes$value
@@ -370,25 +386,30 @@ Node_Group["ALL"] = sum(Node_Group)
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
 
-if (ADJOINT==1) {
-	for (d in rows(DensityAll)) {
-		n = as.character(d$name)
-		if (grepl("[[]", n)) {
-			n = sub("[[]","b[", n)
-		} else {
-			n = paste(n, "b", sep="")
+add.to.var.name = function(n,s) {
+		n = as.character(n)
+		sel = grepl("[[]", n)
+		if (any(sel)) {
+			n[sel] = sub("[[]",paste(s,"[",sep=""), n[sel])
 		}
-		AddDensity(
-			name=n,
-			dx=-d$dx,
-			dy=-d$dy,
-			dz=-d$dz,
-			comment=paste("adjoint to",d$comment),
-			group=d$group,
-			parameter=d$parameter,
-			adjoint=T
-		)
-	}
+		if (any(!sel)) {
+			n[!sel] = paste(n[!sel], s, sep="")
+		}
+		n
+}
+
+
+DensityAll$adjoint_name = add.to.var.name(DensityAll$name,"b")
+DensityAll$tangent_name = add.to.var.name(DensityAll$name,"d")
+
+Fields$adjoint_name = add.to.var.name(Fields$name,"b")
+Fields$tangent_name = add.to.var.name(Fields$name,"d")
+
+Fields$area = with(Fields,(maxx-minx+1)*(maxy-miny+1)*(maxz-minz+1))
+Fields$simple_access = (Fields$area == 1)
+
+if (ADJOINT==1) {
+
 	for (s in rows(Settings)) {
 		AddGlobal(
 			name=paste(s$name,"_D",sep=""),

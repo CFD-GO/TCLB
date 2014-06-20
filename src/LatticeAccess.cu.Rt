@@ -30,26 +30,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
 <?R #	InOut("type", "in", Density); ?>
 }
 
-#ifdef ADJOINT
-/// Push all adjoint densities
-template <class N> CudaDeviceFunction void LatticeContainer::push_adj(N & node) 
-{
-<?R #	InOut("push", "adjout", DensityAD); ?>
-}
-
-/// Opposite of push_adj
-template <class N> CudaDeviceFunction void LatticeContainer::pull_adj(N & node) 
-{
-<?R #	InOut("pull", "adjout", DensityAD); ?>
-}
-
-/// Get adjoint densities
-template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node) 
-{
-<?R #	InOut("pop", "adjin", DensityAD); ?>
-}
-#endif
-
 /// Push all densities
 
 <?R
@@ -121,8 +101,33 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
 #  No x move:
   no.x.move = FALSE
      
-  load.field = function(d,f,p,dp,MContext) {
-    ret = f$get_offsets(p,dp)
+  field.access.one = function(d,m,off,access) {
+          if (access == "get") {  ?>
+        <?%s d ?> = <?%s m ?>[<?R C(off,float=FALSE) ?>]; <?R
+   } else if (access == "getsum") {  ?>
+        <?%s d ?> += <?%s m ?>[<?R C(off,float=FALSE) ?>]; <?R
+   } else if (access == "set") { ?>
+        <?%s m ?>[<?R C(off,float=FALSE) ?>] = <?%s d ?>; <?R
+   } else if (access == "add") { ?>
+        <?%s m ?>[<?R C(off,float=FALSE) ?>] += <?%s d ?>; <?R
+   } else if (access == "atomicadd") { ?>
+        atomicAddP(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
+   } else stop("Unknown access type in field.access.one");
+  }
+     
+     
+  field.access = function(d,f,p,dp,access,pattern,MContext) {
+    if (pattern == "get") {
+     ret = f$get_offsets(p,dp)
+    } else if (pattern == "put") {
+     ret = f$put_offsets(p)
+    } else {
+     stop("Unknown access in field.access")
+    }
+    if (f$simple_access) {
+     if (access == "add" || access == "atomicadd") access = "set"
+     if (access == "getsum" ) access = "get"
+    }
     if (MContext$PocketMove) for (m in 1:27) if (ret$Selection[m]) {
       if (no.x.move) {
         MContext=move.pocket(m, subst(ret$Offset[m],p[1]==-dp[1]),MContext)
@@ -130,34 +135,20 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
         MContext=move.pocket(m, ret$Offset[m],MContext)
       }
     }
-    if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
-      ?>
-     <?%s d ?> = <?%s MContext$Pocket ?>.<?%s Margin[[m]]$name ?>[<?R C(ret$Offset[m] - MContext$Offset[[m]],float=FALSE) ?>]; <?R
-    })
-    MContext
-  }
-
-  save.field = function(d,f,p,MContext) {
-    ret = f$put_offsets(p)
-    if (MContext$PocketMove) for (m in 1:27) if (ret$Selection[m]) {
-      if (no.x.move) {
-        MContext=move.pocket(m, subst(ret$Offset[m],p[1]==0),MContext)
-      } else {
-        MContext=move.pocket(m, ret$Offset[m],MContext)
-      }
+    if (access == "getsum" ) { ?>
+      <?%s d ?> = 0.0f; <?R
     }
     if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
-      ?>
-     <?%s MContext$Pocket ?>.<?%s Margin[[m]]$name ?>[<?R C(ret$Offset[m] - MContext$Offset[[m]],float=FALSE) ?>] = <?%s d ?>; <?R
+      field.access.one(d, paste(MContext$Pocket, Margin[[m]]$name, sep="."), ret$Offset[m] - MContext$Offset[[m]], access);
     })
     MContext
   }
 
-?>
-
-<?R
+  load.field = function(d,f,p,dp,MContext) field.access(d=d,f=f,p=p,dp=dp,pattern="get",access="get",MContext=MContext)
+  save.field = function(d,f,p,MContext)    field.access(d=d,f=f,p=p,      pattern="put",access="set",MContext=MContext)
 
  mc = require(parallel)
+# mc = FALSE
  if (!mc) {
   txtlapply = function(x,FUN,...,mc.cores=1) lapply(x,FUN,...)
  } else {
@@ -191,6 +182,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop_adj(N & node)
     s$save.fields = Fields[,s$tag];
     s$suffix = paste("_",s$name,sep="")
   } 
+
   ?>
 template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node) 
 {
@@ -228,7 +220,43 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
     con=save.field(paste("node",f$name,sep="."), f, p, con)
   }?>
 }
+<?R if (ADJOINT) { ?>
+template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>_adj(N & node) 
+{
+<?R
+  con = make.context("in",pocket=TRUE);
+  for (d in rows(Density)[s$load.densities]) { ?>
+//--------------------------- <?%s d$name ?> ----------------------<?R
+    con = field.access(
+     d=paste("node",d$name,sep="."),
+     f=Fields[Fields$name == d$field][[1]],
+     p=PV(c("node.x","node.y","node.z")),
+     dp=c(-d$dx, -d$dy, -d$dz),
+     pattern="get",
+     access="atomicadd",
+     MContext=con
+    )
+  }?>
+}
 
+template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>_adj(N & node) 
+{
+<?R
+  con = make.context("out",pocket=TRUE);
+  for (f in Fields[s$save.fields]) { ?>
+//--------------------------- <?%s f$name ?> ----------------------<?R
+    p = PV(c("node.x","node.y","node.z"));
+    con = field.access(
+     d=paste("node",f$name,sep="."),
+     f=f,
+     p=PV(c("node.x","node.y","node.z")),
+     pattern="put",
+     access="getsum",
+     MContext=con
+    )
+  }?>
+}
+<?R } # end of ADJOINT part ?>
 <?R }) ?>
 
 

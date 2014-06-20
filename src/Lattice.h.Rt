@@ -108,8 +108,8 @@ public:
   
   void        Iterate(int, int);
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
-  void        Iteration_Adj(int, int, int);
-  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
+//  void        Iteration_Adj(int, int, int);
+//  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
   void        IterateTill(int,int);
 <?R for (n in names(Actions)) {
         a = Actions[[n]]
@@ -118,6 +118,8 @@ public:
         } else {
                 FunName = paste("Action",n,sep="_")
         } ?>
+        void <?%s FunName ?>_Adj(int, int, int, int, int); 
+        void <?%s FunName ?>_Opt(int, int, int, int, int); 
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
   void inline Iterate()  { IterateT(ITER_NORM);   };

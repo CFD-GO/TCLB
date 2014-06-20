@@ -287,7 +287,8 @@
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
-    inline void atomicSum(float * sum, float val)
+    template <typename T>
+    inline void atomicSum(T * sum, T val)
     {
       sum[0] += val;
     }

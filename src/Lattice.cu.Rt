@@ -411,7 +411,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	Snap = tab1;
 	MarkIteration();
 };
-<?R } ?>
+
 /// Adjoint Iteration
 /**
         One Adjoint Iteration
@@ -419,7 +419,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
         \param tab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
+inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
 	real_t * tmp;
@@ -427,37 +427,42 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
+	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);)
 <?R
 	for (m in NonEmptyMargin) {
 ?>
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
-		gpuout[i] = aSnaps[tab0].<?%s m$name ?>;
+		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
 		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
 		i ++;
 	} else {
-		container->adjin.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;
+		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
 	}
-	container->in.<?%s m$name ?> = Snaps[Snap].<?%s m$name ?>;
-	container->adjout.<?%s m$name ?> = aSnaps[tab1].<?%s m$name ?>;
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+	container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
 <?R
 	}
-?>
-	container->CopyToConst();
+
+	for (s in a) {
+                 stage = Stages[s,,drop=F] ?>
+
+       	container->CopyToConst();
 
         MPIStream_A();
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunInterior_Adj (kernelStream); break;
+	        container->RunInterior< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+//		container->RunInterior_Adj (kernelStream); break;
 	case ITER_GLOBS:
-		container->RunInterior_Globs_Adj(kernelStream); break;
-	case ITER_NO | ITER_STEADY:
-		container->RunInterior_SAdj (kernelStream); break;
-	case ITER_GLOBS | ITER_STEADY:
-		container->RunInterior_Globs_SAdj(kernelStream); break;
+	        container->RunInterior< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
+//		container->RunInterior_Globs_Adj(kernelStream); break;
+//	case ITER_NO | ITER_STEADY:
+//		container->RunInterior_SAdj (kernelStream); break;
+//	case ITER_GLOBS | ITER_STEADY:
+//		container->RunInterior_Globs_SAdj(kernelStream); break;
 	}	
 
         MPIStream_B();
@@ -465,17 +470,20 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunBorder_Adj (kernelStream); break;
+	        container->RunBorder< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+//		container->RunBorder_Adj (kernelStream); break;
 	case ITER_GLOBS:
-		container->RunBorder_Globs_Adj(kernelStream); break;
-	case ITER_NO | ITER_STEADY:
-		container->RunBorder_SAdj (kernelStream); break;
-	case ITER_GLOBS | ITER_STEADY:
-		container->RunBorder_Globs_SAdj(kernelStream); break;
+	        container->RunBorder< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
+//		container->RunBorder_Globs_Adj(kernelStream); break;
+//	case ITER_NO | ITER_STEADY:
+//		container->RunBorder_SAdj (kernelStream); break;
+//	case ITER_GLOBS | ITER_STEADY:
+//		container->RunBorder_Globs_SAdj(kernelStream); break;
 	}	
 	DEBUG_M;
         CudaDeviceSynchronize();
-	aSnap = tab1;
+<?R } ?>
+	aSnap = adjtab1;
 	MarkIteration();
 #else
 	std::cerr << "This model doesn't have adjoint!\n";
@@ -492,91 +500,19 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
         \param adjtab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
-	real_t * tmp;
-	int size, from, to;
-	MPI_Status status;
-	MPI_Request request;
-	MPI_Request recvreq[bufnumber];
-	int i=0;
-	DEBUG1(printf("[%d] Iteration_Opt %d -> %d, %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, adjtab0, adjtab1, iter_type);)
-        i = 0;
-<?R
-	for (m in NonEmptyMargin) {
-?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (mpi.rank != to) {
-		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
-		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
-		container->out.<?%s m$name ?> = gpubuf2[i];
-		i ++;
-	} else {
-		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
-		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
-	}
-	container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
-	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-<?R
-	}
-?>
-        assert(i == bufnumber);
-        DEBUG_M;
-	container->CopyToConst();
-        DEBUG_M;
-	MPIStream_A();
-//        DEBUG_M;
-	switch(iter_type & ITER_INTEG){
-	case ITER_NO:
-		container->RunInterior_Opt (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunInterior_Globs_Opt(kernelStream); break;
-	}	
-//        DEBUG_M;
-	MPIStream_B();
-//	DEBUG_M;
-	switch(iter_type & ITER_INTEG){
-	case ITER_NO:
-		container->RunBorder_Opt (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunBorder_Globs_Opt(kernelStream); break;
-	}
-//	DEBUG_M;
-	i = 0;	
-<?R
-	for (m in NonEmptyMargin) {
-?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (mpi.rank != to) {
-		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
-		gpuout[i] = container->out.<?%s m$name ?>;
-		i ++;
-	}
-<?R
-	}
-?>
-        assert(i == bufnumber);
-	DEBUG_M;
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_M;
-	MPIStream_A();
-//	DEBUG_M;
-	MPIStream_B(bufnumber);
-	DEBUG_M;
-        CudaDeviceSynchronize();
-	DEBUG_M;
-	Snap = tab1;
-	aSnap = adjtab1;
-	MarkIteration();
-	DEBUG_M;
+        <?%s FunName ?>(tab0, tab1, iter_type);
+        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type);
 #else
 	std::cerr << "This model doesn't have adjoint!\n";
 	exit (-1);
 #endif
 };
+
+<?R } ?>
+
 
 /// Function listing all buffers in FTabs
 void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
@@ -800,7 +736,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					exit(-1);
 				}
 				IterateTill(Iter, ITER_NORM);
-				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+				Iteration_Adj(Snap, (Snap+1) % 2, aSnap % 2, (aSnap+1) % 2, iter_type);
 			}
 			break;
                 case ITER_NORM:
@@ -826,7 +762,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					container->clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
-				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
+				Iteration_Adj(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
 			}
 			break;
                 case ITER_NORM:
