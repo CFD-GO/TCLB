@@ -130,6 +130,9 @@ public:
   void Get_<?%s d$nicename ?>(real_t * tab);
   void Clear_<?%s d$nicename ?>();
   void Set_<?%s d$nicename ?>(real_t * tab);
+  void Get_<?%s d$nicename ?>_Adj(real_t * tab);
+  void Clear_<?%s d$nicename ?>_Adj();
+  void Set_<?%s d$nicename ?>_Adj(real_t * tab);
 <?R }
     for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);

@@ -859,10 +859,13 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 
 <?R
 	for (d in rows(rbind(Density,DensityAD))) { 
-	if (d$adjoint) {
+	for (adjoint in c(TRUE,FALSE)) {
+	if (adjoint) {
 		from="aSnaps[aSnap]";
+		suff = "_Adj"
 	} else {
 		from="Snaps[Snap]";
+		suff = ""
 	}
 ?>
 
@@ -871,7 +874,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
         Retrive the values of the density <?%s d$nicename ?> (<?%s d$comment ?>)
         from the GPU memory
 */
-void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
+void Lattice::Get_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 {
 	printf("[%d] Pulling all <?%s d$nicename ?>\n", D_MPI_RANK);
 	CudaMemcpy(
@@ -887,7 +890,7 @@ void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
         the density <?%s d$nicename ?> (<?%s d$comment ?>)
         in the GPU memory
 */
-void Lattice::Clear_<?%s d$nicename ?>()
+void Lattice::Clear_<?%s d$nicename ?><?%s suff ?>()
 {
 	printf("[%d] Clearing all <?%s d$nicename ?>\n", D_MPI_RANK);
 	CudaMemset(
@@ -902,7 +905,7 @@ void Lattice::Clear_<?%s d$nicename ?>()
         the density <?%s d$nicename ?> (<?%s d$comment ?>)
         in the GPU memory
 */
-void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
+void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 {
 	printf("[%d] Setting all <?%s d$nicename ?>\n", D_MPI_RANK);
 	CudaMemcpy(
@@ -912,7 +915,7 @@ void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 		cudaMemcpyHostToDevice);
 }
 
-<?R } ?>
+<?R }} ?>
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 

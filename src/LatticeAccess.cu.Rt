@@ -224,7 +224,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
 template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>_adj(N & node) 
 {
 <?R
-  con = make.context("in",pocket=TRUE);
+  con = make.context("adjout",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
     con = field.access(
@@ -242,7 +242,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
 template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>_adj(N & node) 
 {
 <?R
-  con = make.context("out",pocket=TRUE);
+  con = make.context("adjin",pocket=TRUE);
   for (f in Fields[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
     p = PV(c("node.x","node.y","node.z"));
