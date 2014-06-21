@@ -228,7 +228,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
   for (d in rows(Density)[s$load.densities]) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
     con = field.access(
-     d=paste("node",d$name,sep="."),
+     d=paste("node",d$adjoint_name,sep="."),
      f=Fields[Fields$name == d$field][[1]],
      p=PV(c("node.x","node.y","node.z")),
      dp=c(-d$dx, -d$dy, -d$dz),
@@ -247,7 +247,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
     p = PV(c("node.x","node.y","node.z"));
     con = field.access(
-     d=paste("node",f$name,sep="."),
+     d=paste("node",f$adjoint_name,sep="."),
      f=f,
      p=PV(c("node.x","node.y","node.z")),
      pattern="put",
