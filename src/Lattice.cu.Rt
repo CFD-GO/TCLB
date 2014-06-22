@@ -454,6 +454,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
+	        printf("a\n");
 	        container->RunInterior< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 //		container->RunInterior_Adj (kernelStream); break;
 	case ITER_GLOBS:

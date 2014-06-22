@@ -160,7 +160,10 @@ template < eCalculateGlobals G > struct Node_Dynamics < Primal, G > : Node_Globa
 };
 
 #ifdef ADJOINT
-template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < Adjoint, NoGlobals > {
+template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < Adjoint, NoGlobals > { <?R 
+for (n in c_table_decl(unique(c(Density$name,Fields$name,Density$adjoint_name,Fields$adjoint_name)))) { ?>
+      real_t <?%s n ?>; <?R
+} ?>
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
@@ -170,7 +173,10 @@ template < > struct Node_Dynamics < Adjoint, NoGlobals > : Node_Globals < Adjoin
 	#include "Dynamics_adj.c"
 };
 
-template < > struct Node_Dynamics < Adjoint, IntegrateGlobals > : Node_Globals < Adjoint, IntegrateGlobals > {
+template < > struct Node_Dynamics < Adjoint, IntegrateGlobals > : Node_Globals < Adjoint, IntegrateGlobals > { <?R
+for (n in c_table_decl(unique(c(Density$name,Fields$name,Density$adjoint_name,Fields$adjoint_name)))) { ?>
+      real_t <?%s n ?>; <?R
+} ?>
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
@@ -183,6 +189,7 @@ template < > struct Node_Dynamics < Adjoint, IntegrateGlobals > : Node_Globals <
 
 template < eOperationType I, eCalculateGlobals G, eStage S > struct Node_Stage : Node_Dynamics< I, G > {
         CudaDeviceFunction void Run_Stage() {
+                printf("AAAAA\n");
         }
         CudaDeviceFunction void pop() {
         }
@@ -191,7 +198,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S > struct Node_Stage :
 };
 
 <?R for (s in rows(Stages)) { ?>
-template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, <?%s s$name ?> >: Node_Dynamics< I, G > {
+template < eCalculateGlobals G > struct Node_Stage < Primal, G, <?%s s$name ?> >: Node_Dynamics< Primal, G > {
         CudaDeviceFunction void Run_Stage() {
                 this-><?%s s$main ?>();
         }
@@ -202,16 +209,25 @@ template < eOperationType I, eCalculateGlobals G > struct Node_Stage < I, G, <?%
                 constContainer.push_<?%s s$name ?>(*this);
         }
 };
+
+template < eCalculateGlobals G > struct Node_Stage < Adjoint, G, <?%s s$name ?> >: Node_Dynamics< Adjoint, G > {
+        CudaDeviceFunction void Run_Stage() {
+                this-><?%s s$main ?>_b();
+                printf("adjoint <?%s s$main ?>\n");
+        }
+        CudaDeviceFunction void pop() {
+                constContainer.pop_<?%s s$name ?>(*this);
+                constContainer.pop_<?%s s$name ?>_adj(*this);
+        }
+        CudaDeviceFunction void push() {
+                constContainer.push_<?%s s$name ?>_adj(*this);
+        }
+};
 <?R } ?>
 
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run : Node_Stage< I, G, S > {
-        inline CudaDeviceFunction void RunElement() {}
-};
-
-
-template < eCalculateGlobals G, eStage S > struct Node_Run <Primal, G, S>  : Node_Stage< Primal, G, S > {
-	CudaDeviceFunction inline void RunElement() {
+        inline CudaDeviceFunction void RunElement() {
 	        constContainer.getType(*this);
 	        this->pop(); 
 		this->Run_Stage();
