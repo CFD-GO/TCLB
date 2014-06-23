@@ -494,14 +494,23 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
+#Dispatch = data.frame(
+#	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
+#	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+#	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+#	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
+#	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
+#	zeropar=c(  FALSE,   FALSE,    FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
+#	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
+#)
 Dispatch = data.frame(
-	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
-	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
-	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
-	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
-	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
-	zeropar=c(  FALSE,   FALSE,    FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
-	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
+	Globals=c(   "No", "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
+	Action =c(   "No",    "No",   "No",  "Adj",        "Adj",  "SAdj",        "SAdj",  "Opt",        "Opt"),
+	Stream =c(   "No",    "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,    TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,   FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
+	zeropar=c(  FALSE,   FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
+	suffix =c(     "","_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
 )
 Dispatch$adjoint_ver = Dispatch$adjoint
 Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
@@ -511,7 +520,7 @@ Dispatch = cbind(
 	Dispatch[p$x,],
 	data.frame(
 		stage = c(FALSE,rep(TRUE,nrow(Stages))),
-		stage_name  = c("", Stages$name),
+		stage_name  = c("Get", Stages$name),
 		stage_index = c(0,Stages$index)
 	)[p$y,]
 )
@@ -633,7 +642,7 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 
 
 Enums = list(
-	eOperationType=c("Primal","Tangent","Adjoint","Opt"),
+	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
 	eModel=as.character(MODEL),
 	eAction=names(Actions),
@@ -645,7 +654,8 @@ AllKernels = expand.grid(
 	Op=Enums$eOperationType,
 	Globals=Enums$eCalculateGlobals[1:3],
 	Model=Enums$eModel,
-	Stage=Enums$eStage
+	Stage=Stages$name
+#	Stage=Enums$eStage
 )
 
 AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))

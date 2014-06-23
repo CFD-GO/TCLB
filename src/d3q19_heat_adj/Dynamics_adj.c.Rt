@@ -6,7 +6,7 @@
 ?>
 
 CudaDeviceFunction real_t getRhoB(){
-        return <?R C(sum(PV(DensityAD$name[DensityAD$group == "f"]))) ?>;
+        return <?R C(sum(PV(Density$adjoint_name[Density$group == "f"]))) ?>;
 }
 
 CudaDeviceFunction real_t getWB(){
@@ -14,11 +14,11 @@ CudaDeviceFunction real_t getWB(){
 }
 
 CudaDeviceFunction real_t getTB(){
-        return <?R C(sum(PV(DensityAD$name[DensityAD$group == "T"]))) ?>;
+        return <?R C(sum(PV(Density$adjoint_name[Density$group == "T"]))) ?>;
 }
 
 CudaDeviceFunction vector_t getUB(){
         vector_t u;
-	<?R C(PV(c("u.x","u.y", "u.z")) == PV(DensityAD$name[DensityAD$group == "f"]) %% U) ?>;
+	<?R C(PV(c("u.x","u.y", "u.z")) == PV(Density$adjoint_name[Density$group == "f"]) %% U) ?>;
 	return u;
 }

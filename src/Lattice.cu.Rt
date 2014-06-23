@@ -454,16 +454,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-	        printf("a\n");
 	        container->RunInterior< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
-//		container->RunInterior_Adj (kernelStream); break;
 	case ITER_GLOBS:
 	        container->RunInterior< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
-//		container->RunInterior_Globs_Adj(kernelStream); break;
-//	case ITER_NO | ITER_STEADY:
-//		container->RunInterior_SAdj (kernelStream); break;
-//	case ITER_GLOBS | ITER_STEADY:
-//		container->RunInterior_Globs_SAdj(kernelStream); break;
+	case ITER_NO | ITER_STEADY:
+	        container->RunInterior< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+	case ITER_GLOBS | ITER_STEADY:
+	        container->RunInterior< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
 	}	
 
         MPIStream_B();
@@ -472,14 +469,12 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 	        container->RunBorder< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
-//		container->RunBorder_Adj (kernelStream); break;
 	case ITER_GLOBS:
 	        container->RunBorder< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
-//		container->RunBorder_Globs_Adj(kernelStream); break;
-//	case ITER_NO | ITER_STEADY:
-//		container->RunBorder_SAdj (kernelStream); break;
-//	case ITER_GLOBS | ITER_STEADY:
-//		container->RunBorder_Globs_SAdj(kernelStream); break;
+	case ITER_NO | ITER_STEADY:
+	        container->RunBorder< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+	case ITER_GLOBS | ITER_STEADY:
+	        container->RunBorder< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
 	}	
 	DEBUG_M;
         CudaDeviceSynchronize();
@@ -868,6 +863,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 		from="Snaps[Snap]";
 		suff = ""
 	}
+	ifdef(adjoint)
 ?>
 
 /// Get [<?%s d$comment ?>]
@@ -916,7 +912,9 @@ void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 		cudaMemcpyHostToDevice);
 }
 
-<?R }} ?>
+<?R }
+ifdef()
+} ?>
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 
@@ -927,7 +925,10 @@ void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 */
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {
-	container->out = Snaps[Snap];
+	container->in = Snaps[Snap];
+	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
+        container->CopyToConst();
+
 	lbRegion inter = region.intersect(over);
 //        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;

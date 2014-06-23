@@ -82,8 +82,9 @@ for (m in Margin) { ?>
 */
 #ifndef DEBUG_H   
     extern int D_MPI_RANK;
+    extern int D_TERMINAL;
 
-    #define DEBUG_SETRANK(x) D_MPI_RANK = x
+    #define DEBUG_SETRANK(x) {D_MPI_RANK = x; D_TERMINAL = isatty(1); }
 #if DEBUG_LEVEL < 1
     #define DEBUG0(x) x; fflush(stdout);
     #define DEBUG1(x) x; fflush(stdout);

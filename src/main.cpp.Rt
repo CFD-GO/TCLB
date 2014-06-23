@@ -76,7 +76,11 @@ int MainCallback(int iter, Solver* solver) {
        			lbups *= iter;
 			lbups /= elapsedTime;
 			desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
-			printf("[ ] %8.1f MLBUps   %7.2f GB/s                        \r", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+			if (D_TERMINAL) {
+				printf("[ ] %8.1f MLBUps   %7.2f GB/s                        \r", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+			} else {
+				printf("[ ] %8.1f MLBUps   %7.2f GB/s                        \n", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+			}
 			fflush(stdout);
 		} else {
 			cum_iter += - iter - 1;
