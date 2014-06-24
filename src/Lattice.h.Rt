@@ -7,6 +7,7 @@
 #include "cross.h"
 #include <vector>
 #include <utility>
+#include "ZoneSettings.h"
 
 class lbRegion;
 class LatticeContainer;
@@ -53,6 +54,7 @@ private:
   CudaEvent_t outEv[28]; ///< Not used TODO
   CudaEvent_t mpiEv[28]; ///< Not used TODO
   int reverse_save; ///< Flag stating if recording (Now)
+  ZoneSettings zSet;
 public:
   std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
   int settings_i; ///< Index in settings_record that is on the CUDA const
