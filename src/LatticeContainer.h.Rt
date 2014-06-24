@@ -50,7 +50,8 @@ class LatticeContainer {
   int iter; ///< Iteration number
 
   int ZoneIndex;
-  real_t** ZoneSetting;
+  real_t** ZoneSettings;
+  real_t* ConstZoneSettings;
 
   void Alloc (int,int,int);
   void Free();
@@ -89,6 +90,13 @@ class LatticeContainer {
   } ?>
 //  template <class N> CudaDeviceFunction void push_new(N & node);
 
+
+  CudaDeviceFunction inline const real_t ZoneSetting(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    const real_t * w = ZoneSettings[i];
+    if (w == NULL) return ConstZoneSettings[i];
+    return w[ZoneIndex];
+  }
 
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);

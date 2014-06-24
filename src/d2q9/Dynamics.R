@@ -30,7 +30,7 @@ AddQuantity(name="U",unit="m/s",vector=T)
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity', zonal=T)
 AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
 AddSetting(name="InletDensity", default=1, comment='inlet density')
 

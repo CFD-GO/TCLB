@@ -114,7 +114,7 @@ int Geometry::setZone(const pugi::char_t * name)
     }
     printf("[%d] Setting zone: %s -> %d\n", D_MPI_RANK, name, ZoneNumber);
     assert(ZoneNumber < ZONE_MAX);
-    fg      = (fg      &(! NODE_SETTINGZONE )) |  (ZoneNumber << ZONE_SHIFT);
+    fg      = (fg      &(~ NODE_SETTINGZONE )) |  (ZoneNumber << ZONE_SHIFT);
     fg_mask =  fg_mask |   NODE_SETTINGZONE;
     return 0;
 }
@@ -517,7 +517,6 @@ int Geometry::load(pugi::xml_node & node)
 	E(setFlag(n.name()));
 	for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
 	    if (strcmp(attr.name(), "name") == 0) {
-        	    printf("attr.name: %s\n",attr.name());
 	        E(setZone(attr.value()));
 	    } else if (strcmp(attr.name(), "mask") == 0) {
 	        E(setMask(attr.value()));

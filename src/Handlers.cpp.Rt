@@ -842,15 +842,38 @@ class acRepeat: public GenericAction {
 class acParams: public Action {
 	public:
 	int Init() {
+	        std::string par, zone;
+	        int zone_number = -1;
 		Action::Init();
-		pugi::xml_attribute attr;
+	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
+	                printf("%s=%s\n",attr.name(),attr.value());
+                }
+	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
+	                par = attr.name();
+                        int i = par.find_first_of('-');
+                        if (i == string::npos) {
+                                zone = "";
+                                zone_number = -1;
+                        } else {
+                                zone = par.substr(i+1);
+                                par = par.substr(0,i);
+                                zone_number = solver->geometry->SettingZones[zone];
+                        }
+                        printf("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
 		<?R for (v in rows(Settings)) { ?>
-			attr = node.attribute("<?%s v$name?>");
-			if (attr) {
+		        if (par == "<?%s v$name?>") {
 				double val = solver->units.alt(attr.value());
 				solver->lattice-><?%s v$FunName ?>(val);
 			}
 		<?R } ?>
+		<?R for (v in rows(ZoneSettings)) { ?>
+		        if (par == "<?%s v$name?>") {
+				double val = solver->units.alt(attr.value());
+				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
+			}
+		<?R } ?>
+		}
+		return 0;
 	}
 };
 
