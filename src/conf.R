@@ -77,6 +77,7 @@ ifdef = function(val=F, tag="ADJOINT") {
 DensityAll = data.frame()
 Globals = data.frame()
 Settings = data.frame()
+ZoneSettings = data.frame()
 Quantities = data.frame()
 NodeTypes = data.frame()
 Fields = data.frame()
@@ -141,7 +142,7 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 }
 
 
-AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, ...) {
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (missing(comment)) {
 		comment = name
@@ -169,8 +170,13 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 		adjoint=adjoint,
 		comment=comment
 	)
-	Settings <<- rbind(Settings,s)
+	if (zonal) {
+		ZoneSettings <<- rbind(ZoneSettings,s)
+	} else {
+		Settings <<- rbind(Settings,s)
+	}
 }
+
 
 AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=0.0) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
@@ -356,16 +362,17 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 if (NodeShiftNum > 16) {
 	stop("NodeTypes exceeds short int")
 } else {
-	k = 16 - NodeShiftNum
-	if (k == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
-	Zones = 2^k
+	ZoneBits = 16 - NodeShiftNum
+	ZoneShift = NodeShiftNum
+	if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
+	ZoneMax = 2^ZoneBits
 	NodeTypes = rbind(NodeTypes,data.frame(
-		name=paste("SettingZone",1:Zones,sep=""),
+		name=paste("SettingZone",1:ZoneMax,sep=""),
 		group="SETTINGZONE",
-		index=1:Zones,
-		Index=paste("SettingZone",1:Zones,sep=""),
-		value=(1:Zones-1)*NodeShift,
-		mask=(Zones-1)*NodeShift,
+		index=1:ZoneMax,
+		Index=paste("SettingZone",1:ZoneMax,sep=""),
+		value=(1:ZoneMax-1)*NodeShift,
+		mask=(ZoneMax-1)*NodeShift,
 		shift=NodeShiftNum
 	))
 	NodeShiftNum = 16
@@ -531,7 +538,7 @@ Globals = Globals[order(Globals$op),]
 
 
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -544,6 +551,8 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 	}
 	assign(n,v)
 }
+Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
+Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 
 GlobalsD = Globals[-nrow(Globals),]
 

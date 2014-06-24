@@ -11,6 +11,7 @@
 #include "def.h"
 #include "vtkOutput.h"
 #include "utils.h"
+#include <assert.h>
 
 /// Main constructor
 /**
@@ -99,6 +100,22 @@ int Geometry::setMask(const pugi::char_t * name)
 	return -1;
     }
     fg_mask = node.attribute("value").as_int(-1);
+    return 0;
+}
+
+int Geometry::setZone(const pugi::char_t * name)
+{
+    int ZoneNumber;
+    if (SettingZones.count(name) > 0) {
+        ZoneNumber = SettingZones[name];
+    } else {
+        ZoneNumber = SettingZones.size();
+        SettingZones[name] = ZoneNumber;
+    }
+    printf("[%d] Setting zone: %s -> %d\n", D_MPI_RANK, name, ZoneNumber);
+    assert(ZoneNumber < ZONE_MAX);
+    fg      = (fg      &(! NODE_SETTINGZONE )) |  (ZoneNumber << ZONE_SHIFT);
+    fg_mask =  fg_mask |   NODE_SETTINGZONE;
     return 0;
 }
 
@@ -498,10 +515,14 @@ int Geometry::load(pugi::xml_node & node)
 	if (strcmp(n.name(), "Mask") == 0)
 	    continue;
 	E(setFlag(n.name()));
-	{
-	    pugi::xml_attribute attr = n.attribute("mask");
-	    if (attr) {
-		E(setMask(attr.value()));
+	for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
+	    if (strcmp(attr.name(), "name") == 0) {
+        	    printf("attr.name: %s\n",attr.name());
+	        E(setZone(attr.value()));
+	    } else if (strcmp(attr.name(), "mask") == 0) {
+	        E(setMask(attr.value()));
+	    } else {
+	        
 	    }
 	}
 	{
@@ -509,7 +530,7 @@ int Geometry::load(pugi::xml_node & node)
 	    if (attr) {
 		loadZone(attr.value());
 	    }
-	}
+        }
 	E(Draw(n));
     }
     return 0;

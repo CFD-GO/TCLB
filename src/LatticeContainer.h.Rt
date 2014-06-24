@@ -49,6 +49,9 @@ class LatticeContainer {
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
 
+  int ZoneIndex;
+  real_t** ZoneSetting;
+
   void Alloc (int,int,int);
   void Free();
   CudaDeviceFunction void fill();

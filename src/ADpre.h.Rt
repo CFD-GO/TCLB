@@ -12,5 +12,8 @@ typedef struct {float x,y; } float2;
 <?R for (v in rows(Settings)) { ?>
 	real_t <?%s v$name ?>; <?R
     } ?>
+<?R for (v in rows(ZoneSettings)) { ?>
+	real_t <?%s v$name ?>; <?R
+    } ?>
 
 flag_t NodeType;
