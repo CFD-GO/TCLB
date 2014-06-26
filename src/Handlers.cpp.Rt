@@ -839,6 +839,53 @@ class acRepeat: public GenericAction {
 };
 
 
+
+
+class conControl: public Action {
+        int iter;
+        std::map< std::string , std::vector<double> > context;
+	public:
+	int Params(pugi::xml_node n) {
+	        printf("Params\n");
+	}
+	int Internal(pugi::xml_node n){
+	        for (pugi::xml_node n2 = n.first_child(); n2; n2 = n2.next_sibling()) {
+                        std::string name2 = n2.name();
+                        if (name2 == "Params") {
+                                printf("Params in CSV\n");
+                                Params(n2);
+                        } else {
+        		        std::cerr << "Only Params allowed in " << n.name() << " in Control element in config\n";
+        		        return -1;
+                        }
+                }
+        }
+	int Init() {
+		Action::Init();
+		iter = -floor(-everyIter);
+		if (iter <= 0) {
+		        std::cerr << "Zero (or less) iterations in Control element in config\n";
+		        return -1;
+                }
+                printf("Setting iterations for time-dependent settings at %d\n",iter);
+                for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
+                        std::string name = n.name();
+                        if (name == "Params") {
+                	        printf("Params in Control\n");
+                                Params(n);
+                        } else if (name == "CSV") {
+                                printf("CSV in Control\n");
+                                Internal(n);
+                        } else {
+        		        std::cerr << "Element " << name << " not allowed in Control element in config\n";
+        		        return -1;
+                        }
+                }
+		return 0;
+	}
+};
+
+
 class acParams: public Action {
 	public:
 	int Init() {
@@ -1031,6 +1078,8 @@ vHandler * getHandler(pugi::xml_node node) {
 #endif
         } else if (name=="Init") {
 		ret = new acInit;
+        } else if (name=="Control") {
+		ret = new conControl;
         } else {
 		std::cerr << "Unknown element '" << node.name() << "' in xml\n";
 		return NULL;

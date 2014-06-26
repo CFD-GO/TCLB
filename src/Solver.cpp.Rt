@@ -491,6 +491,7 @@ int Solver::getDPar(double * wb) {
 	double * wb_l = new double[Par_size];
 	int j=0;
 	double sum=0;
+	#ifdef ADJOINT
 <?R for (d in rows(Density)) if ((d$parameter)) { ?>
 	lattice->Get_<?%s d$nicename ?>_Adj(buf);
 	for (int i=0; i<n; i++) {
@@ -501,6 +502,7 @@ int Solver::getDPar(double * wb) {
 		}
 	}
 <?R } ?>
+	#endif
 	printf("[%d] Gradient L2 norm: %lg\n", D_MPI_RANK, sqrt(sum));
 	assert(j == Par_size);
 	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);

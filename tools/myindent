@@ -6,6 +6,7 @@ extension="${filename##*.}"
 if test "x${extension}" = "xcu" || test "x${extension}" = "xc" || test "x${extension}" = "xcpp"
 then
 	mv ${filename} ${filename}_
-	indent -l800 -kr -sob ${filename}_ -o ${filename}
+	indent -l800 -kr -sob ${filename}_
+	cat ${filename}_ | sed 's/\([<]..*[<].*\)>>/\1 > >/g' > ${filename}
 	rm ${filename}_
 fi
