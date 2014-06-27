@@ -68,8 +68,8 @@ c_table_decl = function(d) {
 
 ifdef.global.mark = F
 ifdef = function(val=F, tag="ADJOINT") {
-	if ((!ifdef.global.mark) && ( val)) cat("#ifdef",tag,"\n");
-	if (( ifdef.global.mark) && (!val)) cat("#endif //",tag,"\n");
+	if ((!ifdef.global.mark) && ( val)) cat("\n#ifdef",tag,"\n");
+	if (( ifdef.global.mark) && (!val)) cat("\n#endif //",tag,"\n");
 	ifdef.global.mark <<- val
 }
 
