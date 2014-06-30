@@ -130,7 +130,7 @@ void HandleError( cudaError_t err,
                 }
                 return CudaSuccess;
         }
-                                
+
 
 
 #else
@@ -143,6 +143,11 @@ void HandleError( cudaError_t err,
         }
 
         CudaError cudaAllocFinalize() {
+                return CudaSuccess;
+        }
+
+        CudaError cudaAllocFreeAll() {
+                // TODO: What should go here?? MD
                 return CudaSuccess;
         }
 
