@@ -19,7 +19,11 @@
 #include <iomanip>
 #include <assert.h>
 
+// for isatty
+#include <unistd.h>
+
 #include "Solver.h"
+
 
 
 // Reads units from configure file and applies them to the solver
@@ -64,7 +68,7 @@ int MainCallback(int iter, Solver* solver) {
 	CudaEventSynchronize( stop );
 	CudaEventElapsedTime( &elapsedTime, start, stop );
 	if (D_MPI_RANK == 0) {
-		int desired_steps;		
+		int desired_steps;
 		if (iter >= 0) {
 			cum_iter += iter;
 			cum_time += elapsedTime;
@@ -186,7 +190,7 @@ int main ( int argc, char * argv[] )
 		}
 		printf("[%d] Selecting device %d/%d\n", solver.mpi.rank, dev, count);
 		CudaSetDevice( dev );
-		solver.mpi.gpu = dev;		
+		solver.mpi.gpu = dev;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 	DEBUG_M;
@@ -258,7 +262,7 @@ int main ( int argc, char * argv[] )
 		std::cerr << "Something went wrong in xml run!\n";
 		return -1;
 	}
-	
+
 	// Finish and clean up
 	printf("cudaFree ...\n");
 	CudaEventDestroy( start );
