@@ -28,11 +28,11 @@
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
       #else
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
-      #endif      
+      #endif
       #define CudaBlock blockIdx
       #define CudaThread threadIdx
       #define CudaNumberOfThreads blockDim
-      
+
       #ifdef CROSS_OLD_ATOMIC
         __device__ int lock = 0;
         __device__ inline void atomicAddP(real_t* a, real_t b)
@@ -137,8 +137,8 @@
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( cudaMallocHost(a__,b__) )
     #define CudaFree(a__) HANDLE_ERROR( cudaFree(a__) )
     #define CudaFreeHost(a__) HANDLE_ERROR( cudaFreeHost(a__) )
-    #define CudaAllocFreeAll() HANDLE_ERROR( cudaAllocFreeAll() )  
-    
+    #define CudaAllocFreeAll() HANDLE_ERROR( cudaAllocFreeAll() )
+
     #define CudaDeviceCanAccessPeer(a__, b__, c__) HANDLE_ERROR( cudaDeviceCanAccessPeer(a__, b__, c__) )
     #define CudaDeviceEnablePeerAccess(a__, b__) HANDLE_ERROR( cudaDeviceEnablePeerAccess(a__, b__) )
 
@@ -170,7 +170,7 @@
     #define RunKernelMaxThreads (GetMaxThreads())
     #define CudaFuncAttributes cudaFuncAttributes
     #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( cudaFuncGetAttributes(a__, b__) )
-            
+
   #else
     #include <assert.h>
     #include <time.h>
@@ -215,7 +215,7 @@
 
     #define HANDLE_ERROR( err ) (assert( err == CudaSuccess ))
 
-    
+
     #define CudaFuncAttributes CudaFuncAttributes_
     #define CudaFuncGetAttributes(a__,b__) {a__->binaryVersion=0; a__->constSizeBytes=-1; a__->localSizeBytes = -1; a__->maxThreadsPerBlock = 32; a__->numRegs = -1;\
       a__->ptxVersion = -1; a__->sharedSizeBytes = -1; }
@@ -251,7 +251,7 @@
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
     #define CudaMemcpyAsync(a__,b__,c__,d__,e__) CudaMemcpy(a__, b__, c__, d__)
     #define CudaMemset(a__,b__,c__) memset(a__, b__, c__)
-    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
+    #define CudaMalloc(a__,b__) CudaSuccess; assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaFree(a__) free(a__)
     #define CudaFreeHost(a__) free(a__)
@@ -270,7 +270,7 @@
     #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (c__ -  b__)
     #define CudaThreadSynchronize()
     #define CudaDeviceSynchronize()
-    
+
     #define CudaStream_t int
     #define CudaStreamCreate(a__)
     #define CudaStreamSynchronize(a__)
@@ -302,4 +302,4 @@
 
 #endif
 #define CROSS_H
-    
+
