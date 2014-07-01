@@ -846,7 +846,21 @@ class conControl: public Action {
         std::map< std::string , std::vector<double> > context;
 	public:
 	int Params(pugi::xml_node n) {
-	        printf("Params\n");
+	        std::string par, zone;
+	        int zone_number = -1;
+	        for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
+	                par = attr.name();
+                        int i = par.find_first_of('-');
+                        if (i == string::npos) {
+                                zone = "";
+                                zone_number = -1;
+                        } else {
+                                zone = par.substr(i+1);
+                                par = par.substr(0,i);
+                                zone_number = solver->geometry->SettingZones[zone];
+                        }
+                        printf("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
+                }
 	}
 	int Internal(pugi::xml_node n){
 	        for (pugi::xml_node n2 = n.first_child(); n2; n2 = n2.next_sibling()) {
@@ -855,7 +869,7 @@ class conControl: public Action {
                                 printf("Params in CSV\n");
                                 Params(n2);
                         } else {
-        		        std::cerr << "Only Params allowed in " << n.name() << " in Control element in config\n";
+        		        std::cerr << "Only Params allowed in " << n.name() << " in Control sub-element in config\n";
         		        return -1;
                         }
                 }
@@ -867,7 +881,9 @@ class conControl: public Action {
 		        std::cerr << "Zero (or less) iterations in Control element in config\n";
 		        return -1;
                 }
-                printf("Setting iterations for time-dependent settings at %d\n",iter);
+                printf("[%d] Setting iterations for time-dependent settings at %d\n",D_MPI_RANK, iter);
+                printf("[%d] WARNING: clearing old control\n",D_MPI_RANK);
+                solver->lattice->zSet.setLen(iter);
                 for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
                         std::string name = n.name();
                         if (name == "Params") {
@@ -881,6 +897,11 @@ class conControl: public Action {
         		        return -1;
                         }
                 }
+                std::vector<double> s;
+                for (int i=0;i<iter; i++) {
+                        s.push_back(sin(i/500.)*0.01);
+                }
+                solver->lattice->zSet.set( ZONESETTINGS_InletVelocity, 0, s );
 		return 0;
 	}
 };

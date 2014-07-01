@@ -64,6 +64,8 @@ int Lattice::Offset(int x, int y, int z)
 Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
 	reverse_save=0;
+	Record_Iter = 0;
+	Iter = 0;
 	total_iterations = 0;
 	callback_iter = 1;
 	nSnaps = ns;
@@ -163,9 +165,9 @@ void Lattice::startRecord()
 		std::cerr << "Nested record! Called startRecord while recording\n";
 		exit(-1);
 	}
-	if (Iter != 0) {
-		std::cerr << "Record tape is not rewinded (iter = " << Iter << ") maybe last adjoint didn't go all the way\n";
-		Iter = 0;
+	if (Record_Iter != 0) {
+		std::cerr << "Record tape is not rewinded (iter = " << Record_Iter << ") maybe last adjoint didn't go all the way\n";
+		Record_Iter = 0;
 	}
 	printf("[%d] Lattice is starting to record (usteady adjoint)\n",D_MPI_RANK);
 	if (Snap != 0) {
@@ -254,9 +256,9 @@ void Lattice::clearDPar()
 */
 void Lattice::stopRecord()
 {
-	if (Iter != 0) {
-		std::cerr << "Warning: Record tape is not rewinded (iter = " << Iter << ")\n";
-		Iter = 0;
+	if (Record_Iter != 0) {
+		std::cerr << "Warning: Record tape is not rewinded (iter = " << Record_Iter << ")\n";
+		Record_Iter = 0;
 	}
 	reverse_save = 0;
 	printf("[%d] Stop recording\n", D_MPI_RANK);
@@ -353,7 +355,8 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
+	DEBUG1(printf("[%d] Iteration %d -> %d type: %d. iter: %d\n", D_MPI_RANK, tab0, tab1, iter_type, Iter);)
+	container->ZoneIndex = (Iter + Record_Iter) % zSet.getLen();
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -630,7 +633,8 @@ void Lattice::Init()
 //   container->Init();
 	iSnaps[getSnap(0)]=0;
 	iSnaps[0]=0;
-	Iter=0;
+	Record_Iter=0;
+	Iter = 0;
 	Snap=0;
    MPI_Barrier(MPI_COMM_WORLD);
    Action_Init(1,0,ITER_NO);
@@ -685,7 +689,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		imx = 0;
 	}
 	s1 = imx;
-	Iter = mx;
+	Record_Iter = mx;
 	Snap = s1;
 	for (i = mx; i < it; i++) {
 		int s2 = getSnap(i+1);
@@ -693,7 +697,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps) s3=0;
 		pop_settings();
 		Iteration(s1, s3, iter_type);
-		Iter = i+1;
+		Record_Iter = i+1;
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
@@ -729,22 +733,22 @@ void Lattice::Iterate(int niter, int iter_type)
 					container->clearGlobals();
 					iter_type = iter_type | ITER_GLOBS;
 				}
-				Iter -= 1;
-				if (Iter < 0) {
+				Record_Iter -= 1;
+				if (Record_Iter < 0) {
 					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
 					exit(-1);
 				}
-				IterateTill(Iter, ITER_NORM);
+				IterateTill(Record_Iter, ITER_NORM);
 				Iteration_Adj(Snap, (Snap+1) % 2, aSnap % 2, (aSnap+1) % 2, iter_type);
 			}
 			break;
                 case ITER_NORM:
 			if (last_glob) {
-				IterateTill(niter+Iter-1, iter_type);
+				IterateTill(niter+Record_Iter-1, iter_type);
 				container->clearGlobals();
-				IterateTill(Iter+1, iter_type | ITER_GLOBS);
+				IterateTill(Record_Iter+1, iter_type | ITER_GLOBS);
 			} else {
-				IterateTill(niter+Iter, iter_type);
+				IterateTill(niter+Record_Iter, iter_type);
 			}
 			break;
                 case ITER_OPT:
@@ -771,6 +775,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
+				Iter ++;
 			}
 			break;
                 case ITER_OPT:
@@ -780,6 +785,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
+				Iter ++;
 			}
                         break;
 		}
@@ -966,7 +972,7 @@ void Lattice::push_setting(int i, real_t old, real_t nw)
 {
 	settings_record.push_back(
 		std::pair< int, std::pair<int,std::pair<real_t,real_t> > >(
-			Iter,
+			Record_Iter,
 			std::pair<int,std::pair<real_t,real_t> >(
 				i,
 				std::pair<real_t,real_t> (
@@ -988,13 +994,13 @@ void Lattice::push_setting(int i, real_t old, real_t nw)
 void Lattice::pop_settings()
 {
 	while (settings_i > 0) {
-		if (settings_record[settings_i - 1].first <= Iter) break;
+		if (settings_record[settings_i - 1].first <= Record_Iter) break;
 		settings_i--;
 		printf("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
 	}
 	while (settings_i < settings_record.size()) {
-		if (settings_record[settings_i].first > Iter) break;
+		if (settings_record[settings_i].first > Record_Iter) break;
 		printf("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
 		settings_i++;
