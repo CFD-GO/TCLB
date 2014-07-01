@@ -306,7 +306,7 @@ ToC_row = function(x,float=TRUE,minimal=1e-10)
 
 ToC.P = function(p,float=TRUE, minimal=1e-10)
 {
-	nToC(p, min=minimal)
+	nToC(p, min=minimal,float=float)
 #	oToC(p, minimal=minimal,float=float)
 }
 
@@ -497,7 +497,7 @@ no.ones = function(tab,min=1e-6) {
 	tab[!sel,,drop=FALSE]
 }
 
-nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
+nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE, float=TRUE) {
 	tab = tab[abs(tab$.M) > min,,drop=FALSE]
 	if (nrow(tab) < 1) {
 		if (second) {
@@ -511,7 +511,13 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 		i2=colSums(tab < 0)
 		Md = data.frame(
 			val = c(1:36,1/(1:36)),
-			str = paste(c(1:36,1:36),rep(c("","."),each=36),sep=""),
+			str = {
+				if (float) {
+					str = paste(c(1:36,1:36),rep(c(".","."),each=36),sep="")
+				} else {
+					str = paste(c(1:36,1:36),rep(c("","."),each=36),sep="")
+				}
+			},
 			positive = rep(c(TRUE,FALSE),each=36)
 		)
 		Md = Md[c(36:1,1:36+36),]
@@ -556,9 +562,9 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 				pull = names(tab)[i]
 			}
 			if (any(!sel)) {
-				v1 = nToC(ntab,bracket=T,second=TRUE)
+				v1 = nToC(ntab,bracket=T,second=TRUE,float=float)
 			} else {
-				v1 = nToC(ntab,bracket=T,second=second)
+				v1 = nToC(ntab,bracket=T,second=second,float=float)
 			}
 			if (positive) {
 				if (v1 == "1") {
@@ -577,14 +583,14 @@ nToC = function(tab, bracket=FALSE,min=1e-6, second=FALSE) {
 			}
 			if (any(!sel)) {
 				if (bracket) {
-					v2 = nToC(tab[!sel,,drop=FALSE],second=FALSE)
+					v2 = nToC(tab[!sel,,drop=FALSE],second=FALSE,float=float)
 					if (second) {
 						ret = paste(" + ( ",v2,v1," )",sep="")
 					} else {
 						ret = paste("( ",v2,v1," )",sep="")
 					}
 				} else {
-					v2 = nToC(tab[!sel,,drop=FALSE],second=second)
+					v2 = nToC(tab[!sel,,drop=FALSE],second=second,float=float)
 					ret = paste(v2,v1,sep="")
 				}
 			} else {
