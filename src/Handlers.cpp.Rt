@@ -901,7 +901,7 @@ class conControl: public Action {
                 for (int i=0;i<iter; i++) {
                         s.push_back(sin(i/500.)*0.01);
                 }
-                solver->lattice->zSet.set( ZONESETTINGS_InletVelocity, 0, s );
+//                solver->lattice->zSet.set( ZONESETTINGS_InletVelocity, 0, s );
 		return 0;
 	}
 };
