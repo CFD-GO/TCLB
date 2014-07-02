@@ -12,7 +12,10 @@ AddDensity( name="f8", dx= 1, dy=-1, group="f")
 AddField("rho",stencil2d=2);
 AddField("nu",stencil2d=2);
 
-AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
+AddField("UX");
+AddField("UY");
+
+AddStage("BaseIteration", "Run", save=Fields$group == "f" | (Fields$name %in% c("UX","UY")), load=DensityAll$group == "f")
 AddStage("CalcRho", save="rho", load=DensityAll$group == "f")
 AddStage("CalcNu", save="nu", load=FALSE)
 AddStage("InitRho", save="rho", load=FALSE)
@@ -30,6 +33,12 @@ AddQuantity(name="Nu", unit="kg/m3");
 #AddQuantity(name="P", unit="Pa");
 AddQuantity(name="FC", unit="N", vector=T);
 AddQuantity(name="FB", unit="N", vector=T);
+
+for (i in 1:9) {
+	AddQuantity(name=paste("F",i-1,sep=""));
+}
+AddQuantity(name="U2", unit="m/s", vector=T);
+
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')

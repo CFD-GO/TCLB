@@ -356,6 +356,21 @@ CudaDeviceFunction vector_t getU(){
   return u;
 }
 
+<?R for (i in 1:9) { ?>
+CudaDeviceFunction real_t get<?%s paste("F",i-1,sep="") ?>(){
+  return f<?%d i-1 ?>;
+}
+<?R } ?>
+
+CudaDeviceFunction vector_t getU2(){
+  vector_t u;
+  u.x = UX(0,0);
+  u.y = UY(0,0);
+  u.z = 0;
+  return u;
+}
+
+
 CudaDeviceFunction vector_t getFC(){
   real_t uF,d;
   vector_t u;
@@ -450,6 +465,8 @@ CudaDeviceFunction void CollisionBGK()
 #    C( u == u + make.vector(fC) );
     C( u == u * dw );
   ?>
+  UX = u[0];
+  UY = u[1];
   Feq(d,u);
   <?R
     force = function(what,uF) {
