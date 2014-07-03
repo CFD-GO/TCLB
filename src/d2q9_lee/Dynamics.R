@@ -1,4 +1,8 @@
 
+#Based on T.Lee: Eliminating parasitic currents in the lattice Boltzmann equation method for nonideal gases
+
+
+
 AddDensity( name="f0", dx= 0, dy= 0, group="f")
 AddDensity( name="f1", dx= 1, dy= 0, group="f")
 AddDensity( name="f2", dx= 0, dy= 1, group="f")
@@ -53,3 +57,6 @@ AddSetting(name="Kappa", comment="Capilarity")
 AddGlobal(name="MomentumX",        comment='momentum')
 AddGlobal(name="MomentumY",        comment='momentum')
 AddGlobal(name="Mass",         comment='mass')
+
+
+AddNodeType(name="ForcedMovingWall", group="BOUNDARY")
