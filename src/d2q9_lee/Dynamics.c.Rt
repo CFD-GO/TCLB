@@ -401,7 +401,6 @@ CudaDeviceFunction void Feq(real_t d, real_t u[2]) { <?R
 	Req = Req_fun(d, u);
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	feq = PV(paste("feq[",1:9-1,"]",sep=""))
-	C( feq == Req %% solve(M) );
         C( feq == wi*((u %% t(U))*( 1/ c_sq) + ((u %% t(U)) * (u %% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
     ?>
 }
