@@ -17,7 +17,7 @@ public:
   real_t * gpuConst;
     
   inline ZoneSettings() {
-    int len = 1;
+    len = 1;
     cpuValues = (real_t**) malloc(sizeof(real_t*) * ZONE_MAX * ZONESETTINGS);
     cpuTab = (real_t**) malloc(sizeof(real_t*) * ZONE_MAX * ZONESETTINGS);
     for (int i=0; i<ZONE_MAX * ZONESETTINGS; i++) {
