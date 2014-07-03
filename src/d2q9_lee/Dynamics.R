@@ -12,7 +12,7 @@ AddDensity( name="f8", dx= 1, dy=-1, group="f")
 AddField("rho",stencil2d=2);
 AddField("nu",stencil2d=2);
 
-AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
+AddStage("BaseIteration", "Run", save=Fields$group == "f" | (Fields$name %in% c("UX","UY")), load=DensityAll$group == "f")
 AddStage("CalcRho", save="rho", load=DensityAll$group == "f")
 AddStage("CalcNu", save="nu", load=FALSE)
 AddStage("InitRho", save="rho", load=FALSE)
@@ -25,11 +25,9 @@ AddAction("Init", c("InitF2", "CalcRho","CalcNu"))
 
 AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
-AddQuantity(name="Rho2", unit="kg/m3");
 AddQuantity(name="Nu", unit="kg/m3");
-#AddQuantity(name="P", unit="Pa");
-AddQuantity(name="FC", unit="N", vector=T);
-AddQuantity(name="FB", unit="N", vector=T);
+AddQuantity(name="P", unit="Pa");
+
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
@@ -52,11 +50,6 @@ AddSetting(name="VaporDensity", comment="Density of vapor phase")
 AddSetting(name="Beta", comment="Beta of Lee model")
 AddSetting(name="Kappa", comment="Capilarity")
 
-AddGlobal(name="MovingWallForceX", comment='force x')
-AddGlobal(name="MovingWallForceY", comment='force y')
-AddGlobal(name="Pressure1",        comment='pressure at Obj1')
-AddGlobal(name="Pressure2",        comment='pressure at Obj2')
-AddGlobal(name="Pressure3",        comment='pressure at Obj3')
-AddGlobal(name="Density1",         comment='density at Obj1')
-AddGlobal(name="Density2",         comment='density at Obj2')
-AddGlobal(name="Density3",         comment='density at Obj3')
+AddGlobal(name="MomentumX",        comment='momentum')
+AddGlobal(name="MomentumY",        comment='momentum')
+AddGlobal(name="Mass",         comment='mass')

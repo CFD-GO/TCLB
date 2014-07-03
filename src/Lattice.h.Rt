@@ -60,7 +60,8 @@ public:
   int settings_i; ///< Index in settings_record that is on the CUDA const
   void push_setting(int,real_t,real_t); ///< Set the setting (and push to settings_record if recording)
   void pop_settings(); ///< Pop the setting from settings_record
-  int Iter; ///< Recorded iteration number (Now)
+  int Record_Iter; ///< Recorded iteration number (Now)
+  int Iter; ///< Iteration (Now) - "real" time of the simulation
   int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
   int total_iterations; ///< Total iteration number counter
   real_t settings[SETTINGS];  ///< Table of Settings (Now)

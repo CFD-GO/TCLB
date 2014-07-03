@@ -53,9 +53,9 @@ CudaDeviceFunction void BounceBack()
    }
 ?>
 	if ((NodeType & NODE_BOUNDARY) == NODE_MovingWall){
-		AddToMovingWallForceX(<?%s ToC(f %% U[,1]) ?>);
+//		AddToMovingWallForceX(<?%s ToC(f %% U[,1]) ?>);
 //		AddToMovingWallForceY(<?%s ToC(f %% U[,2]) ?>);
-		AddToMovingWallForceY(f2+f5+f6);
+//		AddToMovingWallForceY(f2+f5+f6);
 
 		real_t ux = MovingWallVelocity;
 		<?R
@@ -243,7 +243,7 @@ CudaDeviceFunction float2 Color() {
 <?R
         R = PV(c(
 		"d",
-		paste("u[",1:2-1,"]",sep=""),
+		paste("J[",1:2-1,"]",sep=""),
 		paste("R[",1:6-1,"]",sep="")
 	))
         Sy = rbind(
@@ -281,13 +281,11 @@ M = matrix(c(
 		d*u[1]*u[2]
 	)
 	}
-        Sy = PV(paste("S",1:19,"",sep=""))
+        Sy = PV(paste("S",1:9,"",sep=""))
 	selR = c(4,5,6,7,8,9);
 #	cr = calcReq[selR]
 	Mw = colSums(M**2)
-?>
 
-<?R
   r._1 = PV(paste("rho(",-U[,1],",",-U[,2],")"))
   r.0 = PV(paste("rho(",0,",",0,")"))
   r.1 = PV(paste("rho(",U[,1],",",U[,2],")"))
@@ -333,6 +331,11 @@ CudaDeviceFunction real_t getRho(){
 	return rho(0,0);
 }
 
+CudaDeviceFunction real_t getP(){
+	real_t r = rho(0,0);
+	return 2*Beta*(r-LiquidDensity)*(r-VaporDensity)*(2*r-VaporDensity-LiquidDensity);
+}
+
 CudaDeviceFunction real_t getRho2(){
 	return <?R C(sum(f)) ?>;
 }
@@ -374,11 +377,6 @@ CudaDeviceFunction vector_t getFB(){
   fillF();
   <?R
     uv = PV(c("u.x","u.y"))
-#    C( d == sum(f) );
-#    C( uv == f %% U );
-#    C( uv == uv + 0.5 * make.vector(fC) );
-#    C( uv == uv * dw );
-    uv = PV(c("u.x","u.y"))
     C( uv == make.vector(fB) );
   ?>
   u.z = 0;
@@ -403,7 +401,6 @@ CudaDeviceFunction void Feq(real_t d, real_t u[2]) { <?R
 	Req = Req_fun(d, u);
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	feq = PV(paste("feq[",1:9-1,"]",sep=""))
-	C( feq == Req %% solve(M) );
         C( feq == wi*((u %% t(U))*( 1/ c_sq) + ((u %% t(U)) * (u %% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
     ?>
 }
@@ -447,7 +444,11 @@ CudaDeviceFunction void CollisionBGK()
     C( d == sum(f) );
     C( u == f %% U );
     C( u == u + 0.5 * make.vector(fC) );
-#    C( u == u + make.vector(fC) );
+  ?>
+  AddToMass(d);
+  AddToMomentumX(u[0]);
+  AddToMomentumY(u[1]);
+  <?R
     C( u == u * dw );
   ?>
   Feq(d,u);
@@ -463,27 +464,36 @@ CudaDeviceFunction void CollisionBGK()
       ret * feq 
     }
     uF = PV("uF");
-#    C(f == f - feq);
-#    C(uF == sum(u * make.vector(fC)))
-#    C(f == f + 0.5*force(fC,uF) )
-#    C(f == f * (1-omega) )
-#    C(f == f + feq);
-    C(f == feq);
+    C(f == f - feq);
+    C(uF == sum(u * make.vector(fC)))
+    C(f == f + 0.5*force(fC,uF) )
+    C(f == f * (1-omega) )
+    C(f == f + feq);
     C(uF == sum(u * make.vector(fB)))
     C(f == f + 0.5*force(fB,uF) )
-#    FF = PV(paste("F[",1:2-1,"]",sep=""))
-#    C(FF == make.vector(fB));
-#    C(f == f + 0.5*(FF %% t(U) - sum(FF*u) )*dw*(1/c_sq)*feq)
   ?>
 }
 
 
+<?R
+        Sy = PV(paste("S",1:9,"",sep=""))
+	selR = c(4,5,6,7,8,9);
+?>
+
 CudaDeviceFunction void CollisionMRT()
 {
-/*
-	real_t J[2], usq, d, R[6], uf;
+
+	real_t J[2], usq, d, R[6], uF, u[2];
 	vector_t F;
-<?R
+	fillF();
+	<?R
+	  C( d == sum(f) );
+	  C( u == f %% U );
+	  C( u == u + 0.5 * make.vector(fC) );
+	  C( u == u * dw );
+        ?>
+        Feq(d,u);
+        <?R
 	J = PV(c("J[0]","J[1]"))
 	C( uF == sum(u * make.vector(fC)) );
 	C( f == f + 0.5*force(fC,uF) );
@@ -491,14 +501,14 @@ CudaDeviceFunction void CollisionMRT()
 	C( usq == sum(J*J)*dw );
 	Req = Req_fun(d, J*dw, usq*dw);
 	C(( R == R - Req )[selR]);
-#	C(( R == -((Sy-1) * R) )[selR]);
-	C( usq == sum(u*u)*dw );
+	C(( R == R * (Sy - 1) )[selR]);
+	C( usq == sum(J*J)*dw );
 	C(( R == R + Req )[selR]);
 	C( f == R %% solve(M) );
 	C(uF == sum(u * make.vector(fB)))
 	C(f == f + 0.5*force(fB,uF) )
 ?>
-*/
+
 }
 
 
