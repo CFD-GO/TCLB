@@ -67,8 +67,21 @@ function set_conf {
 		CONF="$CONF --disable-cuda"
 		CONF_NAME="CPU"
 		;;
-	gpu-*)
-		CONF_NAME="GPU"
+	gpu-11-*)
+		CONF="$CONF --with-cuda-arch=sm_11"
+		CONF_NAME="GPU (CC 1.1)"
+		;;
+	gpu-13-*)
+		CONF="$CONF --with-cuda-arch=sm_13"
+		CONF_NAME="GPU (CC 1.3)"
+		;;
+	gpu-20-*)
+		CONF="$CONF --with-cuda-arch=sm_20"
+		CONF_NAME="GPU (CC 2.0)"
+		;;
+	gpu-30-*)
+		CONF="$CONF --with-cuda-arch=sm_30"
+		CONF_NAME="GPU (CC 3.0)"
 		;;
 	esac
 	case "$CONF_TAG" in
@@ -116,7 +129,7 @@ end_table
 
 MODELS=$(ls src/*/Dynamics.R | cut -f 2 -d '/')
 #MODELS=d2q9
-BASE_CONFS="gpu-sp cpu-sp cpu-dp"
+BASE_CONFS="gpu-11-sp gpu-13-sp gpu-20-dp gpu-30-dp cpu-sp cpu-dp"
 
 #CONFS=gpu-sp
 
