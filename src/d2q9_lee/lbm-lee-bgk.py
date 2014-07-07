@@ -27,7 +27,7 @@ import vtk.util.numpy_support as VN
 #A = -0.152
 NX = 64
 NY = NX
-nt = 1
+nt = 3
 pt = 1
 
 plotMe = True
@@ -351,37 +351,6 @@ for it in range(0,nt):
 
             sub = 2. #* 3.
             
-            
-            scal = ChemPot       
-            shift = e[i]
-            wh = 1.        
-            GradC_Directional[:,:] = \
-                GradC_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub   
-            shift = -e[i]
-            wh = -1.        
-            GradC_Directional[:,:] = \
-                GradC_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
-            
-            scal = ChemPot
-            
-            shift = 2 * e[i]
-            wh = -1.        
-            GradB_Directional[:,:] = \
-                GradB_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
-            shift = e[i]
-            wh = 4.        
-            GradB_Directional[:,:] = \
-                GradB_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
-            shift = e[0]
-            wh = -3.        
-            GradB_Directional[:,:] = \
-                GradB_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
-            
-            
-            Grad_Cumm[:,:,0] = Grad_Cumm[:,:,0]  + GradB_Directional[:,:]*e[i,0] * W[i]     
-            Grad_Cumm[:,:,1] = Grad_Cumm[:,:,1]  + GradB_Directional[:,:]*e[i,1] * W[i]     
-            
-            
             scal = rho * cs2
             shift = e[i]
             wh = 1.        
@@ -409,6 +378,35 @@ for it in range(0,nt):
                 
                 
           
+            scal = ChemPot       
+            shift = e[i]
+            wh = 1.        
+            GradC_Directional[:,:] = \
+                GradC_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub   
+            shift = -e[i]
+            wh = -1.        
+            GradC_Directional[:,:] = \
+                GradC_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
+            
+            scal = ChemPot
+            
+            shift = 2 * e[i]
+            wh = -1.        
+            GradB_Directional[:,:] = \
+                GradB_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
+            shift = e[i]
+            wh = 4.        
+            GradB_Directional[:,:] = \
+                GradB_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
+            shift = e[0]
+            wh = -3.        
+            GradB_Directional[:,:] = \
+                GradB_Directional[:,:] - rho * wh * (np.roll(np.roll(scal[:,:],shift=-shift[0],axis=0),shift=-shift[1],axis=1)) /  sub
+            
+            
+            
+            
+
             
             
             fB[:,:,i] = GradB_Directional[:,:]
@@ -422,13 +420,13 @@ for it in range(0,nt):
 
 
 
-            #GradM_Directional = 0.5 * (GradC_Directional + GradB_Directional)
+            GradM_Directional = 0.5 * (GradC_Directional + GradB_Directional)
             #f_out[:,:,i] = f_in[:,:,i]            
-            #f_out[:,:,i] = \
-            #    f_in[:,:,i] - 1. / tau * (f_in[:,:,i] - feq) + \
-            #    ( GradM_Directional - U[:,:,0]*GradM[:,:,0] - U[:,:,1]*GradM[:,:,1]) / rho / cs2 * feq0[:,:,i]
+            f_out[:,:,i] = \
+                f_in[:,:,i] - 1. / tau * (f_in[:,:,i] - feq) + \
+                ( GradM_Directional - U[:,:,0]*GradM[:,:,0] - U[:,:,1]*GradM[:,:,1]) / rho / cs2 * feq0[:,:,i]
 #                
-            f_out[:,:,i] = feq0[:,:,i] + 0.5*( GradB_Directional - U[:,:,0]*GradB[:,:,0] - U[:,:,1]*GradB[:,:,1]) / rho / cs2 * feq0[:,:,i]
+            #f_out[:,:,i] = feq0[:,:,i] + 0.5*( GradB_Directional - U[:,:,0]*GradB[:,:,0] - U[:,:,1]*GradB[:,:,1]) / rho / cs2 * feq0[:,:,i]
                         
 #            if i>0:
 #                plt.figure()
@@ -506,7 +504,7 @@ GradB2 = np.zeros_like(U)
 
 for i in range(9):
     for j in range(2):
-        GradB2[:,:,j] = GradB2[:,:,j] + fB[:,:,i]*e[i,j]*W[i] / cs2
+        GradB2[:,:,j] = GradB2[:,:,j] + fB[:,:,i]*e[i,j]*W[i]  / cs2
     
 
 
@@ -517,25 +515,25 @@ plt.figure()
 plt.plot(Fb1_llx[:,2], 'x-')
 plt.plot(Fb2_llx[:,2], 'x-')
 plt.plot(GradB[:,2,0], 'o-')
-#
-#f_ll = np.zeros_like(f_in)
-#
-#
-#fname = '/home/michal/tach-17/home/llaniewski/drop2_VTK_P00_0000000'+str(nt-1)+'.vti'
-#reader2 = vtk.vtkXMLImageDataReader()
-#reader2.SetFileName(fname)
-#reader2.Update()
-#data2 = reader2.GetOutput()
-#dim = data2.GetDimensions()
-#
-#for i in range(9):
-#    temp = VN.vtk_to_numpy(data2.GetCellData().GetArray('F'+str(i)))
-#    temp = temp.reshape(s_scal,order='F')
-#    f_ll[:,:,i] = temp
-#    
-#    print i
-#    print np.max(f_ll[:,2,i]-f_in[:,2,i])
-#    
+
+f_ll = np.zeros_like(f_in)
+
+
+fname = '/home/michal/tach-17/home/llaniewski/drop2_VTK_P00_0000000'+str(nt-1)+'.vti'
+reader2 = vtk.vtkXMLImageDataReader()
+reader2.SetFileName(fname)
+reader2.Update()
+data2 = reader2.GetOutput()
+dim = data2.GetDimensions()
+
+for i in range(9):
+    temp = VN.vtk_to_numpy(data2.GetCellData().GetArray('F'+str(i)))
+    temp = temp.reshape(s_scal,order='F')
+    f_ll[:,:,i] = temp
+    
+    print i
+    print np.max(f_ll[:,2,i]-f_in[:,2,i])
+    
 #plt.figure()
 #
 #plt.plot(f_ll[:,2,1:4]-f_in[:,2,1:4])
