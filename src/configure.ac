@@ -59,7 +59,7 @@ AC_ARG_ENABLE([openmp],
 		[enable openMP in the CPU code]))
 
 		
-NVFLAGS="--ptxas-options=-v"
+NVFLAGS=""
 
 # Checks for programs.
 AC_PROG_CXX
@@ -265,6 +265,7 @@ then
 	AC_DEFINE([CROSS_SYNC], [1], [Sync calls])
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
 	CPPFLAGS="${CPPFLAGS} -g"
+	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
 else
 	CPPFLAGS="${CPPFLAGS} -O3"
 fi
