@@ -4,7 +4,7 @@
 
 AC_PREREQ([2.68])
 AC_INIT([CLB], 0.01)
-AC_CONFIG_AUX_DIR([CLB/tools])
+AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_HEADERS([CLB/config.h])
 
 AC_ARG_WITH([gcc],
