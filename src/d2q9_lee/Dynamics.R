@@ -16,7 +16,8 @@ AddDensity( name="f8", dx= 1, dy=-1, group="f")
 AddField("rho",stencil2d=2);
 AddField("nu",stencil2d=2);
 
-AddStage("BaseIteration", "Run", save=Fields$group == "f" | (Fields$name %in% c("UX","UY")), load=DensityAll$group == "f")
+AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
+
 AddStage("CalcRho", save="rho", load=DensityAll$group == "f")
 AddStage("CalcNu", save="nu", load=FALSE)
 AddStage("InitRho", save="rho", load=FALSE)
