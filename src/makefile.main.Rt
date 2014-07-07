@@ -95,6 +95,14 @@ for (d in destinations) {
 <?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
 	@echo "  DONE       $@"
 
+<?%s m ?>/summary: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/SUMMARY
+	@echo ""
+	@echo "----------------------------------------"
+	@echo "    Summary of model <?%s m ?>"
+	@echo "----------------------------------------"
+	@echo ""
+	@cat <?%s d ?>/<?%s m ?>/SUMMARY	
+
 <?%s m ?>/doc: <?%s m ?>/source
 	@cd <?%s d ?>/<?%s m ?>; doxygen conf.doxygen
 	@echo "  DONE       $@"
