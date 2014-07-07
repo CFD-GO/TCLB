@@ -113,7 +113,7 @@ for (d in destinations) {
 
 <?%s d ?>/<?%s m ?>/tapenade.run : <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh
 	@echo "  TAPENADE   $<"
-	@(cd $<; ../../tools/makeAD)
+	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD)
 
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
