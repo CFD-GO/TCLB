@@ -18,11 +18,11 @@ function mytest {
 	if [ ${PIPESTATUS[0]} -ne "0" ]
 	then
 		echo "FAIL"
-		echo "<td bgcolor=\"#FF0000\"><a href=\"${NAME}.html\" style=\"display:block;\">FAIL</a></td>" >> ${REPORT}
+		echo "<td bgcolor=\"#FF0000\" align=\"center\"><a href=\"${NAME}.html\" style=\"display:block;text-decoration: none;\">FAIL</a></td>" >> ${REPORT}
 		return 1
 	else
 		echo "OK"
-		echo "<td bgcolor=\"#00FF00\"><a href=\"${NAME}.html\" style=\"display:block;\">OK</a></td>" >> ${REPORT}
+		echo "<td bgcolor=\"#00FF00\" align=\"center\"><a href=\"${NAME}.html\" style=\"display:block;text-decoration: none;\">OK</a></td>" >> ${REPORT}
 		return 0
 	fi
 }
