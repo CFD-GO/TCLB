@@ -4,8 +4,8 @@
 
 AC_PREREQ([2.68])
 AC_INIT([CLB], 0.01)
-AC_CONFIG_AUX_DIR([CLB/tools])
-AC_CONFIG_HEADERS([CLB/config.h])
+AC_CONFIG_AUX_DIR([tools])
+AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
 
 AC_ARG_WITH([gcc],
 	AC_HELP_STRING([--with-gcc=compiler_bindir],
@@ -36,7 +36,7 @@ AC_ARG_ENABLE([double],
 
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
-		[specify the desired CUDA architecture (sm_11/sm_13/sm_20)]))
+		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30)]))
 
 AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
@@ -132,7 +132,7 @@ then
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_11])
 		fi
-		CUDA_SUFF="11"
+		CUDA_SUFF="sm_11"
 	elif test "$CUDA_ARCH" == "sm_13"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
@@ -140,18 +140,18 @@ then
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_13])
 		fi
-		CUDA_SUFF="13"
+		CUDA_SUFF="sm_13"
 	elif test "$CUDA_ARCH" == "sm_20"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-		CUDA_SUFF="20"
+		CUDA_SUFF="compute_20"
 	elif test "$CUDA_ARCH" == "sm_30"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
-		CUDA_SUFF="30"
+		CUDA_SUFF="compute_30"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -161,7 +161,8 @@ then
 		AC_MSG_ERROR([CUDA_ARCH should be set by now])
 	else
 		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
-		NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
+#		NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
+		NVFLAGS="${NVFLAGS} -arch=${CUDA_SUFF}"
 	fi
 	if test "x${enable_openmp}" == "xyes"
 	then
@@ -264,6 +265,9 @@ then
 	AC_DEFINE([CROSS_SYNC], [1], [Sync calls])
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
 	CPPFLAGS="${CPPFLAGS} -g"
+	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
+else
+	CPPFLAGS="${CPPFLAGS} -O3"
 fi
 
 if test "x${with_debug}" == "x0"
@@ -311,5 +315,5 @@ fi
 
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
-AC_CONFIG_FILES([CLB/config.mk])
+AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_OUTPUT

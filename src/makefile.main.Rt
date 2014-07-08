@@ -50,7 +50,7 @@ SOURCE_ALL+=SUMMARY
 SOURCE_ALL+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h Dynamics_adj.hp ADpre__b.h
 SOURCE_REST=makefile dep.mk
-ADDITIONALS=config.mk.in config.h.in tools README.md dictionary.h
+ADDITIONALS=README.md dictionary.h
 
 AOUT=main
 
@@ -95,6 +95,14 @@ for (d in destinations) {
 <?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
 	@echo "  DONE       $@"
 
+<?%s m ?>/summary: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/SUMMARY
+	@echo ""
+	@echo "----------------------------------------"
+	@echo "    Summary of model <?%s m ?>"
+	@echo "----------------------------------------"
+	@echo ""
+	@cat <?%s d ?>/<?%s m ?>/SUMMARY	
+
 <?%s m ?>/doc: <?%s m ?>/source
 	@cd <?%s d ?>/<?%s m ?>; doxygen conf.doxygen
 	@echo "  DONE       $@"
@@ -113,7 +121,7 @@ for (d in destinations) {
 
 <?%s d ?>/<?%s m ?>/tapenade.run : <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh
 	@echo "  TAPENADE   $<"
-	@(cd $<; ../../tools/makeAD)
+	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD)
 
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
