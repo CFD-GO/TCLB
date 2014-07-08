@@ -109,7 +109,7 @@ int Geometry::setZone(const pugi::char_t * name)
     if (SettingZones.count(name) > 0) {
         ZoneNumber = SettingZones[name];
     } else {
-        ZoneNumber = SettingZones.size();
+        ZoneNumber = SettingZones.size()+1;
         SettingZones[name] = ZoneNumber;
     }
     printf("[%d] Setting zone: %s -> %d\n", D_MPI_RANK, name, ZoneNumber);
