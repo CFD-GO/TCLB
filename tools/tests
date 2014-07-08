@@ -14,8 +14,9 @@ function mytest {
 	shift
 	COMMAND=$@
 	echo -n "$NAME ... "
-	$COMMAND 2>&1 | ${TOOLS}/tth ${RES}/${NAME}.html
-	if [ ${PIPESTATUS[0]} -ne "0" ]
+#	$COMMAND 2>&1 | ${TOOLS}/tth ${RES}/${NAME}.html
+#	${TOOLS}/tth ${RES}/${NAME}.html $COMMAND
+	if ! ${TOOLS}/tth ${RES}/${NAME}.html $COMMAND
 	then
 		echo "FAIL"
 		echo "<td bgcolor=\"#FF0000\" align=\"center\"><a href=\"${NAME}.html\" style=\"display:block;text-decoration: none;\">FAIL</a></td>" >> ${REPORT}
