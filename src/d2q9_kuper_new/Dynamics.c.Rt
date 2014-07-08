@@ -80,30 +80,13 @@ CudaDeviceFunction real_t getP(){
         double p;
 	double rho2;
 	rho2 = <?R C(sum(f)) ?>;
-        switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			rho2 = WallDensity;
-	        	switch (NodeType & NODE_ADDITIONALS) {
-				case NODE_Wet:
-	        	        	rho2 = WetDensity;
-					break;
-				case NODE_Dry:
-	        	        	rho2 = DryDensity;
-					break;
-		        }
-			break;
-		case NODE_EPressure:
-			rho2 = OutletDensity;
-			break;
-		case NODE_WPressure:
-			rho2 = InletDensity;
-			break;
+        if (NodeType & NODE_BOUNDARY) {
+            rho2 = Density;
 	}
 	
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
-//	return Magic*p;
-      return phi(0,0);
+	return Magic*p;
+//      return phi(0,0);
 }
 
 CudaDeviceFunction void BounceBack()
@@ -169,7 +152,7 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void WPressure()
 {
      real_t ru;
-	 real_t rho = InletDensity;
+	 real_t rho = Density;
 	ru = rho - ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) );
 
 	f1 = f3 + (2./3.) * ru;
@@ -189,22 +172,14 @@ CudaDeviceFunction void WVelocity()
 {
 	real_t rho2;
 	 real_t u[2] = {InletVelocity,0.};
-	rho2 = InletDensity;
-        switch (NodeType & NODE_ADDITIONALS) {
-		case NODE_Wet:
-	                rho2 = WetDensity;
-			break;
-		case NODE_Dry:
-	                rho2 = DryDensity;
-			break;
-        }
+	rho2 = Density;
 	SetEquilibrum(rho2,u);
 }
 
 CudaDeviceFunction void EPressure()
 {
         real_t ru;
-	 real_t rho = OutletDensity;
+	 real_t rho = Density;
 	ru = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) - rho;
 
 	f3 = f1 - (2./3.) * ru;
@@ -222,25 +197,8 @@ CudaDeviceFunction void CalcPhi() {
         double p;
 	double rho2;
 	rho2 = <?R C(sum(f)) ?>;
-        switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			rho2 = WallDensity;
-	        	switch (NodeType & NODE_ADDITIONALS) {
-				case NODE_Wet:
-	        	        	rho2 = WetDensity;
-					break;
-				case NODE_Dry:
-	        	        	rho2 = DryDensity;
-					break;
-		        }
-			break;
-		case NODE_EPressure:
-			rho2 = OutletDensity;
-			break;
-		case NODE_WPressure:
-			rho2 = InletDensity;
-			break;
+        if (NodeType & NODE_BOUNDARY) {
+          rho2 = Density;
 	}
 	
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
@@ -317,27 +275,7 @@ CudaDeviceFunction void SetEquilibrum( real_t d,  real_t u[2])
 CudaDeviceFunction void Init() {
 	real_t u[2] = {InletVelocity,0.};
 	real_t rho2;
-	rho2 = InitDensity;
-        switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			rho2 = WallDensity;
-			break;
-		case NODE_EPressure:
-			rho2 = OutletDensity;
-			break;
-		case NODE_WPressure:
-			rho2 = InletDensity;
-			break;
-	}
-        switch (NodeType & NODE_ADDITIONALS) {
-		case NODE_Wet:
-	                rho2 = WetDensity;
-			break;
-		case NODE_Dry:
-	                rho2 = DryDensity;
-			break;
-        }
+	rho2 = Density;
 	SetEquilibrum(rho2,u);
 	CalcPhi();
 }
