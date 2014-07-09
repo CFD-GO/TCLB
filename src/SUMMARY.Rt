@@ -2,7 +2,8 @@
   source("conf.R")
   save.image(file="SUMMARY.Rdata")
   options(width=4000)
-  cat(sprintf("%-31s               |Adj| comment", "name"),"\n");
+  cat("---------------------------------------------------------------------------------------\n");
+  cat(sprintf("                %-15s               |Adj| comment", "DENSITIES"),"\n");
   for (d in rows(DensityAll)) {
     if (d$parameter) {
     cat(sprintf("%-31s parameter     | %1s | %s", d$name, ifelse(d$adjoint, "X"," "), d$comment),"\n");
@@ -10,6 +11,8 @@
     cat(sprintf("%-31s [%3d,%3d,%3d] | %1s | %s", d$name, d$dx, d$dy, d$dz, ifelse(d$adjoint, "X"," "), d$comment),"\n");
     }
   }
+  cat("---------------------------------------------------------------------------------------\n");
+  cat(sprintf("                %-15s               |Adj| comment", "FIELDS"),"\n");
   for (d in Fields) {
     if (d$parameter) {
     cat(sprintf("%-31s parameter     | %1s | %s", d$name, ifelse(d$adjoint, "X"," "), d$comment),"\n");
@@ -17,6 +20,8 @@
     cat(sprintf("%-19s [%3d|%-3d,%3d|%-3d,%3d|%-3d] | %1s | %s", d$name, d$minx, d$maxx, d$miny, d$maxy, d$minz, d$maxz, ifelse(d$adjoint, "X"," "), d$comment),"\n");
     }
   }
+  cat("---------------------------------------------------------------------------------------\n");
+  cat(sprintf("                %-15s               |Adj| comment", "SETTINGS"),"\n");
   for (s in rows(Settings)) {
     if (s$name %in% Settings$derived) {
      eq = Settings$equation[Settings$derived %in% s$name]
@@ -25,10 +30,15 @@
      cat(sprintf("%-45s | %1s | %s",s$name, ifelse(s$adjoint, "X"," "), s$comment),"\n");
     }
   }
+  cat("---------------------------------------------------------------------------------------\n");
+  cat(sprintf("                %-15s               |Adj| comment", "GLOBALS"),"\n");
   for (s in rows(Globals)) {
     cat(sprintf("%-35s [%7s] | %1s | %s",s$name, s$unit, ifelse(s$adjoint, "X"," "), s$comment),"\n");
   }
+  cat("---------------------------------------------------------------------------------------\n");
+  cat(sprintf("                %-15s               |Adj| comment", "QUANTITIES"),"\n");
   for (s in rows(Quantities)) {
     cat(sprintf("%-35s [%7s] | %1s | %s",s$name, s$unit, ifelse(s$adjoint, "X"," "), s$comment),"\n");
   }
+  cat("---------------------------------------------------------------------------------------\n");
 ?>

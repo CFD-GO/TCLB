@@ -381,9 +381,18 @@ if (NodeShiftNum > 16) {
 
 if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
 
+NodeTypes = rbind(NodeTypes, data.frame(
+	name="None",
+	group="NONE",
+	index=1,
+	Index="None",
+	value=0,
+	mask=0,
+	shift=0
+))
+
 Node=NodeTypes$value
 names(Node) = NodeTypes$name
-Node["None"] = 0
 
 i = !duplicated(NodeTypes$group)
 Node_Group=NodeTypes$mask[i]
