@@ -925,8 +925,15 @@ class acParams: public Action {
                         } else {
                                 zone = par.substr(i+1);
                                 par = par.substr(0,i);
-                                zone_number = solver->geometry->SettingZones[zone];
+                                if (solver->geometry->SettingZones.count(zone) > 0) { 
+                                        zone_number = solver->geometry->SettingZones[zone];
+                                } else {
+                                        printf("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+                                        zone_number = -2;
+                                        zone = "";
+                                }
                         }
+                        if (zone_number > -2) {
                         printf("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
 		<?R for (v in rows(Settings)) { ?>
 		        if (par == "<?%s v$name?>") {
@@ -940,6 +947,7 @@ class acParams: public Action {
 				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
 			}
 		<?R } ?>
+		        }
 		}
 		return 0;
 	}
