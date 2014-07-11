@@ -140,7 +140,7 @@ int main ( int argc, char * argv[] )
 	MPI_Comm_size(MPI_COMM_WORLD,  &solver.mpi_size);
 	DEBUG_SETRANK(solver.mpi_rank);
 	DEBUG_M;
-	InitPrint(3, 6, 8);
+	InitPrint(0, 6, 8);
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (solver.mpi_rank == 0) {

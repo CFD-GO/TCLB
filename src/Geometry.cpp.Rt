@@ -25,7 +25,7 @@ Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(
     for (size_t i = 0; i < region.sizeL(); i++) {
 	geom[i] = 0;
     }
-    printf("[%d] Creating geom size:%ld\n", D_MPI_RANK, region.sizeL());
+    output("Creating geom size:%ld\n", region.sizeL());
 }
 
 #define E(x) if (x) { return -1; }
@@ -55,7 +55,7 @@ int Geometry::val(pugi::xml_attribute attr, int def)
 int Geometry::val(pugi::xml_attribute attr)
 {
     if (!attr) {
-	std::cerr << "Attribute without value and default" << "\n";
+	error("Attribute without value and default\n");
 	return -1;
     }
     return myround(units.alt(attr.value()));
@@ -77,7 +77,7 @@ int Geometry::setFlag(const pugi::char_t * name)
 {
     pugi::xml_node node = fg_xml.find_child_by_attribute("Type", "name", name);
     if (!node) {
-	std::cerr << "Unknown flag (in xml): " << name << "\n";
+	ERROR("Unknown flag (in xml): %s\n", name);
 	return -1;
     }
     fg = node.attribute("value").as_int();
@@ -96,7 +96,7 @@ int Geometry::setMask(const pugi::char_t * name)
 {
     pugi::xml_node node = fg_xml.find_child_by_attribute("Mask", "name", name);
     if (!node) {
-	std::cerr << "Unknown mask (in xml): " << name << "\n";
+	error("Unknown mask (in xml): %s\n", name);
 	return -1;
     }
     fg_mask = node.attribute("value").as_int(-1);
@@ -110,7 +110,7 @@ int Geometry::setZone(const pugi::char_t * name)
         ZoneNumber = SettingZones[name];
     } else {
         ZoneNumber = SettingZones.size()+1;
-        printf("[%d] Setting new zone: %s -> %d\n", D_MPI_RANK, name, ZoneNumber);
+        debug1("Setting new zone: %s -> %d\n", name, ZoneNumber);
         SettingZones[name] = ZoneNumber;
     }
     assert(ZoneNumber < ZONE_MAX);
@@ -238,7 +238,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 {
     if (n.attribute("Xrot")) {
 	double v = units.alt(n.attribute("Xrot").value());
-	printf("STL: rotating X axis %lf (%lf deg)\n", v, v / 4. / atan(1.) * 180);
+	debug1("STL: rotating X axis %lf (%lf deg)\n", v, v / 4. / atan(1.) * 180);
 	double y, z;
 	for (int i = 0; i < ntri; i++) {
 	    y = tri[i].p1[1];
@@ -257,7 +257,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
     }
     if (n.attribute("scale")) {
 	double v = units.alt(n.attribute("scale").value());
-	printf("STL: scaling %lf\n", v);
+	debug1("STL: scaling %lf\n", v);
 	for (int i = 0; i < ntri; i++) {
 	    tri[i].p1[0] = v * tri[i].p1[0];
 	    tri[i].p2[0] = v * tri[i].p2[0];
@@ -272,7 +272,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
     }
     if (n.attribute("x")) {
 	double v = units.alt(n.attribute("x").value());
-	printf("STL: move in x %lf\n", v);
+	debug1("STL: move in x %lf\n", v);
 	for (int i = 0; i < ntri; i++) {
 	    tri[i].p1[0] += v;
 	    tri[i].p2[0] += v;
@@ -281,7 +281,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
     }
     if (n.attribute("y")) {
 	double v = units.alt(n.attribute("y").value());
-	printf("STL: move in y %lf\n", v);
+	debug1("STL: move in y %lf\n", v);
 	for (int i = 0; i < ntri; i++) {
 	    tri[i].p1[1] += v;
 	    tri[i].p2[1] += v;
@@ -290,7 +290,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
     }
     if (n.attribute("z")) {
 	double v = units.alt(n.attribute("z").value());
-	printf("STL: move in z %lf\n", v);
+	debug1("STL: move in z %lf\n", v);
 	for (int i = 0; i < ntri; i++) {
 	    tri[i].p1[2] += v;
 	    tri[i].p2[2] += v;
@@ -317,13 +317,13 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     STL_tri *tri;
     int ntri;
     if (!n.attribute("file")) {
-	std::cerr << "No 'file' attribute in 'STL' element in xml conf\n";
+	error("No 'file' attribute in 'STL' element in xml conf\n");
 	return -1;
     }
-    printf("------ STL -----\n");
+    debug1("------ STL -----\n");
     FILE *f = fopen(n.attribute("file").value(), "rb");
     if (f == NULL) {
-	std::cerr << "'STL' element:" << n.attribute("file").value() << "doesn't exists or cannot be opened\n";
+	error("'STL' element: %s doesn't exists or cannot be opened\n", n.attribute("file").value());
 	return -1;
     }
     fread(header, 80, sizeof(char), f);
@@ -332,11 +332,11 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     char *lev = (char *) malloc(reg.size() * sizeof(char));
     for (int i = 0; i < reg.size(); i++)
 	lev[i] = 0;
-    printf("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
+    debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     fread(tri, ntri, sizeof(STL_tri), f);
     fclose(f);
 
-    printf("Number of triangles: %d\n", ntri);
+    debug1("Number of triangles: %d\n", ntri);
     transformSTL(ntri, tri, n);
     for (int i = 0; i < ntri; i++) {
 	int minx, maxx, minz, maxz;
@@ -378,7 +378,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 		    c3 = 1. - c1 - c2;
 		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c1 + tri[i].p3[1] * c2;
 		    for (int y = reg.dy; y <= h; y++) {
-//                                        printf("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
+//                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
 			if (reg.isIn(x, y, z))
 			    lev[reg.offset(x, y, z)]++;
 		    }
@@ -389,7 +389,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
 		if (lev[reg.offset(x, y, z)] % 2 == 1) {
-//                        printf("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
+//                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
 		    Dot(x, y, z);
 		}
 	    }
@@ -405,9 +405,8 @@ int Geometry::Draw(pugi::xml_node & node)
 	lbRegion reg = getRegion(n);
 	if (strcmp(n.name(), "Box") == 0) {
 	    reg = region.intersect(reg);
-	    DEBUG1(std::cout << "[" << D_MPI_RANK << "] " << "Filling with flag " << fg << " (" << fg_mask << "): ";
-		   reg.print();
-		)
+	    debug1("Filling with flag %d (%d)\n", fg, fg_mask);
+	    DEBUG1(reg.print();)
 		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
@@ -415,9 +414,8 @@ int Geometry::Draw(pugi::xml_node & node)
 		    }
 	} else if (strcmp(n.name(), "Sphere") == 0) {
 //                      reg = region.intersect(reg);
-	    DEBUG1(std::cout << "[" << D_MPI_RANK << "] " << "Filling sphere with flag " << fg << " (" << fg_mask << "): ";
-		   reg.print();
-		)
+	    debug1("Filling sphere with flag %d (%d)\n", fg, fg_mask);
+	    DEBUG1(reg.print();)
 		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
@@ -427,9 +425,8 @@ int Geometry::Draw(pugi::xml_node & node)
 		    }
 	} else if (strcmp(n.name(), "Wedge") == 0) {
 //                      reg = region.intersect(reg);
-	    DEBUG1(std::cout << "[" << D_MPI_RANK << "] " << "Filling wedge with flag " << fg << " (" << fg_mask << "): ";
-		   reg.print();
-		)
+	    debug1("Filling wedge with flag %d (%d)\n", fg, fg_mask);
+	    DEBUG1(reg.print();)
 	    const char *type = n.attribute("direction").value();
 	    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
@@ -439,9 +436,8 @@ int Geometry::Draw(pugi::xml_node & node)
 			}
 		    }
 	} else if (strcmp(n.name(), "STL") == 0) {
-	    DEBUG1(std::cout << "[" << D_MPI_RANK << "] " << "Filling stl geometry with flag " << fg << " (" << fg_mask << "): ";
-		   reg.print();
-		)
+	    debug1("Filling stl geometry with flag %d (%d)\n", fg, fg_mask);
+	    DEBUG1(reg.print();)
 		if (loadSTL(reg, n))
 		return -1;
 	} else if (strcmp(n.name(), "Text") == 0) {
@@ -449,16 +445,16 @@ int Geometry::Draw(pugi::xml_node & node)
 	    crop = region.intersect(crop);
 	    crop.print();
 	    if (!n.attribute("file")) {
-		std::cerr << "No 'file' attribute in 'Text' element in xml conf\n";
+		error("No 'file' attribute in 'Text' element in xml conf\n");
 		return -1;
 	    }
 	    FILE *f = fopen(n.attribute("file").value(), "rt");
 	    if (f == NULL) {
-		std::cerr << "Could not open file: " << n.attribute("file").value() << "\n";
+		error("Could not open file: %s\n", n.attribute("file").value());
 		return -1;
 	    }
-	    std::cout << "[" << D_MPI_RANK << "] " << "Reading file " << n.attribute("file").value() << " into ";
-	    reg.print();
+	    output("Reading file %s into", n.attribute("file").value());
+	    DEBUG3(reg.print();)
 	    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
@@ -473,7 +469,7 @@ int Geometry::Draw(pugi::xml_node & node)
 	    if (node) {
 		E(Draw(node));
 	    } else {
-		std::cerr << "Unknown geometry element: " << n.name() << "\n";
+		error("Unknown geometry element: %s\n", n.name());
 		return -1;
 	    }
 	}
@@ -486,7 +482,7 @@ int Geometry::loadZone(const char *name)
 {
     pugi::xml_node node = fg_xml.find_child_by_attribute("Zone", "name", name);
     if (!node) {
-	std::cerr << "Unknown zone (in xml): " << name << "\n";
+	error("Unknown zone (in xml): %s", name);
 	return -1;
     }
     E(Draw(node));
@@ -537,9 +533,7 @@ int Geometry::load(pugi::xml_node & node)
 
 Geometry::~Geometry()
 {
-//      for (int i=0;i<region.size();i++) std::cout << geom[i] << " ";
-//      std::cout << "\n";
-    printf("[%d] Destroy geom\n", D_MPI_RANK);
+    debug1("[%d] Destroy geom\n", D_MPI_RANK);
     delete[]geom;
 }
 
