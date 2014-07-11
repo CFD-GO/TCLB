@@ -87,24 +87,24 @@ for (m in Margin) { ?>
     int myprint(int level, const char *fmt, ...);
     int InitPrint(int print_level, int only_root_level, int error_level);
     #define dprint(x, ...) myprint(x, __VA_ARGS__)
-    #define dprint0(...) myprint(0, __VA_ARGS__) // 0-level Debug
-    #define dprint1(...) myprint(1, __VA_ARGS__) // 1-level Debug
-    #define dprint2(...) myprint(2, __VA_ARGS__) // 2-level Debug
-    #define dprint3(...) myprint(3, __VA_ARGS__) // Output
-    #define dprint4(...) myprint(4, __VA_ARGS__) // Notice
-    #define dprint5(...) myprint(5, __VA_ARGS__) // Important Notice
-    #define dprint6(...) myprint(6, __VA_ARGS__) // Warning
-    #define dprint7(...) myprint(7, __VA_ARGS__) // Important Warning
-    #define dprint8(...) myprint(8, __VA_ARGS__) // Error
-    #define dprint9(...) myprint(9, __VA_ARGS__) // Fatal Error
+    #define debug0(...) myprint(0, __VA_ARGS__) // 0-level Debug
+    #define debug1(...) myprint(1, __VA_ARGS__) // 1-level Debug
+    #define debug2(...) myprint(2, __VA_ARGS__) // 2-level Debug
+    #define debug3(...) myprint(3, __VA_ARGS__) // Output
+    #define debug4(...) myprint(4, __VA_ARGS__) // Notice
+    #define debug5(...) myprint(5, __VA_ARGS__) // Important Notice
+    #define debug6(...) myprint(6, __VA_ARGS__) // Warning
+    #define debug7(...) myprint(7, __VA_ARGS__) // Important Warning
+    #define debug8(...) myprint(8, __VA_ARGS__) // Error
+    #define debug9(...) myprint(9, __VA_ARGS__) // Fatal Error
     
-    #define output(...) dprint3(__VA_ARGS__)    
-    #define notice(...) dprint4(__VA_ARGS__)    
-    #define NOTICE(...) dprint5(__VA_ARGS__)    
-    #define warning(...) dprint6(__VA_ARGS__)    
-    #define WARNING(...) dprint7(__VA_ARGS__)    
-    #define error(...) dprint8(__VA_ARGS__)    
-    #define ERROR(...) dprint9(__VA_ARGS__)    
+    #define output(...) debug3(__VA_ARGS__)    
+    #define notice(...) debug4(__VA_ARGS__)    
+    #define NOTICE(...) debug5(__VA_ARGS__)    
+    #define warning(...) debug6(__VA_ARGS__)    
+    #define WARNING(...) debug7(__VA_ARGS__)    
+    #define error(...) debug8(__VA_ARGS__)    
+    #define ERROR(...) debug9(__VA_ARGS__)    
     
 
     #define DEBUG_SETRANK(x) {D_MPI_RANK = x; D_TERMINAL = isatty(1); }
