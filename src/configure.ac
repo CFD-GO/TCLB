@@ -272,24 +272,27 @@ fi
 
 if test "x${with_debug}" == "x0"
 then
-	AC_DEFINE([DEBUG_LEVEL], [0], [Making a double precision version])
+	AC_DEFINE([DEBUG_LEVEL], [0], [print EVERYTHING!])
 elif test "x${with_debug}" == "x1"
 then
-	AC_DEFINE([DEBUG_LEVEL], [1], [Making a double precision version])
+	AC_DEFINE([DEBUG_LEVEL], [1], [print insane amount of output])
 elif test "x${with_debug}" == "x2"
 then
-	AC_DEFINE([DEBUG_LEVEL], [2], [Making a double precision version])
+	AC_DEFINE([DEBUG_LEVEL], [2], [print moderatly sane additional information])
 elif test "x${with_debug}" == "x3"
 then
-	AC_DEFINE([DEBUG_LEVEL], [3], [Making a double precision version])
+	AC_DEFINE([DEBUG_LEVEL], [3], [print normal output])
+elif test "x${with_debug}" == "x4"
+then
+	AC_DEFINE([DEBUG_LEVEL], [4], [print only notice/warning/error])
 elif test "x${with_debug}" == "x"
 then
-	AC_DEFINE([DEBUG_LEVEL], [10], [Making a double precision version])
+	AC_DEFINE([DEBUG_LEVEL], [3], [normal output])
 elif test "x${with_debug}" == "xno"
 then
-	AC_DEFINE([DEBUG_LEVEL], [10], [Making a double precision version])
+	AC_DEFINE([DEBUG_LEVEL], [3], [normal output])
 else
-	AC_MSG_ERROR([Unknown debug level: ${with_debug}])
+	AC_MSG_ERROR([Unknown debug level: ${with_debug}. Can be: 0,1,2,3,4;])
 fi
 
 if test "x${enable_waitany}" != "xno"

@@ -91,6 +91,9 @@ int InitPrint(int print_level, int only_root_level, int error_level) {
     }
   }
   sprintf(D_str_rank, "%2d", D_MPI_RANK);
+  if (D_print_level < DEBUG_LEVEL) {
+      WARNING("Printing debug-level (%d) set below the level (%d) set while compilation (./configure)\n", D_print_level, DEBUG_LEVEL);
+  }
 }
 
 int special_print(FILE* f, char * rank, int level, int color, int lines, char * buf) {
