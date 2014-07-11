@@ -259,7 +259,9 @@ void MainFree( Solver *d);
 				if (mpi_size % divz == 0) {
 	                                divy = mpi_size / divz;
 	                                com = divz * info.region.ny + divy * info.region.nz;
-	                                debug2("MPI division %d x %d. Communication: %f (%3.0f%%) ", divz, divy, com, 100*(com/optcom - 1));
+	                                char buf[8000];
+	                                char * str = buf;
+	                                str += sprintf(str, "MPI division %d x %d. Communication: %f (%3.0f%%) ", divz, divy, com, 100*(com/optcom - 1));
 	                                if (com < mincom) {
 	                                        mincom = com;
 	                                        int * zlens = new int[divz];
@@ -268,19 +270,19 @@ void MainFree( Solver *d);
 	                                        mz = info.region.nz;
 	                                        my = info.region.ny;
 	                                        if (mz >= divz && my >= divy) {
-	                                                printf("Division:");
+	                                                str += sprintf(str, "Division:");
 	                                                for (int i=0; i<divy; i++)
 	                                                {	ylens[i] = my/(divy-i);
 	                                                        my -= ylens[i];
-	                                                        printf(" %d",ylens[i]);
+	                                                        str += sprintf(str, " %d",ylens[i]);
 	                                                }
-	                                                printf(" x");
+	                                                str += sprintf(str, " x");
 	                                                for (int i=0; i<divz; i++)
 	                                                {	zlens[i] = mz/(divz-i);
 	                                                        mz -= zlens[i];
-	                                                        printf(" %d",zlens[i]);
+	                                                        str += sprintf(str, " %d",zlens[i]);
 	                                                }
-	                                                printf("\n");
+	                                                str += sprintf(str, "\n");
 	                                                int dz=0,dy=0,k=0;;
 	                                                for (int i=0; i<divz; i++) {
 								dy=0;
@@ -298,13 +300,14 @@ void MainFree( Solver *d);
 	                                                }
 	                                                fillSides(mpi, 1, divy, divz);
 	                                        } else {
-	                                                printf("Mesh too small to divide\n");
+	                                                str += sprintf(str, "Mesh too small to divide\n");
 	                                        }
 	                                        delete[] zlens;
 	                                        delete[] ylens;
 	                                } else {
-						printf("\n");
+						str += sprintf(str, "\n");
 					}
+					debug2(buf);
 	                	}
 	                int k = 0;
 	                for (int i=0; i < mpi_size; i++) {
