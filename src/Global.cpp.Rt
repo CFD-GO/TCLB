@@ -46,7 +46,6 @@ void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 ?>
 		j = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
 		mpi.node[k].<?%s name ?> = j;
-//		printf("[%d] <?%d dx ?> <?%d dy ?> <?%d dz ?>: %d <?%s name ?> %d\n", D_MPI_RANK, k, j);
 <?R
 	}
 ?>

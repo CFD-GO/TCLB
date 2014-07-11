@@ -8,6 +8,7 @@
 #include "cross.h"
 #include "vtkLattice.h"
 #include <unistd.h>
+#include "Global.h"
 
 #define CROSS_NOFORK
 
@@ -155,7 +156,7 @@ int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 		sprintf(fn, "%s.<?%s q$name ?>.bin", filename);
 		f = fopen(fn,"w");
 		if (f == NULL) {
-			std::cerr << "Cannot open file: " << fn << "\n";
+			ERROR("Cannot open file: %s\n",fn);
 			return -1;
 		}
 		fwrite(tmp, sizeof(<?%s q$type ?>), size, f);
@@ -166,7 +167,7 @@ int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 	sprintf(fn, "%s.<?%s q$name ?>.bin", filename);
 	f = fopen(fn,"w");
 	if (f == NULL) {
-		std::cerr << "Cannot open file: " << fn << "\n";
+		ERROR("Cannot open file: %s\n");
 		return -1;
 	}
 	return 0;

@@ -25,8 +25,7 @@ void HandleError( cudaError_t err,
                          const char *file,
                          int line ) {
     if (err != cudaSuccess) {
-        fprintf(stderr, "[%d] %s in %s at line %d\n", D_MPI_RANK, cudaGetErrorString( err ),
-                file, line );
+        ERROR("%s in %s at line %d\n", cudaGetErrorString( err ), file, line );
         exit( EXIT_FAILURE );
     }
 }
