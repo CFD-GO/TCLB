@@ -10,7 +10,10 @@
 #include "Consts.h"
 #include "cross.h"
 #include "Global.h"
-
+#include <cstdarg>
+#include <stdio.h>
+#include <stdlib.h>
+#include <cstring>
 int D_MPI_RANK;
 int D_TERMINAL;
 /*
@@ -53,5 +56,140 @@ void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 	}
 ?>
 	}
+}
+
+#define OUTPUT_LINE_LEN 80
+int D_print_level=0;
+int D_only_root_level=6;
+int D_error_level=8;
+bool D_out=0, D_err=0, D_echo_error=0;
+char D_str_rank[5];
+
+int InitPrint(int print_level, int only_root_level, int error_level) {
+  D_print_level = print_level;
+  D_only_root_level = only_root_level;
+  D_error_level = error_level;
+  D_out = isatty(1);
+  D_err = isatty(2);
+  if ( D_out ) {
+    if ( D_err ) {
+      D_echo_error = 0;
+    } else {
+      D_echo_error = 0;
+      // Probably MPI. Turning all coloring off
+      D_out = D_err = 0;
+    }
+  } else {
+    if ( D_err ) {
+      D_echo_error = 1;
+    } else {
+      D_echo_error = 0;
+    }
+  }
+  sprintf(D_str_rank, "%2d", D_MPI_RANK);
+}
+
+int special_print(FILE* f, char * rank, int level, int color, int lines, char * buf) {
+    static char line[OUTPUT_LINE_LEN + 5];
+    char * format = "---\n";
+    if (color) {
+      switch (level) {
+        case 0:
+          format = "[%2s] \033[34m%s\033[0m\n"; break;
+        case 1:
+          format = "[%2s] \033[35m%s\033[0m\n"; break;
+        case 2:
+          format = "[%2s] %s\n"; break;
+        case 3:
+          format = "[%2s] \033[1m%s\033[0m\n"; break;
+        case 4:
+          format = "[%2s] \033[32m%s\033[0m\n"; break;
+        case 5:
+          format = "[%2s] \033[1;32m%s\033[0m\n"; break;
+        case 6:
+          format = "[%2s] \033[33mWARNING: \033[1m%s\033[0m\n"; break;
+        case 7:
+          format = "[%2s] \033[33mWARNING: \033[5;1m%s\033[0m\n"; break;
+        case 8:
+          format = "[%2s] \033[31mERROR: %s\033[0m\n"; break;
+        case 9:
+          format = "[%2s] \033[31mFATAL ERROR: \033[1m%s\033[0m\n"; break;
+        default:
+          format = "[%2s] \033[1;34m%s\033[0m\n"; break;
+      }    
+    } else {
+      switch (level) {
+        case 0:
+          format = "[%2s] debug[0]: %s\n"; break;
+        case 1:
+          format = "[%2s] debug[1]: %s\n"; break;
+        case 2:
+          format = "[%2s] debug[2]: %s\n"; break;
+        case 3:
+          format = "[%2s] output  : %s\n"; break;
+        case 4:
+          format = "[%2s] notice  : %s\n"; break;
+        case 5:
+          format = "[%2s] NOTICE  : %s\n"; break;
+        case 6:
+          format = "[%2s] warning : %s\n"; break;
+        case 7:
+          format = "[%2s] WARNING : %s\n"; break;
+        case 8:
+          format = "[%2s] error   : %s\n"; break;
+        case 9:
+          format = "[%2s] ERROR   : %s\n"; break;
+        default:
+          format = "[%2s] DEBUG 2: %s\n"; break;
+      }    
+    }
+    if (lines) {
+      int i=0;
+      for (char * bf = buf; *bf; bf++) {
+        if (i >= OUTPUT_LINE_LEN) {
+          line[i] = '\0';
+          fprintf(f,format,rank,line);
+          i=0;
+        }
+        line[i] = *bf;
+        i++;
+      }
+      if (i > 0) {
+        if (line[i-1] == '\n') i--;
+      }
+      line[i] = '\0';
+      fprintf(f,format,rank,line);
+    } else {
+      int i=strlen(buf);
+      if (i > 0) {
+        if (buf[i-1] == '\n') i--;
+      }
+      buf[i] = '\0';
+      fprintf(f,format,rank,buf);
+    }
+}
+
+
+int myprint(int level, const char *fmt, ...)
+{
+    if (level < D_print_level) return 0;
+    va_list args;
+    va_start(args, fmt);
+    static char buf[100*OUTPUT_LINE_LEN];
+    vsprintf(buf, fmt, args);
+    char* rank="";
+    if (level < D_only_root_level) {
+      if (D_MPI_RANK != 0) return 0;
+    } else {
+      rank = D_str_rank;
+    }
+    if (level < D_error_level) {
+      special_print(stdout, rank, level, D_out, D_out, buf);
+    } else {
+      special_print(stderr, rank, level, D_err, D_err, buf);
+      if (D_echo_error) {
+        special_print(stdout, rank, level, D_out, D_out, buf);
+      }
+    }
 }
 

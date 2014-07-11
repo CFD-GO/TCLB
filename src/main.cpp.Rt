@@ -132,7 +132,6 @@ int main ( int argc, char * argv[] )
 {
 	// Error handling for scanf
 	#define HANDLE_IOERR(x) if ((x) == EOF) { fprintf(stderr, "[%d] Error in fscanf.\n", D_MPI_RANK); return -1; }
-
 	MPI_Init(&argc, &argv);
 
 	Solver   solver(MPI_COMM_WORLD); // Global data declaration
@@ -141,16 +140,28 @@ int main ( int argc, char * argv[] )
 	MPI_Comm_size(MPI_COMM_WORLD,  &solver.mpi_size);
 	DEBUG_SETRANK(solver.mpi_rank);
 	DEBUG_M;
+	InitPrint(0, 6, 8);
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (solver.mpi_rank == 0) {
-		printf("[ ] -------------------------------------------------------------------------\n");
-		printf("[ ] -  CLB version: %25s                               -\n",VERSION);
-		printf("[ ] -        Model: %25s                               -\n",MODEL);
-		printf("[ ] -------------------------------------------------------------------------\n");
+		NOTICE("-------------------------------------------------------------------------\n");
+		NOTICE("-  CLB version: %25s                               -\n",VERSION);
+		NOTICE("-        Model: %25s                               -\n",MODEL);
+		NOTICE("-------------------------------------------------------------------------\n");
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 	DEBUG_M;
+
+	dprint0("0 level debug");
+	dprint1("1 level debug");
+	dprint2("2 level debug");
+	output("normal output");
+	notice("notice");
+	NOTICE("important notice");
+	warning("warning");
+	WARNING("important warning");
+	error("error");
+	ERROR("fatal error");
 
 	//Prepare MPI solver-structure
 	solver.mpi.node = new NodeInfo[solver.mpi_size];
@@ -162,7 +173,8 @@ int main ( int argc, char * argv[] )
 	// Reading arguments
 	// At least one argument
 	if ( argc < 2 ) {
-		fprintf(stderr, "Usage: program configfile [device number]\n");
+		error("Not enough parameters");
+		notice("Usage: program configfile [device number]\n");
 		return 0;
 	}
 
@@ -172,23 +184,24 @@ int main ( int argc, char * argv[] )
 		CudaGetDeviceCount( &count );
 		if (argc >= 3) {
                 	if (argc < 2 + solver.mpi.size) {
-				fprintf(stderr, "Usage: program configfile [device number]\n");
-				fprintf(stderr, " Provide device number for each processor (%d processors)\n", solver.mpi.size);
+				error("Not enough device numbers");
+				notice("Usage: program configfile [device number]\n");
+				notice(" Provide device number for each processor (%d processors)\n", solver.mpi.size);
 				return 0;
 			}
 			HANDLE_IOERR( sscanf(argv[2+solver.mpi.rank], "%d", &dev) );
 			if (dev < 0) {
-				fprintf(stderr, "Wrong device number: %s\n", argv[2+solver.mpi.rank]);
+				error("Wrong device number: %s\n", argv[2+solver.mpi.rank]);
 				return -1;
 			}
 			#ifdef GRAPHICS
-				if (dev != 0) { fprintf(stderr, "Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
+				if (dev != 0) { error("Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
 			#endif
 		} else {
 			CudaGetDeviceCount( &count );
 			dev = solver.mpi.rank % count;
 		}
-		printf("[%d] Selecting device %d/%d\n", solver.mpi.rank, dev, count);
+		dprint2("Selecting device %d/%d\n", dev, count);
 		CudaSetDevice( dev );
 		solver.mpi.gpu = dev;
 	}
