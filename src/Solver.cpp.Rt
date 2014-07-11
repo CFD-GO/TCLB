@@ -232,7 +232,7 @@ void MainFree( Solver *d);
 		info.region.nx = nx;
 		info.region.ny = ny;
 		info.region.nz = nz;
-		output("Setting global lattice size: %dx%dx%d\n", info.region.nx, info.region.ny, info.region.nz);
+		output("Global lattice size: %dx%dx%d\n", info.region.nx, info.region.ny, info.region.nz);
 //		if (info.region.nx < info.xsdim) {
 //			info.xsdim = info.region.nx - 1 + 32 - ((info.region.nx - 1) % 32);
 //			NOTICE("small mesh: resetting number of threads to: %dx%d\n", info.xsdim, info.ysdim);
@@ -318,7 +318,7 @@ void MainFree( Solver *d);
 	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPI_COMM_WORLD);
 	        region = mpi.node[mpi_rank].region;
 	        mpi.totalregion = info.region;
-	        output("Lattice size: %dx%dx%d\n", region.nx, region.ny,region.nz);
+	        output("Local lattice size: %dx%dx%d\n", region.nx, region.ny,region.nz);
 		return 0;
 	}
 

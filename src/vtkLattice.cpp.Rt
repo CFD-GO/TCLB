@@ -175,31 +175,3 @@ int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 
 
 
-void screenDumpLattice(Lattice *lattice)
-{
-/*
-	int w,h,size;
-	w = lattice->region.nx;
-	h = lattice->region.ny;
-	size = w*h;
-	printf("Dumping lattice\n");
-	Node * nodes = new Node[size];
-	lattice->GetRegion(0,0,w,h,nodes);
-	int x,y,i;
-	for (i = 0; i < 19; i++) {
-//	i = 5; {
-		printf("-------F%d-------\n",i);
-		for (y = h-1; y >=0; y--) {
-			for (x = 0; x < w; x++) {
-				printf("%5f,", nodes[x+w*y].f[i]);
-			}
-			printf("\n");
-		}
-	}
-
-
-	delete[] nodes;
-*/
-}
-
-
