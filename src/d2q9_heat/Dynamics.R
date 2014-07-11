@@ -13,9 +13,9 @@ AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="T",unit="K")
 AddQuantity(name="U",unit="m/s",vector=T)
 
-f = PV(Density$name)
+f = PV(DensityAll$name)
 
-U = as.matrix(Density[,c("dx","dy")])
+U = as.matrix(DensityAll[,c("dx","dy")])
 
 AddDensity(
 	name = paste("T[",0:8,"]"),
