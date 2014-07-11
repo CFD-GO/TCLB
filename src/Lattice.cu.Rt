@@ -122,7 +122,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 //--------- Initialize MPI buffors
 	bufnumber = 0;
 #ifndef DIRECT_MEM
-	printf("[%d] Allocating MPI buffors ...\n", D_MPI_RANK);
+	debug2("Allocating MPI buffors ...\n");
 	real_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -150,7 +150,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 ?>
 #endif
 
-	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
+	debug2("Done (BUFS: %d)\n", bufnumber);
 }
 
 /// Starting of unsteady adjoint recording
@@ -162,17 +162,16 @@ void Lattice::MPIInit(MPIInfo mpi_)
 void Lattice::startRecord()
 {
 	if (reverse_save) {
-		std::cerr << "Nested record! Called startRecord while recording\n";
+		ERROR("Nested record! Called startRecord while recording\n");
 		exit(-1);
 	}
 	if (Record_Iter != 0) {
-		std::cerr << "Record tape is not rewinded (iter = " << Record_Iter << ") maybe last adjoint didn't go all the way\n";
+		ERROR("Record tape is not rewinded (iter = %d) maybe last adjoint didn't go all the way\n", Record_Iter);
 		Record_Iter = 0;
 	}
-	printf("[%d] Lattice is starting to record (usteady adjoint)\n",D_MPI_RANK);
+	debug2("Lattice is starting to record (usteady adjoint)\n");
 	if (Snap != 0) {
-		std::cerr << "Warning: Snap = "<< Snap << "\n";
-		
+		warning("Snap = %d at startRecord\n", Snap);
 	}
 	for (int i=0; i < maxSnaps; i++) {	
 		iSnaps[i]= -1;
@@ -184,7 +183,7 @@ void Lattice::startRecord()
 		save(Snaps[Snap], filename);
 	}
 	if (Snap != 0) {
-		std::cerr << "Warning: Snap = "<< Snap << " Going through disk\n";
+		warning("Snap = %d. Going through disk\n", Snap);
 	} else {
 		iSnaps[Snap] = 0;
 	}
@@ -232,7 +231,7 @@ void Lattice::loadSolution(const char * filename) {
 void Lattice::clearAdjoint()
 {
 #ifdef ADJOINT
-	printf("[%d] Clearing adjoint\n", D_MPI_RANK);
+	debug1("Clearing adjoint\n");
 	aSnaps[0].Clear(region.nx,region.ny,region.nz);
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 #endif
@@ -257,11 +256,11 @@ void Lattice::clearDPar()
 void Lattice::stopRecord()
 {
 	if (Record_Iter != 0) {
-		std::cerr << "Warning: Record tape is not rewinded (iter = " << Record_Iter << ")\n";
+		WARNING("Record tape is not rewinded (iter = %d)\n",Record_Iter);
 		Record_Iter = 0;
 	}
 	reverse_save = 0;
-	printf("[%d] Stop recording\n", D_MPI_RANK);
+	debug2("Stop recording\n");
 }
 
 /// Set monitor callback
@@ -355,7 +354,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration %d -> %d type: %d. iter: %d\n", D_MPI_RANK, tab0, tab1, iter_type, Iter);)
+	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
 	container->ZoneIndex = (Iter + Record_Iter) % zSet.getLen();
 <?R
 	for (m in NonEmptyMargin) {
@@ -433,7 +432,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);)
+	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -488,7 +487,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	aSnap = adjtab1;
 	MarkIteration();
 #else
-	std::cerr << "This model doesn't have adjoint!\n";
+	ERROR("This model doesn't have adjoint!\n");
 	exit (-1);
 #endif
 };
@@ -508,7 +507,7 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
         <?%s FunName ?>(tab0, tab1, iter_type);
         <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type);
 #else
-	std::cerr << "This model doesn't have adjoint!\n";
+	ERROR("This model doesn't have adjoint!\n");
 	exit (-1);
 #endif
 };
@@ -540,7 +539,7 @@ void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t *
 int Lattice::save(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
-		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
+		ERROR("Cannot open %s for output\n", filename);
 		assert(f == NULL);
 		return -1;
 	}
@@ -570,9 +569,9 @@ int Lattice::save(FTabs& tab, const char * filename) {
 /// Load a FTabs
 int Lattice::load(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "r");
-	printf("[%d] Loading Lattice data from %s\n", D_MPI_RANK, filename);
+	output("Loading Lattice data from %s\n", filename);
 	if (f == NULL) {
-		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
+		ERROR("Cannot open %s for output\n", filename);
 		return -1;
 	}
 
@@ -627,7 +626,7 @@ void Lattice::Color(uchar4 * ptr) {
 */
 void Lattice::Init()
 {
-   printf("[%d] Initializing Lattice ...\n", D_MPI_RANK);
+   output("Initializing Lattice ...\n");
 //   container->out=Snaps[0];
 //   container->CopyToConst();
 //   container->Init();
@@ -674,15 +673,15 @@ void Lattice::IterateTill(int it, int iter_type)
 		}
 	}
 	assert(imx >= 0);
-//	printf("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
+	debug2("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
 	if (imx >= nSnaps) {
 		if (reverse_save) {
-			printf("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
+			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
 			char filename[STRING_LEN];
 			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
-			printf("Fatal Error: I have to read from disk, but reverse_save is not switched on\n");
+			ERROR("I have to read from disk, but reverse_save is not switched on\n");
 			exit (-1);
 		}
 		iSnaps[0] = iSnaps[imx];
@@ -700,7 +699,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		Record_Iter = i+1;
 		if (s2 >= nSnaps){
 			if (reverse_save) {
-				printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
+				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
 				char filename[STRING_LEN];
 				sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, s2);
 				save(Snaps[0], filename);
@@ -735,7 +734,7 @@ void Lattice::Iterate(int niter, int iter_type)
 				}
 				Record_Iter -= 1;
 				if (Record_Iter < 0) {
-					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
+					ERROR("Went below the begining of the tape (usteady adjoint) !");
 					exit(-1);
 				}
 				IterateTill(Record_Iter, ITER_NORM);
@@ -752,7 +751,7 @@ void Lattice::Iterate(int niter, int iter_type)
 			}
 			break;
                 case ITER_OPT:
-                        std::cerr << "Cannot do a OPT iteration in record mode\n";
+                        ERROR("Cannot do a OPT iteration in record mode\n");
                         exit(-1);
                         break;
 		}
@@ -814,7 +813,7 @@ void Lattice::AfterIt()
 	for (int i=0; i < 4; i++) {
 		HANDLE_ERROR(CudaEventQuery(kernelEv[i]));
 		CudaEventElapsedTime(&t, kernelEv[0], kernelEv[i]);
-		printf("[%d] kernelEv[%d] --> %f\n", D_MPI_RANK, i, t);
+		debug2("[%d] kernelEv[%d] --> %f\n", D_MPI_RANK, i, t);
 	}
 	for (int i = 0; i < bufnumber; i++) {
 <?R
@@ -822,7 +821,7 @@ void Lattice::AfterIt()
 ?>
 		HANDLE_ERROR(CudaEventQuery( <?%s Ev ?>[i] ));
 		CudaEventElapsedTime(&t, kernelEv[0], <?%s Ev ?>[i]);
-		printf("[%d] <?%s Ev ?>[%d] --> %f\n", D_MPI_RANK, i, t);
+		debug2("[%d] <?%s Ev ?>[%d] --> %f\n", D_MPI_RANK, i, t);
 <?R } ?>
 	}
 
@@ -882,7 +881,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 */
 void Lattice::Get_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 {
-	printf("[%d] Pulling all <?%s d$nicename ?>\n", D_MPI_RANK);
+	debug2("Pulling all <?%s d$nicename ?>\n");
 	CudaMemcpy(
 		tab,
 		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
@@ -898,7 +897,7 @@ void Lattice::Get_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 */
 void Lattice::Clear_<?%s d$nicename ?><?%s suff ?>()
 {
-	printf("[%d] Clearing all <?%s d$nicename ?>\n", D_MPI_RANK);
+	debug2("Clearing all <?%s d$nicename ?>\n");
 	CudaMemset(
 		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
 		0,
@@ -913,7 +912,7 @@ void Lattice::Clear_<?%s d$nicename ?><?%s suff ?>()
 */
 void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 {
-	printf("[%d] Setting all <?%s d$nicename ?>\n", D_MPI_RANK);
+	debug2("Setting all <?%s d$nicename ?>\n");
 	CudaMemcpy(
 		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
 		tab,
@@ -996,12 +995,12 @@ void Lattice::pop_settings()
 	while (settings_i > 0) {
 		if (settings_record[settings_i - 1].first <= Record_Iter) break;
 		settings_i--;
-		printf("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
+		debug1("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
 	}
 	while (settings_i < settings_record.size()) {
 		if (settings_record[settings_i].first > Record_Iter) break;
-		printf("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
+		debug1("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
 		settings_i++;
 	}
@@ -1080,7 +1079,7 @@ double Lattice::getObjective() {
 */
 void Lattice::setSetting(int i, real_t tmp) {
 	settings[i] = tmp;
-        printf("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
+        debug1("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
 	setConstSetting(i,tmp);
 }
 
@@ -1102,7 +1101,7 @@ if (!is.na(v$derived)) { ?>
 */
 void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
-        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
+        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
 	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
                 if (!is.na(v$derived)) {
                         i = which(as.character(Settings$name) == as.character(v$derived));
