@@ -134,11 +134,7 @@ for (m in Margin) { ?>
     #define DEBUG2(x)
     #define DEBUG3(x)
 #endif
-    #define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG0_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG1_M DEBUG1(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG2_M DEBUG2(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG3_M DEBUG3(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG_M debug0("%s(%d)\n", __FILE__, __LINE__ )
 	
 #define DEBUG_H 1
 #endif

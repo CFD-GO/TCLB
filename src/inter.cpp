@@ -17,7 +17,7 @@ class LBSolver {
   lbRegion localRegion;
   Lattice * lattice;
   LBSolver (int nx, int ny, int nz) {
-   printf("Starting LBSolver with dimensions: %dx%dx%d\n",nx,ny,nz);
+   NOTICE("Starting LBSolver with dimensions: %dx%dx%d\n",nx,ny,nz);
    localRegion.nx = nx;
    localRegion.nx = ny;
    localRegion.nx = nz;
