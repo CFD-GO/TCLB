@@ -14,6 +14,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cstring>
+
+// for isatty
+#include <unistd.h>
+
 int D_MPI_RANK;
 int D_TERMINAL;
 /*
@@ -116,7 +120,7 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
           format = "[%2s] \033[31mFATAL ERROR: \033[1m%s\033[0m\n"; break;
         default:
           format = "[%2s] \033[1;34m%s\033[0m\n"; break;
-      }    
+      }
     } else {
       switch (level) {
         case 0:
@@ -141,7 +145,7 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
           format = "[%2s] ERROR   : %s\n"; break;
         default:
           format = "[%2s] DEBUG 2: %s\n"; break;
-      }    
+      }
     }
     if (lines) {
       int i=0;
