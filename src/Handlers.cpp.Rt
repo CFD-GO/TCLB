@@ -911,7 +911,7 @@ class acParams: public Action {
 	        int zone_number = -1;
 		Action::Init();
 	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
-	                debug1("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
+	                debug0("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
 	                par = attr.name();
                         int i = par.find_first_of('-');
                         if (i == string::npos) {
