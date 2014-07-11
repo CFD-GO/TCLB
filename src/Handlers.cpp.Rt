@@ -32,19 +32,19 @@
 #define ITERATION_STOP 1
 
 int vHandler::DoIt() {
-	printf("It is wrong (do it)!\n");
+	ERROR("Called virtual function (DoIt)!\n");
 	exit(-1);
 	return -1;
 };
 
 int vHandler::Init() {
-	printf("It is wrong (init)!\n");
+	ERROR("Called virtual function (Init)!\n");
 	exit(-1);
 	return -1;
 };
 
 int vHandler::Finish() {
-	printf("It is wrong (finish)!\n");
+	ERROR("Called virtual function (Finish)!\n");
 	exit(-1);
 	return -1;
 };
@@ -63,13 +63,10 @@ public:
 		if (attr) {
 			double it = solver->units.alt(attr.value());
 			everyIter = it;
-			if (D_MPI_RANK == 0) {
-				std::cout << "[ ] Setting callback " << node.name() << " at " << it << " iterations\n";
-			}
+			output("Setting callback %s at %lf iterations\n", node.name(), it);
 		} else {
 			everyIter = 0;
-//			std::cerr << "No Iterations attribute in " << node.name() << "\n";
-//			return -1;
+                        output("Callback %s with no Iterations attribute", node.name());
 		}
 		return 0;
 	}
@@ -90,7 +87,7 @@ public:
 			startIter = solver->iter;
 			everyIter = it;
 			if (D_MPI_RANK == 0) {
-				std::cout << "[ ] Setting action " << node.name() << " at " << it << " iterations\n";
+        			output("Setting action %s at %lf iterations\n", node.name(), it);
 			}
 		} else {
 			startIter = solver->iter;
@@ -198,14 +195,14 @@ class cbStop: public Callback {
 		} <?R
 		        } ?>
 		if (what.size() < 1) {
-			std::cerr << "No *Change attribute in " << node.name() << "\n";
+			error("No *Change attribute in %s\n", node.name());
 			return -1;
 		}
 		attr = node.attribute("Times");
 		if (attr) {
 			times = attr.as_int();
 			if (times < 1) {
-			        std::cerr << "Minimal number for Times attribute is 1\n";
+			        error("Minimal number for Times attribute is 1\n");
                                 return -1;
                         }
 		} else {
@@ -221,12 +218,12 @@ class cbStop: public Callback {
 		int ret=0;
                 if (solver->mpi_rank == 0) {
                         int any = 0;
-                        if (D_MPI_RANK == 0) printf("[ ] Stop criterium:");
+                        output("Stop criterium:");
                         for (int i=0;i<what.size();i++) {
                                 double v = solver->lattice->globals[ what[i] ];
                                 if (fabs(old[i] - v) > change[i]) any++;
                                 if (D_MPI_RANK == 0) {
-                                        printf("\n[ ]                 %4lg / %4lg", fabs(old[i] - v), change[i]);
+                                        output("                 %4lg / %4lg", fabs(old[i] - v), change[i]);
                                 }
                                 old[i] = v;
                         }
@@ -236,10 +233,10 @@ class cbStop: public Callback {
                                 score = 0;
                         }
                         if (D_MPI_RANK == 0) {
-                                printf(" Score: %d\n", score);
+                                output("Score: %d\n", score);
                         }
                         if (score >= times) {
-                                if (D_MPI_RANK == 0) printf("[ ] Stop.\n");
+                                if (D_MPI_RANK == 0) notice("Stop.\n");
                                 ret = ITERATION_STOP;
                                 for (int i=0;i<what.size();i++) {
                                         old[i] = -12341234;
@@ -268,12 +265,12 @@ class cbKeep: public Callback {
 		if (attr) {
 			what = GlobalByName(attr.value());
 			if (what < 0) {
-        			std::cerr << "Unknown Global " << attr.value() << " in " << node.name() << "\n";
+        			error("Unknown Global %s in %s\n", attr.value(), node.name());
         			return -1;
                         }
 			whatInObj = GlobalInObj(what);
 		} else {
-			std::cerr << "No What attribute in " << node.name() << "\n";
+			error("No What attribute in %s\n", node.name());
 			return -1;
 		}
 		if (attr = node.attribute("Above")) {
@@ -286,7 +283,7 @@ class cbKeep: public Callback {
 			thr = attr.as_double();
                         my_type = 0;
 		} else {
-			std::cerr << "" << node.name() << "should have Above, Below or Equal attribute\n";
+			error("%s should have Above, Below or Equal attribute\n", node.name());
 			return -1;		        
 		}
 		if (attr = node.attribute("Force")) {
@@ -303,7 +300,7 @@ class cbKeep: public Callback {
                 double s = 0.0;
                 if (solver->mpi_rank == 0) {
                         double v = solver->lattice->globals[ what ];
-                        printf("[ ] Keep: %le compared to %le\n", v, thr);
+                        output("Keep: %le compared to %le\n", v, thr);
                         v = (thr - v)*force;
                         switch (my_type) {
                         case -1:
@@ -341,7 +338,7 @@ class GenericAction: public Action {
 			if (hand) {
 				if (hand.Type() & HANDLER_CALLBACK) {
 					if (hand.hand->everyIter) {
-//						printf("adding %lf\n", hand.hand->everyIter);
+						debug1("adding %lf\n", hand.hand->everyIter);
 						solver->hands.push_back(hand);
 						stack++;
 					} else {
@@ -360,7 +357,7 @@ class GenericAction: public Action {
 	}
 	int Finish() {
 		if (stack > 0) {
-			std::cerr << "Warning: Generic action still stacked at finish\n";
+			WARNING("Generic action still stacked at finish\n");
 			Unstack();
 		}
 	}
@@ -473,7 +470,7 @@ class acUSAdjoint: public GenericAction {
 		GenericAction::ExecuteInternal();
 		everyIter = solver->iter - startIter;
 		if (everyIter <= 0) {
-			std::cerr << "No iterations done inside of Usteady Adjoint! Nothing to do\n";
+			ERROR("No iterations done inside of Usteady Adjoint! Nothing to do\n");
 			return -1;
 		}
 		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
@@ -515,7 +512,7 @@ class acSAdjoint: public GenericAction {
 		GenericAction::ExecuteInternal();
 		everyIter = std::max(everyIter,  (double) (solver->iter - startIter));
 		if (everyIter <= 0) {
-			std::cerr << "Warning: Zero iterations in steady adjoint. somethings is probaby wrong\n";
+			WARNING("Warning: Zero iterations in steady adjoint. somethings is probaby wrong\n");
 			return 0;
 		}
 		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
@@ -567,10 +564,10 @@ class acOptimize: public GenericAction {
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
-        			std::cerr << "Error: No parameters defined!\n";
+        			ERROR("Error: No parameters defined!\n");
         			return -1;
         		}			
-			printf("[ ] Parameters: %d\n", par);
+			notice("Parameters in optimization: %d\n", par);
 			start = new double[par];
 		}
 		DEBUG_M;
@@ -589,7 +586,7 @@ class acOptimize: public GenericAction {
                         } else if (method == "MMA") {
         			opt = nlopt_create(NLOPT_LD_MMA,par);
                         } else {
-       			        std::cerr << "Unknown Method in Optimize: " << method << "\n";
+       			        error("Unknown Method in Optimize: %s\n", method.c_str());
        			        exit(-1);
                         }
 			{
@@ -602,7 +599,7 @@ class acOptimize: public GenericAction {
 			}
                         res = nlopt_set_max_objective(opt, FOptimize, this);
                         if (res < 0) {
-       			        std::cerr << "Error while appling objective in Optimize: nlopt_set_max_objective = " << res << "\n";
+       			        ERROR("Error while appling objective in Optimize: nlopt_set_max_objective = %d\n", res);
        			        exit(-1);
                         }
         		attr = node.attribute("Material");
@@ -614,11 +611,11 @@ class acOptimize: public GenericAction {
         		        } else if (matdir == "less") {
         			        res = nlopt_add_inequality_constraint(opt, FMaterialLess, this, 1e-3);
         		        } else {
-        			        std::cerr << "Material attribute in Optimize should be \"more\" or \"less\"\n";
+        			        error("Material attribute in Optimize should be \"more\" or \"less\"\n");
         			        exit(-1);
                                 }
                                 if (res < 0) {
-        			        std::cerr << "Error while appling Material constraint in Optimize: nlopt_add_inequality_constraint " << res << "\n";
+        			        error("Error while appling Material constraint in Optimize: nlopt_add_inequality_constraint = %d\n", res);
         			        exit(-1);
                                 }
                         }
@@ -636,11 +633,11 @@ class acOptimize: public GenericAction {
                 if (crit$positive) { ?>
                                 if (crit > 0) { <?R
                 } ?>
-                                        std::cout << "[ ] Setting <?%s crit$attr ?> to " << crit << "\n";
+                                        output("NLOPT: Setting <?%s crit$attr ?> to %d\n", crit);
                                         nlopt_set_<?%s crit$nlopt ?>(opt, crit); <?R
                 if (crit$positive) { ?>
                                 } else {
-        			        std::cerr << "<?%s crit$attr ?> in Optimize have to be above 0\n";
+        			        error("<?%s crit$attr ?> in Optimize have to be above 0\n");
         			        exit(-1);
                                 } <?R
                 } ?>
@@ -652,21 +649,21 @@ class acOptimize: public GenericAction {
                         msg = -1;
 		DEBUG_M;
                         MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
-			printf("[ ] NLOpt result: %d\n", res);
+			notice("NLOpt result: %d\n", res);
 			switch(res) {
-                                case NLOPT_SUCCESS: printf("[ ] Optimization generic success!\n"); break;
-                                case NLOPT_STOPVAL_REACHED: printf("[ ] Optimization reached desired value (StopAtValue) !\n"); break;
-                                case NLOPT_FTOL_REACHED: printf("[ ] Optimization stoped with change of objective below tolerance (RelTolerance/AbsTolerance) !\n"); break;
-                                case NLOPT_XTOL_REACHED: printf("[ ] Optimization stoped with change of parameters below tolerance (XAbsTolerance) !\n"); break;
-                                case NLOPT_MAXEVAL_REACHED: printf("[ ] Optimization stoped, because maximal number of iterations was made (MaxIterations) !\n"); break;
-                                case NLOPT_FAILURE: printf("[ ] Optimization failed, I don't know why!\n"); break;
-                                case NLOPT_INVALID_ARGS: printf("[ ] Optimization call failed. Some wrong arguments!\n"); break;
-                                case NLOPT_OUT_OF_MEMORY: printf("[ ] Optimization call failed. Out of memory!\n"); break;
-                                case NLOPT_ROUNDOFF_LIMITED: printf("[ ] Optimization failed. Changes were below numeric tolerance (good?)\n"); break;
-                                case NLOPT_FORCED_STOP: printf("[ ] Optimization failed. It was stoped from within the objective function (why?)\n"); break;
-                                default: printf("[ ] NLOpt result: %d\n", res); break;
+                                case NLOPT_SUCCESS: notice("Optimization generic success!\n"); break;
+                                case NLOPT_STOPVAL_REACHED: notice("Optimization reached desired value (StopAtValue) !\n"); break;
+                                case NLOPT_FTOL_REACHED: notice("Optimization stoped with change of objective below tolerance (RelTolerance/AbsTolerance) !\n"); break;
+                                case NLOPT_XTOL_REACHED: notice("Optimization stoped with change of parameters below tolerance (XAbsTolerance) !\n"); break;
+                                case NLOPT_MAXEVAL_REACHED: notice("Optimization stoped, because maximal number of iterations was made (MaxIterations) !\n"); break;
+                                case NLOPT_FAILURE: notice("Optimization failed, I don't know why!\n"); break;
+                                case NLOPT_INVALID_ARGS: notice("Optimization call failed. Some wrong arguments!\n"); break;
+                                case NLOPT_OUT_OF_MEMORY: notice("Optimization call failed. Out of memory!\n"); break;
+                                case NLOPT_ROUNDOFF_LIMITED: notice("Optimization failed. Changes were below numeric tolerance (good?)\n"); break;
+                                case NLOPT_FORCED_STOP: notice("Optimization failed. It was stoped from within the objective function (why?)\n"); break;
+                                default: notice("NLOpt result: %d\n", res); break;
                         }
-			printf("[ ] Final Objective value: %lf\n",val);
+			notice("Final Objective value: %lf\n",val);
 			nlopt_destroy(opt);
 		} else {
 		DEBUG_M;
@@ -690,7 +687,7 @@ class acOptimize: public GenericAction {
 		everyIter = solver->iter - startIter;
 		solver->getDPar(grad);
 		*f = solver->lattice->getObjective();
-		printf("[ ] Evaluated objective: %lg\n", *f);
+		output("Evaluated objective: %lg\n", *f);
 		return 0;
 	}
 	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);
@@ -703,11 +700,11 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	assert(n == obj->par);
 	double val;
         int msg = 0; 
-        printf("[ ] ------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
+        output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
         MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
 	int ret = obj->Execute(x, grad, &val);
 	if (ret) {
-		std::cerr << "Error while executing calculations in optimize. exiting loop.\n";
+		ERROR("Error while executing calculations in optimize. exiting loop.\n");
 		nlopt_force_stop(obj->opt);
 	}
 	return val;
@@ -719,7 +716,7 @@ double FMaterialMore(unsigned int n, const double * x, double * grad, void * dat
 	if (grad) {
         	for (int i=0;i<n; i++) grad[i] = 1;
         }
-        printf("[ ] Material %le (%le at start)\n", material, obj->material);
+        output("Material %le (%le at start)\n", material, obj->material);
 	return material - obj->material;
 }
 double FMaterialLess(unsigned int n, const double * x, double * grad, void * data) {
@@ -729,7 +726,7 @@ double FMaterialLess(unsigned int n, const double * x, double * grad, void * dat
 	if (grad) {
         	for (int i=0;i<n; i++) grad[i] = -1;
         }
-        printf("[ ] Material %le (%le at start)\n", material, obj->material);
+        output("Material %le (%le at start)\n", material, obj->material);
 	return obj->material - material;
 }
 #endif
@@ -749,7 +746,7 @@ class acThreshold: public GenericAction {
 			levels = attr.as_int();
 		} else {
 		        levels = 5;
-			std::cout << "Warning: Using default Levels in " << node.name() << ": 5\n";
+			WARNING("Warning: Using default (%d) Levels in %s\n", levels, node.name());
 		}
 		                        
 		DEBUG_M;
@@ -757,10 +754,10 @@ class acThreshold: public GenericAction {
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
-        			std::cerr << "Error: No parameters defined!\n";
+        			ERROR( "No parameters defined!\n");
         			return -1;
         		}			
-			printf("[ ] Parameters: %d\n", par);
+			output("Parameters: %d\n", par);
 			start = new double[par];
 			slice = new double[par];
 		}
@@ -800,10 +797,10 @@ class acThresholdNow: public GenericAction {
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
-        			std::cerr << "Error: No parameters defined!\n";
+        			ERROR("No parameters defined!\n");
         			return -1;
         		}			
-			printf("[ ] Parameters: %d\n", par);
+			output("Parameters: %d\n", par);
 			start = new double[par];
 			slice = new double[par];
 		}
@@ -828,7 +825,7 @@ class acRepeat: public GenericAction {
 		if (attr) {
 			times = attr.as_int();
 		} else {
-			std::cerr << "Error: no Times parameter in " << node.name() << "\n";
+			error("no Times parameter in %s\n");
 			return -1;
 		}
 		for (int i=0; i < times; i++) {
@@ -859,17 +856,17 @@ class conControl: public Action {
                                 par = par.substr(0,i);
                                 zone_number = solver->geometry->SettingZones[zone];
                         }
-                        printf("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
+                        debug1("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
                 }
 	}
 	int Internal(pugi::xml_node n){
 	        for (pugi::xml_node n2 = n.first_child(); n2; n2 = n2.next_sibling()) {
                         std::string name2 = n2.name();
                         if (name2 == "Params") {
-                                printf("Params in CSV\n");
+                                debug0("Params in CSV\n");
                                 Params(n2);
                         } else {
-        		        std::cerr << "Only Params allowed in " << n.name() << " in Control sub-element in config\n";
+        		        error("Only Params allowed in %s in Control sub-element in config\n",n.name());
         		        return -1;
                         }
                 }
@@ -878,22 +875,22 @@ class conControl: public Action {
 		Action::Init();
 		iter = -floor(-everyIter);
 		if (iter <= 0) {
-		        std::cerr << "Zero (or less) iterations in Control element in config\n";
+		        error("Zero (or less) iterations in Control element in config\n");
 		        return -1;
                 }
-                printf("[%d] Setting iterations for time-dependent settings at %d\n",D_MPI_RANK, iter);
-                printf("[%d] WARNING: clearing old control\n",D_MPI_RANK);
+                output("Setting iterations for time-dependent settings at %d\n",iter);
+                warning("clearing old control\n");
                 solver->lattice->zSet.setLen(iter);
                 for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
                         std::string name = n.name();
                         if (name == "Params") {
-                	        printf("Params in Control\n");
+                	        debug2("Params in Control\n");
                                 Params(n);
                         } else if (name == "CSV") {
-                                printf("CSV in Control\n");
+                                debug2("CSV in Control\n");
                                 Internal(n);
                         } else {
-        		        std::cerr << "Element " << name << " not allowed in Control element in config\n";
+        		        error("Element %s not allowed in Control element in config\n", name.c_str());
         		        return -1;
                         }
                 }
@@ -914,9 +911,7 @@ class acParams: public Action {
 	        int zone_number = -1;
 		Action::Init();
 	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
-	                printf("%s=%s\n",attr.name(),attr.value());
-                }
-	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
+	                debug1("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
 	                par = attr.name();
                         int i = par.find_first_of('-');
                         if (i == string::npos) {
@@ -928,13 +923,13 @@ class acParams: public Action {
                                 if (solver->geometry->SettingZones.count(zone) > 0) { 
                                         zone_number = solver->geometry->SettingZones[zone];
                                 } else {
-                                        printf("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+                                        WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
                                         zone_number = -2;
                                         zone = "";
                                 }
                         }
                         if (zone_number > -2) {
-                        printf("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
+                        debug2("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
 		<?R for (v in rows(Settings)) { ?>
 		        if (par == "<?%s v$name?>") {
 				double val = solver->units.alt(attr.value());
@@ -981,7 +976,7 @@ class acLoad: public Action {
 		if (!attr) {
 			attr = node.attribute("filename");
 			if (!attr) {
-				std::cerr << "No file specified in Load\n";
+				error("No file specified in Load\n");
 				return -1;
 			}
 		}
@@ -1028,7 +1023,7 @@ class acGeometry: public Action {
 	public:
 	int Init() {
 			if (solver->geometry->load(node)) {
-				std::cerr << "Error while loading geometry\n";
+				error("Error while loading geometry\n");
 				return -1;
 			}
 			char filename[STRING_LEN];
@@ -1040,9 +1035,9 @@ class acGeometry: public Action {
 };
 
 vHandler * getHandler(pugi::xml_node node) {
-	vHandler * ret;
+	vHandler * ret = NULL;
 	std::string name(node.name());
-	DEBUG1(std::cout << name << "\n";)
+	debug1("Parsing xml element %s\n", name.c_str());
 	if (name=="VTK") {
 		ret = new cbVTK;
         } else if (name=="BIN") {
@@ -1070,15 +1065,15 @@ vHandler * getHandler(pugi::xml_node node) {
 			} else if (type == "steady") {
 				ret = new acSAdjoint;
 			} else {
-				std::cerr << "Unknown type of adjoint in xml:" << type << "\n";
+				error("Unknown type of adjoint in xml: %s", type.c_str());
 			}
 		} else {
 			pugi::xml_attribute attr = node.attribute("Iterations");
                 	if (attr) {
 				ret = new acSAdjoint;
-				std::cerr << "Warning: Makin a steady adjoint, becuase you gave me Iterations - better to state type explicitly.\n";
+				WARNING("Makin a steady adjoint, becuase you gave me Iterations - better to state type explicitly.\n");
 			} else {
-				std::cerr << "Warning: default adjoint is unsteady - better state type explicitly next time.\n";
+				WARNING("default adjoint is unsteady - better state type explicitly next time.\n");
 				ret = new acUSAdjoint;
 			}
 		}
@@ -1102,7 +1097,7 @@ vHandler * getHandler(pugi::xml_node node) {
 #ifdef WITH_NLOPT
 		ret = new acOptimize;
 #else
-                std::cerr << "No NLOpt support. configure with --with-nlopt to use Optimize element\n";
+                ERROR("No NLOpt support. configure with --with-nlopt to use Optimize element\n");
                 exit(-1);
 #endif
         } else if (name=="Init") {
@@ -1110,9 +1105,9 @@ vHandler * getHandler(pugi::xml_node node) {
         } else if (name=="Control") {
 		ret = new conControl;
         } else {
-		std::cerr << "Unknown element '" << node.name() << "' in xml\n";
+		ERROR("Unknown element '%s'\n", node.name());
 		return NULL;
 	}
-	ret->node = node;
+	if (ret != NULL) ret->node = node;
 	return ret;
 }
