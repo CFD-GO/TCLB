@@ -316,6 +316,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     char header[80];
     STL_tri *tri;
     int ntri;
+    int ret;
     if (!n.attribute("file")) {
 	error("No 'file' attribute in 'STL' element in xml conf\n");
 	return -1;
@@ -326,14 +327,14 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	error("'STL' element: %s doesn't exists or cannot be opened\n", n.attribute("file").value());
 	return -1;
     }
-    fread(header, 80, sizeof(char), f);
-    fread(&ntri, 1, sizeof(int), f);
+    ret = fread(header, 80, sizeof(char), f);
+    ret = fread(&ntri, 1, sizeof(int), f);
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
     char *lev = (char *) malloc(reg.size() * sizeof(char));
     for (int i = 0; i < reg.size(); i++)
 	lev[i] = 0;
     debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
-    fread(tri, ntri, sizeof(STL_tri), f);
+    ret = fread(tri, ntri, sizeof(STL_tri), f);
     fclose(f);
 
     debug1("Number of triangles: %d\n", ntri);
@@ -453,13 +454,16 @@ int Geometry::Draw(pugi::xml_node & node)
 		error("Could not open file: %s\n", n.attribute("file").value());
 		return -1;
 	    }
-	    output("Reading file %s into", n.attribute("file").value());
-	    DEBUG3(reg.print();)
+	    output("Reading file %s\n", n.attribute("file").value());
 	    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
 			int v;
-			fscanf(f, "%d", &v);
+			int ret = fscanf(f, "%d", &v);
+                        if (ret == EOF) {
+                            ERROR("File (%s) ended while reading\n", n.attribute("file").value());
+                            return -1;
+                        }
 			if ((v != 0) && (crop.isIn(x, y, z)))
 			    Dot(x, y, z);
 		    }
