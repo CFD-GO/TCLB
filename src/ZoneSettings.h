@@ -23,7 +23,6 @@ public:
     for (int i=0; i<ZONE_MAX * ZONESETTINGS; i++) {
       cpuValues[i] = NULL;
       cpuTab[i] = NULL;
-      printf("Constructor: %p %p\n", cpuValues[i], cpuTab[i]);
     }
     CudaMalloc(&gpuTab, sizeof(real_t*) * ZONE_MAX * ZONESETTINGS);
     cpuConst = (real_t*) malloc(sizeof(real_t) * ZONE_MAX * ZONESETTINGS);
@@ -63,7 +62,6 @@ public:
     assert(cpuValues[i] == NULL);
     cpuValues[i] = (real_t*) malloc(sizeof(real_t) * len);
     CudaMalloc(&cpuTab[i], sizeof(real_t) * len);
-    printf("Alloc: %p %p len:%d\n", cpuValues[i], cpuTab[i], len);
   }    
 
   inline void set(int s, int z, std::vector<double> val) {
@@ -86,7 +84,6 @@ public:
     CudaMemcpy(gpuTab,   cpuTab,   sizeof(real_t*) * ZONE_MAX * ZONESETTINGS, cudaMemcpyHostToDevice);
     CudaMemcpy(gpuConst, cpuConst, sizeof(real_t)  * ZONE_MAX * ZONESETTINGS, cudaMemcpyHostToDevice);
     for (int i=0; i<ZONE_MAX * ZONESETTINGS; i++) if (cpuValues[i] != NULL) {
-      printf("CopyToGPU: %p %p len:%d\n", cpuValues[i], cpuTab[i], len);
       assert(cpuTab[i] != NULL);
       CudaMemcpy(cpuTab[i],   cpuValues[i],  sizeof(real_t) * len, cudaMemcpyHostToDevice);
     }

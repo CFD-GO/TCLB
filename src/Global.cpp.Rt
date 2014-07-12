@@ -46,7 +46,6 @@ void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 ?>
 		j = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
 		mpi.node[k].<?%s name ?> = j;
-//		printf("[%d] <?%d dx ?> <?%d dy ?> <?%d dz ?>: %d <?%s name ?> %d\n", D_MPI_RANK, k, j);
 <?R
 	}
 ?>
@@ -91,6 +90,9 @@ int InitPrint(int print_level, int only_root_level, int error_level) {
     }
   }
   sprintf(D_str_rank, "%2d", D_MPI_RANK);
+  if (D_print_level < DEBUG_LEVEL) {
+      WARNING("Printing debug-level (%d) set below the level (%d) set while compilation (./configure)\n", D_print_level, DEBUG_LEVEL);
+  }
 }
 
 int special_print(FILE* f, char * rank, int level, int color, int lines, char * buf) {
@@ -124,11 +126,11 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
     } else {
       switch (level) {
         case 0:
-          format = "[%2s] debug[0]: %s\n"; break;
+          format = "[%2s] debug 0 : %s\n"; break;
         case 1:
-          format = "[%2s] debug[1]: %s\n"; break;
+          format = "[%2s] debug 1 : %s\n"; break;
         case 2:
-          format = "[%2s] debug[2]: %s\n"; break;
+          format = "[%2s] debug 2 : %s\n"; break;
         case 3:
           format = "[%2s] output  : %s\n"; break;
         case 4:

@@ -90,14 +90,14 @@ public:
 		}
 		ref = new int;
 		*ref=1;
-		DEBUG0(printf("H: create\n");)
+		debug0("Handler shared pointer: create\n");
 	}
 /// Makes another reference of the shared pointer
 	inline Handler(const Handler & that) {
 		hand = that.hand;
 		ref = that.ref;
 		(*ref)++;
-		DEBUG0(printf("H: + %d\n", *ref);)
+		debug0("Handler shared pointer++: %d\n", *ref);
 	}
 /// Dispatches Init on the vHandler
 	inline const int Init() { return hand->Init(); }
@@ -116,13 +116,13 @@ public:
 		hand = that.hand;
 		ref = that.ref;
 		(*ref)++;
-		DEBUG0(printf("H: + %d\n", *ref);)
+		debug0("Handler shared pointer++: %d\n", *ref);
 		return *this;
 	}
 /// Deletes a shared pointer reference
 	inline ~Handler() {
 		(*ref)--;
-		DEBUG0(printf("H: - %d\n", *ref);)
+		debug0("Handler shared pointer--: %d\n", *ref);
 		if (ref <= 0) {
 			if (hand) {
 				hand->Finish();

@@ -110,18 +110,16 @@ std::string strFromDouble(double val) {
           ret = ret1;
         } else {
           if (val[0] == 'm') {
-            printf("Warning: Disambiguous unit: \"%s\". Interpreting \"m\" as \"mili\"\n", val.c_str());
+            warning("Disambiguous unit: \"%s\". Interpreting \"m\" as \"mili\"\n", val.c_str());
             ret = ret2;
           } else {
-            printf("Disambiguous unit: \"%s\"\n", val.c_str());
+            error("Disambiguous unit: \"%s\"\n", val.c_str());
             throw(std::string("Disambiguous"));
             ret = 0;
           }
         }
       }
     }
-//    printf("%s%d = ", val.c_str(),p);
-//    ret.print();    
     return ret;
   };
   UnitVal UnitEnv::readUnit( std::string val ) {
@@ -152,14 +150,14 @@ std::string strFromDouble(double val) {
       j=i;
       while (!isalnum(val[i]) && (val[i] > 0)) i++;
       if (i-j > 1) {
-        printf("Too many non-alpha-numeric characters in units: \"%s\"\n", val.substr(j,i-j).c_str());
+        error("Too many non-alpha-numeric characters in units: \"%s\"\n", val.substr(j,i-j).c_str());
         throw(std::string("Wrong non-alpha-numeric in unit"));
       }
       if (i-j == 1) {
         if (val[j] == '/') {
           w = -1;
         } else {
-          printf("Only \"/\" allowed in units: \"%c\"\n", val[j]);
+          error("Only \"/\" allowed in units: \"%c\"\n", val[j]);
           throw(std::string("Wrong non-alpha-numeric in unit"));
         }
       }
@@ -197,8 +195,6 @@ std::string strFromDouble(double val) {
       num=val.substr(0, i);
       ret = ret * ((UnitVal) atof(num.c_str()));
     }
-//    printf("%s = ", val.c_str());
-//    ret.print();
     return ret;
   };
   void UnitEnv::setUnit(std::string name, const UnitVal & v, double v2) {
@@ -230,7 +226,7 @@ std::string strFromDouble(double val) {
       }
       if (!v) {
         if (i >= m_unit) {
-          printf("Gauge variables over-constructed\n");
+          ERROR("Gauge variables over-constructed\n");
           throw(std::string("Wrong number of gauge variables"));
         }
         Mat[m_unit*j+i]=1;
@@ -239,7 +235,7 @@ std::string strFromDouble(double val) {
       }
     }
     if (i < m_unit) {
-      printf("Gauge variables under-constructed\n");
+      ERROR("Gauge variables under-constructed\n");
       throw(std::string("Wrong number of gauge variables"));
     }
     gauss(Mat,b,x,m_unit);
@@ -248,16 +244,15 @@ std::string strFromDouble(double val) {
     }
   }
   void UnitEnv::printGauge() {
-    printf("/---------------[ GAUGE ]-----------------\n");
+    output("/---------------[ GAUGE ]-----------------\n");
     for(std::map<std::string, UnitVal>::iterator el=gauge.begin();el!=gauge.end();el++) {
       UnitVal v = el->second;
-      printf("|  ");
-      v.print();
+      output("|  %s\n", v.tmp_str());
     }
-    printf("------------------------------------------\n");
+    output("------------------------------------------\n");
     for (int j=0;j<m_unit;j++) {
-      printf("| 1 %s = %lf units\n", m_units[j].c_str(), scale[j]);
+      output("| 1 %s = %lf units\n", m_units[j].c_str(), scale[j]);
     }
-    printf("\\-----------------------------------------\n");
+    output("\\-----------------------------------------\n");
   }
 

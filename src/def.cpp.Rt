@@ -2,6 +2,7 @@
 #include <iostream>
 #include "pugixml.hpp"
 #include "def.h"
+#include "Global.h"
 
 
 pugi::xml_document xml_def;
@@ -32,7 +33,7 @@ const char* xml_definition = "<Geometry>\
 int xml_def_init() {
 	pugi::xml_parse_result result = xml_def.load(xml_definition);
 	if (!result) {
-                        std::cerr << "Error while parsing in-program default settings xml: " << result.description() << std::endl;
+                        ERROR("Error while parsing in-program default settings xml: %s\n", result.description());
                         return -1;
         }
         return 0;

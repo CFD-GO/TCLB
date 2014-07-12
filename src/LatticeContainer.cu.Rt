@@ -11,8 +11,8 @@
 #include "Lattice.h"
 #include "mpi.h"
 
-#define ALLOCPRINT1 printf("[%d] Allocating: %ld b ", D_MPI_RANK, size)
-#define ALLOCPRINT2 printf("(%p - %p) \n", tmp, tmp+size)
+#define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
+#define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, tmp+size)
 
 int _xsdim = 0;
 int _ysdim = 1;
@@ -60,11 +60,11 @@ template < class N > dim3 GetThreads() {
 	dim3 ret;
 	CudaFuncAttributes * attr = new CudaFuncAttributes;
 	CudaFuncGetAttributes(attr, RunKernel<N>) ;
-	DEBUG1( printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes) );
-	DEBUG1( printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes) );
-	DEBUG1( printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock) );
-	DEBUG1( printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs) );
-	DEBUG1( printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes) );
+	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes);
+	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
+	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
+	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
+	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
 	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
 	ret.x = X_BLOCK;
 	ret.y = attr->maxThreadsPerBlock/ret.x;
@@ -92,16 +92,15 @@ template < class N > int ThreadNumber< N >::sy = 0;
 /// Initialize Thread/Block number variables
 int InitDim(int ny) {
 	MPI_Barrier(MPI_COMM_WORLD);
-	if (D_MPI_RANK == 0) {
-          DEBUG2( printf( "[ ] |  Threads  |      Action\n") );
-        }
-	MPI_Barrier(MPI_COMM_WORLD);
 <?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
         ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(ny); <?R
 	}; ifdef(); ?>
 	MPI_Barrier(MPI_COMM_WORLD);
+	if (D_MPI_RANK == 0) {
+          debug2( "  Threads  |      Action\n");
+        }
 <?R	for (tp in rows(AllKernels)) { ifdef(tp$adjoint) ?>
-	DEBUG2( printf( "[%d] |  %3dx%-3d  |  %10s  |\n", D_MPI_RANK, X_BLOCK, ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::getSY(), "<?%s tp$TemplateArgs ?>") );<?R
+	debug2( "  %3dx%-3d  | %s\n", X_BLOCK, ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::getSY(), "<?%s tp$TemplateArgs ?>");<?R
 	}; ifdef();
 ?>
 
