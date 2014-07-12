@@ -126,7 +126,7 @@ CudaDeviceFunction vector_t getU(){
 
 	u.x /= d;
 	u.y /= d;
-	u.z = 0;
+	u.y /= d;
 	return u;
 }
 
@@ -151,7 +151,6 @@ CudaDeviceFunction vector_t getF() {
 ?>
 
 	}
-	F.z=0;
 	return F;
 }
 
@@ -332,7 +331,7 @@ CudaDeviceFunction void CalcPhi() {
     double p;
 	double rho2;
 	rho2 = <?R C(sum(f)) ?>;
-        if (NodeType & NODE_BOUNDARY) {
+    if (NodeType & NODE_BOUNDARY) {
           rho2 = Density;
 	}
 
@@ -443,6 +442,25 @@ CudaDeviceFunction void CollisionMRT()
         #define S18 omega2
         #define S19 omega2
         real_t omega2 = 8.0 * ( 2.0 - omega )/( 8.0 - omega );
+//    #define S1  0.0
+//    #define S2  1.0			//19
+//    #define S3  1.0			//4
+//    #define S4  0.0
+//    #define S5  1.0			//2
+//    #define S6  0.0
+//    #define S7  1.0			//2
+//    #define S8  0.0
+//    #define S9  1.0			//2
+//    #define S10  omega
+//    #define S11  1.0			//4
+//    #define S12  omega
+//    #define S13  1.0			//4
+//    #define S14  omega
+//    #define S15  omega
+//    #define S16  omega
+//    #define S17  1.0			//98
+//    #define S18  1.0			//98
+//    #define S19  1.0			//98
 <?R
         Sy = PV(paste("S",1:19,"",sep=""))
         omega = PV("omega")
@@ -495,9 +513,9 @@ CudaDeviceFunction void CollisionMRT()
     AddToVOLvolume(1);
     AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
 */
-    Jx = ux+F.x*MagicF + (GravitationX)*rho;
-    Jy = uy+F.y*MagicF + (GravitationY)*rho;
-    Jz = uz+F.z*MagicF + (GravitationZ)*rho;
+    Jx = Jx + F.x*MagicF + (GravitationX)*rho;
+    Jy = Jy + F.y*MagicF + (GravitationY)*rho;
+    Jz = Jz + F.z*MagicF + (GravitationZ)*rho;
 
 <?R
 for (i in selR) {

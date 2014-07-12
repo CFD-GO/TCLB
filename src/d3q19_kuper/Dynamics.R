@@ -54,8 +54,9 @@ AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')
 AddSetting(name="Magic", comment='K')
-AddSetting(name="MagicA", comment='A in force calculation')
-AddSetting(name="MagicF", comment='Force multiplier')
+
+AddSetting(name="MagicA", comment='A in force calculation', default="-0.152")
+AddSetting(name="MagicF", comment='Force multiplier', default="-0.333333333333")
 
 AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
 AddSetting(name="GravitationX", comment='Gravitation in the direction of x')

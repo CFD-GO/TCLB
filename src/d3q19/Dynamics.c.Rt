@@ -369,9 +369,9 @@ CudaDeviceFunction void CollisionMRT()
     AddToVOLrho(rho);
     AddToVOLvolume(1);
     AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
-Jx += rho*ForceX;
-Jy += rho*ForceY;
-Jz += rho*ForceZ;
+    Jx += rho*ForceX;
+    Jy += rho*ForceY;
+    Jz += rho*ForceZ;
 <?R
 for (i in selR) {
 ?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
