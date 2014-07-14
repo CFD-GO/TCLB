@@ -13,8 +13,7 @@
 
 U = as.matrix(Density[Density$group=="f",c("dx","dy")])
 f  = PV(Density$name[Density$group=="f"])
-fs = PV(Density$name[Density$group=="fs"])
-ph = PV(Density$name[Density$group=="phi"])
+ph = PV(paste("phi(",-U[,1],",",-U[,2],")"))
 
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	uf = PV("uf")
@@ -33,17 +32,17 @@ ph = PV(Density$name[Density$group=="phi"])
 ?>
 
 CudaDeviceFunction real_t getRho(){
-	return <?R C(sum(fs)) ?>;
+	return <?R C(sum(f)) ?>;
 }
-    
+
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y")) == fs %% U) ?>
+<?R C(PV(c("u.x","u.y")) == f %% U) ?>
 	vector_t F;
 	F = getF();
-u.x = u.x+F.x*MagicF*0.5;
-u.y = u.y+F.y*MagicF*0.5;
+u.x = u.x+F.x*(-2./3.)*0.5;
+u.y = u.y+F.y*(-2./3.)*0.5;
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;
@@ -54,21 +53,18 @@ CudaDeviceFunction vector_t getF() {
 	vector_t F;
 	real_t R[9];
         if (NodeType & NODE_BOUNDARY) {
+//        if (1) {
                 F.x=0;
                 F.y=0;
         } else {
-<?R for (i in Density$name[Density$group=="phi"]) { ?>
-	if (<?%s i ?> < 0) <?%s i ?> = (<?%s i ?>+phi0)*Wetting - <?%s i ?>;
-<?R } ?>
-
-<?R  
-        R = PV(c(paste("R[",1:9-1,"]",sep="")))
+<?R
+    R = PV(c(paste("R[",1:9-1,"]",sep="")))
 	Force = PV(c("F.x","F.y"));
 #	gs = PV(paste("gstar[",1:9-1,"]",sep=""))
 	gs = c(0,1,1,1,1,1/4,1/4,1/4,1/4);
 	A = PV("MagicA")
-	
-	C(R==ph * ph * A + ph * ph[1] * (A*(-2)+1),float=F)
+    C(R == ph);
+	C((R == R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
 	C(Force==(R*gs) %% U)
 ?>
 	}
@@ -83,30 +79,14 @@ CudaDeviceFunction real_t getP(){
          double t = Temperature;
         double p;
 	double rho2;
-	rho2 = <?R C(sum(fs)) ?>;
-        switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			rho2 = WallDensity;
-	        	switch (NodeType & NODE_ADDITIONALS) {
-				case NODE_Wet:
-	        	        	rho2 = WetDensity;
-					break;
-				case NODE_Dry:
-	        	        	rho2 = DryDensity;
-					break;
-		        }
-			break;
-		case NODE_EPressure:
-			rho2 = OutletDensity;
-			break;
-		case NODE_WPressure:
-			rho2 = InletDensity;
-			break;
+	rho2 = <?R C(sum(f)) ?>;
+        if (NodeType & NODE_BOUNDARY) {
+            rho2 = Density;
 	}
-	
+
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	return Magic*p;
+//      return phi(0,0);
 }
 
 CudaDeviceFunction void BounceBack()
@@ -172,7 +152,7 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void WPressure()
 {
      real_t ru;
-	 real_t rho = InletDensity;
+	 real_t rho = Density;
 	ru = rho - ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) );
 
 	f1 = f3 + (2./3.) * ru;
@@ -192,22 +172,14 @@ CudaDeviceFunction void WVelocity()
 {
 	real_t rho2;
 	 real_t u[2] = {InletVelocity,0.};
-	rho2 = InletDensity;
-        switch (NodeType & NODE_ADDITIONALS) {
-		case NODE_Wet:
-	                rho2 = WetDensity;
-			break;
-		case NODE_Dry:
-	                rho2 = DryDensity;
-			break;
-        }
+	rho2 = Density;
 	SetEquilibrum(rho2,u);
 }
 
 CudaDeviceFunction void EPressure()
 {
         real_t ru;
-	 real_t rho = OutletDensity;
+	 real_t rho = Density;
 	ru = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) - rho;
 
 	f3 = f1 - (2./3.) * ru;
@@ -217,55 +189,21 @@ CudaDeviceFunction void EPressure()
 
 
 
-CudaDeviceFunction void switch_f() {
-     real_t uf;
-<?R
-	for (i in 1:length(f))
-	{
-		w = list(
-			uf==f[i],
-			f[i]==fs[i],
-			fs[i]==uf
-		)
-		for (h in w) C(h)
-	}
-?>
-	
-}
-
-
-CudaDeviceFunction void calc_phi0() {
+CudaDeviceFunction void CalcPhi() {
 	 double a2 = 3.852462271644162;
          double b2 = 0.1304438860971524 * 4.0 ;
          double c2 = 2.785855170470555;
          double t = Temperature;
         double p;
 	double rho2;
-	rho2 = <?R C(sum(fs)) ?>;
-        switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			rho2 = WallDensity;
-	        	switch (NodeType & NODE_ADDITIONALS) {
-				case NODE_Wet:
-	        	        	rho2 = WetDensity;
-					break;
-				case NODE_Dry:
-	        	        	rho2 = DryDensity;
-					break;
-		        }
-			break;
-		case NODE_EPressure:
-			rho2 = OutletDensity;
-			break;
-		case NODE_WPressure:
-			rho2 = InletDensity;
-			break;
+	rho2 = <?R C(sum(f)) ?>;
+        if (NodeType & NODE_BOUNDARY) {
+          rho2 = Density;
 	}
-	
+
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-	switch (NodeType & NODE_OBJECTIVE) { 
+	switch (NodeType & NODE_OBJECTIVE) {
 		case NODE_Obj1:
 			AddToPressure1(p);
 			AddToDensity1(rho2);
@@ -280,43 +218,10 @@ CudaDeviceFunction void calc_phi0() {
 			break;
 	}
 
-	phi0 = FAcc * std::sqrt( -p + rho2/(3.) );
+	phi = FAcc * std::sqrt( -p + rho2/(3.) );
 }
-
-CudaDeviceFunction void calc_phi() {
-	real_t w=1,uf;
-       switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			w = -1;
-			break;
-	}
-<?R
-#  V = cbind(1:9, bounce+1)
-#  sel = V[,1] > V[,2]
-#  V = V[sel,]
-#  phi=PV(paste("phi",0:8,sep=""));
-#  wet=PV("w");
-#  for (i in 1:nrow(V))
-#  {
-#	w = list(
-#           uf==(phi[V[i,1]]-phi[1])*wet+phi[1],
-#           phi[V[i,1]]==(phi[V[i,2]]-phi[1])*wet+phi[1],
-#           phi[V[i,2]]==uf
-#	)
-#	for (h in w) C(h)
-#   }
-?>
-	<?R for( p in Density$name[Density$group=="phi"] ) { ?><?%s p ?> = <?R } ?> w*phi0;
-
-}
-
 
 CudaDeviceFunction void Run() {
-//	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
-//    AddToObjective(w*(1-w)/10);
-
-	switch_f();
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 		break;
@@ -341,13 +246,12 @@ CudaDeviceFunction void Run() {
     }
     switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
-                break;   
+                break;
         case NODE_MRT:
                 CollisionMRT();
                 break;
     }
-	calc_phi0();
-	calc_phi();
+//	CalcPhi();
 }
 
 CudaDeviceFunction void SetEquilibrum( real_t d,  real_t u[2])
@@ -371,37 +275,9 @@ CudaDeviceFunction void SetEquilibrum( real_t d,  real_t u[2])
 CudaDeviceFunction void Init() {
 	real_t u[2] = {InletVelocity,0.};
 	real_t rho2;
-	rho2 = InitDensity;
-        switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Wall:
-		case NODE_MovingWall:
-			rho2 = WallDensity;
-			break;
-		case NODE_EPressure:
-			rho2 = OutletDensity;
-			break;
-		case NODE_WPressure:
-			rho2 = InletDensity;
-			break;
-	}
-        switch (NodeType & NODE_ADDITIONALS) {
-		case NODE_Wet:
-	                rho2 = WetDensity;
-			break;
-		case NODE_Dry:
-	                rho2 = DryDensity;
-			break;
-        }
+	rho2 = Density;
 	SetEquilibrum(rho2,u);
-<?R
-	for (i in 1:length(f))
-	{
-		C(fs[i]==f[i])
-	}
-?>
-	calc_phi0();
-	calc_phi();
-//	<?R for( p in Density$name[Density$group=="phi"] ) { ?><?%s p ?> = <?R } ?> phi0;
+	CalcPhi();
 }
 
 CudaDeviceFunction float2 Color() {
@@ -474,8 +350,8 @@ for (i in selR) {
 }
 ?>
 F = getF();
-u[0] = u[0]+F.x*MagicF + (GravitationX)*d;
-u[1] = u[1]+F.y*MagicF + (GravitationY)*d;
+u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
+u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
 <?R
 	C(usq == sum(u*u)*dw);
 	C(R[selR] == Req[selR], eqstring="+=");

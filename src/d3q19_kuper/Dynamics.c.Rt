@@ -120,39 +120,44 @@ CudaDeviceFunction vector_t getU(){
 	vector_t F;
 	F = getF();
 
-    u.x = u.x+F.x*MagicF*0.5;
-    u.y = u.y+F.y*MagicF*0.5;
-    u.z = u.z+F.z*MagicF*0.5;
+    u.x = u.x+F.x*(-1./3.)*0.5;
+    u.y = u.y+F.y*(-1./3.)*0.5;
+    u.z = u.z+F.z*(-1./3.)*0.5;
 
 	u.x /= d;
 	u.y /= d;
-	u.y /= d;
+	u.z /= d;
 	return u;
 }
 
+
 CudaDeviceFunction vector_t getF() {
 	vector_t F;
-    real_t rs[19];
-    if (NodeType & NODE_BOUNDARY) {
-        F.x=0;
-        F.y=0;
-        F.z=0;
-    } else {
+	real_t Rs[19];
+        if (NodeType & NODE_BOUNDARY) {
+                F.x = 0;
+                F.y = 0;
+                F.z = 0;
+        } else {
+<?R for (i in Density$name[Density$group=="phi"]) { ?>
+	if (<?%s i ?> < 0) <?%s i ?> = (<?%s i ?>+phi0)*Wetting - <?%s i ?>;
+<?R } ?>
 
 <?R
-
-    rs = PV(c(paste("rs[",1:19-1,"]",sep="")))
+    Rs = PV(c(paste("Rs[",1:19-1,"]",sep="")))
 	Force = PV(c("F.x","F.y", "F.z"));
+#	gs = PV(paste("gstar[",1:9-1,"]",sep=""))
 	gs = c(0,1.,1.,1.,1.,1.,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5);
 	A = PV("MagicA")
-    C(rs == ph);
-	C((rs == rs * rs * A + rs * rs[1] * (A*(-2)+1))[-1],float=F)
-	C(Force==(rs*gs) %% U)
-?>
 
+	C(Rs==ph * ph * A + ph * ph[1] * (A*(-2)+1),float=F)
+	C(Force==(Rs*gs) %% U)
+?>
 	}
 	return F;
 }
+
+
 
 CudaDeviceFunction real_t getP(){
     double a2 = 3.852462271644162;
@@ -487,11 +492,11 @@ CudaDeviceFunction void CollisionMRT()
             }
         }
 ?>
-    real_t ux,uy,uz;
+    //real_t ux,uy,uz;
     const vector_t F = getF();
-    ux = Jx / rho;
-    uy = Jy / rho;
-    uz = Jz / rho;
+    //ux = Jx / rho;
+    //uy = Jy / rho;
+    //uz = Jz / rho;
 /*    switch (NodeType & NODE_ADDITIONALS) {
     <?R for (plane in c("XY","XZ","YZ")) { ?>
     case NODE_<?%s plane ?>slice:
@@ -513,9 +518,9 @@ CudaDeviceFunction void CollisionMRT()
     AddToVOLvolume(1);
     AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
 */
-    Jx = Jx + F.x*MagicF + (GravitationX)*rho;
-    Jy = Jy + F.y*MagicF + (GravitationY)*rho;
-    Jz = Jz + F.z*MagicF + (GravitationZ)*rho;
+    Jx = Jx + F.x*(-1./3.) + (GravitationX)*rho;
+    Jy = Jy + F.y*(-1./3.) + (GravitationY)*rho;
+    Jz = Jz + F.z*(-1./3.) + (GravitationZ)*rho;
 
 <?R
 for (i in selR) {
