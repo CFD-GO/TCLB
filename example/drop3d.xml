@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0">
+        <Geometry nx="128" ny="128" nz="128">
+		<MRT><Box/></MRT>
+		<Wet name="zwet">
+			<Box dx="64" dy="64" dz="64"/>
+		</Wet>
+
+	</Geometry>
+	<Model>
+		<Params nu="0.16666666"/>
+		<Params
+            Density="0.99"
+			Density-zwet="1.01"
+			Temperature="0.65"
+			FAcc="1"
+			Magic="0.005"
+			GravitationY="0.000"
+			GravitationX="0.00"
+
+		/>
+<!--			MagicA="-0.152"-->
+<!--			MagicF="-0.333333333333"-->
+	</Model>
+
+	<Solve Iterations="1" output="output/"></Solve>
+    <VTK/>
+
+
+	<Solve Iterations="50" output="output/">
+		<VTK Iterations="1"/>
+	</Solve>
+</CLBConfig>
