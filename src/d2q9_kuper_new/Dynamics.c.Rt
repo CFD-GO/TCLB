@@ -34,15 +34,15 @@ ph = PV(paste("phi(",-U[,1],",",-U[,2],")"))
 CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
-    
+
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
 <?R C(PV(c("u.x","u.y")) == f %% U) ?>
 	vector_t F;
 	F = getF();
-u.x = u.x+F.x*MagicF*0.5;
-u.y = u.y+F.y*MagicF*0.5;
+u.x = u.x+F.x*(-2./3.)*0.5;
+u.y = u.y+F.y*(-2./3.)*0.5;
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;
@@ -57,13 +57,13 @@ CudaDeviceFunction vector_t getF() {
                 F.x=0;
                 F.y=0;
         } else {
-<?R  
-        R = PV(c(paste("R[",1:9-1,"]",sep="")))
+<?R
+    R = PV(c(paste("R[",1:9-1,"]",sep="")))
 	Force = PV(c("F.x","F.y"));
 #	gs = PV(paste("gstar[",1:9-1,"]",sep=""))
 	gs = c(0,1,1,1,1,1/4,1/4,1/4,1/4);
 	A = PV("MagicA")
-        C(R == ph);	
+    C(R == ph);
 	C((R == R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
 	C(Force==(R*gs) %% U)
 ?>
@@ -83,7 +83,7 @@ CudaDeviceFunction real_t getP(){
         if (NodeType & NODE_BOUNDARY) {
             rho2 = Density;
 	}
-	
+
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	return Magic*p;
 //      return phi(0,0);
@@ -200,10 +200,10 @@ CudaDeviceFunction void CalcPhi() {
         if (NodeType & NODE_BOUNDARY) {
           rho2 = Density;
 	}
-	
+
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-	switch (NodeType & NODE_OBJECTIVE) { 
+	switch (NodeType & NODE_OBJECTIVE) {
 		case NODE_Obj1:
 			AddToPressure1(p);
 			AddToDensity1(rho2);
@@ -246,7 +246,7 @@ CudaDeviceFunction void Run() {
     }
     switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
-                break;   
+                break;
         case NODE_MRT:
                 CollisionMRT();
                 break;
@@ -350,8 +350,8 @@ for (i in selR) {
 }
 ?>
 F = getF();
-u[0] = u[0]+F.x*MagicF + (GravitationX)*d;
-u[1] = u[1]+F.y*MagicF + (GravitationY)*d;
+u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
+u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
 <?R
 	C(usq == sum(u*u)*dw);
 	C(R[selR] == Req[selR], eqstring="+=");
