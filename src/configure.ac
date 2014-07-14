@@ -42,12 +42,12 @@ AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
 		[specify the full path to your nlopt library]))
 
-AC_ARG_WITH([debug],
-	AC_HELP_STRING([--with-debug=level],
-		[specify level of debug messages 0-3]))
+AC_ARG_WITH([verbosity_level],
+	AC_HELP_STRING([--with-verbosity-level=level],
+		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
 
 AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--enable-waitany],
+	AC_HELP_STRING([--enable-debug],
 		[enables debug version (gcc -g)]))
 
 AC_ARG_ENABLE([waitany],
@@ -258,9 +258,9 @@ fi
 
 if test "x${enable_debug}" == "xyes"
 then
-	if test "x${with_debug}" == "x"
+	if test "x${with_verbosity_level}" == "x"
 	then
-		with_debug="0"
+		with_verbosity_level="0"
 	fi
 	AC_DEFINE([CROSS_SYNC], [1], [Sync calls])
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
@@ -270,29 +270,29 @@ else
 	CPPFLAGS="${CPPFLAGS} -O3"
 fi
 
-if test "x${with_debug}" == "x0"
+if test "x${with_verbosity_level}" == "x0"
 then
 	AC_DEFINE([DEBUG_LEVEL], [0], [print EVERYTHING!])
-elif test "x${with_debug}" == "x1"
+elif test "x${with_verbosity_level}" == "x1"
 then
 	AC_DEFINE([DEBUG_LEVEL], [1], [print insane amount of output])
-elif test "x${with_debug}" == "x2"
+elif test "x${with_verbosity_level}" == "x2"
 then
 	AC_DEFINE([DEBUG_LEVEL], [2], [print moderatly sane additional information])
-elif test "x${with_debug}" == "x3"
+elif test "x${with_verbosity_level}" == "x3"
 then
 	AC_DEFINE([DEBUG_LEVEL], [3], [print normal output])
-elif test "x${with_debug}" == "x4"
+elif test "x${with_verbosity_level}" == "x4"
 then
 	AC_DEFINE([DEBUG_LEVEL], [4], [print only notice/warning/error])
-elif test "x${with_debug}" == "x"
+elif test "x${with_verbosity_level}" == "x"
 then
 	AC_DEFINE([DEBUG_LEVEL], [3], [normal output])
-elif test "x${with_debug}" == "xno"
+elif test "x${with_verbosity_level}" == "xno"
 then
 	AC_DEFINE([DEBUG_LEVEL], [3], [normal output])
 else
-	AC_MSG_ERROR([Unknown debug level: ${with_debug}. Can be: 0,1,2,3,4;])
+	AC_MSG_ERROR([Unknown verbosity level level: ${with_verbosity_level}. Can be: 0,1,2,3,4;])
 fi
 
 if test "x${enable_waitany}" != "xno"
