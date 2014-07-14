@@ -42,6 +42,10 @@ AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
 		[specify the full path to your nlopt library]))
 
+AC_ARG_WITH([catalyst],
+	AC_HELP_STRING([--with-catalyst=path],
+		[specify the full path to your paraview source and build]))
+
 AC_ARG_WITH([verbosity_level],
 	AC_HELP_STRING([--with-verbosity-level=level],
 		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
@@ -256,6 +260,61 @@ then
 	fi
 fi
 
+if test "x${with_catalyst}" != "x"
+then
+	SV_LDFLAGS="${LDFLAGS}"
+	SV_CPPFLAGS="${CPPFLAGS}"
+	
+	if ! test -d "${with_catalyst}"
+	then
+		AC_MSG_ERROR([Catalyst path ${with_catalyst} is not a directory])
+	fi
+	
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView build directory])
+	RET=$(find ${with_catalyst} -name "libvtkPVCatalyst*.so" -print -quit 2>/dev/null)
+	if test -z "${RET}"
+	then
+		AC_MSG_RESULT([not found])		
+		AC_MSG_ERROR([Didn't find Catalyst libs in path ${with_catalyst}])
+	fi
+	PV_VERSION=$(echo ${RET} | sed 's/^.*libvtkPVCatalyst-\(.*\).so$/\1/')
+	RET=$(AS_DIRNAME([${RET}]))
+	RET=$(echo ${RET} | sed 's/\/lib$//')
+	AC_MSG_RESULT([${RET}])		
+	if ! test -d ${RET}
+	then
+		AC_MSG_ERROR([Lib directory is not a directory - find the developer of this package and discreetly pass him this codeword: Arszenik])
+	fi
+	PV_BUILD=${RET}
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView version])
+	if test -z "${PV_VERSION}"
+	then
+		AC_MSG_RESULT([not found])
+		AC_MSG_ERROR([Library didn't have version suffix in ${with_catalyst} (ask the developer, what the hell I'm talking about)])
+	fi
+	AC_MSG_RESULT([${PV_VERSION}])
+
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView source directory])
+	RET=$(find ${with_catalyst} -name "vtkCPProcessor.h" -print -quit 2>/dev/null)
+	if test -z "${RET}"
+	then
+		AC_MSG_RESULT([not found])		
+		AC_MSG_ERROR([Didn't find Catalyst headers in path ${with_catalyst}])
+	fi
+	RET=$(AS_DIRNAME([${RET}]))
+	RET=$(echo ${RET} | sed 's/\/CoProcessing\/Catalyst$//')
+	AC_MSG_RESULT([${RET}])		
+	if ! test -d ${RET}
+	then
+		AC_MSG_ERROR([Header directory is not a directory - find the developer of this package and discreetly pass him this codeword: Arszenik])
+	fi
+	PV_SOURCE=${RET}
+	
+	WITH_CATALYST=1
+	
+fi
+
+
 if test "x${enable_debug}" == "xyes"
 then
 	if test "x${with_verbosity_level}" == "x"
@@ -318,5 +377,10 @@ fi
 
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
+AC_SUBST(PV_BUILD)
+AC_SUBST(PV_SOURCE)
+AC_SUBST(CROSS_CPU)
+AC_SUBST(WITH_CATALYST)
+AC_SUBST(PV_VERSION)
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_OUTPUT

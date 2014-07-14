@@ -29,6 +29,11 @@
         #include  <nlopt.h>
 #endif
 
+#ifdef WITH_CATALYST
+        #include "Catalyst.h"
+#endif
+
+
 #define ITERATION_STOP 1
 
 int vHandler::DoIt() {
@@ -127,6 +132,44 @@ class cbVTK: public Callback {
 		return solver->writeVTK(nm.c_str(), &s);
 	};
 };
+
+#ifdef WITH_CATALYST
+class cbCatalyst: public Callback {
+	std::string nm;
+//	name_set s;
+	public:
+	int Init() {
+		Callback::Init();
+		CatalystAdaptor::Initialize();
+		pugi::xml_attribute attr = node.attribute("script");
+		if (attr) {
+		        nm = attr.value();
+                } else {
+                        error("No script provided in Catalyst");
+                        return -1;
+                }
+//		attr = node.attribute("what");
+//		if (attr) {
+//		        s.add_from_string(attr.value(),',');
+//                } else {
+//                        s.add_from_string("all",',');
+//                }
+                CatalystAdaptor::AddScript(nm.c_str());
+		return 0;
+	}
+	public:
+	int DoIt() {
+		Callback::DoIt();
+		solver->print("running Catalyst");
+		CatalystAdaptor::CoProcess(*solver, solver->iter, solver->iter, 0);
+		return 0;
+	};
+	int Finish() {
+	        CatalystAdaptor::Finalize();
+	        return 0;
+	};
+};
+#endif
 
 class cbBIN: public Callback {
 	std::string nm;
@@ -1098,6 +1141,13 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new acOptimize;
 #else
                 ERROR("No NLOpt support. configure with --with-nlopt to use Optimize element\n");
+                exit(-1);
+#endif
+	} else if (name=="Catalyst") {
+#ifdef WITH_CATALYST
+		ret = new cbCatalyst;
+#else
+                ERROR("No Catalyst support. configure with --with-catalyst\n");
                 exit(-1);
 #endif
         } else if (name=="Init") {
