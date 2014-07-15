@@ -5,7 +5,7 @@ class Solver;
 
 namespace CatalystAdaptor
 {
-  void Initialize();
+  void Initialize(bool exportCellData);
   void AddScript(const char * script);
   
   void Finalize();

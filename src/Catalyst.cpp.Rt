@@ -31,7 +31,11 @@ namespace
 {
   vtkCPProcessor* Processor = NULL;
   vtkImageData* VTKGrid = NULL;
-
+  bool exportCellData;
+  int extent[6];
+  int wholeExtent[6];
+  lbRegion reg;
+  
   void BuildVTKGrid(Solver& solver)
   {
     // The grid structure isn't changing so we only build it
@@ -40,13 +44,38 @@ namespace
     if(VTKGrid == NULL)
       {
       VTKGrid = vtkImageData::New();
-      int extent[6];
       extent[0] = solver.lattice->region.dx;
       extent[1] = solver.lattice->region.dx + solver.lattice->region.nx;
       extent[2] = solver.lattice->region.dy;
       extent[3] = solver.lattice->region.dy + solver.lattice->region.ny;
       extent[4] = solver.lattice->region.dz;
       extent[5] = solver.lattice->region.dz + solver.lattice->region.nz;
+      wholeExtent[0] = solver.lattice->mpi.totalregion.dx;
+      wholeExtent[1] = solver.lattice->mpi.totalregion.dx + solver.lattice->mpi.totalregion.nx;
+      wholeExtent[2] = solver.lattice->mpi.totalregion.dy;
+      wholeExtent[3] = solver.lattice->mpi.totalregion.dy + solver.lattice->mpi.totalregion.ny;
+      wholeExtent[4] = solver.lattice->mpi.totalregion.dz;
+      wholeExtent[5] = solver.lattice->mpi.totalregion.dz + solver.lattice->mpi.totalregion.nz;
+      if (! exportCellData) {
+        if (extent[1] == wholeExtent[1]) extent[1]--;
+        wholeExtent[1]--;
+        if (extent[3] == wholeExtent[3]) extent[3]--;
+        wholeExtent[3]--;
+        if (extent[5] == wholeExtent[5]) extent[5]--;
+        wholeExtent[5]--;
+      }
+      reg.dx = extent[0];
+      reg.nx = extent[1]-extent[0];
+      reg.dy = extent[2];
+      reg.ny = extent[3]-extent[2];
+      reg.dz = extent[4];
+      reg.nz = extent[5]-extent[4];
+      if (! exportCellData) {
+        reg.nx++;
+        reg.ny++;
+        reg.nz++;
+      }
+      warning("extent: %d %d %d %d %d %d\n", extent[0], extent[1], extent[2], extent[3], extent[4], extent[5]);
       VTKGrid->SetExtent(extent);
       double spacing[3];
       spacing[0] = spacing[1] = spacing[2] = 1/solver.units.alt("m");
@@ -56,14 +85,19 @@ namespace
 
   void UpdateVTKAttributes(Solver& solver)
   {
-    if(VTKGrid->GetCellData()->GetNumberOfArrays() == 0)
+    vtkIdType numberOf;
+    if (exportCellData) {
+      numberOf = VTKGrid->GetCellData()->GetNumberOfArrays();
+    } else {
+      numberOf = VTKGrid->GetPointData()->GetNumberOfArrays();
+    }        
+    if(numberOf == 0)
     {
-      // Creating CellData fields
       debug2("Creating Catalyst VTK objects\n");
       <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
       {
         debug1("Creating Catalyst VTK object for <?%s q$name ?>\n");
-        vtkIdType size = static_cast<vtkIdType> (solver.lattice->region.size());
+        vtkIdType size = static_cast<vtkIdType> (reg.size());
         vtkNew<vtkRealTArray> myArray;
         myArray->SetName("<?%s q$name ?>");
         <?R if (q$vector) { ?>
@@ -73,7 +107,11 @@ namespace
         myArray->SetNumberOfComponents(1);
         myArray->SetNumberOfValues(size);
         <?R } ?>
-        VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
+        if (exportCellData) {
+          VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
+        } else {
+          VTKGrid->GetPointData()->AddArray(myArray.GetPointer());
+        }        
       }
       <?R } ?>
     }
@@ -81,11 +119,17 @@ namespace
     {
       debug2("Filling Catalyst VTK object for <?%s q$name ?>\n");
       vtkIdType size = solver.lattice->region.size();
-      vtkRealTArray* myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("<?%s q$name ?>"));
+      vtkRealTArray* myArray;
+      if (exportCellData) {
+        myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("<?%s q$name ?>"));
+      } else {
+        myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetPointData()->GetArray("<?%s q$name ?>"));
+      }      
       vtkIdType numTuples = myArray->GetNumberOfComponents();
       real_t * myArrayData = myArray->WritePointer(0,size * numTuples);
       double myUnit = solver.units.alt("<?%s q$unit ?>");
-      solver.lattice->Get<?%s q$name ?>(solver.lattice->region, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
+//      solver.lattice->Get<?%s q$name ?>(solver.lattice->region, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
+      solver.lattice->Get<?%s q$name ?>(reg, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
     }
     <?R } ?>
   }
@@ -100,8 +144,9 @@ namespace
 namespace CatalystAdaptor
 {
 
-  void Initialize()
+  void Initialize(bool exportCellData_)
   {
+    exportCellData = exportCellData_;
     if(Processor == NULL)
       {
       debug2("Initializing Catalyst coProcessor\n");
@@ -156,13 +201,7 @@ namespace CatalystAdaptor
       debug2("Data requested by Catalyst\n");
       BuildVTKDataStructures(solver);
       dataDescription->GetInputDescriptionByName("input")->SetGrid(VTKGrid);
-      int wholeExtent[6];
-      wholeExtent[0] = solver.lattice->mpi.totalregion.dx;
-      wholeExtent[1] = solver.lattice->mpi.totalregion.dx + solver.lattice->mpi.totalregion.nx;
-      wholeExtent[2] = solver.lattice->mpi.totalregion.dy;
-      wholeExtent[3] = solver.lattice->mpi.totalregion.dy + solver.lattice->mpi.totalregion.ny;
-      wholeExtent[4] = solver.lattice->mpi.totalregion.dz;
-      wholeExtent[5] = solver.lattice->mpi.totalregion.dz + solver.lattice->mpi.totalregion.nz;
+
 
       dataDescription->GetInputDescriptionByName("input")->SetWholeExtent(wholeExtent);
       debug2("Running Catalyst CoProcessing\n");

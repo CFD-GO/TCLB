@@ -137,12 +137,36 @@ class cbVTK: public Callback {
 class cbCatalyst: public Callback {
 	std::string nm;
 	static int script_number;
+	static bool cellData;
 //	name_set s;
 	public:
 	int Init() {
 		Callback::Init();
-		CatalystAdaptor::Initialize();
-		pugi::xml_attribute attr = node.attribute("script");
+		pugi::xml_attribute attr;
+		attr = node.attribute("export");
+		bool cellDataNew = cellData;
+                if (attr) {
+                        std::string val = attr.value();
+                        if (val == "CellData") {
+                                cellDataNew = true;
+                        } else if (val == "PointData") {
+                                cellDataNew = false;
+                        } else {
+                                error("Unknown export value in Catalyst xml element: %s. Can be CellData or PointData\n",val.c_str());
+                                return -1;
+                        }
+                }
+		if (script_number == 0) {
+		        CatalystAdaptor::Initialize(cellDataNew);
+		        cellData = cellDataNew;
+                } else {
+                        if (cellData != cellDataNew) {
+                                ERROR("Cannot mix CellData and PointData Catalyst outputs in one xml config\n");
+                                return -1;
+                        }
+                }
+                script_number ++;
+		attr = node.attribute("script");
 		if (attr) {
 		        nm = attr.value();
                 } else {
@@ -158,14 +182,13 @@ class cbCatalyst: public Callback {
                         } else if (val == "no") {
                                 preprocess = 0;
                         } else {
-                                error("Unknown preprocess value in Catalyst xml element: %s\n",val.c_str());
+                                error("Unknown preprocess value in Catalyst xml element: %s. Can be yes or no\n",val.c_str());
                                 return -1;
                         }
                 }
                 if (preprocess) {
                         char fn[STRING_LEN];
                         char short_nm[STRING_LEN];
-                        script_number ++;
                         sprintf(short_nm, "SCRIPT%d", script_number);
 //            		solver->outGlobalFile(short_nm, ".py", fn);
                         sprintf(fn, "%s_%s.py", solver->info.outpath, short_nm);
@@ -219,6 +242,7 @@ class cbCatalyst: public Callback {
 };
 
 int cbCatalyst::script_number = 0;
+bool cbCatalyst::cellData = true;
 
 #endif
 
