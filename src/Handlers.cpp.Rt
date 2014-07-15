@@ -163,12 +163,13 @@ class cbCatalyst: public Callback {
                         }
                 }
                 if (preprocess) {
+                        char fn[STRING_LEN];
+                        char short_nm[STRING_LEN];
+                        script_number ++;
+                        sprintf(short_nm, "SCRIPT%d", script_number);
+//            		solver->outGlobalFile(short_nm, ".py", fn);
+                        sprintf(fn, "%s_%s.py", solver->info.outpath, short_nm);
                         if (D_MPI_RANK == 0) {
-                                char fn[STRING_LEN];
-                                char short_nm[STRING_LEN];
-                                script_number ++;
-                                sprintf(short_nm, "SCRIPT%d", script_number);
-                		solver->outGlobalFile(short_nm, ".py", fn);
                                 notice("Preprocessing script %s --> %s\n", nm.c_str(), fn);
                                 std::string prefix = "";
                                 for (char * buf = solver->info.outpath; *buf; buf++) {
@@ -191,9 +192,8 @@ class cbCatalyst: public Callback {
                                         ERROR("commandline: %s\n", com.c_str());
                                         return -1;
                                 }
-                                nm = fn;                                                                                
                         }
-                        
+                        nm = fn;                                                                                
                         MPI_Barrier(MPI_COMM_WORLD);
                 }
 //		attr = node.attribute("what");
