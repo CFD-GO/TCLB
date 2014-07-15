@@ -75,7 +75,6 @@ namespace
         reg.ny++;
         reg.nz++;
       }
-      warning("extent: %d %d %d %d %d %d\n", extent[0], extent[1], extent[2], extent[3], extent[4], extent[5]);
       VTKGrid->SetExtent(extent);
       double spacing[3];
       spacing[0] = spacing[1] = spacing[2] = 1/solver.units.alt("m");
@@ -95,7 +94,7 @@ namespace
               int change = reg.offset(x-1,y-1,z-1) - old.offset(x-1,y-1,z-1);
               if (change != old_change) {
                 if (old_change != -1) {
-                  warning("moving chunk of size %d from %d to %d\n", chunk, ind, ind2);
+                  debug0("moving chunk of size %d from %d to %d\n", chunk, ind, ind2);
                   memmove(data + ind2*element_size, data + ind*element_size, chunk*element_size);
                 }
                 old_change = change;
