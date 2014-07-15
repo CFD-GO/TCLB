@@ -271,7 +271,7 @@ then
 	fi
 	
 	AC_MSG_CHECKING([for Catalyst-enabled ParaView build directory])
-	RET=$(find ${with_catalyst} -name "libvtkPVCatalyst*.so" -print -quit 2>/dev/null)
+	RET=$(find ${with_catalyst} -name "libvtkPVCatalyst-*.so" -print -quit 2>/dev/null)
 	if test -z "${RET}"
 	then
 		AC_MSG_RESULT([not found])		
