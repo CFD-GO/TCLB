@@ -126,27 +126,27 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
     } else {
       switch (level) {
         case 0:
-          format = "[%2s] debug 0 : %s\n"; break;
+          format = "[%2s]       . : %s\n"; break;
         case 1:
-          format = "[%2s] debug 1 : %s\n"; break;
+          format = "[%2s]      .. : %s\n"; break;
         case 2:
-          format = "[%2s] debug 2 : %s\n"; break;
+          format = "[%2s]     ... : %s\n"; break;
         case 3:
-          format = "[%2s] output  : %s\n"; break;
+          format = "[%2s]    ---- : %s\n"; break;
         case 4:
-          format = "[%2s] notice  : %s\n"; break;
+          format = "[%2s]    ==== : %s\n"; break;
         case 5:
-          format = "[%2s] NOTICE  : %s\n"; break;
+          format = "[%2s]    #### : %s\n"; break;
         case 6:
-          format = "[%2s] warning : %s\n"; break;
+          format = "[%2s] warning ! %s\n"; break;
         case 7:
-          format = "[%2s] WARNING : %s\n"; break;
+          format = "[%2s] WARNING ! %s\n"; break;
         case 8:
-          format = "[%2s] error   : %s\n"; break;
+          format = "[%2s] error   ! %s\n"; break;
         case 9:
-          format = "[%2s] ERROR   : %s\n"; break;
+          format = "[%2s] ERROR   ! %s\n"; break;
         default:
-          format = "[%2s] DEBUG 2: %s\n"; break;
+          format = "[%2s]       + : %s\n"; break;
       }
     }
     if (lines) {
