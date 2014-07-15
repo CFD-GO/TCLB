@@ -83,6 +83,36 @@ namespace
       }
   }
 
+  void fixPointData(lbRegion& old, lbRegion& reg, void* data_, int element_size) {
+        int old_change = -1;
+        int chunk = 0;
+        int ind=0, ind2=0;
+        char * data = (char*) data_;
+        element_size = element_size / sizeof(char); // Just to be on the safe side
+        for (int z=old.dz+old.nz; z>old.dz; z--) {
+          for (int y=old.dy+old.ny; y>old.dy; y--) {
+            for (int x=old.dx+old.nx; x>old.dx; x--) {
+              int change = reg.offset(x-1,y-1,z-1) - old.offset(x-1,y-1,z-1);
+              if (change != old_change) {
+                if (old_change != -1) {
+                  warning("moving chunk of size %d from %d to %d\n", chunk, ind, ind2);
+                  memmove(data + ind2*element_size, data + ind*element_size, chunk*element_size);
+                }
+                old_change = change;
+                chunk = 0;
+              }
+              ind  = old.offset(x-1,y-1,z-1);
+              ind2 = reg.offset(x-1,y-1,z-1);
+              chunk++;
+            }
+          }
+        }
+        if (old_change != 0) {
+          error("while moving data for PointData output something went wrong");
+        }
+
+  }
+
   void UpdateVTKAttributes(Solver& solver)
   {
     vtkIdType numberOf;
@@ -118,7 +148,7 @@ namespace
     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
     {
       debug2("Filling Catalyst VTK object for <?%s q$name ?>\n");
-      vtkIdType size = solver.lattice->region.size();
+      vtkIdType size = reg.size();
       vtkRealTArray* myArray;
       if (exportCellData) {
         myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("<?%s q$name ?>"));
@@ -128,8 +158,13 @@ namespace
       vtkIdType numTuples = myArray->GetNumberOfComponents();
       real_t * myArrayData = myArray->WritePointer(0,size * numTuples);
       double myUnit = solver.units.alt("<?%s q$unit ?>");
-//      solver.lattice->Get<?%s q$name ?>(solver.lattice->region, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
-      solver.lattice->Get<?%s q$name ?>(reg, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
+      lbRegion old = solver.lattice->region;      
+      solver.lattice->Get<?%s q$name ?>(old, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
+      
+      if (! exportCellData) {
+        fixPointData(old, reg, myArrayData, sizeof(<?%s q$type ?>));
+      }      
+//      solver.lattice->Get<?%s q$name ?>(reg, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
     }
     <?R } ?>
   }
