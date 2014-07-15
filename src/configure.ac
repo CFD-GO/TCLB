@@ -42,12 +42,16 @@ AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
 		[specify the full path to your nlopt library]))
 
-AC_ARG_WITH([debug],
-	AC_HELP_STRING([--with-debug=level],
-		[specify level of debug messages 0-3]))
+AC_ARG_WITH([catalyst],
+	AC_HELP_STRING([--with-catalyst=path],
+		[specify the full path to your paraview source and build]))
+
+AC_ARG_WITH([verbosity_level],
+	AC_HELP_STRING([--with-verbosity-level=level],
+		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
 
 AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--enable-waitany],
+	AC_HELP_STRING([--enable-debug],
 		[enables debug version (gcc -g)]))
 
 AC_ARG_ENABLE([waitany],
@@ -256,11 +260,66 @@ then
 	fi
 fi
 
+if test "x${with_catalyst}" != "x"
+then
+	SV_LDFLAGS="${LDFLAGS}"
+	SV_CPPFLAGS="${CPPFLAGS}"
+	
+	if ! test -d "${with_catalyst}"
+	then
+		AC_MSG_ERROR([Catalyst path ${with_catalyst} is not a directory])
+	fi
+	
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView build directory])
+	RET=$(find ${with_catalyst} -name "libvtkPVCatalyst*.so" -print -quit 2>/dev/null)
+	if test -z "${RET}"
+	then
+		AC_MSG_RESULT([not found])		
+		AC_MSG_ERROR([Didn't find Catalyst libs in path ${with_catalyst}])
+	fi
+	PV_VERSION=$(echo ${RET} | sed 's/^.*libvtkPVCatalyst-\(.*\).so$/\1/')
+	RET=$(AS_DIRNAME([${RET}]))
+	RET=$(echo ${RET} | sed 's/\/lib$//')
+	AC_MSG_RESULT([${RET}])		
+	if ! test -d ${RET}
+	then
+		AC_MSG_ERROR([Lib directory is not a directory - find the developer of this package and discreetly pass him this codeword: Arszenik])
+	fi
+	PV_BUILD=${RET}
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView version])
+	if test -z "${PV_VERSION}"
+	then
+		AC_MSG_RESULT([not found])
+		AC_MSG_ERROR([Library didn't have version suffix in ${with_catalyst} (ask the developer, what the hell I'm talking about)])
+	fi
+	AC_MSG_RESULT([${PV_VERSION}])
+
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView source directory])
+	RET=$(find ${with_catalyst} -name "vtkCPProcessor.h" -print -quit 2>/dev/null)
+	if test -z "${RET}"
+	then
+		AC_MSG_RESULT([not found])		
+		AC_MSG_ERROR([Didn't find Catalyst headers in path ${with_catalyst}])
+	fi
+	RET=$(AS_DIRNAME([${RET}]))
+	RET=$(echo ${RET} | sed 's/\/CoProcessing\/Catalyst$//')
+	AC_MSG_RESULT([${RET}])		
+	if ! test -d ${RET}
+	then
+		AC_MSG_ERROR([Header directory is not a directory - find the developer of this package and discreetly pass him this codeword: Arszenik])
+	fi
+	PV_SOURCE=${RET}
+	
+	WITH_CATALYST=1
+	
+fi
+
+
 if test "x${enable_debug}" == "xyes"
 then
-	if test "x${with_debug}" == "x"
+	if test "x${with_verbosity_level}" == "x"
 	then
-		with_debug="0"
+		with_verbosity_level="0"
 	fi
 	AC_DEFINE([CROSS_SYNC], [1], [Sync calls])
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
@@ -270,29 +329,29 @@ else
 	CPPFLAGS="${CPPFLAGS} -O3"
 fi
 
-if test "x${with_debug}" == "x0"
+if test "x${with_verbosity_level}" == "x0"
 then
 	AC_DEFINE([DEBUG_LEVEL], [0], [print EVERYTHING!])
-elif test "x${with_debug}" == "x1"
+elif test "x${with_verbosity_level}" == "x1"
 then
 	AC_DEFINE([DEBUG_LEVEL], [1], [print insane amount of output])
-elif test "x${with_debug}" == "x2"
+elif test "x${with_verbosity_level}" == "x2"
 then
 	AC_DEFINE([DEBUG_LEVEL], [2], [print moderatly sane additional information])
-elif test "x${with_debug}" == "x3"
+elif test "x${with_verbosity_level}" == "x3"
 then
 	AC_DEFINE([DEBUG_LEVEL], [3], [print normal output])
-elif test "x${with_debug}" == "x4"
+elif test "x${with_verbosity_level}" == "x4"
 then
 	AC_DEFINE([DEBUG_LEVEL], [4], [print only notice/warning/error])
-elif test "x${with_debug}" == "x"
+elif test "x${with_verbosity_level}" == "x"
 then
 	AC_DEFINE([DEBUG_LEVEL], [3], [normal output])
-elif test "x${with_debug}" == "xno"
+elif test "x${with_verbosity_level}" == "xno"
 then
 	AC_DEFINE([DEBUG_LEVEL], [3], [normal output])
 else
-	AC_MSG_ERROR([Unknown debug level: ${with_debug}. Can be: 0,1,2,3,4;])
+	AC_MSG_ERROR([Unknown verbosity level level: ${with_verbosity_level}. Can be: 0,1,2,3,4;])
 fi
 
 if test "x${enable_waitany}" != "xno"
@@ -318,5 +377,10 @@ fi
 
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
+AC_SUBST(PV_BUILD)
+AC_SUBST(PV_SOURCE)
+AC_SUBST(CROSS_CPU)
+AC_SUBST(WITH_CATALYST)
+AC_SUBST(PV_VERSION)
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_OUTPUT

@@ -3,6 +3,12 @@ OPT = @CPPFLAGS@
 CPP_OPT = -Wno-write-strings
 LD_OPT = @LDFLAGS@ @LIBS@
 NV_OPT = @NVFLAGS@
+CPU = @CROSS_CPU@
+
+PV_SOURCE = @PV_SOURCE@
+PV_BUILD = @PV_BUILD@
+PV_VERSION = @PV_VERSION@
+WITH_CATALYST = @WITH_CATALYST@
 
 SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
 SOURCE=$(SOURCE_CU)
@@ -21,4 +27,40 @@ ifeq '$(strip $(ADJOINT))' '1'
  HEADERS+=Dynamics_b.hp 
 endif
 
-CPU = @CROSS_CPU@
+ifeq '$(strip $(WITH_CATALYST))' '1'
+ PV_LIBS += vtkPVPythonCatalyst
+ PV_LIBS += vtkPVCatalyst
+ PV_LIBS += vtkCommonDataModel
+ PV_LIBS += vtkCommonCore
+ PV_INCLUDES += VTK/Common/DataModel
+ PV_INCLUDES += VTK/Common/Core
+ PV_INCLUDES += CoProcessing/Catalyst
+ PV_INCLUDES += ParaViewCore/ServerManager/SMApplication
+ PV_INCLUDES += ParaViewCore/ServerManager/Core
+ PV_INCLUDES += ParaViewCore/ServerImplementation/Core
+ PV_INCLUDES += ParaViewCore/ClientServerCore/Core
+ PV_INCLUDES += VTK/Filters/Extraction
+ PV_INCLUDES += VTK/Filters/Core
+ PV_INCLUDES += VTK/Filters/General
+ PV_INCLUDES += VTK/Filters/Statistics
+ PV_INCLUDES += VTK/Filters/Parallel
+ PV_INCLUDES += VTK/Filters/Geometry
+ PV_INCLUDES += VTK/Filters/Modeling
+ PV_INCLUDES += VTK/Filters/Sources
+ PV_INCLUDES += VTK/Rendering/Core
+ PV_INCLUDES += ParaViewCore/VTKExtensions/Core
+ PV_INCLUDES += CoProcessing/PythonCatalyst
+ PV_CPPFLAGS += $(addprefix -I $(PV_BUILD)/, $(PV_INCLUDES))
+ PV_CPPFLAGS += $(addprefix -I $(PV_SOURCE)/, $(PV_INCLUDES))
+ PV_CPPFLAGS += -D WITH_CATALYST
+ PV_LDFLAGS  += $(addprefix -l, $(addsuffix -$(PV_VERSION),$(PV_LIBS)))
+ PV_LDFLAGS  += -Wl,-rpath,$(PV_BUILD)/lib
+ PV_LDFLAGS  += -L$(PV_BUILD)/lib
+
+ OPT += $(PV_CPPFLAGS)
+ LD_OPT += $(PV_LDFLAGS)
+ SOURCE_CU += Catalyst.cpp
+ OBJ += Catalyst.o
+ HEADERS += Catalyst.h
+endif
+

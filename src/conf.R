@@ -212,6 +212,7 @@ AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 		type=type,
 		unit=unit,
 		adjoint=adjoint,
+		vector=vector,
 		comment=comment
 	)
 	Quantities <<- rbind(Quantities,q)

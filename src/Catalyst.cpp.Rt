@@ -1,0 +1,173 @@
+<?R
+  source("conf.R")
+  c_header();
+?>
+
+#include <iostream>
+#include "Catalyst.h"
+#include "Solver.h"
+
+#include <vtkCellData.h>
+#include <vtkCellType.h>
+#include <vtkCPDataDescription.h>
+#include <vtkCPInputDataDescription.h>
+#include <vtkCPProcessor.h>
+#include <vtkCPPythonScriptPipeline.h>
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkImageData.h>
+#include <vtkNew.h>
+#include <vtkPoints.h>
+#include <vtkPointData.h>
+
+#ifdef CALC_DOUBLE_PRECISION
+  typedef vtkDoubleArray vtkRealTArray;
+#else
+  typedef vtkFloatArray vtkRealTArray;
+#endif
+              
+
+namespace
+{
+  vtkCPProcessor* Processor = NULL;
+  vtkImageData* VTKGrid = NULL;
+
+  void BuildVTKGrid(Solver& solver)
+  {
+    // The grid structure isn't changing so we only build it
+    // the first time it's needed. If we needed the memory
+    // we could delete it and rebuild as necessary.
+    if(VTKGrid == NULL)
+      {
+      VTKGrid = vtkImageData::New();
+      int extent[6];
+      extent[0] = solver.lattice->region.dx;
+      extent[1] = solver.lattice->region.dx + solver.lattice->region.nx;
+      extent[2] = solver.lattice->region.dy;
+      extent[3] = solver.lattice->region.dy + solver.lattice->region.ny;
+      extent[4] = solver.lattice->region.dz;
+      extent[5] = solver.lattice->region.dz + solver.lattice->region.nz;
+      VTKGrid->SetExtent(extent);
+      double spacing[3];
+      spacing[0] = spacing[1] = spacing[2] = 1/solver.units.alt("m");
+      VTKGrid->SetSpacing(spacing);
+      }
+  }
+
+  void UpdateVTKAttributes(Solver& solver)
+  {
+    if(VTKGrid->GetCellData()->GetNumberOfArrays() == 0)
+    {
+      // Creating CellData fields
+      debug2("Creating Catalyst VTK objects\n");
+      <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+      {
+        debug1("Creating Catalyst VTK object for <?%s q$name ?>\n");
+        vtkIdType size = static_cast<vtkIdType> (solver.lattice->region.size());
+        vtkNew<vtkRealTArray> myArray;
+        myArray->SetName("<?%s q$name ?>");
+        <?R if (q$vector) { ?>
+        myArray->SetNumberOfComponents(3);
+        myArray->SetNumberOfTuples(size);
+        <?R } else { ?>
+        myArray->SetNumberOfComponents(1);
+        myArray->SetNumberOfValues(size);
+        <?R } ?>
+        VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
+      }
+      <?R } ?>
+    }
+    <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+    {
+      debug2("Filling Catalyst VTK object for <?%s q$name ?>\n");
+      vtkIdType size = solver.lattice->region.size();
+      vtkRealTArray* myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("<?%s q$name ?>"));
+      vtkIdType numTuples = myArray->GetNumberOfComponents();
+      real_t * myArrayData = myArray->WritePointer(0,size * numTuples);
+      double myUnit = solver.units.alt("<?%s q$unit ?>");
+      solver.lattice->Get<?%s q$name ?>(solver.lattice->region, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
+    }
+    <?R } ?>
+  }
+
+  void BuildVTKDataStructures(Solver& solver)
+  {
+    BuildVTKGrid(solver);
+    UpdateVTKAttributes(solver);
+  }
+}
+
+namespace CatalystAdaptor
+{
+
+  void Initialize()
+  {
+    if(Processor == NULL)
+      {
+      debug2("Initializing Catalyst coProcessor\n");
+      Processor = vtkCPProcessor::New();
+      Processor->Initialize();
+      }
+    else
+      {
+      debug2("Clearing Catalyst coProcessor\n");
+      Processor->RemoveAllPipelines();
+      }
+  }
+  
+  void AddScript(const char * script)
+  {
+      notice("Adding Catalyst script: %s\n", script);
+      vtkNew<vtkCPPythonScriptPipeline> pipeline;
+      pipeline->Initialize(script);
+      Processor->AddPipeline(pipeline.GetPointer());
+  }
+
+  void Finalize()
+  {
+    if(Processor)
+    {
+      Processor->Delete();
+      Processor = NULL;
+    }
+    if(VTKGrid)
+    {
+      VTKGrid->Delete();
+      VTKGrid = NULL;
+    }
+  }
+
+  void CoProcess(Solver& solver, double time,
+                 unsigned int timeStep, bool lastTimeStep)
+  {
+    debug2("Running Catalyst update procedure\n");
+    vtkNew<vtkCPDataDescription> dataDescription;
+    dataDescription->AddInput("input");
+    dataDescription->SetTimeData(time, timeStep);
+    if(lastTimeStep == true)
+      {
+      // assume that we want to all the pipelines to execute if it
+      // is the last time step.
+      dataDescription->ForceOutputOn();
+      debug2("Last iteration in Catalyst\n");
+      }
+    if(Processor->RequestDataDescription(dataDescription.GetPointer()) != 0)
+      {
+      debug2("Data requested by Catalyst\n");
+      BuildVTKDataStructures(solver);
+      dataDescription->GetInputDescriptionByName("input")->SetGrid(VTKGrid);
+      int wholeExtent[6];
+      wholeExtent[0] = solver.lattice->mpi.totalregion.dx;
+      wholeExtent[1] = solver.lattice->mpi.totalregion.dx + solver.lattice->mpi.totalregion.nx;
+      wholeExtent[2] = solver.lattice->mpi.totalregion.dy;
+      wholeExtent[3] = solver.lattice->mpi.totalregion.dy + solver.lattice->mpi.totalregion.ny;
+      wholeExtent[4] = solver.lattice->mpi.totalregion.dz;
+      wholeExtent[5] = solver.lattice->mpi.totalregion.dz + solver.lattice->mpi.totalregion.nz;
+
+      dataDescription->GetInputDescriptionByName("input")->SetWholeExtent(wholeExtent);
+      debug2("Running Catalyst CoProcessing\n");
+      Processor->CoProcess(dataDescription.GetPointer());
+      }
+      
+  }
+} // end of Catalyst namespace
