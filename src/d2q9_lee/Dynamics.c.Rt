@@ -1,0 +1,555 @@
+<?R
+	source("conf.R") ;
+	c_header();
+?>
+#define S4 1.3333
+#define S5 1.0
+#define S6 1.0
+#define S7 1.0
+#define S8 omega
+#define S9 omega
+
+<?R
+U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+f  = PV(Density$name[Density$group=="f"])
+ph = PV(paste("phi(",-U[,1],",",-U[,2],")"))
+
+	u = PV(paste("u[",1:2-1,"]",sep=""))
+	uf = PV("uf")
+	d = PV("d")
+	usq = PV("usq")
+	omega = PV("omega")
+        uf1 = uf;
+        uf2 = uf;
+        uf3 = uf;
+	t1 = 4/9
+	t2 = 1/9
+	t3 = 1/36
+	c_sq = 1/3
+	wi = c(t1,t2,t2,t2,t2,t3,t3,t3,t3)
+
+	tn = diag(wi)
+	bounce = c(0,3,4,1,2,7,8,5,6)
+
+	feq = PV(paste("feq[",1:9-1,"]",sep=""))
+
+?>
+
+CudaDeviceFunction void BounceBack()
+{
+     real_t uf;
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	w = list(
+           uf==f[V[i,1]],
+           f[V[i,1]]==f[V[i,2]],
+           f[V[i,2]]==uf
+	)
+	for (h in w) C(h)
+   }
+?>
+
+}
+
+CudaDeviceFunction void MovingWall()
+{
+	real_t rho, ru;
+	 real_t ux0 = MovingWallVelocity;
+	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
+	ru = rho * ux0;
+	f2 = f4;
+	f6 = f8 - (1./2.) * ru - (1./2.)*(f3 - f1);
+	f5 = f7 + (1./2.) * ru + (1./2.)*(f3 - f1);
+}
+
+
+// 0 1 2 3 4 5 6 7 8
+// 1 5 2 6 3 7 4 8 0
+
+CudaDeviceFunction void EVelocity()
+{
+     real_t rho, ru;
+	 real_t ux0 = InletVelocity;
+	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
+	ru = rho * ux0;
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
+}
+
+// rho + rho*u = f0 + f2 + f4 + 2.*(f1 + f5 + f8)
+// rho - rho*u = f0 + f2 + f4 + 2.*(f3 + f7 + f6)
+
+CudaDeviceFunction void WPressure()
+{
+     real_t ru;
+	 real_t rho = InletDensity;
+	ru = rho - ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) );
+
+	f1 = f3 + (2./3.) * ru;
+	f5 = f7 + (1./6.) * ru - (1./2.)*(f2 - f4);
+	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
+}
+
+CudaDeviceFunction void eqWVelocity()
+{
+     real_t rho;
+	 real_t u[2] = {InletVelocity,0.};
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
+	Feq(rho,u);
+        <?R C( f == feq ); ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+	real_t rho2;
+	 real_t u[2] = {InletVelocity,0.};
+	rho2 = InletDensity;
+        switch (NodeType & NODE_ADDITIONALS) {
+		case NODE_Wet:
+	                rho2 = WetDensity;
+			break;
+		case NODE_Dry:
+	                rho2 = DryDensity;
+			break;
+        }
+	Feq(rho2,u);
+        <?R C( f == feq ); ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+        real_t ru;
+	 real_t rho = OutletDensity;
+	ru = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) - rho;
+
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru - (1./2.)*(f2 - f4);
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_MovingWall:
+		MovingWall();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_ForcedMovingWall:
+		break;
+    }
+    switch (NodeType & NODE_COLLISION) {
+        case NODE_BGK:
+                CollisionBGK();
+                break;
+        case NODE_MRT:
+                CollisionMRT();
+                break;
+    }
+//	CalcPhi();
+}
+
+CudaDeviceFunction void InitRho() {
+	rho = InitDensity;
+        switch (NodeType & NODE_BOUNDARY) {
+		case NODE_Wall:
+		case NODE_MovingWall:
+			rho = WallDensity;
+			break;
+		case NODE_EPressure:
+			rho = OutletDensity;
+			break;
+		case NODE_WPressure:
+			rho = InletDensity;
+			break;
+	}
+        switch (NodeType & NODE_ADDITIONALS) {
+		case NODE_Wet:
+	                rho = WetDensity;
+			break;
+		case NODE_Dry:
+	                rho = DryDensity;
+			break;
+        }
+}
+
+CudaDeviceFunction void CalcRho() {
+        rho = <?R C(sum(f)) ?>;
+        switch (NodeType & NODE_BOUNDARY) {
+		case NODE_Wall:
+		case NODE_MovingWall:
+			rho = WallDensity;
+	        	switch (NodeType & NODE_ADDITIONALS) {
+				case NODE_Wet:
+	        	        	rho = WetDensity;
+					break;
+				case NODE_Dry:
+	        	        	rho = DryDensity;
+					break;
+		        }
+			break;
+		case NODE_EPressure:
+			rho = OutletDensity;
+			break;
+		case NODE_WPressure:
+			rho = InletDensity;
+			break;
+	}
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+//	ret.x = (getRho()-1);
+//	ret.x=wb;
+        if (getRho() < (VaporDensity+LiquidDensity)/2){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+//	ret.y=w;
+        return ret;
+}
+
+
+<?R
+        R = PV(c(
+		"d",
+		paste("J[",1:2-1,"]",sep=""),
+		paste("R[",1:6-1,"]",sep="")
+	))
+        Sy = rbind(
+		PV(c(0,0,0)),
+		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
+	)
+
+M = matrix(c(
+      1,  1,  1,  1,  1,  1,  1,  1,  1,
+      0,  1,  0, -1,  0,  1, -1, -1,  1,
+      0,  0,  1,  0, -1,  1,  1, -1, -1,
+     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+      4, -2, -2, -2, -2,  1,  1,  1,  1,
+      0, -2,  0,  2,  0,  1, -1, -1,  1,
+      0,  0, -2,  0,  2,  1,  1, -1, -1,
+      0,  1, -1,  1, -1,  0,  0,  0,  0,
+      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
+
+
+	d = PV("d");
+	dw = d
+	dw[[1]][1,2]=-1
+	usq = PV("usq")
+	u = PV(c("u[0]","u[1]"))
+	Req_fun = function(d,u,usq) {
+	  if(missing(usq)) usq = sum(u*u)
+	  rbind(
+		d,
+		u*d,
+		d*(-2)+usq*d*3,
+		d - usq*d*3,
+		d*u[1]*(-1),
+		d*u[2]*(-1),
+		d*u[1]*u[1]-d*u[2]*u[2],
+		d*u[1]*u[2]
+	)
+	}
+        Sy = PV(paste("S",1:9,"",sep=""))
+	selR = c(4,5,6,7,8,9);
+#	cr = calcReq[selR]
+	Mw = colSums(M**2)
+
+  r._1 = PV(paste("rho(",-U[,1],",",-U[,2],")"))
+  r.0 = PV(paste("rho(",0,",",0,")"))
+  r.1 = PV(paste("rho(",U[,1],",",U[,2],")"))
+  r.2 = PV(paste("rho(",2*U[,1],",",2*U[,2],")"))
+  m._1 = PV(paste("mu(",-U[,1],",",-U[,2],")"))
+  m.0 = PV(paste("mu(",0,",",0,")"))
+  m.1 = PV(paste("mu(",U[,1],",",U[,2],")"))
+  m.2 = PV(paste("mu(",2*U[,1],",",2*U[,2],")"))
+
+  get.stencil = function(what) list(
+          "-1" = PV(paste(what,"(",-U[,1],",",-U[,2],")",sep=""))
+          ,"0" = PV(paste(what,"(",0,",",0,")",sep=""))
+          ,"1" = PV(paste(what,"(",U[,1],",",U[,2],")",sep=""))
+          ,"2" = PV(paste(what,"(",2*U[,1],",",2*U[,2],")",sep=""))
+  )
+
+  eLap = function(what) {
+          w = get.stencil(what)
+          (w$'1' - w$'0'*2 + w$'-1')
+  }
+  eNablaB = function(what) {
+          w = get.stencil(what)
+          ((-1) * w$'2' + 4 * w$'1' - 3 * w$'0')*0.5
+  }
+  eNablaC = function(what) {
+          w = get.stencil(what)
+          (w$'1' - w$'-1')*0.5
+  }
+  make.scalar = function(what) {
+          sum( what * (wi/c_sq) )
+  }
+  make.vector = function(what) {
+          ( what * (wi/c_sq) ) %% U
+  }
+
+  fB = PV(paste("fB[",1:9-1,"]",sep=""))
+  fC = PV(paste("fC[",1:9-1,"]",sep=""))
+
+?>
+
+
+CudaDeviceFunction real_t getRho(){
+	return rho(0,0);
+}
+
+CudaDeviceFunction real_t getP(){
+	real_t r = rho(0,0);
+	return 2*Beta*(r-LiquidDensity)*(r-VaporDensity)*(2*r-VaporDensity-LiquidDensity);
+}
+
+CudaDeviceFunction real_t getRho2(){
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction real_t getNu(){
+	return nu(0,0);
+}
+
+CudaDeviceFunction vector_t getU(){
+  real_t uF,d;
+  vector_t u;
+  fillF();
+  <?R
+    uv = PV(c("u.x","u.y"))
+    C( d == sum(f) );
+    C( uv == f %% U );
+    C( uv == uv + 0.5 * make.vector(fC) );
+    C( uv == uv * dw );
+  ?>
+  u.z = 0;
+  return u;
+}
+
+CudaDeviceFunction vector_t getFC(){
+  real_t uF,d;
+  vector_t u;
+  fillF();
+  <?R
+    uv = PV(c("u.x","u.y"))
+    C( uv == make.vector(fC) );
+  ?>
+  u.z = 0;
+  return u;
+}
+
+CudaDeviceFunction vector_t getFB(){
+  real_t uF,d;
+  vector_t u;
+  fillF();
+  <?R
+    uv = PV(c("u.x","u.y"))
+    C( uv == make.vector(fB) );
+  ?>
+  u.z = 0;
+  return u;
+}
+
+
+
+CudaDeviceFunction void CalcNu() {
+  real_t lap; <?R
+  lap = PV("lap")
+  C( lap == make.scalar(eLap("rho")) ) ?>
+  real_t r = rho(0,0);
+  real_t nu0 = 2*Beta*(r-LiquidDensity)*(r-VaporDensity)*(2*r-VaporDensity-LiquidDensity);
+  nu = nu0 - Kappa * lap;
+}
+
+
+real_t fB[9],fC[9],feq[9];
+
+CudaDeviceFunction void Feq(real_t d, real_t u[2]) { <?R
+	Req = Req_fun(d, u);
+	u = PV(paste("u[",1:2-1,"]",sep=""))
+	feq = PV(paste("feq[",1:9-1,"]",sep=""))
+        C( feq == wi*((u %% t(U))*( 1/ c_sq) + ((u %% t(U)) * (u %% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
+    ?>
+}
+
+CudaDeviceFunction void fillF() {
+  real_t d = rho(0,0);
+  real_t G[2];
+  real_t u[2];
+
+  G[0] = GravitationX;
+  G[1] = GravitationY;
+
+  <?R
+      u = PV(paste("u[",1:2-1,"]",sep=""))
+
+      C( d == sum(f) );
+      C( u == f %% U );
+      C( u == u + 0.5 * make.vector(fC) );
+      C( u == u * dw );
+
+      G = PV(paste("G[",1:2-1,"]",sep=""))
+
+      C( fB == eNablaB("rho") * c_sq - d * eNablaB("nu") + U%%G  - sum(u*G) );
+      C( fC == eNablaC("rho") * c_sq - d * eNablaC("nu") + U%%G  - sum(u*G) );
+
+  ?>
+
+
+    if ((NodeType & NODE_BOUNDARY) == NODE_ForcedMovingWall){
+
+        real_t ubc[2]= {MovingWallVelocity,0};
+
+        <?R
+            C( d == sum(f) );
+            C( u == f %% U );
+            C( u == u + 0.5 * make.vector(fC) );
+            C( u == u * dw );
+
+            ubc = PV(paste("ubc[",1:2-1,"]",sep=""))
+
+            C(G == (ubc-u)*d )
+
+
+            C( fB == fB + U%%G  - sum(u*G) );
+            C( fC == fC + U%%G  - sum(u*G) );
+
+        ?>
+
+    }
+
+}
+
+CudaDeviceFunction void InitF() {
+    real_t d;
+    real_t u[2];
+    d = rho(0,0);
+    u[0] = InletVelocity;
+    u[1] = 0.;
+    Feq(d,u);
+    <?R	C( f == feq ); ?>
+}
+
+CudaDeviceFunction void InitF2() {
+    real_t d;
+    real_t u[2];
+    InitRho();
+    d = rho;
+    u[0] = InletVelocity;
+    u[1] = 0.;
+    Feq(d,u);
+    <?R	C( f == feq ); ?>
+}
+
+
+
+
+CudaDeviceFunction void CollisionBGK()
+{
+  real_t uF,d,u[2];
+  real_t F[2];
+
+  fillF();
+
+
+  <?R
+    C( d == sum(f) );
+    C( u == f %% U );
+    C( u == u + 0.5 * make.vector(fC) );
+  ?>
+  AddToMass(d);
+  AddToMomentumX(u[0]);
+  AddToMomentumY(u[1]);
+  <?R
+    C( u == u * dw );
+  ?>
+  Feq(d,u);
+  <?R
+    force = function(what,uF) {
+      if (missing(uF)) {
+        F = make.vector(what);
+        uF = sum(u*F)
+      }
+      ret = what - uF
+      ret = ret * dw
+      ret = ret * (1 / c_sq)
+      ret * feq
+    }
+    uF = PV("uF");
+
+    C( uF == sum(u * make.vector(fC)) )
+    #f = fneq
+    C( f == f - ( feq - 0.5*force(fC,uF) ) )
+
+    C( f == f * (1-omega) )
+
+    C( uF == sum(u * make.vector(fB) ) )
+
+    C( f == f + feq + 0.5*force(fB,uF)  );
+
+
+  ?>
+}
+
+
+<?R
+        Sy = PV(paste("S",1:9,"",sep=""))
+	selR = c(4,5,6,7,8,9);
+?>
+
+CudaDeviceFunction void CollisionMRT()
+{
+
+	real_t J[2], usq, d, R[6], uF, u[2];
+	vector_t F;
+	fillF();
+	<?R
+	  C( d == sum(f) );
+	  C( u == f %% U );
+	  C( u == u + 0.5 * make.vector(fC) );
+	  C( u == u * dw );
+        ?>
+        Feq(d,u);
+        <?R
+	J = PV(c("J[0]","J[1]"))
+	C( uF == sum(u * make.vector(fC)) );
+	C( f == f + 0.5*force(fC,uF) );
+	C( R == f %% M );
+	C( usq == sum(J*J)*dw );
+	Req = Req_fun(d, J*dw, usq*dw);
+	C(( R == R - Req )[selR]);
+	C(( R == R * (Sy - 1) )[selR]);
+	C( usq == sum(J*J)*dw );
+	C(( R == R + Req )[selR]);
+	C( f == R %% solve(M) );
+	C(uF == sum(u * make.vector(fB)))
+	C(f == f + 0.5*force(fB,uF) )
+?>
+
+}
+
+

@@ -28,7 +28,7 @@
     struct NodeInfo {
         lbRegion region; ///< Local Lattice region
         int rank; ///< MPI rank of the processor <?R
-for (m in NonEmptyMargin) { ?>
+for (m in Margin) { ?>
         int <?%s m$side ?>; ///< MPI rank of the processor on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] side <?R
 } ?>
     };
@@ -82,8 +82,32 @@ for (m in NonEmptyMargin) { ?>
 */
 #ifndef DEBUG_H   
     extern int D_MPI_RANK;
+    extern int D_TERMINAL;
 
-    #define DEBUG_SETRANK(x) D_MPI_RANK = x
+    int myprint(int level, const char *fmt, ...);
+    int InitPrint(int print_level, int only_root_level, int error_level);
+    #define dprint(x, ...) myprint(x, __VA_ARGS__)
+    #define debug0(...) DEBUG0(myprint(0, __VA_ARGS__)) // 0-level Debug
+    #define debug1(...) DEBUG1(myprint(1, __VA_ARGS__)) // 1-level Debug
+    #define debug2(...) DEBUG2(myprint(2, __VA_ARGS__)) // 2-level Debug
+    #define debug3(...) DEBUG3(myprint(3, __VA_ARGS__)) // Output
+    #define debug4(...) myprint(4, __VA_ARGS__) // Notice
+    #define debug5(...) myprint(5, __VA_ARGS__) // Important Notice
+    #define debug6(...) myprint(6, __VA_ARGS__) // Warning
+    #define debug7(...) myprint(7, __VA_ARGS__) // Important Warning
+    #define debug8(...) myprint(8, __VA_ARGS__) // Error
+    #define debug9(...) myprint(9, __VA_ARGS__) // Fatal Error
+    
+    #define output(...) debug3(__VA_ARGS__)    
+    #define notice(...) debug4(__VA_ARGS__)    
+    #define NOTICE(...) debug5(__VA_ARGS__)    
+    #define warning(...) debug6(__VA_ARGS__)    
+    #define WARNING(...) debug7(__VA_ARGS__)    
+    #define error(...) debug8(__VA_ARGS__)    
+    #define ERROR(...) debug9(__VA_ARGS__)    
+    
+
+    #define DEBUG_SETRANK(x) {D_MPI_RANK = x; D_TERMINAL = isatty(1); }
 #if DEBUG_LEVEL < 1
     #define DEBUG0(x) x; fflush(stdout);
     #define DEBUG1(x) x; fflush(stdout);
@@ -110,11 +134,7 @@ for (m in NonEmptyMargin) { ?>
     #define DEBUG2(x)
     #define DEBUG3(x)
 #endif
-    #define DEBUG_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG0_M DEBUG0(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG1_M DEBUG1(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG2_M DEBUG2(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
-    #define DEBUG3_M DEBUG3(printf("[%d] %s(%d)\n", D_MPI_RANK, __FILE__, __LINE__ ))
+    #define DEBUG_M debug0("%s(%d)\n", __FILE__, __LINE__ )
 	
 #define DEBUG_H 1
 #endif

@@ -28,35 +28,68 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 	#include "ADTools.cu"
 #endif
 
-<?R for (v in rows(Settings)) { ?>
+<?R
+	for (v in rows(Settings)) { ?>
 /// GPU Constant memory variable for [<?%s v$comment?>]
 CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
-    } ?>
-//CudaConstantMemory real_t c_sq = 1.0/3.;
+        }
+?>
 
+#include "LatticeAccess.cu"
+
+
+
+#define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
+        for (f in Fields) { ?>
+#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x,y,z))
+#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x,y,z))
+#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__) <?R
+        }
+?>
+
+
+<?R
+	for(s in rows(ZoneSettings)) { ?>
+//#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
+#define <?%s s$name ?> constContainer.ZoneSetting(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
+<?R
+        }
+?>
 
 #define NODE_H
 
+template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
+        int x,y,z;
+        CudaDeviceFunction void Pre(){};
+        CudaDeviceFunction void RunElement(){};
+        CudaDeviceFunction void Glob(){};
+};
+
 <?R
-	for (tp in rows(Dispatch)) {
+for (tp in rows(Dispatch)) {
+	s = Stages[Stages$name == tp$stage_name, ]
 	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix
-	if (tp$Action == "Adj") {
+	       if (tp$Stream == "Adj") {
 	        GlobalsD$sel = GlobalsD$adjoint
-	} else if (tp$Action == "Opt") {
+	} else if (tp$Stream == "Opt") {
 	        GlobalsD$sel = TRUE
-	} else if (tp$Action == "Init") {
+	} else if (tp$Stream == "Init") {
 	        GlobalsD$sel = FALSE
-	} else if (tp$Action == "No") {
+	} else if (tp$Stream == "No") {
 	        GlobalsD$sel = ! GlobalsD$adjoint
 	} else {
-	        stop(paste("Unknown Action:",tp$Action,"in Dispatch (conf.R)"));
+	        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (conf.R)"));
 	} ?>
-//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Action ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
+//-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if (g$sel) {
-		if (tp$Globals == "Globs") { ?>
+		if (tp$Globals == "Globs") {
+		        if (g$op == "SUM") { ?>
 #define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x) <?R
+	                } else if (g$op == "MAX") { ?>
+#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = max(<?%s g$var ?>,x) <?R
+                        }
 		} else if (tp$Globals == "Obj") { ?>
 #define AddTo<?%s g$name ?>(x) Objective = Objective + (x) * <?%s g$name ?>InObj <?R
 		} else { ?>
@@ -72,14 +105,11 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         } else {
                 Globs = NULL
         } 	
+        T1 = switch(tp$Action, No="Primal", Adj="Adjoint", Opt="Optimize", SAdj="SteadyAdjoint")
+        T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
+        T3 = tp$stage_name
 ?>
-
-/// Node class for dispatch:  Node<?%s suff ?>
-/**
-        Action:<?%5s tp$Action ?>
-        Globals:<?%5s tp$Globals ?>
-*/
-struct Node<?%s suff ?> {
+template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	int x,y,z; <?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
@@ -90,8 +120,12 @@ struct Node<?%s suff ?> {
         } ?>
 	}
 	CudaDeviceFunction void inline Glob() { <?R
-        for (g in rows(Globs)) { ?>
-		atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+        for (g in rows(Globs)) {
+                if (g$op == "SUM") { ?>
+                atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                } else if (g$op == "MAX") { ?>
+                atomicMax(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                }
         } ?>
 	} <?R
 		if (! tp$adjoint) { ?>
@@ -110,14 +144,14 @@ struct Node<?%s suff ?> {
                         } ?>
 	#include "Dynamics_adj.c" <?R
 		}
-		if (tp$Action == "Opt") { ?>
+	if (tp$stage) { ################################################################
+		if (tp$Stream == "Opt") { ?>
 	CudaDeviceFunction inline void Opt() {
 	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
 		        for (i in 1:nrow(Density)) {
 		                d=Density[i,];
-                                da=DensityAD[i,];
                                 if (d$parameter) { ?>
-                <?%s d$name ?> += <?%s da$name ?>*Descent;
+                <?%s d$name ?> += <?%s d$adjoint_name ?>*Descent;
                 if (<?%s d$name ?> > 1.0f) <?%s d$name ?> = 1.0f;
                 if (<?%s d$name ?> < 0.0f) <?%s d$name ?> = 0.0f; <?R
                                 }
@@ -125,63 +159,63 @@ struct Node<?%s suff ?> {
                 }
         } <?R
 	        } ?>
-	CudaDeviceFunction inline void RunElement() { <?R
-		if (tp$Action == "Adj") { ?>
-		constContainer.pop(*this);
-		constContainer.pop_adj(*this);<?R
-		        for (d in rows(DensityAD)) if (d$parameter) {
+	CudaDeviceFunction inline void RunElement() {
+	        constContainer.getType(*this); <?R
+		if (tp$Stream == "Adj") { ?>
+		constContainer.pop_<?%s s$name ?>(*this);
+		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
+		        for (d in rows(Density)) if (d$parameter) {
         		        if (tp$Globals == "Globs") { ?>
-                real_t old_<?%s d$name ?> = <?%s d$name ?>; <?R
+                real_t old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
                                 }
 	                        if (tp$zeropar) { ?>
-                <?%s d$name ?> = 0.0f; <?R
+                <?%s d$adjoint_name ?> = 0.0f; <?R
                                 }
                         } ?>
 		Run_b(); <?R
-		        if (tp$Globals == "Globs") for (d in rows(DensityAD)) if (d$parameter) { ?>
-                old_<?%s d$name ?> -= <?%s d$name ?>;
-                AddToAdjointRes(old_<?%s d$name ?>*old_<?%s d$name ?>); <?R
+		        if (tp$Globals == "Globs") for (d in rows(Density)) if (d$parameter) { ?>
+                old_<?%s d$adjoint_name ?> -= <?%s d$adjoint_name ?>;
+                AddToAdjointRes(old_<?%s d$adjoint_name ?>*old_<?%s d$adjoint_name ?>); <?R
                         } ?>
-		constContainer.push_adj(*this); <?R
-		} else if (tp$Action == "Opt") { ?>
+		constContainer.push_<?%s s$name ?>_adj(*this); <?R
+		} else if (tp$Stream == "Opt") { ?>
 
-                constContainer.pop(*this); <?R
+                constContainer.pop_<?%s s$name ?>(*this); <?R
 		        for (i in 1:nrow(Density)) {
-		                d=Density[i,];
-                                da=DensityAD[i,];?>
-		<?%s da$name ?> = <?%s d$name ?>; <?R
+		                d=Density[i,]; ?>
+		<?%s d$adjoint_name ?> = <?%s d$name ?>; <?R
 		        } ?>
 
-		Run();
-		constContainer.push_noparam(*this); <?R
+		<?%s s$main ?>();
+//		constContainer.push_noparam_<?%s s$name ?>(*this); <?R
 		        for (i in 1:nrow(Density)) {
-		                d=Density[i,];
-                                da=DensityAD[i,];?>
-		<?%s d$name ?> = <?%s da$name ?>; <?R
+		                d=Density[i,]; ?>
+		<?%s d$name ?> = <?%s d$adjoint_name ?>; <?R
 		        } ?>
-		constContainer.pop_adj(*this); <?R
-		        for (d in rows(DensityAD)) if (d$parameter) { ?>
-		<?%s d$name ?> = GradientSmooth*<?%s d$name ?>; <?R
+		constContainer.pop_<?%s s$name ?>_adj(*this); <?R
+		        for (d in rows(Density)) if (d$parameter) { ?>
+		<?%s d$adjoint_name ?> = GradientSmooth*<?%s d$adjoint_name ?>; <?R
 		        } ?>
 		Run_b(); <?R
-		        for (d in rows(DensityAD)) if (d$parameter) { ?>
-                <?%s d$name ?> /= 1.+GradientSmooth; <?R
+		        for (d in rows(Density)) if (d$parameter) { ?>
+                <?%s d$adjoint_name ?> /= 1.+GradientSmooth; <?R
                         } ?>
-		constContainer.push_adj(*this);
+		constContainer.push_<?%s s$name ?>_adj(*this);
 		Opt();
-		constContainer.push_param(*this); <?R
-		} else if (tp$Action == "Init") { ?>
+//		constContainer.push_param_<?%s s$name ?>(*this); <?R
+		} else if (tp$Stream == "Init") { ?>
 		constContainer.getType(*this);
 		Init();
-		constContainer.push(*this); <?R
-		} else if (tp$Action == "No") { ?>
-	        constContainer.pop(*this); 
-		Run();
-		constContainer.push(*this); <?R
+		constContainer.push_<?%s s$name ?>(*this); <?R
+		} else if (tp$Stream == "No") { ?>
+	        constContainer.pop_<?%s s$name ?>(*this); 
+		<?%s s$main ?>();
+		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else {
-		        stop(paste("Unknown Action:",tp$Action,"in Dispatch (conf.R)"));
+		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
-	}
+	} <?R
+        } ########################################################################################### ?>
 }; <?R
 	for (g in rows(GlobalsD)) { ?>
 #undef AddTo<?%s g$name ?><?R

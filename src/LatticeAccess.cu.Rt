@@ -1,0 +1,292 @@
+<?R
+	source("conf.R")
+        c_header()
+?>
+/** \file LatticeAccess.cu
+*/
+
+#include "Consts.h"
+#include "Global.h"
+#include "Lattice.h"
+#include "mpi.h"
+
+/// Push only parameters
+template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
+{
+<?R #	InOut("push", "out", Density, sel=Density$parameter); ?>
+}
+
+/// Push everything exept parameters
+template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
+{
+<?R #	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
+}
+
+/// Get only type of node
+template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
+{
+  node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)];
+        
+<?R #	InOut("type", "in", Density); ?>
+}
+
+/// Push all densities
+
+<?R
+  
+  make.context = function(buf, pocket=FALSE) {
+    MContext = list()
+    MContext$Pocket = ""       
+    MContext$PocketMove = FALSE     
+    MContext$Offset = list()
+    for ( i in 1:length(Margin) ) MContext$Offset[[i]] = PV(0)
+    if (missing(buf)) stop("No Buffor provided");
+    if (pocket) {
+      MContext$Pocket = "pocket" ?>
+      FTabs <?%s MContext$Pocket ?> = <?%s buf ?>; <?R
+      MContext$PocketMove = TRUE
+    } else {
+      MContext$Pocket = buf
+      MContext$PocketMove = FALSE
+    }
+    MContext
+  }
+  
+  move.pocket = function(i,offset, MContext) {
+      off = MContext$Offset[[i]]
+      v = offset - off;
+      if (!is.zero(v)) { ?>
+        <?%s MContext$Pocket?>.<?%s Margin[[i]]$name ?> += <?R C(v,float=FALSE) ?>; <?R
+      }
+      MContext$Offset[[i]] = offset;
+      MContext
+  }  
+  
+  if.apply = function(table, conditions, selection, fun) {
+    n = length(conditions)
+    if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
+    ord = do.call(order,data.frame(table))
+    ord = ord[selection[ord]]
+    req = function(j,l) {
+#      cat("// j:",paste(j,collapse=","),l,"\n");
+      if (l > n) {
+        sapply(j,fun)
+      } else {
+        v = table[j,l]
+#        cat("// v:",paste(v,collapse=","),"\n");
+        sel1 = v == 1
+        sel2 = v == -1
+        sel3 = v == 0
+        if (any(sel1)) { ?>
+                 if (<?R C(conditions[l],float=FALSE) ?> < 0) { <?R
+          req(j[sel1],l+1);
+          if (any(sel2)) {?>
+                 } else { <?R
+            req(j[sel2],l+1);
+          } ?>
+                 } <?R
+        } else if (any(sel2)) { ?>
+                 if (<?R C(conditions[l],float=FALSE) ?> >= 0) { <?R
+          req(j[sel2],l+1); ?>
+                 } <?R
+        }
+        if (any(sel3)) {
+          req(j[sel3],l+1);
+        }
+      }
+    }
+    req(ord,1)
+  }
+
+#  No x move:
+  no.x.move = FALSE
+     
+  field.access.one = function(d,m,off,access) {
+          if (access == "get") {  ?>
+        <?%s d ?> = <?%s m ?>[<?R C(off,float=FALSE) ?>]; <?R
+   } else if (access == "getsum") {  ?>
+        <?%s d ?> += <?%s m ?>[<?R C(off,float=FALSE) ?>]; <?R
+   } else if (access == "set") { ?>
+        <?%s m ?>[<?R C(off,float=FALSE) ?>] = <?%s d ?>; <?R
+   } else if (access == "add") { ?>
+        <?%s m ?>[<?R C(off,float=FALSE) ?>] += <?%s d ?>; <?R
+   } else if (access == "atomicadd") { ?>
+        atomicAddP(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
+   } else stop("Unknown access type in field.access.one");
+  }
+     
+     
+  field.access = function(d,f,p,dp,access,pattern,MContext) {
+    if (pattern == "get") {
+     ret = f$get_offsets(p,dp)
+    } else if (pattern == "put") {
+     ret = f$put_offsets(p)
+    } else {
+     stop("Unknown access in field.access")
+    }
+    if (f$simple_access) {
+     if (access == "add" || access == "atomicadd") access = "set"
+     if (access == "getsum" ) access = "get"
+    }
+    if (MContext$PocketMove) for (m in 1:27) if (ret$Selection[m]) {
+      if (no.x.move) {
+        MContext=move.pocket(m, subst(ret$Offset[m],p[1]==-dp[1]),MContext)
+      } else {
+        MContext=move.pocket(m, ret$Offset[m],MContext)
+      }
+    }
+    if (access == "getsum" ) { ?>
+      <?%s d ?> = 0.0f; <?R
+    }
+    if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
+      field.access.one(d, paste(MContext$Pocket, Margin[[m]]$name, sep="."), ret$Offset[m] - MContext$Offset[[m]], access);
+    })
+    MContext
+  }
+
+  load.field = function(d,f,p,dp,MContext) field.access(d=d,f=f,p=p,dp=dp,pattern="get",access="get",MContext=MContext)
+  save.field = function(d,f,p,MContext)    field.access(d=d,f=f,p=p,      pattern="put",access="set",MContext=MContext)
+
+# mc = require(parallel)
+ mc = require(multicore)
+# mc = FALSE
+ if (!mc) {
+  txtlapply = function(x,FUN,...,mc.cores=1) lapply(x,FUN,...)
+ } else {
+  txtlapply = function(x,FUN,...,mc.cores=5) {
+   ret = mclapply(x,function(x) {
+    f = textConnection("txt__","w")
+    sink(f)
+    ret=FUN(x)
+    close(f)
+    list(ret=ret, txt=txt__);
+   },...,mc.cores = mc.cores)
+   lapply(ret, function(x) {
+    writeLines(x$txt)
+    x$ret
+   })
+  }
+ }
+ 
+
+ 
+
+ txtlapply(c(rows(Stages),list(NULL)), function(s) {
+# lapply(1:length(s_list), function(s_i) {
+# for (s in c(rows(Stages),list(NULL))) {
+  if (is.null(s)) {
+    s$load.densities = rep(TRUE, nrow(DensityAll))
+    s$save.fields = rep(TRUE, length(Fields))
+    s$suffix=""
+  } else {
+    s$load.densities = DensityAll[,s$tag];
+    s$save.fields = Fields[,s$tag];
+    s$suffix = paste("_",s$name,sep="")
+  } 
+
+  ?>
+template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node) 
+{
+<?R
+  con = make.context("in",pocket=TRUE);
+  for (d in rows(Density)[s$load.densities]) { ?>
+//--------------------------- <?%s d$name ?> ----------------------<?R
+    f = Fields[Fields$name == d$field][[1]]
+    p = PV(c("node.x","node.y","node.z"));
+    dp = c(-d$dx, -d$dy, -d$dz)
+    con=load.field(paste("node",d$name,sep="."), f, p, dp,con)
+  }?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::pull<?%s s$suffix ?>(N & node) 
+{
+<?R
+  con = make.context("in",pocket=TRUE);
+  for (d in rows(Density)[s$load.densities]) { ?>
+//--------------------------- <?%s d$name ?> ----------------------<?R
+    f = Fields[Fields$name == d$field][[1]]
+    p = PV(c("node.x","node.y","node.z"));
+    dp = c(-d$dx, -d$dy, -d$dz)
+    con=load.field(paste("node",d$name,sep="."), f, p, dp, con)
+  }?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node) 
+{
+<?R
+  con = make.context("out",pocket=TRUE);
+  for (f in Fields[s$save.fields]) { ?>
+//--------------------------- <?%s f$name ?> ----------------------<?R
+    p = PV(c("node.x","node.y","node.z"));
+    con=save.field(paste("node",f$name,sep="."), f, p, con)
+  }?>
+}
+<?R if (ADJOINT) { ?>
+template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>_adj(N & node) 
+{
+<?R
+  con = make.context("adjout",pocket=TRUE);
+  for (d in rows(Density)[s$load.densities]) { ?>
+//--------------------------- <?%s d$name ?> ----------------------<?R
+    con = field.access(
+     d=paste("node",d$adjoint_name,sep="."),
+     f=Fields[Fields$name == d$field][[1]],
+     p=PV(c("node.x","node.y","node.z")),
+     dp=c(-d$dx, -d$dy, -d$dz),
+     pattern="get",
+     access="atomicadd",
+     MContext=con
+    )
+  }?>
+}
+
+template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>_adj(N & node) 
+{
+<?R
+  con = make.context("adjin",pocket=TRUE);
+  for (f in Fields[s$save.fields]) { ?>
+//--------------------------- <?%s f$name ?> ----------------------<?R
+    p = PV(c("node.x","node.y","node.z"));
+    con = field.access(
+     d=paste("node",f$adjoint_name,sep="."),
+     f=f,
+     p=PV(c("node.x","node.y","node.z")),
+     pattern="put",
+     access="getsum",
+     MContext=con
+    )
+  }?>
+}
+<?R } # end of ADJOINT part ?>
+<?R }) ?>
+
+
+<?R
+ 
+ job_tab = do.call(rbind,
+  lapply(1:length(Fields), function(i) {
+   f = Fields[[i]]
+   expand.grid(field=i,  dz=f$minz:f$maxz, dy=f$miny:f$maxy, dx=f$minx:f$maxx)
+  })
+ )
+
+ 
+ txtlapply(rows(job_tab), function(job) {
+  f = Fields[[job$field]]
+  dx = job$dx
+  dy = job$dy
+  dz = job$dz
+#    for (f in Fields) for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
+template <> 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
+{
+  real_t ret; <?R
+  con = make.context("in");
+  p = PV(c("x","y","z"));
+  dp = c(dx, dy, dz)
+  con=load.field("ret", f, p, dp, con) ?>
+  return ret;
+}
+<?R }) ?>
+
+

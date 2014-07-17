@@ -53,7 +53,38 @@ AddNodeType("XYslice",group="ADDITIONALS");
 AddNodeType("XZslice",group="ADDITIONALS");
 AddNodeType("YZslice",group="ADDITIONALS");
 
-AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
-AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")
-AddGlobal(name="ZFlux", comment='Volume flux', unit="m3/s")
+
+
+#AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
+#AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")
+#AddGlobal(name="ZFlux", comment='Volume flux', unit="m3/s")
+
+AddGlobal(name="XYvx", comment='Volume flux', unit="m3/s")
+AddGlobal(name="XYvy", comment='Volume flux', unit="m3/s")
+AddGlobal(name="XYvz", comment='Volume flux', unit="m3/s")
+AddGlobal(name="XYrho", comment='Volume flux', unit="kg/m")
+AddGlobal(name="XYarea", comment='Volume flux', unit="m2")
+
+AddGlobal(name="XZvx", comment='Volume flux', unit="m3/s")
+AddGlobal(name="XZvy", comment='Volume flux', unit="m3/s")
+AddGlobal(name="XZvz", comment='Volume flux', unit="m3/s")
+AddGlobal(name="XZrho", comment='Volume flux', unit="kg/m")
+AddGlobal(name="XZarea", comment='Volume flux', unit="m2")
+
+AddGlobal(name="YZvx", comment='Volume flux', unit="m3/s")
+AddGlobal(name="YZvy", comment='Volume flux', unit="m3/s")
+AddGlobal(name="YZvz", comment='Volume flux', unit="m3/s")
+AddGlobal(name="YZrho", comment='Volume flux', unit="kg/m")
+AddGlobal(name="YZarea", comment='Volume flux', unit="m2")
+
+AddGlobal(name="VOLvx", comment='Volume flux', unit="m4/s")
+AddGlobal(name="VOLvy", comment='Volume flux', unit="m4/s")
+AddGlobal(name="VOLvz", comment='Volume flux', unit="m4/s")
+AddGlobal(name="VOLpx", comment='Volume flux', unit="mkg/s")
+AddGlobal(name="VOLpy", comment='Volume flux', unit="mkg/s")
+AddGlobal(name="VOLpz", comment='Volume flux', unit="mkg/s")
+AddGlobal(name="VOLrho", comment='Volume flux', unit="kg")
+AddGlobal(name="VOLvolume", comment='Volume flux', unit="m3")
+
+AddGlobal(name="MaxV", comment='Max velocity', unit="m3", op="MAX")
 

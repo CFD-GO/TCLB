@@ -22,6 +22,8 @@
 
 #include "Consts.h"
 
+template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
+
 /// Container class used for storing all the data needed on GPU
 /**
   Main class for storing the data needed on GPU and running kernels.
@@ -47,27 +49,61 @@ class LatticeContainer {
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
 
+  int ZoneIndex;
+  real_t** ZoneSettings;
+  real_t* ConstZoneSettings;
+
   void Alloc (int,int,int);
   void Free();
   CudaDeviceFunction void fill();
-  template<class N>  CudaDeviceFunction void push(N & f);
-  template<class N>  CudaDeviceFunction void push_param(N & f);
-  template<class N>  CudaDeviceFunction void push_noparam(N & f);
-  template<class N>  CudaDeviceFunction void pull(N & f);
-  template<class N>  CudaDeviceFunction void pop(N & f);
-  template<class N>  CudaDeviceFunction void getType(N & f);
+<?R for (s in c(rows(Stages),list(NULL))) {
+  if (is.null(s)) {
+    s$load.densities = rep(TRUE, nrow(DensityAll))
+    s$save.fields = rep(TRUE, length(Fields))
+    s$suffix=""
+  } else {
+    s$load.densities = DensityAll[,s$tag];
+    s$save.fields = Fields[,s$tag];
+    s$suffix = paste("_",s$name,sep="")
+  } 
+  ?>
+  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void push_param<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void push_noparam<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>(N & f);
 #ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push_adj(N & f);
-  template<class N>  CudaDeviceFunction void pull_adj(N & f);
-  template<class N>  CudaDeviceFunction void pop_adj(N & f);
+  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>_adj(N & f);
 #endif
+<?R } ?>
+
+  template<class N>  CudaDeviceFunction void getType(N & f);
+
+//  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
+  for (f in Fields) { ?>
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
+    typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
+  }; <?R
+  } ?>
+//  template <class N> CudaDeviceFunction void push_new(N & node);
+
+
+  CudaDeviceFunction inline const real_t ZoneSetting(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    const real_t * w = ZoneSettings[i];
+    if (w == NULL) return ConstZoneSettings[i];
+    return w[ZoneIndex];
+  }
+
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-<?R for(tp in rows(Dispatch)) { ?>
-  void RunBorder<?%s tp$suffix ?>(CudaStream_t);
-  void RunInterior<?%s tp$suffix ?>(CudaStream_t);
-<?R } ?>
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
+  
   void CopyToConst();
   void WaitAll();
   void WaitBorder();
@@ -95,6 +131,11 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);
+        if (q$adjoint) {
+          node = "Node_Adj"
+        } else {
+          node = "Node"
+        }
 ?>
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
@@ -107,6 +148,7 @@ ifdef() ?>
 
 void * BAlloc(size_t size);
 void BPreAlloc(void **, size_t size);
+
 
 #endif
 #define LATTICECONTAINER_H 1

@@ -2,7 +2,7 @@
 #define GEOMETRY_H
 
 #include "unit.h"
-
+#include <map>
 /// STL triangle structure
 struct __attribute__((__packed__)) STL_tri {
         float norm[3];
@@ -22,12 +22,14 @@ public:
   ~Geometry();
   int load(pugi::xml_node&);
   void writeVTI(char * filename);
+  std::map<std::string,int> SettingZones;
 private:
   flag_t fg; ///< Foreground flag used for filling
   flag_t fg_mask; ///< Foreground flag mask used for filling
   pugi::xml_node fg_xml; ///< Foreground flag XML element
   int setFlag(const pugi::char_t * name);
   int setMask(const pugi::char_t * name);
+  int setZone(const pugi::char_t * name);
   int Draw(pugi::xml_node&);
   int loadZone(const char * name);
   int loadSTL( lbRegion reg, pugi::xml_node n);

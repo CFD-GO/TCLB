@@ -25,24 +25,10 @@ void HandleError( cudaError_t err,
                          const char *file,
                          int line ) {
     if (err != cudaSuccess) {
-        fprintf(stderr, "[%d] %s in %s at line %d\n", D_MPI_RANK, cudaGetErrorString( err ),
-                file, line );
+        ERROR("%s in %s at line %d\n", cudaGetErrorString( err ), file, line );
         exit( EXIT_FAILURE );
     }
 }
-
-/*int GetMaxThreads()
-{
-            cudaFuncAttributes * attr = new cudaFuncAttributes;
-            HANDLE_ERROR( cudaFuncGetAttributes(attr, RunKernel<Node>) );
-            printf( "Constant mem:%ld\n", attr->constSizeBytes);
-            printf( "Local    mem:%ld\n", attr->localSizeBytes);
-            printf( "Max  threads:%d\n", attr->maxThreadsPerBlock);
-            printf( "Reg   Number:%d\n", attr->numRegs);
-            printf( "Shared   mem:%ld\n", attr->sharedSizeBytes);
-            return attr->maxThreadsPerBlock;
-}
-*/
 
 #endif
 
@@ -63,7 +49,7 @@ void HandleError( cudaError_t err,
         std::vector< std::pair< void *, std::vector< ptrpair > > > freelist;
 
         CudaError cudaPreAlloc(void ** ptr, size_t size) {
-                DEBUG1(printf("Preallocation of %d b\n", (int) size);)
+                debug1("Preallocation of %d b\n", (int) size);
                 ptrlist.push_back(ptrpair(ptr, size));
         //	return cudaMalloc(ptr, size);
                 return CudaSuccess;
@@ -85,17 +71,17 @@ void HandleError( cudaError_t err,
                 }
                 char * tmp;
                 if (fullsize > 1e9) {
-                        printf("[%d] Cumulative allocation of %d b (%.1f GB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e9);
+                        NOTICE("[%d] Cumulative allocation of %d b (%.1f GB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e9);
                 } else if (fullsize > 1e6) {
-                        printf("[%d] Cumulative allocation of %d b (%.1f MB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e6);
+                        NOTICE("[%d] Cumulative allocation of %d b (%.1f MB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e6);
                 } else if (fullsize > 1e3) {
-                        printf("[%d] Cumulative allocation of %d b (%.1f kB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e3);
+                        NOTICE("[%d] Cumulative allocation of %d b (%.1f kB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e3);
                 } else {
-                        printf("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+                        NOTICE("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
                 }
                 CudaMalloc((void **) &tmp,fullsize);
                 if (tmp == NULL) {
-                        std::cerr << "FATAL ERROR: Not enaught memory! tried to allocate (cumulatice): " << fullsize << " b\n";
+                        ERROR("FATAL ERROR: Not enaught memory! tried to allocate (cumulatice): %ld\n", fullsize);
                         exit(-1);
                 }
                 CudaMemset( tmp, 0, fullsize );
@@ -103,7 +89,7 @@ void HandleError( cudaError_t err,
                 std::vector< ptrpair > tofree;
                 while (!ptrlist.empty()) {
                         ptr = ptrlist.back();
-                        DEBUG1(printf("[%d] Preallocation gave %d b\n", D_MPI_RANK, (int) ptr.size);)
+                        debug1("[%d] Preallocation gave %d b\n", D_MPI_RANK, (int) ptr.size);
         //		cudaMalloc(ptr.ptr,ptr.size);
                         *(ptr.ptr) = (void **)tmp;
                         tmp += ptr.size;
@@ -119,30 +105,33 @@ void HandleError( cudaError_t err,
                 std::pair< void *, std::vector< ptrpair > > ptr_list;
                 while (!freelist.empty()) {
                         ptr_list = freelist.back();
-//                        printf("ptr_list.first = %p\n", ptr_list.first);
                         CudaFree(ptr_list.first);
                         std::vector< ptrpair >::iterator it;
                         for (it=ptr_list.second.begin(); it != ptr_list.second.end(); it++) {
-//                                printf(" *((*it).ptr) = %p\n", *((*it).ptr));
                                 *((*it).ptr) = NULL;
                         }
                         freelist.pop_back();
                 }
                 return CudaSuccess;
         }
-                                
+
 
 
 #else
 
         CudaError cudaPreAlloc(void ** ptr, size_t size) {
-                DEBUG1(printf("Preallocation of %d b\n", (int) size);)
+                debug1("Preallocation of %d b\n", (int) size);
                 CudaError ret = CudaMalloc(ptr, size);
                 CudaMemset( *ptr, 0, size );
                 return ret;
         }
 
         CudaError cudaAllocFinalize() {
+                return CudaSuccess;
+        }
+
+        CudaError cudaAllocFreeAll() {
+                // TODO: What should go here?? MD
                 return CudaSuccess;
         }
 

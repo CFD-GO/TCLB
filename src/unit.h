@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <cmath>
 #include <stdlib.h>
+
+#include "Global.h"
 // m s kg K
 
 
@@ -37,7 +39,7 @@ public:
       for (int i=0; i<m_unit; i++) uni[i]=0;
       uni[k]=1;
     } else {
-      printf("Wrong number of unit at initializer\n");
+      error("Wrong number of unit at initializer\n");
       throw(std::string("Wrong number of unit at initializer"));
     }
   };
@@ -78,7 +80,7 @@ public:
       B.val = val + A.val;
       for (int i=0; i<m_unit; i++) {
         if (A.uni[i] != uni[i]) {
-          printf("Different units in addition\n");
+          error("Different units in addition\n");
           throw(std::string("Different units in addition"));
         }
         B.uni[i] = A.uni[i];
@@ -102,10 +104,17 @@ public:
     return ret;
   };
   /// Print value and unit
+  inline char* tmp_str () const{
+    static char buf[3000];
+    char * str = buf;
+    str += sprintf(str,"%lg [ ",val);
+    for (int i=0; i<m_unit; i++) str += sprintf(str,"%s^%d ",m_units[i].c_str(),uni[i]);
+    str += sprintf(str,"]");
+    return buf;
+  };
+
   inline void print () const{
-    printf("%lg [ ",val);
-    for (int i=0; i<m_unit; i++) printf("%s^%d ",m_units[i].c_str(),uni[i]);
-    printf("]\n");
+    output("%s\n", tmp_str());
   };
   /// Convert to string
   inline std::string toString () const{

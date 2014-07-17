@@ -12,8 +12,10 @@
 
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
+options(stringsAsFactors=FALSE)
 
 source("fun_v3.R")
+source("bunch.R")
 
 rows = function(x) {
 	rows_df= function(x) {
@@ -66,8 +68,8 @@ c_table_decl = function(d) {
 
 ifdef.global.mark = F
 ifdef = function(val=F, tag="ADJOINT") {
-	if ((!ifdef.global.mark) && ( val)) cat("#ifdef",tag,"\n");
-	if (( ifdef.global.mark) && (!val)) cat("#endif //",tag,"\n");
+	if ((!ifdef.global.mark) && ( val)) cat("\n#ifdef",tag,"\n");
+	if (( ifdef.global.mark) && (!val)) cat("\n#endif //",tag,"\n");
 	ifdef.global.mark <<- val
 }
 
@@ -75,16 +77,19 @@ ifdef = function(val=F, tag="ADJOINT") {
 DensityAll = data.frame()
 Globals = data.frame()
 Settings = data.frame()
+ZoneSettings = data.frame()
 Quantities = data.frame()
 NodeTypes = data.frame()
+Fields = data.frame()
 
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	comment = ifelse(comment == "", name, comment);
-	d = data.frame(
+	dd = data.frame(
 		name=name,
+		field=field,
 		dx=dx,
 		dy=dy,
 		dz=dz,
@@ -93,10 +98,51 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", p
 		group=group,
 		parameter=parameter
 	)
-	DensityAll <<- rbind(DensityAll,d)
+	DensityAll <<- rbind(DensityAll,dd)
+	for (d in rows(dd)) {
+		AddField(name=d$field,
+			dx=-d$dx,dy=-d$dy,dz=-d$dz,
+			comment=d$comment,
+			adjoint=d$adjoint,
+			group=d$group,
+			parameter=d$parameter
+		)
+	}
 }
 
-AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, ...) {
+AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+	if (missing(name)) stop("Have to supply name in AddField!")
+	comment = ifelse(comment == "", name, comment);
+
+		d = data.frame(
+			name=name,
+			minx=min(dx,-stencil2d,-stencil3d,na.rm=T),
+			maxx=max(dx, stencil2d, stencil3d,na.rm=T),
+			miny=min(dy,-stencil2d,-stencil3d,na.rm=T),
+			maxy=max(dy, stencil2d, stencil3d,na.rm=T),
+			minz=min(dz,           -stencil3d,na.rm=T),
+			maxz=max(dz,            stencil3d,na.rm=T),
+			comment=comment,
+			adjoint=adjoint,
+			group=group,
+			parameter=parameter
+		)
+
+		if (any(Fields$name == d$name)) {
+			i = which(Fields$name == d$name)
+			Fields$minx[i] <<- min(Fields$minx[i], d$minx)
+			Fields$maxx[i] <<- max(Fields$maxx[i], d$maxx)
+			Fields$miny[i] <<- min(Fields$miny[i], d$miny)
+			Fields$maxy[i] <<- max(Fields$maxy[i], d$maxy)
+			Fields$minz[i] <<- min(Fields$minz[i], d$minz)
+			Fields$maxz[i] <<- max(Fields$maxz[i], d$maxz)
+		} else {
+			Fields <<- rbind(Fields, d)
+		}
+}
+
+
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (missing(comment)) {
 		comment = name
@@ -124,21 +170,29 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 		adjoint=adjoint,
 		comment=comment
 	)
-	Settings <<- rbind(Settings,s)
+	if (zonal) {
+		ZoneSettings <<- rbind(ZoneSettings,s)
+	} else {
+		Settings <<- rbind(Settings,s)
+	}
 }
 
-AddGlobal = function(name, var, comment="", unit="1", adjoint=F) {
+
+AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=0.0) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
 	if (missing(var)) var=name
 	if (comment == "") {
 		comment = name
 	}
+	if (!(op %in% c("SUM","MAX"))) stop("Operation (op) in AddGlobal have to be SUM or MAX")
 	g = data.frame(
 		name=name,
 		var=var,
 		comment=comment,
 		unit=unit,
-		adjoint=adjoint
+		adjoint=adjoint,
+		op=op,
+		base_value=base
 	)
 	Globals <<- rbind(Globals,g)
 }
@@ -158,6 +212,7 @@ AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 		type=type,
 		unit=unit,
 		adjoint=adjoint,
+		vector=vector,
 		comment=comment
 	)
 	Quantities <<- rbind(Quantities,q)
@@ -195,7 +250,99 @@ AddNodeType("Obj3","OBJECTIVE")
 AddNodeType("Thermometer","OBJECTIVE")
 AddNodeType("DesignSpace","DESIGNSPACE")
 
-source("Dynamics.R")
+Stages=NULL
+
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE) {
+	s = data.frame(
+		name = name,
+		main = main,
+		adjoint = FALSE
+	)
+	sel = Stages$name == name
+	if (any(sel)) {
+		if (no.overwrite) return();
+		s$index = Stages$index[sel]
+		s$tag = Stages$tag[sel]
+		Stages[sel,] <<- s
+	} else {
+		if (is.null(Stages)) {
+			s$index = 1
+		} else {
+			s$index = nrow(Stages) + 1
+		}
+		s$tag = paste("S",s$index,sep="__")
+		Stages <<- rbind(Stages,s)
+	}
+	if (is.character(load.densities)) {
+		sel = load.densities %in% DensityAll$name
+		if (any(!sel)) stop(paste("Unknown densities in AddStage:", load.densities[!sel]))
+		load.densities = DensityAll$name %in% load.densities
+	}
+	if (is.logical(load.densities)) {
+		if ((length(load.densities) != 1) && (length(load.densities) != nrow(DensityAll))) stop("Wrong length of load.densities in AddStage")
+		DensityAll[,s$tag] <<- load.densities
+	} else stop("load.densities should be logical or character")
+
+	if (is.character(save.fields)) {
+		sel = save.fields %in% Fields$name
+		if (any(!sel)) stop(paste("Unknown fields in AddStage:", save.fields[!sel]))
+		save.fields = Fields$name %in% save.fields
+	}
+	if (is.logical(save.fields)) {
+		if ((length(save.fields) != 1) && (length(save.fields) != nrow(Fields))) stop("Wrong length of save.fields in AddStage")
+		Fields[,s$tag] <<- save.fields
+	} else stop("save.fields should be logical or character in AddStage")
+}
+
+Actions = list()
+
+AddAction = function(name, stages) {
+	Actions[[name]] <<- stages
+}
+
+source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
+
+
+if (!"Iteration" %in% names(Actions)) {
+	AddAction(name="Iteration", stages=c("BaseIteration"))
+}
+if (!"Init" %in% names(Actions)) {
+	AddAction(name="Init", stages=c("BaseInit"))
+}
+AllStages = do.call(c,Actions)
+
+if (("BaseIteration" %in% AllStages) && (!"BaseIteration" %in% Stages$name)) {
+	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, no.overwrite=TRUE)
+}
+if (("BaseInit" %in% AllStages) && (!"BaseInit" %in% Stages$name)) {
+	AddStage(main="Init", name="BaseInit", load.densities=FALSE, save.fields=TRUE, no.overwrite=TRUE)
+}
+
+if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
+ntag = paste("Stage",Stages$name,sep="_")
+i = match(Stages$tag,names(DensityAll))
+if (any(is.na(i))) stop("Some stage didn't load properly")
+names(DensityAll)[i] = ntag
+i = match(Stages$tag,names(Fields))
+if (any(is.na(i))) stop("Some stage didn't load properly")
+names(Fields)[i] = ntag
+Stages$tag = ntag
+#Stages = Stages[order(Stages$level),]
+row.names(Stages)=Stages$name
+
+for (n in names(Actions)) { a = Actions[[n]]
+	if (length(a) != 0) {
+		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
+		sel = Stages[a,"tag"]
+		f = Fields[,sel,drop=F]
+		s = apply(f,1,sum)
+		if (any(s) > 1) {
+			stop(paste("Field", Fields$name[s>1],"is saved more then once in Action",n))
+		}
+	} else {
+		stop(paste("There is a empty Action:",n))
+	}
+}
 
 NodeShift = 1
 NodeShiftNum = 0
@@ -213,11 +360,40 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	tab
 }))
 
+if (NodeShiftNum > 16) {
+	stop("NodeTypes exceeds short int")
+} else {
+	ZoneBits = 16 - NodeShiftNum
+	ZoneShift = NodeShiftNum
+	if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
+	ZoneMax = 2^ZoneBits
+	NodeTypes = rbind(NodeTypes,data.frame(
+		name=paste("SettingZone",1:ZoneMax,sep=""),
+		group="SETTINGZONE",
+		index=1:ZoneMax,
+		Index=paste("SettingZone",1:ZoneMax,sep=""),
+		value=(1:ZoneMax-1)*NodeShift,
+		mask=(ZoneMax-1)*NodeShift,
+		shift=NodeShiftNum
+	))
+	NodeShiftNum = 16
+	NodeShift = 2^NodeShiftNum
+}
+
 if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
+
+NodeTypes = rbind(NodeTypes, data.frame(
+	name="None",
+	group="NONE",
+	index=1,
+	Index="None",
+	value=0,
+	mask=0,
+	shift=0
+))
 
 Node=NodeTypes$value
 names(Node) = NodeTypes$name
-Node["None"] = 0
 
 i = !duplicated(NodeTypes$group)
 Node_Group=NodeTypes$mask[i]
@@ -227,25 +403,30 @@ Node_Group["ALL"] = sum(Node_Group)
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
 
-if (ADJOINT==1) {
-	for (d in rows(DensityAll)) {
-		n = as.character(d$name)
-		if (grepl("[[]", n)) {
-			n = sub("[[]","b[", n)
-		} else {
-			n = paste(n, "b", sep="")
+add.to.var.name = function(n,s) {
+		n = as.character(n)
+		sel = grepl("[[]", n)
+		if (any(sel)) {
+			n[sel] = sub("[[]",paste(s,"[",sep=""), n[sel])
 		}
-		AddDensity(
-			name=n,
-			dx=-d$dx,
-			dy=-d$dy,
-			dz=-d$dz,
-			comment=paste("adjoint to",d$comment),
-			group=d$group,
-			parameter=d$parameter,
-			adjoint=T
-		)
-	}
+		if (any(!sel)) {
+			n[!sel] = paste(n[!sel], s, sep="")
+		}
+		n
+}
+
+
+DensityAll$adjoint_name = add.to.var.name(DensityAll$name,"b")
+DensityAll$tangent_name = add.to.var.name(DensityAll$name,"d")
+
+Fields$adjoint_name = add.to.var.name(Fields$name,"b")
+Fields$tangent_name = add.to.var.name(Fields$name,"d")
+
+Fields$area = with(Fields,(maxx-minx+1)*(maxy-miny+1)*(maxz-minz+1))
+Fields$simple_access = (Fields$area == 1)
+
+if (ADJOINT==1) {
+
 	for (s in rows(Settings)) {
 		AddGlobal(
 			name=paste(s$name,"_D",sep=""),
@@ -270,6 +451,10 @@ DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 Density   = DensityAll[! DensityAll$adjoint, ]
 DensityAD = DensityAll[  DensityAll$adjoint, ]
 
+Fields$nicename = gsub("[][ ]","",Fields$name)
+
+Fields = bunch(Fields)
+
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 GlobalsD = Globals
@@ -284,6 +469,17 @@ Margin = data.frame(
 	command=paste("Margin",1:27)
 )
 
+Margin$sides = c(
+	 8, 7, 8,
+	 6, 5, 6,
+	 8, 7, 8,
+	 4, 3, 4,
+	 2, 1, 2,
+	 4, 3, 4,
+	 8, 7, 8,
+	 6, 5, 6,
+	 8, 7, 8
+)
 Margin$size = 0
 Margin=rows(Margin)
 
@@ -309,59 +505,50 @@ GetMargins = function(dx,dy,dz) {
 	)
 }
 
-nx = PV("nx");
-ny = PV("ny");
-nz = PV("nz");
-SideSize = rbind(nx*ny*nz, ny*nz, nx*nz, nz, nx*ny, ny, nx, 1);
-zero = PV(0);
-
-for (i in 1:length(Margin)) {
-	Margin[[i]]$Size = zero
-	Margin[[i]]$Offset = zero
-	Margin[[i]]$opposite_side = Margin[[28-i]]$side
-}
-
-x = PV("node.x");
-y = PV("node.y");
-z = PV("node.z");
-SideOffset = rbind(x + y*nx + z*nx*ny, y + z*ny, x + z*nx, z, x + y*nx, y, x, 0);
-
-for (x in rows(Density))
-{
-	w = GetMargins(x$dx,x$dy,x$dz)
-	for (k in 1:length(w)) {
-		j = w[k];
-		if (j != 0) {
-			Margin[[j]]$size   = Margin[[j]]$size + 1
-			Margin[[j]]$Size   = Margin[[j]]$Size + SideSize[k]
-			Margin[[j]]$Offset = SideOffset[k]
-		}
-	}
-}
-
-
 NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
 NonEmptyMargin = Margin[NonEmptyMargin]
 
 
-
 Settings$FunName = paste("SetConst",Settings$name,sep="_")
 
+#Dispatch = data.frame(
+#	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
+#	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+#	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+#	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
+#	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
+#	zeropar=c(  FALSE,   FALSE,    FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
+#	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
+#)
 Dispatch = data.frame(
-	Globals=c(   "No",    "No",  "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
-	Action =c(   "No",  "Init",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
-	Stream =c(   "No",    "No",     "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
-	globals=c(  FALSE,   FALSE,     TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
-	adjoint=c(  FALSE,   FALSE,    FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
-	zeropar=c(  FALSE,   FALSE,    FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
-	suffix =c(     "", "_Init", "_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
+	Globals=c(   "No", "Globs",  "Obj",   "No",      "Globs",    "No",       "Globs",   "No",      "Globs"),
+	Action =c(   "No",    "No",   "No",  "Adj",        "Adj",  "SAdj",        "SAdj",  "Opt",        "Opt"),
+	Stream =c(   "No",    "No",   "No",  "Adj",        "Adj",   "Adj",         "Adj",  "Opt",        "Opt"),
+	globals=c(  FALSE,    TRUE,   TRUE,  FALSE,         TRUE,   FALSE,          TRUE,  FALSE,         TRUE),
+	adjoint=c(  FALSE,   FALSE,  FALSE,   TRUE,         TRUE,    TRUE,          TRUE,   TRUE,         TRUE),
+	zeropar=c(  FALSE,   FALSE,  FALSE,  FALSE,        FALSE,    TRUE,          TRUE,   TRUE,         TRUE),
+	suffix =c(     "","_Globs", "_Obj", "_Adj", "_Globs_Adj", "_SAdj", "_Globs_SAdj", "_Opt", "_Globs_Opt")
 )
-
 Dispatch$adjoint_ver = Dispatch$adjoint
 Dispatch$adjoint_ver[Dispatch$Globals == "Obj"] = TRUE
 
+p = expand.grid(x=seq_len(nrow(Dispatch)), y=seq_len(nrow(Stages)+1))
+Dispatch = cbind(
+	Dispatch[p$x,],
+	data.frame(
+		stage = c(FALSE,rep(TRUE,nrow(Stages))),
+		stage_name  = c("Get", Stages$name),
+		stage_index = c(0,Stages$index)
+	)[p$y,]
+)
+sel = Dispatch$stage
+Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel], sep="")
+
+Globals = Globals[order(Globals$op),]
+
+
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -374,14 +561,134 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 	}
 	assign(n,v)
 }
+Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
+Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 
 GlobalsD = Globals[-nrow(Globals),]
+
+offsets = function(d2=FALSE, cpu=FALSE) {
+	def.cpu = cpu
+	mw = PV(c("nx","ny","nz"))
+	if2d3d = c(FALSE,FALSE,d2 == TRUE)
+	one = PV(c(1,1,1))
+	bp = expand.grid(x=1:3,y=1:3,z=1:3)
+	p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
+	tab1 = c(1,-1,0)
+	tab2 = c(0,-1,1)
+	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
+	sizes = rbind(one,mw,one)
+	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1)
+	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
+	MarginNSize = PV(rep(0,27))
+	ret = lapply(Fields, function (f) 
+	{
+		mins = c(f$minx,f$miny,f$minz)
+		maxs = c(f$maxx,f$maxy,f$maxz)
+		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
+		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+		tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
+		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+		mins = pmin(mins,0)
+		maxs = pmax(maxs,0)
+		nsizes = rbind(PV(-mins),one,PV(maxs))
+		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
+		mSize = MarginNSize
+		MarginNSize <<- mSize + nsize
+		offset.p = function(positions,cpu) {
+			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0)
+			if (cpu) {
+			offset =  (positions[p$x] +
+				  (positions[p$y] +
+				  (positions[p$z]
+					) * sizes[p$y] * nsizes[p$y]
+					) * sizes[p$x] * nsizes[p$x]
+					) * MarginNSize +
+				  mSize
+			} else {
+			offset =   positions[p$x] +
+				  (positions[p$y] +
+				  (positions[p$z]
+					) * sizes[p$y] * nsizes[p$y]
+					) * sizes[p$x] * nsizes[p$x] +
+				  mSize * size
+			}
+			offset
+		}
+		c(f,list(
+			get_offsets = 
+			function(w,dw,cpu=def.cpu) {
+				tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
+				tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
+				tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+				get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+				get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+				offset = offset.p(rbind(w+PV(dw) - PV(mins),w+PV(dw),w+PV(dw) - mw),cpu=cpu)
+				cond = rbind(w+PV(dw),mw-w-PV(dw)-one)
+				list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
+			},
+			put_offsets = 
+			function(w,cpu=def.cpu) {
+				offset = offset.p(rbind(w - mw - PV(mins),w,w),cpu=cpu)
+				cond = rbind(w+PV(-maxs),mw-w+PV(mins)-one)
+				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
+			},
+			fOffset=mSize*size
+		))
+	})
+	class(ret) = "bunch"
+	attr(ret,"cols") = names(ret[[1]])
+	list(Fields=ret, MarginSizes=MarginNSize * size)
+}
+
+ret = offsets(cpu=FALSE)
+Fields = ret$Fields
+
+for (i in 1:length(Margin)) {
+	Margin[[i]]$Size = ret$MarginSizes[i]
+	if (! is.zero(Margin[[i]]$Size)) {
+		 Margin[[i]]$size = 1;
+	} else {
+		Margin[[i]]$size = 0
+	}
+	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+}
+
+NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
+NonEmptyMargin = Margin[NonEmptyMargin]
+
+
+Enums = list(
+	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
+	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
+	eModel=as.character(MODEL),
+	eAction=names(Actions),
+	eStage=c(Stages$name,"Get"),
+	eTape = c("NoTape", "RecordTape")
+)
+
+AllKernels = expand.grid(
+	Op=Enums$eOperationType,
+	Globals=Enums$eCalculateGlobals[1:3],
+	Model=Enums$eModel,
+	Stage=Stages$name
+#	Stage=Enums$eStage
+)
+
+AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))
+AllKernels$TemplateArgs = paste(AllKernels$Op, ",", AllKernels$Globals, ",", AllKernels$Stage)
+AllKernels$Node = paste("Node_Run <", AllKernels$TemplateArgs, ">")
+
+
+################################################################################
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
 
 clb_header = c(
 sprintf("-------------------------------------------------------------"),
-sprintf("  CLB - Cudne LB                                             "),
+sprintf("  CLB - Cudne LB - Stencil Version                           "),
 sprintf("     CUDA based Adjoint Lattice Boltzmann Solver             "),
 sprintf("     Author: Lukasz Laniewski-Wollk                          "),
 sprintf("     Developed at: Warsaw University of Technology - 2012    "),

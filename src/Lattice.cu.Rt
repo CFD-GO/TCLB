@@ -64,6 +64,8 @@ int Lattice::Offset(int x, int y, int z)
 Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
 	reverse_save=0;
+	Record_Iter = 0;
+	Iter = 0;
 	total_iterations = 0;
 	callback_iter = 1;
 	nSnaps = ns;
@@ -105,6 +107,9 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	        CudaEventCreate( &inEv[i] );
 	for (int i=0; i < 28; i++)
 	        CudaEventCreate( &mpiEv[i] );
+        container->ZoneSettings = zSet.gpuTab;
+        container->ConstZoneSettings = zSet.gpuConst;
+        container->ZoneIndex = 0;
 }
 
 /// Initialization of MPI buffors
@@ -117,7 +122,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 //--------- Initialize MPI buffors
 	bufnumber = 0;
 #ifndef DIRECT_MEM
-	printf("[%d] Allocating MPI buffors ...\n", D_MPI_RANK);
+	debug2("Allocating MPI buffors ...\n");
 	real_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -145,7 +150,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 ?>
 #endif
 
-	printf("[%d] Done (BUFS: %d)\n", D_MPI_RANK, bufnumber);
+	debug2("Done (BUFS: %d)\n", bufnumber);
 }
 
 /// Starting of unsteady adjoint recording
@@ -157,17 +162,16 @@ void Lattice::MPIInit(MPIInfo mpi_)
 void Lattice::startRecord()
 {
 	if (reverse_save) {
-		std::cerr << "Nested record! Called startRecord while recording\n";
+		ERROR("Nested record! Called startRecord while recording\n");
 		exit(-1);
 	}
-	if (Iter != 0) {
-		std::cerr << "Record tape is not rewinded (iter = " << Iter << ") maybe last adjoint didn't go all the way\n";
-		Iter = 0;
+	if (Record_Iter != 0) {
+		ERROR("Record tape is not rewinded (iter = %d) maybe last adjoint didn't go all the way\n", Record_Iter);
+		Record_Iter = 0;
 	}
-	printf("[%d] Lattice is starting to record (usteady adjoint)\n",D_MPI_RANK);
+	debug2("Lattice is starting to record (usteady adjoint)\n");
 	if (Snap != 0) {
-		std::cerr << "Warning: Snap = "<< Snap << "\n";
-		
+		warning("Snap = %d at startRecord\n", Snap);
 	}
 	for (int i=0; i < maxSnaps; i++) {	
 		iSnaps[i]= -1;
@@ -179,7 +183,7 @@ void Lattice::startRecord()
 		save(Snaps[Snap], filename);
 	}
 	if (Snap != 0) {
-		std::cerr << "Warning: Snap = "<< Snap << " Going through disk\n";
+		warning("Snap = %d. Going through disk\n", Snap);
 	} else {
 		iSnaps[Snap] = 0;
 	}
@@ -227,7 +231,7 @@ void Lattice::loadSolution(const char * filename) {
 void Lattice::clearAdjoint()
 {
 #ifdef ADJOINT
-	printf("[%d] Clearing adjoint\n", D_MPI_RANK);
+	debug1("Clearing adjoint\n");
 	aSnaps[0].Clear(region.nx,region.ny,region.nz);
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 #endif
@@ -251,12 +255,12 @@ void Lattice::clearDPar()
 */
 void Lattice::stopRecord()
 {
-	if (Iter != 0) {
-		std::cerr << "Warning: Record tape is not rewinded (iter = " << Iter << ")\n";
-		Iter = 0;
+	if (Record_Iter != 0) {
+		WARNING("Record tape is not rewinded (iter = %d)\n",Record_Iter);
+		Record_Iter = 0;
 	}
 	reverse_save = 0;
-	printf("[%d] Stop recording\n", D_MPI_RANK);
+	debug2("Stop recording\n");
 }
 
 /// Set monitor callback
@@ -328,6 +332,14 @@ inline void Lattice::MPIStream_B(int tag)
         }
 }
 
+
+<?R for (n in names(Actions)) {
+        a = Actions[[n]]
+        if (n == "Iteration") {
+                FunName = "Iteration"
+        } else {
+                FunName = paste("Action",n,sep="_")
+        } ?>
 /// Normal (Primal) Iteration
 /**
         One Primal Iteration
@@ -335,14 +347,15 @@ inline void Lattice::MPIStream_B(int tag)
         \param tab1 Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
+inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 {
 	real_t * tmp;
 	int size, from, to;
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
+	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
+	container->ZoneIndex = (Iter + Record_Iter) % zSet.getLen();
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -358,18 +371,25 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
 <?R
 	}
-?>
+	old_stage_level = 0
+	for (s in a) {
+                 stage = Stages[s,,drop=F] ?>
+//---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
+                 if (old_stage_level > 0) { 
+                	for (m in NonEmptyMargin) { ?>
+	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
+                        } 
+                 }
+                 old_stage_level = old_stage_level + 1 ?>
 	container->CopyToConst();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunBorder (kernelStream); break;
-	case ITER_INIT:
-		container->RunBorder_Init(kernelStream); break;
+		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
-		container->RunBorder_Globs(kernelStream); break;
+		container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunBorder_Obj(kernelStream);
+		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
 #endif
                 break;
 	}	
@@ -379,15 +399,12 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunInterior (kernelStream); break;
-	case ITER_INIT:
-	        printf("Running Init kernel\n");
-		container->RunInterior_Init(kernelStream); break;
+		container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
-		container->RunInterior_Globs(kernelStream); break;
+		container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
 	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunInterior_Obj(kernelStream);
+		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
 #endif
                 break;
 	}	
@@ -395,6 +412,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
 	MPIStream_B();
 
         CudaDeviceSynchronize();
+<?R } ?>
 	Snap = tab1;
 	MarkIteration();
 };
@@ -406,7 +424,7 @@ inline void Lattice::Iteration(int tab0, int tab1, int iter_type)
         \param tab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
+inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
 	real_t * tmp;
@@ -414,37 +432,40 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	MPI_Status status;
 	MPI_Request request;
 	int i=0;
-	DEBUG1(printf("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, iter_type);)
+	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
-		gpuout[i] = aSnaps[tab0].<?%s m$name ?>;
+		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
 		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
 		i ++;
 	} else {
-		container->adjin.<?%s m$name ?> = aSnaps[tab0].<?%s m$name ?>;
+		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
 	}
-	container->in.<?%s m$name ?> = Snaps[Snap].<?%s m$name ?>;
-	container->adjout.<?%s m$name ?> = aSnaps[tab1].<?%s m$name ?>;
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+	container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
 <?R
 	}
-?>
-	container->CopyToConst();
+
+	for (s in a) {
+                 stage = Stages[s,,drop=F] ?>
+
+       	container->CopyToConst();
 
         MPIStream_A();
 
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunInterior_Adj (kernelStream); break;
+	        container->RunInterior< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
-		container->RunInterior_Globs_Adj(kernelStream); break;
+	        container->RunInterior< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_NO | ITER_STEADY:
-		container->RunInterior_SAdj (kernelStream); break;
+	        container->RunInterior< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS | ITER_STEADY:
-		container->RunInterior_Globs_SAdj(kernelStream); break;
+	        container->RunInterior< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
 	}	
 
         MPIStream_B();
@@ -452,20 +473,21 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
 	DEBUG_M;
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
-		container->RunBorder_Adj (kernelStream); break;
+	        container->RunBorder< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
-		container->RunBorder_Globs_Adj(kernelStream); break;
+	        container->RunBorder< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_NO | ITER_STEADY:
-		container->RunBorder_SAdj (kernelStream); break;
+	        container->RunBorder< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS | ITER_STEADY:
-		container->RunBorder_Globs_SAdj(kernelStream); break;
+	        container->RunBorder< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
 	}	
 	DEBUG_M;
         CudaDeviceSynchronize();
-	aSnap = tab1;
+<?R } ?>
+	aSnap = adjtab1;
 	MarkIteration();
 #else
-	std::cerr << "This model doesn't have adjoint!\n";
+	ERROR("This model doesn't have adjoint!\n");
 	exit (-1);
 #endif
 };
@@ -479,91 +501,19 @@ inline void Lattice::Iteration_Adj(int tab0, int tab1, int iter_type)
         \param adjtab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
-	real_t * tmp;
-	int size, from, to;
-	MPI_Status status;
-	MPI_Request request;
-	MPI_Request recvreq[bufnumber];
-	int i=0;
-	DEBUG1(printf("[%d] Iteration_Opt %d -> %d, %d -> %d type: %d\n", D_MPI_RANK, tab0, tab1, adjtab0, adjtab1, iter_type);)
-        i = 0;
-<?R
-	for (m in NonEmptyMargin) {
-?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (mpi.rank != to) {
-		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
-		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
-		container->out.<?%s m$name ?> = gpubuf2[i];
-		i ++;
-	} else {
-		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
-		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
-	}
-	container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
-	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-<?R
-	}
-?>
-        assert(i == bufnumber);
-        DEBUG_M;
-	container->CopyToConst();
-        DEBUG_M;
-	MPIStream_A();
-//        DEBUG_M;
-	switch(iter_type & ITER_INTEG){
-	case ITER_NO:
-		container->RunInterior_Opt (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunInterior_Globs_Opt(kernelStream); break;
-	}	
-//        DEBUG_M;
-	MPIStream_B();
-//	DEBUG_M;
-	switch(iter_type & ITER_INTEG){
-	case ITER_NO:
-		container->RunBorder_Opt (kernelStream); break;
-	case ITER_GLOBS:
-		container->RunBorder_Globs_Opt(kernelStream); break;
-	}
-//	DEBUG_M;
-	i = 0;	
-<?R
-	for (m in NonEmptyMargin) {
-?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (mpi.rank != to) {
-		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
-		gpuout[i] = container->out.<?%s m$name ?>;
-		i ++;
-	}
-<?R
-	}
-?>
-        assert(i == bufnumber);
-	DEBUG_M;
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_M;
-	MPIStream_A();
-//	DEBUG_M;
-	MPIStream_B(bufnumber);
-	DEBUG_M;
-        CudaDeviceSynchronize();
-	DEBUG_M;
-	Snap = tab1;
-	aSnap = adjtab1;
-	MarkIteration();
-	DEBUG_M;
+        <?%s FunName ?>(tab0, tab1, iter_type);
+        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type);
 #else
-	std::cerr << "This model doesn't have adjoint!\n";
+	ERROR("This model doesn't have adjoint!\n");
 	exit (-1);
 #endif
 };
+
+<?R } ?>
+
 
 /// Function listing all buffers in FTabs
 void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
@@ -589,7 +539,7 @@ void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t *
 int Lattice::save(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
-		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
+		ERROR("Cannot open %s for output\n", filename);
 		assert(f == NULL);
 		return -1;
 	}
@@ -619,9 +569,9 @@ int Lattice::save(FTabs& tab, const char * filename) {
 /// Load a FTabs
 int Lattice::load(FTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "r");
-	printf("[%d] Loading Lattice data from %s\n", D_MPI_RANK, filename);
+	output("Loading Lattice data from %s\n", filename);
 	if (f == NULL) {
-		fprintf(stderr,"[%d] Cannot open %s for output\n", D_MPI_RANK, filename);
+		ERROR("Cannot open %s for output\n", filename);
 		return -1;
 	}
 
@@ -676,16 +626,17 @@ void Lattice::Color(uchar4 * ptr) {
 */
 void Lattice::Init()
 {
-   printf("[%d] Initializing Lattice ...\n", D_MPI_RANK);
+   output("Initializing Lattice ...\n");
 //   container->out=Snaps[0];
 //   container->CopyToConst();
 //   container->Init();
 	iSnaps[getSnap(0)]=0;
 	iSnaps[0]=0;
-	Iter=0;
+	Record_Iter=0;
+	Iter = 0;
 	Snap=0;
    MPI_Barrier(MPI_COMM_WORLD);
-   Iteration(1,0,ITER_INIT);
+   Action_Init(1,0,ITER_NO);
    MPI_Barrier(MPI_COMM_WORLD);
 
 //   Stream();
@@ -722,22 +673,22 @@ void Lattice::IterateTill(int it, int iter_type)
 		}
 	}
 	assert(imx >= 0);
-//	printf("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
+	debug2("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
 	if (imx >= nSnaps) {
 		if (reverse_save) {
-			printf("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
+			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
 			char filename[STRING_LEN];
 			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
-			printf("Fatal Error: I have to read from disk, but reverse_save is not switched on\n");
+			ERROR("I have to read from disk, but reverse_save is not switched on\n");
 			exit (-1);
 		}
 		iSnaps[0] = iSnaps[imx];
 		imx = 0;
 	}
 	s1 = imx;
-	Iter = mx;
+	Record_Iter = mx;
 	Snap = s1;
 	for (i = mx; i < it; i++) {
 		int s2 = getSnap(i+1);
@@ -745,10 +696,10 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps) s3=0;
 		pop_settings();
 		Iteration(s1, s3, iter_type);
-		Iter = i+1;
+		Record_Iter = i+1;
 		if (s2 >= nSnaps){
 			if (reverse_save) {
-				printf("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
+				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
 				char filename[STRING_LEN];
 				sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, s2);
 				save(Snaps[0], filename);
@@ -781,26 +732,26 @@ void Lattice::Iterate(int niter, int iter_type)
 					container->clearGlobals();
 					iter_type = iter_type | ITER_GLOBS;
 				}
-				Iter -= 1;
-				if (Iter < 0) {
-					std::cerr << "Fatal error: Went below the begining of the tape (usteady adjoint) !";
+				Record_Iter -= 1;
+				if (Record_Iter < 0) {
+					ERROR("Went below the begining of the tape (usteady adjoint) !");
 					exit(-1);
 				}
-				IterateTill(Iter, ITER_NORM);
-				Iteration_Adj(aSnap % 2, (aSnap+1) % 2, iter_type);
+				IterateTill(Record_Iter, ITER_NORM);
+				Iteration_Adj(Snap, (Snap+1) % 2, aSnap % 2, (aSnap+1) % 2, iter_type);
 			}
 			break;
                 case ITER_NORM:
 			if (last_glob) {
-				IterateTill(niter+Iter-1, iter_type);
+				IterateTill(niter+Record_Iter-1, iter_type);
 				container->clearGlobals();
-				IterateTill(Iter+1, iter_type | ITER_GLOBS);
+				IterateTill(Record_Iter+1, iter_type | ITER_GLOBS);
 			} else {
-				IterateTill(niter+Iter, iter_type);
+				IterateTill(niter+Record_Iter, iter_type);
 			}
 			break;
                 case ITER_OPT:
-                        std::cerr << "Cannot do a OPT iteration in record mode\n";
+                        ERROR("Cannot do a OPT iteration in record mode\n");
                         exit(-1);
                         break;
 		}
@@ -813,7 +764,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					container->clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
-				Iteration_Adj(aSnap, (aSnap+1) % 2, iter_type);
+				Iteration_Adj(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
 			}
 			break;
                 case ITER_NORM:
@@ -823,6 +774,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
+				Iter ++;
 			}
 			break;
                 case ITER_OPT:
@@ -832,6 +784,7 @@ void Lattice::Iterate(int niter, int iter_type)
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
+				Iter ++;
 			}
                         break;
 		}
@@ -851,6 +804,7 @@ void Lattice::Iterate(int niter, int iter_type)
 	} else if ( iter_type & ITER_INTEG ) {
 		calcGlobals();
 	}
+	FinalIteration();
 };
 
 void Lattice::AfterIt()
@@ -859,7 +813,7 @@ void Lattice::AfterIt()
 	for (int i=0; i < 4; i++) {
 		HANDLE_ERROR(CudaEventQuery(kernelEv[i]));
 		CudaEventElapsedTime(&t, kernelEv[0], kernelEv[i]);
-		printf("[%d] kernelEv[%d] --> %f\n", D_MPI_RANK, i, t);
+		debug2("[%d] kernelEv[%d] --> %f\n", D_MPI_RANK, i, t);
 	}
 	for (int i = 0; i < bufnumber; i++) {
 <?R
@@ -867,7 +821,7 @@ void Lattice::AfterIt()
 ?>
 		HANDLE_ERROR(CudaEventQuery( <?%s Ev ?>[i] ));
 		CudaEventElapsedTime(&t, kernelEv[0], <?%s Ev ?>[i]);
-		printf("[%d] <?%s Ev ?>[%d] --> %f\n", D_MPI_RANK, i, t);
+		debug2("[%d] <?%s Ev ?>[%d] --> %f\n", D_MPI_RANK, i, t);
 <?R } ?>
 	}
 
@@ -876,10 +830,10 @@ void Lattice::AfterIt()
 /// Overwrite NodeType in a region
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
-//	printf("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
+//	debug1("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
 //	CudaMemcpy2D(container->NodeType, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
 	lbRegion inter = region.intersect(over);
-//        printf("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
+//        debug1("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx;
         for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
@@ -892,15 +846,15 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 /// Get NodeType's from a region
 void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {
-//	printf("Pulling region %dx%d+%d,%d\n",w,h,x,y);
+//	debug1("Pulling region %dx%d+%d,%d\n",w,h,x,y);
 	size_t offset;
 	lbRegion inter = region.intersect(over);
-//        printf("Getting flags region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
+//        debug1("Getting flags region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx;
         for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-//		printf("GetRegion: %d %d %d\n", x,y,z);
+//		debug1("GetRegion: %d %d %d\n", x,y,z);
 		offset = region.offsetL(x,y,z);
 		CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
 	}
@@ -909,11 +863,15 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 
 <?R
 	for (d in rows(rbind(Density,DensityAD))) { 
-	if (d$adjoint) {
+	for (adjoint in c(TRUE,FALSE)) {
+	if (adjoint) {
 		from="aSnaps[aSnap]";
+		suff = "_Adj"
 	} else {
 		from="Snaps[Snap]";
+		suff = ""
 	}
+	ifdef(adjoint)
 ?>
 
 /// Get [<?%s d$comment ?>]
@@ -921,9 +879,9 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
         Retrive the values of the density <?%s d$nicename ?> (<?%s d$comment ?>)
         from the GPU memory
 */
-void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
+void Lattice::Get_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 {
-	printf("[%d] Pulling all <?%s d$nicename ?>\n", D_MPI_RANK);
+	debug2("Pulling all <?%s d$nicename ?>\n");
 	CudaMemcpy(
 		tab,
 		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
@@ -937,9 +895,9 @@ void Lattice::Get_<?%s d$nicename ?>(real_t * tab)
         the density <?%s d$nicename ?> (<?%s d$comment ?>)
         in the GPU memory
 */
-void Lattice::Clear_<?%s d$nicename ?>()
+void Lattice::Clear_<?%s d$nicename ?><?%s suff ?>()
 {
-	printf("[%d] Clearing all <?%s d$nicename ?>\n", D_MPI_RANK);
+	debug2("Clearing all <?%s d$nicename ?>\n");
 	CudaMemset(
 		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
 		0,
@@ -952,9 +910,9 @@ void Lattice::Clear_<?%s d$nicename ?>()
         the density <?%s d$nicename ?> (<?%s d$comment ?>)
         in the GPU memory
 */
-void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
+void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
 {
-	printf("[%d] Setting all <?%s d$nicename ?>\n", D_MPI_RANK);
+	debug2("Setting all <?%s d$nicename ?>\n");
 	CudaMemcpy(
 		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
 		tab,
@@ -962,7 +920,9 @@ void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 		cudaMemcpyHostToDevice);
 }
 
-<?R } ?>
+<?R }
+ifdef()
+} ?>
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 
@@ -973,9 +933,12 @@ void Lattice::Set_<?%s d$nicename ?>(real_t * tab)
 */
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {
-	container->out = Snaps[Snap];
+	container->in = Snaps[Snap];
+	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
+        container->CopyToConst();
+
 	lbRegion inter = region.intersect(over);
-//        printf("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
+//        debug1("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;
 	<?%s q$type ?> * buf;
 	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s q$type ?>));
@@ -986,9 +949,9 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 		small.dx -= region.dx;
 		small.dy -= region.dy;
 		small.dz -= region.dz;
-//	        printf("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
+//	        debug1("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
 		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, buf, scale));
-//	        printf("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
+//	        debug1("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
 		CudaMemcpy(&tab[over.offsetL(x,y,z)], buf, small.sizeL()*sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
@@ -1008,7 +971,7 @@ void Lattice::push_setting(int i, real_t old, real_t nw)
 {
 	settings_record.push_back(
 		std::pair< int, std::pair<int,std::pair<real_t,real_t> > >(
-			Iter,
+			Record_Iter,
 			std::pair<int,std::pair<real_t,real_t> >(
 				i,
 				std::pair<real_t,real_t> (
@@ -1030,14 +993,14 @@ void Lattice::push_setting(int i, real_t old, real_t nw)
 void Lattice::pop_settings()
 {
 	while (settings_i > 0) {
-		if (settings_record[settings_i - 1].first <= Iter) break;
+		if (settings_record[settings_i - 1].first <= Record_Iter) break;
 		settings_i--;
-		printf("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
+		debug1("set %d to (back) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.second,settings_record[settings_i].second.second.first);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
 	}
 	while (settings_i < settings_record.size()) {
-		if (settings_record[settings_i].first > Iter) break;
-		printf("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
+		if (settings_record[settings_i].first > Record_Iter) break;
+		debug1("set %d to (front) %lf -> %lf\n",settings_record[settings_i].second.first, settings_record[settings_i].second.second.first,settings_record[settings_i].second.second.second);
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
 		settings_i++;
 	}
@@ -1051,8 +1014,17 @@ void Lattice::pop_settings()
 */
 void Lattice::getGlobals(real_t * tab) {
         real_t tabl[ GLOBALS ];
-        container->getGlobals(tabl);
-        MPI_Reduce(tabl, tab, GLOBALS, MPI_TYPE_F, MPI_SUM, 0, MPI_COMM_WORLD);
+        container->getGlobals(tabl); <?R
+        by(Globals,Globals$op,function(G) { n = nrow(G); ?>
+                MPI_Reduce(
+                        &tabl[<?%s G$Index[1] ?>],
+                        &tab[<?%s G$Index[1] ?>],
+                        <?%s G$Index[n] ?> - <?%s G$Index[1] ?> + 1,
+                        MPI_TYPE_F,
+                        MPI_<?%s G$op[1] ?>,
+                        0,
+                        MPI_COMM_WORLD); <?R
+        }) ?>
 }
 
 
@@ -1107,7 +1079,7 @@ double Lattice::getObjective() {
 */
 void Lattice::setSetting(int i, real_t tmp) {
 	settings[i] = tmp;
-        printf("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
+        debug1("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
 	setConstSetting(i,tmp);
 }
 
@@ -1129,7 +1101,7 @@ if (!is.na(v$derived)) { ?>
 */
 void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
-        printf("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
+        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
 	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
                 if (!is.na(v$derived)) {
                         i = which(as.character(Settings$name) == as.character(v$derived));

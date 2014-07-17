@@ -48,11 +48,6 @@ class name_set {
 		}
 		inline name_set() {
 		}
-		inline void print() {
-			for (std::set< std::string >::iterator i = myset.begin(); i != myset.end(); i++) {
-				printf("name_set: %s\n",(*i).c_str());
-			}
-		}
 		inline bool in(std::string what) {
 		        if (myset.count("all") > 0) return true;
 			return myset.count(what) > 0;

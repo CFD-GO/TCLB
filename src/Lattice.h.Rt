@@ -7,6 +7,7 @@
 #include "cross.h"
 #include <vector>
 #include <utility>
+#include "ZoneSettings.h"
 
 class lbRegion;
 class LatticeContainer;
@@ -54,11 +55,13 @@ private:
   CudaEvent_t mpiEv[28]; ///< Not used TODO
   int reverse_save; ///< Flag stating if recording (Now)
 public:
+  ZoneSettings zSet;
   std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
   int settings_i; ///< Index in settings_record that is on the CUDA const
   void push_setting(int,real_t,real_t); ///< Set the setting (and push to settings_record if recording)
   void pop_settings(); ///< Pop the setting from settings_record
-  int Iter; ///< Recorded iteration number (Now)
+  int Record_Iter; ///< Recorded iteration number (Now)
+  int Iter; ///< Iteration (Now) - "real" time of the simulation
   int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
   int total_iterations; ///< Total iteration number counter
   real_t settings[SETTINGS];  ///< Table of Settings (Now)
@@ -94,6 +97,11 @@ public:
       total_iterations = 0;
     }
   }
+  inline void FinalIteration() {
+    total_iterations ++;
+    if (callback) callback_iter = callback(-total_iterations, callback_data);
+    total_iterations = 0;
+  }
   void BeforeIt();
   void AfterIt();
   int getSnap(int );
@@ -103,10 +111,20 @@ public:
   
   void        Iterate(int, int);
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
-  void        Iteration_Adj(int, int, int);
-  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
+//  void        Iteration_Adj(int, int, int);
+//  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
   void        IterateTill(int,int);
-  void        Iteration(int, int, int);
+<?R for (n in names(Actions)) {
+        a = Actions[[n]]
+        if (n == "Iteration") {
+                FunName = "Iteration"
+        } else {
+                FunName = paste("Action",n,sep="_")
+        } ?>
+        void <?%s FunName ?>_Adj(int, int, int, int, int); 
+        void <?%s FunName ?>_Opt(int, int, int, int, int); 
+        void <?%s FunName ?>(int, int, int); <?R
+    } ?>
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };
@@ -115,6 +133,9 @@ public:
   void Get_<?%s d$nicename ?>(real_t * tab);
   void Clear_<?%s d$nicename ?>();
   void Set_<?%s d$nicename ?>(real_t * tab);
+  void Get_<?%s d$nicename ?>_Adj(real_t * tab);
+  void Clear_<?%s d$nicename ?>_Adj();
+  void Set_<?%s d$nicename ?>_Adj(real_t * tab);
 <?R }
     for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
