@@ -308,6 +308,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	tri[i].p2[2] += 1e-7 - 0.5;
 	tri[i].p3[2] += 1e-7 - 0.5;
     }
+    return 0;
 }
 
 /// Load STL file

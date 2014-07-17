@@ -10,6 +10,12 @@
 #include "types.h"
 #include <string>
 
+#ifdef _WIN32
+  #define isatty(...) 1
+#else
+  #include <unistd.h>
+#endif
+
 #ifndef GLOBAL_H
     #define BOUNDARY_UX UX_mid
     #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>

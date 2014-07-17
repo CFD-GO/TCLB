@@ -16,7 +16,7 @@
 #include <cstring>
 
 // for isatty
-#include <unistd.h>
+//#include <unistd.h>
 
 int D_MPI_RANK;
 int D_TERMINAL;
@@ -93,6 +93,7 @@ int InitPrint(int print_level, int only_root_level, int error_level) {
   if (D_print_level < DEBUG_LEVEL) {
       WARNING("Printing debug-level (%d) set below the level (%d) set while compilation (./configure)\n", D_print_level, DEBUG_LEVEL);
   }
+  return 0;
 }
 
 int special_print(FILE* f, char * rank, int level, int color, int lines, char * buf) {
@@ -164,14 +165,14 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
         if (line[i-1] == '\n') i--;
       }
       line[i] = '\0';
-      fprintf(f,format,rank,line);
+      return fprintf(f,format,rank,line);
     } else {
       int i=strlen(buf);
       if (i > 0) {
         if (buf[i-1] == '\n') i--;
       }
       buf[i] = '\0';
-      fprintf(f,format,rank,buf);
+      return fprintf(f,format,rank,buf);
     }
 }
 

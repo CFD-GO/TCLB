@@ -427,6 +427,7 @@ int Solver::getPar(double * wb) {
 	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	delete[] wb_l;
 	delete[] buf;
+	return 0;
 } 
 
 /// Save component/density
@@ -450,6 +451,7 @@ int Solver::saveComp(const char* filename, const char* comp) {
 	fwrite(buf, sizeof(real_t), n, f);
 	fclose(f);
 	delete[] buf;
+	return 0;
 } 
 
 /// Load component/density
@@ -475,6 +477,7 @@ int Solver::loadComp(const char* filename, const char* comp) {
 } ?>
 
 	delete[] buf;
+	return 0;
 } 
 
 
@@ -507,6 +510,7 @@ int Solver::getDPar(double * wb) {
 	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	delete[] wb_l;
 	delete[] buf;
+	return 0;
 } 
 
 /// Set the parameter vector
@@ -549,6 +553,7 @@ int Solver::setPar(const double * w) {
 	output("[%d] L2 norm of parameter change: %lg\n", sqrt(sum));
 	delete[] w_l;
 	delete[] buf;
+	return 0;
 } 
 
 /// Mouse Move callback (GUI)
