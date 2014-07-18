@@ -98,6 +98,9 @@ for (d in destinations) {
 <?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
 	@echo "  DONE       $@"
 
+<?%s m ?>/vc: <?%s m ?>/source <?%s d ?>/<?%s m ?>/solver.vcproj
+	@echo "  DONE       $@"
+
 <?%s m ?>/summary: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/SUMMARY
 	@echo ""
 	@echo "----------------------------------------"

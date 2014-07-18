@@ -4,7 +4,11 @@
 #include "unit.h"
 #include <map>
 /// STL triangle structure
-struct __attribute__((__packed__)) STL_tri {
+#ifdef _WIN32
+  struct STL_tri {
+#else
+  struct __attribute__((__packed__)) STL_tri {
+#endif
         float norm[3];
         float p1[3];
         float p2[3];

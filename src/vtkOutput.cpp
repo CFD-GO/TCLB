@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "mpi.h"
 #include "vtkOutput.h"
+#include <cstring>
+#include <stdlib.h>
 
 const char * base64char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
