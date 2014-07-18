@@ -8,6 +8,8 @@
 
 <?R 
 	source("conf.R") 
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy")])
 
 
 	u = PV(paste("u[",1:2-1,"]",sep=""))
@@ -20,7 +22,7 @@
         uf3 = uf;
 #	omega = 1.0
 
-	fT = PV(Density$name[1:9+9])
+	fT = PV(DensityAll$name[1:9+9])
 
 
 

@@ -39,17 +39,18 @@ table_from_text = function(text) {
 }
 
 c_table_decl = function(d) {
+	trim <- function (x) gsub("^\\s+|\\s+$", "", x)
 	d = as.character(d)
 	sel = grepl("\\[",d)
 	if(any(sel)) {
 		w = d[sel]
-#		w = regmatches(w,regexec("([^[]*)\\[([^\\]]*)]",w))
-		r = regexpr("\\[([^\\]]*)]",w)
+#		w = regmatches(w,regexec("([^[]*)\\[ *([^\\] ]*) *]",w))
+		r = regexpr("\\[[^\\]]*\\]",w)
 		w = lapply(1:length(r), function(i) {
 			a_=w[i]
 			c(a_,
-				substr(a_,1,r[i]-1),
-				substr(a_,r[i]+1,r[i]+attr(r,"match.length")[i]-2)
+				trim(substr(a_,1,r[i]-1)),
+				trim(substr(a_,r[i]+1,r[i]+attr(r,"match.length")[i]-2))
 			)
 		})
 
