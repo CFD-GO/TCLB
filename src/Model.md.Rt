@@ -22,35 +22,6 @@
 
 [[Dynamics.R]] file for this model: [source file](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.R)
 
-### [[Fields]]
-
-| Name | Access pattern | Comment |
-| --- | --- | --- |
-<?R
-  for (d in Fields) {
-    cat("", paste("`",d$name,"`",sep=""),
-      stensil(d),
-      d$comment, "\n", sep="|");
-  }
-?>
-### [[Node Types]]
-
-| Group | Types |
-| --- | --- |
-<?R
-  ret = by(NodeTypes, NodeTypes$group, function (n) {
-    cat("", n$group[1], paste(n$name,collapse=", "), "\n", sep="|");
-  })
-?>
-### [[Densities]]
-
-| Name | [[Field|Fields]] | Pulling field from | Comment |
-| --- | --- | --- | --- |
-<?R
-  for (d in rows(DensityAll)) {
-    cat("", paste("`",d$name,"`",sep=""), d$field, stensil(d), d$comment, "\n", sep="|");
-  }
-?>
 ### [[Settings]]
 
 | Name | Derived | Comment |
@@ -65,15 +36,6 @@
     cat("", paste("`",s$name,"`",sep=""), eq, s$comment, "\n", sep="|");
   }
 ?>
-#### [[Globals]]
-
-| Name | [[Unit|Units]] | Comment |
-| --- | --- | --- |
-<?R
-  for (g in rows(Globals)) {
-    cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
-  }
-?>
 ### [[Quantities]]
 
 | Name | [[Unit|Units]] | Comment |
@@ -83,7 +45,44 @@
     cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
   }
 ?>
+#### [[Globals]]
 
+| Name | [[Unit|Units]] | Comment |
+| --- | --- | --- |
+<?R
+  for (g in rows(Globals)) {
+    cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
+  }
+?>
+### [[Node Types]]
+
+| Group | Types |
+| --- | --- |
+<?R
+  ret = by(NodeTypes, NodeTypes$group, function (n) {
+    cat("", n$group[1], paste(n$name,collapse=", "), "\n", sep="|");
+  })
+?>
+### [[Fields]]
+
+| Name | Access pattern | Comment |
+| --- | --- | --- |
+<?R
+  for (d in Fields) {
+    cat("", paste("`",d$name,"`",sep=""),
+      stensil(d),
+      d$comment, "\n", sep="|");
+  }
+?>
+### [[Densities]]
+
+| Name | [[Field|Fields]] | Pulling field from | Comment |
+| --- | --- | --- | --- |
+<?R
+  for (d in rows(DensityAll)) {
+    cat("", paste("`",d$name,"`",sep=""), d$field, stensil(d), d$comment, "\n", sep="|");
+  }
+?>
 ### [[Stages]]
 
 | Name | Main procedure | Preloaded densities | Pushed fields |
