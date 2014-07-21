@@ -50,7 +50,7 @@
     } else {
       eq = ""
     }
-    cat("", paste("`",s$name,"`",sep=""), eq, d$comment, "\n", sep="|");
+    cat("", paste("`",s$name,"`",sep=""), eq, s$comment, "\n", sep="|");
   }
 ?>
 #### [[Globals]]
@@ -87,5 +87,15 @@
       fields = paste(Fields$name[sel],collapse=", ")
     } else fields = "_none_"
     cat("", s$name, s$main, dens, fields, "\n", sep="|");
+  }
+?>
+
+### [[Actions|Stages]]
+
+| Name | Stages |
+| --- | --- |
+<?R
+  for (an in names(Actions)) {
+    cat("", an, paste(Actions[[an]],collapse=", "), "\n", sep="|");
   }
 ?>
