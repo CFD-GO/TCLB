@@ -34,13 +34,15 @@ mark.stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
         w = paste(ifelse(w<0,"n","p"),abs(w),sep="",collapse="")
         w = paste(ifelse(only2d,"a","b"),mx,w,sep="")
         w = paste(pref,w,".png",sep="")
-        png(w,width=100,height=50,bg = "transparent")
+
+	sz = 50
+        png(w,width=sz*2,height=sz,bg = "transparent")
 
         par(mar=c(0,0,0,0))
         maxy = c(mx+0.5,mx+0.5,-mx) %*% mat[,2]
         maxx = c(mx+0.5,0,mx) %*% mat[,1]
-        if (maxx > maxy*1.5) maxy = maxx/1.5
-        plot(NA, xlim=c(-maxy,maxy)*1.5, ylim=c(-maxy,maxy), bty='n', xaxt='n', yaxt='n')
+        if (maxx > maxy*2) maxy = maxx/2
+        plot(NA, xlim=c(-maxy,maxy)*2, ylim=c(-maxy,maxy), bty='n', xaxt='n', yaxt='n')
 
         ntab = expand.grid(x=-mx:mx,y=-mx:mx,z=-mx:mx)
         for (i in 1:nrow(ntab)) {
