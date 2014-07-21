@@ -69,6 +69,12 @@ $(MAKEHEADERS):tools/makeheaders.c
 	gcc -o $@ $<
 
 
+wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", sep="", collapse=" ") ?>
+	@echo "  RT         $@ (model)"
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=" ")?>\"" || rm $@
+	@$(INDENT) $@
+
+
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
 ###############################################################################
@@ -121,8 +127,7 @@ for (d in destinations) {
 
 wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w wiki/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
-	@$(INDENT) $@
+	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w wiki/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 # for model <?%s m ?> and destination <?%s d ?>
 
