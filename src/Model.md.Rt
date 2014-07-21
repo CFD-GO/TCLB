@@ -1,7 +1,21 @@
 <?R
   source("conf.R")
-  branch = git_branch()
+  branch = git_branch("..")
   options(width=4000)
+  source("stensil.plot.R")
+
+  glob_mx = max(abs(c(
+    Fields$maxx, Fields$minx,
+    Fields$maxy, Fields$miny,
+    Fields$maxz, Fields$minz)))
+  glob_only2d = max(abs(c(Fields$maxz, -Fields$minz))) < 1
+    
+
+  stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
+    ret = mark.stensil(tab, mx=glob_mx, only2d=glob_only2d, pref="images/st_")
+    paste("[[",ret,"]]",sep="")
+  }
+
 ?>
 
 [[Dynamics.c]] file for this model: [source file](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.c.Rt)
@@ -10,14 +24,12 @@
 
 ### [[Fields]]
 
-| Name | dx | dy | dz | Comment |
-| --- | --- | --- | --- | --- |
+| Name | Access pattern | Comment |
+| --- | --- | --- |
 <?R
   for (d in Fields) {
     cat("", paste("`",d$name,"`",sep=""),
-      paste("(",d$minx,")-(",d$maxx,")",sep=""),
-      paste("(",d$miny,")-(",d$maxy,")",sep=""),
-      paste("(",d$minz,")-(",d$maxz,")",sep=""),
+      stensil(d),
       d$comment, "\n", sep="|");
   }
 ?>
@@ -32,11 +44,11 @@
 ?>
 ### [[Densities]]
 
-| Name | [[Field|Fields]] | dx | dy | dz | Comment |
-| --- | --- | --- | --- | --- | --- |
+| Name | [[Field|Fields]] | Pulling field from | Comment |
+| --- | --- | --- | --- |
 <?R
   for (d in rows(DensityAll)) {
-    cat("", paste("`",d$name,"`",sep=""), d$field, d$dx, d$dy, d$dz, d$comment, "\n", sep="|");
+    cat("", paste("`",d$name,"`",sep=""), d$field, stensil(d), d$comment, "\n", sep="|");
   }
 ?>
 ### [[Settings]]

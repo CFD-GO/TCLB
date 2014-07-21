@@ -686,7 +686,16 @@ AllKernels$Node = paste("Node_Run <", AllKernels$TemplateArgs, ">")
 ################################################################################
 
 git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v}
-git_branch  = function(){f=pipe("git branch | sed -n '/\\* /s///p'"); v=readLines(f); close(f); v}
+git_branch  = function(path=""){
+	cmd = "git branch | sed -n '/\\* /s///p'";
+	if (path != "") {
+		cmd = paste("cd",path,";",cmd)
+	}
+	f = pipe(cmd);
+	v = readLines(f);
+	close(f);
+	v
+}
 
 clb_header = c(
 sprintf("-------------------------------------------------------------"),

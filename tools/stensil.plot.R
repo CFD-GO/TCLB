@@ -4,7 +4,7 @@ mark.stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
                 tab$miny = tab$maxy = tab$dy
                 tab$minz = tab$maxz = tab$dz
         }
-        mx = max(mx, -tab$minx, -tab$miny, -tab$minz, tab$maxx, tab$maxy, tab$maxz)
+        mx = max(abs(c(mx, tab$minx, tab$miny, tab$minz, tab$maxx, tab$maxy, tab$maxz)))
 
         e = 0.9
         a = 0.5 * pi/2
@@ -34,13 +34,13 @@ mark.stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
         w = paste(ifelse(w<0,"n","p"),abs(w),sep="",collapse="")
         w = paste(ifelse(only2d,"a","b"),mx,w,sep="")
         w = paste(pref,w,".png",sep="")
-        png(w,width=100,height=50)
+        png(w,width=100,height=50,bg = "transparent")
 
         par(mar=c(0,0,0,0))
         maxy = c(mx+0.5,mx+0.5,-mx) %*% mat[,2]
         maxx = c(mx+0.5,0,mx) %*% mat[,1]
         if (maxx > maxy*1.5) maxy = maxx/1.5
-        plot(NA, xlim=c(-maxy,maxy)*1.5, ylim=c(-maxy,maxy))
+        plot(NA, xlim=c(-maxy,maxy)*1.5, ylim=c(-maxy,maxy), bty='n', xaxt='n', yaxt='n')
 
         ntab = expand.grid(x=-mx:mx,y=-mx:mx,z=-mx:mx)
         for (i in 1:nrow(ntab)) {
@@ -61,5 +61,4 @@ mark.stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
 	w
 }
 
-mark.stensil(list(dx=1,dy=1,dz=0))
 
