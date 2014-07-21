@@ -119,6 +119,11 @@ for (d in destinations) {
 <?%s d ?>/<?%s m ?> :
 	mkdir -p $@
 
+wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@ (model)"
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(INDENT) $@
+
 # for model <?%s m ?> and destination <?%s d ?>
 
 <?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run

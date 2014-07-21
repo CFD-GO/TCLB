@@ -1,0 +1,91 @@
+<?R
+  source("conf.R")
+  branch = git_branch()
+  options(width=4000)
+?>
+
+[[Dynamics.c]] file for this model: [source file](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.c.Rt)
+
+[[Dynamics.R]] file for this model: [source file](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.R)
+
+### [[Fields]]
+
+| Name | dx | dy | dz | Comment |
+| --- | --- | --- | --- | --- |
+<?R
+  for (d in Fields) {
+    cat("", paste("`",d$name,"`",sep=""),
+      paste("(",d$minx,")-(",d$maxx,")",sep=""),
+      paste("(",d$miny,")-(",d$maxy,")",sep=""),
+      paste("(",d$minz,")-(",d$maxz,")",sep=""),
+      d$comment, "\n", sep="|");
+  }
+?>
+### [[Node Types]]
+
+| Group | Types |
+| --- | --- |
+<?R
+  ret = by(NodeTypes, NodeTypes$group, function (n) {
+    cat("", n$group[1], paste(n$name,collapse=", "), "\n", sep="|");
+  })
+?>
+### [[Densities]]
+
+| Name | [[Field|Fields]] | dx | dy | dz | Comment |
+| --- | --- | --- | --- | --- | --- |
+<?R
+  for (d in rows(DensityAll)) {
+    cat("", paste("`",d$name,"`",sep=""), d$field, d$dx, d$dy, d$dz, d$comment, "\n", sep="|");
+  }
+?>
+### [[Settings]]
+
+| Name | Derived | Comment |
+| --- | --- | --- |
+<?R
+  for (s in rows(Settings)) {
+    if (s$name %in% Settings$derived) {
+      eq = Settings$equation[Settings$derived %in% s$name]
+    } else {
+      eq = ""
+    }
+    cat("", paste("`",s$name,"`",sep=""), eq, d$comment, "\n", sep="|");
+  }
+?>
+#### [[Globals]]
+
+| Name | [[Unit|Units]] | Comment |
+| --- | --- | --- |
+<?R
+  for (g in rows(Globals)) {
+    cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
+  }
+?>
+### [[Quantities]]
+
+| Name | [[Unit|Units]] | Comment |
+| --- | --- | --- |
+<?R
+  for (g in rows(Quantities)) {
+    cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
+  }
+?>
+
+### [[Stages]]
+
+| Name | Main procedure | Preloaded densities | Pushed fields |
+| --- | --- | --- | --- |
+<?R
+  for (s in rows(Stages)) {
+    sel = DensityAll[,s$tag]
+    if (any(sel)) {
+      dens = paste(DensityAll$name[sel],collapse=", ")
+    } else dens = "_none_"
+    sel = Fields[,s$tag]
+    if (any(sel)) {
+      fields = paste(Fields$name[sel],collapse=", ")
+    } else fields = "_none_"
+    cat("", s$name, s$main, dens, fields, "\n", sep="|");
+  }
+?>
