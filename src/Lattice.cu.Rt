@@ -110,6 +110,10 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
         container->ZoneSettings = zSet.gpuTab;
         container->ConstZoneSettings = zSet.gpuConst;
         container->ZoneIndex = 0;
+<?R for (s in rows(ZoneSettings)) { ?>
+        zSet.set(<?%s s$Index ?>, -1, <?%f s$default ?>);
+<?R } ?>
+
 }
 
 /// Initialization of MPI buffors
