@@ -204,17 +204,9 @@ CudaDeviceFunction void CalcPhi() {
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
 	switch (NodeType & NODE_OBJECTIVE) {
-		case NODE_Obj1:
+		case NODE_Measurement:
 			AddToPressure1(p);
 			AddToDensity1(rho2);
-			break;
-		case NODE_Obj2:
-			AddToPressure2(p);
-			AddToDensity2(rho2);
-			break;
-		case NODE_Obj3:
-			AddToPressure3(p);
-			AddToDensity3(rho2);
 			break;
 	}
 

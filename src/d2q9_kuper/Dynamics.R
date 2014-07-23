@@ -47,3 +47,6 @@ AddGlobal(name="Pressure3",        comment='pressure at Obj3')
 AddGlobal(name="Density1",         comment='density at Obj1')
 AddGlobal(name="Density2",         comment='density at Obj2')
 AddGlobal(name="Density3",         comment='density at Obj3')
+
+AddNodeType(name="MovingWall", group="BOUNDARY")
+AddNodeType(name="Measurement", group="OBJECTIVE")
