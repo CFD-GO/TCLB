@@ -67,13 +67,23 @@ public:
   inline void set(int s, int z, std::vector<double> val) {
     assert(s >=  0);
     assert(s <   ZONESETTINGS);
-    assert(z >= 0);
+    assert(z >= -1);
     assert(z <   ZONE_MAX);
     assert(val.size() == len);
-    int i = s+ZONESETTINGS*z;
-    Alloc(i);
-    for (int j=0; j<len; j++) {
-      cpuValues[i][j] = val[j];
+    if (z == -1) {
+      for (int z=0;z<ZONE_MAX; z++) {
+        int i = s+ZONESETTINGS*z;
+        Alloc(i);
+        for (int j=0; j<len; j++) {
+          cpuValues[i][j] = val[j];
+        }
+      }
+    } else {
+      int i = s+ZONESETTINGS*z;
+      Alloc(i);
+      for (int j=0; j<len; j++) {
+        cpuValues[i][j] = val[j];
+      }
     }
     CopyToGPU();  
   }
