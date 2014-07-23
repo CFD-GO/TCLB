@@ -11,6 +11,11 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="T",unit="K")
+AddQuantity(name="Q")
+AddQuantity(name="Qxx")
+AddQuantity(name="Qxy")
+AddQuantity(name="Qyy")
+AddQuantity(name="SS")
 AddQuantity(name="U",unit="m/s",vector=T)
 
 AddDensity( name="T[0]", dx= 0, dy= 0, group="T")
