@@ -368,12 +368,22 @@ if (NodeShiftNum > 16) {
 	ZoneShift = NodeShiftNum
 	if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
 	ZoneMax = 2^ZoneBits
+#	ZoneRange = 1:ZoneMax
+#	NodeTypes = rbind(NodeTypes,data.frame(
+#		name=paste("SettingZone",ZoneRange,sep=""),
+#		group="SETTINGZONE",
+#		index=ZoneRange,
+#		Index=paste("SettingZone",ZoneRange,sep=""),
+#		value=(ZoneRange-1)*NodeShift,
+#		mask=(ZoneMax-1)*NodeShift,
+#		shift=NodeShiftNum
+#	))
 	NodeTypes = rbind(NodeTypes,data.frame(
-		name=paste("SettingZone",1:ZoneMax,sep=""),
+		name="DefaultZone",
 		group="SETTINGZONE",
-		index=1:ZoneMax,
-		Index=paste("SettingZone",1:ZoneMax,sep=""),
-		value=(1:ZoneMax-1)*NodeShift,
+		index=1,
+		Index="DefaultZone",
+		value=0,
 		mask=(ZoneMax-1)*NodeShift,
 		shift=NodeShiftNum
 	))
