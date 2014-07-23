@@ -1001,34 +1001,59 @@ class conControl: public Action {
                 }
                 return 0;
 	}
-	int get(Context& cont, const char * var, double scale, std::vector<double>& fill) {
-	        std::istringstream ss(var);
-                std::string token;
-                std::getline(ss, token, '*');
-                Context::iterator it = cont.find(token);
-                if (it == cont.end()) {
-                        error("Variable %s not found in context in Control in xml config\n", token.c_str());
-                        error("Syntax of time-dependent settings is: [Variable]*[scale with unit]");
-                        return -1;
-                }
-                double nscale;
-                if (std::getline(ss, token, '*')) {
-                        nscale = solver->units.alt(token);
-                        if (std::getline(ss, token, '*')) {
-                                error("Too many \"*\" in Control in xml config\n");
-                                error("Syntax of time-dependent settings is: [Variable]*[scale with unit]");
-                                return -1;
-                        }
-                } else {
-                        nscale = 1;
-                }    
-                output("Getting %s from context with a scale of %lf (*%lf)\n", it->first.c_str(), nscale, scale);
+	int get(Context& cont, const char * svar, double scale, std::vector<double>& fill) {
+	        Context::iterator it;
+	        it = cont.begin();
                 if (it->second.size() != fill.size()) {
                         fill.resize(it->second.size());
                 }
                 for (int i=0; i < it->second.size(); i++) {
-                        fill[i] = it->second[i] * nscale * scale;
-                        if (i<100) printf("%d: %lf\n",i, fill[i]);
+                        fill[i] = 0;
+                }
+                
+	        std::istringstream s(svar);
+                std::string var;
+                int sum_i = 0;
+                while (std::getline(s, var, '+'))
+                {
+                        std::istringstream ss(var);
+                        std::string token;
+                        std::getline(ss, token, '*');
+                        Context::iterator it = cont.find(token);
+                        double nscale;
+                        bool ret = 0;
+                        if (it == cont.end()) {
+                                if (sum_i == 0) {
+                                        error("Variable %s not found in context in Control in xml config\n", token.c_str());
+                                        error("Syntax of time-dependent settings is: [Variable]*[scale with unit]");
+                                        return -1;
+                                }
+                                ret = 1;
+                        } else {
+                                ret = std::getline(ss, token, '*');
+                        }
+                        if (ret) {
+                                nscale = solver->units.alt(token);
+                                if (std::getline(ss, token, '*')) {
+                                        error("Too many \"*\" in Control in xml config\n");
+                                        error("Syntax of time-dependent settings is: [Variable]*[scale with unit]");
+                                        return -1;
+                                }
+                        } else {
+                                nscale = 1;
+                        }    
+                        if (it == cont.end()) {
+                                output("Setting 1 with a scale of %lf (*%lf)\n", nscale, scale);
+                                for (int i=0; i < fill.size(); i++) {
+                                        fill[i] += nscale * scale;
+                                }
+                        } else {
+                                output("Getting %s from context with a scale of %lf (*%lf)\n", it->first.c_str(), nscale, scale);
+                                for (int i=0; i < fill.size(); i++) {
+                                        fill[i] += it->second[i] * nscale * scale;
+                                }
+                        }
+                        sum_i++;
                 }
                 return 0;
 	}
@@ -1126,12 +1151,9 @@ class conControl: public Action {
                                 } else {
                                         alpha = (1.0 * i - csv_data[ "_time" ][k])/(csv_data[ "_time" ][k+1]-csv_data[ "_time" ][k]);
                                 }
-                                output("k:%d alpha:%lf\n",k,alpha);
-                                output("k:%lf k+1:%lf\n",csv_data[ "_time" ][k], csv_data[ "_time" ][k+1]);
                                 for (int j=0; j<names.size(); j++) {
                                         double val = csv_data[ names[j] ][k]*alpha + csv_data[ names[j] ][k+1]*(1-alpha);
                                         context[ names[j] ].push_back(val);
-                                        output("Putting %s[%d]=%lf\n", names[j].c_str(), i, val);
                                 }
                         }
                         
