@@ -32,4 +32,4 @@ AddGlobal(name="TotalDiff", comment='total variation of velocity')
 AddGlobal(name="Material", comment='total material')
 AddGlobal(name="EnergyGain", comment='pressure loss')
 
-
+AddNodeType(name="Obj1",group="OBJECTIVE")
