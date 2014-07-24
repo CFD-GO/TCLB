@@ -101,17 +101,6 @@ void MainFree( Solver *d);
 		if (mpi_rank == 0) {
 			units.printGauge();
 		}
-	    <?R 
-		for (v in rows(Settings)) { ?>
-                    LogScales[<?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
-		for (v in rows(Globals)) { ?>
-                    LogScales[SETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
-		for (v in rows(Scales)) { ?>
-                    LogScales[SETTINGS + GLOBALS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
- ?>
 	}
 
 	void Solver::setOutput(const char * out) {
@@ -139,6 +128,11 @@ void MainFree( Solver *d);
 		    <?R for (v in Settings$name) { ?>
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
+		    <?R for (v in ZoneSettings$name) { ?>
+		    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
+	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"",it->first.c_str(), it->first.c_str());
+	                }
+		    <?R } ?>
 		    <?R for (v in Globals$name) { ?>
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
@@ -148,6 +142,20 @@ void MainFree( Solver *d);
                     fprintf(f,"\n");
 
                     fclose(f);
+	    <?R 
+		for (v in rows(Settings)) { ?>
+                    LogScales[<?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+		for (v in rows(ZoneSettings)) { ?>
+                    LogScales[SETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+		for (v in rows(Globals)) { ?>
+                    LogScales[SETTINGS + ZONESETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+		for (v in rows(Scales)) { ?>
+                    LogScales[SETTINGS + ZONESETTINGS + GLOBALS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		}
+ ?>
 		}
                 return 0;
 	}
@@ -169,6 +177,16 @@ void MainFree( Solver *d);
 			for (int i=0; i< SETTINGS; i++) {
 				v = lattice->settings[i];
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
+				j++;
+			}
+			for (int i=0; i< ZONESETTINGS; i++) {
+			    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
+			    		int ind = lattice->ZoneIter;
+			    		int zone = it->second;
+			    		v = lattice->zSet.get(i, zone, ind);
+//					v = lattice->settings[i];
+					fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
+		                }
 				j++;
 			}
 			for (int i=0; i< GLOBALS; i++) {

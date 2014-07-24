@@ -113,6 +113,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 <?R for (s in rows(ZoneSettings)) { ?>
         zSet.set(<?%s s$Index ?>, -1, <?%f s$default ?>);
 <?R } ?>
+        ZoneIter = 0;
 
 }
 
@@ -361,7 +362,8 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	MPI_Request request;
 	int i=0;
 	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
-	container->ZoneIndex = (Iter + Record_Iter) % zSet.getLen();
+	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+	container->ZoneIndex = ZoneIter;
 <?R
 	for (m in NonEmptyMargin) {
 ?>

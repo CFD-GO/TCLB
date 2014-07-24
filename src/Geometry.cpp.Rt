@@ -26,6 +26,7 @@ Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(
 	geom[i] = 0;
     }
     output("Creating geom size:%ld\n", region.sizeL());
+    SettingZones["DefaultZone"] = 0;
 }
 
 #define E(x) if (x) { return -1; }
@@ -109,7 +110,7 @@ int Geometry::setZone(const pugi::char_t * name)
     if (SettingZones.count(name) > 0) {
         ZoneNumber = SettingZones[name];
     } else {
-        ZoneNumber = SettingZones.size()+1;
+        ZoneNumber = SettingZones.size();
         debug1("Setting new zone: %s -> %d\n", name, ZoneNumber);
         SettingZones[name] = ZoneNumber;
     }

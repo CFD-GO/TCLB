@@ -76,7 +76,7 @@ class Solver {
 	GPUAnimBitmap * bitmap; ///< Maybe we have a bitmap for animation
 #endif
 	void print(const char * str);
-	double LogScales[ GLOBALS + SETTINGS + SCALES ];
+	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
 	
 	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
 	~Solver();

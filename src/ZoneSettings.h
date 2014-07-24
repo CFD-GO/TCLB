@@ -88,6 +88,20 @@ public:
     CopyToGPU();  
   }
   
+  inline double get(int s, int z, int it) {
+    assert(s >=  0);
+    assert(s <   ZONESETTINGS);
+    assert(z >=  0);
+    assert(z <   ZONE_MAX);
+    int i = s+ZONESETTINGS*z;
+    if (cpuValues[i] == NULL) {
+      return cpuConst[i];
+    } else {
+      assert(it >= 0);
+      assert(it < len);
+      return cpuValues[i][it];
+    }
+  }
 
   
   inline void CopyToGPU () {
