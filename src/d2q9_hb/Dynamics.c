@@ -63,7 +63,7 @@ CudaDeviceFunction real_t getQxx()
     R[4] = R[4] - (u[0] * u[0] - u[1] * u[1]);
     R[5] = R[5] - (u[0] * u[1]);
 	real_t Qxx=0;
-	Qxx += ((3*omega)/(2*d))*(R[0]/6+R[4]/2);
+	Qxx += (-0.02*(3*omega)/2)*(R[0]/6+R[4]/2);
 	return Qxx;
 }
 
@@ -88,7 +88,7 @@ CudaDeviceFunction real_t getQxy()
     R[4] = R[4] - (u[0] * u[0] - u[1] * u[1]);
     R[5] = R[5] - (u[0] * u[1]);
 	real_t Qxy=0;
-	Qxy += ((3*omega)/(2*d))*R[5];
+	Qxy += (-0.02*(3*omega)/2)*R[5];
 	return Qxy;
 }
 
@@ -113,7 +113,7 @@ CudaDeviceFunction real_t getQyy()
     R[4] = R[4] - (u[0] * u[0] - u[1] * u[1]);
     R[5] = R[5] - (u[0] * u[1]);
 	real_t Qyy=0;
-	Qyy += ((3*omega)/(2*d))*(R[0]/6-R[4]/2);
+	Qyy += (-0.02*(3*omega)/2)*(R[0]/6-R[4]/2);
 	return Qyy;
 }
 
@@ -139,9 +139,9 @@ CudaDeviceFunction real_t getSS()
     R[5] = R[5] - (u[0] * u[1]);
 	real_t Qxx, Qxy, Qyy;
 	real_t SS=0;
-	Qxx = ((3*omega)/(2*d))*(R[0]/6+R[4]/2);
-	Qxy = ((3*omega)/(2*d))*R[5];
-	Qyy = ((3*omega)/(2*d))*(R[0]/6-R[4]/2);
+	Qxx = (-0.02*(3*omega)/2)*(R[0]/6+R[4]/2);
+	Qxy = (-0.02*(3*omega)/2)*R[5];
+	Qyy = (-0.02*(3*omega)/2)*(R[0]/6-R[4]/2);
 	SS=sqrt((Qxx*Qxx+Qyy*Qyy)/3-(Qxx*Qyy)/3+Qxy*Qxy);
 	return SS;
 }
@@ -398,12 +398,33 @@ CudaDeviceFunction void CollisionMRT()
     R[5] = -f[8] + f[7] - f[6] + f[5];
     usq = u[1] * u[1] + u[0] * u[0];
 
-    R[0] = R[0] * (1 - S2) + S2 * (-2. * d + 3. * usq);
-    R[1] = R[1] * (1 - S3) + S3 * (d - 3. * usq);
-    R[2] = R[2] * (1 - S5) + S5 * (-u[0]);
-    R[3] = R[3] * (1 - S7) + S7 * (-u[1]);
-    R[4] = R[4] * (1 - S8) + S8 * (u[0] * u[0] - u[1] * u[1]);
-    R[5] = R[5] * (1 - S9) + S9 * (u[0] * u[1]);
+	R[0] -= (-2. * d + 3. * usq);
+    R[1] -= (d - 3. * usq);
+    R[2] -= (-u[0]);
+    R[3] -= (-u[1]);
+    R[4] -= (u[0] * u[0] - u[1] * u[1]);
+    R[5] -= (u[0] * u[1]);
+
+	real_t Qxx, Qxy, Qyy;
+	real_t SS=0;
+	Qxx = (-0.02*(3*omega)/2)*(R[0]/6+R[4]/2);
+	Qxy = (-0.02*(3*omega)/2)*R[5];
+	Qyy = (-0.02*(3*omega)/2)*(R[0]/6-R[4]/2);
+	SS=sqrt((Qxx*Qxx+Qyy*Qyy)/3-(Qxx*Qyy)/3+Qxy*Qxy);
+
+	R[0] = R[0] * (1 - S2) + (-2. * d + 3. * usq);
+    R[1] = R[1] * (1 - S3) + (d - 3. * usq);
+    R[2] = R[2] * (1 - S5) + (-u[0]);
+    R[3] = R[3] * (1 - S7) + (-u[1]);
+    R[4] = R[4] * (1 - S8) + (u[0] * u[0] - u[1] * u[1]);
+    R[5] = R[5] * (1 - S9) + (u[0] * u[1]);
+
+    //R[0] = R[0] * (1 - S2) + S2 * (-2. * d + 3. * usq);
+    //R[1] = R[1] * (1 - S3) + S3 * (d - 3. * usq);
+    //R[2] = R[2] * (1 - S5) + S5 * (-u[0]);
+    //R[3] = R[3] * (1 - S7) + S7 * (-u[1]);
+    //R[4] = R[4] * (1 - S8) + S8 * (u[0] * u[0] - u[1] * u[1]);
+    //R[5] = R[5] * (1 - S9) + S9 * (u[0] * u[1]);
 
     f[0] = (R[1] - R[0] + d) / 9.;
     f[1] = (-R[0] + R[4] * 9. + (-R[1] + d * 2. + (-R[2] + u[0]) * 3.) * 2.) / 36.;
@@ -427,7 +448,12 @@ CudaDeviceFunction void CollisionMRT()
     R[3] = -T[8] - T[7] + T[6] + T[5] + (T[4] - T[2]) * 2.;
     R[4] = -T[4] + T[3] - T[2] + T[1];
     R[5] = -T[8] + T[7] - T[6] + T[5];
-
+	
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Outlet2)
+	{
+		AddToDestroyedCellFlux(d*us[0]);
+		AddToOutFlux(us[0]);
+	}
     if ((NodeType & NODE_ADDITIONALS) == NODE_Heater)
 	d = 100;
 
@@ -436,14 +462,41 @@ CudaDeviceFunction void CollisionMRT()
 
     real_t omegaT = FluidAlfa;
     omegaT = 1.0 / (3 * omegaT + 0.5);
-    R[0] = R[0] * (1 - Tom2) + (-2 * d) * Tom2;
-    R[1] = R[1] * (1 - Tom2) + (d) * Tom2;
-    R[2] = R[2] * (1 - Tom2) + (-us[0] * d) * Tom2;
-    R[3] = R[3] * (1 - Tom2) + (-us[1] * d) * Tom2;
+
+	R[0] -= (-2 * d);
+    R[1] -= (d);
+    R[2] -= (-us[0] * d);
+    R[3] -= (-us[1] * d);
+    R[4] -= 0;
+    R[5] -= 0;
+    u[0] -= (us[0] * d);
+    u[1] -= (us[1] * d);
+
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Destroy)
+	{
+		real_t dch;
+		dch=DestructionRate*pow(SS,DestructionPower);
+		d=d+(1-d)*dch;
+	}
+
+
+	R[0] = R[0] * (1 - Tom2) + (-2 * d);
+    R[1] = R[1] * (1 - Tom2) + (d);
+    R[2] = R[2] * (1 - Tom2) + (-us[0] * d);
+    R[3] = R[3] * (1 - Tom2) + (-us[1] * d);
     R[4] = R[4] * (1 - Tom);
     R[5] = R[5] * (1 - Tom);
-    u[0] = u[0] * (1 - Tom2) + (us[0] * d) * Tom2;
-    u[1] = u[1] * (1 - Tom2) + (us[1] * d) * Tom2;
+    u[0] = u[0] * (1 - Tom2) + (us[0] * d);
+    u[1] = u[1] * (1 - Tom2) + (us[1] * d);
+
+    //R[0] = R[0] * (1 - Tom2) + (-2 * d) * Tom2;
+    //R[1] = R[1] * (1 - Tom2) + (d) * Tom2;
+    //R[2] = R[2] * (1 - Tom2) + (-us[0] * d) * Tom2;
+    //R[3] = R[3] * (1 - Tom2) + (-us[1] * d) * Tom2;
+    //R[4] = R[4] * (1 - Tom);
+    //R[5] = R[5] * (1 - Tom);
+    //u[0] = u[0] * (1 - Tom2) + (us[0] * d) * Tom2;
+    //u[1] = u[1] * (1 - Tom2) + (us[1] * d) * Tom2;
 
     T[0] = (R[1] - R[0] + d) / 9.;
     T[1] = (-R[0] + R[4] * 9. + (-R[1] + d * 2. + (-R[2] + u[0]) * 3.) * 2.) / 36.;
@@ -454,6 +507,9 @@ CudaDeviceFunction void CollisionMRT()
     T[6] = (R[1] + (R[0] + d * 2.) * 2. + (R[3] - R[2] - R[5] * 3. + (u[1] - u[0]) * 2.) * 3.) / 36.;
     T[7] = (R[1] + (R[0] + d * 2.) * 2. + (-R[3] - R[2] + R[5] * 3. + (-u[1] - u[0]) * 2.) * 3.) / 36.;
     T[8] = (R[1] + (R[0] + d * 2.) * 2. + (-R[3] + R[2] - R[5] * 3. + (-u[1] + u[0]) * 2.) * 3.) / 36.;
+
+	
+
 
 //    if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) AddToObjective(d*us[0]);
 
