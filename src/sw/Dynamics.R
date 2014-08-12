@@ -1,3 +1,11 @@
+AddDescription( "Shallow water equation", "
+
+Lattice Boltzmann Method for Shallow Water equation on a D2Q9 lattice. 
+Model has adjoint capabilities for unsteady optimization.
+
+")
+
+
 AddDensity( name="f0", dx= 0, dy= 0, group="f")
 AddDensity( name="f1", dx= 1, dy= 0, group="f")
 AddDensity( name="f2", dx= 0, dy= 1, group="f")

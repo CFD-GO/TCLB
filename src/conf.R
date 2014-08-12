@@ -226,6 +226,19 @@ AddNodeType = function(name, group) {
 	))
 }
 
+
+Description = NULL
+AddDescription = function(short, long=short) {
+	if (! is.null( Description ) ) {
+		stop("Adding descripition twice!")
+	}
+	Description <<- list(
+		name=MODEL,
+		short=short,
+		long=long
+	)
+}
+
 AddNodeType("BGK","COLLISION")
 AddNodeType("MRT","COLLISION")
 # AddNodeType("MR","COLLISION")
@@ -303,6 +316,10 @@ AddAction = function(name, stages) {
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
+
+if (is.null(Description)) {
+	AddDescription(MODEL)
+}
 
 if (!"Iteration" %in% names(Actions)) {
 	AddAction(name="Iteration", stages=c("BaseIteration"))
