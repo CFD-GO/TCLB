@@ -556,7 +556,6 @@ int Solver::setPar(const double * w) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			diff = buf[i];
 			buf[i] = w_l[j];
-			assert(w[j] <= 1.001);
 			assert(w_l[j] <= 1.001);
 			diff -= buf[i];
 			sum += diff*diff;

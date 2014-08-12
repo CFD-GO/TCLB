@@ -1135,7 +1135,7 @@ class conControl: public Action {
                                 }
                         }
                         int k = 0;
-                        int max_k = csv_data[ "_time" ].size() - 1;
+                        int max_k = csv_data[ "_time" ].size() - 2;
                         if (max_k < 1) {
                                 error("Not enaugh records in CSV file or something went terribly wrong\n");
                                 return -1;
@@ -1145,14 +1145,14 @@ class conControl: public Action {
                                 double alpha;
                                 while ((i > csv_data[ "_time" ][k+1]) && (k < max_k)) k++;
                                 if (i < csv_data[ "_time" ][k]) {
-                                        alpha = 1;
-                                } else if (i > csv_data[ "_time" ][k+1]) {
                                         alpha = 0;
+                                } else if (i > csv_data[ "_time" ][k+1]) {
+                                        alpha = 1;
                                 } else {
                                         alpha = (1.0 * i - csv_data[ "_time" ][k])/(csv_data[ "_time" ][k+1]-csv_data[ "_time" ][k]);
                                 }
                                 for (int j=0; j<names.size(); j++) {
-                                        double val = csv_data[ names[j] ][k]*alpha + csv_data[ names[j] ][k+1]*(1-alpha);
+                                        double val = csv_data[ names[j] ][k]*(1-alpha) + csv_data[ names[j] ][k+1]*alpha;
                                         context[ names[j] ].push_back(val);
                                 }
                         }
