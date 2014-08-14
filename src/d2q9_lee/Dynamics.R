@@ -60,4 +60,7 @@ AddGlobal(name="MomentumY",        comment='momentum')
 AddGlobal(name="Mass",         comment='mass')
 
 
+AddNodeType(name="MovingWall", group="BOUNDARY")
 AddNodeType(name="ForcedMovingWall", group="BOUNDARY")
+AddNodeType(name="Wet", group="ADDITIONALS")
+AddNodeType(name="Dry", group="ADDITIONALS")
