@@ -118,6 +118,8 @@ then
 	then
 		AC_CHECK_HEADERS([GL/glut.h],[],[AC_MSG_ERROR([Didn't find GLUT headers])])
 		AC_CHECK_LIB([glut], [glutInit],[],[AC_MSG_ERROR([Didn't find GLUT library])])
+		AC_CHECK_LIB([GL], [glDrawPixels],[],[AC_MSG_ERROR([Didn't find GLUT library])])
+		AC_CHECK_LIB([GLU], [gluSphere],[],[AC_MSG_ERROR([Didn't find GLUT library])])
 		AC_DEFINE([GRAPHICS], [1], [Making a graphics version])
 	fi
 

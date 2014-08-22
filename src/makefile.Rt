@@ -53,7 +53,7 @@ else
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
-	@mpic++ $^  -L/home/llaniewski/cuwork/drivers/cuda/lib64 -lcudart -o $@ $(LD_OPT)
+	@mpic++ $^  -lcudart -o $@ $(LD_OPT)
 #	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
 
 endif
