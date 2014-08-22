@@ -342,7 +342,7 @@ CudaDeviceFunction void CalcPhi() {
 
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-	switch (NodeType & NODE_OBJECTIVE) {
+/*	switch (NodeType & NODE_OBJECTIVE) {
 		case NODE_Obj1:
 			AddToPressure1(p);
 			AddToDensity1(rho2);
@@ -356,7 +356,7 @@ CudaDeviceFunction void CalcPhi() {
 			AddToDensity3(rho2);
 			break;
 	}
-
+*/
 	phi = FAcc * std::sqrt( -p + rho2/(3.) );
 }
 CudaDeviceFunction void Run() {
