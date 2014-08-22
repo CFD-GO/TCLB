@@ -83,6 +83,24 @@ print.P = function(p)
 	p
 }
 
+"^.P" <- function(p1,p2){
+	if (is.numeric(p2)) {
+		p = p1;
+		for (i in names(p1)) {
+			if (i == ".M") {
+				p[,i] = p[,i] ^ p2
+			} else {
+				p[,i] = p[,i] * p2
+			}
+		}
+	} else {
+		stop("non numeric power in ^.P")
+	}
+	p = aggregate(p)
+	p
+}
+
+
 "*.P" <- function(p1,p2){
 #	cat("-- *.P -----\n");
 	if (! "P" %in%  class(p2)) {
@@ -169,6 +187,27 @@ PV = function(a){
 			stop("numeric + not yet implemented");
 		} else { stop("Unknown type in +.PV");}
 	}
+        class(ret) = c("PV")
+        ret
+}
+
+"^.PV" = function(p1,p2)
+{
+	if (is.numeric(p1)) { p1 = scalar(p1,p2[[1]]) }
+	if ("P" %in% class(p1)) { p1 = PV(p1) }
+		if (length(p1) == length(p2)) {
+			ret = lapply(1:length(p1),function(i){
+				p1[[i]] ^ p2[[i]]
+			})
+		} else {
+			if (length(p2) == 1) {
+				ret = lapply(1:length(p1),function(i){
+					p1[[i]] ^ p2[[1]]
+				})
+			} else {
+				stop("Non comforable PV vectors\n");
+			}
+		}
         class(ret) = c("PV")
         ret
 }
