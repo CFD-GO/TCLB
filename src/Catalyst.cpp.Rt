@@ -142,7 +142,11 @@ namespace
           VTKGrid->GetPointData()->AddArray(myArray.GetPointer());
         }        
       }
-      <?R } ?>
+      <?R
+	};
+	ifdef();
+	?>
+
     }
     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
     {
