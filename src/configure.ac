@@ -24,7 +24,7 @@ AC_ARG_WITH([mpi-include],
 AC_ARG_WITH([mpi-lib],
 	AC_HELP_STRING([--with-mpi-lib=mpi_lib],
 		[specify the full path to your mpi shared libraries, e.g. /usr/lib/openmpi/]),
-	[MPI_LIBS="$withval"])
+	[MPI_LIB="$withval"])
 
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
