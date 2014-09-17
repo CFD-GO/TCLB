@@ -10,7 +10,7 @@
   #ifndef CROSS_CPU
     #ifdef CROSS_CPP
       #include "cuda_runtime.h"
-      #define CudaDeviceFunction inline
+      #define CudaDeviceFunction
       #define CudaHostFunction
       #define CudaGlobalFunction
       #define CudaConstantMemory
