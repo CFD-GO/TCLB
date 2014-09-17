@@ -10,7 +10,7 @@
   #ifndef CROSS_CPU
     #ifdef CROSS_CPP
       #include "cuda_runtime.h"
-      #define CudaDeviceFunction
+      #define CudaDeviceFunction inline
       #define CudaHostFunction
       #define CudaGlobalFunction
       #define CudaConstantMemory
@@ -228,7 +228,7 @@
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
     #ifdef CROSS_OPENMP
-      #define OMP_PARALLEL_FOR _Pragma("omp parallel for")
+      #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
       #define CudaKernelRun(a__,b__,c__,d__) \
                                       OMP_PARALLEL_FOR \
                                        for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \

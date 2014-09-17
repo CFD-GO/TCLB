@@ -153,10 +153,6 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
-#<?%s d ?>/<?%s m ?>/makefile:<?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile.in <?%s d ?>/<?%s m ?>/configure
-#	@echo "  CONFIGURE  $@"
-#	@(cd $<; ./configure)
-
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
 	@cp $< $@
@@ -170,6 +166,10 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 configure:$(SRC)/configure.ac
 	@echo "  AUTOCONF   $@"
 	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
+
+#configure:$(SRC)/configure.ac
+#	@echo "  AUTOCONF   $@"
+#	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
 
 <?%s d ?>/%:$(SRC)/%
 	@echo "  CP         $@"

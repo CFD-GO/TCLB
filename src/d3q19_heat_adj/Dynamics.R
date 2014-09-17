@@ -113,3 +113,8 @@ AddGlobal(name="Temperature", comment='Integral of temperature', unit="K")
 AddGlobal(name="HighTemperature", comment='Penalty for high temperature')
 AddGlobal(name="LowTemperature", comment='Penalty for low temperature')
 AddGlobal(name="MaterialPenalty", comment='Quadratic penalty for intermediate material parameter', unit="m3")
+
+
+ AddNodeType("Heater","ADDITIONALS")
+ AddNodeType("HeatSource","ADDITIONALS")
+ AddNodeType("Thermometer","OBJECTIVE")
