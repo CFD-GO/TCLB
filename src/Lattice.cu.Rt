@@ -307,13 +307,14 @@ inline void Lattice::MPIStream_B(int tag)
                 MPI_Request request;
 //                MPI_Request recvreq[bufnumber];
                 MPI_Request * recvreq = new MPI_Request[bufnumber];
+                MPI_Request * sendreq = new MPI_Request[bufnumber];
         //	DEBUG_M;
                 for (int i = 0; i < bufnumber; i++) {
                         MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
                 }
         //	DEBUG_M;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &sendreq[i]);
                 }
         //	DEBUG_M;
                 #ifdef CROSS_MPI_WAITANY
@@ -331,7 +332,9 @@ inline void Lattice::MPIStream_B(int tag)
                                 CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
                         }
                 #endif
+		MPI_Waitall(bufnumber, sendreq, MPI_STATUSES_IGNORE);
                 delete[] recvreq;
+                delete[] sendreq;
         #endif
                 DEBUG_M;
                 CudaStreamSynchronize(inStream);
