@@ -106,17 +106,17 @@ CudaDeviceFunction void BounceBack()
 	for (h in w) C(h)
    }
 ?>
-	if ((NodeType & NODE_BOUNDARY) == NODE_MovingWall){
-		AddToMovingWallForceX(<?%s ToC(f %% U[,1]) ?>);
-//		AddToMovingWallForceY(<?%s ToC(f %% U[,2]) ?>);
-		AddToMovingWallForceY(f2+f5+f6);
-
-		real_t ux = MovingWallVelocity;
-		<?R
-			ub=rbind(PV("ux"),0)
-			C(f==ub %% t(U) * diag(tn)*12, eqstring="+=")
-		?>
-	}
+//	if ((NodeType & NODE_BOUNDARY) == NODE_MovingWall || (NodeType & NODE_BOUNDARY) == NODE_NMovingWall){
+////		AddToMovingWallForceX(<?%s ToC(f %% U[,1]) ?>);
+////		AddToMovingWallForceY(<?%s ToC(f %% U[,2]) ?>);
+////		AddToMovingWallForceY(f2+f5+f6);
+//
+//		real_t ux = MovingWallVelocity;
+//		<?fff
+//			ub=rbind(PV("ux"),0)
+//			C(f==ub %% t(U) * diag(tn)*12, eqstring="+=")
+//		?>
+//	}
 
 }
 
@@ -129,6 +129,17 @@ CudaDeviceFunction void MovingWall()
 	f2 = f4;
 	f6 = f8 - (1./2.) * ru - (1./2.)*(f3 - f1);
 	f5 = f7 + (1./2.) * ru + (1./2.)*(f3 - f1);
+}
+
+CudaDeviceFunction void MovingWallN()
+{
+	real_t rho, ru;
+    real_t ux0 = MovingWallVelocity;
+	rho = f0 + f1 + f3 + 2.*(f6 + f2 + f5);
+	ru = rho * ux0;
+	f4 = f2;
+	f8 = f6 + (1./2.) * ru + (1./2.)*(f3 - f1);
+	f7 = f5 - (1./2.) * ru - (1./2.)*(f3 - f1);
 }
 
 
@@ -203,12 +214,6 @@ CudaDeviceFunction void CalcPhi() {
 
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-	switch (NodeType & NODE_OBJECTIVE) {
-		case NODE_Measurement:
-			AddToPressure1(p);
-			AddToDensity1(rho2);
-			break;
-	}
 
 	phi = FAcc * std::sqrt( -p + rho2/(3.) );
 }
@@ -222,6 +227,9 @@ CudaDeviceFunction void Run() {
 		break;
 	case NODE_MovingWall:
 		MovingWall();
+		break;
+	case NODE_NMovingWall:
+		MovingWallN();
 		break;
 	case NODE_EVelocity:
 		EVelocity();
@@ -344,6 +352,7 @@ for (i in selR) {
 F = getF();
 u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
 u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
+AddToSumUsqr(u[0]*u[0]+u[1]*u[1]);
 <?R
 	C(usq == sum(u*u)*dw);
 	C(R[selR] == Req[selR], eqstring="+=");
