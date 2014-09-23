@@ -39,11 +39,17 @@ AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall')
 AddSetting(name="Density", comment='zonal density', zonal=TRUE)
 AddSetting(name="Wetting", comment='wetting factor')
 
-AddGlobal(name="MovingWallForceX", comment='force x')
-AddGlobal(name="MovingWallForceY", comment='force y')
+#AddGlobal(name="MovingWallForceX", comment='force x')
+#AddGlobal(name="MovingWallForceY", comment='force y')
+
+
 AddGlobal(name="Pressure1",        comment='pressure at Obj1')
 AddGlobal(name="Pressure2",        comment='pressure at Obj2')
 AddGlobal(name="Pressure3",        comment='pressure at Obj3')
 AddGlobal(name="Density1",         comment='density at Obj1')
 AddGlobal(name="Density2",         comment='density at Obj2')
 AddGlobal(name="Density3",         comment='density at Obj3')
+
+AddGlobal(name="SumUsqr",         comment='Sumo o U**2')
+
+AddNodeType(name="NMovingWall", group="BOUNDARY")
