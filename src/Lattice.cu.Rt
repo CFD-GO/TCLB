@@ -392,6 +392,8 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
                         } 
                  }
                  old_stage_level = old_stage_level + 1 ?>
+
+<?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
 	container->CopyToConst();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
@@ -423,6 +425,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	MPIStream_B();
 
         CudaDeviceSynchronize();
+<?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 <?R } ?>
 	Snap = tab1;
 	MarkIteration();

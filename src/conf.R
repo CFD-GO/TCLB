@@ -87,6 +87,7 @@ Fields = data.frame()
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
+	if (missing(group)) group = name
 	comment = ifelse(comment == "", name, comment);
 	dd = data.frame(
 		name=name,
@@ -113,6 +114,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 
 AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
 	if (missing(name)) stop("Have to supply name in AddField!")
+	if (missing(group)) group = name
 	comment = ifelse(comment == "", name, comment);
 
 		d = data.frame(
@@ -266,11 +268,12 @@ AddNodeType("DesignSpace","DESIGNSPACE")
 
 Stages=NULL
 
-AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE) {
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE) {
 	s = data.frame(
 		name = name,
 		main = main,
-		adjoint = FALSE
+		adjoint = FALSE,
+		fixedPoint=fixedPoint
 	)
 	sel = Stages$name == name
 	if (any(sel)) {
