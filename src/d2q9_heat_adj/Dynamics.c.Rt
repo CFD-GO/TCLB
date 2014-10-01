@@ -102,7 +102,7 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
      real_t rho, ru;
-	const real_t ux0 = InletVelocity;
+	real_t ux0 = InletVelocity;
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -147,7 +147,7 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void eqWVelocity()
 {
      real_t rho;
-	const real_t u[2] = {InletVelocity,0.};
+	real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	SetEquilibrum(rho,u);
 }
@@ -155,7 +155,7 @@ CudaDeviceFunction void eqWVelocity()
 CudaDeviceFunction void WVelocity()
 {
      real_t rho, ru;
-	const real_t u[2] = {InletVelocity,0.};
+	real_t u[2] = {InletVelocity,0.};
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	ru = rho * u[0];
 	f1 = f3 + (2./3.) * ru;
@@ -242,7 +242,7 @@ CudaDeviceFunction void Run() {
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[2])
+CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 {	real_t usq, uf;
 <?R C(usq == sum(u*u)*(1/c_squ)) ?>
 <?R
@@ -267,7 +267,7 @@ CudaDeviceFunction void Init() {
 //	for (int i =0; i<9;i++) T[i] = 0;
 	w=1;
 	<?R for (i in 1:9) { ?>
-		T<?%d i-1 ?> = InletTemperature*<?%f tn[i,i] ?>;
+		T<?%d i-1 ?> = InitTemperature*<?%f tn[i,i] ?>;
 	<?R }?>
 }
 

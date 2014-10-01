@@ -34,3 +34,4 @@ AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of 
 AddNodeType("Porous","ADDITIONALS")
 AddSetting(name="InitPorocity", comment='initial porocity of Porous nodes')
 
+AddNodeType(name="MovingWall", group="BOUNDARY")

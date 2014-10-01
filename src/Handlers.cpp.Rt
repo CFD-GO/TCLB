@@ -1202,6 +1202,38 @@ class conControl: public Action {
 	}
 };
 
+class conFieldParameter : public Action {
+	public:
+	int Init() {
+		Action::Init();
+		pugi::xml_attribute attr = node.attribute("field");
+		if (!attr) {
+			ERROR("No \"field\" attribute in GeometryParameter\n");
+			return -1;
+		}
+		std::string str = attr.value();
+		
+
+		return 0;
+	}
+};
+
+class conControlParameter : public Action {
+	public:
+	int Init() {
+		Action::Init();
+		pugi::xml_attribute attr = node.attribute("field");
+		if (!attr) {
+			ERROR("No \"field\" attribute in GeometryParameter\n");
+			return -1;
+		}
+		std::string str = attr.value();
+		
+
+		return 0;
+	}
+};
+
 
 class acParams: public Action {
 	public:
@@ -1410,6 +1442,10 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new acInit;
         } else if (name=="Control") {
 		ret = new conControl;
+        } else if (name=="FieldParameter") {
+		ret = new conFieldParameter;
+        } else if (name=="ControlParameter") {
+		ret = new conControlParameter;
         } else {
 		ERROR("Unknown element '%s'\n", node.name());
 		return NULL;

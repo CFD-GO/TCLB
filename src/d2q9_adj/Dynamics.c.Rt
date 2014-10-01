@@ -125,6 +125,17 @@ CudaDeviceFunction void EPressure()
 	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
 }
 
+CudaDeviceFunction void MovingWall()
+{
+	real_t rho, ru;
+        real_t ux0 = MovingWallVelocity;
+	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
+	ru = rho * ux0;
+	f2 = f4;
+	f6 = f8 - (1./2.) * ru - (1./2.)*(f3 - f1);
+	f5 = f7 + (1./2.) * ru + (1./2.)*(f3 - f1);
+}
+
 
 CudaDeviceFunction void Run() {
 //	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
@@ -147,6 +158,10 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
+	case NODE_MovingWall:
+		MovingWall();
+		break;
+
     }
     switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
