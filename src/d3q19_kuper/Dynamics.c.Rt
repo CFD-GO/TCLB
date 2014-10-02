@@ -13,7 +13,7 @@
 	rho = PV("rho")
 	J = PV(c("Jx","Jy","Jz"))
 	rho0 = 1
-
+	overRho = rho ^ (-1)
 	if (FALSE) {
         	we = 0
         	weJ = -475/63
@@ -24,18 +24,18 @@
         	wxx = -1/2
         }
 
-        pxx = 1/(3*rho0) * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3])
-        pww = 1/(rho0) * (J[2] * J[2] - J[3] * J[3])
-        pxy = 1/(rho0) * (J[1]*J[2])
-        pyz = 1/(rho0) * (J[2]*J[3])
-        pxz = 1/(rho0) * (J[1]*J[3])
+        pxx = 3*overRho * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3])
+        pww = overRho * (J[2] * J[2] - J[3] * J[3])
+        pxy = overRho * (J[1]*J[2])
+        pyz = overRho * (J[2]*J[3])
+        pxz = overRho * (J[1]*J[3])
 
 
 # EQUILIBRUM MOMENTS
         Req = rbind(
                 rho,
-                -11*rho + 19/rho0*sum(J*J),
-                we*rho + weJ/rho0*sum(J*J),
+                -11*rho + 19*overRho*sum(J*J),
+                we*rho + weJ*overRho*sum(J*J),
                 J[1],
                 -2/3*J[1],
                 J[2],
@@ -147,7 +147,7 @@ CudaDeviceFunction vector_t getF() {
     Rs = PV(c(paste("Rs[",1:19-1,"]",sep="")))
 	Force = PV(c("F.x","F.y", "F.z"));
 #	gs = PV(paste("gstar[",1:9-1,"]",sep=""))
-	gs = c(0,1.,1.,1.,1.,1.,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5);
+	gs = c(0,1.,1.,1.,1.,1.,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5)/2;
 	A = PV("MagicA")
 
 	C(Rs==ph * ph * A + ph * ph[1] * (A*(-2)+1),float=F)
@@ -330,35 +330,20 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void CalcPhi() {
 	double a2 = 3.852462271644162;
-    double b2 = 0.1304438860971524 * 4.0 ;
-    double c2 = 2.785855170470555;
-    double t = Temperature;
-    double p;
+	double b2 = 0.1304438860971524 * 4.0 ;
+	double c2 = 2.785855170470555;
+	double t = Temperature;
+	double p;
 	double rho2;
 	rho2 = <?R C(sum(f)) ?>;
-    if (NodeType & NODE_BOUNDARY) {
-          rho2 = Density;
+	if (NodeType & NODE_BOUNDARY) {
+        	rho2 = Density;
 	}
-
-	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
+	p = ((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-/*	switch (NodeType & NODE_OBJECTIVE) {
-		case NODE_Obj1:
-			AddToPressure1(p);
-			AddToDensity1(rho2);
-			break;
-		case NODE_Obj2:
-			AddToPressure2(p);
-			AddToDensity2(rho2);
-			break;
-		case NODE_Obj3:
-			AddToPressure3(p);
-			AddToDensity3(rho2);
-			break;
-	}
-*/
 	phi = FAcc * std::sqrt( -p + rho2/(3.) );
 }
+
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
         case NODE_WPressureL:
@@ -447,25 +432,6 @@ CudaDeviceFunction void CollisionMRT()
         #define S18 omega2
         #define S19 omega2
         real_t omega2 = 8.0 * ( 2.0 - omega )/( 8.0 - omega );
-//    #define S1  0.0
-//    #define S2  1.0			//19
-//    #define S3  1.0			//4
-//    #define S4  0.0
-//    #define S5  1.0			//2
-//    #define S6  0.0
-//    #define S7  1.0			//2
-//    #define S8  0.0
-//    #define S9  1.0			//2
-//    #define S10  omega
-//    #define S11  1.0			//4
-//    #define S12  omega
-//    #define S13  1.0			//4
-//    #define S14  omega
-//    #define S15  omega
-//    #define S16  omega
-//    #define S17  1.0			//98
-//    #define S18  1.0			//98
-//    #define S19  1.0			//98
 <?R
         Sy = PV(paste("S",1:19,"",sep=""))
         omega = PV("omega")
@@ -497,27 +463,6 @@ CudaDeviceFunction void CollisionMRT()
     //ux = Jx / rho;
     //uy = Jy / rho;
     //uz = Jz / rho;
-/*    switch (NodeType & NODE_ADDITIONALS) {
-    <?R for (plane in c("XY","XZ","YZ")) { ?>
-    case NODE_<?%s plane ?>slice:
-     AddTo<?%s plane ?>vx(ux);
-     AddTo<?%s plane ?>vy(uy);
-     AddTo<?%s plane ?>vz(uz);
-     AddTo<?%s plane ?>rho(rho);
-     AddTo<?%s plane ?>area(1);
-     break;
-    <?R } ?>
-    }
-    AddToVOLvx(ux);
-    AddToVOLvy(uy);
-    AddToVOLvz(uz);
-    AddToVOLpx(Jx);
-    AddToVOLpy(Jy);
-    AddToVOLpz(Jz);
-    AddToVOLrho(rho);
-    AddToVOLvolume(1);
-    AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
-*/
     Jx = Jx + F.x*(-1./3.) + (GravitationX)*rho;
     Jy = Jy + F.y*(-1./3.) + (GravitationY)*rho;
     Jz = Jz + F.z*(-1./3.) + (GravitationZ)*rho;
