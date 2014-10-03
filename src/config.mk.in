@@ -51,11 +51,11 @@ ifeq '$(strip $(WITH_CATALYST))' '1'
  PV_INCLUDES += ParaViewCore/VTKExtensions/Core
  PV_INCLUDES += CoProcessing/PythonCatalyst
  PV_CPPFLAGS += $(addprefix -I $(PV_BUILD)/, $(PV_INCLUDES))
- PV_CPPFLAGS += $(addprefix -I $(PV_SOURCE)/, $(PV_INCLUDES))
+ PV_CPPFLAGS += $(addprefix -I $(PV_SOURCE)/, $(PV_INCLUDES)) -I $(PV_SOURCE)
  PV_CPPFLAGS += -D WITH_CATALYST
  PV_LDFLAGS  += $(addprefix -l, $(addsuffix -$(PV_VERSION),$(PV_LIBS)))
- PV_LDFLAGS  += -Wl,-rpath,$(PV_BUILD)/lib
- PV_LDFLAGS  += -L$(PV_BUILD)/lib
+ PV_LDFLAGS  += -Wl,-rpath,$(PV_BUILD)
+ PV_LDFLAGS  += -L$(PV_BUILD)
 
  OPT += $(PV_CPPFLAGS)
  LD_OPT += $(PV_LDFLAGS)

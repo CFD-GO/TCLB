@@ -281,7 +281,6 @@ then
 	fi
 	PV_VERSION=$(echo ${RET} | sed 's/^.*libvtkPVCatalyst-\(.*\).so$/\1/')
 	RET=$(AS_DIRNAME([${RET}]))
-	RET=$(echo ${RET} | sed 's/\/lib$//')
 	AC_MSG_RESULT([${RET}])		
 	if ! test -d ${RET}
 	then

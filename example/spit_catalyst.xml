@@ -2,9 +2,9 @@
 <CLBConfig version="2.0" output="output/">
         <Geometry nx="512" ny="200" predef="none" model="MRT">
 		<MRT><Box/></MRT>
-		<Wet name="Wet">
+		<None name="Wet">
 			<Box nx="20" dy="90" ny="20"/> 
-		</Wet>
+		</None>
 		<WPressure name="Inlet"><Box nx="1"/></WPressure>
 		<Wall mask="ALL" name="Walls">
 			<Wedge direction="UpperRight" dy="105" ny="5" nx="20"/>
@@ -14,9 +14,9 @@
 			<Box nx="10" dy="110"/>
 			<Channel/>
 		</Wall>  
-		<Wet>
+		<None>
 <!--			<Box nx="30" dy="-45" fy="-25"/>-->
-		</Wet>
+		</None>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.0"/>
