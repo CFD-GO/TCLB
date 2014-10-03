@@ -46,6 +46,7 @@ AddAction("Init", c("BaseInit","CalcPhi"))
 AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="P", unit="Pa");
+AddQuantity(name="Phi", unit="1");
 AddQuantity(name="F", unit="N", vector=T);
 
 AddSetting(name="omega", comment='one over relaxation time')

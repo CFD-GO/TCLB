@@ -9,53 +9,7 @@
 <?R
 	f = PV(Density$name[Density$group=="f"])
 
-
-	rho = PV("rho")
-	J = PV(c("Jx","Jy","Jz"))
-	rho0 = 1
-	overRho = rho ^ (-1)
-	if (FALSE) {
-        	we = 0
-        	weJ = -475/63
-        	wxx = 0
-        } else {
-        	we = 3
-        	weJ = -11/2
-        	wxx = -1/2
-        }
-
-        pxx = 3*overRho * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3])
-        pww = overRho * (J[2] * J[2] - J[3] * J[3])
-        pxy = overRho * (J[1]*J[2])
-        pyz = overRho * (J[2]*J[3])
-        pxz = overRho * (J[1]*J[3])
-
-
-# EQUILIBRUM MOMENTS
-        Req = rbind(
-                rho,
-                -11*rho + 19*overRho*sum(J*J),
-                we*rho + weJ*overRho*sum(J*J),
-                J[1],
-                -2/3*J[1],
-                J[2],
-                -2/3*J[2],
-                J[3],
-                -2/3*J[3],
-                pxx*3,
-                wxx*pxx*3,
-                pww,
-                wxx*pww,
-                pxy,
-                pyz,
-                pxz,
-                0,
-                0,
-                0
-        )
-
-
-        U = MRTMAT[,selU]
+	source("MRT/d3q19.R")
 
         R = PV(paste("R",0:18,sep=""))
         R[1] = rho
@@ -147,7 +101,7 @@ CudaDeviceFunction vector_t getF() {
     Rs = PV(c(paste("Rs[",1:19-1,"]",sep="")))
 	Force = PV(c("F.x","F.y", "F.z"));
 #	gs = PV(paste("gstar[",1:9-1,"]",sep=""))
-	gs = c(0,1.,1.,1.,1.,1.,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5)/2;
+	gs = c(0,1.,1.,1.,1.,1.,1,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5);
 	A = PV("MagicA")
 
 	C(Rs==ph * ph * A + ph * ph[1] * (A*(-2)+1),float=F)
@@ -175,6 +129,10 @@ CudaDeviceFunction real_t getP(){
 
 	return Magic*p;
 
+}
+
+CudaDeviceFunction real_t getPhi(){
+	return phi(0,0,0);
 }
 
 
@@ -304,7 +262,7 @@ CudaDeviceFunction void WPressureLimited()
 
 CudaDeviceFunction void EPressure()
 {
-     real_t rho = 1.0;
+     real_t rho = Density;
      real_t Nxy, Nxz;
      real_t ux;
 <?R
