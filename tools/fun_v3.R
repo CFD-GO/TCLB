@@ -39,8 +39,12 @@ aggregate.P = function(p)
 		}
                 ret = ret[ret$.M != 0,,drop=FALSE]
                 attr(ret,"var") = attr(p,"var")
-                finish.P(ret)
-	}else {p}
+                p = finish.P(ret)
+	}
+	if (nrow(p) == 0) {
+		p = P(0)
+	}
+	p
 }
 
 finish.P = function(p) {
@@ -145,19 +149,35 @@ print.P = function(p)
 }
 
 
-PV = function(a){
-	if (is.factor(a)) a = as.character(a)
-	if (is.numeric(a) || is.character(a)) {
-		ret = lapply(a,P)
-	} else {
-		if ("P" %in% class(a)) {
-			ret = list(a)
-		} else if ("PV" %in% class(a)) {
-                        ret = a 
+PV = function(a, b){
+	if (missing(b)) {
+		if (is.factor(a)) a = as.character(a)
+		if (is.numeric(a) || is.character(a)) {
+			ret = lapply(a,P)
 		} else {
-			stop("unknown type in PV creation\n");
+			if ("P" %in% class(a)) {
+				ret = list(a)
+			} else if ("PV" %in% class(a)) {
+				ret = a 
+			} else {
+				stop("unknown type in PV creation\n");
+			}
 		}
-	}
+	} else {
+		if (is.polynomial(b)) b = polylist(b)
+		if (is.character(a) && is.polylist(b)) {
+			ret = lapply(b, function(b) {
+				b = unclass(b);
+				r = data.frame(a=0:(length(b)-1), .M=b);
+				names(r) = c(a,".M")
+				class(r) = c("P","data.frame");
+				attr(r,"var")=a
+				r
+			})
+		} else {
+			stop("Unsupported combination of types in PV creation\n");
+		}
+	}			
 	class(ret) = c("PV")
 	ret
 }	
@@ -700,3 +720,21 @@ subst.PV = function(obj_, ...) {
 	class(ret) = "PV"
 	ret
 }
+
+deriv.P = function(obj_, what) {
+	if (!is.character(what)) stop("Can only deriv P and PV with respect to variables given as strings")
+	if (what %in% names(obj_)) {
+		obj_$.M = obj_$.M * obj_[,what];
+		obj_[,what] = obj_[,what] - 1;
+	} else {
+		obj_$.M = 0;
+	}
+	aggregate(obj_)	
+}
+
+deriv.PV = function(obj_, ...) {
+	ret = lapply(unclass(obj_),deriv.P,...)	
+	class(ret) = "PV"
+	ret
+}
+
