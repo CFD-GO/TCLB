@@ -594,6 +594,7 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 }
 Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
 Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
+Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
 
 GlobalsD = Globals[-nrow(Globals),]
 

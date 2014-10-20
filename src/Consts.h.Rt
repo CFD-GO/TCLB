@@ -36,8 +36,11 @@
   }
 ?>
 
+
 <?R for (e in names(Enums)) { ?>
 enum <?%s e ?> { <?%s paste(Enums[[e]],collapse=",") ?> }; <?R
 } ?>
+
+
 
 #endif
