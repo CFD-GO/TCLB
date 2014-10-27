@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!--
+	Max Velocity = 3.14 m/s
+	Nu = 0.0002 m2/s
+	D = 0.5 m
+	Re = 7853
+-->
+
+<CLBConfig version="2.0" output="output/">
+	<Units>
+		<Params Velocity="2m/s" gauge="0.04"/>
+		<Params nu="0.0002m2/s" gauge="0.001"/> 
+		<Params D="1y" gauge="0.3m"/>
+		<Params L="1x" gauge="1m"/>
+		<Params U="1z" gauge="5m"/>
+	</Units>
+        <Geometry nx="2m" ny="2m">
+		<MRT><Box/></MRT>
+		<Wall mask="ALL">
+			<Channel/>
+			<Inlet/>
+			<Outlet/>
+		</Wall>
+	</Geometry>
+	<Model>
+<!-- Smagorynsky constant for LES -->                	
+		<Params Smag="0.16"/> 
+<!-- Main flow velocity -->                	
+		<Params Velocity="0"/>
+<!-- Flaping plate geometry -->
+		<Params
+			PDX="0.5m"
+			PDY="0.1m"
+			PX="1m"
+			PY="1m"
+			PR="0.0"	
+		/>
+<!-- Movement of the plate -->
+                <Control Iterations="1s">
+                        <CSV file="example/sin.csv" Time="x*1s">
+                               <Params PY="Sin*0.5m+1m"/>
+                        </CSV>
+                </Control>
+	</Model>
+	<Solve Iterations="10s"/>
+	<VTK Iterations="0.01s"  what="U,Solid,BOUNDARY"/>
+	<Solve Iterations="2s"/>
+</CLBConfig>
