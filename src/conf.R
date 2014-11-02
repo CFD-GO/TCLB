@@ -10,6 +10,7 @@
 #      Consts
 #-----------------------------------------
 #
+#
 
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
