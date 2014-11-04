@@ -493,7 +493,19 @@ class GenericContainer: public GenericAction {
 		return GenericAction::ExecuteInternal();
 	}
 	int Finish() {
-		return GenericAction::Unstack();
+		GenericAction::Unstack();
+		return GenericAction::Finish();
+	}
+};
+
+class EmptyContainer: public GenericAction {
+	public:
+	int Init() {
+		GenericAction::Init();
+		return 0;
+	}
+	int Finish() {
+		GenericAction::Unstack();
 		return GenericAction::Finish();
 	}
 };
@@ -1425,6 +1437,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new GenericContainer;
         } else if (name=="Model") {
 		ret = new acModel;
+        } else if (name=="Design") {
+		ret = new EmptyContainer;
         } else if (name=="Optimize") {
 #ifdef WITH_NLOPT
 		ret = new acOptimize;
