@@ -26,7 +26,17 @@
 [Dynamics.c](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.c.Rt)
 [Dynamics.R](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.R)
 
-### [[Settings]]
+### [[Zonal Settings|Settings]]
+
+| Name | Comment |
+| --- | --- |
+<?R
+  for (s in rows(ZoneSettings)) {
+    cat("", paste("`",s$name,"`",sep=""), s$comment, "\n", sep="|");
+  }
+?>
+
+### [[Global Settings|Settings]]
 
 | Name | Derived | Comment |
 | --- | --- | --- |
