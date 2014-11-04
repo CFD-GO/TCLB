@@ -60,6 +60,28 @@ int vHandler::Type() {
 	return 0;
 };
 
+int vHandler::NumberOfParameters() {
+	ERROR("Called virtual function (NumberOfParameters)!\n");
+	exit(-1);
+	return -1;
+};
+int vHandler::GetParameters(double * tab) {
+	ERROR("Called virtual function (GetParameters)!\n");
+	exit(-1);
+	return -1;
+};
+int vHandler::SetParameters(const double * tab) {
+	ERROR("Called virtual function (SetParameters)!\n");
+	exit(-1);
+	return -1;
+};
+int vHandler::GetGradient(double * tab) {
+	ERROR("Called virtual function (GetGradient)!\n");
+	exit(-1);
+	return -1;
+};
+
+
 class Callback : public vHandler {
 public:
 	int DoIt() {
@@ -83,6 +105,8 @@ public:
 	}
 	int Type() { return HANDLER_CALLBACK; }
 };
+
+
 
 class Action : public vHandler {
 public:
@@ -111,7 +135,130 @@ public:
 		return 0;
 	}
 	int Type() { return HANDLER_ACTION; }
+	int NumberOfParameters() {
+		return 0;
+	};
+	int GetParameters(double * tab) {
+		return 0;
+	};
+	int SetParameters(const double * tab) {
+		return 0;
+	};
+	int GetGradient(double * tab) {
+		return 0;
+	};
 };
+
+class Design : public Callback {
+public:
+	int DoIt() {
+		output("Design called!");
+	        return 0;
+	}
+	int Init() {
+		pugi::xml_attribute attr = node.attribute("Iterations");
+		startIter = solver->iter;
+		if (attr) {
+			ERROR("Design element in xml %s shouldent have Iteration parameter!\n", node.name());
+			exit(-1);
+			return -1;
+		} else {
+			everyIter = 0;
+                        output("Design %s with no Iterations attribute", node.name());
+		}
+		return 0;
+	}
+	int Finish() {
+		return 0;
+	}
+	virtual int Type() { return HANDLER_DESIGN; }
+
+};
+
+class InternalTopology : public Design {
+	int Pars;
+public:
+	int Init() {
+		Pars = -1;
+		return Design::Init();
+	};
+	int NumberOfParameters() {
+		if (Pars < 0) {
+			Pars =  solver->getPars();
+		}
+		return Pars;
+	};
+	int GetParameters(double * tab) {
+		output("Called!");
+		return solver->getPar(tab);
+	};
+	int SetParameters(const double * tab) {
+		return solver->setPar(tab);
+	};
+	int GetGradient(double * tab) {
+		return solver->getDPar(tab);
+	};
+};
+
+class OptimalControl : public Design {
+	int Pars;
+public:
+	int Init() {
+		std::string par;
+		std::string zone;
+		int zone_number = -10;
+		int par_index = -10;
+		Pars = -1;
+		pugi::xml_attribute attr = node.attribute("what");
+		if (attr) {
+	                par = attr.value();
+                        int i = par.find_first_of('-');
+                        if (i == string::npos) {
+                                zone = "";
+                                zone_number = -1;
+                        } else {
+                                zone = par.substr(i+1);
+                                par = par.substr(0,i);
+                                if (solver->geometry->SettingZones.count(zone) > 0) { 
+                                        zone_number = solver->geometry->SettingZones[zone];
+                                } else {
+                                        WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+                                        zone_number = -2;
+                                        zone = "";
+                                }
+                        }
+		<?R for (v in rows(ZoneSettings)) { ?>
+		        if (par == "<?%s v$name?>") par_index = <?%s v$Index?>;
+		<?R } ?>
+			if (par_index < 0) {
+				error("Unknown param %s in OptimalControl\n", par.c_str());
+				return -1;
+			}
+			output("Selected %s (%d) in zone \"%s\" (%d) for optimal control\n", par.c_str(), par_index, zone.c_str(), zone_number);
+		} else {
+			ERROR("Parameter \"what\" needed in %s\n",node.name());
+			return -1;
+		}
+		return Design::Init();
+	};
+	int NumberOfParameters() {
+		if (Pars < 0) {
+			Pars =  solver->getPars();
+		}
+		return Pars;
+	};
+	int GetParameters(double * tab) {
+		output("Called!");
+		return solver->getPar(tab);
+	};
+	int SetParameters(const double * tab) {
+		return solver->setPar(tab);
+	};
+	int GetGradient(double * tab) {
+		return solver->getDPar(tab);
+	};
+};
+
 
 class cbVTK: public Callback {
 	std::string nm;
@@ -451,6 +598,7 @@ class GenericAction: public Action {
 	public:
 	int Init() {
 		stack=0;
+		parSize=-1;
 		return Action::Init();
 	}
 	int ExecuteInternal() {
@@ -459,8 +607,9 @@ class GenericAction: public Action {
 			Handler hand(par, solver);
 			if (hand) {
 				if (hand.Type() & HANDLER_CALLBACK) {
-					if (hand.hand->everyIter) {
+					if ((hand.hand->everyIter != 0) || (hand.Type() & HANDLER_DESIGN)) {
 						debug1("adding %lf\n", hand.hand->everyIter);
+						output("Adding %s to the solver hands\n",(*hand).node.name());
 						solver->hands.push_back(hand);
 						stack++;
 					} else {
@@ -484,6 +633,75 @@ class GenericAction: public Action {
 		}
 		return 0;
 	}
+	std::vector<int> parOffset;
+	int parSize;
+	int NumberOfParameters() {
+		output("Collecting parameters from Design elements\n");
+		if (parSize < 0) {
+			parSize = 0;
+			for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+				output("Getting number of parameters from %s\n", solver->hands[i]->node.name());
+				int k = solver->hands[i]->NumberOfParameters();
+				parOffset.push_back(parSize);
+				parSize += k;
+			}
+		} else {
+			output("Done some time ago\n");
+		}
+		return parSize;
+	};
+	int GetParameters(double * tab) {
+		int offset = 0, size = 0, ret=0;
+		for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+			output("Getting parameters from %s\n", solver->hands[i]->node.name());
+			size = solver->hands[i]->NumberOfParameters();
+			if (offset + size > parSize) { output("aaaaaaa!"); offset = offset + size; break; }
+			ret = solver->hands[i]->GetParameters(tab+offset);
+			if (ret) return ret;
+			offset += size;
+		}
+		if (offset != parSize) {
+				ERROR("Numer of parameters is inconsistent with first call to NumberOfParameters!");
+				exit(-1);
+				return -1;
+		}
+		return 0;
+	};
+	int SetParameters(const double * tab) {
+		int offset = 0, size = 0, ret=0;
+		for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+			output("Getting parameters from %s\n", solver->hands[i]->node.name());
+			size = solver->hands[i]->NumberOfParameters();
+			if (offset + size > parSize) { offset = offset + size; break; }
+			ret = solver->hands[i]->SetParameters(tab+offset);
+			if (ret) return ret;
+			offset += size;
+		}
+		if (offset != parSize) {
+				ERROR("Numer of parameters is inconsistent with first call to NumberOfParameters!");
+				exit(-1);
+				return -1;
+		}
+		return 0;
+	};
+	int GetGradient(double * tab) {
+		int offset = 0, size = 0, ret=0;
+		for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+			output("Getting parameters from %s\n", solver->hands[i]->node.name());
+			size = solver->hands[i]->NumberOfParameters();
+			if (offset + size > parSize) { offset = offset + size; break; }
+			ret = solver->hands[i]->GetGradient(tab+offset);
+			if (ret) return ret;
+			offset += size;
+		}
+		if (offset != parSize) {
+				ERROR("Numer of parameters is inconsistent with first call to NumberOfParameters!");
+				exit(-1);
+				return -1;
+		}
+		return 0;
+	};
+
 };
 
 class GenericContainer: public GenericAction {
@@ -497,19 +715,6 @@ class GenericContainer: public GenericAction {
 		return GenericAction::Finish();
 	}
 };
-
-class EmptyContainer: public GenericAction {
-	public:
-	int Init() {
-		GenericAction::Init();
-		return 0;
-	}
-	int Finish() {
-		GenericAction::Unstack();
-		return GenericAction::Finish();
-	}
-};
-
 
 class acSolve: public GenericAction {
 	public:
@@ -695,7 +900,8 @@ class acOptimize: public GenericAction {
 		material=0.0;
 		GenericAction::Init();
 		DEBUG_M;
-		par = solver->getPars();
+//		par = solver->getPars();
+		par = NumberOfParameters();
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
@@ -706,7 +912,8 @@ class acOptimize: public GenericAction {
 			start = new double[par];
 		}
 		DEBUG_M;
-		solver->getPar(start);
+//		solver->getPar(start);
+		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
 		if (solver->mpi_rank == 0) {
@@ -817,10 +1024,12 @@ class acOptimize: public GenericAction {
 	int Execute(const double * x, double * grad, double * f) {
 		DEBUG_M;
 		solver->opt_iter++;
-		solver->setPar(x);
+//		solver->setPar(x);
+		SetParameters(x);
 		if (GenericAction::ExecuteInternal()) return -1;
 		everyIter = solver->iter - startIter;
-		solver->getDPar(grad);
+//		solver->getDPar(grad);
+		GetGradient(grad);
 		*f = solver->lattice->getObjective();
 		output("Evaluated objective: %lg\n", *f);
 		return 0;
@@ -885,7 +1094,8 @@ class acThreshold: public GenericAction {
 		}
 		                        
 		DEBUG_M;
-		par = solver->getPars();
+//		par = solver->getPars();
+		par = NumberOfParameters();
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
@@ -897,7 +1107,8 @@ class acThreshold: public GenericAction {
 			slice = new double[par];
 		}
 		DEBUG_M;
-		solver->getPar(start);
+//		solver->getPar(start);
+		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
 		
@@ -905,7 +1116,8 @@ class acThreshold: public GenericAction {
 		        double th = (1.0 * i)/(levels-1);
 		        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(th);
 		        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>th ? 1.0 : 0.0;
-        		solver->setPar(slice);
+//        		solver->setPar(slice);
+			SetParameters(slice);
         		if (GenericAction::ExecuteInternal()) return -1;
                 }
 		return 0;
@@ -928,7 +1140,8 @@ class acThresholdNow: public GenericAction {
 		        level = 0.5;
 		}
 		DEBUG_M;
-		par = solver->getPars();
+//		par = solver->getPars();
+		par = NumberOfParameters();
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
@@ -940,12 +1153,14 @@ class acThresholdNow: public GenericAction {
 			slice = new double[par];
 		}
 		DEBUG_M;
-		solver->getPar(start);
+//		solver->getPar(start);
+		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
 	        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(level);
 	        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>level ? 1.0 : 0.0;
-       		solver->setPar(slice);
+//       		solver->setPar(slice);
+		SetParameters(slice);
 		return 0;
 	}
 };
@@ -1437,8 +1652,10 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new GenericContainer;
         } else if (name=="Model") {
 		ret = new acModel;
-        } else if (name=="Design") {
-		ret = new EmptyContainer;
+        } else if (name=="InternalTopology") {
+		ret = new InternalTopology;
+        } else if (name=="OptimalControl") {
+		ret = new OptimalControl;
         } else if (name=="Optimize") {
 #ifdef WITH_NLOPT
 		ret = new acOptimize;
