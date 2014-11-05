@@ -240,6 +240,7 @@ void Lattice::clearAdjoint()
 	aSnaps[0].Clear(region.nx,region.ny,region.nz);
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 #endif
+	zSet.ClearGrad();
 }
 
 /// Clear the derivatives of the parameters

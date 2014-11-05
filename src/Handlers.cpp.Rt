@@ -65,22 +65,11 @@ int vHandler::NumberOfParameters() {
 	exit(-1);
 	return -1;
 };
-int vHandler::GetParameters(double * tab) {
-	ERROR("Called virtual function (GetParameters)!\n");
+int vHandler::Parameters(int type, double * tab) {
+	ERROR("Called virtual function (Parameters, type: %d)!\n", type);
 	exit(-1);
 	return -1;
 };
-int vHandler::SetParameters(const double * tab) {
-	ERROR("Called virtual function (SetParameters)!\n");
-	exit(-1);
-	return -1;
-};
-int vHandler::GetGradient(double * tab) {
-	ERROR("Called virtual function (GetGradient)!\n");
-	exit(-1);
-	return -1;
-};
-
 
 class Callback : public vHandler {
 public:
@@ -136,16 +125,10 @@ public:
 	}
 	int Type() { return HANDLER_ACTION; }
 	int NumberOfParameters() {
-		return 0;
+		return -1;
 	};
-	int GetParameters(double * tab) {
-		return 0;
-	};
-	int SetParameters(const double * tab) {
-		return 0;
-	};
-	int GetGradient(double * tab) {
-		return 0;
+	int Parameters(int type, double * tab) {
+		return -1;
 	};
 };
 
@@ -188,43 +171,48 @@ public:
 		}
 		return Pars;
 	};
-	int GetParameters(double * tab) {
-		output("Called!");
-		return solver->getPar(tab);
-	};
-	int SetParameters(const double * tab) {
-		return solver->setPar(tab);
-	};
-	int GetGradient(double * tab) {
-		return solver->getDPar(tab);
+	int Parameters(int type, double * tab) {
+		switch(type){
+		case PAR_GET:
+			return solver->getPar(tab);
+		case PAR_SET:
+			return solver->setPar(tab);
+		case PAR_GRAD:
+			return solver->getDPar(tab);
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n",type,node.name());
+			exit(-1);
+		}
+		return -1;	
 	};
 };
 
 class OptimalControl : public Design {
 	int Pars;
+	int zone_number, par_index;
+	int old_iter_type;
 public:
 	int Init() {
 		std::string par;
 		std::string zone;
-		int zone_number = -10;
-		int par_index = -10;
+		zone_number = -10;
+		par_index = -10;
 		Pars = -1;
 		pugi::xml_attribute attr = node.attribute("what");
 		if (attr) {
 	                par = attr.value();
                         int i = par.find_first_of('-');
                         if (i == string::npos) {
-                                zone = "";
-                                zone_number = -1;
+				ERROR("Can only optimal control a parameters in a specific zone\n");
+				return -1;
                         } else {
                                 zone = par.substr(i+1);
                                 par = par.substr(0,i);
                                 if (solver->geometry->SettingZones.count(zone) > 0) { 
                                         zone_number = solver->geometry->SettingZones[zone];
                                 } else {
-                                        WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
-                                        zone_number = -2;
-                                        zone = "";
+                                        ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+					return -1;
                                 }
                         }
 		<?R for (v in rows(ZoneSettings)) { ?>
@@ -239,23 +227,33 @@ public:
 			ERROR("Parameter \"what\" needed in %s\n",node.name());
 			return -1;
 		}
+		Pars = solver->lattice->zSet.getLen(par_index, zone_number);
+		output("Lenght of the control: %d\n", Pars);
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_GLOBS;
 		return Design::Init();
 	};
 	int NumberOfParameters() {
-		if (Pars < 0) {
-			Pars =  solver->getPars();
-		}
 		return Pars;
 	};
-	int GetParameters(double * tab) {
-		output("Called!");
-		return solver->getPar(tab);
-	};
-	int SetParameters(const double * tab) {
-		return solver->setPar(tab);
-	};
-	int GetGradient(double * tab) {
-		return solver->getDPar(tab);
+	int Parameters(int type, double * tab) {
+		switch(type) {
+		case PAR_GET:
+			output("Getting the params from the zone\n");
+			solver->lattice->zSet.get(par_index, zone_number, tab);
+			return 0;
+		case PAR_SET:
+			output("Setting the params in the zone\n");
+			solver->lattice->zSet.set(par_index, zone_number, tab);
+			return 0;
+		case PAR_GRAD:
+			output("Getting gradient of a param in zone\n");
+			solver->lattice->zSet.get_grad(par_index, zone_number, tab);
+			return 0;
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
+			exit(-1);
+		}
 	};
 };
 
@@ -633,7 +631,6 @@ class GenericAction: public Action {
 		}
 		return 0;
 	}
-	std::vector<int> parOffset;
 	int parSize;
 	int NumberOfParameters() {
 		output("Collecting parameters from Design elements\n");
@@ -642,7 +639,6 @@ class GenericAction: public Action {
 			for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
 				output("Getting number of parameters from %s\n", solver->hands[i]->node.name());
 				int k = solver->hands[i]->NumberOfParameters();
-				parOffset.push_back(parSize);
 				parSize += k;
 			}
 		} else {
@@ -933,9 +929,9 @@ class acOptimize: public GenericAction {
                         }
 			{
 				double * bound = new double[par];
-				for (int i=0;i<par; i++) bound[i] = 0;
+				for (int i=0;i<par; i++) bound[i] = 0.09;
 				nlopt_set_lower_bounds(opt, bound);
-				for (int i=0;i<par; i++) bound[i] = 1;
+				for (int i=0;i<par; i++) bound[i] = 1.01;
 				nlopt_set_upper_bounds(opt, bound);
 				delete[] bound;
 			}

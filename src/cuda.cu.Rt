@@ -68,7 +68,20 @@ template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
 
 <?R
 for (tp in rows(Dispatch)) {
-	s = Stages[Stages$name == tp$stage_name, ]
+	s = Stages[Stages$name == tp$stage_name, ];
+	GlobalsD = Globals[-nrow(Globals),];
+	GlobalsD$zonal = FALSE;
+	k = nrow(ZoneSettings);
+	if (k > 0) {
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,k)));
+		k = nrow(GlobalsD) - k:1 + 1;
+		GlobalsD$name[k] = paste0(ZoneSettings$name,"B");
+		GlobalsD$adjoint[k] = TRUE;
+		GlobalsD$zonal[k] = TRUE;
+		GlobalsD$op[k] = "SUM";
+		GlobalsD$var[k] = paste0(ZoneSettings$name,"b");
+		GlobalsD$Index[k] = ZoneSettings$Index;
+	}
 	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix
@@ -103,6 +116,7 @@ for (tp in rows(Dispatch)) {
                 Globs = GlobalsD[GlobalsD$sel,]
         } else if (tp$Globals == "Obj") {
                 Globs = Globals[nrow(Globals),]
+		Globs$zonal = FALSE
         } else {
                 Globs = NULL
         } 	
@@ -122,10 +136,15 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	}
 	CudaDeviceFunction void inline Glob() { <?R
         for (g in rows(Globs)) {
+		if (g$zonal) {
+			where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", NodeType >> ZONE_SHIFT)")
+		} else {
+			where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
+		}
                 if (g$op == "SUM") { ?>
-                atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 } else if (g$op == "MAX") { ?>
-                atomicMax(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                atomicMax(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 }
         } ?>
 	} <?R

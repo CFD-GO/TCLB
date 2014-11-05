@@ -488,7 +488,6 @@ Fields = bunch(Fields)
 
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
-GlobalsD = Globals
 AddGlobal(name="Objective",comment="Objective function");
 
 Margin = data.frame(
@@ -595,8 +594,8 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
 Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
-
-GlobalsD = Globals[-nrow(Globals),]
+Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
+Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
 offsets = function(d2=FALSE, cpu=FALSE) {
 	def.cpu = cpu

@@ -100,11 +100,18 @@ class LatticeContainer {
 
   CudaDeviceFunction inline const real_t ZoneSetting_DT(const int & s, const int & z) {
     const int i = s + ZONESETTINGS * z;
-    const real_t * w = ZoneSettings[i];
+    const real_t * w = ZoneSettings[i + DT_OFFSET];
     if (w == NULL) return 0;
-    w = ZoneSettings[i + DT_OFFSET];
     return w[ZoneIndex];
   }
+
+  CudaDeviceFunction inline real_t * ZoneSettingGrad(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    real_t * w = ZoneSettings[i + GRAD_OFFSET];
+    if (w == NULL) return & ConstZoneSettings[i + GRAD_OFFSET];
+    return & w[ZoneIndex];
+  }
+
 
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
