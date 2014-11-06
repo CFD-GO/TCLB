@@ -80,7 +80,8 @@
             }
         }
       #endif
-      __shared__ real_t sumtab[MAX_THREADS];
+      __shared__ real_t  sumtab[MAX_THREADS];
+      __shared__ real_t* sumptr[MAX_THREADS];
 
       __device__ inline void atomicSum(real_t * sum, real_t val)
       {
@@ -113,6 +114,31 @@
               }
               if (j==0) atomicMaxP(sum,sumtab[0]);
       }
+
+      __device__ inline void atomicSumDiff(real_t * sum, real_t val)
+      {
+              int i = blockDim.x*blockDim.y;
+              int k = blockDim.x*blockDim.y;
+              int j = blockDim.x*threadIdx.y + threadIdx.x;
+              sumptr[j] = sum;
+              sumtab[j] = val;
+              __syncthreads();
+              while (i> 1) {
+                      k = i >> 1;
+                      i = i - k;
+                      if (j<k) {
+                        if (sumptr[j] == sumptr[j+1]) {
+                          sumtab[j] += sumtab[j+i];
+                          sumtab[j+i] = 0.0f;
+                        }
+                      }
+                      __syncthreads();
+              }
+              if (sumtab[j] != 0.0f) atomicAddP(sum,sumtab[j]); // still suboptimal
+
+//              atomicAddP(sum,val);              
+      }
+
     #endif
 
 

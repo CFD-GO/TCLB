@@ -135,17 +135,19 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
         } ?>
 	}
 	CudaDeviceFunction void inline Glob() { <?R
-        for (g in rows(Globs)) {
-		if (g$zonal) {
-			where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", NodeType >> ZONE_SHIFT)")
-		} else {
-			where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
-		}
+        for (g in rows(Globs)) if (!g$zonal) {
+		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
                 if (g$op == "SUM") { ?>
                 atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 } else if (g$op == "MAX") { ?>
                 atomicMax(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 }
+        } ?>
+	}
+	CudaDeviceFunction void inline GlobDiff() { <?R
+        for (g in rows(Globs)) if (g$zonal) {
+		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", NodeType >> ZONE_SHIFT)") ?>
+                atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
         } ?>
 	} <?R
 		if (! tp$adjoint) { ?>
@@ -234,6 +236,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
+		GlobDiff();
 	} <?R
         } ########################################################################################### ?>
 }; <?R

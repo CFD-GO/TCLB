@@ -188,12 +188,11 @@ CudaDeviceFunction float2 Color() {
 	real_t d = getRho();
 	ret.x = (d-1)*111;
 //	ret.x=wb;
-//        if (NodeType == NODE_Solid){
-//                ret.y = 0;
-//        } else {
-//                ret.y = 1;
-//        }
-	ret.y=w;
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
         return ret;
 }
 

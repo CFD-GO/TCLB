@@ -81,6 +81,12 @@ public:
     }
     cpuValues[i+DT_OFFSET][0] = (val[1] - val[len-1])/2;
     cpuValues[i+DT_OFFSET][len-1] = (val[0] - val[len-2])/2;
+    Alloc(i+GRAD_OFFSET);
+    Alloc(i+GRAD_OFFSET+DT_OFFSET);
+    for (int j=0; j<len; j++) {
+      cpuValues[i+GRAD_OFFSET][j] = 0;
+      cpuValues[i+GRAD_OFFSET+DT_OFFSET][j] = 0;
+    }
   }
 
   inline void set_internal(int i, const double* val) {
@@ -169,7 +175,7 @@ public:
     assert(z >=  0);
     assert(z <   ZONE_MAX);
     CopyFromGPU();
-    int i = s+ZONESETTINGS*z + GRAD_OFFSET;
+    int i = s + ZONESETTINGS*z + GRAD_OFFSET;
     if (cpuValues[i] == NULL) {
       tab[0] = cpuConst[i];
     } else {
@@ -204,13 +210,15 @@ public:
 
   inline void ClearGrad () {
     for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
-      CudaMemset(cpuTab[i], sizeof(real_t) * len, 0);
+      output("Clearing gradient in ZoneSettings (%d)\n", i);
+      CudaMemset(cpuTab[i], 0, sizeof(real_t) * len);
     }
   }
 
   inline void CopyFromGPU () {
     for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
       assert(cpuTab[i] != NULL);
+      printf("Copying gradient data from GPU (%d)\n", i);
       CudaMemcpy(cpuValues[i], cpuTab[i],  sizeof(real_t) * len, cudaMemcpyDeviceToHost);
     }
   }

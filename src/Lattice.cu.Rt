@@ -367,6 +367,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	int i=0;
 	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
 	container->ZoneIndex = ZoneIter;
 <?R
 	for (m in NonEmptyMargin) {
@@ -448,6 +449,9 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	MPI_Request request;
 	int i=0;
 	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
+	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+	container->ZoneIndex = ZoneIter;
+	debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
