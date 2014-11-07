@@ -35,5 +35,7 @@ AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal
 
 # Globals - table of global integrals that can be monitored and optimized
 
-AddGlobal(name="PressureLoss", comment='pressure loss')
+AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
+AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
+AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 

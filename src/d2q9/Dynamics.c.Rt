@@ -197,7 +197,16 @@ M = matrix(c(
 	C(usq == sum(u*u));
 	
 ?>
-
+switch (NodeType & NODE_OBJECTIVE) {
+case NODE_Outlet:
+	AddToOutletFlux(u[0]/d);
+	AddToPressureLoss(-u[0]/d*((d-1.)/3. + usq/d/2.));
+	break;
+case NODE_Inlet:
+	AddToInletFlux(u[0]/d);
+	AddToPressureLoss(u[0]/d*((d-1.)/3. + usq/d/2.));
+	break;
+}
 R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
 R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
 R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
