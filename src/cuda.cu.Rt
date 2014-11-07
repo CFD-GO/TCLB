@@ -69,7 +69,8 @@ template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
 <?R
 for (tp in rows(Dispatch)) {
 	s = Stages[Stages$name == tp$stage_name, ];
-	GlobalsD = Globals[-nrow(Globals),];
+#	GlobalsD = Globals[-nrow(Globals),];
+	GlobalsD = Globals[,];
 	GlobalsD$zonal = FALSE;
 	k = nrow(ZoneSettings);
 	if (k > 0) {
@@ -99,8 +100,12 @@ for (tp in rows(Dispatch)) {
 //-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if (g$sel) {
 		if (tp$Globals == "Globs") {
-		        if (g$op == "SUM") { ?>
+		        if (g$op == "SUM") {
+				if (g$adjoint) { ?>
 #define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x) <?R
+				} else { ?>
+#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x); Objective = Objective + (x) * <?%s g$name ?>InObj <?R
+				}
 	                } else if (g$op == "MAX") { ?>
 #define AddTo<?%s g$name ?>(x) <?%s g$var ?> = max(<?%s g$var ?>,x) <?R
                         }
@@ -149,6 +154,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", NodeType >> ZONE_SHIFT)") ?>
                 atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
         } ?>
+	
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R

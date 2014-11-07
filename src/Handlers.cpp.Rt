@@ -1601,16 +1601,17 @@ class acParams: public Action {
                                 }
                         }
                         if (zone_number > -2) {
-                        debug2("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
 		<?R for (v in rows(Settings)) { ?>
 		        if (par == "<?%s v$name?>") {
 				double val = solver->units.alt(attr.value());
+	                        output("Setting %s to %s (%lf)\n", par.c_str(), attr.value(), val);
 				solver->lattice-><?%s v$FunName ?>(val);
 			}
 		<?R } ?>
 		<?R for (v in rows(ZoneSettings)) { ?>
 		        if (par == "<?%s v$name?>") {
 				double val = solver->units.alt(attr.value());
+	                        output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, attr.value(), val);
 				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
 			}
 		<?R } ?>

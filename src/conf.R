@@ -470,7 +470,8 @@ if (ADJOINT==1) {
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
 			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
-			adjoint=T
+			adjoint=T,
+			zonal=T
 		)
 	}
 	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)

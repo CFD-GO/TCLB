@@ -117,6 +117,7 @@
 
       __device__ inline void atomicSumDiff(real_t * sum, real_t val)
       {
+
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
               int j = blockDim.x*threadIdx.y + threadIdx.x;
