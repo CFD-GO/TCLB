@@ -466,6 +466,10 @@ if (ADJOINT==1) {
 			adjoint=T
 		)
 	}
+	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)
+	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
+	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
+}
 	for (g in rows(Globals)) if (! g$adjoint){
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
@@ -474,10 +478,6 @@ if (ADJOINT==1) {
 			zonal=T
 		)
 	}
-	AddSetting(name="Descent",        comment="Optimization Descent", adjoint=T)
-	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
-	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
-}
 
 DensityAll$nicename = gsub("[][ ]","",DensityAll$name)
 Density   = DensityAll[! DensityAll$adjoint, ]

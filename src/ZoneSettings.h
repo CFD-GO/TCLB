@@ -10,14 +10,15 @@ class ZoneSettings {
   int len;
   real_t ** cpuTab;
   real_t * cpuConst;
-
 public:
+  int MaxZones;
   real_t ** cpuValues;
   real_t ** gpuTab;
   real_t * gpuConst;
     
   inline ZoneSettings() {
     len = 1;
+    MaxZones=0;
     cpuValues = (real_t**) malloc(sizeof(real_t*) * TIME_SEG);
     cpuTab = (real_t**) malloc(sizeof(real_t*) * TIME_SEG);
     for (int i=0; i<TIME_SEG; i++) {
@@ -32,12 +33,20 @@ public:
     CudaMalloc(&gpuConst,   sizeof(real_t)  * TIME_SEG);
     CopyToGPU();
   }
+  
+  inline void zone_max(int z) {
+    if (z+1 > MaxZones) {
+      MaxZones = z+1;
+      output("Setting number of zones to %d\n", MaxZones);
+    }
+  }
 
   inline void set(int s, int z, double val) {
     assert(s >=  0);
     assert(s <   ZONESETTINGS);
     assert(z >= -1);
     assert(z <   ZONE_MAX);
+    zone_max(z);
     if (z == -1) {
       for (int i=0;i<ZONE_MAX; i++) {
         cpuConst[s+ZONESETTINGS*i] = val;
@@ -71,6 +80,11 @@ public:
   }    
 
   inline void set_internal(int i, std::vector<double> val) {
+    assert(val.size() == len);
+    set_internal(i, &val[0]);
+  }
+
+  inline void set_internal(int i, const double* val) {
     Alloc(i);
     for (int j=0; j<len; j++) {
       cpuValues[i][j] = val[j];
@@ -89,19 +103,6 @@ public:
     }
   }
 
-  inline void set_internal(int i, const double* val) {
-    Alloc(i);
-    for (int j=0; j<len; j++) {
-      cpuValues[i][j] = val[j];
-    }
-    Alloc(i+DT_OFFSET);
-    for (int j=1; j<len-1; j++) {
-      cpuValues[i+DT_OFFSET][j] = (val[j+1] - val[j-1])/2;
-    }
-    cpuValues[i+DT_OFFSET][0] = (val[1] - val[len-1])/2;
-    cpuValues[i+DT_OFFSET][len-1] = (val[0] - val[len-2])/2;
-  }
-
 
   inline void set(int s, int z, std::vector<double> val) {
     assert(s >=  0);
@@ -109,6 +110,7 @@ public:
     assert(z >= -1);
     assert(z <   ZONE_MAX);
     assert(val.size() == len);
+    zone_max(z);
     if (z == -1) {
       for (int z=0;z<ZONE_MAX; z++) {
         int i = s+ZONESETTINGS*z;
@@ -126,6 +128,7 @@ public:
     assert(s <   ZONESETTINGS);
     assert(z >= -1);
     assert(z <   ZONE_MAX);
+    zone_max(z);
     if (z == -1) {
       for (int z=0;z<ZONE_MAX; z++) {
         int i = s+ZONESETTINGS*z;
@@ -182,6 +185,14 @@ public:
       for (int it=0; it<len; it++) {
         tab[it] = cpuValues[i][it];
       }
+      for (int j=1; j<len-1; j++) {
+        tab[j+1] += 0.5*cpuValues[i+DT_OFFSET][j];
+        tab[j-1] -= 0.5*cpuValues[i+DT_OFFSET][j];
+      }
+        tab[1] += 0.5*cpuValues[i+DT_OFFSET][0];
+        tab[len-1] -= 0.5*cpuValues[i+DT_OFFSET][0];
+        tab[0] += 0.5*cpuValues[i+DT_OFFSET][len-1];
+        tab[len-2] -= 0.5*cpuValues[i+DT_OFFSET][len-1];
     }
   }
 

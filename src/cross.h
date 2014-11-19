@@ -1,5 +1,6 @@
 #include "Consts.h"
 #include "types.h"
+#include "stdio.h"
 
 #ifndef __CUDACC__
   #define CROSS_CPP
@@ -17,6 +18,7 @@
       template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
     #else
+//      #include "../../cub/cub/cub.cuh"
       #define CudaDeviceFunction __device__
       #define CudaHostFunction __host__
       #define CudaGlobalFunction __global__
@@ -46,12 +48,15 @@
           typedef unsigned long long int real_t_i;
           #define R2I(x) __double_as_longlong(x)
           #define I2R(x) __longlong_as_double(x)
+          #define CROSS_NEED_ATOMICADD
         #else
 //         typedef unsigned long int      real_t_i;
           #define R2I(x) __float_as_int(x)
           #define I2R(x) __int_as_float(x)
           typedef int      real_t_i;
         #endif
+        
+        #ifdef CROSS_NEED_ATOMICADD
         __device__ inline void atomicAddP(real_t* address, real_t val)
         {
             if (val != 0.0) {
@@ -65,7 +70,11 @@
               } while (assumed != old);
             }
         }
+        #else
+        #define atomicAddP atomicAdd
+        #endif
 
+        
         __device__ inline void atomicMaxP(real_t* address, real_t val)
         {
             if (val != 0.0) {
@@ -83,27 +92,47 @@
       __shared__ real_t  sumtab[MAX_THREADS];
       __shared__ real_t* sumptr[MAX_THREADS];
 
-      __device__ inline void atomicSum(real_t * sum, real_t val)
-      {
+      __device__ inline void atomicSum_f(real_t * sum) {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
               int j = blockDim.x*threadIdx.y + threadIdx.x;
-              sumtab[j] = val;
-              __syncthreads();
               while (i> 1) {
                       k = i >> 1;
                       i = i - k;
                       if (j<k) sumtab[j] += sumtab[j+i];
                       __syncthreads();
               }
-              if (j==0) atomicAddP(sum,sumtab[0]);
+              if (j==0) {
+                real_t val = sumtab[0];
+                if (val != 0.0) {
+                  atomicAddP(sum, val);
+                }
+              }
       }
+
+      __device__ inline void atomicSum(real_t * sum, real_t val)
+      {
+              __syncthreads();
+              int j = blockDim.x*threadIdx.y + threadIdx.x;
+              sumtab[j] = val;
+              __syncthreads();
+              atomicSum_f(sum);
+      }
+
+/*      __device__ inline void atomicSum(real_t * sum, real_t val) {
+        typedef cub::BlockReduce<real_t, 32, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 20> BlockReduce;
+        __shared__ typename BlockReduce::TempStorage temp_storage;
+        real_t ret = BlockReduce(temp_storage).Sum(val);
+        if ((blockDim.x*threadIdx.y + threadIdx.x) == 0) atomicAddP(sum, ret);
+      }
+*/
 
       __device__ inline void atomicMax(real_t * sum, real_t val)
       {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
               int j = blockDim.x*threadIdx.y + threadIdx.x;
+              __syncthreads();
               sumtab[j] = val;
               __syncthreads();
               while (i> 1) {
@@ -115,29 +144,17 @@
               if (j==0) atomicMaxP(sum,sumtab[0]);
       }
 
-      __device__ inline void atomicSumDiff(real_t * sum, real_t val)
+      __device__ inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
       {
-
-              int i = blockDim.x*blockDim.y;
-              int k = blockDim.x*blockDim.y;
-              int j = blockDim.x*threadIdx.y + threadIdx.x;
-              sumptr[j] = sum;
-              sumtab[j] = val;
-              __syncthreads();
-              while (i> 1) {
-                      k = i >> 1;
-                      i = i - k;
-                      if (j<k) {
-                        if (sumptr[j] == sumptr[j+1]) {
-                          sumtab[j] += sumtab[j+i];
-                          sumtab[j+i] = 0.0f;
-                        }
-                      }
-                      __syncthreads();
-              }
-              if (sumtab[j] != 0.0f) atomicAddP(sum,sumtab[j]); // still suboptimal
-
-//              atomicAddP(sum,val);              
+                __syncthreads();
+                int j = blockDim.x*threadIdx.y + threadIdx.x;
+                if (yes) {
+                  sumtab[j] = val;
+                } else {
+                  sumtab[j] = 0.0;
+                }
+                __syncthreads();
+                atomicSum_f(sum);
       }
 
     #endif

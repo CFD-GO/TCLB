@@ -369,6 +369,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
 	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -451,6 +452,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
 	debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
 <?R
 	for (m in NonEmptyMargin) {

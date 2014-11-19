@@ -135,46 +135,46 @@ CudaDeviceFunction void EVelocity()
 {
         real_t rho, ru;
 	real_t ux0 = Velocity;
-	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
+	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
-	f[3] = f[1] - (2./3.) * ru;
-	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
 }
 
 CudaDeviceFunction void WPressure()
 {
         real_t ru, ux0;
 	real_t rho = Density;
-	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
+	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / rho;
 	ru = rho * ux0;
 
-	f[1] = f[3] - (2./3.) * ru;
-	f[5] = f[7] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
-	f[8] = f[6] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f1 = f3 - (2./3.) * ru;
+	f5 = f7 - (1./6.) * ru + (1./2.)*(f4 - f2);
+	f8 = f6 - (1./6.) * ru + (1./2.)*(f2 - f4);
 }
 
 CudaDeviceFunction void WVelocity()
 {
         real_t rho, ru;
 	real_t u[2] = {Velocity,0.};
-	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
 	ru = rho * u[0];
-	f[1] = f[3] + (2./3.) * ru;
-	f[5] = f[7] + (1./6.) * ru + (1./2.)*(f[4] - f[2]);
-	f[8] = f[6] + (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f1 = f3 + (2./3.) * ru;
+	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
+	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
 }
 
 CudaDeviceFunction void EPressure()
 {
         real_t ru, ux0;
 	real_t rho = Density;
-	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
+	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / rho;
 	ru = rho * ux0;
 
-	f[3] = f[1] - (2./3.) * ru;
-	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
 }
 
 #define S4 1.3333
@@ -263,10 +263,14 @@ real_t py = y - PY;
 real_t tmp = px*cos(PR) + py*sin(PR);
 py =-px*sin(PR) + py*cos(PR);
 px = tmp;
-if ((fabs(px*2) < PDX) && (fabs(py*2) < PDY)) {
+real_t dx = fabs(px*2);
+real_t dy = fabs(py*2);
+if ((dx < PDX) && (dy < PDY)) {
 	real_t r = sqrt(px*px + py*py);
 //	u[0] = 2*(PX_DT - PR_DT*sin(PR)*r) - u[0];
 //	u[1] = 2*(PY_DT + PR_DT*cos(PR)*r) - u[1];
+	AddToForceX((PX_DT - PR_DT*sin(PR)*r) - u[0]);
+	AddToForceY((PY_DT + PR_DT*cos(PR)*r) - u[1]);
 	u[0] = (PX_DT - PR_DT*sin(PR)*r);
 	u[1] = (PY_DT + PR_DT*cos(PR)*r);
 }

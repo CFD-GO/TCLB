@@ -72,16 +72,25 @@ for (tp in rows(Dispatch)) {
 #	GlobalsD = Globals[-nrow(Globals),];
 	GlobalsD = Globals[,];
 	GlobalsD$zonal = FALSE;
-	k = nrow(ZoneSettings);
-	if (k > 0) {
-		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,k)));
-		k = nrow(GlobalsD) - k:1 + 1;
+	ik = nrow(ZoneSettings);
+	if (ik > 0) {
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
+		k = nrow(GlobalsD) - ik:1 + 1;
 		GlobalsD$name[k] = paste0(ZoneSettings$name,"B");
 		GlobalsD$adjoint[k] = TRUE;
 		GlobalsD$zonal[k] = TRUE;
 		GlobalsD$op[k] = "SUM";
 		GlobalsD$var[k] = paste0(ZoneSettings$name,"b");
 		GlobalsD$Index[k] = ZoneSettings$Index;
+
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
+		k = nrow(GlobalsD) - ik:1 + 1;
+		GlobalsD$name[k] = paste0(ZoneSettings$name,"_DTB");
+		GlobalsD$adjoint[k] = TRUE;
+		GlobalsD$zonal[k] = TRUE;
+		GlobalsD$op[k] = "SUM";
+		GlobalsD$var[k] = paste0(ZoneSettings$name,"_DTb");
+		GlobalsD$Index[k] = paste0(ZoneSettings$Index,"+DT_OFFSET");
 	}
 	cat("\n")
 	ifdef(tp$adjoint_ver)
@@ -135,7 +144,12 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
         } ?>
 	CudaDeviceFunction void inline Pre() { <?R
-	for (g in rows(Globs)) { ?>
+	for (g in rows(Globs)) if (!g$zonal){ ?>
+		<?%s g$var ?> = 0.0f; <?R
+        } ?>
+	}
+	CudaDeviceFunction void inline PreDiff() { <?R
+	for (g in rows(Globs)) if (g$zonal) { ?>
 		<?%s g$var ?> = 0.0f; <?R
         } ?>
 	}
@@ -149,16 +163,19 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 }
         } ?>
 	}
-	CudaDeviceFunction void inline GlobDiff() { <?R
+	CudaDeviceFunction void inline GlobDiff() { 
+		int z = NodeType >> ZONE_SHIFT;
+		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (__syncthreads_or(nz == z)){<?R
         for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", NodeType >> ZONE_SHIFT)") ?>
-                atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
+                atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
         } ?>
-	
+		}
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
 		} ?>
+//	#include "Dynamics.h"
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
@@ -188,7 +205,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
         } <?R
 	        } ?>
 	CudaDeviceFunction inline void RunElement() {
-	        constContainer.getType(*this); <?R
+	        constContainer.getType(*this);
+		PreDiff();<?R
 		if (tp$Stream == "Adj") { ?>
 		constContainer.pop_<?%s s$name ?>(*this);
 		constContainer.pop_<?%s s$name ?>_adj(*this);<?R

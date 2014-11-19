@@ -5,4 +5,9 @@
 MAIN_FUN=Run
 VARIABLES="<?%s paste(Density$name,collapse=" ") ?> <?%s paste(Globals$name[! Globals$adjoint],collapse=" ") ?>"
 #SETTINGS="<?%s paste(Settings$name[! Settings$adjoint],collapse=" ") ?>"
-SETTINGS="<?%s paste(ZoneSettings$name[! ZoneSettings$adjoint],collapse=" ") ?>"
+<?R
+	s = ZoneSettings$name[! ZoneSettings$adjoint]
+	s = c(s,paste0(s,"_DT"))
+?>
+SETTINGS="<?%s paste(s,collapse=" ") ?>"
+FIX="<?%s paste(s,collapse=" ") ?> <?%s paste(Globals$name[! Globals$adjoint],collapse=" ") ?>"
