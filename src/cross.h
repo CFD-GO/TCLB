@@ -25,6 +25,11 @@
       #define CudaConstantMemory __constant__
       #define CudaSharedMemory __shared__
       #define CudaSyncThreads __syncthreads
+    #if __CUDA_ARCH__ < 200
+      #define CudaSyncThreadsOr(x__) (__syncthreads(),x__)
+    #else
+      #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
+    #endif
       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
@@ -44,6 +49,12 @@
                 lock = 0;
         }
       #else
+      
+#if __CUDA_ARCH__ < 200
+  #define CROSS_NEED_ATOMICADD
+#else
+#endif
+      
         #ifdef CALC_DOUBLE_PRECISION
           typedef unsigned long long int real_t_i;
           #define R2I(x) __double_as_longlong(x)
@@ -271,6 +282,7 @@
     #define CudaExternConstantMemory(x) extern x
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
+    #define CudaSyncThreadsOr(x__) x__
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
       #define CudaKernelRun(a__,b__,c__,d__) \
