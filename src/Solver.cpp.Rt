@@ -360,6 +360,10 @@ void MainFree( Solver *d);
 		// Creating Lattice (GPU allocation is here)
 		lattice = new Lattice(region, mpi, ns);
 	   
+<?R for (s in rows(ZoneSettings)) { ?>
+		lattice->zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
+<?R } ?>
+
 		// Setting global variables
 		initSettings();
 

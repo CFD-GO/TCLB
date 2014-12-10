@@ -229,7 +229,7 @@ CudaDeviceFunction void WVelocity()
 //	t = 4*t*(1-t);
 	vector_t ST = SyntheticTurbulence(0);
 
-	real_t ux = InletVelocity +ST.x*Turbulence;
+	real_t ux = Velocity +ST.x*Turbulence;
 
 <?R
 	C(rho == sum(f[X <  0]),float=F)
@@ -244,7 +244,7 @@ CudaDeviceFunction void WPressure()
 {
      real_t rho, Nxy, Nxz;
 	real_t ux;
-	rho = InletDensity;
+	rho = Density;
 <?R
 	ux = PV("ux")
 	C(ux == sum(f[X <  0]),float=F)
@@ -262,10 +262,10 @@ CudaDeviceFunction void WPressureLimited()
 	C(SF == sum(f[X <  0]),float=F)
 	C(SF == sum(f[X == 0]) + 2 * SF, float=F)
 ?>
-	rho = InletDensity;
+	rho = Density;
 	ux = 1. - SF / rho;
-	if (ux > InletVelocity) {
-		ux = InletVelocity;
+	if (ux > Velocity) {
+		ux = Velocity;
 		rho = SF / (1. - ux);
 	}	
 <?R Inlet(); ?>
@@ -343,7 +343,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 
 CudaDeviceFunction void Init() {
 	vector_t ST = SyntheticTurbulence(0);
-	SetEquilibrum(1.0, InletVelocity+ST.x*Turbulence, 0.+ST.y*Turbulence, 0.+ST.z*Turbulence);
+	SetEquilibrum(1.0, Velocity + ST.x*Turbulence, 0.+ST.y*Turbulence, 0.+ST.z*Turbulence);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		w = 0.0;
 	}
