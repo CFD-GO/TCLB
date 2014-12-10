@@ -47,6 +47,10 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
+#define X (x_ + constContainer.px)
+#define Y (y_ + constContainer.py)
+#define Z (z_ + constContainer.pz)
+#define SyntheticTurbulence(t) constContainer.getST(t,x_,y_,z_)
 
 <?R
 	for(s in rows(ZoneSettings)) { ?>
@@ -60,7 +64,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define NODE_H
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
-        int x,y,z;
+        int x_,y_,z_;
         CudaDeviceFunction void Pre(){};
         CudaDeviceFunction void RunElement(){};
         CudaDeviceFunction void Glob(){};
@@ -139,7 +143,7 @@ for (tp in rows(Dispatch)) {
         T3 = tp$stage_name
 ?>
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	int x,y,z; <?R
+	int x_,y_,z_; <?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
         } ?>

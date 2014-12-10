@@ -50,8 +50,8 @@ CudaDeviceFunction vector_t getU(){
 }
 
 CudaDeviceFunction real_t getSolid(){
-        real_t px = x - PX;
-        real_t py = y - PY;
+        real_t px = X - PX;
+        real_t py = Y - PY;
         real_t tmp = px*cos(PR) + py*sin(PR);
         py =-px*sin(PR) + py*cos(PR);
         px = tmp;
@@ -258,8 +258,8 @@ for (i in selR) {
 // u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
 // u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
 
-real_t px = x - PX;
-real_t py = y - PY;
+real_t px = X - PX;
+real_t py = Y - PY;
 real_t tmp = px*cos(PR) + py*sin(PR);
 py =-px*sin(PR) + py*cos(PR);
 px = tmp;

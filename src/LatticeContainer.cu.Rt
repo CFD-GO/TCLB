@@ -212,6 +212,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
     Globals = (real_t*)tmp;
+	ST.setsize(0, ST_GPU);
 }
 
 /// Destroy Container
@@ -232,14 +233,14 @@ void LatticeContainer::Free()
 template <class N> CudaGlobalFunction void RunKernel()
 {
 	N now;
-	now.x = CudaThread.x+CudaBlock.z*CudaNumberOfThreads.x+constContainer.dx;
-	now.y = CudaThread.y+CudaBlock.x*CudaNumberOfThreads.y+constContainer.dy;
-	now.z = CudaBlock.y+constContainer.dz;
+	now.x_ = CudaThread.x+CudaBlock.z*CudaNumberOfThreads.x+constContainer.dx;
+	now.y_ = CudaThread.y+CudaBlock.x*CudaNumberOfThreads.y+constContainer.dy;
+	now.z_ = CudaBlock.y+constContainer.dz;
 	#ifndef GRID_3D
-		for (; now.x < constContainer.nx; now.x += CudaNumberOfThreads.x) {
+		for (; now.x_ < constContainer.nx; now.x_ += CudaNumberOfThreads.x) {
 	#endif
 		now.Pre();
-		if (now.y < constContainer.fy) {
+		if (now.y_ < constContainer.fy) {
 			now.RunElement();
 		}
 		now.Glob();
@@ -262,13 +263,13 @@ template <class N> CudaGlobalFunction void RunKernel()
 template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z = CudaBlock.x;
+	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.z_ = CudaBlock.x;
 	now.Pre();
 #ifdef BORDER_Z
-	if (now.z < constContainer.nz) {
+	if (now.z_ < constContainer.nz) {
 #endif
-		now.y = 0;
+		now.y_ = 0;
 		now.RunElement();
 #ifdef BORDER_Z
 	}
@@ -276,9 +277,9 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.Glob();
 	now.Pre();
 #ifdef BORDER_Z
-	if (now.z < constContainer.nz) {
+	if (now.z_ < constContainer.nz) {
 #endif
-		now.y = constContainer.ny - 1;
+		now.y_ = constContainer.ny - 1;
 		now.RunElement();
 #ifdef BORDER_Z
 	}
@@ -286,15 +287,15 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.Glob();
 	now.Pre();
 #ifdef BORDER_Z
-	now.y = CudaBlock.x;
-	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
-		now.z = 0;
+	now.y_ = CudaBlock.x;
+	if ((now.y_ < constContainer.ny-1) && (now.y_ > 0)) {
+		now.z_ = 0;
                 now.RunElement();
 	}
 	now.Glob();
 	now.Pre();
-	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
-                now.z = constContainer.nz - 1;
+	if ((now.y_ < constContainer.ny-1) && (now.y_ > 0)) {
+                now.z_ = constContainer.nz - 1;
                 now.RunElement();
 	}
 	now.Glob();
@@ -309,23 +310,23 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z = CudaBlock.x;
+	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.z_ = CudaBlock.x;
 	now.Pre();
 #ifdef BORDER_Z
-	if (now.z < constContainer.nz) {
+	if (now.z_ < constContainer.nz) {
 #endif
-		now.y = 0;
+		now.y_ = 0;
 		now.RunElement();
-		now.y = constContainer.ny - 1;
+		now.y_ = constContainer.ny - 1;
 		now.RunElement();
 #ifdef BORDER_Z
 	}
-	now.y = CudaBlock.x;
-	if ((now.y < constContainer.ny-1) && (now.y > 0)) {
-		now.z = 0;
+	now.y_ = CudaBlock.x;
+	if ((now.y_ < constContainer.ny-1) && (now.y_ > 0)) {
+		now.z_ = 0;
                 now.RunElement();
-                now.z = constContainer.nz - 1;
+                now.z_ = constContainer.nz - 1;
                 now.RunElement();
 	}
 	now.Glob();
@@ -401,9 +402,9 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     N now;
-    now.x = x;
-    now.y = y;
-    now.z = z;
+    now.x_ = x;
+    now.y_ = y;
+    now.z_ = z;
     constContainer.getType(now);
     constContainer.pop(now);
     {
@@ -481,17 +482,16 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         }?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
-		now.x = x;
-		now.y = y;
-		now.z = z;
+		now.x_ = x;
+		now.y_ = y;
+		now.z_ = z;
 		constContainer.getType(now);
 		constContainer.pop(now); <?R
 		if (q$adjoint) { ?>
 		constContainer.pop_adj(now); <?R
                 } ?>
 		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t")
-		{
+		if (q$type == "vector_t") {
                   for (coef in c("x","y","z")) { ?>
 		w.<?%s coef ?> *= scale; <?R
 		  }

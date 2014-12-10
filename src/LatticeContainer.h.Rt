@@ -5,6 +5,7 @@
 /** \file LatticeContainer.h
   File defining LatticeContainer and some additional CUDA functions
 */
+#include "SyntheticTurbulence.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -48,12 +49,12 @@ class LatticeContainer {
   int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
-
+	int px,py,pz;
   int ZoneIndex;
   int MaxZones;
   real_t** ZoneSettings;
   real_t* ConstZoneSettings;
-
+  STWaveSet ST;
   void Alloc (int,int,int);
   void Free();
   CudaDeviceFunction void fill();
@@ -113,6 +114,12 @@ class LatticeContainer {
     return & w[ZoneIndex];
   }
 
+  CudaDeviceFunction inline vector_t getST(const real_t t, int x, int y, int z) {
+	x += px;
+	y += py;
+	z += pz;
+	return calc(ST, x,y,z);
+  }
 
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);

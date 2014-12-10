@@ -225,7 +225,11 @@ CudaDeviceFunction void eqWVelocity()
 CudaDeviceFunction void WVelocity()
 {
      real_t rho, Nxy, Nxz;
-	real_t ux = InletVelocity;
+//	real_t t = Y/75.0;
+//	t = 4*t*(1-t);
+	vector_t ST = SyntheticTurbulence(0);
+
+	real_t ux = InletVelocity +ST.x*Turbulence;
 
 <?R
 	C(rho == sum(f[X <  0]),float=F)
@@ -338,7 +342,8 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 }
 
 CudaDeviceFunction void Init() {
-	SetEquilibrum(1.0, InletVelocity, 0., 0.);
+	vector_t ST = SyntheticTurbulence(0);
+	SetEquilibrum(1.0, InletVelocity+ST.x*Turbulence, 0.+ST.y*Turbulence, 0.+ST.z*Turbulence);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		w = 0.0;
 	}

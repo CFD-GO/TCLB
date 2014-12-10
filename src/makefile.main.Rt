@@ -28,7 +28,7 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy
 
 TOOLS = tools
-RT = $(TOOLS)/RT
+RT = $(TOOLS)/RT -b
 RS = R --slave --quiet --vanilla -f
 INDENT = tools/myindent
 ADMOD = tools/ADmod.R
@@ -41,11 +41,11 @@ DEST=CLB
 
 SOURCE_ALL+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.cu LatticeAccess.cu
 SOURCE_ALL+=Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
-SOURCE_ALL+=ZoneSettings.cpp
+SOURCE_ALL+=ZoneSettings.cpp SyntheticTurbulence.cpp
 SOURCE_ALL+=main.cpp
 SOURCE_ALL+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h
 SOURCE_ALL+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp
-SOURCE_ALL+=Geometry.h def.h utils.h unit.h ZoneSettings.h
+SOURCE_ALL+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h
 SOURCE_ALL+=SUMMARY
 SOURCE_ALL+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h ADpre__b.h

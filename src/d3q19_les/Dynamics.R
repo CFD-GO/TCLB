@@ -56,6 +56,7 @@ AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
 AddSetting(name="InletDensity", default=1, comment='inlet density')
 AddSetting(name="Theta", default=1, comment='inlet density')
+AddSetting(name="Turbulence", default=1, comment='amount of turbulence in init and on inlet')
 
 AddGlobal(name="Flux", comment='pressure loss')
 AddGlobal(name="EnergyFlux", comment='pressure loss')

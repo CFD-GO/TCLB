@@ -3,7 +3,7 @@
 
 #define HANDLER_CALLBACK  0x01
 #define HANDLER_ACTION    0x02
-#define HANDLER_DESIGN    0x03
+#define HANDLER_DESIGN    0x04
 #define HANDLER_GENERIC   0x10
 #define HANDLER_CONTAINER 0x20
 
