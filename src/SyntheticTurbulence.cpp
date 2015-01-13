@@ -40,10 +40,8 @@ SyntheticTurbulence::SyntheticTurbulence() {
  cpuset.setsize(0, ST_CPU);
  Amplitudes = NULL;
  WaveLengths = NULL; 
- resize(1);
- Amplitudes[0] = 1;
- WaveLengths[0] = 1./20;
- Generate();
+ TimeWN = 0;
+ cpuset.TimeWN = 0;
 }
  
 
@@ -97,6 +95,39 @@ double SyntheticTurbulence::EnergySpectrum(double w) {
 
 }
 
-void SyntheticTurbulence::SetVonKarman(double Le, double Ld){
+void SyntheticTurbulence::setVonKarman(double Le, double Ld, double Lmin, double Lmax){
 
+ assert(size == cpuset.nmodes);
+ double dL = (Lmax-Lmin)/size;
+ for (int i=0;i<size;i++) {
+  double L;
+  L = i*dL + dL/2 + Lmin;
+
+  WaveLengths[i] = L;
+  double c = 0.9685081;
+  double E = c / Le * pow(L/Le,4.0) / pow(1.0+pow(L/Le,2.0),17./6.)*exp(-2.0*pow(L/Ld,2.0));
+  Amplitudes[i] = sqrt(E * dL);
+  printf(" %lg -> %lg (%lg)\n", WaveLengths[i], Amplitudes[i], E);
+ }
+ double sum=0;
+ for (int i=0;i<size;i++) sum = sum + pow(Amplitudes[i],2.0);
+ output("Total energy of synthetic turbulence: %2.0lf%% of spectrum\n", sum*100);
+ if (sum < 0.7) NOTICE("Total energy of synthetic turbulence is below 70%% of the spectrum\n");
+ else if (sum < 0.8) notice("Total energy of synthetic turbulence is below 70%% of the spectrum\n");
+ else if (sum > 1) NOTICE("Total energy of synthetic turbulence is above 100%% of the spectrum\n");
+ 
+ Generate();
 }
+
+void SyntheticTurbulence::setOneWave(double L){
+ resize(1);
+ Amplitudes[0] = 1;
+ WaveLengths[0] = L;
+ Generate();
+}
+
+void SyntheticTurbulence::setTimeScale(double L){
+ TimeWN = L;
+ cpuset.TimeWN = L;
+}
+    

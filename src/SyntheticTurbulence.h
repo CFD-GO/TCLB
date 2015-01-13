@@ -20,7 +20,7 @@
 struct STWaveSet {
  int nmodes;
  real_t * data;
-
+ real_t TimeWN;
  void setsize(int n, int type) {
   nmodes = n;
   switch (type) {
@@ -56,14 +56,22 @@ struct STWaveSet {
   vonKarmanSpec
  };
 
+ enum eSpread {
+  EvenSpread,
+  LogSpread,
+  QuantileSpread
+ };
+
 
 class SyntheticTurbulence {
 private:
  int size;
  STWaveSet cpuset;
+ double TimeWN;
  eSpec SelectedSpec;
  double MaxEnWaveLen, DissWaveLen;
  double *WaveLengths, *Amplitudes;
+ eSpread spread;
 public:
  SyntheticTurbulence();
  void CopyToGPU(STWaveSet & ST);
@@ -71,7 +79,10 @@ public:
  void CalcEven();
  void CalcQuant();
  double EnergySpectrum(double w);
- void SetVonKarman(double Le, double Ld); 
+ void setVonKarman(double Le, double Ld, double Lmin, double Lmax); 
+ void setOneWave(double L); 
+ void setTimeScale(double L); 
+ inline void setSpread(eSpread s) {spread = s;}
  void resize(int n);
 };
 
@@ -89,9 +100,9 @@ inline CudaDeviceFunction vector_t calc(const STWaveSet &ST, real_t x, real_t y,
     real_t w = ST.data[i*ST_DATA+ST_WAVE_L];
     w = (x1*x + y1*y + z1*z) * w;
     real_t sw = sin(w), cw = cos(w);
-    ret.x = sw*x2 + cw*(y1*z2-z1*y2);
-    ret.y = sw*y2 + cw*(z1*x2-x1*z2);
-    ret.z = sw*z2 + cw*(x1*y2-y1*x2);
+    ret.x += sw*x2 + cw*(y1*z2-z1*y2);
+    ret.y += sw*y2 + cw*(z1*x2-x1*z2);
+    ret.z += sw*z2 + cw*(x1*y2-y1*x2);
   }
   return ret;
 }
