@@ -14,7 +14,8 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 options(stringsAsFactors=FALSE)
 
-source("fun_v3.R")
+#source("fun_v3.R")
+library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 source("bunch.R")
 #source("linemark.R")
 
@@ -609,7 +610,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	tab1 = c(1,-1,0)
 	tab2 = c(0,-1,1)
 	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
-	sizes = rbind(one,mw,one)
+	sizes = c(one,mw,one)
 	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1)
 	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
 	MarginNSize = PV(rep(0,27))
@@ -624,7 +625,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
 		mins = pmin(mins,0)
 		maxs = pmax(maxs,0)
-		nsizes = rbind(PV(-mins),one,PV(maxs))
+		nsizes = c(PV(-mins),one,PV(maxs))
 		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
 		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
 		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
@@ -658,14 +659,14 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 				tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
 				get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
 				get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-				offset = offset.p(rbind(w+PV(dw) - PV(mins),w+PV(dw),w+PV(dw) - mw),cpu=cpu)
-				cond = rbind(w+PV(dw),mw-w-PV(dw)-one)
+				offset = offset.p(c(w+PV(dw) - PV(mins),w+PV(dw),w+PV(dw) - mw),cpu=cpu)
+				cond = c(w+PV(dw),mw-w-PV(dw)-one)
 				list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
 			},
 			put_offsets = 
 			function(w,cpu=def.cpu) {
-				offset = offset.p(rbind(w - mw - PV(mins),w,w),cpu=cpu)
-				cond = rbind(w+PV(-maxs),mw-w+PV(mins)-one)
+				offset = offset.p(c(w - mw - PV(mins),w,w),cpu=cpu)
+				cond = c(w+PV(-maxs),mw-w+PV(mins)-one)
 				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
 			},
 			fOffset=mSize*size

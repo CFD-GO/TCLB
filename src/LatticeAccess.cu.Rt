@@ -138,6 +138,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
     if (access == "getsum" ) { ?>
       <?%s d ?> = 0.0f; <?R
     }
+
+#print(ret)
     if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
       field.access.one(d, paste(MContext$Pocket, Margin[[m]]$name, sep="."), ret$Offset[m] - MContext$Offset[[m]], access);
     })
@@ -148,8 +150,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   save.field = function(d,f,p,MContext)    field.access(d=d,f=f,p=p,      pattern="put",access="set",MContext=MContext)
 
 # mc = require(parallel)
- mc = require(multicore)
-# mc = FALSE
+# mc = require(multicore)
+ mc = FALSE
  if (!mc) {
   txtlapply = function(x,FUN,...,mc.cores=1) lapply(x,FUN,...)
  } else {

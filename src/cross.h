@@ -219,7 +219,7 @@
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
 
-    void HandleError( cudaError_t err, const char *file, int line );
+    cudaError_t HandleError( cudaError_t err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
     int GetMaxThreads();
     #define RunKernelMaxThreads (GetMaxThreads())

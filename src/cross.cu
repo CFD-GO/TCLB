@@ -21,13 +21,14 @@ void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int h
 #else
 
 // Copyright 1993-2010 NVIDIA Corporation.  All rights reserved.
-void HandleError( cudaError_t err,
+cudaError_t HandleError( cudaError_t err,
                          const char *file,
                          int line ) {
     if (err != cudaSuccess) {
         ERROR("%s in %s at line %d\n", cudaGetErrorString( err ), file, line );
         exit( EXIT_FAILURE );
     }
+	return err;
 }
 
 #endif
