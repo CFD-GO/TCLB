@@ -150,7 +150,12 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(INDENT) $@
+
+<?%s d ?>/<?%s m ?>/%.code:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@ (model)"
+	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%

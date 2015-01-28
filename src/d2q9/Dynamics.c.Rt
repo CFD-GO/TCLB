@@ -1,5 +1,7 @@
 <?R
-	source("conf.R") 
+#	source("conf.R") 
+	load("SUMMARY.Rdata")
+	library(polyAlgebra)
 	c_header();
 	f = PV(Density$name)
 	U = as.matrix(Density[,c("dx","dy")])
