@@ -221,9 +221,8 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t Jx,Jy,Jz, rho, omT;
-	real_t <?R cat(ToC(R[selR]), sep=",") ?>;
-
+	real_t omT;
+	real_t <?R C(R, sep=", ") ?>;
         #define S1 0.0
         #define S2 omega
         #define S3 omega
@@ -243,27 +242,26 @@ CudaDeviceFunction void CollisionMRT()
         #define S17 omega2
         #define S18 omega2
         #define S19 omega2
-        real_t omega2 = 8.0 * ( 2.0 - omega )/( 8.0 - omega );
+        real_t gamma1 = 1 - omega;
+        real_t gamma2 = 1 - 8.0 * ( 2.0 - omega )/( 8.0 - omega );
 <?R
-        Sy = PV(paste("S",1:19,"",sep=""))
-        omega = PV("omega")
-#        oneR = c(F,T,T,F,T,F,T,F,T,F,T,F,T,F,F,F,T,T,T)
-        oneR = rep(F,19)
-        selRone=selR[oneR[selR]]
-        selRnone=selR[!oneR[selR]]
-#        C( calcRfromF[selRnone] ,float =F);
-#        cr = calcReq[selR]
+	S = PV("S",1:19);
+	S[c(1,4,6,8)] = 0;
+	S[c(2,3,10:16)] = PV("gamma1");
+	S[c(5,7,9,17:19)] = PV("gamma2");
+	C(R, f %*% MRTMAT);
+	C(R[selR], (S*(R-Req))[selR]);
+?>
+    Jx += rho*ForceX;
+    Jy += rho*ForceY;
+    Jz += rho*ForceZ;
+<?R
+	C(R[selR], (R + Req)[selR]);
+	# nearly ortogonal MRT matrix
         Mw = colSums(MRTMAT**2)
-#        C( calcRfromF[-selR] ,float =F);
-	C( R[-selR], (f %*% MRTMAT)[-selR], float =F);
-
-        for (i in selR) if (!oneR[i]) {
-#                C( calcRfromF[i] ,float =F);
-		C( R[i], (f %*% MRTMAT)[i], float =F);
-                ?><?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-<?R } else {
-                ?><?%s ToC(R[i]) ?> = 0.0;
-<?R } ?>
+	C(R,  Mw, eq="/=")
+	C( f, R %*% t(MRTMAT) , float=F);
+?>
     real_t ux,uy,uz;
     ux = Jx / rho;
     uy = Jy / rho;
@@ -288,20 +286,4 @@ CudaDeviceFunction void CollisionMRT()
     AddToVOLrho(rho);
     AddToVOLvolume(1);
     AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
-    Jx += rho*ForceX;
-    Jy += rho*ForceY;
-    Jz += rho*ForceZ;
-<?R
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
-<?R
-}
-
-for (i in 1:length(R)) {
-?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
-<?R
-}
-   C( f, R %*% t(MRTMAT) , float=F);
-#   C( f, R %*% solve(MRTMAT) , float=F);
-?>
 }
