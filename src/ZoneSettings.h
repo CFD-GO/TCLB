@@ -78,8 +78,8 @@ public:
     for (int j=1; j<len-1; j++) {
       cpuValues[i+DT_OFFSET][j] = (val[j+1] - val[j-1])/2;
     }
-    cpuValues[i+DT_OFFSET][0] = (val[1] - val[len-1])/2;
-    cpuValues[i+DT_OFFSET][len-1] = (val[0] - val[len-2])/2;
+    cpuValues[i+DT_OFFSET][0] = (val[1] - val[0])/1;
+    cpuValues[i+DT_OFFSET][len-1] = (val[len-1] - val[len-2])/1;
   }
 
 
