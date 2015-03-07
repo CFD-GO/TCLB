@@ -1,7 +1,6 @@
 #!/bin/bash
 
 URL=git@github.com:llaniewski/TCLB.git
-BRANCH=feature/stensil
 
 RES="test_report"
 
@@ -112,16 +111,6 @@ element Status
 end_row
 
 begin_row
-element Clone
-mytest git.clone git pull
-end_row
-
-begin_row
-element Checkout
-mytest git.checkout git checkout ${BRANCH}
-end_row
-
-begin_row
 element make configure
 mytest configure.make make configure
 end_row
@@ -181,13 +170,13 @@ do
 	mkdir ${RES}/${MODEL}
 	if mytest ${MODEL}/summary make ${MODEL}/summary
 	then
-		if mytest ${MODEL}/source make -j ${MODEL}/source
+		if mytest ${MODEL}/source make -j 6 ${MODEL}/source
 		then
 			for CONF_TAG in $CONFS
 			do
 				set_conf $CONF_TAG
 				mytest $CONF_TAG.configure ./configure $CONF
-				mytest ${MODEL}/$CONF_TAG.all make -j ${MODEL}
+				mytest ${MODEL}/$CONF_TAG.all make -j 6 ${MODEL}
 			done
 			NORUNS=""
 		else

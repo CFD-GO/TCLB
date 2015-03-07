@@ -35,3 +35,5 @@ AddSetting(name="InitTemperature", default=1, comment='inlet density')
 AddSetting(name="FluidAlfa", default=1, comment='inlet density')
 
 AddGlobal(name="OutFlux");
+
+AddNodeType("Heater","ADDITIONALS")
