@@ -1,6 +1,6 @@
-mkdir tmp
+mkdir -p tmp
 pushd tmp
-rm *
+rm * 2>/dev/null
 
 function github_install {
 	name=$(echo $1 | sed "s/\//./g")-$2
@@ -13,3 +13,6 @@ function github_install {
 github_install llaniewski/rtemplate v1.0
 github_install llaniewski/gvector v1.0
 github_install llaniewski/polyAlgebra v1.0
+
+popd
+rm -r tmp
