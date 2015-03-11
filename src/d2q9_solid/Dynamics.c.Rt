@@ -36,23 +36,18 @@ CudaDeviceFunction real_t getC(){
 }
     
 CudaDeviceFunction vector_t getU(){
-	real_t d = <?R C(sum(f)) ?>;
+	real_t rho = <?R C(sum(f)) ?>;
 	vector_t u;
-	<?R C(PV(c("u.x","u.y")), f %*% U) ?>
-	u.x /= d;
-	u.y /= d;
+	<?R C(PV(c("u.x","u.y")), f %*% U * (rho^(-1))) ?>
 	u.z = 0.0;
 	return u;
 }
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-//        vector_t u = getU();
-//        ret.x = sqrt(u.x*u.x + u.y*u.y);
 
 	ret.x = (<?R C(sum(g)) ?>);
 	ret.x = ret.x/111;
-//	ret.x = wb;
 	if (NodeType == NODE_Solid) ret.y = 0; else ret.y= 1;
         return ret;
 }
@@ -62,29 +57,28 @@ CudaDeviceFunction void BounceBack()
 {
      real_t tmp;
 <?R
-by(Density, Density$group, function(D) {
-	i = c("dx","dy","dz")
-	D1 = D[,c("name",i)]
-	D2 = D1
-	D2[,i] = -D2[,i]
-	D3 = merge(D1,D2,by=i)
-	D3$name.x < D3$name.y
-	D3 = D3[D3$name.x < D3$name.y,]
-	for ( i in seq_len(nrow(D3))) {
-		C( tmp, PV(D3$name.x[i]) )
-		C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
-		C( PV(D3$name.y[i]), tmp )
-	}
-})
+	# Making bounce back for every group of densities separately
+
+        by(Density, Density$group, function(D) {
+                i = c("dx","dy","dz")
+                D1 = D[,c("name",i)]
+                D2 = D1
+                D2[,i] = -D2[,i]
+                D3 = merge(D1,D2,by=i)
+                D3$name.x < D3$name.y
+                D3 = D3[D3$name.x < D3$name.y,]
+                for ( i in seq_len(nrow(D3))) {
+                        C( tmp, PV(D3$name.x[i]) )
+                        C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
+                        C( PV(D3$name.y[i]), tmp )
+                }
+        })
 ?>
 }
 
-// 0 1 2 3 4 5 6 7 8
-// 1 5 2 6 3 7 4 8 0
-
 CudaDeviceFunction void EVelocity()
 {
-     real_t rho, ru;
+	real_t rho, ru;
 	const real_t ux0 = Velocity;
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
 	ru = rho * ux0;
@@ -95,7 +89,7 @@ CudaDeviceFunction void EVelocity()
 
 CudaDeviceFunction void WPressure()
 {
-     real_t ru, ux0;
+	real_t ru, ux0;
 	real_t rho = 1.0+Pressure/3.0;
 	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
 	ru = rho * ux0;
@@ -124,8 +118,7 @@ CudaDeviceFunction void WVelocity()
 	f[1] = f[3] + (2./3.) * ru;
 	f[5] = f[7] + (1./6.) * ru + (1./2.)*(f[4] - f[2]);
 	f[8] = f[6] + (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-#define rho_bar (Temperature)
-	rho = 6.*( rho_bar - (g[0] + g[2] + g[4] + g[3] + g[7] + g[6]) );
+	rho = 6.*( Temperature - (g[0] + g[2] + g[4] + g[3] + g[7] + g[6]) );
 	g[1] = (1./9.) * rho;
 	g[5] = (1./36.) * rho;
 	g[8] = (1./36.) * rho;
@@ -147,11 +140,11 @@ CudaDeviceFunction void EPressure()
 	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
 	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
 
-	rho = 6.*( g[1] + g[5] + g[8] );///(1-3*ux0);
+	rho = 6.*( g[1] + g[5] + g[8] );
 	g[3] = (1./ 9.) * rho;
 	g[7] = (1./36.) * rho;
 	g[6] = (1./36.) * rho;
-	rho = 6.*( h[1] + h[5] + h[8] );///(1-3*ux0);
+	rho = 6.*( h[1] + h[5] + h[8] );
 	h[3] = (1./ 9.) * rho;
 	h[7] = (1./36.) * rho;
 	h[6] = (1./36.) * rho;
