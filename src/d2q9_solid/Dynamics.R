@@ -12,7 +12,12 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="T",unit="K")
 AddQuantity(name="C",unit="1")
+AddQuantity(name="Ct",unit="1")
+AddQuantity(name="Cl_eq",unit="1")
+AddQuantity(name="Solid",unit="1")
 AddQuantity(name="U",unit="m/s",vector=T)
+AddQuantity(name="K",unit="1")
+AddQuantity(name="Theta",unit="1")
 
 AddDensity( name="g[0]", dx= 0, dy= 0, group="g")
 AddDensity( name="g[1]", dx= 1, dy= 0, group="g")
@@ -37,17 +42,30 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 AddField( name="fi_s", dx=c(-1,1),dy=c(-1,1), comment="solidification")
 AddDensity( name="fi_s" )
 
+AddDensity( name="Cs" )
+
 AddSetting(name="nu", comment='viscosity')
 AddSetting(name="FluidAlfa", default=1, comment='inlet density')
+AddSetting(name="SoluteDiffusion", comment='Solute diffusion coefficient in liquid')
+AddSetting(name="C0", comment='Concentration 0')
+AddSetting(name="Teq", comment='Equilibrium temperature at interface')
 
 AddSetting(name="Velocity", default="0m/s", comment='fluid velocity', zonal=TRUE)
-AddSetting(name="Pressure", default=1, comment='pressure', zonal=TRUE)
-AddSetting(name="Temperature", default=1, comment='temperature', zonal=TRUE)
-AddSetting(name="Concentration", default=1, comment='solute concentration', zonal=TRUE)
+AddSetting(name="Pressure", comment='pressure', zonal=TRUE)
+AddSetting(name="Temperature", comment='temperature', zonal=TRUE)
+AddSetting(name="Concentration", comment='concentration', zonal=TRUE)
+AddSetting(name="Theta0", comment='Angle of preferential growth', zonal=TRUE)
+
+AddSetting(name="PartitionCoef", comment='Partition coefficient k')
+AddSetting(name="LiquidusSlope", comment='Liquidus slope m')
+AddSetting(name="GTCoef", comment='Gibbs-Thomson coefficient gamma')
+AddSetting(name="SurfaceAnisotropy", comment='Degree of anisotropy of surface energy')
+AddSetting(name="CapillaryLen", comment='Solutal capillary length d_0')
 
 AddGlobal(name="OutFlux");
 
 AddNodeType("Heater","ADDITIONALS")
 AddNodeType("ForceTemperature","ADDITIONALS")
 AddNodeType("ForceConcentration","ADDITIONALS")
+AddNodeType("Seed","ADDITIONALS")
 

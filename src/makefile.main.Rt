@@ -71,7 +71,7 @@ $(MAKEHEADERS):tools/makeheaders.c
 
 wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", sep="", collapse=" ") ?>
 	@echo "  RT         $@ (model)"
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=" ")?>\"" || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 	@$(INDENT) $@
 
 

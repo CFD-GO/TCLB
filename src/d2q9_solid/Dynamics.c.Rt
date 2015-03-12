@@ -21,6 +21,12 @@
 	feq = MRT_feq(U, rho, u*rho );
 	geq = MRT_feq(U, rhoT, u*rhoT );
 	heq = MRT_feq(U, C, u*C );
+
+#calculating weights
+	wi = subst(feq, rho=1, ux=0, uy=0)
+	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
+#	wi = c(16,4,4,4,4,1,1,1,1)/36
+	over_c2 = 1/sum(wi*U[,1]**2) # one over square of speed of sound
 ?>
 
 CudaDeviceFunction real_t getRho(){
@@ -34,6 +40,36 @@ CudaDeviceFunction real_t getT(){
 CudaDeviceFunction real_t getC(){
 	return <?R C(sum(h)) ?> ;
 }
+
+CudaDeviceFunction real_t getCt(){
+	return (<?R C(sum(h)) ?>)*(1-fi_s) + Cs*fi_s;
+}
+
+CudaDeviceFunction real_t getSolid(){
+	return fi_s;
+}
+
+CudaDeviceFunction real_t getCl_eq(){
+	real_t dx,dy,dxx,dxy,dyy,d2;
+	<?R
+		fi = PV("fi_s(",U[,1],",",U[,2],")")
+		D1  = (fi %*% (U*wi) ) * over_c2
+		D2 =  over_c2^2*t(U) %*% (diag(wi)*fi) %*% U
+		C(PV(c("dx","dy")), D1)
+		C(PV(c("dxx","dxy","dyy")), D2[c(1,2,4)])
+	?>
+	d2 = dx*dx+dy*dy;
+	real_t K, theta;
+	if (d2 > 0.0) {
+		theta = acos(dx/sqrt(d2));
+		K = (2*dx*dy*dxy - dx*dx*dyy-dy*dy*dxx) * pow(dx*dx+dy*dy,-1.5);
+	} else {
+		theta = 0;
+		K = 0;
+	}
+	real_t T = (<?R C(sum(g)) ?>) / (<?R C(sum(f)) ?>) ;
+	return C0 + ((T - Teq) + GTCoef * K * (1-15 * SurfaceAnisotropy * cos(4*(theta-Theta0))))/LiquidusSlope;
+}
     
 CudaDeviceFunction vector_t getU(){
 	real_t rho = <?R C(sum(f)) ?>;
@@ -43,12 +79,50 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+CudaDeviceFunction real_t getK(){
+	real_t dx,dy,dxx,dxy,dyy,d2;
+	<?R
+		fi = PV("fi_s(",U[,1],",",U[,2],")")
+		D1  = (fi %*% (U*wi) ) * over_c2
+		D2 =  over_c2^2*t(U) %*% (diag(wi)*fi) %*% U
+		C(PV(c("dx","dy")), D1)
+		C(PV(c("dxx","dxy","dyy")), D2[c(1,2,4)])
+	?>
+	d2 = dx*dx+dy*dy;
+	real_t K;
+	if (d2 > 0.0) {
+		K = (2*dx*dy*dxy - dx*dx*dyy-dy*dy*dxx) * pow(d2,-1.5);
+		K = 1;
+	} else {
+		K = 0;
+	}
+	return K;
+}
+
+CudaDeviceFunction real_t getTheta(){
+	real_t dx,dy,d2;
+	<?R
+		fi = PV("fi_s(",U[,1],",",U[,2],")")
+		D1  = (fi %*% (U*wi) ) * over_c2
+		C(PV(c("dx","dy")), D1)
+	?>
+	d2 = dx*dx+dy*dy;
+	real_t theta;
+	if (d2 > 0.0) {
+		theta = acos(dx/sqrt(d2));
+	} else {
+		theta = 0;
+	}
+	return theta;
+}
+
+
 CudaDeviceFunction float2 Color() {
         float2 ret;
 
-	ret.x = (<?R C(sum(g)) ?>);
-	ret.x = ret.x/111;
-	if (NodeType == NODE_Solid) ret.y = 0; else ret.y= 1;
+	ret.x = (<?R C(sum(h)) ?>);
+	ret.x = ret.x;
+	if (!(fi_s < 1)) ret.y = 0; else ret.y= 1;
         return ret;
 }
 
@@ -111,7 +185,7 @@ CudaDeviceFunction void WPressure()
 
 CudaDeviceFunction void WVelocity()
 {
-     real_t rho, ru;
+	real_t rho, ru;
 	const real_t u[2] = {Velocity,0.};
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
 	ru = rho * u[0];
@@ -131,7 +205,7 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-     real_t ru, ux0;
+	real_t ru, ux0;
 	real_t rho = 1.0;
 	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
 	ru = rho * ux0;
@@ -182,6 +256,13 @@ CudaDeviceFunction void Init() {
 	uy = 0;
 	rhoT = Temperature;
 	C = Concentration;
+	fi_s = 0;
+	Cs = 0;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Seed)
+	{
+		fi_s = 1;
+		Cs = Concentration * PartitionCoef;
+	}
 <?R
 	C( f, feq );
 	C( g, geq );
@@ -231,7 +312,38 @@ CudaDeviceFunction void CollisionMRT()
 	real_t omega = 1.0-1.0/(3*nu + 0.5);
 	real_t omega2 = omega;
 	real_t omegaT = 1.0-1.0/(3*FluidAlfa + 0.5);
-	real_t omegaC = 1.0-1.0/(3*FluidAlfa + 0.5);
+	real_t omegaC = 1.0-1.0/(3*SoluteDiffusion + 0.5);
+	int interface = 1;
+	<?R
+		fi = PV("fi_s(",U[,1],",",U[,2],")")
+		C( R, fi )
+		fi = R
+		for (i in 1:9) {?> if (<?R C( fi[i] ) ?> < 1.0) <?R } ?> interface = 0;
+	if (interface) {
+		real_t dx,dy,dxx,dxy,dyy,d2;
+		<?R
+			D1  = (fi %*% (U*wi) ) * over_c2
+			D2 =  t(U) %*% (diag(wi)*fi) %*% U * over_c2^2
+			C(PV(c("dx","dy")), D1)
+			C(PV(c("dxx","dxy","dyy")), D2[c(1,2,4)])
+		?>
+		d2 = dx*dx+dy*dy;
+		real_t K, theta;
+		if (d2 > 0.0) {
+			theta = acos(dx/sqrt(d2));
+			K = (2*dx*dy*dxy - dx*dx*dyy-dy*dy*dxx) * pow(dx*dx+dy*dy,-1.5);
+		} else {
+			theta = 0;
+			K = 0;
+		}
+		real_t T = rhoT/rho;
+		real_t Cl_eq;
+		Cl_eq = C0 + ((T - Teq) + GTCoef * K * (1-15 * SurfaceAnisotropy * cos(4*(theta-Theta0))))/LiquidusSlope;
+		if (Cl_eq > C) {
+			fi_s += (Cl_eq - C)/(Cl_eq * (1 - PartitionCoef));
+			if (!(fi_s < 1)) fi_s = 1.0;
+		}
+	}
 <?R
 	C( R, (f-feq) %*% M * OMEGA );
 ?>
