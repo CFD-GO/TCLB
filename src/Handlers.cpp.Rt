@@ -530,7 +530,7 @@ public:
 		case PAR_LOWER:
 			for (int i=0;i<Pars;i++) {
 				int i0 = (i+1)>>1; int i1 = i & 1;
-				tab[i]=-s/i0;
+				tab[i]= -s/i0;
 			}
 			tab[0] = lower;
 			return 0;
@@ -880,7 +880,7 @@ class GenericAction: public Action {
 	public:
 	int Init() {
 		stack=0;
-		parSize=-1;
+		parSize= -1;
 		return Action::Init();
 	}
 	int ExecuteInternal() {
