@@ -16,7 +16,7 @@ AddQuantity(name="Ct",unit="1")
 AddQuantity(name="Cl_eq",unit="1")
 AddQuantity(name="Solid",unit="1")
 AddQuantity(name="U",unit="m/s",vector=T)
-AddQuantity(name="K",unit="1")
+AddQuantity(name="K",unit="1/m")
 AddQuantity(name="Theta",unit="1")
 
 AddDensity( name="g[0]", dx= 0, dy= 0, group="g")
