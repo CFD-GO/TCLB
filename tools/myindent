@@ -8,5 +8,5 @@ then
 	mv ${filename} ${filename}_
 	indent -l800 -kr -sob ${filename}_
 	cat ${filename}_ | sed 's/\([<]..*[<].*\)>>/\1 > >/g' > ${filename}
-	rm ${filename}_
+	rm ${filename}_ ${filename}_~ 2>/dev/null
 fi

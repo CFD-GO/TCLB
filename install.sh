@@ -1,5 +1,5 @@
 mkdir -p tmp
-pushd tmp
+pushd tmp || exit -1
 rm * 2>/dev/null
 
 function github_install {
