@@ -1469,7 +1469,6 @@ class conControl: public Action {
 				//double val = solver->units.alt(attr.value());
 				std::vector<double> val;
 				get( context, attr.value(), 1, val);
-
 				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
 			}
 		<?R } ?>
