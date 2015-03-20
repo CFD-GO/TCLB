@@ -3,13 +3,18 @@
 library(optparse)
 options <- list(
         make_option(c("-f","--file"), "store", default="", help="Input file", type="character"),
-        make_option(c("-o","--out"), "store", default="", help="Output file", type="character")
+        make_option(c("-o","--out"), "store", default="", help="Output file", type="character"),
+	make_option(c("-x","--fix"), "store", default="", help="variables to fix", type="character")
 )
 
 opt <- parse_args(OptionParser(usage="Usage: ADmod -f inputfile [-o outputfile]", options))
 
 if (opt$file == "") stop("Input file not specified\nUsage: ADmod -f file\n");
 if (opt$out == "") { opt$out = paste(opt$file, "_",sep="") }
+
+fix = strsplit(opt$fix," ")[[1]]
+cat("To fix:\n")
+print(fix);
 
 
 f = file(opt$file)
@@ -64,23 +69,27 @@ for (i in alli) {
 		l1 = sub("[^(]*[(]","",l);
 		l1 = sub("[)].*","",l1);
 		var = l1;
-		if (grepl("pushreal", l)) {
-			idx = idx + 1
-			name = paste(tmpname, idx, sep="_")
-			if (idx > decl) {
-				vars = c(vars, paste(tp,name,";"));
-				decl = idx;
-			}
-			buf = c(buf, paste(name,"=", var, "; //",l));
-		} else if (grepl("lookreal", l)) {
-			var = sub("^[&]","",var);
-			name = paste(tmpname, idx, sep="_")
-			buf = c(buf, paste(var, " = ", name,"; //",l));
+		var = sub("^[&]","",var);
+		if (var %in% fix) {
+			cat("var: ",var," ----- fixed\n");
+			buf = c(buf, paste("//",l));
 		} else {
-			var = sub("^[&]","",var);
-			name = paste(tmpname, idx, sep="_")
-			buf = c(buf, paste(var, " = ", name,"; //",l));
-			idx = idx - 1;
+			if (grepl("pushreal", l)) {
+				idx = idx + 1
+				name = paste(tmpname, idx, sep="_")
+				if (idx > decl) {
+					vars = c(vars, paste(tp,name,";"));
+					decl = idx;
+				}
+				buf = c(buf, paste(name,"=", var, "; //",l));
+			} else if (grepl("lookreal", l)) {
+				name = paste(tmpname, idx, sep="_")
+				buf = c(buf, paste(var, " = ", name,"; //",l));
+			} else {
+				name = paste(tmpname, idx, sep="_")
+				buf = c(buf, paste(var, " = ", name,"; //",l));
+				idx = idx - 1;
+			}
 		}
 	}
 	si = i;

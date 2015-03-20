@@ -7,102 +7,17 @@
 /*-------------------------------------------------------------*/
 
 <?R
-	f = PV(Density$name[Density$group=="f"])
+	source("MRT/d3q19.R")
 
+	Flow = d3q19_MRT("rho", c("Jx","Jy","Jz"), "R", group="f")
 
-	rho = PV("rho")
-	J = PV(c("Jx","Jy","Jz"))
-	rho0 = 1
-
-	if (FALSE) {
-        	we = 0
-        	weJ = -475/63
-        	wxx = 0
-        } else {
-        	we = 3
-        	weJ = -11/2
-        	wxx = -1/2
-        }
-
-        pxx = 1/(3*rho0) * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3])
-        pww = 1/(rho0) * (J[2] * J[2] - J[3] * J[3])
-        pxy = 1/(rho0) * (J[1]*J[2])
-        pyz = 1/(rho0) * (J[2]*J[3])
-        pxz = 1/(rho0) * (J[1]*J[3])
-
-
-# EQUILIBRUM MOMENTS
-        Req = rbind(
-                rho,
-                -11*rho + 19/rho0*sum(J*J),
-                we*rho + weJ/rho0*sum(J*J),
-                J[1],
-                -2/3*J[1],
-                J[2],
-                -2/3*J[2],
-                J[3],
-                -2/3*J[3],
-                pxx*3,
-                wxx*pxx*3,
-                pww,
-                wxx*pww,
-                pxy,
-                pyz,
-                pxz,
-                0,
-                0,
-                0
-        )
-
-
-        U = MRTMAT[,selU]
-
-        R = PV(paste("R",0:18,sep=""))
-        R[1] = rho
-        R[c(4,6,8)] = J
-        R[-c(1,4,6,8)] = PV(paste("R",0:14,sep=""))
-        selR = c(2,3,5,7,9:19)
-
-        renum = c(19, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 9, 13, 10, 14, 15, 17, 16, 18)
-
-        I = rep(0, 19)
-        I[renum] = 1:19
-
-        if (FALSE) {
-        Sy = rbind(
-                PV(0),
-                PV(1.19),
-                PV(1.4),
-                PV(0),
-                PV(1.2),
-                PV(0),
-                PV(1.2),
-                PV(0),
-                PV(1.2),
-                PV("omega"),
-                PV(1.4),
-                PV("omega"),
-                PV(1.4),
-                PV("omega"),
-                PV("omega"),
-                PV("omega"),
-                PV(1.98),
-                PV(1.98),
-                PV(1.98)
-        )
-
-        }
-
-        calcRhoJ = rbind(
-                rho == sum(f),
-                J == f %% U
-        )
-
-        calcRfromF = R == f %% MRTMAT
-        calcReq = R == Req
-        calcFfromR = f == R %% MRTMAT.inv
-        calcFeq = f == Req %% MRTMAT.inv
-
+	f = Flow$f
+	rho = Flow$rho
+	J   = Flow$J
+        Req = Flow$Req
+        U   = Flow$U
+        R   = Flow$R
+	selR= Flow$selR
 ?>
 
 CudaDeviceFunction real_t getRho(){
@@ -116,7 +31,7 @@ CudaDeviceFunction real_t getP(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
 	u.z /= d;
@@ -150,12 +65,9 @@ CudaDeviceFunction void BounceBack()
 		if (nrow(V) > 0) {
 		f = PV(d$name)
 		apply(V,1,function(x) {
-			w = list(
-				uf==f[x[1]],
-				f[x[1]]==f[x[2]],
-				f[x[2]]==uf
-			)
-			for (h in w) C(h)
+			C(uf,f[x[1]])
+			C(f[x[1]],f[x[2]])
+			C(f[x[2]],uf)
 		})
 		}
 	NULL})
@@ -175,6 +87,11 @@ CudaDeviceFunction void eqWVelocity()
 	X = U[,1]
 	Y = U[,2]
 	Z = U[,3]
+
+        renum = c(19, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 9, 13, 10, 14, 15, 17, 16, 18)
+        I = rep(0, 19)
+        I[renum] = 1:19
+
 ?>
 
 <?R Inlet = function() { ?>
@@ -195,8 +112,8 @@ CudaDeviceFunction void WVelocity()
 	real_t ux = InletVelocity;
 
 <?R
-	C(rho == sum(f[X <  0]),float=F)
-	C(rho == sum(f[X == 0]) + 2 * rho, float=F)
+	C(rho, sum(f[X <  0]),float=F)
+	C(rho, sum(f[X == 0]) + 2 * rho, float=F)
 ?>
 	rho = rho / (1. - ux);
 
@@ -210,8 +127,8 @@ CudaDeviceFunction void WPressure()
 	rho = InletDensity;
 <?R
 	ux = PV("ux")
-	C(ux == sum(f[X <  0]),float=F)
-	C(ux == sum(f[X == 0]) + 2 * ux, float=F)
+	C(ux, sum(f[X <  0]),float=F)
+	C(ux, sum(f[X == 0]) + 2 * ux, float=F)
 ?>
 	ux = 1. - ux / rho;
 <?R Inlet(); ?>
@@ -222,8 +139,8 @@ CudaDeviceFunction void WPressureLimited()
      real_t rho, Nxy, Nxz, SF, ux;
 <?R
 	SF = PV("SF")
-	C(SF == sum(f[X <  0]),float=F)
-	C(SF == sum(f[X == 0]) + 2 * SF, float=F)
+	C(SF, sum(f[X <  0]),float=F)
+	C(SF, sum(f[X == 0]) + 2 * SF, float=F)
 ?>
 	rho = InletDensity;
 	ux = 1. - SF / rho;
@@ -243,8 +160,8 @@ CudaDeviceFunction void EPressure()
      real_t ux;
 <?R
 	ux = PV("ux")
-	C(ux == sum(f[X >  0]),float=F)
-	C(ux == sum(f[X == 0]) + 2 * ux, float=F)
+	C(ux, sum(f[X >  0]),float=F)
+	C(ux, sum(f[X == 0]) + 2 * ux, float=F)
 ?>
 	ux =  -1. + ux / rho;
 
@@ -294,7 +211,7 @@ CudaDeviceFunction void Run() {
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
 {
 	<?R
-		C(calcFeq);
+		C(f, Req %*% MRTMAT.inv);
 	?>
 }
 
@@ -304,9 +221,8 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t Jx,Jy,Jz, rho, omT;
-	real_t <?R cat(ToC(R[selR]), sep=",") ?>;
-
+	real_t omT;
+	real_t <?R C(R, sep=", ") ?>;
         #define S1 0.0
         #define S2 omega
         #define S3 omega
@@ -326,25 +242,26 @@ CudaDeviceFunction void CollisionMRT()
         #define S17 omega2
         #define S18 omega2
         #define S19 omega2
-        real_t omega2 = 8.0 * ( 2.0 - omega )/( 8.0 - omega );
+        real_t gamma1 = 1 - omega;
+        real_t gamma2 = 1 - 8.0 * ( 2.0 - omega )/( 8.0 - omega );
 <?R
-        Sy = PV(paste("S",1:19,"",sep=""))
-        omega = PV("omega")
-#        oneR = c(F,T,T,F,T,F,T,F,T,F,T,F,T,F,F,F,T,T,T)
-        oneR = rep(F,19)
-        selRone=selR[oneR[selR]]
-        selRnone=selR[!oneR[selR]]
-#        C( calcRfromF[selRnone] ,float =F);
-        cr = calcReq[selR]
+	S = PV("S",1:19);
+	S[c(1,4,6,8)] = 0;
+	S[c(2,3,10:16)] = PV("gamma1");
+	S[c(5,7,9,17:19)] = PV("gamma2");
+	C(R, f %*% MRTMAT);
+	C(R[selR], (S*(R-Req))[selR]);
+?>
+    Jx += rho*ForceX;
+    Jy += rho*ForceY;
+    Jz += rho*ForceZ;
+<?R
+	C(R[selR], (R + Req)[selR]);
+	# nearly ortogonal MRT matrix
         Mw = colSums(MRTMAT**2)
-        C( calcRfromF[-selR] ,float =F);
-
-        for (i in selR) if (!oneR[i]) {
-                C( calcRfromF[i] ,float =F);
-                ?><?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-<?R } else {
-                ?><?%s ToC(R[i]) ?> = 0.0;
-<?R } ?>
+	C(R,  Mw, eq="/=")
+	C( f, R %*% t(MRTMAT) , float=F);
+?>
     real_t ux,uy,uz;
     ux = Jx / rho;
     uy = Jy / rho;
@@ -369,20 +286,4 @@ CudaDeviceFunction void CollisionMRT()
     AddToVOLrho(rho);
     AddToVOLvolume(1);
     AddToMaxV(sqrt(ux*ux+uy*uy+uz*uz));
-    Jx += rho*ForceX;
-    Jy += rho*ForceY;
-    Jz += rho*ForceZ;
-<?R
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
-<?R
-}
-
-for (i in 1:length(R)) {
-?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
-<?R
-}
-   C( f == R %% t(MRTMAT) , float=F);
-#   C( f == R %% solve(MRTMAT) , float=F);
-?>
 }

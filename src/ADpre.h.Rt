@@ -3,17 +3,38 @@
 ?>
 //#define AddToObjective(x) objective += x
 //real_t objective;
-<?R for (v in Globals$name) { ?>
-#define AddTo<?%s v ?>(x) <?%s v ?> += x;
-real_t <?%s v ?>;<?R } ?>
+<?R for (g in rows(Globals)) if (! g$adjoint) { ?>
+#define AddTo<?%s g$name ?>(x) <?%s g$name ?> += x;
+real_t <?%s g$name ?>;<?R } ?>
 
 typedef struct {float x,y; } float2;
 
 <?R for (v in rows(Settings)) { ?>
-	real_t <?%s v$name ?>; <?R
+//	real_t <?%s v$name ?>;
+#define <?%s v$name ?> 0xFFFF<?%s v$index ?> <?R
     } ?>
-<?R for (v in rows(ZoneSettings)) { ?>
-	real_t <?%s v$name ?>; <?R
+#ifdef CONST_SETTINGS
+<?R for (v in rows(ZoneSettings)) if (! v$adjoint) { ?>
+#define <?%s v$name ?>    0xFFCF<?%s v$index ?>
+#define <?%s v$name ?>_DT 0xFFDF<?%s v$index ?><?R
     } ?>
+#else
+<?R for (v in rows(ZoneSettings)) if (! v$adjoint) { ?>
+	real_t <?%s v$name ?>;
+	real_t <?%s v$name ?>_DT; <?R
+    } ?>
+#endif // CONST_SETTINGS
 
-flag_t NodeType;
+#define NodeType 0xFFCCFFCC
+//flag_t NodeType;
+
+
+real_t X,Y,Z;
+
+real_t fabs(real_t val) {
+	if (val > 0) {
+		return val;
+	} else {
+		return -val;
+	}
+}

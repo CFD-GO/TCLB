@@ -46,16 +46,19 @@ AddDensity(
 
 AddQuantity( name="Rho",unit="kg/m3")
 AddQuantity( name="U",unit="m/s",vector=T)
-AddQuantity( name="W")
+# AddQuantity( name="W")
 AddQuantity( name="WB",adjoint=T)
 
 # AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="tau0", comment='relaxation time')
-AddSetting(name="nu", tau0='(3*nu + 0.5)', default=1.6666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
+AddSetting(name="nu", default=1.6666666, comment='viscosity')
+AddSetting(name="Velocity", default="0m/s", comment='inlet velocity', zonal=T)
+AddSetting(name="Density", default=1, comment='inlet density', zonal=T)
 AddSetting(name="Theta", default=1, comment='inlet density')
+AddSetting(name="Turbulence", default=0, comment='amount of turbulence in init and on inlet', zonal=T)
+
+AddSetting(name="ForceX", default="0N", comment='Force[x]')
+AddSetting(name="ForceY", default="0N", comment='Force[y]')
+AddSetting(name="ForceZ", default="0N", comment='Force[z]')
 
 AddGlobal(name="Flux", comment='pressure loss')
 AddGlobal(name="EnergyFlux", comment='pressure loss')

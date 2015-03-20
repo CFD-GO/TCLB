@@ -30,6 +30,10 @@
      cat(sprintf("%-45s | %1s | %s",s$name, ifelse(s$adjoint, "X"," "), s$comment),"\n");
     }
   }
+  cat(sprintf("                %-15s               |Adj| comment", "ZONE SETTINGS"),"\n");
+  for (s in rows(ZoneSettings)) {
+     cat(sprintf("%-45s | %1s | %s",s$name, ifelse(s$adjoint, "X"," "), s$comment),"\n");
+  }
   cat("---------------------------------------------------------------------------------------\n");
   cat(sprintf("                %-15s               |Adj| comment", "GLOBALS"),"\n");
   for (s in rows(Globals)) {

@@ -8,6 +8,7 @@
 #include <vector>
 #include <utility>
 #include "ZoneSettings.h"
+#include "SyntheticTurbulence.h"
 
 class lbRegion;
 class LatticeContainer;
@@ -56,6 +57,7 @@ private:
   int reverse_save; ///< Flag stating if recording (Now)
 public:
   ZoneSettings zSet;
+  SyntheticTurbulence ST;
   int ZoneIter;
   std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
   int settings_i; ///< Index in settings_record that is on the CUDA const

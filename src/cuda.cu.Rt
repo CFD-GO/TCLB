@@ -41,12 +41,16 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
         for (f in Fields) { ?>
-#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x,y,z))
-#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x,y,z))
+#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_))
+#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_))
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__) <?R
         }
 ?>
 
+#define X (x_ + constContainer.px)
+#define Y (y_ + constContainer.py)
+#define Z (z_ + constContainer.pz)
+#define SyntheticTurbulence(t) constContainer.getST(t,x_,y_,z_)
 
 <?R
 	for(s in rows(ZoneSettings)) { ?>
@@ -60,7 +64,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define NODE_H
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
-        int x,y,z;
+        int x_,y_,z_;
         CudaDeviceFunction void Pre(){};
         CudaDeviceFunction void RunElement(){};
         CudaDeviceFunction void Glob(){};
@@ -68,7 +72,30 @@ template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
 
 <?R
 for (tp in rows(Dispatch)) {
-	s = Stages[Stages$name == tp$stage_name, ]
+	s = Stages[Stages$name == tp$stage_name, ];
+#	GlobalsD = Globals[-nrow(Globals),];
+	GlobalsD = Globals[,];
+	GlobalsD$zonal = FALSE;
+	ik = nrow(ZoneSettings);
+	if (ik > 0) {
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
+		k = nrow(GlobalsD) - ik:1 + 1;
+		GlobalsD$name[k] = paste0(ZoneSettings$name,"B");
+		GlobalsD$adjoint[k] = TRUE;
+		GlobalsD$zonal[k] = TRUE;
+		GlobalsD$op[k] = "SUM";
+		GlobalsD$var[k] = paste0(ZoneSettings$name,"b");
+		GlobalsD$Index[k] = ZoneSettings$Index;
+
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
+		k = nrow(GlobalsD) - ik:1 + 1;
+		GlobalsD$name[k] = paste0(ZoneSettings$name,"_DTB");
+		GlobalsD$adjoint[k] = TRUE;
+		GlobalsD$zonal[k] = TRUE;
+		GlobalsD$op[k] = "SUM";
+		GlobalsD$var[k] = paste0(ZoneSettings$name,"_DTb");
+		GlobalsD$Index[k] = paste0(ZoneSettings$Index,"+DT_OFFSET");
+	}
 	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix
@@ -86,8 +113,12 @@ for (tp in rows(Dispatch)) {
 //-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
 	for (g in rows(GlobalsD)) if (g$sel) {
 		if (tp$Globals == "Globs") {
-		        if (g$op == "SUM") { ?>
+		        if (g$op == "SUM") {
+				if (g$adjoint) { ?>
 #define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x) <?R
+				} else { ?>
+#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x); Objective = Objective + (x) * <?%s g$name ?>InObj <?R
+				}
 	                } else if (g$op == "MAX") { ?>
 #define AddTo<?%s g$name ?>(x) <?%s g$var ?> = max(<?%s g$var ?>,x) <?R
                         }
@@ -103,6 +134,7 @@ for (tp in rows(Dispatch)) {
                 Globs = GlobalsD[GlobalsD$sel,]
         } else if (tp$Globals == "Obj") {
                 Globs = Globals[nrow(Globals),]
+		Globs$zonal = FALSE
         } else {
                 Globs = NULL
         } 	
@@ -111,27 +143,43 @@ for (tp in rows(Dispatch)) {
         T3 = tp$stage_name
 ?>
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	int x,y,z; <?R
+	int x_,y_,z_; <?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
         } ?>
 	CudaDeviceFunction void inline Pre() { <?R
-	for (g in rows(Globs)) { ?>
+	for (g in rows(Globs)) if (!g$zonal){ ?>
+		<?%s g$var ?> = 0.0f; <?R
+        } ?>
+	}
+	CudaDeviceFunction void inline PreDiff() { <?R
+	for (g in rows(Globs)) if (g$zonal) { ?>
 		<?%s g$var ?> = 0.0f; <?R
         } ?>
 	}
 	CudaDeviceFunction void inline Glob() { <?R
-        for (g in rows(Globs)) {
+        for (g in rows(Globs)) if (!g$zonal) {
+		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
                 if (g$op == "SUM") { ?>
-                atomicSum(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 } else if (g$op == "MAX") { ?>
-                atomicMax(&constContainer.Globals[<?%s g$Index ?>], <?%s g$var ?>); <?R
+                atomicMax(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 }
         } ?>
+	}
+	CudaDeviceFunction void inline GlobDiff() { 
+		int z = NodeType >> ZONE_SHIFT;
+		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
+        for (g in rows(Globs)) if (g$zonal) {
+		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
+                atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
+        } ?>
+		}
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
 		} ?>
+//	#include "Dynamics.h"
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
@@ -161,7 +209,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
         } <?R
 	        } ?>
 	CudaDeviceFunction inline void RunElement() {
-	        constContainer.getType(*this); <?R
+	        constContainer.getType(*this);
+		PreDiff();<?R
 		if (tp$Stream == "Adj") { ?>
 		constContainer.pop_<?%s s$name ?>(*this);
 		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
@@ -215,6 +264,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
+		GlobDiff();
 	} <?R
         } ########################################################################################### ?>
 }; <?R

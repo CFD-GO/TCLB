@@ -10,27 +10,35 @@ class ZoneSettings {
   int len;
   real_t ** cpuTab;
   real_t * cpuConst;
-
 public:
+  int MaxZones;
   real_t ** cpuValues;
   real_t ** gpuTab;
   real_t * gpuConst;
     
   inline ZoneSettings() {
     len = 1;
-    cpuValues = (real_t**) malloc(2 * sizeof(real_t*) * ZONE_MAX * ZONESETTINGS);
-    cpuTab = (real_t**) malloc(2 * sizeof(real_t*) * ZONE_MAX * ZONESETTINGS);
-    for (int i=0; i<ZONE_MAX * ZONESETTINGS*2; i++) {
+    MaxZones=0;
+    cpuValues = (real_t**) malloc(sizeof(real_t*) * TIME_SEG);
+    cpuTab = (real_t**) malloc(sizeof(real_t*) * TIME_SEG);
+    for (int i=0; i<TIME_SEG; i++) {
       cpuValues[i] = NULL;
       cpuTab[i] = NULL;
     }
-    cpuConst = (real_t*) malloc(sizeof(real_t) * ZONE_MAX * ZONESETTINGS);
-    for (int i=0; i<ZONE_MAX * ZONESETTINGS; i++) {
+    cpuConst = (real_t*) malloc(sizeof(real_t) * TIME_SEG);
+    for (int i=0; i<TIME_SEG; i++) {
       cpuConst[i] = 0.0;
     }
-    CudaMalloc(&gpuTab, 2 * sizeof(real_t*) * ZONE_MAX * ZONESETTINGS);
-    CudaMalloc(&gpuConst,   sizeof(real_t)  * ZONE_MAX * ZONESETTINGS);
+    CudaMalloc(&gpuTab, sizeof(real_t*) * TIME_SEG);
+    CudaMalloc(&gpuConst,   sizeof(real_t)  * TIME_SEG);
     CopyToGPU();
+  }
+  
+  inline void zone_max(int z) {
+    if (z+1 > MaxZones) {
+      MaxZones = z+1;
+      output("Setting number of zones to %d\n", MaxZones);
+    }
   }
 
   inline void set(int s, int z, double val) {
@@ -38,6 +46,7 @@ public:
     assert(s <   ZONESETTINGS);
     assert(z >= -1);
     assert(z <   ZONE_MAX);
+    zone_max(z);
     if (z == -1) {
       for (int i=0;i<ZONE_MAX; i++) {
         cpuConst[s+ZONESETTINGS*i] = val;
@@ -49,7 +58,7 @@ public:
   }
   
   inline void setLen(int nlen) {
-    for (int i=0; i<ZONE_MAX * ZONESETTINGS; i++) {
+    for (int i=0; i<TIME_SEG; i++) {
       if (cpuValues[i] != NULL) {
          free(cpuValues[i]);
          cpuValues[i] = NULL;
@@ -64,12 +73,18 @@ public:
   }    
 
   inline void Alloc(int i) {
-    assert(cpuValues[i] == NULL);
-    cpuValues[i] = (real_t*) malloc(sizeof(real_t) * len);
-    CudaMalloc(&cpuTab[i], sizeof(real_t) * len);
+    if (cpuValues[i] == NULL) {
+      cpuValues[i] = (real_t*) malloc(sizeof(real_t) * len);
+      CudaMalloc(&cpuTab[i], sizeof(real_t) * len);
+    }
   }    
 
   inline void set_internal(int i, std::vector<double> val) {
+    assert(val.size() == len);
+    set_internal(i, &val[0]);
+  }
+
+  inline void set_internal(int i, const double* val) {
     Alloc(i);
     for (int j=0; j<len; j++) {
       cpuValues[i][j] = val[j];
@@ -80,6 +95,12 @@ public:
     }
     cpuValues[i+DT_OFFSET][0] = (val[1] - val[len-1])/2;
     cpuValues[i+DT_OFFSET][len-1] = (val[0] - val[len-2])/2;
+    Alloc(i+GRAD_OFFSET);
+    Alloc(i+GRAD_OFFSET+DT_OFFSET);
+    for (int j=0; j<len; j++) {
+      cpuValues[i+GRAD_OFFSET][j] = 0;
+      cpuValues[i+GRAD_OFFSET+DT_OFFSET][j] = 0;
+    }
   }
 
 
@@ -89,6 +110,25 @@ public:
     assert(z >= -1);
     assert(z <   ZONE_MAX);
     assert(val.size() == len);
+    zone_max(z);
+    if (z == -1) {
+      for (int z=0;z<ZONE_MAX; z++) {
+        int i = s+ZONESETTINGS*z;
+        set_internal(i,val);
+      }
+    } else {
+      int i = s+ZONESETTINGS*z;
+      set_internal(i,val);
+    }
+    CopyToGPU();  
+  }
+
+  inline void set(int s, int z, const double* val) {
+    assert(s >=  0);
+    assert(s <   ZONESETTINGS);
+    assert(z >= -1);
+    assert(z <   ZONE_MAX);
+    zone_max(z);
     if (z == -1) {
       for (int z=0;z<ZONE_MAX; z++) {
         int i = s+ZONESETTINGS*z;
@@ -116,18 +156,86 @@ public:
     }
   }
 
+
+  inline void get(int s, int z, double * tab) {
+    assert(s >=  0);
+    assert(s <   ZONESETTINGS);
+    assert(z >=  0);
+    assert(z <   ZONE_MAX);
+    int i = s+ZONESETTINGS*z;
+    if (cpuValues[i] == NULL) {
+      tab[0] = cpuConst[i];
+    } else {
+      for (int it=0; it<len; it++) {
+        tab[it] = cpuValues[i][it];
+      }
+    }
+  }
+
+  inline void get_grad(int s, int z, double * tab) {
+    assert(s >=  0);
+    assert(s <   ZONESETTINGS);
+    assert(z >=  0);
+    assert(z <   ZONE_MAX);
+    CopyFromGPU();
+    int i = s + ZONESETTINGS*z + GRAD_OFFSET;
+    if (cpuValues[i] == NULL) {
+      tab[0] = cpuConst[i];
+    } else {
+      for (int it=0; it<len; it++) {
+        tab[it] = cpuValues[i][it];
+      }
+      for (int j=1; j<len-1; j++) {
+        tab[j+1] += 0.5*cpuValues[i+DT_OFFSET][j];
+        tab[j-1] -= 0.5*cpuValues[i+DT_OFFSET][j];
+      }
+        tab[1] += 0.5*cpuValues[i+DT_OFFSET][0];
+        tab[len-1] -= 0.5*cpuValues[i+DT_OFFSET][0];
+        tab[0] += 0.5*cpuValues[i+DT_OFFSET][len-1];
+        tab[len-2] -= 0.5*cpuValues[i+DT_OFFSET][len-1];
+    }
+  }
+
+  inline int getLen(int s, int z) {
+    assert(s >=  0);
+    assert(s <   ZONESETTINGS);
+    assert(z >=  0);
+    assert(z <   ZONE_MAX);
+    int i = s+ZONESETTINGS*z;
+    if (cpuValues[i] == NULL) {
+      return 1;
+    } else {
+      return len;
+    }
+  }
+
   
   inline void CopyToGPU () {
-    CudaMemcpy(gpuTab,   cpuTab,   sizeof(real_t*) * ZONE_MAX * ZONESETTINGS * 2, cudaMemcpyHostToDevice);
-    CudaMemcpy(gpuConst, cpuConst, sizeof(real_t)  * ZONE_MAX * ZONESETTINGS, cudaMemcpyHostToDevice);
-    for (int i=0; i<ZONE_MAX * ZONESETTINGS * 2; i++) if (cpuValues[i] != NULL) {
+    CudaMemcpy(gpuTab,   cpuTab,   sizeof(real_t*) * TIME_SEG, cudaMemcpyHostToDevice);
+    CudaMemcpy(gpuConst, cpuConst, sizeof(real_t)  * GRAD_OFFSET, cudaMemcpyHostToDevice);
+    for (int i=0; i<GRAD_OFFSET; i++) if (cpuValues[i] != NULL) {
       assert(cpuTab[i] != NULL);
       CudaMemcpy(cpuTab[i],   cpuValues[i],  sizeof(real_t) * len, cudaMemcpyHostToDevice);
     }
   }
 
+  inline void ClearGrad () {
+    for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
+      output("Clearing gradient in ZoneSettings (%d)\n", i);
+      CudaMemset(cpuTab[i], 0, sizeof(real_t) * len);
+    }
+  }
+
+  inline void CopyFromGPU () {
+    for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
+      assert(cpuTab[i] != NULL);
+      printf("Copying gradient data from GPU (%d)\n", i);
+      CudaMemcpy(cpuValues[i], cpuTab[i],  sizeof(real_t) * len, cudaMemcpyDeviceToHost);
+    }
+  }
+
   inline ~ZoneSettings() {
-    for (int i=0; i<ZONE_MAX * ZONESETTINGS * 2; i++) {
+    for (int i=0; i<TIME_SEG; i++) {
       if (cpuValues[i] != NULL) free(cpuValues[i]);
       if (cpuTab[i] != NULL) CudaFree(cpuTab[i]);
     }

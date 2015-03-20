@@ -60,6 +60,17 @@ int vHandler::Type() {
 	return 0;
 };
 
+int vHandler::NumberOfParameters() {
+	ERROR("Called virtual function (NumberOfParameters)!\n");
+	exit(-1);
+	return -1;
+};
+int vHandler::Parameters(int type, double * tab) {
+	ERROR("Called virtual function (Parameters, type: %d)!\n", type);
+	exit(-1);
+	return -1;
+};
+
 class Callback : public vHandler {
 public:
 	int DoIt() {
@@ -83,6 +94,8 @@ public:
 	}
 	int Type() { return HANDLER_CALLBACK; }
 };
+
+
 
 class Action : public vHandler {
 public:
@@ -111,7 +124,423 @@ public:
 		return 0;
 	}
 	int Type() { return HANDLER_ACTION; }
+	int NumberOfParameters() {
+		return -1;
+	};
+	int Parameters(int type, double * tab) {
+		return -1;
+	};
 };
+
+class Design : public Callback {
+public:
+	int DoIt() {
+		output("Design called!");
+	        return 0;
+	}
+	int Init() {
+		pugi::xml_attribute attr = node.attribute("Iterations");
+		startIter = solver->iter;
+		if (attr) {
+			ERROR("Design element in xml %s shouldent have Iteration parameter!\n", node.name());
+			exit(-1);
+			return -1;
+		} else {
+			everyIter = 0;
+                        output("Design %s with no Iterations attribute", node.name());
+		}
+		return 0;
+	}
+	int Finish() {
+		return 0;
+	}
+	virtual int Type() { return HANDLER_DESIGN; }
+
+};
+
+class InternalTopology : public Design {
+	int Pars;
+public:
+	int Init() {
+		Pars = -1;
+		return Design::Init();
+	};
+	int NumberOfParameters() {
+		if (Pars < 0) {
+			Pars =  solver->getPars();
+		}
+		return Pars;
+	};
+	int Parameters(int type, double * tab) {
+		switch(type){
+		case PAR_GET:
+			return solver->getPar(tab);
+		case PAR_SET:
+			return solver->setPar(tab);
+		case PAR_GRAD:
+			return solver->getDPar(tab);
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n",type,node.name());
+			exit(-1);
+		}
+		return -1;	
+	};
+};
+
+class OptimalControl : public Design {
+	int Pars;
+	int zone_number, par_index;
+	int old_iter_type;
+	FILE * f;
+public:
+	int Init() {
+		std::string par;
+		std::string zone;
+		zone_number = -10;
+		par_index = -10;
+		Pars = -1;
+		pugi::xml_attribute attr = node.attribute("what");
+		if (attr) {
+	                par = attr.value();
+                        int i = par.find_first_of('-');
+                        if (i == string::npos) {
+				ERROR("Can only optimal control a parameters in a specific zone\n");
+				return -1;
+                        } else {
+                                zone = par.substr(i+1);
+                                par = par.substr(0,i);
+                                if (solver->geometry->SettingZones.count(zone) > 0) { 
+                                        zone_number = solver->geometry->SettingZones[zone];
+                                } else {
+                                        ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+					return -1;
+                                }
+                        }
+		<?R for (v in rows(ZoneSettings)) { ?>
+		        if (par == "<?%s v$name?>") par_index = <?%s v$Index?>;
+		<?R } ?>
+			if (par_index < 0) {
+				error("Unknown param %s in OptimalControl\n", par.c_str());
+				return -1;
+			}
+			output("Selected %s (%d) in zone \"%s\" (%d) for optimal control\n", par.c_str(), par_index, zone.c_str(), zone_number);
+		} else {
+			ERROR("Parameter \"what\" needed in %s\n",node.name());
+			return -1;
+		}
+		Pars = solver->lattice->zSet.getLen(par_index, zone_number);
+		output("Lenght of the control: %d\n", Pars);
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_GLOBS;
+		f = fopen((par + "-" + zone + "_optimalControl.csv").c_str(),"w");
+		assert( f != NULL );
+		return Design::Init();
+	};
+	int NumberOfParameters() {
+		return Pars;
+	};
+	int Parameters(int type, double * tab) {
+		switch(type) {
+		case PAR_GET:
+			output("Getting the params from the zone\n");
+			solver->lattice->zSet.get(par_index, zone_number, tab);
+			fprintf(f,"GET");
+			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			fprintf(f,"\n");
+			return 0;
+		case PAR_SET:
+			output("Setting the params in the zone\n");
+			fprintf(f,"SET");
+			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			fprintf(f,"\n");
+			solver->lattice->zSet.set(par_index, zone_number, tab);
+			return 0;
+		case PAR_GRAD:
+			output("Getting gradient of a param in zone\n");
+			solver->lattice->zSet.get_grad(par_index, zone_number, tab);
+			fprintf(f,"GRAD");
+			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			fprintf(f,"\n");
+			return 0;
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
+			exit(-1);
+		}
+	};
+};
+
+class OptimalControlSecond : public Design {
+	int Pars;
+	int Pars2;
+	int zone_number, par_index;
+	int old_iter_type;
+	double * tab2;
+	double lower, upper;
+	FILE * f;
+public:
+	int Init() {
+		std::string par;
+		std::string zone;
+		zone_number = -10;
+		par_index = -10;
+		Pars = -1;
+		pugi::xml_attribute attr = node.attribute("what");
+		if (attr) {
+	                par = attr.value();
+                        int i = par.find_first_of('-');
+                        if (i == string::npos) {
+				ERROR("Can only optimal control a parameters in a specific zone\n");
+				return -1;
+                        } else {
+                                zone = par.substr(i+1);
+                                par = par.substr(0,i);
+                                if (solver->geometry->SettingZones.count(zone) > 0) { 
+                                        zone_number = solver->geometry->SettingZones[zone];
+                                } else {
+                                        ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+					return -1;
+                                }
+                        }
+		<?R for (v in rows(ZoneSettings)) { ?>
+		        if (par == "<?%s v$name?>") par_index = <?%s v$Index?>;
+		<?R } ?>
+			if (par_index < 0) {
+				error("Unknown param %s in OptimalControl\n", par.c_str());
+				return -1;
+			}
+			output("Selected %s (%d) in zone \"%s\" (%d) for optimal control\n", par.c_str(), par_index, zone.c_str(), zone_number);
+		} else {
+			ERROR("Parameter \"what\" needed in %s\n",node.name());
+			return -1;
+		}
+		Pars2 = solver->lattice->zSet.getLen(par_index, zone_number);
+		Pars = Pars2 / 2;
+		tab2 = new double[Pars2];
+		output("Lenght of the control: %d\n", Pars);
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_GLOBS;
+
+		attr = node.attribute("lower");
+		if (attr) {
+			lower = solver->units.alt(attr.value());
+		} else {
+			notice("lower bound not set in %s - setting to -1\n",node.name());
+			lower = -1;
+		}
+		attr = node.attribute("upper");
+		if (attr) {
+			upper = solver->units.alt(attr.value());
+		} else {
+			notice("upper bound not set in %s - setting to 1\n",node.name());
+			upper = 1;
+		}
+
+		f = fopen((par + "-" + zone + "_optimalControl.csv").c_str(),"w");
+		assert( f != NULL );
+		return Design::Init();
+	};
+	int NumberOfParameters() {
+		return Pars;
+	};
+	int Parameters(int type, double * tab) {
+		switch(type) {
+		case PAR_GET:
+			output("Getting the params from the zone\n");
+			solver->lattice->zSet.get(par_index, zone_number, tab2);
+			for (int i=0; i<Pars2;i+=2) tab[i/2]=tab2[i];
+			fprintf(f,"GET");
+			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			fprintf(f,"\n");
+			return 0;
+		case PAR_SET:
+			output("Setting the params in the zone\n");
+			fprintf(f,"SET");
+			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			fprintf(f,"\n");
+			for (int i=0; i<Pars;i++) {
+				if (2*i<Pars2) tab2[2*i] = tab[i];
+				if (2*i+1<Pars2) {
+					if (i+1<Pars) tab2[2*i+1]=(tab[i]+tab[i+1])/2;
+					else tab2[2*i+1]=tab[i];
+				}
+			}
+			solver->lattice->zSet.set(par_index, zone_number, tab2);
+			return 0;
+		case PAR_GRAD:
+			output("Getting gradient of a param (%d) in zone(%d)\n", par_index, zone_number);
+			solver->lattice->zSet.get_grad(par_index, zone_number, tab2);
+			for (int i=0; i<Pars;i++) tab[i]=0;
+			for (int i=0; i<Pars;i++) {
+				if (2*i<Pars2) tab[i] += tab2[2*i];
+				if (2*i+1<Pars2) {
+					if (i+1<Pars) {
+						tab[i] += tab2[2*i+1]/2;
+						tab[i+1] += tab2[2*i+1]/2;
+					}
+					else tab[i] += tab2[2*i+1];
+				}
+			}
+			fprintf(f,"GRAD");
+			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			fprintf(f,"\n");
+			return 0;
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) tab[i]=upper;
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) tab[i]=lower;
+			return 0;
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
+			exit(-1);
+		}
+	};
+};
+
+class Fourier : public Design {
+	int Pars;
+	int Pars2;
+	double * tab2;
+	double lower, upper;
+	FILE * f;
+	Handler * hand;
+	double pi;
+public:
+	int Init() {
+		Pars = -1;
+		pi = atan(1) * 4;
+		pugi::xml_attribute attr;
+                pugi::xml_node par = node.first_child();
+		if (! par) {
+			ERROR("%s needs exacly one child! - none found\n", node.name());
+			return -1;
+		}
+		hand = new Handler(par, solver);
+		par = par.next_sibling();
+		if (par) {
+			ERROR("%s needs exacly one child! - more found\n", node.name());
+			return -1;
+		}
+		if (! (*hand)) return -1;
+		if ((*hand).Type() != HANDLER_DESIGN) {
+			ERROR("%s needs child of design type!\n", node.name());
+			return -1;
+		}
+
+		Pars2 = (*hand)->NumberOfParameters();
+		attr = node.attribute("modes");
+		if (attr) {
+			Pars = attr.as_int();
+		} else {
+			Pars = 10;
+			notice("number of modes not set in %s - setting to %d\n",node.name(), Pars);
+		}
+		if (Pars % 2 != 1) {
+			Pars = Pars + 1;
+			notice("number of modes in %s not odd - setting to %d\n",node.name(), Pars);
+		}
+		output("Lenght of time-resolved control: %d\n", Pars2);
+		tab2 = new double[Pars2];
+		output("Lenght of fourier control: %d\n", Pars);
+
+		attr = node.attribute("lower");
+		if (attr) {
+			lower = solver->units.alt(attr.value());
+		} else {
+			notice("lower bound not set in %s - setting to -1\n",node.name());
+			lower = -1;
+		}
+		attr = node.attribute("upper");
+		if (attr) {
+			upper = solver->units.alt(attr.value());
+		} else {
+			notice("upper bound not set in %s - setting to 1\n",node.name());
+			upper = 1;
+		}
+		return Design::Init();
+	};
+	int Finish() {
+		delete hand;
+		double w = pi;
+	}
+	int NumberOfParameters() {
+		return Pars;
+	};
+	int Parameters(int type, double * tab) {
+		double s = 0.5*(upper - lower);
+		switch(type) {
+		case PAR_GET:
+			output("Getting the params and making fourier decomposition\n");
+			(*hand)->Parameters(type, tab2);
+			for (int i=0; i<Pars;i++) {
+				int i0 = (i+1)>>1; int i1 = i & 1;
+				tab[i] = 0;
+				for (int j=0; j<Pars2; j++) {
+					if (i1) {
+						tab[i] += sin(i0*pi*2*j/Pars2) * tab2[j];
+					} else {
+						tab[i] += cos(i0*pi*2*j/Pars2) * tab2[j];
+					}
+				}
+				if (i == 0) {
+					tab[i] = tab[i] / Pars2;
+				} else {
+					tab[i] = 2 * tab[i] / Pars2;
+				}
+				output("%s[%d] = %lf\n", node.name(), i, tab[i]);
+			}
+			return 0;
+		case PAR_SET:
+			output("Setting the params with a fourier series\n");
+			for (int j=0; j<Pars2; j++) {
+				tab2[j] = 0;
+				for (int i=0; i<Pars;i++) {
+					int i0 = (i+1)>>1; int i1 = i & 1;
+					if (i1) {
+						tab2[j] += sin(i0*pi*2*j/Pars2) * tab[i];
+					} else {
+						tab2[j] += cos(i0*pi*2*j/Pars2) * tab[i];
+					}
+				}
+			}
+			(*hand)->Parameters(type, tab2);
+			return 0;
+		case PAR_GRAD:
+			output("Getting gradient and making fourier decomposition\n");
+			(*hand)->Parameters(type, tab2);
+			for (int i=0; i<Pars;i++) {
+				int i0 = (i+1)>>1; int i1 = i & 1;
+				tab[i] = 0;
+				for (int j=0; j<Pars2; j++) {
+					if (i1) {
+						tab[i] += sin(i0*pi*2*j/Pars2) * tab2[j];
+					} else {
+						tab[i] += cos(i0*pi*2*j/Pars2) * tab2[j];
+					}
+				}
+			}
+			return 0;
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) {
+				int i0 = (i+1)>>1; int i1 = i & 1;
+				tab[i]=s/i0;
+			}
+			tab[0] = upper;
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) {
+				int i0 = (i+1)>>1; int i1 = i & 1;
+				tab[i]= -s/i0;
+			}
+			tab[0] = lower;
+			return 0;
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
+			exit(-1);
+		}
+	};
+};
+
 
 class cbVTK: public Callback {
 	std::string nm;
@@ -451,6 +880,7 @@ class GenericAction: public Action {
 	public:
 	int Init() {
 		stack=0;
+		parSize= -1;
 		return Action::Init();
 	}
 	int ExecuteInternal() {
@@ -459,8 +889,9 @@ class GenericAction: public Action {
 			Handler hand(par, solver);
 			if (hand) {
 				if (hand.Type() & HANDLER_CALLBACK) {
-					if (hand.hand->everyIter) {
+					if ((hand.hand->everyIter != 0) || (hand.Type() & HANDLER_DESIGN)) {
 						debug1("adding %lf\n", hand.hand->everyIter);
+						output("Adding %s to the solver hands\n",(*hand).node.name());
 						solver->hands.push_back(hand);
 						stack++;
 					} else {
@@ -484,6 +915,39 @@ class GenericAction: public Action {
 		}
 		return 0;
 	}
+	int parSize;
+	int NumberOfParameters() {
+		output("Collecting parameters from Design elements\n");
+		if (parSize < 0) {
+			parSize = 0;
+			for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+				output("Getting number of parameters from %s\n", solver->hands[i]->node.name());
+				int k = solver->hands[i]->NumberOfParameters();
+				parSize += k;
+			}
+		} else {
+			output("Done some time ago\n");
+		}
+		return parSize;
+	};
+	int Parameters(int type, double * tab) {
+		int offset = 0, size = 0, ret=0;
+		for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+			output("Parameters from %s (%d)\n", solver->hands[i]->node.name(), type);
+			size = solver->hands[i]->NumberOfParameters();
+			if (offset + size > parSize) { offset = offset + size; break; }
+			ret = solver->hands[i]->Parameters(type, tab+offset);
+			if (ret) return ret;
+			offset += size;
+		}
+		if (offset != parSize) {
+				ERROR("Numer of parameters is inconsistent with first call to NumberOfParameters (in Parameters(%d)!", type);
+				exit(-1);
+				return -1;
+		}
+		return 0;
+	};
+
 };
 
 class GenericContainer: public GenericAction {
@@ -493,11 +957,10 @@ class GenericContainer: public GenericAction {
 		return GenericAction::ExecuteInternal();
 	}
 	int Finish() {
-		return GenericAction::Unstack();
+		GenericAction::Unstack();
 		return GenericAction::Finish();
 	}
 };
-
 
 class acSolve: public GenericAction {
 	public:
@@ -683,7 +1146,8 @@ class acOptimize: public GenericAction {
 		material=0.0;
 		GenericAction::Init();
 		DEBUG_M;
-		par = solver->getPars();
+//		par = solver->getPars();
+		par = NumberOfParameters();
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
@@ -694,7 +1158,8 @@ class acOptimize: public GenericAction {
 			start = new double[par];
 		}
 		DEBUG_M;
-		solver->getPar(start);
+//		solver->getPar(start);
+		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
 		if (solver->mpi_rank == 0) {
@@ -714,9 +1179,11 @@ class acOptimize: public GenericAction {
                         }
 			{
 				double * bound = new double[par];
-				for (int i=0;i<par; i++) bound[i] = 0;
+				Parameters(PAR_LOWER, bound);
+				output("lower set to %lf\n", bound[0]);
 				nlopt_set_lower_bounds(opt, bound);
-				for (int i=0;i<par; i++) bound[i] = 1;
+				Parameters(PAR_UPPER, bound);
+				output("upper set to %lf\n", bound[0]);
 				nlopt_set_upper_bounds(opt, bound);
 				delete[] bound;
 			}
@@ -805,10 +1272,12 @@ class acOptimize: public GenericAction {
 	int Execute(const double * x, double * grad, double * f) {
 		DEBUG_M;
 		solver->opt_iter++;
-		solver->setPar(x);
+//		solver->setPar(x);
+		SetParameters(x);
 		if (GenericAction::ExecuteInternal()) return -1;
 		everyIter = solver->iter - startIter;
-		solver->getDPar(grad);
+//		solver->getDPar(grad);
+		GetGradient(grad);
 		*f = solver->lattice->getObjective();
 		output("Evaluated objective: %lg\n", *f);
 		return 0;
@@ -873,7 +1342,8 @@ class acThreshold: public GenericAction {
 		}
 		                        
 		DEBUG_M;
-		par = solver->getPars();
+//		par = solver->getPars();
+		par = NumberOfParameters();
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
@@ -885,7 +1355,8 @@ class acThreshold: public GenericAction {
 			slice = new double[par];
 		}
 		DEBUG_M;
-		solver->getPar(start);
+//		solver->getPar(start);
+		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
 		
@@ -893,7 +1364,8 @@ class acThreshold: public GenericAction {
 		        double th = (1.0 * i)/(levels-1);
 		        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(th);
 		        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>th ? 1.0 : 0.0;
-        		solver->setPar(slice);
+//        		solver->setPar(slice);
+			SetParameters(slice);
         		if (GenericAction::ExecuteInternal()) return -1;
                 }
 		return 0;
@@ -916,7 +1388,8 @@ class acThresholdNow: public GenericAction {
 		        level = 0.5;
 		}
 		DEBUG_M;
-		par = solver->getPars();
+//		par = solver->getPars();
+		par = NumberOfParameters();
 		DEBUG_M;
 		if (solver->mpi_rank == 0) {
         		if (par == 0) {
@@ -928,12 +1401,14 @@ class acThresholdNow: public GenericAction {
 			slice = new double[par];
 		}
 		DEBUG_M;
-		solver->getPar(start);
+//		solver->getPar(start);
+		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
 	        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(level);
 	        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>level ? 1.0 : 0.0;
-       		solver->setPar(slice);
+//       		solver->setPar(slice);
+		SetParameters(slice);
 		return 0;
 	}
 };
@@ -1261,20 +1736,132 @@ class acParams: public Action {
                                 }
                         }
                         if (zone_number > -2) {
-                        debug2("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
 		<?R for (v in rows(Settings)) { ?>
 		        if (par == "<?%s v$name?>") {
 				double val = solver->units.alt(attr.value());
+	                        output("Setting %s to %s (%lf)\n", par.c_str(), attr.value(), val);
 				solver->lattice-><?%s v$FunName ?>(val);
 			}
 		<?R } ?>
 		<?R for (v in rows(ZoneSettings)) { ?>
 		        if (par == "<?%s v$name?>") {
 				double val = solver->units.alt(attr.value());
+	                        output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, attr.value(), val);
 				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
 			}
 		<?R } ?>
 		        }
+		}
+		return 0;
+	}
+};
+
+class acSyntheticTurbulence: public Action {
+	public:
+
+	int ReadWaveNumer(std::string name, double * var) {
+		int set = 0;
+		double val = *var;
+		pugi::xml_attribute attr;
+		attr = node.attribute((name + "WaveLength").c_str());
+		if (attr) {
+			set++;
+			val = 1.0 / solver->units.alt(attr.value());
+		}
+		attr = node.attribute((name + "WaveNumber").c_str());
+		if (attr) {
+			set++;
+			val = solver->units.alt(attr.value());
+		}
+		attr = node.attribute((name + "WaveFrequency").c_str());
+		if (attr) {
+			set++;
+			val = solver->units.alt(attr.value())*8*atan(1.0);
+		}
+		if (set) {
+			if (set > 1) {
+				NOTICE("Only one of WaveLength, WaveNumber or Frequency, can be set for a Turbulence parameter \"%s\". Taking the last.\n", name.c_str());
+			}
+			*var = val;
+			return 0;
+		} else {
+			return -1;
+		}
+	}
+	int Init() {
+		int nmodes;
+		Action::Init();
+		pugi::xml_attribute attr = node.attribute("Modes");
+		if (attr) {
+			nmodes = attr.as_int();
+		} else {
+		        nmodes = 100;
+		}
+		solver->lattice->ST.resize(nmodes);
+
+		std::string spread;
+		attr = node.attribute("Spread");
+		if (! attr) {
+			spread = "Even";
+		} else {
+			spread = attr.value();
+		}
+		if (spread == "Even") {
+			solver->lattice->ST.setSpread(EvenSpread);
+		} else if (spread == "Log") {
+			solver->lattice->ST.setSpread(LogSpread);
+		} else if (spread == "Quantile") {
+			solver->lattice->ST.setSpread(QuantileSpread);
+		} else {
+			ERROR("Unknown spread type \"%s\" in %s\n", spread.c_str(), node.name());
+			ERROR("Avaliable: Even, Log and Quantile\n");
+			return -1;
+		}
+	
+		std::string spec;
+		attr = node.attribute("Spectrum");
+		if (! attr) {
+			spec = "Von Karman";
+		} else {
+			spec = attr.value();
+		}
+		if (spec == "Von Karman") {
+			double mainWN, diffWN, maxWN, minWN;
+			if (ReadWaveNumer("Main", &mainWN)) {
+				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");
+				return -1;
+			}
+			if (ReadWaveNumer("Diffusion", &diffWN)) {
+				ERROR("Must provide DiffusionWaveNumber for synthetic turbulence Von Karman spectrum\n");
+				return -1;
+			}
+			maxWN = 8*atan(1)/4; // 2*pi on 4 elements
+			ReadWaveNumer("Shortest", &maxWN);
+			minWN = mainWN / 2; // Default longest wave is twice the size of the main
+			ReadWaveNumer("Longest", &minWN);
+			output("Setting Von Karman spectrum with main length=%lg and diffusion length=%lg. With spread of %d modes across lengths %lg - %lg\n", 1/mainWN, 1/diffWN, nmodes, 1/maxWN, 1/minWN); 
+			solver->lattice->ST.setVonKarman(mainWN, diffWN, minWN, maxWN);
+		} else if (spec == "One Wave") {
+			double WN;
+			nmodes = 1;
+			solver->lattice->ST.resize(nmodes);
+			if (ReadWaveNumer("", &WN)) {
+				ERROR("Must provide WaveNumber for synthetic turbulence\n");
+				return -1;
+			}
+			output("Setting one-wave spectrum with length=%lg\n", 1/WN); 
+			solver->lattice->ST.setOneWave(WN);
+		} else {
+			ERROR("Unknown spectrum type \"%s\" in %s\n", spec.c_str(), node.name());
+			return -1;
+		}
+		{
+			double timeWN;			
+			if (ReadWaveNumer("Time", &timeWN)) {
+                                ERROR("Must provide TimeWaveNumber for synthetic turbulence\n");
+                                return -1;
+                        }
+			solver->lattice->ST.setTimeScale(timeWN);
 		}
 		return 0;
 	}
@@ -1362,6 +1949,7 @@ class acGeometry: public Action {
 			solver->outIterFile("G", ".vti", filename);
 			solver->geometry->writeVTI(filename);
 			solver->lattice->FlagOverwrite(solver->geometry->geom,solver->geometry->region);
+			solver->lattice->zSet.zone_max(solver->geometry->SettingZones.size()-1);
 			return 0;
 	}
 };
@@ -1425,6 +2013,14 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new GenericContainer;
         } else if (name=="Model") {
 		ret = new acModel;
+        } else if (name=="InternalTopology") {
+		ret = new InternalTopology;
+        } else if (name=="OptimalControl") {
+		ret = new OptimalControl;
+        } else if (name=="OptimalControlSecond") {
+		ret = new OptimalControlSecond;
+        } else if (name=="Fourier") {
+		ret = new Fourier;
         } else if (name=="Optimize") {
 #ifdef WITH_NLOPT
 		ret = new acOptimize;
@@ -1447,6 +2043,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new conFieldParameter;
         } else if (name=="ControlParameter") {
 		ret = new conControlParameter;
+	} else if (name=="SyntheticTurbulence") {
+		ret = new acSyntheticTurbulence;
         } else {
 		ERROR("Unknown element '%s'\n", node.name());
 		return NULL;

@@ -1,5 +1,6 @@
 #include "Consts.h"
 #include "types.h"
+#include "stdio.h"
 
 #ifndef __CUDACC__
   #define CROSS_CPP
@@ -17,12 +18,18 @@
       template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
     #else
+//      #include "../../cub/cub/cub.cuh"
       #define CudaDeviceFunction __device__
       #define CudaHostFunction __host__
       #define CudaGlobalFunction __global__
       #define CudaConstantMemory __constant__
       #define CudaSharedMemory __shared__
       #define CudaSyncThreads __syncthreads
+    #if __CUDA_ARCH__ < 200
+      #define CudaSyncThreadsOr(x__) (__syncthreads(),x__)
+    #else
+      #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
+    #endif
       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
@@ -42,16 +49,25 @@
                 lock = 0;
         }
       #else
+      
+#if __CUDA_ARCH__ < 200
+  #define CROSS_NEED_ATOMICADD
+#else
+#endif
+      
         #ifdef CALC_DOUBLE_PRECISION
           typedef unsigned long long int real_t_i;
           #define R2I(x) __double_as_longlong(x)
           #define I2R(x) __longlong_as_double(x)
+          #define CROSS_NEED_ATOMICADD
         #else
 //         typedef unsigned long int      real_t_i;
           #define R2I(x) __float_as_int(x)
           #define I2R(x) __int_as_float(x)
           typedef int      real_t_i;
         #endif
+        
+        #ifdef CROSS_NEED_ATOMICADD
         __device__ inline void atomicAddP(real_t* address, real_t val)
         {
             if (val != 0.0) {
@@ -65,7 +81,11 @@
               } while (assumed != old);
             }
         }
+        #else
+        #define atomicAddP atomicAdd
+        #endif
 
+        
         __device__ inline void atomicMaxP(real_t* address, real_t val)
         {
             if (val != 0.0) {
@@ -80,29 +100,50 @@
             }
         }
       #endif
-      __shared__ real_t sumtab[MAX_THREADS];
+      __shared__ real_t  sumtab[MAX_THREADS];
+      __shared__ real_t* sumptr[MAX_THREADS];
 
-      __device__ inline void atomicSum(real_t * sum, real_t val)
-      {
+      __device__ inline void atomicSum_f(real_t * sum) {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
               int j = blockDim.x*threadIdx.y + threadIdx.x;
-              sumtab[j] = val;
-              __syncthreads();
               while (i> 1) {
                       k = i >> 1;
                       i = i - k;
                       if (j<k) sumtab[j] += sumtab[j+i];
                       __syncthreads();
               }
-              if (j==0) atomicAddP(sum,sumtab[0]);
+              if (j==0) {
+                real_t val = sumtab[0];
+                if (val != 0.0) {
+                  atomicAddP(sum, val);
+                }
+              }
       }
+
+      __device__ inline void atomicSum(real_t * sum, real_t val)
+      {
+              __syncthreads();
+              int j = blockDim.x*threadIdx.y + threadIdx.x;
+              sumtab[j] = val;
+              __syncthreads();
+              atomicSum_f(sum);
+      }
+
+/*      __device__ inline void atomicSum(real_t * sum, real_t val) {
+        typedef cub::BlockReduce<real_t, 32, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 20> BlockReduce;
+        __shared__ typename BlockReduce::TempStorage temp_storage;
+        real_t ret = BlockReduce(temp_storage).Sum(val);
+        if ((blockDim.x*threadIdx.y + threadIdx.x) == 0) atomicAddP(sum, ret);
+      }
+*/
 
       __device__ inline void atomicMax(real_t * sum, real_t val)
       {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
               int j = blockDim.x*threadIdx.y + threadIdx.x;
+              __syncthreads();
               sumtab[j] = val;
               __syncthreads();
               while (i> 1) {
@@ -113,6 +154,20 @@
               }
               if (j==0) atomicMaxP(sum,sumtab[0]);
       }
+
+      __device__ inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
+      {
+                __syncthreads();
+                int j = blockDim.x*threadIdx.y + threadIdx.x;
+                if (yes) {
+                  sumtab[j] = val;
+                } else {
+                  sumtab[j] = 0.0;
+                }
+                __syncthreads();
+                atomicSum_f(sum);
+      }
+
     #endif
 
 
@@ -164,7 +219,7 @@
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
 
-    void HandleError( cudaError_t err, const char *file, int line );
+    cudaError_t HandleError( cudaError_t err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
     int GetMaxThreads();
     #define RunKernelMaxThreads (GetMaxThreads())
@@ -227,6 +282,7 @@
     #define CudaExternConstantMemory(x) extern x
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
+    #define CudaSyncThreadsOr(x__) x__
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
       #define CudaKernelRun(a__,b__,c__,d__) \

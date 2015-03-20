@@ -73,6 +73,9 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
+	container->px = region.dx;
+	container->py = region.dy;
+	container->pz = region.dz;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
 	}
@@ -111,7 +114,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
         container->ConstZoneSettings = zSet.gpuConst;
         container->ZoneIndex = 0;
 <?R for (s in rows(ZoneSettings)) { ?>
-        zSet.set(<?%s s$Index ?>, -1, <?%f s$default ?>);
+//        zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
 <?R } ?>
         ZoneIter = 0;
 
@@ -240,6 +243,7 @@ void Lattice::clearAdjoint()
 	aSnaps[0].Clear(region.nx,region.ny,region.nz);
 	aSnaps[1].Clear(region.nx,region.ny,region.nz);
 #endif
+	zSet.ClearGrad();
 }
 
 /// Clear the derivatives of the parameters
@@ -366,7 +370,12 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	int i=0;
 	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+
+	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
 	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
+	ST.Generate();
+	ST.CopyToGPU(container->ST);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -447,6 +456,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	MPI_Request request;
 	int i=0;
 	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
+	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
+	ST.Generate();
+	ST.CopyToGPU(container->ST);
+
+	debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -1034,7 +1050,7 @@ void Lattice::getGlobals(real_t * tab) {
                         &tabl[<?%s G$Index[1] ?>],
                         &tab[<?%s G$Index[1] ?>],
                         <?%s G$Index[n] ?> - <?%s G$Index[1] ?> + 1,
-                        MPI_TYPE_F,
+                        MPI_REAL_T,
                         MPI_<?%s G$op[1] ?>,
                         0,
                         MPI_COMM_WORLD); <?R

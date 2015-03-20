@@ -144,7 +144,7 @@ CudaDeviceFunction void BounceBack()
 	by(Density, Density$group, function(d) {
 		i = order(d$dx,d$dy,d$dz)
 		j = order(-d$dx,-d$dy,-d$dz)
-		if (any(d[i,c("dx","dy","dz")]!=-d[j,c("dx","dy","dz")])) stop("Density directions are not fully symetric!");
+		if (any(d[i,c("dx","dy","dz")] != -d[j,c("dx","dy","dz")])) stop("Density directions are not fully symetric!");
 		V = cbind(i,j);
 		sel = V[,1] > V[,2]
 		V = V[sel,, drop=F]

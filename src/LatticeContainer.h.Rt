@@ -5,6 +5,7 @@
 /** \file LatticeContainer.h
   File defining LatticeContainer and some additional CUDA functions
 */
+#include "SyntheticTurbulence.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -48,11 +49,12 @@ class LatticeContainer {
   int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
-
+	int px,py,pz;
   int ZoneIndex;
+  int MaxZones;
   real_t** ZoneSettings;
   real_t* ConstZoneSettings;
-
+  STWaveSet ST;
   void Alloc (int,int,int);
   void Free();
   CudaDeviceFunction void fill();
@@ -100,10 +102,23 @@ class LatticeContainer {
 
   CudaDeviceFunction inline const real_t ZoneSetting_DT(const int & s, const int & z) {
     const int i = s + ZONESETTINGS * z;
-    const real_t * w = ZoneSettings[i];
+    const real_t * w = ZoneSettings[i + DT_OFFSET];
     if (w == NULL) return 0;
-    w = ZoneSettings[i + DT_OFFSET];
     return w[ZoneIndex];
+  }
+
+  CudaDeviceFunction inline real_t * ZoneSettingGrad(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    real_t * w = ZoneSettings[i + GRAD_OFFSET];
+    if (w == NULL) return & ConstZoneSettings[i + GRAD_OFFSET];
+    return & w[ZoneIndex];
+  }
+
+  CudaDeviceFunction inline vector_t getST(const real_t t, int x, int y, int z) {
+	x += px;
+	y += py;
+	z += pz;
+	return calc(ST, x,y,z);
   }
 
   void Color( uchar4 *optr );

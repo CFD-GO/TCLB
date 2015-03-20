@@ -3,15 +3,15 @@
 #  dx,dy,dz - direction of streaming
 #  comment - additional comment
 
-AddDensity( name="f[0]", dx= 0, dy= 0)
-AddDensity( name="f[1]", dx= 1, dy= 0)
-AddDensity( name="f[2]", dx= 0, dy= 1)
-AddDensity( name="f[3]", dx=-1, dy= 0)
-AddDensity( name="f[4]", dx= 0, dy=-1)
-AddDensity( name="f[5]", dx= 1, dy= 1)
-AddDensity( name="f[6]", dx=-1, dy= 1)
-AddDensity( name="f[7]", dx=-1, dy=-1)
-AddDensity( name="f[8]", dx= 1, dy=-1)
+AddDensity( name="f0", dx= 0, dy= 0, group="f")
+AddDensity( name="f1", dx= 1, dy= 0, group="f")
+AddDensity( name="f2", dx= 0, dy= 1, group="f")
+AddDensity( name="f3", dx=-1, dy= 0, group="f")
+AddDensity( name="f4", dx= 0, dy=-1, group="f")
+AddDensity( name="f5", dx= 1, dy= 1, group="f")
+AddDensity( name="f6", dx=-1, dy= 1, group="f")
+AddDensity( name="f7", dx=-1, dy=-1, group="f")
+AddDensity( name="f8", dx= 1, dy=-1, group="f")
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
 #  name - name of the field
@@ -37,13 +37,17 @@ AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zon
 AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="Smag", default=1, comment='inlet density')
 
+AddQuantity( name="RhoB",adjoint=T)
+AddQuantity( name="UB",adjoint=T,vector=T)
+
 # Globals - table of global integrals that can be monitored and optimized
 
-AddGlobal(name="PressureLoss", comment='pressure loss')
+AddGlobal(name="ForceX", comment='reaction force X')
+AddGlobal(name="ForceY", comment='reaction force Y')
 
 
-AddSetting(name="PDX", default=0, comment='plate')
-AddSetting(name="PDY", default=0, comment='plate')
-AddSetting(name="PX", default=0, comment='plate', zonal=T)
-AddSetting(name="PY", default=0, comment='plate', zonal=T)
-AddSetting(name="PR", default=0, comment='plate', zonal=T)
+AddSetting(name="PDX", default=0, comment='plate diameter X')
+AddSetting(name="PDY", default=0, comment='plate diameter Y')
+AddSetting(name="PX", default=0, comment='plate position X', zonal=T)
+AddSetting(name="PY", default=0, comment='plate position Y', zonal=T)
+AddSetting(name="PR", default=0, comment='plate angle', zonal=T)

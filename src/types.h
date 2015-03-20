@@ -28,8 +28,8 @@
 #ifndef MPI_TYPES_H
   #define MPI_TYPES_H
   #ifdef CALC_DOUBLE_PRECISION
-    #define MPI_TYPE_F MPI_DOUBLE
+    #define MPI_REAL_T MPI_DOUBLE
   #else
-    #define MPI_TYPE_F MPI_FLOAT
+    #define MPI_REAL_T MPI_FLOAT
   #endif
 #endif

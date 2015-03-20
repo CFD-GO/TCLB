@@ -1,10 +1,12 @@
 <?R
-	source("conf.R") 
+#	source("conf.R") 
+	load("SUMMARY.Rdata")
+	library(polyAlgebra)
 	c_header();
 	f = PV(Density$name)
 	U = as.matrix(Density[,c("dx","dy")])
 
-	u = PV(paste("u[",1:2-1,"]",sep=""))
+	u = PV("u[",1:2-1,"]")
 	uf = PV("uf")
 	d = PV("d")
 	usq = PV("usq")
@@ -22,8 +24,8 @@
 
 	c_sq = 1/3
 	
-	Feq = function( d = PV("d"), u = PV(paste("u[",1:2-1,"]",sep="")) ) {
-          wi*((u %% t(U))*( 1/ c_sq) + ((u %% t(U)) * (u %% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d
+	Feq = function( d = PV("d"), u = PV("u[",1:2-1,"]") ) {
+          wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d
         }
 ?>
 
@@ -42,7 +44,7 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
-<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
 	u.z = 0.0;
@@ -64,10 +66,10 @@ CudaDeviceFunction float2 Color() {
 CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 {
 <?R
-	u = PV(paste("u[",1:2-1,"]",sep=""))
+	u = PV("u[",1:2-1,"]")
 	d = PV("d")
 	c_sq = 1/3
-        C( f == wi*((u %% t(U))*( 1/ c_sq) + ((u %% t(U)) * (u %% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
+        C( f, wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
 ?>
 }
 
@@ -111,12 +113,10 @@ CudaDeviceFunction void BounceBack()
   V = V[sel,]
   for (i in 1:nrow(V))
   {
-	w = list(
-           uf==f[V[i,1]],
-           f[V[i,1]]==f[V[i,2]],
-           f[V[i,2]]==uf
-	)
-	for (h in w) C(h)
+	C(uf, f[V[i,1]])
+        C(f[V[i,1]], f[V[i,2]])
+        C(f[V[i,2]], uf)
+	
    }
 ?>
 }
@@ -176,9 +176,9 @@ CudaDeviceFunction void CollisionMRT()
 		paste("u[",1:2-1,"]",sep=""),
 		paste("R[",1:6-1,"]",sep="")
 	))
-        Sy = rbind(
+        Sy = c(
 		PV(c(0,0,0)),
-		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
+		PV("S",c(2,3,5,7,8,9))
 	)
 
 M = matrix(c(
@@ -193,11 +193,20 @@ M = matrix(c(
       0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
 	norms = diag(t(M) %*% M)
-	C( R == f %% M, float=F);
-	C(usq == sum(u*u));
+	C( R, f %*% M, float=F);
+	C(usq, sum(u*u));
 	
 ?>
-
+switch (NodeType & NODE_OBJECTIVE) {
+case NODE_Outlet:
+	AddToOutletFlux(u[0]/d);
+	AddToPressureLoss(-u[0]/d*((d-1.)/3. + usq/d/2.));
+	break;
+case NODE_Inlet:
+	AddToInletFlux(u[0]/d);
+	AddToPressureLoss(u[0]/d*((d-1.)/3. + usq/d/2.));
+	break;
+}
 R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
 R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
 R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
@@ -209,8 +218,6 @@ R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
 <?R C(R[i]) ?> /= <?%d norms[i] ?>; <?R
 	} ?>
 <?R
-	C( f == R %% t(M), float=F);
+	C( f, R %*% t(M), float=F);
 ?>
 }
-
-

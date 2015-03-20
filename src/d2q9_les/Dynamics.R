@@ -18,9 +18,9 @@ AddQuantity( name="WB",adjoint=T)
 
 AddSetting(name="tau0", comment='one over relaxation time')
 AddSetting(name="nu", tau0='3*nu + 0.5', default=1.6666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
+
+AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="Smag", default=1, comment='inlet density')
 
 AddGlobal(name="PressDiff", comment='pressure loss')

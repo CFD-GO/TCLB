@@ -25,7 +25,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & no
 /// Get only type of node
 template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
 {
-  node.NodeType = NodeType[(node.x + nx*node.y + nx*ny*node.z)];
+  node.NodeType = NodeType[(node.x_ + nx*node.y_ + nx*ny*node.z_)];
         
 <?R #	InOut("type", "in", Density); ?>
 }
@@ -138,6 +138,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
     if (access == "getsum" ) { ?>
       <?%s d ?> = 0.0f; <?R
     }
+
+#print(ret)
     if.apply(ret$Table,ret$Conditions,ret$Selection,function(m) {
       field.access.one(d, paste(MContext$Pocket, Margin[[m]]$name, sep="."), ret$Offset[m] - MContext$Offset[[m]], access);
     })
@@ -148,8 +150,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   save.field = function(d,f,p,MContext)    field.access(d=d,f=f,p=p,      pattern="put",access="set",MContext=MContext)
 
 # mc = require(parallel)
- mc = require(multicore)
-# mc = FALSE
+# mc = require(multicore)
+ mc = FALSE
  if (!mc) {
   txtlapply = function(x,FUN,...,mc.cores=1) lapply(x,FUN,...)
  } else {
@@ -192,7 +194,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
   for (d in rows(Density)[s$load.densities]) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
     f = Fields[Fields$name == d$field][[1]]
-    p = PV(c("node.x","node.y","node.z"));
+    p = PV(c("node.x_","node.y_","node.z_"));
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field(paste("node",d$name,sep="."), f, p, dp,con)
   }?>
@@ -205,7 +207,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pull<?%s s$suffix ?
   for (d in rows(Density)[s$load.densities]) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
     f = Fields[Fields$name == d$field][[1]]
-    p = PV(c("node.x","node.y","node.z"));
+    p = PV(c("node.x_","node.y_","node.z_"));
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field(paste("node",d$name,sep="."), f, p, dp, con)
   }?>
@@ -217,7 +219,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
   con = make.context("out",pocket=TRUE);
   for (f in Fields[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x","node.y","node.z"));
+    p = PV(c("node.x_","node.y_","node.z_"));
     con=save.field(paste("node",f$name,sep="."), f, p, con)
   }?>
 }
@@ -231,7 +233,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
     con = field.access(
      d=paste("node",d$adjoint_name,sep="."),
      f=Fields[Fields$name == d$field][[1]],
-     p=PV(c("node.x","node.y","node.z")),
+     p=PV(c("node.x_","node.y_","node.z_")),
      dp=c(-d$dx, -d$dy, -d$dz),
      pattern="get",
      access="atomicadd",
@@ -246,11 +248,11 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
   con = make.context("adjin",pocket=TRUE);
   for (f in Fields[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x","node.y","node.z"));
+    p = PV(c("node.x_","node.y_","node.z_"));
     con = field.access(
      d=paste("node",f$adjoint_name,sep="."),
      f=f,
-     p=PV(c("node.x","node.y","node.z")),
+     p=PV(c("node.x_","node.y_","node.z_")),
      pattern="put",
      access="getsum",
      MContext=con

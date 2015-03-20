@@ -1,10 +1,17 @@
 #include "Consts.h"
 #include "pugixml.hpp"
 
-#define HANDLER_CALLBACK 0x01
-#define HANDLER_ACTION 0x02
-#define HANDLER_GENERIC 0x04
-#define HANDLER_CONTAINER 0x08
+#define HANDLER_CALLBACK  0x01
+#define HANDLER_ACTION    0x02
+#define HANDLER_DESIGN    0x04
+#define HANDLER_GENERIC   0x10
+#define HANDLER_CONTAINER 0x20
+
+#define PAR_GET   0x01
+#define PAR_SET   0x02
+#define PAR_GRAD  0x03
+#define PAR_LOWER 0x04
+#define PAR_UPPER 0x05
 
 class Solver;
 
@@ -24,6 +31,11 @@ class vHandler {
 	virtual int DoIt(); ///< Do what have to be done
 	virtual int Finish(); ///< Finalize the Handler
 	virtual int Type(); ///< Return the type of the Handler
+	virtual int NumberOfParameters(); ///< Return the type of the Handler
+	virtual int Parameters(int type, double* data);
+	inline  int GetParameters(double * data) { return this->Parameters(PAR_GET, data); };
+	inline  int SetParameters(const double *data) {return this->Parameters(PAR_SET, const_cast<double *>(data));}; ///< Return the type of the Handler
+	inline  int GetGradient(double * data) { return this->Parameters(PAR_GRAD, data); }; ///< Return the type of the Handler
 /// Check if Now is the time to run this Handler
 /**
 	Checks if now is the time to DoIt for this Handler
@@ -119,6 +131,9 @@ public:
 		debug0("Handler shared pointer++: %d\n", *ref);
 		return *this;
 	}
+/// Gets the vHandler
+	vHandler& operator* () { return *hand; }
+	vHandler* operator-> () { return hand; }
 /// Deletes a shared pointer reference
 	inline ~Handler() {
 		(*ref)--;
