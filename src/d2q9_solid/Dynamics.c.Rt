@@ -28,20 +28,21 @@
 #	wi = c(16,4,4,4,4,1,1,1,1)/36
 	over_c2 = 1/sum(wi*U[,1]**2) # one over square of speed of sound
 
+	LBM_FD = FALSE
 
 	calculate_d = function(fi) { 
-		D1  = (fi %*% (U*wi) ) * over_c2
-		D2 =  (over_c2^2) * t(U) %*% (diag(wi)*fi) %*% U * 2
-		C(PV(c("dx","dy")), D1)
-		C(PV(c("dxx","dxy","dyy")), solve(matrix(c(3,0,1,0,2,0,1,0,3),3,3)) %*% D2[c(1,2,4)])
-
-		
-              C(PV("dx"),  (fi[2] - fi[4]) * (1 / 2.0) );
-              C(PV("dy"),  (fi[3] - fi[5]) * (1 / 2.0) );
-              C(PV("dxx"), (fi[2] - 2 * fi[1] + fi[4]) );
-              C(PV("dyy"), (fi[3] - 2 * fi[1] + fi[5]) );
-              C(PV("dxy"), (fi[6] + fi[8] - fi[9] - fi[7]) * (1/4.0) );
-
+		if (LBM_FD) {
+			D1  = (fi %*% (U*wi) ) * over_c2
+			D2 =  (over_c2^2) * t(U) %*% (diag(wi)*fi) %*% U * 2
+			C(PV(c("dx","dy")), D1)
+			C(PV(c("dxx","dxy","dyy")), solve(matrix(c(3,0,1,0,2,0,1,0,3),3,3)) %*% D2[c(1,2,4)])
+		} else {
+			C(PV("dx"),  (fi[2] - fi[4]) * (1 / 2.0) );
+			C(PV("dy"),  (fi[3] - fi[5]) * (1 / 2.0) );
+			C(PV("dxx"), (fi[2] - 2 * fi[1] + fi[4]) );
+			C(PV("dyy"), (fi[3] - 2 * fi[1] + fi[5]) );
+			C(PV("dxy"), (fi[6] + fi[8] - fi[9] - fi[7]) * (1/4.0) );
+		}
 	}
 ?>
 
@@ -58,12 +59,7 @@ CudaDeviceFunction real_t getC(){
 }
 
 CudaDeviceFunction real_t getCt(){
-	real_t interface=1;
-<?R
-        fi = PV("fi_s(",U[,1],",",U[,2],")")
-        for (i in 1:9) {?> if (<?R C( fi[i] ) ?> < 1.0) <?R } ?> interface = 0;
-	return interface;
-//	return (<?R C(sum(h)) ?>)*(1-fi_s) + Cs*fi_s;
+	return (<?R C(sum(h)) ?>)*(1-fi_s) + Cs;
 }
 
 CudaDeviceFunction real_t getSolid(){
@@ -81,6 +77,7 @@ CudaDeviceFunction real_t getCl_eq(){
 	if (d2 > 0.0) {
 //		theta = acos(dx/sqrt(d2));
 		theta = acos(sqrt(dx*dx/d2));
+		if (dx < 0) theta = 3.14159265358979311600 - theta;			
 		if (dy < 0) theta = 2*3.14159265358979311600 - theta;			
 		K = (2*dx*dy*dxy - dx*dx*dyy - dy*dy*dxx) * pow(dx*dx+dy*dy,-1.5);
 	} else {
@@ -88,8 +85,7 @@ CudaDeviceFunction real_t getCl_eq(){
 		K = 0;
 	}
 	real_t T = (<?R C(sum(g)) ?>) / (<?R C(sum(f)) ?>) ;
-	return C0 + ((T - Teq) + GTCoef * K * (1-15 * SurfaceAnisotropy * cos(4*(theta-Theta0))))/LiquidusSlope;
-//	return C0 + ((T - Teq) + GTCoef * K)/LiquidusSlope;
+	return C0 + ((T - Teq) + GTCoef * K * (1-15 * SurfaceAnisotropy * cos(4.0*(theta-Theta0))))/LiquidusSlope;
 }
     
 CudaDeviceFunction vector_t getU(){
@@ -126,7 +122,8 @@ CudaDeviceFunction real_t getTheta(){
 	d2 = dx*dx+dy*dy;
 	real_t theta;
 	if (d2 > 0.0) {
-		theta = acos(dx/sqrt(d2));
+		theta = acos(sqrt(dx*dx/d2));
+		if (dx < 0) theta = 3.14159265358979311600 - theta;			
 		if (dy < 0) theta = 2*3.14159265358979311600 - theta;			
 	} else {
 		theta = 0;
@@ -138,9 +135,9 @@ CudaDeviceFunction real_t getTheta(){
 CudaDeviceFunction float2 Color() {
         float2 ret;
 
-	ret.x = (<?R C(sum(h)) ?>);
-	ret.x = ret.x;
-	if (!(fi_s < 1)) ret.y = 0; else ret.y= 1;
+	ret.x = (<?R C(sum(h)) ?>)-C0;
+	ret.x = ret.x/111;
+	ret.y = 1-fi_s;
         return ret;
 }
 
@@ -263,7 +260,11 @@ CudaDeviceFunction void Run() {
     }
     if ((NodeType & NODE_MRT))
     {
-		CollisionMRT();
+		if (fi_s < 1) {
+			CollisionMRT();
+		} else {
+			BounceBack();
+		}
     }
 }
 
@@ -368,7 +369,7 @@ CudaDeviceFunction void CollisionMRT()
 				fi_s = 1.0;
 			}
 			dC = C * (1 - PartitionCoef) * dfi;
-			
+			Cs = Cs + C * PartitionCoef * dfi;
 		}
 	}
 <?R

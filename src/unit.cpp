@@ -77,6 +77,7 @@ std::string strFromDouble(double val) {
     units["g"]=readText("1e-3kg");
     units["mg"]=readText("1e-6kg");
     units["d"]=atan(1.0)*4.0/180.;
+    units["%"]=1./100.;
   };
   UnitVal UnitEnv::readUnitOne( std::string val ) {
     if (units.count(val) > 0) {
