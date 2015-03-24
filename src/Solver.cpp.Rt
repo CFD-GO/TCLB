@@ -223,6 +223,21 @@ void MainFree( Solver *d);
 		return ret;
 	}
 
+///	Writes state of lattive to txt files.
+/**
+	Writes all Quantities  to a set of txt files
+	\param nm Appendix added to the name of the txt file written
+	\param s Set of fields/quantities/geometry features to write
+	\param type type of file: 0-normal, 1-gzip
+*/
+	int Solver::writeTXT(const char * nm, name_set * s, int type) {
+		print("writing txt");
+		char filename[STRING_LEN];
+		outIterFile(nm, "", filename);
+		int ret = txtWriteLattice(filename, lattice, units, s, type);
+		return ret;
+	}
+
 
 
 ///	Writes state of lattive to a binary file.

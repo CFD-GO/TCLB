@@ -566,6 +566,31 @@ class cbVTK: public Callback {
 	};
 };
 
+class cbTXT: public Callback {
+	std::string nm;
+	name_set s;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("name");
+		nm = "TXT";
+		if (attr) nm = attr.value();
+		attr = node.attribute("what");
+		if (attr) {
+		        s.add_from_string(attr.value(),',');
+                } else {
+                        s.add_from_string("all",',');
+                }
+		return 0;
+	}
+	public:
+	int DoIt() {
+		Callback::DoIt();
+		return solver->writeTXT(nm.c_str(), &s,0);
+	};
+};
+
+
 #ifdef WITH_CATALYST
 class cbCatalyst: public Callback {
 	std::string nm;
@@ -1961,6 +1986,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new cbVTK;
         } else if (name=="BIN") {
 		ret = new cbBIN;
+        } else if (name=="TXT") {
+		ret = new cbTXT;
         } else if (name=="Log") {
 		ret = new cbLog;
         } else if (name=="Save") {

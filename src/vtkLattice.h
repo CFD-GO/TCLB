@@ -9,6 +9,7 @@
 
 	int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv, name_set * s);
 	int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units);
+	int txtWriteLattice(char * filename, Lattice * lattice, UnitEnv, name_set * s, int type);
 	void screenDumpLattice(Lattice * lattice);
 	int initMean(char * filename);
 	int writeMean(char * filename, Lattice * lattice, int, int iter, double);
