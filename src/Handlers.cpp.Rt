@@ -569,6 +569,7 @@ class cbVTK: public Callback {
 class cbTXT: public Callback {
 	std::string nm;
 	name_set s;
+	int txt_type;
 	public:
 	int Init() {
 		Callback::Init();
@@ -581,12 +582,18 @@ class cbTXT: public Callback {
                 } else {
                         s.add_from_string("all",',');
                 }
+		txt_type = 0;
+		attr = node.attribute("gzip");
+		if (attr) {
+		        txt_type = 1;
+                } else {
+                }
 		return 0;
 	}
 	public:
 	int DoIt() {
 		Callback::DoIt();
-		return solver->writeTXT(nm.c_str(), &s,0);
+		return solver->writeTXT(nm.c_str(), &s, txt_type);
 	};
 };
 

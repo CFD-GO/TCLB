@@ -224,12 +224,23 @@ int txtWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	{
 		if (what->in("<?%s q$name ?>")) {
 			sprintf(fn,"%s_%s.txt",filename,"<?%s q$name ?>");
-			FILE * f = fopen(fn,"w");
+			FILE * f;
+			switch (type) {
+			case 0:
+				f = fopen(fn,"w");
+				break;
+			case 1:
+				char com[STRING_LEN];
+				sprintf(com, "gzip > %s.gz", fn);
+				f = popen(com, "w");
+				break;
+			default:
+				ERROR("Unknown type in txtWriteLattice\n");
+			}
 			if (f == NULL) {
 				ERROR("Cannot open file: %s\n");
 				return -1;
 			}
-
 			double v = units.alt("<?%s q$unit ?>");
 			<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
 			lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
