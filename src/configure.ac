@@ -105,10 +105,16 @@ then
 	AC_CHECK_FILE([${CUDA_HOME}/bin/nvcc], [NVCC="${CUDA_HOME}/bin/nvcc"],[AC_MSG_ERROR([Cannot find nvcc; Check CUDA install])])
 
 	CUDA_LIB_DIR=""
-	AC_CHECK_FILE([${CUDA_HOME}/lib64/libcudart.so], [CUDA_LIB_DIR="/lib64"])
+	AC_CHECK_FILE([${CUDA_HOME}/lib64/libcudart.so], [CUDA_LIB_DIR="${CUDA_HOME}/lib64"])
+
+	
 	if test -z "${CUDA_LIB_DIR}"; then
-		AC_CHECK_FILE([${CUDA_HOME}/lib/libcudart.so], [CUDA_LIB_DIR="/lib"], [CUDA_LIB_DIR=""])
+		AC_CHECK_FILE([${CUDA_HOME}/lib/libcudart.so], [CUDA_LIB_DIR="${CUDA_HOME}/lib"], [CUDA_LIB_DIR=""])
 	fi
+	
+	AC_MSG_RESULT([using CUDALIBDIR:${CUDA_LIB_DIR}])
+	
+	
 	if test "x${CUDA_LIB_DIR}" != "x"
 	then
 		LDFLAGS="${LDFLAGS} -L${CUDA_HOME}${CUDA_LIB_DIR}"
@@ -140,7 +146,7 @@ then
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_11])
 		fi
-		CUDA_SUFF="sm_11"
+		CUDA_SUFF="11"
 	elif test "$CUDA_ARCH" == "sm_13"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
@@ -148,18 +154,18 @@ then
 		then
 			AC_MSG_ERROR([Double precision not supported in sm_13])
 		fi
-		CUDA_SUFF="sm_13"
+		CUDA_SUFF="13"
 	elif test "$CUDA_ARCH" == "sm_20"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-		CUDA_SUFF="compute_20"
+		CUDA_SUFF="20"
 	elif test "$CUDA_ARCH" == "sm_30"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
-		CUDA_SUFF="compute_30"
+		CUDA_SUFF="30"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -169,8 +175,8 @@ then
 		AC_MSG_ERROR([CUDA_ARCH should be set by now])
 	else
 		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
-#		NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
-		NVFLAGS="${NVFLAGS} -arch=${CUDA_SUFF}"
+		#NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
+		NVFLAGS="${NVFLAGS} -arch=compute_${CUDA_SUFF}"
 	fi
 	if test "x${enable_openmp}" == "xyes"
 	then
