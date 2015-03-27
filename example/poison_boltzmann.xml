@@ -13,17 +13,17 @@
 	<Model>
 		<Params tau_psi="1."
             n_inf ="1."
-            z = ".001"
+            z = ".2"
             el = "1."
             kb = "1."
             T = "1."
             epsilon = "1."
             dt = "1."
-            psi_bs-wall="1."
+            psi_bc-wall="1."
 		/>
 	</Model>
-	<Solve Iterations="10000" output="output/">
-		<VTK Iterations="100"/>
+	<Solve Iterations="30000" output="output/">
+		<VTK Iterations="1000"/>
 	</Solve>
 </CLBConfig>
 

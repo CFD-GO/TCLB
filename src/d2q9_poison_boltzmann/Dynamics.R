@@ -29,13 +29,10 @@ AddStage("CalcSubiter", save="subiter",load="subiter")
 
 #AddStage("BaseInit", "Init", save=Fields$group == "g", load=DensityAll$group == "g")
 
-AddAction("Iteration", c("CalcPsi", "BaseIteration","CalcSubiter"))
+AddAction("Iteration", c("BaseIteration","CalcPsi", "CalcSubiter"))
 #AddAction("Iteration", c("CalcSubiter"))
 
 #AddAction("Init", c("BaseInit"))
-
-#testx2
-
 
 
 
