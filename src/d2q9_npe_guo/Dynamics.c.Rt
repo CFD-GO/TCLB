@@ -1,0 +1,197 @@
+<?R
+	source("conf.R")
+	c_header();
+
+    U = as.matrix(Density[Density$group=="g",c("dx","dy")])
+
+# U = as.matrix( c( 0, 1, 0, -1, 0, 1, -1, -1, 1), c( 0, 0, 1, 0, -1, 1, 1, -1, -1)) 
+    
+# Creating variables for symbolic computations
+	
+    g = PV(DensityAll$name[DensityAll$group=="g"])
+	
+    psi =  PV("psi")
+	RD = PV("RD")
+	tau_psi = PV("tau_psi")
+	dt = PV("dt")
+	rho_e = PV("rho_e")
+	epsilon=PV("epsilon")
+    
+    RD = -2./3. * (0.5 - tau_psi) * dt  * ( rho_e *(epsilon^-1) ) ;
+
+    wp = c(1./9. - 1., 1./9., 1./9.,1./9.,1./9.,1./9.,1./9.,1./9.,1./9.)
+    wp0 = 1./9.
+    wps = c(0., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8.)
+
+
+# Calculating equlibrium density set
+#	source("MRT/feq.R")
+#	feq = MRT_feq(U, rho, u*rho );
+#	geq = MRT_feq(U, rhoT, u*rhoT );
+
+#calculating weights
+	wi =  c(4./9., 1./9., 1./9., 1./9., 1./9., 1./36., 1./36., 1./36., 1./36.)
+
+#	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
+#	wi = c(16,4,4,4,4,1,1,1,1)/36
+	over_c2 = 1/sum(wi*U[,1]**2) # one over square of speed of sound
+?>
+
+CudaDeviceFunction real_t getPsi(){
+    const real_t wp0 = <?R C(wp0) ?>;
+	return ( <?R C( sum( g[2:9] ))  ?> ) / (1. - wp0);
+}
+
+
+CudaDeviceFunction real_t getSubiter(){
+	return subiter;
+}
+
+CudaDeviceFunction void CalcPsi(){
+    psi - getPsi();
+}
+CudaDeviceFunction real_t getrho_e(){
+    const real_t psi = getPsi();
+	return -2. * n_inf * z * el * sinh( z * el / kb/ T * psi);
+}
+
+CudaDeviceFunction void BounceBack()
+{
+     /*
+     real_t tmp;
+    psi(i_,j_) = psi_down;
+    for (int k_ = 0; k_ < 9; k_++) {
+        const int di = ix(k_,i_,j_);
+        const int dj = iy(k_,i_,j_);
+
+        const double shifted = psi_in(di,dj,k_);
+        const double shifted_eq =  wp(k_) * psi(di,dj);
+
+        psi_out(i_,j_,k_) =  wp(k_) * psi_down -  (1. - wp2) * (shifted - shifted_eq );
+    }
+     */
+<?R
+    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
+    psi_bc=PV("psi_bc")
+# actual, proper bc, g should be from diferent node, as psi_shifted, unable to imlement
+#    C(g, wp*1.  - (1. - wp0) * (g_shifted - wp*psi_shifted))
+    C(g, wp*psi_bc)
+    ?>
+}
+
+CudaDeviceFunction float2 Color() {
+    float2 ret;
+	ret.x = 0;
+	ret.y = 0;
+    return ret;
+}
+
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+    }
+    if ((NodeType & NODE_COLLISION))
+    {
+        CollisionBGK();
+    }
+}
+
+CudaDeviceFunction void Init() {
+	real_t psi0;
+<?R
+    psi0=PV("psi0");
+	C( g, wp*psi0 );
+?>
+}
+
+
+CudaDeviceFunction void CollisionBGK()
+{
+	real_t M[9];
+	real_t psi, rho_e;
+
+	rho_e = getrho_e();
+    psi = getPsi();
+
+    if (subiter < 100) {
+<?R
+    C(g, g - tau_psi^-1 * (g - wp*psi) +  dt * wps * RD  )
+?>
+    } else {
+/*
+ *             cu  = ( U[:,:,0] * e[i,0] + U[:,:,1] * e[i,1]) / cs2
+            geq0 = W[i] * n0[:,:] * ( 1. + cu[:,:] )
+            geq1 = W[i] * n1[:,:] * ( 1. + cu[:,:] )
+            S = BK * ( gradPsi[:,:,0] * e[i,0] + gradPsi[:,:,1] * e[i,1])  
+            
+            g0_out[:,:,i] = g0_in[:,:,i] - 1. / tau_D0 * (g0_in[:,:,i] - geq0) -  W[i] *dt_D0 * z0 * S * n0[:,:]
+            g1_out[:,:,i] = g1_in[:,:,i] - 1. / tau_D1 * (g1_in[:,:,i] - geq1) -  W[i] *dt_D1 * z1 * S * n1[:,:]
+        */
+    const vector_t gradPsi = CalcGradPsi();
+    <?R
+        n_inf = .001
+        kb = 1. 
+        z =  1.
+        el = 1.
+        Temp = 1.
+        epsilon = 0.1
+
+        dt_D0 = 1.
+        dt_D1 = 1.
+        z1 = -z
+        z0 = z
+        D = 1./6.
+
+
+        tau_D0 = D / dt_D0 / cs2  + 1./2.
+        tau_D1 = D / dt_D1 / cs2  + 1./2.
+        cs2 = 1./3.
+        
+
+        B = D / (cs2 * tau_D0 * dt_D0)        
+        BK = B * el  / kb / Temp        
+        u = PV(c("u.x","u.y"))
+
+        cu = u %*% U
+
+        gradPsi = PV(c("gradPsi.x", "gradPsi.y"))
+        n0 = PV("n0")
+        heq0 = wi * n0 * (1 - cu) ;
+        n1 = PV("n1")
+        heq1 = wi * n1 * (1. - cu)
+
+        S = gradPsi %*% U
+        C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 )
+    ?>
+      
+    }
+
+}
+
+CudaDeviceFunction void CalcSubiter()
+{
+    subiter = subiter + 1;
+}
+
+
+CudaDeviceFunction vector_t getGradPsi(){
+
+    vector_t grad;
+
+    <?R 
+        C(PV(c("grad.x","grad.y")), (g - wp*psi) %*% U * ( -(3./2.)*dt^-1*tau_psi^-1 ) );  
+    ?>
+    return grad;
+
+}
+
+CudaDeviceFunction float_t getn0(){
+    return 0.;
+}
+CudaDeviceFunction float_t getn1(){
+    return 0.;
+}
