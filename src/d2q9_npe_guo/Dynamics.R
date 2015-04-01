@@ -39,13 +39,15 @@ AddDensity( name="h_1[6]", dx=-1, dy= 1, group="h_1")
 AddDensity( name="h_1[7]", dx=-1, dy=-1, group="h_1")
 AddDensity( name="h_1[8]", dx= 1, dy=-1, group="h_1")
 
-AddDensity(name="subiter", dx=0, dy=0 )
+AddDensity(name="subiter", dx=0, dy=0)
 
 AddDensity(name="grad_psi[0]", dx=0, dy=0)
 AddDensity(name="grad_psi[1]", dx=0, dy=0)
 
 AddDensity(name="psi",dx=0, dy=0)
 
+
+AddQuantity(name="u", vector=T)
 AddQuantity(name="n0")
 AddQuantity(name="n1")
 AddQuantity(name="Subiter")
@@ -81,6 +83,11 @@ AddSetting(name="kb", comment='')
 AddSetting(name="T", comment='')
 AddSetting(name="epsilon", comment='')
 AddSetting(name="dt", comment='')
+AddSetting(name="psi0", default=1., comment='')
+AddSetting(name="z0", default=1., comment='')
+AddSetting(name="z1", default=-1., comment='')
+
+
 
 AddSetting(name="psi_bc", default=1, comment='psi at  boundary - zeta', zonal=T)
 
