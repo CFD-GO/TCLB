@@ -19,7 +19,7 @@
 	rho_e = PV("rho_e")
 	epsilon=PV("epsilon")
     
-    RD = -2./3. * (0.5 - tau_psi) * dt  * ( rho_e *(epsilon^-1) ) ;
+   
 
     wp = c(1./9. - 1., 1./9., 1./9.,1./9.,1./9.,1./9.,1./9.,1./9.,1./9.)
     wp0 = 1./9.
@@ -31,27 +31,32 @@
 # Calculating equlibrium density set
 	source("MRT/feq.R")
     feq = MRT_feq(U, rho, u*rho );
+    du = PV(c("du.x", "du.y"))
+    feq2 = MRT_feq(U, rho, (u+du)*rho );
+
 #	geq = MRT_feq(U, rhoT, u*rhoT );
 
 #calculating weights
 	wi =  c(4./9., 1./9., 1./9., 1./9., 1./9., 1./36., 1./36., 1./36., 1./36.)
-
+	bounce = c(0,3,4,1,2,7,8,5,6)	
+    uf = PV("uf")
 #	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
 #	wi = c(16,4,4,4,4,1,1,1,1)/36
 	over_c2 = 1/sum(wi*U[,1]**2)         
-    n_inf = .001	    
+    n_inf = PV("n_inf")	    
     kb= PV("kb") 
-    
+    usq=PV("usq") 
     el = PV("el")
-    Temp = PV("Temp")
-    epsilon = 0.1
+    Temp = PV("T")
+    epsilon = PV("epsilon")
     
 
 
     dt_D0 = 1.
     dt_D1 = 1.
-    z1 = PV("z1")
-    z0 = PV("z0")
+#    z1 = -PV("ez")
+    z0 = PV("ez")
+    z1 = 0.-z0
     D = 1./6.
 
 
@@ -60,50 +65,53 @@
 
 
 ?>
-static const  real_t el = 1.;
-static const  real_t kb = 1.;
-static const  real_t Temp = 1.;
+
 CudaDeviceFunction real_t getPsi(){
     const real_t wp0 = <?R C(wp0) ?>;
 	return ( <?R C( sum( g[2:9] ))  ?> ) / (1. - wp0);
 }
 
 
-CudaDeviceFunction real_t getSubiter(){
-	return subiter;
-}
+//CudaDeviceFunction real_t getSubiter(){
+//	return subiter;
+//}
+ 
 
-CudaDeviceFunction void CalcPsi(){
-    psi - getPsi();
-}
 CudaDeviceFunction real_t getrho_e(){
 //    const real_t psi = getPsi();
 //	return -2. * n_inf * z * el * sinh( z * el / kb/ T * psi);
-    return z0*getn0() + z1 * getn1();	
+    return el*(ez*getn0() - ez* getn1());	
 }
 
 CudaDeviceFunction void BounceBack()
 {
-     /*
-     real_t tmp;
-    psi(i_,j_) = psi_down;
-    for (int k_ = 0; k_ < 9; k_++) {
-        const int di = ix(k_,i_,j_);
-        const int dj = iy(k_,i_,j_);
-
-        const double shifted = psi_in(di,dj,k_);
-        const double shifted_eq =  wp(k_) * psi(di,dj);
-
-        psi_out(i_,j_,k_) =  wp(k_) * psi_down -  (1. - wp2) * (shifted - shifted_eq );
-    }
-     */
+// *******************
+// Bounce back f
+// *******************    
+     real_t uf;
 <?R
-    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	C(uf, f[V[i,1]])
+        C(f[V[i,1]], f[V[i,2]])
+        C(f[V[i,2]], uf)
+	
+   }
+?>
+// ********************
+// Dirichlet for others
+// ********************
+
+<?R
+#    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
     psi_bc=PV("psi_bc")
 ?>
-    real_t h0bc =  exp(-z0 * el * psi_bc / kb / Temp);
+    real_t h0bc =  exp(-ez * el * psi_bc / kb / T);
 
-    real_t h1bc =  exp(-z1 * el * psi_bc / kb / Temp);
+    real_t h1bc =  exp(ez * el * psi_bc / kb / T);
 
 <?R
     h0bc = PV("h0bc");    
@@ -130,29 +138,30 @@ CudaDeviceFunction void Run() {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
+        return;
 		break;
     }
     if ((NodeType & NODE_COLLISION))
     {
         CollisionBGK();
+     //   CollisionMRT();
     }
 }
 
 CudaDeviceFunction void Init() {
-	real_t psi0;
+	
     vector_t u = {0.,0.};
     real_t rho = 1.;
-    real_t n00 = 1.;
-    real_t n01 = 1.;
+    
+
 <?R
     psi0=PV("psi0");
 
-	C( g, wp*psi0 );
+	C( g, psi0 * wp0 );
     C( f, feq );
-    n00 = PV("n00");
-    n01 = PV("n01");
-    C( h_0, n00 * wi);
-    C( h_1, n01 * wi);
+
+    C( h_0, n_inf * wi);
+    C( h_1, n_inf * wi);
 
 ?>
 }
@@ -162,6 +171,7 @@ CudaDeviceFunction void CollisionBGK()
 {
 	real_t M[9];
 	real_t psi, rho_e, rho, n0, n1;
+    real_t BK;
     vector_t u;
 
 	rho_e = getrho_e();
@@ -174,43 +184,62 @@ CudaDeviceFunction void CollisionBGK()
 
     n0 = getn0();
     n1 = getn1();
-    subiter = getSubiter();
+//    subiter = getSubiter();
+    vector_t Force, du;
+    Force.x = Ex * rho_e;
+    Force.y = 0.;
+    const vector_t gradPsi = getGradPsi();
 <?R
-    C(g, g - tau_psi^-1 * (g - wp*psi) +  dt * wps * RD  )
+
+        cs2 = 1./3.
+        tau_D0 = D / dt_D0 / cs2  + 1./2.
+        tau_D1 = D / dt_D1 / cs2  + 1./2.
+        
+
+        B = D *(cs2^-1) * (tau_D0^-1) * (dt_D0^-1) 
+
+        BK = PV("BK")
+
+        C(BK,B * el * kb^-1 * Temp^-1)
+#        C(BK,B)
+        u = PV(c("u.x","u.y"))
+
+        cu = (u[1] * U[,1] + u[2] * U[,2]) 
+        
+        gradPsi = PV(c("gradPsi.x", "gradPsi.y"))
+
+        n0 = PV("n0")    
+        heq0 = wi * n0 * (1. - cu * cs2^-1) ;
+
+        n1 = PV("n1")
+        heq1 = wi * n1 * (1. - cu * cs2^-1)
+        
+        S = gradPsi[1] * U[,1] + gradPsi[2] * U[,2]
+        
+#        C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 * BK)
+#        C(h_1, h_1 - tau_D1^-1 * (h_1 - heq1 ) - wi * dt_D1 * z1 * S * n1 * BK )
+        C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 * BK)
+        C(h_1, h_1 - tau_D1^-1 * (h_1 - heq1 ) - wi * dt_D1 * z1 * S * n1 * BK )
+
+#        rho_ee = z0 * sum(h_0) + z1 * sum(h_1)
+#        rho_ee = rho_ee * epsilon^-1
+#        C(rho_e, rho_ee)
+
+        RD = -2./3. * (0.5 - tau_psi) * dt  * ( rho_e *(epsilon^-1) ) ;
+        C(g, g - tau_psi^-1 * (g - wp*psi) +  dt * wps * RD  )
 ?>
 
 //    if (subiter < 10) {
  //       C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 )
 //    } else {
     
-    const vector_t gradPsi = getGradPsi();
+
     <?R
-        cs2 = 1./3.
-        tau_D0 = D / dt_D0 / cs2  + 1./2.
-        tau_D1 = D / dt_D1 / cs2  + 1./2.
         
-
-        B = D / (cs2 * tau_D0 * dt_D0)        
-        BK = B * el  / kb / Temp        
-        u = PV(c("u.x","u.y"))
-
-        cu = u[1] * U[,1] + u[2] * U[,2]
         
-        gradPsi = PV(c("gradPsi.x", "gradPsi.y"))
-
-        n0 = PV("n0")    
-        heq0 = wi * n0 * (1 - cu) ;
-
-        n1 = PV("n1")
-        heq1 = wi * n1 * (1. - cu)
-        
-        S = gradPsi[1] * U[,1] + gradPsi[2] * U[,2]
-        
-        C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 )
-#        subiter=PV("subiter")
-#Ci(h_0, subiter*wi)      
-#C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 )
-        C(h_1, h_1 - tau_D1^-1 * (h_1 - heq1 ) - wi * dt_D1 * z1 * S * n1 )
+        omega = PV("omega") 
+        C(du, PV(c("Force.x","Force.y")))
+        C(f,  f - omega*(f -  feq) + (feq2 - feq) ) 
 
     ?>
       
@@ -218,13 +247,13 @@ CudaDeviceFunction void CollisionBGK()
 
 }
 
-CudaDeviceFunction void CalcSubiter()
-{
-    if (subiter > 10) {
-        subiter = 0;
-    }
-    subiter = subiter + 1;
-}
+//CudaDeviceFunction void CalcSubiter()
+//{
+//    if (subiter > 10) {
+//        subiter = 0;
+//    }
+//    subiter = subiter + 1;
+//}
 
 
 CudaDeviceFunction vector_t getGradPsi(){
@@ -260,10 +289,21 @@ CudaDeviceFunction real_t getRho(){
     return <?R C(sum(f)) ?>;
 
 }   
-CudaDeviceFunction vector_t getu(){
+CudaDeviceFunction vector_t getU(){
     real_t rho = getRho();
     vector_t u = getRhoU();
     u.x = u.x / rho;
     u.y = u.y / rho;
     return u;
 }
+
+CudaDeviceFunction vector_t getF(){
+    real_t rho_e = getrho_e();
+    vector_t F;
+    F.x = Ex*rho_e;
+    F.y = 0 ;
+    return F;
+}
+
+
+

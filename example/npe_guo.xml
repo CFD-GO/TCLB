@@ -1,29 +1,31 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-    <Geometry nx="128" ny="128">
+    <Geometry nx="128" ny="100">
 
 		<MRT><Box /></MRT>
 
         		<Wall mask="ALL" name="wall">
-            <Box dx="1" nx="1" />
-            <Box dx="-1" nx="1" />
+            <Box  ny="1" />
+            <Box dy="-1" ny="1" />
 		</Wall>
 
 	</Geometry>
 	<Model>
 		<Params tau_psi="1."
-            n_inf ="1."
-            z = ".2"
+            n_inf =".01"
+            ez = "1."
             el = "1."
             kb = "1."
             T = "1."
-            epsilon = "1."
+            epsilon = ".05"
             dt = "1."
             psi_bc-wall="1."
+            Ex = "0.000"
+            psi0="1."
 		/>
 	</Model>
-	<Solve Iterations="300" output="output/">
-		<VTK Iterations="1"/>
+	<Solve Iterations="30000" output="output/">
+		<VTK Iterations="1000"/>
 	</Solve>
 </CLBConfig>
 
