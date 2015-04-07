@@ -15,7 +15,7 @@
     psi =  PV("psi")
 	RD = PV("RD")
 	tau_psi = PV("tau_psi")
-	dt = PV("dt")
+
 	rho_e = PV("rho_e")
 	epsilon=PV("epsilon")
     
@@ -27,12 +27,12 @@
 
 #Basic variables
     rho = PV("rho")
-    u = PV(c("u.x","u.y"))
+    ulb = PV(c("ulb.x","ulb.y"))
 # Calculating equlibrium density set
 	source("MRT/feq.R")
-    feq = MRT_feq(U, rho, u*rho );
+    feq = MRT_feq(U, rho, ulb*rho );
     du = PV(c("du.x", "du.y"))
-    feq2 = MRT_feq(U, rho, (u+du)*rho );
+    feq2 = MRT_feq(U, rho, (ulb+du)*rho );
 
 #	geq = MRT_feq(U, rhoT, u*rhoT );
 
@@ -52,13 +52,13 @@
     
 
 
-    dt_D0 = 1.
-    dt_D1 = 1.
+    dt_D = 1.
+	dt = 1.
 #    z1 = -PV("ez")
     z0 = PV("ez")
     z1 = 0.-z0
-    D = 1./6.
-
+    D = PV("D")
+    
 
 # one over square of speed of sound
 
@@ -138,19 +138,19 @@ CudaDeviceFunction void Run() {
 	case NODE_Solid:
 	case NODE_Wall:
 		BounceBack();
-        return;
+       
 		break;
     }
     if ((NodeType & NODE_COLLISION))
     {
-        CollisionBGK();
+      CollisionBGK();
      //   CollisionMRT();
     }
 }
 
 CudaDeviceFunction void Init() {
 	
-    vector_t u = {0.,0.};
+    vector_t ulb = {0.,0.}, u={0,0};
     real_t rho = 1.;
     
 
@@ -172,31 +172,29 @@ CudaDeviceFunction void CollisionBGK()
 	real_t M[9];
 	real_t psi, rho_e, rho, n0, n1;
     real_t BK;
-    vector_t u;
+    vector_t u, Force, du, ulb;
 
 	rho_e = getrho_e();
     psi = getPsi();
     rho = getRho();
 
-    u = getRhoU();
-    u.x = u.x / rho;
-    u.y = u.y / rho;
-
+    u = getU();
+   // ulb = u;
     n0 = getn0();
     n1 = getn1();
-//    subiter = getSubiter();
-    vector_t Force, du;
-    Force.x = Ex * rho_e;
-    Force.y = 0.;
+
     const vector_t gradPsi = getGradPsi();
+//    subiter = getSubiter();
+
+    Force = getF();
+    
+    const real_t omega = 1.0-1.0/(3*nu + 0.5);
 <?R
-
         cs2 = 1./3.
-        tau_D0 = D / dt_D0 / cs2  + 1./2.
-        tau_D1 = D / dt_D1 / cs2  + 1./2.
-        
+        C(PV("const real_t tau_D"), D * dt_D^-1 * cs2^-1  + 1./2.)
+        tau_D = PV("tau_D")
 
-        B = D *(cs2^-1) * (tau_D0^-1) * (dt_D0^-1) 
+        B = D *(cs2^-1) * (tau_D^-1) * (dt_D^-1) 
 
         BK = PV("BK")
 
@@ -216,10 +214,8 @@ CudaDeviceFunction void CollisionBGK()
         
         S = gradPsi[1] * U[,1] + gradPsi[2] * U[,2]
         
-#        C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 * BK)
-#        C(h_1, h_1 - tau_D1^-1 * (h_1 - heq1 ) - wi * dt_D1 * z1 * S * n1 * BK )
-        C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 * BK)
-        C(h_1, h_1 - tau_D1^-1 * (h_1 - heq1 ) - wi * dt_D1 * z1 * S * n1 * BK )
+        C(h_0, h_0 - tau_D^-1 * (h_0 - heq0 ) - wi * dt_D * z0 * S * n0 * BK)
+        C(h_1, h_1 - tau_D^-1 * (h_1 - heq1 ) - wi * dt_D * z1 * S * n1 * BK )
 
 #        rho_ee = z0 * sum(h_0) + z1 * sum(h_1)
 #        rho_ee = rho_ee * epsilon^-1
@@ -227,17 +223,17 @@ CudaDeviceFunction void CollisionBGK()
 
         RD = -2./3. * (0.5 - tau_psi) * dt  * ( rho_e *(epsilon^-1) ) ;
         C(g, g - tau_psi^-1 * (g - wp*psi) +  dt * wps * RD  )
-?>
 
-//    if (subiter < 10) {
- //       C(h_0, h_0 - tau_D0^-1 * (h_0 - heq0 ) - wi * dt_D0 * z0 * S * n0 )
-//    } else {
-    
-
+        
+        
+        
+        C(ulb, f %*% U)
+    ?>
+ 	    ulb.x /= rho;
+    	ulb.y /= rho;
+	    ulb.z = 0;       
     <?R
-        
-        
-        omega = PV("omega") 
+        omega = 1.
         C(du, PV(c("Force.x","Force.y")))
         C(f,  f - omega*(f -  feq) + (feq2 - feq) ) 
 
@@ -262,6 +258,8 @@ CudaDeviceFunction vector_t getGradPsi(){
 
     <?R 
         C(PV(c("grad.x","grad.y")), (g - wp*psi) %*% U * ( -(3./2.)*dt^-1*tau_psi^-1 ) );  
+#     C(PV(c("grad.x","grad.y")),c(1,1))
+        
     ?>
     return grad;
 
@@ -276,32 +274,33 @@ CudaDeviceFunction real_t getn1(){
 
 }
 
-CudaDeviceFunction vector_t getRhoU(){
-    vector_t rhou;
-    <?R 
-        C( PV(c("rhou.x","rhou.y")), (f %*% U) );  
-    ?>
-    return rhou;
 
-}
 
 CudaDeviceFunction real_t getRho(){
     return <?R C(sum(f)) ?>;
-
-}   
-CudaDeviceFunction vector_t getU(){
-    real_t rho = getRho();
-    vector_t u = getRhoU();
-    u.x = u.x / rho;
-    u.y = u.y / rho;
-    return u;
 }
 
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+    <?R C(PV(c("u.x","u.y")) , f %*% U) ?>
+	vector_t F;
+	F = getF();
+    u.x = u.x+F.x*(-2./3.)*0.5;
+    u.y = u.y+F.y*(-2./3.)*0.5;
+	u.x /= d;
+	u.y /= d;
+	u.z = 0;
+	return u;
+}
 CudaDeviceFunction vector_t getF(){
-    real_t rho_e = getrho_e();
+    const real_t rho_e = getrho_e();
+    const vector_t gradPsi = getGradPsi();
     vector_t F;
-    F.x = Ex*rho_e;
-    F.y = 0 ;
+    F.x = (Ex-gradPsi.x)*rho_e ;
+    F.y = -rho_e*gradPsi.y ;
+    //F.x = Ex ;
+    //F.y = 0. ;   
     return F;
 }
 

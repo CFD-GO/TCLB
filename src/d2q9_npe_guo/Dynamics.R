@@ -47,14 +47,14 @@ AddDensity( name="h_1[8]", dx= 1, dy=-1, group="h_1")
 #AddDensity(name="psi",dx=0, dy=0)
 
 
-AddQuantity(name="F", vector=T)
-AddQuantity(name="U", vector=T)
-AddQuantity(name="Rho")
-AddQuantity(name="n0")
-AddQuantity(name="n1")
+AddQuantity(name="F", vector=T, unit="kgm/s2")
+AddQuantity(name="U", vector=T, unit="m/s")
+AddQuantity(name="Rho", unit="kg/m3")
+AddQuantity(name="n0", unit="1")
+AddQuantity(name="n1", unit="1")
 #AddQuantity(name="Subiter")
-AddQuantity(name="Psi")
-AddQuantity(name="GradPsi", vector=T)
+AddQuantity(name="Psi", unit="V")
+AddQuantity(name="GradPsi", vector=T, unit="V/m")
 
 
 #AddStage("BaseIteration", "Run", save=Fields$group!="nonono", load=DensityAll$group!="nonono")
@@ -73,25 +73,24 @@ AddQuantity(name="GradPsi", vector=T)
 
 
 
-AddQuantity(name="rho_e",unit="kg/m3")
+AddQuantity(name="rho_e", unit="C/m3")
 
 
-AddSetting(name="tau_psi", comment='tau_psi')
+AddSetting(name="tau_psi", unit="V", comment='tau_psi')
 
 AddSetting(name="n_inf", comment='')
-AddSetting(name="el", comment='')
-AddSetting(name="kb", comment='')
-AddSetting(name="T", comment='')
-AddSetting(name="epsilon", comment='')
+AddSetting(name="el",  unit="C", comment='')
+AddSetting(name="kb",  unit="J/K", comment='')
+AddSetting(name="T",  unit="K", comment='')
+AddSetting(name="epsilon",  unit="C2/J/m", comment='')
 AddSetting(name="dt", comment='')
-AddSetting(name="psi0", default=1., comment='')
-AddSetting(name="ez", default=1., comment='')
-AddSetting(name="Ex", default=0, comment='')
-AddSetting(name="omega", default=1., comment='')
+AddSetting(name="psi0",  unit="V", default=1., comment='')
+AddSetting(name="ez",  default=1., comment='')
+AddSetting(name="Ex",  unit="V/m", default=0, comment='')
+AddSetting(name="D",  unit="m2/t", default=1./6., comment='Ion diffusivity')
+AddSetting(name="nu",  unit="sPa", comment='viscosity')
 
-
-
-AddSetting(name="psi_bc", default=1, comment='psi at  boundary - zeta', zonal=T)
+AddSetting(name="psi_bc", unit="V", default=1, comment='psi at  boundary - zeta', zonal=T)
 
 
 #AddGlobal(name="OutFlux");
