@@ -39,7 +39,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
     MContext$Pocket = ""       
     MContext$PocketMove = FALSE     
     MContext$Offset = list()
-    for ( i in 1:length(Margin) ) MContext$Offset[[i]] = PV(0)
+    for ( i in 1:length(Margin) ) MContext$Offset[[i]] = PV(0L)
     if (missing(buf)) stop("No Buffor provided");
     if (pocket) {
       MContext$Pocket = "pocket" ?>
