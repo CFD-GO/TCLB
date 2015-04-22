@@ -1,4 +1,4 @@
-library(polyAlgebra)
+#library(polyAlgebra)
 
 gcd <- function(a,b) ifelse (b==0, a, gcd(b, a %% b))
 library(numbers)
@@ -27,7 +27,7 @@ MRT_integerOrtogonal = function(M) {
 }
 
 MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2) {
-	rho_str = names(rho[[1]])
+	rho_str = ToC(rho)
   W = MRT_polyMatrix(U)
   p=W$p
   H = rho[rep(1,nrow(U))];
@@ -39,7 +39,7 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
       if (p[j,i] == 2) H[j] = H[j] * (J[i]^2 * rho^(-2) + sigma2)
     }
   }
-  H = gapply(H, function(x) {i=names(x) %in% c(".M",rho_str);h=rowSums(abs(x[,!i,drop=FALSE])); sel = h <= order; x[sel,] })
+#  H = gapply(H, function(x) {i=names(x) %in% c(".M",rho_str);h=rowSums(abs(x[,!i,drop=FALSE])); sel = h <= order; x[sel,] })
   list(Req=H, mat=W$mat, p=W$p, order=W$order)
 }
 

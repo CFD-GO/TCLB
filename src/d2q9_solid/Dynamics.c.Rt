@@ -24,8 +24,8 @@
 
 #calculating weights
 	wi = subst(feq, rho=1, ux=0, uy=0)
-	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
-#	wi = c(16,4,4,4,4,1,1,1,1)/36
+#	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
+	wi = c(16,4,4,4,4,1,1,1,1)/36
 	over_c2 = 1/sum(wi*U[,1]**2) # one over square of speed of sound
 
 	LBM_FD = FALSE
