@@ -12,12 +12,19 @@
 
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
+if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
+
 options(stringsAsFactors=FALSE)
 
 #source("fun_v3.R")
-#library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
-library(gvector)
-library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
+
+if (! SYMALGEBRA) {
+	library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
+} else {
+	library(gvector)
+	library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
+}
+
 source("bunch.R")
 #source("linemark.R")
 
