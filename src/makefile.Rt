@@ -45,7 +45,7 @@ else
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
+	g++ -c $< -o $@ $(CPP_OPT) $(OPT)
 
 %.o:%.cu
 	@echo "  NVCC       $<"
