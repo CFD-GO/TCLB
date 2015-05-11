@@ -39,7 +39,14 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
       if (p[j,i] == 2) H[j] = H[j] * (J[i]^2 * rho^(-2) + sigma2)
     }
   }
-#  H = gapply(H, function(x) {i=names(x) %in% c(".M",rho_str);h=rowSums(abs(x[,!i,drop=FALSE])); sel = h <= order; x[sel,] })
+  H = gapply(H, function(x) if (class(x) == "pAlg") {
+	i=names(x) %in% c(".M",rho_str);
+	h=rowSums(abs(x[,!i,drop=FALSE]));
+	sel = h <= order;
+	x[sel,] 
+    } else {
+	x
+  })
   list(Req=H, mat=W$mat, p=W$p, order=W$order)
 }
 
