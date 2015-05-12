@@ -26,8 +26,8 @@ MRT_integerOrtogonal = function(M) {
   M
 }
 
-MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2) {
-	rho_str = ToC(rho)
+MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2, ortogonal=TRUE) {
+  rho_str = ToC(rho)
   W = MRT_polyMatrix(U)
   p=W$p
   H = rho[rep(1,nrow(U))];
@@ -47,7 +47,14 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
     } else {
 	x
   })
-  list(Req=H, mat=W$mat, p=W$p, order=W$order)
+  ret = list(Req=H, mat=W$mat, p=W$p, order=W$order)
+  if (ortogonal) {
+	M = MRT_integerOrtogonal(ret$mat)
+	ret$Req = ret$Req %*% (solve(W$mat) %*% M)
+	ret$mat = M
+	ret$p = NULL
+  }
+  ret
 }
 
 MRT_feq = function(...) {
