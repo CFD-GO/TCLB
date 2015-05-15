@@ -70,8 +70,45 @@ CudaDeviceFunction void BounceBack()
 	NULL})
 ?>}
 
+<?R
+
+W1 = cbind(U,i=1:nrow(U))
+W2 = cbind(-U,j=1:nrow(U))
+ret = merge(W1,W2)
+bounce = 1:nrow(U)
+bounce[ret$i] = ret$j
+
+C_pull = function(W, var) {
+	ret = div.mod(W[[1]],var)
+	cat(var, " = (", ToC(ret[[1]]), ") / (", ToC(ret[[2]]*(-1)), ");\n")
+}
+
+ZouHe = function(direction, sign, type) {
+	sel = sign*U[,direction]>0
+	fs = f
+	Js = c("Jx","Jy","Jz")
+	feq = EQ$Req %*% solve(EQ$mat)
+	fs[sel] = (feq + (fs-feq)[bounce])[sel]
+	Rs = fs %*% EQ$mat[,EQ$order<2] - EQ$Req[EQ$order<2]
+	cat("real_t Jx, Jy, Jz, rho;\n")
+	if (type == "pressure") {
+		C( rho, PV("Pressure")*3+1);
+		C_pull( Rs[1], Js[direction])
+	} else if (type == "velocity") {
+		nJ = PV("rho") * PV("Velocity")
+		to_sub = list(nJ[[1]]); names(to_sub) = Js[direction]
+		C_pull( subst(Rs[1], to_sub), "rho" ) 
+		C( PV(Js[direction]), nJ )
+	}
+	for (i in 1:3) if (i != direction) C_pull( Rs[i+1], Js[i])
+	C(f[sel], fs[sel])
+}	
+
+?>
+
 CudaDeviceFunction void EVelocity()
 {
+	<?R ZouHe(1,-1,"velocity") ?>
 
 }
 
@@ -81,12 +118,12 @@ CudaDeviceFunction void eqWVelocity()
 
 CudaDeviceFunction void WVelocity()
 {
-
+	<?R ZouHe(1,1,"velocity") ?>
 }
 
 CudaDeviceFunction void WPressure()
 {
-
+	<?R ZouHe(1,1,"pressure") ?>
 }
 
 CudaDeviceFunction void WPressureLimited()
@@ -98,7 +135,7 @@ CudaDeviceFunction void WPressureLimited()
 
 CudaDeviceFunction void EPressure()
 {
-
+	<?R ZouHe(1,-1,"pressure") ?>
 }
 
 CudaDeviceFunction void Run() {
@@ -141,6 +178,10 @@ CudaDeviceFunction void Init() {
 CudaDeviceFunction void CollisionMRT()
 {
 <?R
+	wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+	wi = subst(wi, rho=1)
+	wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+	wi = wi %*% solve(EQ$mat)
 	R = PV("R",1:27-1);
 	R[EQ$order == 0] = rho
 	R[EQ$order == 1] = J
@@ -169,3 +210,4 @@ CudaDeviceFunction void CollisionMRT()
 	C( f, R %*% t(EQ$mat));
 ?>
 }
+

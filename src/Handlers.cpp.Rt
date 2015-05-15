@@ -672,7 +672,6 @@ class cbCatalyst: public Callback {
                                 std::string com = "cat " + nm + " | sed";
                               //  com = com + " -e 's/\\([.]CreateView([^,]*,[^\"]*\\)\"\\([^\"]*\\)\"/\\1\"" + prefix + "\\2\"/g'";
                               //  com = com + " -e 's/\\([.]CreateWriter([^,]*,[^\"]*\\)\"\\([^\"]*\\)\"/\\1\"" + prefix + "\\2\"/g'";
-// sed "s/[^/'\"]*\.\(png\|pvti\|pvtp\)['\"]/blarbla\/\0/g" | grep "file"
 				com = com + " -e \"s/[^/'\\\"]*\\.\\(png\\|pvti\\|pvtp\\)['\\\"]/" + prefix + "\\0/g\"";
                                 com = com + " > " + fn;
                                 debug2("preprocessing command: %s\n", com.c_str());
