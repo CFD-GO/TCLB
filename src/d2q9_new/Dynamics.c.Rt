@@ -1,0 +1,132 @@
+<?R
+	source("conf.R") 
+	c_header();
+	
+	source("MRT/feq.R")
+	source("MRT/boundary.R")
+
+	U = as.matrix(Density[,c("dx","dy")])
+
+	EQ = MRT_eq(U, ortogonal=FALSE)
+
+	f = PV(Density$name)
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+
+?>
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?> ;
+}
+    
+CudaDeviceFunction vector_t getU(){
+	real_t d = <?R C(sum(f)) ?>;
+	vector_t u;
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
+{
+<?R
+	feq = EQ$Req %*% solve(EQ$mat)
+	C( f, feq)
+?>
+}
+
+CudaDeviceFunction void Init() {
+	SetEquilibrum(
+		(1+Pressure*3),
+		Velocity*(1+Pressure*3),
+		0
+	);
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    }
+    if (NodeType & NODE_MRT)
+    {
+		CollisionMRT();
+    }
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHe(EQ, 1, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHe(EQ, 1, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHe(EQ, 1, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+<?R
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+	real_t <?R C(R,sep=",") ?>;
+	real_t gamma  = 1-omega;
+	real_t gamma2 = 0;
+<?R
+	S = PV("S",1:nrow(U)-1);
+	S[EQ$order %% 2 == 0] = PV("gamma")
+	S[EQ$order %% 2 == 1] = PV("gamma2")
+
+
+	C( R, f %*% EQ$mat );
+	C( R[selR], ((R - EQ$Req) * S)[selR]);
+	C( R[selR], (R + EQ$Req)[selR]);
+
+	C( f, R %*% solve(EQ$mat), float=F);
+?>
+}

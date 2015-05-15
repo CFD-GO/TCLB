@@ -47,7 +47,7 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
     } else {
 	x
   })
-  ret = list(Req=H, mat=W$mat, p=W$p, order=W$order)
+  ret = list(Req=H, mat=W$mat, p=W$p, order=W$order, U=U)
   if (ortogonal) {
 	M = MRT_integerOrtogonal(ret$mat)
 	ret$Req = ret$Req %*% (solve(W$mat) %*% M)
