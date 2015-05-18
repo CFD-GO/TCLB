@@ -15,6 +15,8 @@
 
 ?>
 
+#define pi 3.141592653589793116
+
 CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
 }
@@ -50,10 +52,26 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 }
 
 CudaDeviceFunction void Init() {
+	real_t rho, ux, uy;
+	rho = (1+Pressure*3);
+	if (SL_L > 0) {
+		if (Y < SL_L/2) {
+			ux = SL_U * tanh(SL_lambda * ( Y/SL_L - 0.25 ));
+		} else {
+			ux = SL_U * tanh(SL_lambda * ( 0.75 - Y/SL_L ));
+		}
+		uy = SL_delta * SL_U * sin(2*pi*(X/SL_L+0.25));
+	} else {
+		ux=0;
+		uy=0;
+	}
+	ux = Velocity+ux;
+
+
 	SetEquilibrum(
-		(1+Pressure*3),
-		Velocity*(1+Pressure*3),
-		0
+		rho,
+		ux*rho,
+		uy*rho
 	);
 }
 
@@ -110,23 +128,80 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void CollisionMRT()
 {
 <?R
+        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+        wi = subst(wi, rho=1)
+        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+        wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
 	R = PV("R", 1:nrow(U)-1);
 	selR = EQ$order > 1
 	R[!selR] = EQ$Req[!selR]
 ?>
 	real_t <?R C(R,sep=",") ?>;
 	real_t gamma  = 1-omega;
-	real_t gamma2 = 0;
 <?R
 	S = PV("S",1:nrow(U)-1);
-	S[EQ$order %% 2 == 0] = PV("gamma")
-	S[EQ$order %% 2 == 1] = PV("gamma2")
+	S[EQ$order <= 2] = PV("gamma")
+	S[EQ$order >  2] = PV("gamma2")
 
 
 	C( R, f %*% EQ$mat );
-	C( R[selR], ((R - EQ$Req) * S)[selR]);
+	C( R[selR], (R - EQ$Req)[selR]);
+
+
+?>
+	if (NodeType & NODE_LES) {
+		real_t Q, tau, tau0;
+<?R
+	Rneq = R; Rneq[EQ$order < 2] = 0
+
+	p = PV(c("x","y")); dim(p) = c(2,1)
+	Q = p %*% t(p)
+	Q = subst(Q,x=U[,1],y=U[,2])
+	Q = Q %*% (Rneq %*% solve(EQ$mat))
+	C(PV("Q"), sum(Q^2))
+?>
+		Q = 18.* sqrt(Q) * Smag;
+		tau0 = 1/(1-gamma);
+		tau = tau0*tau0 + Q;
+		tau = sqrt(tau);
+		tau = (tau + tau0)/2;
+		gamma = 1. - 1./tau;
+	}
+	real_t gamma2 = gamma;
+	if (NodeType & NODE_ENTROPIC) {
+		real_t a,b;
+<?R
+	dh = R; dh[EQ$order <= 2] = 0
+	ds = R; ds[EQ$order != 2] = 0
+
+	C( PV("a"), ds %*% P %*% dh)
+	C( PV("b"), dh %*% P %*% dh)
+?>
+		gamma2 = - gamma2 * a/b;
+	}
+<?R
+
+	C( R[selR], (R * S)[selR]);
 	C( R[selR], (R + EQ$Req)[selR]);
 
 	C( f, R %*% solve(EQ$mat), float=F);
 ?>
+}
+
+CudaDeviceFunction vector_t getA()
+{
+	real_t <?R C(R,sep=",") ?>;
+	vector_t ret;
+<?R
+	C( R, f %*% EQ$mat );
+	C( R[selR], (R - EQ$Req)[selR]);
+	C( PV("ret.y"), ds %*% P %*% dh)
+	C( PV("ret.z"), dh %*% P %*% dh)
+?>
+	ret.x = ret.y/ret.z;
+	return ret;
 }
