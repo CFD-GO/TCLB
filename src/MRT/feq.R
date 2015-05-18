@@ -50,6 +50,7 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
   ret = list(Req=H, mat=W$mat, p=W$p, order=W$order, U=U)
   if (! is.null(mat)) {
 	M = mat
+	ret$order  = apply(abs(solve(W$mat) %*% M) > 1e-10,2,function(x) max(W$order[x]))
 	ret$Req = ret$Req %*% (solve(W$mat) %*% M)
 	ret$mat = M
 	ret$p = NULL
