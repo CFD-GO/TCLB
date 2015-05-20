@@ -16,7 +16,8 @@
 	source("MRT/feq.R")
 	source("MRT/boundary.R")
 
-	EQ = MRT_eq(U, rho, J );
+	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+#	EQ = MRT_eq(U, rho, J);
 ?>
 
 CudaDeviceFunction real_t getRho(){
@@ -54,6 +55,16 @@ CudaDeviceFunction void BounceBack()
 <?R FullBounceBack() ?>
 }
 
+CudaDeviceFunction void SymmetryY()
+{
+<?R FullSymmetryY() ?>
+}
+
+CudaDeviceFunction void SymmetryZ()
+{
+<?R FullSymmetryZ() ?>
+}
+
 CudaDeviceFunction void EVelocity()
 {
 <?R ZouHe(EQ, 1, -1, "velocity") ?>
@@ -76,9 +87,6 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
-	case NODE_WPressureL:
-		WPressureLimited();
-		break;
 	case NODE_WPressure:
 		WPressure();
 		break;
@@ -87,6 +95,12 @@ CudaDeviceFunction void Run() {
 		break;
 	case NODE_EPressure:
 		EPressure();
+		break;
+	case NODE_SymmetryY:
+		SymmetryY();
+		break;
+	case NODE_SymmetryZ:
+		SymmetryZ();
 		break;
 	case NODE_Wall:
 	case NODE_Solid:
@@ -108,7 +122,11 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 }
 
 CudaDeviceFunction void Init() {
-	SetEquilibrum(1.0 + Pressure * 3.0, Velocity, 0., 0.);
+	vector_t ST = SyntheticTurbulence(0);
+	ST.x = Velocity + Turbulence*ST.x;
+	ST.y = Turbulence*ST.y;
+	ST.z = Turbulence*ST.z;
+	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
 }
 
 CudaDeviceFunction void CollisionMRT()
@@ -116,7 +134,7 @@ CudaDeviceFunction void CollisionMRT()
 <?R
         wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
         wi = subst(wi, rho=1)
-        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+        wi = gapply(wi,function(x) sum(0,x$.M), simplify=TRUE)
         wi = wi %*% solve(EQ$mat)
 	wi = as.vector(wi)
 	MI = solve(EQ$mat)
@@ -172,6 +190,11 @@ CudaDeviceFunction void CollisionMRT()
 <?R
 
 	C( R[selR], (R * S)[selR]);
+?>
+	Jx += ForceX;
+	Jy += ForceY;
+	Jz += ForceZ;
+<?R
 	C( R[selR], (R + EQ$Req)[selR]);
 
 	C( f, R %*% solve(EQ$mat), float=F);

@@ -18,6 +18,7 @@ AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='Visc
 AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Smag", comment='Smagorinsky constant')
+AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 
 AddSetting(name="ForceX", comment='Force force X')
 AddSetting(name="ForceY", comment='Force force Y')
@@ -27,3 +28,5 @@ AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
 AddNodeType("Smagorinsky", "LES")
 AddNodeType("Stab", "ENTROPIC")
+AddNodeType("SymmetryY", "BOUNDARY")
+AddNodeType("SymmetryZ", "BOUNDARY")
