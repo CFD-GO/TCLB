@@ -103,7 +103,6 @@ CudaDeviceFunction void Run() {
 		SymmetryZ();
 		break;
 	case NODE_Wall:
-	case NODE_Solid:
 		BounceBack();
                 break;
     }
@@ -194,6 +193,11 @@ CudaDeviceFunction void CollisionMRT()
 	Jx += ForceX;
 	Jy += ForceY;
 	Jz += ForceZ;
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
+		Jx = 0;
+		Jy = 0;
+		Jz = 0;
+	}
 <?R
 	C( R[selR], (R + EQ$Req)[selR]);
 
