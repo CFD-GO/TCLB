@@ -66,7 +66,6 @@ public:
   int Record_Iter; ///< Recorded iteration number (Now)
   int Iter; ///< Iteration (Now) - "real" time of the simulation
   int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
-  int total_iterations; ///< Total iteration number counter
   real_t settings[SETTINGS];  ///< Table of Settings (Now)
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
@@ -89,21 +88,24 @@ public:
   void stopRecord();
   void clearAdjoint();
   void clearDPar();
-  int(* callback)(int, void*);
+  int(* callback)(int, int, void*);
   void* callback_data;
+  void Callback(int(*)(int, int, void*), void*);
+  int segment_iterations;
+  int total_iterations; ///< Total iteration number counter
   int callback_iter;
-  void Callback(int(*)(int, void*), void*);
   inline void MarkIteration() {
     total_iterations ++;
-    if (total_iterations >= callback_iter) {
-      if (callback) callback_iter = callback(total_iterations, callback_data);
-      total_iterations = 0;
-    }
+    if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
   }
-  inline void FinalIteration() {
-    total_iterations ++;
-    if (callback) callback_iter = callback(-total_iterations, callback_data);
+  inline void FinalIteration() { 
+	total_iterations = segment_iterations;
+    if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
+  }
+  inline void InitialIteration(int segiter) {
     total_iterations = 0;
+    segment_iterations = segiter;
+    if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
   }
   void BeforeIt();
   void AfterIt();
