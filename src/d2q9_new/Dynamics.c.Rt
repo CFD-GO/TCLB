@@ -8,6 +8,21 @@
 	U = as.matrix(Density[,c("dx","dy")])
 
 	EQ = MRT_eq(U, ortogonal=FALSE)
+        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+        wi = subst(wi, rho=1)
+        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+        wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W))
+	H = chol(W[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+	EQ = MRT_eq(U, mat=B)
+
+	
 
 	f = PV(Density$name)
 	rho = PV("rho")
@@ -128,11 +143,6 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void CollisionMRT()
 {
 <?R
-        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
-        wi = subst(wi, rho=1)
-        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
-        wi = wi %*% solve(EQ$mat)
-	wi = as.vector(wi)
 	MI = solve(EQ$mat)
 	P = MI %*% diag(1/wi) %*% t(MI)
 
