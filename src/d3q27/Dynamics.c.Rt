@@ -13,8 +13,8 @@
 	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
 
 # Calculating equlibrium density set
-	source("MRT/feq.R")
-	source("MRT/boundary.R")
+	source("lib/feq.R")
+	source("lib/boundary.R")
 
 	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
 #	EQ = MRT_eq(U, rho, J);

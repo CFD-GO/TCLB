@@ -2,8 +2,8 @@
 	source("conf.R") 
 	c_header();
 	
-	source("MRT/feq.R")
-	source("MRT/boundary.R")
+	source("lib/feq.R")
+	source("lib/boundary.R")
 
 	U = as.matrix(Density[,c("dx","dy")])
 

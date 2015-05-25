@@ -17,7 +17,7 @@
 	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy")])
 
 # Calculating equlibrium density set
-	source("MRT/feq.R")
+	source("lib/feq.R")
 	feq = MRT_feq(U, rho, u*rho );
 	geq = MRT_feq(U, rhoT, u*rhoT );
 	heq = MRT_feq(U, C, u*C );
