@@ -1,16 +1,23 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
+
+
+    <!--- WARNING -->
+    <!--- USE s as second in N-S related parameters -->
+    <!--- USE t as second in Nerst-Planck related parameters -->
+    <!-- DO NOT MIX in stady state sims, t_to_s unit is necessary to corelate time units properly -->
+
     <Units>
 
-        <Params el = "0.0000000000000000001602176565C" gauge="0.01"/>
         <Params D="0.00000001m2/t" gauge="0.1666666666666"/>        
         <Params nu="0.001sPa" gauge="0.1666666666"/>
-        <Params epsilon = "0.000000000695C2/J/m" gauge="1.5" />
-        <Params kb = "0.0000000000000000000000138064879J/K" gauge="1"/>
-        <Params x = "8um" gauge="64"/>
-       
+        <Params epsilon = "0.000000000695C/Vm" gauge="1" />
+        <Params rho0="1000kg/m3" gauge="1"/>
+
+        <Params x = "0.000008m" gauge="256"/>
+
     </Units>    
-    <Geometry nx="32um" ny="8um">
+    <Geometry nx="32" ny="8um">
 
 		<MRT><Box /></MRT>
 
@@ -28,21 +35,32 @@
 
 
 	</Geometry>
-	<Model>
-        <Params T = "273K" />
+    <Model>
+        <!-- general settings and phycical constants, rather to stay -->
         <Params tau_psi="1."/>
-        <Params n_inf="0.01"/>
+        <Params el_kbT = "39.6058682145/V"/>
+        <Params el = "0.0000000000000000001602176565C"/>
         <Params ez = "1" />
-        <Params rho="1000kg/m3" />
+        <!-- helper unit for stady state, for unstady put into with gauge 1, time scale WILL BE SHORT-->
+        <Params t_to_s="1t/s"/>
+        <Params dt="1" />
+
+
+        <!-- case specific settings-->
+        <Params n_inf="0.01An/m3"/>
+        <Params rho0="1000kg/m3" />
         <Params Ex = "250V/m"  />
         <Params psi0="0.025V" />
         <Params psi_bc-wall="0.025V"/>
-        <Params dt="1" />
-	</Model>
+
+    </Model>
+    	<VTK />
 	<Solve Iterations="3000000" output="output/">
-		<VTK Iterations="1000"/>
+		<VTK Iterations="5000"/>
 	</Solve>
 </CLBConfig>
+
+
 
 
 

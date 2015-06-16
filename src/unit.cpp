@@ -93,6 +93,7 @@ std::string strFromDouble(double val) {
 
     units["d"]=atan(1.0)*4.0/180.;
     units["%"]=1./100.;
+    units["An"] = 6.022*100000000000000000000000.;
   };
   UnitVal UnitEnv::readUnitOne( std::string val ) {
     if (units.count(val) > 0) {
