@@ -1,6 +1,7 @@
 <?R
 	source("conf.R") ;
 	c_header();
+    library(polyAlgebra);
 ?>
 #define S4 1.3333
 #define S5 1.0
@@ -38,11 +39,13 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+<?R 
+    C(PV(c("u.x","u.y")) , f %*% U)
+?>
 	vector_t F;
 	F = getF();
-u.x = u.x+F.x*(-2./3.)*0.5;
-u.y = u.y+F.y*(-2./3.)*0.5;
+    u.x = u.x+F.x*(-2./3.)*0.5;
+    u.y = u.y+F.y*(-2./3.)*0.5;
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;
@@ -63,10 +66,11 @@ CudaDeviceFunction vector_t getF() {
 #	gs = PV(paste("gstar[",1:9-1,"]",sep=""))
 	gs = c(0,1,1,1,1,1/4,1/4,1/4,1/4);
 	A = PV("MagicA")
-    C(R == ph);
-	C((R == R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
-	C(Force==(R*gs) %% U)
-?>
+    
+    C(R , ph);
+	C(R , (R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
+	C(Force ,(R*gs) %*% U)
+    ?>
 	}
 	F.z=0;
 	return F;
@@ -92,30 +96,42 @@ CudaDeviceFunction real_t getP(){
 CudaDeviceFunction void BounceBack()
 {
      real_t uf;
+
+//V = cbind(1:9, bounce+1)
+//  sel = V[,1] > V[,2]
+//  V = V[sel,]
+//for (i in 1:nrow(V))
+//  {
+//	w = list(
+//           uf==f[V[i,1]],
+//           f[V[i,1]]==f[V[i,2]],
+//           f[V[i,2]]==uf
+//	)
+//	for (h in w) C(h)
+ //  }
 <?R
   V = cbind(1:9, bounce+1)
   sel = V[,1] > V[,2]
   V = V[sel,]
   for (i in 1:nrow(V))
   {
-	w = list(
-           uf==f[V[i,1]],
-           f[V[i,1]]==f[V[i,2]],
-           f[V[i,2]]==uf
-	)
-	for (h in w) C(h)
+	C(uf, f[V[i,1]])
+    C(f[V[i,1]], f[V[i,2]])
+    C(f[V[i,2]], uf)
+	
+	
    }
 ?>
 //	if ((NodeType & NODE_BOUNDARY) == NODE_MovingWall || (NodeType & NODE_BOUNDARY) == NODE_NMovingWall){
-////		AddToMovingWallForceX(<?%s ToC(f %% U[,1]) ?>);
-////		AddToMovingWallForceY(<?%s ToC(f %% U[,2]) ?>);://
+////		AddToMovingWallForceX(<%s ToC(f %% U[,1]) >);
+////		AddToMovingWallForceY(<%s ToC(f %% U[,2]) >);://
 ////		AddToMovingWallForceY(f2+f5+f6);
 //
 //		real_t ux = MovingWallVelocity;
-//		<?fff
+//		<fff
 //			ub=rbind(PV("ux"),0)
 //			C(f==ub %% t(U) * diag(tn)*12, eqstring="+=")
-//		?>
+//		>
 //	}
 
 }
@@ -256,17 +272,18 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void SetEquilibrum( real_t d,  real_t u[2])
 {	real_t usq, uf;
-<?R C(usq == sum(u*u)*(1/c_squ)) ?>
+<?R
+    C(usq , sum(u*u)*(1/c_squ)) ?>
 <?R
 	for (i in 1:9) {
          cat("//--",i,"-------------------------------------------------\n")
          w2 = list(
-                 uf1 == (u %% t(U) * (1/c_squ))[i],
-                 uf2 == uf1 + (uf1*uf1+usq*(-1))*0.5 + 1,
-                 uf3 == d * uf2,
-                 f[i] == uf3 * tn[i,i]
+                 c( uf1, (u %*% t(U) * (1/c_squ))[i]),
+                 c(uf2 , uf1 + (uf1*uf1+usq*(-1))*0.5 + 1),
+                 c(uf3 , d * uf2),
+                 c(f[i] , uf3 * tn[i,i])
          )
-         for (h in w2) C(h)
+         for (h in w2) C(h[1],h[2])
         }
 ?>
 
@@ -306,10 +323,9 @@ CudaDeviceFunction void CollisionMRT()
 		paste("u[",1:2-1,"]",sep=""),
 		paste("R[",1:6-1,"]",sep="")
 	))
-        Sy = rbind(
-		PV(c(0,0,0)),
-		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
-	)
+#        Sy = rbind( PV( c(0,0,0) ), PV( paste("S",c(2,3,5,7,8,9),"",sep="") ) )
+     Sy = PV(paste("S",1:9,"",sep=""))
+
 
 M = matrix(c(
       1,  1,  1,  1,  1,  1,  1,  1,  1,
@@ -321,13 +337,16 @@ M = matrix(c(
       0,  0, -2,  0,  2,  1,  1, -1, -1,
       0,  1, -1,  1, -1,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
-
-	C( R == f %% M , float=F);
+	C( R , f %*% M , float=F);
 
 	d = PV("d");
 	dw = d
-	dw[[1]][1,2]=-1
-	C(usq == sum(u*u)*dw);
+	
+
+# dw[[1]][1,2]=-1
+    
+	C(usq , sum(u*u)*dw);
+
 	usq = PV("usq")
 	u = PV(c("u[0]","u[1]"))
 	Req = rbind(
@@ -340,25 +359,26 @@ M = matrix(c(
 		u[1]*u[1]*dw-u[2]*u[2]*dw,
 		u[1]*u[2]*dw
 	)
-        Sy = PV(paste("S",1:19,"",sep=""))
+#      Sy = PV(paste("S",1:19,"",sep=""))
 	selR = c(4,5,6,7,8,9);
 #	cr = calcReq[selR]
 	Mw = colSums(M**2)
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-<?R
-}
-?>
-F = getF();
-u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
-u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
-AddToSumUsqr(u[0]*u[0]+u[1]*u[1]);
-<?R
-	C(usq == sum(u*u)*dw);
-	C(R[selR] == Req[selR], eqstring="+=");
-	C(R == PV(Mw), eqstring="/=", float=F);
-	C( f == R %% t(M) , float=F);
-?>
+    exit()
+    for (i in selR) {
+        ?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
+        <?R
+    }
+    ?>
+    F = getF();
+    u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
+    u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
+    AddToSumUsqr(u[0]*u[0]+u[1]*u[1]);
+    <?R
+	    C(usq , sum(u*u)*dw);
+    	C(R[selR] , Req[selR], eqstring="+=");
+    	C(R , PV(Mw), eqstring="/=", float=F);
+	    C( f , R %*% t(M) , float=F);
+    ?>
 }
 
 
