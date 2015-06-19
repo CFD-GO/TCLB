@@ -159,6 +159,7 @@ public:
     for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
     return ret;
   };
+  inline double refineScale(int i, double ratio) { return scale[i] *= ratio; }
   inline double si(const std::string str) {return readText(str).val;};
   inline double alt(const std::string str) {
     double ret = 0;
