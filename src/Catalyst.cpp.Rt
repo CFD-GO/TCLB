@@ -169,7 +169,7 @@ namespace
       }      
 //      solver.lattice->Get<?%s q$name ?>(reg, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
     }
-    <?R } ?>
+    <?R }; ifdef(); ?>
   }
 
   void BuildVTKDataStructures(Solver& solver)

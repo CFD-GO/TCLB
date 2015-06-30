@@ -179,6 +179,12 @@ public:
 			return solver->setPar(tab);
 		case PAR_GRAD:
 			return solver->getDPar(tab);
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) tab[i]=1;
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) tab[i]=0;
+			return 0;
 		default:
 			ERROR("Unknown type %d in call to Parameters in %s\n",type,node.name());
 			exit(-1);
@@ -921,7 +927,11 @@ class GenericAction: public Action {
                 for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 			Handler hand(par, solver);
 			if (hand) {
-				if (hand.Type() & HANDLER_CALLBACK) {
+				if (hand.Type() & HANDLER_DESIGN) {
+					output("Adding %s to the solver hands\n",(*hand).node.name());
+					solver->hands.push_back(hand);
+					stack++;
+				} else if (hand.Type() & HANDLER_CALLBACK) {
 					if ((hand.hand->everyIter != 0) || (hand.Type() & HANDLER_DESIGN)) {
 						debug1("adding %lf\n", hand.hand->everyIter);
 						output("Adding %s to the solver hands\n",(*hand).node.name());
