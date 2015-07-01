@@ -172,6 +172,9 @@ CudaDeviceFunction void Init() {
 	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
 		w = 1-EnergySink;
 	}
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
+		w = 0;
+	}
 	SetEquilibrum(d,InletVelocity,0);
 }
 
