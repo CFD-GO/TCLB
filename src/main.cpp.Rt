@@ -258,18 +258,18 @@ int main ( int argc, char * argv[] )
 
 	// Reading the config file
 	char* filename = argv[1];
-	pugi::xml_document configfile;
+//	pugi::xml_document configfile;
         if (xml_def_init()) { error("Error in xml_def_init. It should work!\n"); return -1; }
 	strcpy(solver.info.conffile, filename);
 	solver.setOutput("");
-	pugi::xml_parse_result result = configfile.load_file(filename);
+	pugi::xml_parse_result result = solver.configfile.load_file(filename);
 	if (!result) {
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
 	}
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
-	XMLCHILD(config, configfile, "CLBConfig");
+	XMLCHILD(config, solver.configfile, "CLBConfig");
 	XMLCHILD(geom, config, "Geometry");
 	readUnits(config, &solver);
 
@@ -282,7 +282,7 @@ int main ( int argc, char * argv[] )
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
-	adj = configfile.find_node(find_adjoint);
+	adj = solver.configfile.find_node(find_adjoint);
 	if (adj) {
 		pugi::xml_attribute attr = adj.attribute("NumberOfSnaps");
 		if (attr) {
