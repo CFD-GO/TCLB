@@ -132,7 +132,44 @@ CudaDeviceFunction void BounceBack()
 
     ?>
 }
-
+CudaDeviceFunction void SymmetryBottom()
+{
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+     real_t uf;
+<?R
+  reflect_from = c(4,7,8);
+  reflect_to = c(2,6,5);
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+ 	C( g[reflect_to[i]], g[reflect_from[i]] )
+ 	C( h_0[reflect_to[i]], h_0[reflect_from[i]] )
+ 	C( h_0[reflect_to[i]], h_0[reflect_from[i]] )
+  }
+?>
+}
+CudaDeviceFunction void SymmetryTop()
+{
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+     real_t uf;
+<?R
+  reflect_to =  c(4,7,8);
+  reflect_from = c(2,6,5);
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+ 	C( g[reflect_to[i]], g[reflect_from[i]] )
+ 	C( h_0[reflect_to[i]], h_0[reflect_from[i]] )
+ 	C( h_0[reflect_to[i]], h_0[reflect_from[i]] )
+  }
+?>
+}
 CudaDeviceFunction float2 Color() {
     float2 ret;
 	ret.x = 0;
@@ -160,7 +197,14 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
+    case NODE_BottomSymmetry:
+        SymmetryBottom();
+        break;
+    case NODE_TopSymmetry:
+        SymmetryTop();
+        break;
     }
+
 
     if ((NodeType & NODE_MRT))
     {

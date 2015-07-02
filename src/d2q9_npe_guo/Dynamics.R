@@ -117,7 +117,10 @@ AddSetting(name="psi_bc", unit="V", default=1, comment='psi at  boundary - zeta'
 AddSetting(name="t_to_s", default="1t/s", unit="t/s", comment ="time scale ratio")
 #AddGlobal(name="OutFlux");
 
-#AddNodeType("Heater","ADDITIONALS")
+AddNodeType("BottomSymmetry","BOUNDARY")
+AddNodeType("TopSymmetry","BOUNDARY")
+
+
 #AddNodeType("ForceTemperature","ADDITIONALS")
 #AddNodeType("ForceConcentration","ADDITIONALS")
 #AddNodeType("Seed","ADDITIONALS")
