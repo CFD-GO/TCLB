@@ -3,12 +3,14 @@
 	c_header();
     library(polyAlgebra);
 ?>
+/**
 #define S4 1.3333
 #define S5 1.0
 #define S6 1.0
 #define S7 1.0
 #define S8 omega
 #define S9 omega
+**/
 
 <?R
 
@@ -68,11 +70,13 @@ CudaDeviceFunction vector_t getF() {
 	A = PV("MagicA")
     
     C(R , ph);
-	C(R , (R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
+	C(R[-1] , (R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
 	C(Force ,(R*gs) %*% U)
     ?>
 	}
-	F.z=0;
+//    F.x = 0;
+//    F.y = 0;
+	F.z = 0;
 	return F;
 }
 
@@ -262,7 +266,6 @@ CudaDeviceFunction void Run() {
     }
     switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
-                break;
         case NODE_MRT:
                 CollisionMRT();
                 break;
@@ -315,70 +318,51 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t u[2], usq, d, R[6], uf;
-	vector_t F;
+	real_t M[9];
+	real_t rho, ux, uy;
 <?R
-        R = PV(c(
-		"d",
-		paste("u[",1:2-1,"]",sep=""),
-		paste("R[",1:6-1,"]",sep="")
-	))
-#        Sy = rbind( PV( c(0,0,0) ), PV( paste("S",c(2,3,5,7,8,9),"",sep="") ) )
-     Sy = PV(paste("S",1:9,"",sep=""))
+# Calculating equlibrium density set
+    	source("MRT/feq.R")
+        rho = PV("rho")
+        u = PV(c("ux","uy"))
+        feq = MRT_feq(U, rho, u*rho );
+        R = PV("M[",1:9-1,"]")
+#        OMEGA = c(
+#		PV(rep(0,3)),
+#		PV(rep("omega2",4)),
+#		PV(rep("omega",2))
+#	)
+        OMEGA = PV("S",1:9-1,"")
 
+	M = matrix(c(
+	      1,  1,  1,  1,  1,  1,  1,  1,  1,
+	      0,  1,  0, -1,  0,  1, -1, -1,  1,
+	      0,  0,  1,  0, -1,  1,  1, -1, -1,
+	     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+	      4, -2, -2, -2, -2,  1,  1,  1,  1,
+	      0, -2,  0,  2,  0,  1, -1, -1,  1,
+	      0,  0, -2,  0,  2,  1,  1, -1, -1,
+	      0,  1, -1,  1, -1,  0,  0,  0,  0,
+	      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-M = matrix(c(
-      1,  1,  1,  1,  1,  1,  1,  1,  1,
-      0,  1,  0, -1,  0,  1, -1, -1,  1,
-      0,  0,  1,  0, -1,  1,  1, -1, -1,
-     -4, -1, -1, -1, -1,  2,  2,  2,  2,
-      4, -2, -2, -2, -2,  1,  1,  1,  1,
-      0, -2,  0,  2,  0,  1, -1, -1,  1,
-      0,  0, -2,  0,  2,  1,  1, -1, -1,
-      0,  1, -1,  1, -1,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
-	C( R , f %*% M , float=F);
+	C( rho, sum(f) )
+	C( u, f %*% U * ( rho^(-1) ) )
+?>
 
-	d = PV("d");
-	dw = d
-	
-
-# dw[[1]][1,2]=-1
+//	real_t omega = 1.0-1.0/(3*nu + 0.5);
+//	real_t omega2 = omega;
+<?R
+	C( R, (f-feq) %*% M * OMEGA );
+?>
+    vector_t F = getF();
+    ux = ux+F.x*(-2./3.)/rho + (GravitationX);
+    uy = uy+F.y*(-2./3.)/rho + (GravitationY); 
     
-	C(usq , sum(u*u)*dw);
-
-	usq = PV("usq")
-	u = PV(c("u[0]","u[1]"))
-	Req = rbind(
-		d,
-		u,
-		d*(-2)+usq*3,
-		d - usq*3,
-		u[1]*(-1),
-		u[2]*(-1),
-		u[1]*u[1]*dw-u[2]*u[2]*dw,
-		u[1]*u[2]*dw
-	)
-#      Sy = PV(paste("S",1:19,"",sep=""))
-	selR = c(4,5,6,7,8,9);
-#	cr = calcReq[selR]
-	Mw = colSums(M**2)
-    exit()
-    for (i in selR) {
-        ?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-        <?R
-    }
-    ?>
-    F = getF();
-    u[0] = u[0]+F.x*(-2./3.) + (GravitationX)*d;
-    u[1] = u[1]+F.y*(-2./3.) + (GravitationY)*d;
-    AddToSumUsqr(u[0]*u[0]+u[1]*u[1]);
-    <?R
-	    C(usq , sum(u*u)*dw);
-    	C(R[selR] , Req[selR], eqstring="+=");
-    	C(R , PV(Mw), eqstring="/=", float=F);
-	    C( f , R %*% t(M) , float=F);
-    ?>
+<?R
+	C( R, R + feq %*% M);
+	C( R, R * (1/ diag(t(M) %*% M)));
+	C( f, R %*% t(M) );
+?>
 }
 
 

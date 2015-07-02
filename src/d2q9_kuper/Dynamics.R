@@ -39,6 +39,21 @@ AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall')
 AddSetting(name="Density", comment='zonal density', zonal=TRUE)
 AddSetting(name="Wetting", comment='wetting factor')
 
+AddSetting(name="S0", default="0", comment='MRT Sx')
+AddSetting(name="S1", default="0",comment='MRT Sx')
+AddSetting(name="S2", default="0",comment='MRT Sx')
+AddSetting(name="S3", default="-.333333333", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
+AddSetting(name="S5", default="0", comment='MRT Sx')
+AddSetting(name="S6", default="0", comment='MRT Sx')
+AddSetting(name="S7", default="1.-omega", comment='MRT Sx')
+AddSetting(name="S8", default="1.-omega",  comment='MRT Sx')
+
+
+
+
+
+
 #AddGlobal(name="MovingWallForceX", comment='force x')
 #AddGlobal(name="MovingWallForceY", comment='force y')
 
