@@ -117,7 +117,7 @@ then
 	
 	if test "x${CUDA_LIB_DIR}" != "x"
 	then
-		LDFLAGS="${LDFLAGS} -L${CUDA_HOME}${CUDA_LIB_DIR}"
+		LDFLAGS="${LDFLAGS} -L${CUDA_LIB_DIR}"
 		CPPFLAGS="${CPPFLAGS} -I${CUDA_HOME}/include"
 	fi
 	AC_CHECK_HEADERS([cuda.h],[],[AC_MSG_ERROR([Didn't find cuda.h])])
