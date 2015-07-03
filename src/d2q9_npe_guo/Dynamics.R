@@ -115,7 +115,8 @@ AddSetting(name="phi_bc", unit="V", default=1, comment='phi at  boundary', zonal
 AddSetting(name="psi_bc", unit="V", default=1, comment='psi at  boundary - zeta', zonal=T)
 #AddSetting(name="rho0",  unit="kg/m3", comment='density')
 AddSetting(name="t_to_s", default="1t/s", unit="t/s", comment ="time scale ratio")
-#AddGlobal(name="OutFlux");
+
+AddGlobal(name="TotalMomentum");
 
 AddNodeType("BottomSymmetry","BOUNDARY")
 AddNodeType("TopSymmetry","BOUNDARY")
