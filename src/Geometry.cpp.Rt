@@ -499,6 +499,7 @@ int Geometry::loadZone(const char *name)
 /// Loades Geometry from a XML tree
 int Geometry::load(pugi::xml_node & node)
 {
+	output("loading geometry ...\n");
     pugi::xml_node geom_def = xml_def.child("Geometry");
     fg_xml = node;
     for (pugi::xml_node z = geom_def.first_child(); z; z = z.next_sibling()) {
