@@ -36,7 +36,7 @@ mark.stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
         w = paste(pref,w,".png",sep="")
 
 	sz = 50
-        png(w,width=sz*2,height=sz,bg = "transparent")
+        png(w,width=sz*2,height=sz,bg = "transparent",res=200)
 
         par(mar=c(0,0,0,0))
         maxy = c(mx+0.5,mx+0.5,-mx) %*% mat[,2]
