@@ -1,0 +1,25 @@
+language: c
+
+env:
+    - CUDA=6.5-14
+    - MODEL=d2q9
+
+before_install:
+    - sudo ./install.sh cuda $CUDA
+    - sudo ./install.sh r
+    - ./install.sh rdep
+    - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
+    - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+    - export PATH=${CUDA_HOME}/bin:${PATH}
+
+install:
+    - nvcc --version
+
+script:
+    - make configure
+    - ./configure --enable-double --with-cuda-arch=sm_20
+    - make $MODEL/source
+    - make $MODEL
+
+after_failure:
+    - dmesg
