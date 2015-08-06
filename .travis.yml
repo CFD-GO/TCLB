@@ -10,9 +10,9 @@ env:
     - MODEL=d2q9
 
 before_install:
-    - sudo ./install.sh cuda $CUDA
-    - sudo ./install.sh r
-    - ./install.sh rdep
+    - sudo tools/install.sh cuda $CUDA
+    - sudo tools/install.sh r
+    - tools/install.sh rdep
     - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
     - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
     - export PATH=${CUDA_HOME}/bin:${PATH}
