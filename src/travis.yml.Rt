@@ -6,15 +6,21 @@
 	Models = do.call(rbind, lapply(models,function (m) {
 		pt = paste("src",m,sep="/");
 		cf = paste("src",m,"conf.mk",sep="/");
+		e = new.env();
+		e$ADJOINT=FALSE
+		e$TEST=TRUE
 		if (file.exists(cf)) {
-			source(cf);
+			source(cf, local=e);
 		} else {
-			ADJOINT=0;
 			return(NULL)
 		}
-		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
+		if (is.numeric(e$ADJOINT)) e$ADJOINT = e$ADJOINT != 0
+		if (is.logical(e$TEST)) e$TEST = ifelse(e$TEST,"test","no test")
+		e$TEST = as.character(e$TEST)
+		data.frame(name=m, adjoint=e$ADJOINT, test=e$TEST, path=pt)
 	}))
-	
+	Models$test = factor(Models$test, levels=c("test","no test","compile only","can fail"))
+	if (any(is.na(Models$test))) stop("Wrong value of TEST in some conf.mk")
 	rm(f) 
 ?>
 language: c
@@ -26,8 +32,18 @@ env:
   global:
     - CUDA=6.5-14
   matrix: <?R
-for (m in Models$name) { ?>
+sel = Models$test != "no test"
+for (m in Models$name[sel]) { ?>
     - MODEL=<?%s m ?> <?R
+} ?>
+<?R
+sel = Models$test == "can fail"
+if (any(sel)) { ?>
+matrix:
+  allow_failures: <?R
+ for (m in Models$name[sel]) { ?>
+    - MODEL=<?%s m ?> <?R
+ }
 }
 ?>
 

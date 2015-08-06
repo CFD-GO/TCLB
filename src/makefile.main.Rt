@@ -76,7 +76,7 @@ wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", 
 
 travis : .travis.yml
 
-.travis.yml : src/travis.yml.Rt
+.travis.yml : src/travis.yml.Rt src/*/conf.mk
 	@tools/RT -q -f $< -o $@
 
 

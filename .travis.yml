@@ -10,7 +10,6 @@ env:
   matrix: 
     - MODEL=d2q9 
     - MODEL=d2q9_adj 
-    - MODEL=d2q9_diff 
     - MODEL=d2q9_hb 
     - MODEL=d2q9_heat 
     - MODEL=d2q9_heat_adj 
@@ -30,6 +29,10 @@ env:
     - MODEL=d3q19_les 
     - MODEL=d3q27 
     - MODEL=sw 
+    - MODEL=wave2d 
+
+matrix:
+  allow_failures: 
     - MODEL=wave2d 
 
 before_install:
