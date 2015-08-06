@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 
-AC_PREREQ([2.68])
+AC_PREREQ([2.63])
 AC_INIT([CLB], 0.01)
 AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
@@ -117,11 +117,11 @@ then
 	
 	if test "x${CUDA_LIB_DIR}" != "x"
 	then
-		LDFLAGS="${LDFLAGS} -L${CUDA_HOME}${CUDA_LIB_DIR}"
+		LDFLAGS="${LDFLAGS} -L${CUDA_LIB_DIR}"
 		CPPFLAGS="${CPPFLAGS} -I${CUDA_HOME}/include"
 	fi
 	AC_CHECK_HEADERS([cuda.h],[],[AC_MSG_ERROR([Didn't find cuda.h])])
-	AC_CHECK_LIB([cudart], [cudaMalloc],[],[AC_MSG_ERROR([Didn't find CUDA Run-time Library])])
+	#AC_CHECK_LIB([cudart], [cudaMalloc],[],[AC_MSG_ERROR([Didn't find CUDA Run-time Library])])
 	if test "x${enable_graphics}" == "xyes"
 	then
 		AC_CHECK_HEADERS([GL/glut.h],[],[AC_MSG_ERROR([Didn't find GLUT headers])])
