@@ -117,6 +117,11 @@ cuda)
 	try "Installing CUDA form APT" apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
 	try "Clean APT" apt-get clean
 	;;
+openmpi)
+	try "Updating APT" apt-get update -qq
+	try "Installing MPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
+	try "Clean APT" apt-get clean
+	;;
 *)
 	echo "Unknown type of install $inst"
 	usage

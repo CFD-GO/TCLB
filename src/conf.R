@@ -14,7 +14,7 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 
-SYMALGEBRA=TRUE
+# SYMALGEBRA=TRUE
 
 options(stringsAsFactors=FALSE)
 
