@@ -1,7 +1,12 @@
 language: c
 
+git:
+    submodules: false
+
 env:
+  global:
     - CUDA=6.5-14
+  matrix:
     - MODEL=d2q9
 
 before_install:
