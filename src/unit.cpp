@@ -64,18 +64,33 @@ std::string strFromDouble(double val) {
       A.base_unit(i);
       units[m_units[i]]=A;
     }
+
+    //special units, derivatives
     units["N"]=readText("1kgm/s2");
     units["Pa"]=readText("1N/m2");
     units["J"]=readText("1Nm");
     units["W"]=readText("1J/s");
+    units["V"]=readText("1kgm2/t3/A");
+    units["C"]=readText("1tA");
+
+    //prefixes
+    
+    units["nm"]=readText("1e-9m"); 
+    units["um"]=readText("1e-6m");
     units["mm"]=readText("1e-3m");
     units["cm"]=readText("1e-2m");
     units["km"]=readText("1e+3m");
+
     units["h"]=readText("3600s");
-    units["ns"]=readText("1e-6s");
+    units["ns"]=readText("1e-9s");
+    units["us"]=readText("1e-6s");
     units["ms"]=readText("1e-3s");
+
     units["g"]=readText("1e-3kg");
     units["mg"]=readText("1e-6kg");
+    
+
+
     units["d"]=atan(1.0)*4.0/180.;
     units["%"]=1./100.;
   };

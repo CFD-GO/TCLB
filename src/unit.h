@@ -14,8 +14,8 @@
 
 std::string strFromDouble(double val);
 
-const int m_unit = 7;
-const std::string m_units[]={"m","s","kg","K", "x", "y", "z"};
+const int m_unit = 9;
+const std::string m_units[]={"m","s","kg","K", "x", "y", "z", "A", "t"};
 
 /// Variable with unit
 /**
