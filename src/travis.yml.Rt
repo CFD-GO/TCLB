@@ -1,4 +1,22 @@
-
+<?R 
+	f = pipe("git ls-files | sed -n 's|^src/\\([^/]*\\)/conf.mk$|\\1|gp'")
+	models= readLines(f)
+	close(f)
+	
+	Models = do.call(rbind, lapply(models,function (m) {
+		pt = paste("src",m,sep="/");
+		cf = paste("src",m,"conf.mk",sep="/");
+		if (file.exists(cf)) {
+			source(cf);
+		} else {
+			ADJOINT=0;
+			return(NULL)
+		}
+		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
+	}))
+	
+	rm(f) 
+?>
 language: c
 
 git:
@@ -7,30 +25,11 @@ git:
 env:
   global:
     - CUDA=6.5-14
-  matrix: 
-    - MODEL=d2q9 
-    - MODEL=d2q9_adj 
-    - MODEL=d2q9_diff 
-    - MODEL=d2q9_hb 
-    - MODEL=d2q9_heat 
-    - MODEL=d2q9_heat_adj 
-    - MODEL=d2q9_kuper 
-    - MODEL=d2q9_kuper_adj 
-    - MODEL=d2q9_lee 
-    - MODEL=d2q9_les 
-    - MODEL=d2q9_new 
-    - MODEL=d2q9_plate 
-    - MODEL=d2q9_solid 
-    - MODEL=d3q19 
-    - MODEL=d3q19_adj 
-    - MODEL=d3q19_heat 
-    - MODEL=d3q19_heat_adj 
-    - MODEL=d3q19_heat_adj_prop 
-    - MODEL=d3q19_kuper 
-    - MODEL=d3q19_les 
-    - MODEL=d3q27 
-    - MODEL=sw 
-    - MODEL=wave2d 
+  matrix: <?R
+for (m in Models$name) { ?>
+    - MODEL=<?%s m ?> <?R
+}
+?>
 
 before_install:
     - sudo tools/install.sh cuda $CUDA
