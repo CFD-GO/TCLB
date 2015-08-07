@@ -1,0 +1,116 @@
+<?R
+	source("conf.R")
+	c_header();
+
+    U = as.matrix(Density[Density$group=="g",c("dx","dy")])
+
+# Creating variables for symbolic computations
+	
+    g = PV(DensityAll$name[DensityAll$group=="g"])
+	
+    psi =  PV("psi")
+	RD = PV("RD")
+	tau_psi = PV("tau_psi")
+	dt = PV("dt")
+	rho_e = PV("rho_e")
+	epsilon=PV("epsilon")
+    
+    RD = -2./3. * (0.5 - tau_psi) * dt  * ( rho_e *(epsilon^-1) ) ;
+
+    wp = c(1./9. - 1., 1./9., 1./9.,1./9.,1./9.,1./9.,1./9.,1./9.,1./9.)
+    wp0 = 1./9.
+    wps = c(0., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8.)
+
+
+?>
+
+CudaDeviceFunction real_t getPsi(){
+    const real_t wp0 = <?R C(wp0) ?>;
+	return ( <?R C( sum( g[2:9] ))  ?> ) / (1. - wp0);
+}
+
+
+CudaDeviceFunction real_t getSubiter(){
+	return subiter;
+}
+
+CudaDeviceFunction void CalcPsi(){
+    psi - getPsi();
+}
+CudaDeviceFunction real_t getrho_e(){
+    const real_t psi = getPsi();
+	return -2. * n_inf * z * el * sinh( z * el / kb/ T * psi);
+}
+
+CudaDeviceFunction void BounceBack()
+{
+     /*
+     real_t tmp;
+    psi(i_,j_) = psi_down;
+    for (int k_ = 0; k_ < 9; k_++) {
+        const int di = ix(k_,i_,j_);
+        const int dj = iy(k_,i_,j_);
+
+        const double shifted = psi_in(di,dj,k_);
+        const double shifted_eq =  wp(k_) * psi(di,dj);
+
+        psi_out(i_,j_,k_) =  wp(k_) * psi_down -  (1. - wp2) * (shifted - shifted_eq );
+    }
+     */
+<?R
+    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
+    psi_bc=PV("psi_bc")
+# actual, proper bc, g should be from diferent node, as psi_shifted, unable to imlement
+#    C(g, wp*1.  - (1. - wp0) * (g_shifted - wp*psi_shifted))
+    C(g, wp*psi_bc)
+    ?>
+}
+
+CudaDeviceFunction float2 Color() {
+    float2 ret;
+	ret.x = 0;
+	ret.y = 0;
+    return ret;
+}
+
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+    }
+    if ((NodeType & NODE_COLLISION))
+    {
+        CollisionBGK();
+    }
+}
+
+CudaDeviceFunction void Init() {
+	real_t psi0;
+<?R
+    psi0=PV("psi0");
+	C( g, wp*psi0 );
+?>
+}
+
+
+CudaDeviceFunction void CollisionBGK()
+{
+	real_t M[9];
+	real_t psi, rho_e;
+
+	rho_e = getrho_e();
+    psi = getPsi();
+<?R
+    C(g, g - tau_psi^-1 * (g - wp*psi) +  dt * wps * RD  )
+?>
+
+}
+
+CudaDeviceFunction void CalcSubiter()
+{
+    subiter = subiter + 1;
+}
+
