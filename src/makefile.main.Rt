@@ -76,6 +76,11 @@ wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", 
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 	@$(INDENT) $@
 
+travis : .travis.yml
+
+.travis.yml : src/travis.yml.Rt src/*/conf.mk
+	@tools/RT -q -f $< -o $@
+
 
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######

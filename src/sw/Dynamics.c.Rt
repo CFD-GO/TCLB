@@ -37,7 +37,7 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;
@@ -57,12 +57,9 @@ CudaDeviceFunction void BounceBack()
   V = V[sel,]
   for (i in 1:nrow(V))
   {
-	w = list(
-           uf==f[V[i,1]],
-           f[V[i,1]]==f[V[i,2]],
-           f[V[i,2]]==uf
-	)
-	for (h in w) C(h)
+	C( uf, f[V[i,1]] )
+        C( f[V[i,1]], f[V[i,2]])
+        C( f[V[i,2]], uf)
    }
 ?>
 }
@@ -91,7 +88,7 @@ sel = Density$dx > 0
 ft = f
 ft[sel] = fb[sel]
 ft=ft[-10]
-C(f == ft)
+C(f, ft)
 
 */
 
@@ -171,12 +168,15 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void Init() {
 	w = 1;
-	real_t d = 1.0;
-	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
-		d=SolidH;
-	}
+        real_t d = Height;
 	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
 		w = 1-EnergySink;
+	}
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
+		w = 0;
+	}
+	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+		w = 0;
 	}
 	SetEquilibrum(d,InletVelocity,0);
 }
@@ -191,7 +191,7 @@ CudaDeviceFunction float2 Color() {
 	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
                 ret.y = 0;
         } else {
-                ret.y = 1;
+                ret.y = w;
         }
         return ret;
 }
@@ -206,7 +206,7 @@ CudaDeviceFunction void CollisionMRT()
 		"ux","uy",
 		paste("R",1:6-1,sep="")
 	))
-        Sy = rbind(
+        Sy = c(
 		PV(c(0,0,0)),
 		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
 	)
@@ -222,15 +222,14 @@ M = matrix(c(
       0,  1, -1,  1, -1,  0,  0,  0,  0,
       0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-	C( R == f %% M );
+	C( R, f %*% M );
 	d = PV("d");
 	g = PV("Gravity");
-	dw = d
-	dw[[1]][1,2]=-1
-	C(usq == sum(u*u)*dw);
+	dw = d^(-1)
+	C(usq, sum(u*u)*dw);
 	usq = PV("usq")
 	u = PV(c("ux","uy"))
-	Req = rbind(
+	Req = c(
 		d,
 		u,
 		d*(-4)+usq*3+3*d*d*g,
@@ -259,7 +258,7 @@ if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
 	AddToEnergyGain( -(ux*ux + uy*uy));
 }
 <?R
-	C(usq == sum(u*u)*dw);
+	C(usq, sum(u*u)*dw);
 for (i in selR) {
 ?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
 <?R
@@ -268,7 +267,7 @@ for (i in 1:length(R)) {
 ?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
 <?R
 }
-   C( f == R %% t(M) , float=F);
+   C( f, R %*% t(M) , float=F);
 
 ?>
 }
@@ -277,14 +276,14 @@ for (i in 1:length(R)) {
 CudaDeviceFunction void SetEquilibrum(real_t d, real_t ux ,real_t uy)
 {
 	real_t  usq, R0,R1,R2,R3,R4,R5;
-<?R C(usq == sum(u*u)*(1/c_squ)) ?>
+<?R C(usq, sum(u*u)*(1/c_squ)) ?>
 <?R
-	C(R == Req);
+	C(R, Req);
 for (i in 1:length(R)) {
 ?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
 <?R
 }
-   C( f == R %% t(M) , float=F);
+   C( f, R %*% t(M) , float=F);
 ?>
 
 }

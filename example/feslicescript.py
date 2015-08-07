@@ -45,8 +45,8 @@ coprocessor = CreateCoProcessor()
 
 #--------------------------------------------------------------
 # Enable Live-Visualizaton with ParaView
-coprocessor.EnableLiveVisualization(False)
-#coprocessor.EnableLiveVisualization(True)
+#coprocessor.EnableLiveVisualization(False)
+coprocessor.EnableLiveVisualization(True)
 
 
 # ---------------------- Data Selection method ----------------------
@@ -83,5 +83,5 @@ def DoCoProcessing(datadescription):
     coprocessor.WriteImages(datadescription, rescale_lookuptable=False)
 
     # Live Visualization, if enabled.
-#    coprocessor.DoLiveVisualization(datadescription, "localhost", 22222)
-    coprocessor.DoLiveVisualization(datadescription, "172.22.1.148", 22222)
+    coprocessor.DoLiveVisualization(datadescription, "localhost", 22222)
+#    coprocessor.DoLiveVisualization(datadescription, "172.22.1.148", 22222)

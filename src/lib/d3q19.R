@@ -1,6 +1,4 @@
-d3q19_MRT = function (rho="rho", J=c("Jx","Jy","Jz"), R="R", group) {
-
-    MRTMAT = matrix(c(
+d3q19_MRTMAT = matrix(c(
          1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
        -30,-11,-11,-11,-11,-11,-11,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,  8,
         12, -4, -4, -4, -4, -4, -4,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
@@ -21,6 +19,11 @@ d3q19_MRT = function (rho="rho", J=c("Jx","Jy","Jz"), R="R", group) {
          0,  0,  0,  0,  0,  0,  0, -1, -1,  1,  1,  0,  0,  0,  0,  1, -1,  1, -1,
          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1, -1, -1, -1, -1,  1,  1
     ),19,19)
+
+
+d3q19_MRT = function (rho="rho", J=c("Jx","Jy","Jz"), R="R", group) {
+
+    MRTMAT = d3q19_MRTMAT
 
     v = diag(t(MRTMAT) %*% MRTMAT)
     MRTMAT.inv = diag(1/v) %*% t(MRTMAT)

@@ -276,7 +276,7 @@ void Lattice::stopRecord()
 /**
         Sets the monitor callback which will be called every second or frame
 */
-void Lattice::Callback(int(*cb)(int, void*), void* data) {
+void Lattice::Callback(int(*cb)(int,int, void*), void* data) {
 	callback = cb;
 	callback_data = data;
 }
@@ -753,6 +753,7 @@ void Lattice::Iterate(int niter, int iter_type)
 {
 	int last_glob = iter_type & ITER_LASTGLOB;
 	int i;
+	InitialIteration(niter);
 	if (iter_type & ITER_INTEG) last_glob=0;
 	if (reverse_save) {
 	        switch (iter_type & ITER_TYPE) {

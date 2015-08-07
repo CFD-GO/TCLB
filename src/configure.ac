@@ -303,6 +303,22 @@ then
 	fi
 	AC_MSG_RESULT([${PV_VERSION}])
 
+	AC_MSG_CHECKING([for Catalyst-enabled ParaView build include directory])
+	RET=$(find ${with_catalyst} -name "vtkCommonDataModelModule.h" -print -quit 2>/dev/null)
+	if test -z "${RET}"
+	then
+		AC_MSG_RESULT([not found])		
+		AC_MSG_ERROR([Didn't find VTK includes in path ${with_catalyst}])
+	fi
+	RET=$(AS_DIRNAME([${RET}]))
+	RET=$(echo ${RET} | sed 's/\/VTK\/Common\/DataModel$//')
+	AC_MSG_RESULT([${RET}])		
+	if ! test -d ${RET}
+	then
+		AC_MSG_ERROR([include directory is not a directory - find the developer of this package and discreetly pass him this codeword: Arszenik])
+	fi
+	PV_BUILD_INC=${RET}
+
 	AC_MSG_CHECKING([for Catalyst-enabled ParaView source directory])
 	RET=$(find ${with_catalyst} -name "vtkCPProcessor.h" -print -quit 2>/dev/null)
 	if test -z "${RET}"
@@ -387,6 +403,7 @@ fi
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(PV_BUILD)
+AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)

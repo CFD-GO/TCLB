@@ -1,0 +1,69 @@
+<?R 
+	f = pipe("git ls-files | sed -n 's|^src/\\([^/]*\\)/conf.mk$|\\1|gp'")
+	models= readLines(f)
+	close(f)
+	
+	Models = do.call(rbind, lapply(models,function (m) {
+		pt = paste("src",m,sep="/");
+		cf = paste("src",m,"conf.mk",sep="/");
+		e = new.env();
+		e$ADJOINT=FALSE
+		e$TEST=TRUE
+		if (file.exists(cf)) {
+			source(cf, local=e);
+		} else {
+			return(NULL)
+		}
+		if (is.numeric(e$ADJOINT)) e$ADJOINT = e$ADJOINT != 0
+		if (is.logical(e$TEST)) e$TEST = ifelse(e$TEST,"test","no test")
+		e$TEST = as.character(e$TEST)
+		data.frame(name=m, adjoint=e$ADJOINT, test=e$TEST, path=pt)
+	}))
+	Models$test = factor(Models$test, levels=c("test","no test","compile only","can fail"))
+	if (any(is.na(Models$test))) stop("Wrong value of TEST in some conf.mk")
+	rm(f) 
+?>
+language: c
+
+git:
+    submodules: false
+
+env:
+  global:
+    - CUDA=6.5-14
+  matrix: <?R
+sel = Models$test != "no test"
+for (m in Models$name[sel]) { ?>
+    - MODEL=<?%s m ?> <?R
+} ?>
+<?R
+sel = Models$test == "can fail"
+if (any(sel)) { ?>
+matrix:
+  allow_failures: <?R
+ for (m in Models$name[sel]) { ?>
+    - MODEL=<?%s m ?> <?R
+ }
+}
+?>
+
+before_install:
+    - sudo tools/install.sh cuda $CUDA
+    - sudo tools/install.sh r
+    - sudo tools/install.sh openmpi
+    - tools/install.sh rdep
+    - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
+    - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+    - export PATH=${CUDA_HOME}/bin:${PATH}
+
+install:
+    - nvcc --version
+
+script:
+    - make configure
+    - ./configure --enable-double --with-cuda-arch=sm_20
+    - make $MODEL/source
+    - make $MODEL
+
+after_failure:
+    - dmesg

@@ -12,10 +12,21 @@
 
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
+if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
+
+# SYMALGEBRA=TRUE
+
 options(stringsAsFactors=FALSE)
 
 #source("fun_v3.R")
-library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
+
+if (! SYMALGEBRA) {
+	library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
+} else {
+	library(gvector)
+	library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
+}
+
 source("bunch.R")
 #source("linemark.R")
 
@@ -520,10 +531,10 @@ GetMargins = function(dx,dy,dz) {
 	fun = function(dx,dy,dz) {
 		w = c(dx,dy,dz)
 		if (any(w[!is.na(w)] == 0)) {
-			0
+			0L
 		} else {
-			w[is.na(w)] = 0
-			(w[1]+1) + (w[2]+1)*3 + (w[3]+1)*9 + 1
+			w[is.na(w)] = 0L
+			(w[1]+1L) + (w[2]+1L)*3L + (w[3]+1L)*9L + 1L
 		}
 	}
 	c(
@@ -604,16 +615,16 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	def.cpu = cpu
 	mw = PV(c("nx","ny","nz"))
 	if2d3d = c(FALSE,FALSE,d2 == TRUE)
-	one = PV(c(1,1,1))
+	one = PV(c(1L,1L,1L))
 	bp = expand.grid(x=1:3,y=1:3,z=1:3)
 	p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
 	tab1 = c(1,-1,0)
 	tab2 = c(0,-1,1)
 	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
 	sizes = c(one,mw,one)
-	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1)
+	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
 	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
-	MarginNSize = PV(rep(0,27))
+	MarginNSize = PV(rep(0L,27))
 	ret = lapply(Fields, function (f) 
 	{
 		mins = c(f$minx,f$miny,f$minz)
@@ -625,14 +636,14 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
 		mins = pmin(mins,0)
 		maxs = pmax(maxs,0)
-		nsizes = c(PV(-mins),one,PV(maxs))
+		nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
 		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
 		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
 		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
 		mSize = MarginNSize
 		MarginNSize <<- mSize + nsize
 		offset.p = function(positions,cpu) {
-			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0)
+			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
 			if (cpu) {
 			offset =  (positions[p$x] +
 				  (positions[p$y] +
@@ -659,14 +670,14 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 				tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
 				get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
 				get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-				offset = offset.p(c(w+PV(dw) - PV(mins),w+PV(dw),w+PV(dw) - mw),cpu=cpu)
-				cond = c(w+PV(dw),mw-w-PV(dw)-one)
+				offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
+				cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
 				list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
 			},
 			put_offsets = 
 			function(w,cpu=def.cpu) {
-				offset = offset.p(c(w - mw - PV(mins),w,w),cpu=cpu)
-				cond = c(w+PV(-maxs),mw-w+PV(mins)-one)
+				offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
+				cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
 				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
 			},
 			fOffset=mSize*size
@@ -683,9 +694,9 @@ Fields = ret$Fields
 for (i in 1:length(Margin)) {
 	Margin[[i]]$Size = ret$MarginSizes[i]
 	if (! is.zero(Margin[[i]]$Size)) {
-		 Margin[[i]]$size = 1;
+		 Margin[[i]]$size = 1L;
 	} else {
-		Margin[[i]]$size = 0
+		Margin[[i]]$size = 0L
 	}
 	Margin[[i]]$opposite_side = Margin[[28-i]]$side
 }

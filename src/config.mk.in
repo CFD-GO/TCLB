@@ -7,6 +7,7 @@ CPU = @CROSS_CPU@
 
 PV_SOURCE = @PV_SOURCE@
 PV_BUILD = @PV_BUILD@
+PV_BUILD_INC = @PV_BUILD_INC@
 PV_VERSION = @PV_VERSION@
 WITH_CATALYST = @WITH_CATALYST@
 
@@ -50,7 +51,7 @@ ifeq '$(strip $(WITH_CATALYST))' '1'
  PV_INCLUDES += VTK/Rendering/Core
  PV_INCLUDES += ParaViewCore/VTKExtensions/Core
  PV_INCLUDES += CoProcessing/PythonCatalyst
- PV_CPPFLAGS += $(addprefix -I $(PV_BUILD)/, $(PV_INCLUDES))
+ PV_CPPFLAGS += $(addprefix -I $(PV_BUILD_INC)/, $(PV_INCLUDES))
  PV_CPPFLAGS += $(addprefix -I $(PV_SOURCE)/, $(PV_INCLUDES)) -I $(PV_SOURCE)
  PV_CPPFLAGS += -D WITH_CATALYST
  PV_LDFLAGS  += $(addprefix -l, $(addsuffix -$(PV_VERSION),$(PV_LIBS)))

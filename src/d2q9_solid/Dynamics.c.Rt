@@ -17,15 +17,15 @@
 	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy")])
 
 # Calculating equlibrium density set
-	source("MRT/feq.R")
+	source("lib/feq.R")
 	feq = MRT_feq(U, rho, u*rho );
 	geq = MRT_feq(U, rhoT, u*rhoT );
 	heq = MRT_feq(U, C, u*C );
 
 #calculating weights
 	wi = subst(feq, rho=1, ux=0, uy=0)
-	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
-#	wi = c(16,4,4,4,4,1,1,1,1)/36
+#	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
+	wi = c(16,4,4,4,4,1,1,1,1)/36
 	over_c2 = 1/sum(wi*U[,1]**2) # one over square of speed of sound
 
 	LBM_FD = FALSE

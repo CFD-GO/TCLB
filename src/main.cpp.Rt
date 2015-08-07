@@ -59,51 +59,83 @@ void readUnits(pugi::xml_node config, Solver* solver) {
 CudaEvent_t     start, stop; // CUDA events to measure time
 
 // Main callback function called every some iterations to display speed
-int MainCallback(int iter, Solver* solver) {
-	static int cum_iter =0;
+int MainCallback(int seg, int tot, Solver* solver) {
+	int begin=false, end=false;
+	if (tot ==   0) begin=true;
+	if (tot == seg) end=true;
+	
+	static int iter=0;
+	static int last_tot=0;
+	if (tot<last_tot) last_tot = 0;
+	iter += tot-last_tot;
+	last_tot = tot;
 	static double cum_time = 0;
-	int steps;
+	static int steps = 1;
+	if ((iter < steps) & (!end)) return -1;
+	if (iter == 0) return -2;
 	float   elapsedTime; // Elapsed times
 	CudaEventRecord( stop, 0 );
 	CudaEventSynchronize( stop );
 	CudaEventElapsedTime( &elapsedTime, start, stop );
+	
 	if (D_MPI_RANK == 0) {
 		int desired_steps;
-		if (iter >= 0) {
-			cum_iter += iter;
-			cum_time += elapsedTime;
-	       		int ups = (float) (1000.*iter)/elapsedTime; // Steps made per second
-       			double lbups=1.0;
-       			lbups *= solver->info.region.nx;
-			lbups *= solver->info.region.ny;
-       			lbups *= solver->info.region.nz;
-       			lbups *= iter;
-			lbups /= elapsedTime;
-			desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
-			if (D_TERMINAL) {
-				printf("[  ] %8.1f MLBUps   %7.2f GB/s                        \r", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
-			} else {
-				printf("[  ] %8.1f MLBUps   %7.2f GB/s                        \n", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
-			}
-			fflush(stdout);
+		float eTime;
+		int all_iter;
+		cum_time += elapsedTime;
+		if (end) {
+			eTime = cum_time;
+			all_iter = tot;
 		} else {
-			cum_iter += - iter - 1;
-			cum_time += elapsedTime;
-	       		int ups = (float) (1000.*cum_iter)/cum_time; // Steps made per second
-       			double lbups=1.0;
-       			lbups *= solver->info.region.nx;
-			lbups *= solver->info.region.ny;
-       			lbups *= solver->info.region.nz;
-       			lbups *= cum_iter;
-			lbups /= cum_time;
-			desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
-			output("%8.1f MLBUps   %7.2f GB/s (avg)                  \n",
-				((double)lbups)/1000,
-				( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
-			fflush(stdout);
-			cum_iter = 0;
-			cum_time = 0;
+			eTime = elapsedTime;
+			all_iter = iter;
 		}
+       		int ups = (float) (1000. * all_iter)/eTime; // Steps made per second
+  		double lbups=1.0;
+       		lbups *= solver->info.region.nx;
+		lbups *= solver->info.region.ny;
+       		lbups *= solver->info.region.nz;
+       		lbups *= iter;
+		lbups /= elapsedTime;
+		desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
+		char per[1000];
+		char buf[1000];
+		char left[1000];
+		//int left_s = (cum_time * (seg - tot)) / ((tot+1) * 1000);
+		int left_s = cum_time/1000;
+		if (left_s < 60) {
+				sprintf(left,      "%2ds",         left_s);
+		} else {
+			int left_m = left_s/60;
+			left_s = left_s - left_m*60;
+			if (left_m < 60) {
+				sprintf(left, "%2dm %2ds", left_m, left_s);
+			} else {
+				int left_h = left_h/60;
+				left_m = left_m - left_h*60;
+				sprintf(left,  "%dh %2dm", left_h, left_m);
+			}
+		}
+		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+		int per_len = 20;
+		{
+			int i=0;
+			per[i]='['; i++;
+			for (; i <= per_len; i++) if (i * seg <= tot * per_len) per[i]='='; else per[i]=' ';
+			per[i]=']'; i++;
+			per[i]=0;
+		}
+		if (end) {
+			output("%s %s\n", buf, per);
+			cum_time = 0;
+		} else {
+			if (D_TERMINAL) {
+				printf("[  ] %s %s %s\r", buf, per, left);
+			} else {
+				printf("[  ] %s %s %s\n", buf, per, left);
+			}
+		}
+		fflush(stdout);
 		steps = desired_steps;
 		if (steps < 1) steps = 1;
 		if (steps % 2 == 1) steps ++;
@@ -112,6 +144,7 @@ int MainCallback(int iter, Solver* solver) {
 	solver->EventLoop();
 	CudaEventRecord( start, 0 );
 	CudaEventSynchronize( start );
+	iter = 0;
 	return steps;
 }
 
@@ -225,18 +258,18 @@ int main ( int argc, char * argv[] )
 
 	// Reading the config file
 	char* filename = argv[1];
-	pugi::xml_document configfile;
+//	pugi::xml_document configfile;
         if (xml_def_init()) { error("Error in xml_def_init. It should work!\n"); return -1; }
 	strcpy(solver.info.conffile, filename);
 	solver.setOutput("");
-	pugi::xml_parse_result result = configfile.load_file(filename);
+	pugi::xml_parse_result result = solver.configfile.load_file(filename);
 	if (!result) {
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
 	}
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
-	XMLCHILD(config, configfile, "CLBConfig");
+	XMLCHILD(config, solver.configfile, "CLBConfig");
 	XMLCHILD(geom, config, "Geometry");
 	readUnits(config, &solver);
 
@@ -249,7 +282,7 @@ int main ( int argc, char * argv[] )
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
-	adj = configfile.find_node(find_adjoint);
+	adj = solver.configfile.find_node(find_adjoint);
 	if (adj) {
 		pugi::xml_attribute attr = adj.attribute("NumberOfSnaps");
 		if (attr) {
@@ -268,7 +301,7 @@ int main ( int argc, char * argv[] )
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );
 	CudaEventRecord( start, 0 );
-	solver.lattice->Callback((int(*)(int, void*)) MainCallback, (void*) &solver);
+	solver.lattice->Callback((int(*)(int, int, void*)) MainCallback, (void*) &solver);
 
 	// Running main handler (it makes all the magic)
 	Handler hand(config, &solver);
