@@ -359,7 +359,7 @@ CudaDeviceFunction void CollisionMRT()
 	real_t rho, ux, uy;
 <?R
 # Calculating equlibrium density set
-    	source("MRT/feq.R")
+    	source("lib/feq.R")
         rho = PV("rho")
         u = PV(c("ux","uy"))
         feq = MRT_feq(U, rho, u*rho );

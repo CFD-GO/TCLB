@@ -32,7 +32,7 @@
     rho = PV("rho")
     ulb = PV(c("ulb.x","ulb.y"))
 # Calculating equlibrium density set
-	source("MRT/feq.R")
+	source("lib/feq.R")
     feq = MRT_feq(U, rho, ulb*rho );
     du = PV(c("du.x", "du.y"))
     feq2 = MRT_feq(U, rho, (ulb+du)*rho );
