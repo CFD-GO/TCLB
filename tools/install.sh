@@ -100,6 +100,7 @@ r)
 	;;
 rdep)
 	normal_install optparse
+	normal_install numbers
 	github_install llaniewski/rtemplate
 	github_install llaniewski/gvector
 	github_install llaniewski/polyAlgebra
