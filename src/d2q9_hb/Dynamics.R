@@ -44,3 +44,5 @@ AddSetting(name="FluidAlfa", default=1, comment='inlet density')
 
 AddGlobal(name="OutFlux");
 AddGlobal(name="DestroyedCellFlux");
+
+AddNodeType("Heater","ADDITIONALS")
