@@ -46,10 +46,12 @@ clear:
 	@echo "  RM         ALL"
 	@./tools/clear
 
-clean:
+clean-files:
 	@echo "  RM         ALL"
 	@./tools/clear
-
+clean:clean-files configure
+	true
+	
 $(MAKEHEADERS):tools/makeheaders.c
 	gcc -o $@ $<
 

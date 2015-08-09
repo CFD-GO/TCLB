@@ -415,6 +415,17 @@ int Geometry::Draw(pugi::xml_node & node)
 		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
 			Dot(x, y, z);
 		    }
+	} else if (strcmp(n.name(), "HalfSphere") == 0) {
+//                      reg = region.intersect(reg);
+	    debug1("Filling half sphere with flag %d (%d)\n", fg, fg_mask);
+	    DEBUG1(reg.print();)
+		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+			if (inSphere((.5 + x - reg.dx) / reg.nx, 0.5 - (y - .5  - reg.dy) / reg.ny / 2., (.5 + z - reg.dz) / reg.nz) ) {
+			    Dot(x, y, z);
+			}
+		    }
 	} else if (strcmp(n.name(), "Sphere") == 0) {
 //                      reg = region.intersect(reg);
 	    debug1("Filling sphere with flag %d (%d)\n", fg, fg_mask);
@@ -426,7 +437,8 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 			}
 		    }
-	} else if (strcmp(n.name(), "Wedge") == 0) {
+	}    
+    else if (strcmp(n.name(), "Wedge") == 0) {
 //                      reg = region.intersect(reg);
 	    debug1("Filling wedge with flag %d (%d)\n", fg, fg_mask);
 	    DEBUG1(reg.print();)
