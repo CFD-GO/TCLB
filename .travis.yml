@@ -9,31 +9,19 @@ env:
     - CUDA=6.5-14
   matrix: 
     - MODEL=d2q9 
-    - MODEL=d2q9_adj 
     - MODEL=d2q9_hb 
     - MODEL=d2q9_heat 
-    - MODEL=d2q9_heat_adj 
     - MODEL=d2q9_kuper 
-    - MODEL=d2q9_kuper_adj 
     - MODEL=d2q9_lee 
     - MODEL=d2q9_les 
     - MODEL=d2q9_new 
-    - MODEL=d2q9_plate 
     - MODEL=d2q9_solid 
     - MODEL=d3q19 
-    - MODEL=d3q19_adj 
     - MODEL=d3q19_heat 
-    - MODEL=d3q19_heat_adj 
-    - MODEL=d3q19_heat_adj_prop 
     - MODEL=d3q19_kuper 
     - MODEL=d3q19_les 
     - MODEL=d3q27 
-    - MODEL=sw 
-    - MODEL=wave2d 
 
-matrix:
-  allow_failures: 
-    - MODEL=wave2d 
 
 before_install:
     - sudo tools/install.sh cuda $CUDA

@@ -1,21 +1,6 @@
 <?R 
-	l = dir(path="src");
-	d = sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
-	models=l[d]
-	
-	Models = do.call(rbind, lapply(models,function (m) {
-		pt = paste("src",m,sep="/");
-		cf = paste("src",m,"conf.mk",sep="/");
-		if (file.exists(cf)) {
-			source(cf);
-		} else {
-			ADJOINT=0;
-			return(NULL)
-		}
-		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
-	}))
-	
-	rm(l,d) 
+	source("models.R")
+	Models = get.models();
 	destinations=c("CLB");
 ?>
 # MODELS: 
@@ -77,7 +62,8 @@ wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", 
 travis : .travis.yml
 
 .travis.yml : src/travis.yml.Rt src/*/conf.mk
-	@tools/RT -q -f $< -o $@
+	@echo "  RT         $@"
+	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
 
 
 ###############################################################################

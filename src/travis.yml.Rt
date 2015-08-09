@@ -1,27 +1,9 @@
 <?R 
-	f = pipe("git ls-files | sed -n 's|^src/\\([^/]*\\)/conf.mk$|\\1|gp'")
-	models= readLines(f)
-	close(f)
-	
-	Models = do.call(rbind, lapply(models,function (m) {
-		pt = paste("src",m,sep="/");
-		cf = paste("src",m,"conf.mk",sep="/");
-		e = new.env();
-		e$ADJOINT=FALSE
-		e$TEST=TRUE
-		if (file.exists(cf)) {
-			source(cf, local=e);
-		} else {
-			return(NULL)
-		}
-		if (is.numeric(e$ADJOINT)) e$ADJOINT = e$ADJOINT != 0
-		if (is.logical(e$TEST)) e$TEST = ifelse(e$TEST,"test","no test")
-		e$TEST = as.character(e$TEST)
-		data.frame(name=m, adjoint=e$ADJOINT, test=e$TEST, path=pt)
-	}))
-	Models$test = factor(Models$test, levels=c("test","no test","compile only","can fail"))
-	if (any(is.na(Models$test))) stop("Wrong value of TEST in some conf.mk")
-	rm(f) 
+	source("models.R")
+	Models = get.models()
+	Models$test[! Models$git] = "no test" # Do not test not-commited models
+	Models$test[Models$adjoint] = "no test" # Do not test adjoint models (for now)
+
 ?>
 language: c
 
