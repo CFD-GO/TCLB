@@ -157,10 +157,6 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?R } ?>
 
-configure:$(SRC)/configure.ac
-	@echo "  AUTOCONF   $@"
-	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
-
 #configure:$(SRC)/configure.ac
 #	@echo "  AUTOCONF   $@"
 #	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null

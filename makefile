@@ -6,3 +6,8 @@ makefile.main:src/makefile.main.Rt src/*
 
 config.main.mk:
 	touch config.main.mk
+
+configure:src/configure.ac
+	@echo "  AUTOCONF   $@"
+	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
+	
