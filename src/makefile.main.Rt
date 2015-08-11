@@ -42,15 +42,14 @@ SOURCE_ALL+=Catalyst.h
 
 AOUT=main
 
-clear:
+rm-files:
 	@echo "  RM         ALL"
 	@./tools/clear
 
-clean-files:
-	@echo "  RM         ALL"
-	@./tools/clear
-clean:clean-files configure
+rm:rm-files configure
 	true
+
+clean: <?%s paste(Models$name, "clean", sep="/", collapse=" ") ?>
 	
 $(MAKEHEADERS):tools/makeheaders.c
 	gcc -o $@ $<
