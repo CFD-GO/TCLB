@@ -1,5 +1,7 @@
 CudneLB - the templated version
 ===
+[![Build Status](https://travis-ci.org/llaniewski/TCLB.svg?branch=develop)](https://travis-ci.org/llaniewski/TCLB)
+
 CudneLB is a MPI+CUDA or MPI+CPU high-performance CFD simulation code, based on Lattice Boltzmann Method.
 
 It provides a clear interface for calculation of complex physics, and implementing new models.
