@@ -62,10 +62,13 @@ AC_ARG_ENABLE([openmp],
 	AC_HELP_STRING([--enable-openmp],
 		[enable openMP in the CPU code]))
 
-
 AC_ARG_ENABLE([coverage],
 	AC_HELP_STRING([--enable-coverage],
 		[enable coverage testing]))
+
+AC_ARG_ENABLE([makelines],
+	AC_HELP_STRING([--enable-marklines],
+		[enable marking lines with pragma in RT]))
 
 		
 NVFLAGS=""
@@ -389,10 +392,16 @@ then
 	AC_DEFINE([CROSS_MPI_WAITANY], [1], [MPI WAIT ANY])
 fi
 
-if test "x${enable_coverage}" != "xyes"
+if test "x${enable_coverage}" == "xyes"
 then
+	echo TAK!
 	CPPFLAGS="${CPPFLAGS} -fprofile-arcs -ftest-coverage"
 	LDFLAGS="${LDFLAGS} -fprofile-arcs -ftest-coverage"
+fi
+
+if test "x${enable_marklines}" == "xyes"
+then
+	RTOPT="${RTOPT} --mark-lines"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.
