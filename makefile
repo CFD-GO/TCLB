@@ -1,8 +1,10 @@
-include config.main.mk
-include makefile.main
+ifneq ($(MAKECMDGOALS),configure)
+	include config.main.mk
+	include makefile.main
+endif
 
 makefile.main:src/makefile.main.Rt src/*
-	@echo "Making makefile.main"
+	@echo "  RT         $@"
 	@tools/RT -I src/ -q -f $< -o $@
 
 config.main.mk: configure
