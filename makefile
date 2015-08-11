@@ -17,5 +17,5 @@ config.main.mk: configure
 
 configure:src/configure.ac
 	@echo "  AUTOCONF   $@"
-	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
+	@autoconf --warnings=error -o $@ $< && rm -r autom4te.cache 2>/dev/null
 	

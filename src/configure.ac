@@ -394,7 +394,6 @@ fi
 
 if test "x${enable_coverage}" == "xyes"
 then
-	echo TAK!
 	CPPFLAGS="${CPPFLAGS} -fprofile-arcs -ftest-coverage"
 	LDFLAGS="${LDFLAGS} -fprofile-arcs -ftest-coverage"
 fi
