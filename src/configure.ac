@@ -62,6 +62,11 @@ AC_ARG_ENABLE([openmp],
 	AC_HELP_STRING([--enable-openmp],
 		[enable openMP in the CPU code]))
 
+
+AC_ARG_ENABLE([coverage],
+	AC_HELP_STRING([--enable-coverage],
+		[enable coverage testing]))
+
 		
 NVFLAGS=""
 
@@ -384,6 +389,11 @@ then
 	AC_DEFINE([CROSS_MPI_WAITANY], [1], [MPI WAIT ANY])
 fi
 
+if test "x${enable_coverage}" != "xyes"
+then
+	CPPFLAGS="${CPPFLAGS} -fprofile-arcs -ftest-coverage"
+	LDFLAGS="${LDFLAGS} -fprofile-arcs -ftest-coverage"
+fi
 
 # Checks for typedefs, structures, and compiler characteristics.
 #AC_HEADER_STDBOOL
