@@ -42,6 +42,9 @@ script:
     - ./configure --enable-double --with-cuda-arch=sm_20
     - make $MODEL/source
     - make $MODEL
+    - make $MODEL/clean
+    - ./configure --enable-double --disable-cuda
+    - make $MODEL
 
 after_failure:
     - dmesg
