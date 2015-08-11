@@ -418,5 +418,7 @@ AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
 AC_SUBST(PV_VERSION)
+AC_SUBST(RTOPT)
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
+AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
