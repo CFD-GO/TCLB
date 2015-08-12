@@ -28,7 +28,7 @@ if (! SYMALGEBRA) {
 }
 
 source("bunch.R")
-#source("linemark.R")
+source("linemark.R")
 
 rows = function(x) {
 	rows_df= function(x) {

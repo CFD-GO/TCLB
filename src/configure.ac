@@ -66,7 +66,7 @@ AC_ARG_ENABLE([coverage],
 	AC_HELP_STRING([--enable-coverage],
 		[enable coverage testing]))
 
-AC_ARG_ENABLE([makelines],
+AC_ARG_ENABLE([marklines],
 	AC_HELP_STRING([--enable-marklines],
 		[enable marking lines with pragma in RT]))
 
@@ -394,7 +394,7 @@ fi
 
 if test "x${enable_coverage}" == "xyes"
 then
-	CPPFLAGS="${CPPFLAGS} -fprofile-arcs -ftest-coverage"
+	CPP_OPT="${CPP_OPT} -fprofile-arcs -ftest-coverage"
 	LDFLAGS="${LDFLAGS} -fprofile-arcs -ftest-coverage"
 fi
 
@@ -427,6 +427,8 @@ AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
+AC_SUBST(CPP_OPT)
+
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
