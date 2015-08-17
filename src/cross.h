@@ -349,6 +349,11 @@
       sum[0] += val;
     }
 
+    inline void atomicMax(T * sum, T val)
+    {
+      if (val > sum[0]) sum[0] = val;
+    }
+
 
   #endif
 
