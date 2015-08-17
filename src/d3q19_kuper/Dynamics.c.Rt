@@ -480,7 +480,7 @@ CudaDeviceFunction void CalcPhi() {
 	}
 	p = ((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
 	p = Magic*p;
-	phi = FAcc * std::sqrt( -p + rho2/(3.) );
+	phi = FAcc * sqrt( -p + rho2/(3.) );
 }
 
 CudaDeviceFunction void Run() {
