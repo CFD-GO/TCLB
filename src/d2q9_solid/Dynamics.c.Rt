@@ -332,6 +332,7 @@ CudaDeviceFunction void CollisionMRT()
 	real_t omega2 = omega;
 	real_t omegaT = 1.0-1.0/(3*FluidAlfa + 0.5);
 	real_t omegaC = 1.0-1.0/(3*SoluteDiffusion + 0.5);
+	omegaC = (-omegaC-1.0) * fi_s(0,0) + omegaC;
 	int interface = 1;
 	<?R
 		fi = PV("fi_s(",U[,1],",",U[,2],")")
