@@ -51,7 +51,7 @@ script:
     - make $MODEL/clean
     - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage
     - make $MODEL
-    - tools/tests.sh
+    - tools/tests.sh $MODEL
 
 after_success:
     - tools/coveralls.sh
