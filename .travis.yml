@@ -30,6 +30,7 @@ before_install:
     - sudo tools/install.sh r
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
+    - sudo tools/install.sh coveralls
     - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
     - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
     - export PATH=${CUDA_HOME}/bin:${PATH}
@@ -42,9 +43,10 @@ script:
     - ./configure --enable-double --with-cuda-arch=sm_20
     - make $MODEL/source
     - make $MODEL
-    - make $MODEL/clean
-    - ./configure --enable-double --disable-cuda
-    - make $MODEL
+    - ./configure 
+
+after_success:
+    - tools/coveralls.sh
 
 after_failure:
     - dmesg

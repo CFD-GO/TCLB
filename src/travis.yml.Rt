@@ -44,9 +44,17 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines
     - make $MODEL/source
     - make $MODEL
+    - ./configure 
+    - make $MODEL/clean
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage
+    - make $MODEL
+    - tools/tests.sh
+
+after_success:
+    - tools/coveralls.sh
 
 after_failure:
     - dmesg
