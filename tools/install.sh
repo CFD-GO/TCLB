@@ -127,7 +127,12 @@ coveralls)
 	try "Installing lcov" apt-get install -y lcov
 #	try "Installing coveralls-lcov" gem install coveralls-lcov
 	;;
-submodule)
+submodules)
+	if test -f "tests/README.md"
+	then
+		echo "\"tests\" already cloned"
+		exit 0
+	fi
 	cp .gitmodules .gitmodules_save
 	try "Changing URLs of submodules" sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
 	try "Updating \"tests\" submodule" git submodule update --init tests

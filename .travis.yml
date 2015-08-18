@@ -1,6 +1,9 @@
 
 language: c
 
+git:
+    submodules: false
+
 env:
   global:
     - CUDA=6.5-14
@@ -15,6 +18,7 @@ before_install:
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
     - gem install coveralls-lcov
+    - tools/install.sh submodules
     - which gem
     - alias
     - sudo tools/install.sh coveralls
