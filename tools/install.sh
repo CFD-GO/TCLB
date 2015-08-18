@@ -129,9 +129,10 @@ coveralls)
 	;;
 submodule)
 	cp .gitmodules .gitmodules_save
-	sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-	git submodule update --init tests
+	try "Changing URLs of submodules" sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+	try "Updating \"tests\" submodule" git submodule update --init tests
 	mv .gitmodules_save .gitmodules
+	;;
 *)
 	echo "Unknown type of install $inst"
 	usage
