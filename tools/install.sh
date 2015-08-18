@@ -125,7 +125,7 @@ openmpi)
 	;;
 coveralls)
 	try "Installing lcov" apt-get install -y lcov
-	try "Installing coveralls-lcov" gem install coveralls-lcov
+#	try "Installing coveralls-lcov" gem install coveralls-lcov
 	;;
 *)
 	echo "Unknown type of install $inst"
