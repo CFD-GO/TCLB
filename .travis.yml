@@ -27,6 +27,7 @@ before_install:
 
 install:
     - nvcc --version
+    - git submodule update --init tests
 
 script:
     - make configure
