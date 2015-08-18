@@ -127,6 +127,11 @@ coveralls)
 	try "Installing lcov" apt-get install -y lcov
 #	try "Installing coveralls-lcov" gem install coveralls-lcov
 	;;
+submodule)
+	cp .gitmodules .gitmodules_save
+	sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+	git submodule update --init tests
+	mv .gitmodules_save .gitmodules
 *)
 	echo "Unknown type of install $inst"
 	usage
