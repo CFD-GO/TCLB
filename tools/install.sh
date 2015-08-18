@@ -123,6 +123,9 @@ openmpi)
 	try "Installing MPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
 	try "Clean APT" apt-get clean
 	;;
+coveralls)
+	try "Installing lcov" apt-get install -y lcov
+	try "Installing coveralls-lcov" gem install coveralls-lcov
 *)
 	echo "Unknown type of install $inst"
 	usage
