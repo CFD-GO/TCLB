@@ -38,6 +38,7 @@ script:
     - make $MODEL/clean
     - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage
     - make $MODEL
+    - head CLB/$MODEL/cuda.cpp
     - tools/tests.sh $MODEL
 
 after_success:
