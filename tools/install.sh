@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] rdep|cuda [VERSION]"
+	echo "install.sh [dry] r|rdep|cuda|submodules|openmpi|coveralls [VERSION]"
 	exit -2
 }
 
