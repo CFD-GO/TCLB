@@ -10,11 +10,14 @@ function try {
 	log=$(echo $comment | sed 's/ /./g').log
 	shift
 		echo -n "$comment... "
-		if env time -f "%e" -o $log.time "$@" >$log 2>&1
+#		if env time -f "%e" -o $log.time "$@" >$log 2>&1
+		if "$@" >$log 2>&1
 		then
-			echo "OK ($(cat $log.time)s)"
+#			echo "OK ($(cat $log.time)s)"
+			echo "OK"
 		else
-			echo "FAILED ($(cat $log.time)s)"
+			echo "FAILED"
+#			echo "FAILED ($(cat $log.time)s)"
 			echo "----------------- CMD ----------------"
 			echo $@
 			echo "----------------- LOG ----------------"
