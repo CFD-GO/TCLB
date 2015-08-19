@@ -125,6 +125,7 @@ openmpi)
 	;;
 coveralls)
 	try "Installing lcov" apt-get install -y lcov
+	try "Installing time" apt-get install -y time
 #	try "Installing coveralls-lcov" gem install coveralls-lcov
 	;;
 submodules)
