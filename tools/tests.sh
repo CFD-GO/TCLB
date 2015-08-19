@@ -10,11 +10,11 @@ function try {
 	log=$(echo $comment | sed 's/ /./g').log
 	shift
 		echo -n "$comment... "
-		if "$@" >$log 2>&1
+		if env time -f "%e" -o $log.time "$@" >$log 2>&1
 		then
-			echo "OK"
+			echo "OK ($(cat $log.time)s)"
 		else
-			echo "FAILED"
+			echo "FAILED ($(cat $log.time)s)"
 			echo "----------------- CMD ----------------"
 			echo $@
 			echo "----------------- LOG ----------------"
@@ -95,8 +95,10 @@ do
 					fi
 					EXT=${r##*.}
 					R="WRONG"
+					COMMENT=""
 					case "$EXT" in
 					csv)
+						COMMENT="(csvdiff)"
 						tools/csvdiff -a "$r" -b "$g" -x 1e-10 >/dev/null && R="OK"
 						;;
 					*)
@@ -106,9 +108,9 @@ do
 
 					if test "x$R" == "xOK"
 					then
-						echo "OK"
+						echo "OK $COMMENT"
 					else
-						echo "Different"
+						echo "Different $COMMENT"
 						RESULT="WRONG"
 					fi
 				else
