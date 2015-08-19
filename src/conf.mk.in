@@ -4,7 +4,7 @@ MPI_INCLUDES = @MPI_INCLUDE@
 MPI_LIBS     = @MPI_LIB@
 MPI_OPT      = -L$(MPI_LIBS) -I$(MPI_INCLUDES) -lmpi
 
-SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
+SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.inc.cpp Dynamics.c
 SOURCE=$(SOURCE_CU)
 HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h pugixml.hpp pugiconfig.hpp
 
