@@ -93,7 +93,18 @@ do
 						echo "$g not found - this should not happen!"
 						exit -123
 					fi
-					if diff "$r" "$g" >/dev/null 2>&1
+					EXT=${r##*.}
+					R="WRONG"
+					case "$EXT" in
+					csv)
+						tools/csvdiff -a "$r" -b "$g" -x 1e-10 >/dev/null && R="OK"
+						;;
+					*)
+						diff "$r" "$g" >/dev/null && R="OK"
+						;;
+					esac
+
+					if test "x$R" == "xOK"
 					then
 						echo "OK"
 					else
