@@ -1,0 +1,45 @@
+#!/usr/bin/env Rscript
+
+library(optparse)
+options <- list(
+        make_option(c("-a","--filea"), "store", default="", help="First input file", type="character"),
+        make_option(c("-b","--fileb"), "store", default="", help="Second input file", type="character"),
+	make_option(c("-x","--limit"), "store", default=1e-10, help="Limit on the difference of numeric values", type="numeric")
+)
+
+opt <- parse_args(OptionParser(usage="Usage: csvdiff -a file -b file [-x 1e-10]", options))
+
+read = function(f) {
+	if (f == "") stop("Input file not specified\nUsage: ADmod -a file -b file\n");
+	if (! file.exists(f)) stop(paste("File not found:",f))
+	tab = try(read.csv(f),silent=TRUE)
+	if (inherits(tab, "try-error")) stop(paste(f,"is not a valid CSV file"))
+	tab
+}
+
+if (! is.numeric(opt$limit)) stop("Limit not numeric.")
+eps = abs(opt$limit)
+
+tab1 = read(opt$filea)
+tab2 = read(opt$fileb)
+
+
+if ( ! identical(dim(tab1),dim(tab2)) ) { cat("dimensions not identical\n"); q(status=-1); }
+if ( ! identical(names(tab1), names(tab2)) ) { cat("names (header) not identical\n"); q(status=-2); }
+
+ret = TRUE
+for (i in names(tab1)) {
+	a=tab1[[i]]
+	b=tab2[[i]]
+	ret = TRUE
+	if (is.numeric(a) && is.numeric(b)) {
+		if (any(abs(a-b) > eps)) ret = FALSE
+	} else {
+		ret = identical(a,b)
+	}
+	if (! ret) { cat("differ at",i,"\n"); q(status=-3); }
+}
+
+
+q(status=0);	
+
