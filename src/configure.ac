@@ -70,6 +70,9 @@ AC_ARG_ENABLE([marklines],
 	AC_HELP_STRING([--enable-marklines],
 		[enable marking lines with pragma in RT]))
 
+AC_ARG_ENABLE([debug-kernel-compile],
+	AC_HELP_STRING([--debug-kernel-compile],
+		[enable NVCC pos compile stats for debug (lots of output!)]))
 		
 NVFLAGS=""
 
@@ -90,6 +93,12 @@ fi
 
 if test "x${enable_cuda}" != "xno"
 then
+
+    if test "x{debug-kernel-compile}" != "x"
+    then
+	 NVFLAGS="${NVFLAGS} -keep -v"
+    fi
+
 	if test "x${enable_cuda}" != "xyes" && test "x${enable_cuda}" != "x"
 	then
 		CUDA_HOME="${enable_cuda}"

@@ -8,9 +8,10 @@
 
 #######################################################################################################################
 
-all: <?%s paste(Models$name,collapse=" ") ?>
+all: <?%s paste(Models$name,collapse=" ") ?> 
 
-.PHONY: all clean dummy
+.PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
+
 
 SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
 SOURCE_PLAN+=Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
@@ -86,6 +87,10 @@ for (d in destinations) {
 	@echo "  DONE       $@"
 
 <?%s m ?>/source:  | <?%s d ?>/<?%s m ?>
+
+
+<?%s m ?>/kernel_stats_20:
+    ptxas -v --gpu-name=sm_20 <?%s d ?>/<?%s m ?>/cuda.ptx 
 
 <?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
 	@echo "  DONE       $@"
@@ -202,4 +207,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
 	@cat $< | sed -r 's/[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?/&f/g' > $@
+
+
+
 
