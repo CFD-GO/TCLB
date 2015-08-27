@@ -70,10 +70,14 @@ AC_ARG_ENABLE([marklines],
 	AC_HELP_STRING([--enable-marklines],
 		[enable marking lines with pragma in RT]))
 
-AC_ARG_ENABLE([debug-kernel-compile],
-	AC_HELP_STRING([--debug-kernel-compile],
+AC_ARG_ENABLE([debug-kernel],
+	AC_HELP_STRING([--with-debug-kernel],
 		[enable NVCC pos compile stats for debug (lots of output!)]))
-		
+
+AC_ARG_WITH([python],
+	AC_HELP_STRING([--with-python],
+		[Enable CallPython handler, requires python-dev]))
+			
 NVFLAGS=""
 
 # Checks for programs.
@@ -94,8 +98,9 @@ fi
 if test "x${enable_cuda}" != "xno"
 then
 
-    if test "x{debug-kernel-compile}" != "x"
+    if test "x{debug-kernel}" != "xno"
     then
+     AC_MSG_RESULT(>>>> NVCC debug output enabled <<<<)
 	 NVFLAGS="${NVFLAGS} -keep -v"
     fi
 
@@ -226,6 +231,28 @@ else
 	AC_MSG_RESULT([${MPI_INCLUDE}])
 fi
 CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
+
+
+
+if  test "x${with_python}" == "xyes"; then
+	AC_CHECK_PROG(PC,[python-config],[yes],[no])
+    if test "x${PC}" == "xyes"; then
+        python_config="python-config"
+    fi
+
+    AC_MSG_CHECKING([Python Embandinng: linker flags])
+    PF=$($python_config --ldflags)
+    LDFLAGS="${LDFLAGS} ${PF}"
+    AC_MSG_RESULT([${PF}])
+    
+    AC_MSG_CHECKING([Python Embandinng: compiler flags])
+    PF=$($python_config --cflags)
+    CPPFLAGS="${CPPFLAGS} ${PF} -DEMBADED_PYTHON"
+    AC_MSG_RESULT([${PF}])
+fi
+
+
+
 
 AC_MSG_CHECKING([MPI library path])
 if test -z "${MPI_LIB}"; then

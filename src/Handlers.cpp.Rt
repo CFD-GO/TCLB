@@ -35,7 +35,9 @@
 #ifdef WITH_CATALYST
         #include "Catalyst.h"
 #endif
-
+#ifdef EMBEDED_PYTHON
+#include "Python.h"
+#endif
 
 #define ITERATION_STOP 1
 
@@ -1946,7 +1948,7 @@ class acInit: public Action {
 	}
 };
 
-class acLoad: public Action {
+class acLoadBinary: public Action {
 	public:
 	int Init() {
 		Action::Init();
@@ -1954,7 +1956,7 @@ class acLoad: public Action {
 		if (!attr) {
 			attr = node.attribute("filename");
 			if (!attr) {
-				error("No file specified in Load\n");
+				error("No file specified in LoadBinary\n");
 				return -1;
 			}
 		}
@@ -1962,13 +1964,14 @@ class acLoad: public Action {
 		if (attr2) {
 			solver->loadComp(attr.value(), attr2.value());
 		} else {
-			solver->lattice->loadSolution(attr.value());
+		//	solver->lattice->loadSolution(attr.value());
+            error("Missing comp parameter in LoadBinary");
 		}
 		return 0;
 	}
 };
 
-class cbSave: public Callback {
+class cbSaveBinary: public Callback {
 	std::string fn;
 	public:
 	int Init() {
@@ -1980,8 +1983,69 @@ class cbSave: public Callback {
 				char filename[STRING_LEN];
 				solver->outIterFile("Save", "", filename);
 				fn = filename;
-			} else fn = attr.value();
-		} else fn = ((std::string) solver->info.outpath) + "_" + attr.value();
+			} else {
+                fn = attr.value();
+            }
+		} else {
+            fn = ((std::string) solver->info.outpath) + "_" + attr.value();
+        }
+		return 0;
+	}
+	public:
+	int DoIt() {
+		Callback::DoIt();
+		pugi::xml_attribute attr = node.attribute("comp");
+		if (attr) {
+			solver->saveComp(fn.c_str(), attr.value());
+		} else {
+		//	solver->lattice->saveSolution(fn.c_str());
+            error("Missing comp attribute in SaveBinary");
+		}
+		return 0;
+	};
+};
+class acLoadMemoryDump: public Action {
+	public:
+	int Init() {
+		Action::Init();
+		pugi::xml_attribute attr = node.attribute("file");
+		if (!attr) {
+			attr = node.attribute("filename");
+			if (!attr) {
+				error("No file specified in LoadMemoryDump\n");
+				return -1;
+			}
+		}
+		pugi::xml_attribute attr2= node.attribute("comp");
+		if (attr2) {
+            error("Depreceted API call. Use LoadBinary with comp parameter");
+        }
+//			solver->loadComp(attr.value(), attr2.value());
+//		} else {
+		solver->lattice->loadSolution(attr.value());
+//		}
+		return 0;
+	}
+};
+
+class cbSaveMemoryDump: public Callback {
+	std::string fn;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("file");
+		if (!attr) {
+			attr = node.attribute("filename");
+			if (!attr) {
+				char filename[STRING_LEN];
+				solver->outIterFile("Save", "", filename);
+				fn = filename;
+			} else {
+                fn = attr.value();
+            }
+		} else {
+            fn = ((std::string) solver->info.outpath) + "_" + attr.value();
+        }
 		return 0;
 	}
 	public:
@@ -1989,13 +2053,57 @@ class cbSave: public Callback {
 		Callback::DoIt();
 		pugi::xml_attribute attr= node.attribute("comp");
 		if (attr) {
-			solver->saveComp(fn.c_str(), attr.value());
-		} else {
-			solver->lattice->saveSolution(fn.c_str());
-		}
+            error("Depreceted API call. Use SaveBinary with comp parameter");
+        }
+//			solver->saveComp(fn.c_str(), attr.value());
+//		} else {
+//			solver->lattice->saveSolution(fn.c_str());
+//		}
 		return 0;
 	};
 };
+
+
+
+class cbPythonCall: public Callback {
+	std::string fn;
+	public:
+	int Init() {
+		Callback::Init();
+		return 0;
+	}
+	public:
+	int DoIt() {
+        
+        pugi::xml_attribute module = node.attribute("module");
+		pugi::xml_attribute function = node.attribute("function");			
+        pugi::xml_attribute comp = node.attribute("pass_component");
+
+		Callback::DoIt();
+
+		if (!module || !function || !comp) {
+            error("Missing params in PythonCall");
+        }
+        //variable menaged by selver!!
+        real_t * buffer;
+        int size = solver->getComponentIntoBuffer(comp.value(), buffer);
+        output("buffer size: %d", size);
+#ifdef EMBEDED_PYTHON
+////BEGIN PYTHON HANDLING
+        Py_Initialize();
+//END PYTHON HANDLING
+#else
+        output("Python support disabled at compile time, nothing to do");
+#endif
+
+
+
+		return 0;
+	};
+};
+
+
+
 
 class acGeometry: public Action {
 	public:
@@ -2016,25 +2124,37 @@ vHandler * getHandler(pugi::xml_node node) {
 	debug1("Parsing xml element %s\n", name.c_str());
 	if (name=="VTK") {
 		ret = new cbVTK;
-        } else if (name=="BIN") {
+    } else if (name=="BIN") {
 		ret = new cbBIN;
-        } else if (name=="TXT") {
-		ret = new cbTXT;
-        } else if (name=="Log") {
+    } else if (name=="TXT") {
+    	ret = new cbTXT;
+    } else if (name=="Log") {
 		ret = new cbLog;
-        } else if (name=="Save") {
-		ret = new cbSave;
-        } else if (name=="Load") {
-		ret = new acLoad;
-        } else if (name=="Stop") {
+    } else if (name=="Save") {
+	//	ret = new cbSave;
+        error("Depreceted API call, use SaveMemoryDump or SaveBinary");
+    } else if (name=="Load") {
+        error("Depreceted API call, use LoadMemoryDump or LoadBinary");
+//		ret = new acLoad;
+    } else if (name=="SaveMemoryDump") {
+		ret = new cbSaveMemoryDump;
+    } else if (name=="LoadMemoryDump") {
+		ret = new acLoadMemoryDump;
+    } else if (name=="SaveBinary") {
+		ret = new cbSaveBinary;
+    } else if (name=="LoadBinary") {
+		ret = new acLoadBinary;
+    } else if (name=="CallPython"){
+        ret = new cbPythonCall;
+    } else if (name=="Stop") {
 		ret = new cbStop;
-        } else if (name=="Keep") {
+    } else if (name=="Keep") {
 		ret = new cbKeep;
-        } else if (name=="Solve") {
+    } else if (name=="Solve") {
 		ret = new acSolve;
-        } else if (name=="OptSolve") {
+    } else if (name=="OptSolve") {
 		ret = new acOptSolve;
-        } else if (name=="Adjoint") {
+    } else if (name=="Adjoint") {
 		pugi::xml_attribute attr = node.attribute("type");
 		if (attr) {
 			std::string type(attr.value());
@@ -2055,31 +2175,31 @@ vHandler * getHandler(pugi::xml_node node) {
 				ret = new acUSAdjoint;
 			}
 		}
-        } else if (name=="Params") {
-		ret = new acParams;
-        } else if (name=="Units") {
+    } else if (name=="Params") {
+	    ret = new acParams;
+    } else if (name=="Units") {
 		ret = new GenericContainer;
-        } else if (name=="Geometry") {
+    } else if (name=="Geometry") {
 		ret = new acGeometry;
-        } else if (name=="Repeat") {
+    } else if (name=="Repeat") {
 		ret = new acRepeat;
-        } else if (name=="Threshold") {
+    } else if (name=="Threshold") {
 		ret = new acThreshold;
-        } else if (name=="ThresholdNow") {
+    } else if (name=="ThresholdNow") {
 		ret = new acThresholdNow;
-        } else if (name=="CLBConfig") {
+    } else if (name=="CLBConfig") {
 		ret = new MainContainer;
-        } else if (name=="Model") {
+    } else if (name=="Model") {
 		ret = new acModel;
-        } else if (name=="InternalTopology") {
+    } else if (name=="InternalTopology") {
 		ret = new InternalTopology;
-        } else if (name=="OptimalControl") {
+    } else if (name=="OptimalControl") {
 		ret = new OptimalControl;
-        } else if (name=="OptimalControlSecond") {
+    } else if (name=="OptimalControlSecond") {
 		ret = new OptimalControlSecond;
-        } else if (name=="Fourier") {
+    } else if (name=="Fourier") {
 		ret = new Fourier;
-        } else if (name=="Optimize") {
+    } else if (name=="Optimize") {
 #ifdef WITH_NLOPT
 		ret = new acOptimize;
 #else
@@ -2093,20 +2213,25 @@ vHandler * getHandler(pugi::xml_node node) {
                 ERROR("No Catalyst support. configure with --with-catalyst\n");
                 exit(-1);
 #endif
-        } else if (name=="Init") {
+    } else if (name=="Init") {
 		ret = new acInit;
-        } else if (name=="Control") {
+    } else if (name=="Control") {
 		ret = new conControl;
-        } else if (name=="FieldParameter") {
+    } else if (name=="FieldParameter") {
 		ret = new conFieldParameter;
-        } else if (name=="ControlParameter") {
+    } else if (name=="ControlParameter") {
 		ret = new conControlParameter;
 	} else if (name=="SyntheticTurbulence") {
 		ret = new acSyntheticTurbulence;
-        } else {
+    } else {
 		ERROR("Unknown element '%s'\n", node.name());
 		return NULL;
 	}
+    // end else-if
+    // SERIOUSLY!!!!
+    // CONSIDER switch-case maybe:)
+    // some observator pattern may be in hand
+
 	if (ret != NULL) ret->node = node;
 	return ret;
 }
