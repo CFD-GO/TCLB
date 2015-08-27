@@ -269,7 +269,7 @@ int main ( int argc, char * argv[] )
 	}
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
-	XMLCHILD(config, configfile, "CLBConfig");
+	XMLCHILD(config, solver.configfile, "CLBConfig");
 	std::map< std::string, std::pair<int, int> > mesh_sizes;
 	int tot_sizes;
 	readUnits(config, &solver);
@@ -333,7 +333,6 @@ int main ( int argc, char * argv[] )
 		if (ratio > max_a) max_a = ratio;
 		if (ratio < min_a || min_a == 0) min_a = ratio;
 		if (tot_cores <= solver.mpi_rank) my_mesh = it;
-		my_mesh
 		tot_cores += it->second.second;
 		
 	}
