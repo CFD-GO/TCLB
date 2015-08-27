@@ -240,6 +240,8 @@ CudaDeviceFunction void EPressure()
 }
 
 CudaDeviceFunction void Run() {
+
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj) AddToMaterial(fi_s);
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
@@ -260,11 +262,11 @@ CudaDeviceFunction void Run() {
     }
     if ((NodeType & NODE_MRT))
     {
-		if (fi_s < 1) {
+//		if (fi_s < 1) {
 			CollisionMRT();
-		} else {
-			BounceBack();
-		}
+//		} else {
+//			BounceBack();
+//		}
     }
 }
 
@@ -332,6 +334,7 @@ CudaDeviceFunction void CollisionMRT()
 	real_t omega2 = omega;
 	real_t omegaT = 1.0-1.0/(3*FluidAlfa + 0.5);
 	real_t omegaC = 1.0-1.0/(3*SoluteDiffusion + 0.5);
+	omegaC = (-omegaC-1.0) * fi_s(0,0) + omegaC;
 	int interface = 1;
 	<?R
 		fi = PV("fi_s(",U[,1],",",U[,2],")")

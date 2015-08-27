@@ -35,7 +35,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
-#include "LatticeAccess.cu"
+#include "LatticeAccess.inc.cpp"
 
 
 
@@ -276,4 +276,4 @@ cat("\n")
 ifdef()
 ?>
 
-#include "LatticeContainer.cu"
+#include "LatticeContainer.inc.cpp"

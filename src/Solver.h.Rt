@@ -59,6 +59,7 @@ class Solver {
 	InfoBlock info; ///< Information common among the cores
 	MPIInfo mpi; ///< Information on MPI connectivity
 	MPI_Comm mpi_comm; ///< Solver's MPI_COMM_WORLD
+	pugi::xml_document configfile;
         Lattice * lattice; ///< Main Lattice object
 	Geometry * geometry; ///< Main Geometry object
 	lbRegion region; ///< Global region

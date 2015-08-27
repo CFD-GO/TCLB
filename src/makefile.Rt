@@ -58,8 +58,6 @@ main:main.o $(OBJ)
 
 endif
 
-clear:
+clean:
 	@echo "  RM         ALL"
-#	@rm `ls | grep -v -e ^makefile$$ -e .mk$$` 2>/dev/null; true
 	@rm *.o main 2>/dev/null; true
-

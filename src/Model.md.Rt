@@ -13,7 +13,7 @@
 
   stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
     ret = mark.stensil(tab, mx=glob_mx, only2d=glob_only2d, pref="images/st_")
-    paste("[[",ret,"]]",sep="")
+    paste("![stencil](",ret,")",sep="")
   }
 
 ?>
@@ -22,11 +22,11 @@
 <?%s Description$long ?>
 
 ## Details
-[[Model description files|Model description]] files for this model:
+[Model description files](Model description) files for this model:
 [Dynamics.c](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.c.Rt)
 [Dynamics.R](https://github.com/llaniewski/TCLB/blob/<?%s branch ?>/src/<?%s MODEL ?>/Dynamics.R)
 
-### [[Zonal Settings|Settings]]
+### [Zonal Settings](Settings)
 
 | Name | Comment |
 | --- | --- |
@@ -36,7 +36,7 @@
   }
 ?>
 
-### [[Global Settings|Settings]]
+### [Global Settings](Settings)
 
 | Name | Derived | Comment |
 | --- | --- | --- |
@@ -50,25 +50,25 @@
     cat("", paste("`",s$name,"`",sep=""), eq, s$comment, "\n", sep="|");
   }
 ?>
-### [[Quantities]]
+### [Exported Quantities](Quantities) (VTK, etc)
 
-| Name | [[Unit|Units]] | Comment |
+| Name | [Unit](Units) | Comment |
 | --- | --- | --- |
 <?R
   for (g in rows(Quantities)) {
-    cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
+    cat("", paste("`",g$name,"`",sep=""), paste("`",g$unit,"`",sep=""), g$comment, "\n", sep="|");
   }
 ?>
-#### [[Globals]]
+#### [Exported Global Integrals](Globals) (CSV, etc)
 
-| Name | [[Unit|Units]] | Comment |
+| Name | [Unit](Units) | Comment |
 | --- | --- | --- |
 <?R
   for (g in rows(Globals)) {
-    cat("", paste("`",g$name,"`",sep=""), g$unit, g$comment, "\n", sep="|");
+    cat("", paste("`",g$name,"`",sep=""), paste("`",g$unit,"`",sep=""), g$comment, "\n", sep="|");
   }
 ?>
-### [[Node Types]]
+### [Node Types](Node-Types)
 
 | Group | Types |
 | --- | --- |
@@ -77,7 +77,7 @@
     cat("", n$group[1], paste(n$name,collapse=", "), "\n", sep="|");
   })
 ?>
-### [[Fields]]
+### [Solved fields](Fields)
 
 | Name | Access pattern | Comment |
 | --- | --- | --- |
@@ -88,16 +88,16 @@
       d$comment, "\n", sep="|");
   }
 ?>
-### [[Densities]]
+### [Densities - default accessors](Densities)
 
-| Name | [[Field|Fields]] | Pulling field from | Comment |
+| Name | [Field](Fields) | Pulling field from | Comment |
 | --- | --- | --- | --- |
 <?R
   for (d in rows(DensityAll)) {
     cat("", paste("`",d$name,"`",sep=""), d$field, stensil(d), d$comment, "\n", sep="|");
   }
 ?>
-### [[Stages]]
+### [Action stages](Stages)
 
 | Name | Main procedure | Preloaded densities | Pushed fields |
 | --- | --- | --- | --- |
@@ -115,7 +115,7 @@
   }
 ?>
 
-### [[Actions|Stages]]
+### [Actions](Stages)
 
 | Name | Stages |
 | --- | --- |

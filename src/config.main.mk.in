@@ -1,0 +1,18 @@
+
+OPT = @CPPFLAGS@
+CPP_OPT = -Wno-write-strings
+LD_OPT = @LDFLAGS@ @LIBS@
+NV_OPT = @NVFLAGS@
+CPU = @CROSS_CPU@
+
+TOOLS = tools
+RT = $(TOOLS)/RT -b
+RS = R --slave --quiet --vanilla -f
+INDENT = tools/myindent
+ADMOD = tools/ADmod.R
+MAKEHEADERS = tools/makeheaders
+
+RTOPT=@RTOPT@
+RTOPT_ADJ=ADJOINT=1
+SRC=src
+DEST=CLB

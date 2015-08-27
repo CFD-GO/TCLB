@@ -44,9 +44,9 @@ AddDensity( name="fi_s" )
 
 AddDensity( name="Cs" )
 
-AddSetting(name="nu", comment='viscosity')
-AddSetting(name="FluidAlfa", default=1, comment='inlet density')
-AddSetting(name="SoluteDiffusion", comment='Solute diffusion coefficient in liquid')
+AddSetting(name="nu", comment='viscosity', unit="m2/s")
+AddSetting(name="FluidAlfa", default=1, comment='inlet density', unit="m2/s")
+AddSetting(name="SoluteDiffusion", comment='Solute diffusion coefficient in liquid', unit="m2/s")
 AddSetting(name="C0", comment='Concentration 0')
 AddSetting(name="Teq", comment='Equilibrium temperature at interface')
 
@@ -57,15 +57,17 @@ AddSetting(name="Concentration", comment='concentration', zonal=TRUE)
 AddSetting(name="Theta0", comment='Angle of preferential growth', zonal=TRUE)
 
 AddSetting(name="PartitionCoef", comment='Partition coefficient k')
-AddSetting(name="LiquidusSlope", comment='Liquidus slope m')
-AddSetting(name="GTCoef", comment='Gibbs-Thomson coefficient gamma')
+AddSetting(name="LiquidusSlope", comment='Liquidus slope m', unit="K")
+AddSetting(name="GTCoef", comment='Gibbs-Thomson coefficient gamma',unit="mK")
 AddSetting(name="SurfaceAnisotropy", comment='Degree of anisotropy of surface energy')
-AddSetting(name="CapillaryLen", comment='Solutal capillary length d_0')
+AddSetting(name="SoluteCapillar", comment='Solutal capillary length d_0', unit="m")
 
 AddGlobal(name="OutFlux");
+AddGlobal(name="Material");
 
 AddNodeType("Heater","ADDITIONALS")
 AddNodeType("ForceTemperature","ADDITIONALS")
 AddNodeType("ForceConcentration","ADDITIONALS")
 AddNodeType("Seed","ADDITIONALS")
+AddNodeType("Obj","OBJECTIVE")
 

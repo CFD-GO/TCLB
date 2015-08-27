@@ -1,6 +1,6 @@
 
 OPT = @CPPFLAGS@
-CPP_OPT = -Wno-write-strings
+CPP_OPT = -Wno-write-strings @CPP_OPT@
 LD_OPT = @LDFLAGS@ @LIBS@
 NV_OPT = @NVFLAGS@
 CPU = @CROSS_CPU@

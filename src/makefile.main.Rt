@@ -1,21 +1,6 @@
 <?R 
-	l = dir(path="src");
-	d = sapply(paste("src",l,sep="/"),function(x){file.info(x)$isdir});
-	models=l[d]
-	
-	Models = do.call(rbind, lapply(models,function (m) {
-		pt = paste("src",m,sep="/");
-		cf = paste("src",m,"conf.mk",sep="/");
-		if (file.exists(cf)) {
-			source(cf);
-		} else {
-			ADJOINT=0;
-			return(NULL)
-		}
-		data.frame(name=m, adjoint=(ADJOINT != 0), path=pt)
-	}))
-	
-	rm(l,d) 
+	source("models.R")
+	Models = get.models();
 	destinations=c("CLB");
 ?>
 # MODELS: 
@@ -23,48 +8,44 @@
 
 #######################################################################################################################
 
-all: <?%s paste(Models$name,collapse=" ") ?>
+all: <?%s paste(Models$name,collapse=" ") ?> 
 
-.PHONY: all clean dummy
+.PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
-TOOLS = tools
-RT = $(TOOLS)/RT -b
-RS = R --slave --quiet --vanilla -f
-INDENT = tools/myindent
-ADMOD = tools/ADmod.R
-MAKEHEADERS = tools/makeheaders
 
-RTOPT=
-RTOPT_ADJ=ADJOINT=1
-SRC=src
-DEST=CLB
-
-SOURCE_ALL+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.cu LatticeAccess.cu
-SOURCE_ALL+=Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
-SOURCE_ALL+=ZoneSettings.cpp SyntheticTurbulence.cpp
-SOURCE_ALL+=main.cpp
-SOURCE_ALL+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h
-SOURCE_ALL+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp
-SOURCE_ALL+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h
-SOURCE_ALL+=SUMMARY
-SOURCE_ALL+=conf.doxygen
+SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
+SOURCE_PLAN+=Dynamics.c Dynamics_sp.c inter.cpp Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
+SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp
+SOURCE_PLAN+=main.cpp
+SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h
+SOURCE_PLAN+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp
+SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h
+SOURCE_PLAN+=SUMMARY
+SOURCE_PLAN+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 ADDITIONALS=README.md dictionary.h
 
-SOURCE_ALL+=Catalyst.cpp
-SOURCE_ALL+=Catalyst.h
+SOURCE_PLAN+=Catalyst.cpp
+SOURCE_PLAN+=Catalyst.h
+
+ifdef CPU
+	SOURCE_ALL=$(SOURCE_PLAN:.cu=.cpp)
+else
+	SOURCE_ALL=$(SOURCE_PLAN)
+endif
 
 AOUT=main
 
-clear:
+rm-files:
 	@echo "  RM         ALL"
 	@./tools/clear
 
-clean:
-	@echo "  RM         ALL"
-	@./tools/clear
+rm:rm-files configure
+	true
 
+clean: <?%s paste(Models$name, "clean", sep="/", collapse=" ") ?>
+	
 $(MAKEHEADERS):tools/makeheaders.c
 	gcc -o $@ $<
 
@@ -73,6 +54,12 @@ wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", 
 	@echo "  RT         $@ (model)"
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 	@$(INDENT) $@
+
+travis : .travis.yml
+
+.travis.yml : src/travis.yml.Rt src/*/conf.mk
+	@echo "  RT         $@"
+	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
 
 
 ###############################################################################
@@ -101,8 +88,21 @@ for (d in destinations) {
 
 <?%s m ?>/source:  | <?%s d ?>/<?%s m ?>
 
+
+<?%s m ?>/kernel_stats_20:
+    ptxas -v --gpu-name=sm_20 <?%s d ?>/<?%s m ?>/cuda.ptx 
+
 <?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
 	@echo "  DONE       $@"
+
+<?%s m ?>/clean:  | <?%s d ?>/<?%s m ?>
+
+<?%s m ?>/clean: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile
+	@echo "  CLEAN      $@"
+	@cd <?%s d ?>/<?%s m ?>; $(MAKE) clean
+
+.PHONY: <?%s m ?>/clean
+
 
 <?%s m ?>/vc: <?%s m ?>/source <?%s d ?>/<?%s m ?>/solver.vcproj
 	@echo "  DONE       $@"
@@ -148,6 +148,15 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
 	@$(INDENT) $@
 
+<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
+	@$(INDENT) $@
+
+<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  CP         $@"
+	@cp $< $@
+
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
@@ -167,10 +176,6 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@cp $< $@
 
 <?R } ?>
-
-configure:$(SRC)/configure.ac
-	@echo "  AUTOCONF   $@"
-	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
 
 #configure:$(SRC)/configure.ac
 #	@echo "  AUTOCONF   $@"
@@ -202,4 +207,7 @@ configure:$(SRC)/configure.ac
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
 	@cat $< | sed -r 's/[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?/&f/g' > $@
+
+
+
 

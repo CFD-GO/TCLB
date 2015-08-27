@@ -14,6 +14,8 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 
+# SYMALGEBRA=TRUE
+
 options(stringsAsFactors=FALSE)
 
 #source("fun_v3.R")
@@ -26,7 +28,7 @@ if (! SYMALGEBRA) {
 }
 
 source("bunch.R")
-#source("linemark.R")
+source("linemark.R")
 
 rows = function(x) {
 	rows_df= function(x) {
