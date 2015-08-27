@@ -240,6 +240,8 @@ CudaDeviceFunction void EPressure()
 }
 
 CudaDeviceFunction void Run() {
+
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj) AddToMaterial(fi_s);
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
@@ -260,11 +262,11 @@ CudaDeviceFunction void Run() {
     }
     if ((NodeType & NODE_MRT))
     {
-		if (fi_s < 1) {
+//		if (fi_s < 1) {
 			CollisionMRT();
-		} else {
-			BounceBack();
-		}
+//		} else {
+//			BounceBack();
+//		}
     }
 }
 
