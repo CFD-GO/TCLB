@@ -247,7 +247,8 @@ if  test "x${with_python}" == "xyes"; then
     
     AC_MSG_CHECKING([Python Embandinng: compiler flags])
     PF=$($python_config --cflags)
-    CPPFLAGS="${CPPFLAGS} ${PF} -DEMBADED_PYTHON"
+    CPP_OPT="${CPPFLAGS} ${PF}"
+    EMBEDED_PYTHON=1
     AC_MSG_RESULT([${PF}])
 fi
 
@@ -464,7 +465,8 @@ AC_SUBST(WITH_CATALYST)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
+AC_SUBST(EMBEDED_PYTHON)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
-AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
+#AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
