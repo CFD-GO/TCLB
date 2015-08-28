@@ -33,6 +33,7 @@ before_install:
     - gem install coveralls-lcov
     - tools/install.sh submodules
     - sudo tools/install.sh coveralls
+    - sudo apt-get install -qq python-dev python-numpy libpython-dev
     - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
     - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
     - export PATH=${CUDA_HOME}/bin:${PATH}
@@ -42,7 +43,7 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python
     - make $MODEL/source
     - make $MODEL
     - ./configure 
