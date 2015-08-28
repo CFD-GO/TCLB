@@ -9,6 +9,7 @@
 #include "Consts.h"
 #include "types.h"
 #include <string>
+#include <mpi.h>
 
 #ifdef _WIN32
   #define isatty(...) 1
@@ -46,6 +47,7 @@ for (m in Margin) { ?>
         int size; ///< MPI size
         int rank; ///< (My) MPI rank
         int gpu; ///< (My) GPU selected
+	MPI_Comm comm;
     };
 
     void fillSides(MPIInfo, int, int, int);

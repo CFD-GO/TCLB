@@ -160,6 +160,15 @@ bool find_adjoint(pugi::xml_node node)
 	} else return false;
 }
 
+struct mesh {
+	int nx, ny, nz;
+	int nm, ns;
+	int size;
+	int rank_0;
+	int cores;
+	std::string name;
+};
+
 // Main program function
 int main ( int argc, char * argv[] )
 {
@@ -202,6 +211,7 @@ int main ( int argc, char * argv[] )
 	solver.mpi.size = solver.mpi_size;
 	solver.mpi.rank = solver.mpi_rank;
 	solver.mpi.gpu = 0;
+	solver.mpi.comm = MPI_COMM_WORLD;
 	for (int i=0;i < solver.mpi_size; i++) solver.mpi.node[i].rank = i;
 
 	// Reading arguments
@@ -270,7 +280,7 @@ int main ( int argc, char * argv[] )
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
 	XMLCHILD(config, solver.configfile, "CLBConfig");
-	std::map< std::string, std::pair<int, int> > mesh_sizes;
+	std::map< std::string, mesh > mesh_sizes;
 	int tot_sizes;
 	readUnits(config, &solver);
 	for (geom = config.child("Geometry"); geom; geom = geom.next_sibling("Geometry")) {
@@ -279,24 +289,26 @@ int main ( int argc, char * argv[] )
 		if (attr) {
 			mesh_name = attr.value();
 		}
-		int nx, ny, nz;
-		int nm, ns;
-		nm = myround(solver.units.alt(geom.attribute("nm").value(),1));
-		ns = myround(solver.units.alt(geom.attribute("ns").value(),1));
-		solver.units.refineScale(0, nm);
-		nx = myround(solver.units.alt(geom.attribute("nx").value(),1));
-		ny = myround(solver.units.alt(geom.attribute("ny").value(),1));
-		nz = myround(solver.units.alt(geom.attribute("nz").value(),1));
-		solver.units.refineScale(0, 1.0/nm);
-		int s = nx*ny*nz*ns;
+		mesh mymesh;
+		mymesh.nm = myround(solver.units.alt(geom.attribute("nm").value(),1));
+		mymesh.ns = myround(solver.units.alt(geom.attribute("ns").value(),1));
+		solver.units.refineScale(0, mymesh.nm);
+		mymesh.nx = myround(solver.units.alt(geom.attribute("nx").value(),1));
+		mymesh.ny = myround(solver.units.alt(geom.attribute("ny").value(),1));
+		mymesh.nz = myround(solver.units.alt(geom.attribute("nz").value(),1));
+		solver.units.refineScale(0, 1.0/mymesh.nm);
+		mymesh.size = mymesh.nx*mymesh.ny*mymesh.nz*mymesh.ns;
+		mymesh.cores = 0;
+		mymesh.rank_0 = -1;
+		mymesh.name = mesh_name;
 		if (mesh_sizes.find(mesh_name) != mesh_sizes.end()) {
-			if (s != mesh_sizes[mesh_name].first) {
+			if (mymesh.size != mesh_sizes[mesh_name].size) {
 				ERROR("Two Geometries of the same name but different sizes. Name them!");
 				return -1;
 			}
 		} else {
-			mesh_sizes[mesh_name] = std::pair<int, int>(s,0);
-			tot_sizes += s;
+			mesh_sizes[mesh_name] = mymesh;
+			tot_sizes += mymesh.size;
 		}
 	}
 	if (mesh_sizes.size() > solver.mpi_size) {
@@ -304,15 +316,15 @@ int main ( int argc, char * argv[] )
 		return -1;
 	}
 	for (int av = solver.mpi_size; av > 0; av--) {
-		std::map< std::string, std::pair<int, int> >::iterator it, max_it;
+		std::map< std::string, mesh >::iterator it, max_it;
 		double max_a = 0;
 		max_it = mesh_sizes.end();
 		for (it = mesh_sizes.begin(); it != mesh_sizes.end(); ++it) {
-			if (it->second.second == 0) {
+			if (it->second.cores == 0) {
 				max_it = it;
 				break;
 			}
-			double ratio = ((double) it->second.first)/it->second.second;
+			double ratio = ((double) it->second.size)/it->second.cores;
 			if (ratio > max_a) {
 				max_a = ratio;
 				max_it = it;
@@ -322,19 +334,25 @@ int main ( int argc, char * argv[] )
 			ERROR("Something went wrong in optimal division of processes\n");
 			return -1;
 		}	
-		max_it->second.second++;
+		max_it->second.cores++;
 	}	
-	std::map< std::string, std::pair<int, int> >::iterator it, my_mesh;
+	std::map< std::string, mesh >::iterator it;
+	mesh my_mesh;
 	double max_a=0, min_a=0;
 	int tot_cores=0;
 	for (it = mesh_sizes.begin(); it != mesh_sizes.end(); ++it) {
-		output("CHIMERA: %s mesh (size: %d) got %d cores\n", it->first.c_str(), it->second.first, it->second.second);
-		double ratio = ((double) it->second.first)/it->second.second;
+		double ratio = ((double) it->second.size)/it->second.cores;
 		if (ratio > max_a) max_a = ratio;
 		if (ratio < min_a || min_a == 0) min_a = ratio;
-		if (tot_cores <= solver.mpi_rank) my_mesh = it;
-		tot_cores += it->second.second;
-		
+		if (tot_cores <= solver.mpi_rank) my_mesh = it->second;
+		it->second.rank_0 = tot_cores;
+		tot_cores += it->second.cores;
+		output("CHIMERA: %s mesh (size: %d) got %d cores (%d-%d)\n",
+			it->first.c_str(),
+			it->second.size,
+			it->second.cores,
+			it->second.rank_0,
+			it->second.rank_0 + it->second.cores - 1);
 	}
 	output("CHIMERA: size per core span: %lf-%lf\n", max_a, min_a);
 	double ratio = max_a/min_a;
@@ -347,17 +365,18 @@ int main ( int argc, char * argv[] )
 	} else {
 		NOTICE("CHIMERA: ratio: %lf TERRIBLE!\n", ratio);
 	}
-	debug2("CHIMERA: My mesh: %s\n", my_mesh->first.c_str());
+	printf("[%2d] CHIMERA: My mesh: %s\n", D_MPI_RANK, my_mesh.name.c_str());
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	XMLCHILD(geom, config, "Geometry");
-	// Reading the size of mesh
-	int nx, ny, nz, ns = 2;
-	nx = myround(solver.units.alt(geom.attribute("nx").value(),1));
-	ny = myround(solver.units.alt(geom.attribute("ny").value(),1));
-	nz = myround(solver.units.alt(geom.attribute("nz").value(),1));
-	notice("Mesh size in config file: %dx%dx%d\n",nx,ny,nz);
+//	XMLCHILD(geom, config, "Geometry");
+//	// Reading the size of mesh
+//	int nx, ny, nz, ns = 2;
+//	nx = myround(solver.units.alt(geom.attribute("nx").value(),1));
+//	ny = myround(solver.units.alt(geom.attribute("ny").value(),1));
+//	nz = myround(solver.units.alt(geom.attribute("nz").value(),1));
+	int ns = 2;
+	notice("Mesh size in config file: %dx%dx%d\n",my_mesh.nx,my_mesh.ny,my_mesh.nz);
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
@@ -374,7 +393,7 @@ int main ( int argc, char * argv[] )
 	}
 
 	// Initializing the lattice of a specific size
-	if (solver.setSize(nx,ny,nz,ns)) return -1;
+	if (solver.setSize(my_mesh.nx,my_mesh.ny,my_mesh.nz,ns)) return -1;
 
 	// Initializing the CUDA events and setting callback
 	CudaEventCreate( &start );

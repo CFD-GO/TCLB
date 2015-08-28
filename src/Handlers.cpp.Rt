@@ -690,7 +690,7 @@ class cbCatalyst: public Callback {
                                 }
                         }
                         nm = fn;                                                                                
-                        MPI_Barrier(MPI_COMM_WORLD);
+                        MPI_Barrier(solver->mpi_comm);
                 }
 //		attr = node.attribute("what");
 //		if (attr) {
@@ -835,7 +835,7 @@ class cbStop: public Callback {
                                 score=0;
                         }
                 }
-                MPI_Bcast(&ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+                MPI_Bcast(&ret, 1, MPI_INT, 0, solver->mpi_comm);
 		return ret;
 	}
 	int Finish() {
@@ -905,7 +905,7 @@ class cbKeep: public Callback {
                                 break;
                         }
                 }
-                MPI_Bcast(&s, 1, MPI_INT, 0, MPI_COMM_WORLD);
+                MPI_Bcast(&s, 1, MPI_INT, 0, solver->mpi_comm);
                 solver->lattice->setSetting(whatInObj, s);		
 		return 0;
 	}
@@ -1035,11 +1035,11 @@ class acSolve: public GenericAction {
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
 			solver->steps = next_it;
-			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, solver->mpi_comm);
 			solver->iter += solver->steps;
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
-			MPI_Barrier(MPI_COMM_WORLD);
+			MPI_Barrier(solver->mpi_comm);
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					int ret = solver->hands[i].DoIt();
@@ -1056,7 +1056,7 @@ class acSolve: public GenericAction {
 			if (stop) break;
 		} while (!Now(solver->iter));
 		CudaThreadSynchronize();
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(solver->mpi_comm);
 		GenericAction::Unstack();
 		return 0;
 	}
@@ -1077,11 +1077,11 @@ class acOptSolve: public GenericAction {
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
 			solver->steps = next_it;
-			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, solver->mpi_comm);
 			solver->iter += solver->steps;
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
-			MPI_Barrier(MPI_COMM_WORLD);
+			MPI_Barrier(solver->mpi_comm);
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					int ret = solver->hands[i].DoIt();
@@ -1098,7 +1098,7 @@ class acOptSolve: public GenericAction {
 			if (stop) break;
 		} while (!Now(solver->iter));
 		CudaThreadSynchronize();
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(solver->mpi_comm);
 		solver->iter_type = old_iter_type;
 		GenericAction::Unstack();
 		return 0;
@@ -1127,11 +1127,11 @@ class acUSAdjoint: public GenericAction {
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
 			solver->steps = next_it;
-			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, solver->mpi_comm);
 			solver->iter -= solver->steps;
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
-			MPI_Barrier(MPI_COMM_WORLD);
+			MPI_Barrier(solver->mpi_comm);
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					solver->hands[i].DoIt();
@@ -1141,7 +1141,7 @@ class acUSAdjoint: public GenericAction {
 		solver->lattice->stopRecord();
 		solver->iter += everyIter*2;
 		CudaThreadSynchronize();
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(solver->mpi_comm);
 		GenericAction::Unstack();
 		solver->iter_type = old_iter_type;
 		return 0;
@@ -1169,11 +1169,11 @@ class acSAdjoint: public GenericAction {
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
 			solver->steps = next_it;
-			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, solver->mpi_comm);
 			solver->iter += solver->steps;
        			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
-			MPI_Barrier(MPI_COMM_WORLD);
+			MPI_Barrier(solver->mpi_comm);
 			for (int i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					solver->hands[i].DoIt();
@@ -1181,7 +1181,7 @@ class acSAdjoint: public GenericAction {
 			}
 		} while (!Now(solver->iter));
 		CudaThreadSynchronize();
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(solver->mpi_comm);
 		GenericAction::Unstack();
 		solver->iter_type = old_iter_type;
 		return 0;
@@ -1298,7 +1298,7 @@ class acOptimize: public GenericAction {
 			nlopt_result res = nlopt_optimize(opt, start, &val);
                         msg = -1;
 		DEBUG_M;
-                        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+                        MPI_Bcast( &msg, 1, MPI_INT, 0, solver->mpi_comm );
 			notice("NLOpt result: %d\n", res);
 			switch(res) {
                                 case NLOPT_SUCCESS: notice("Optimization generic success!\n"); break;
@@ -1320,13 +1320,13 @@ class acOptimize: public GenericAction {
 		        double f;
 		        while (msg == 0) {
 		DEBUG_M;
-        		        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+        		        MPI_Bcast( &msg, 1, MPI_INT, 0, solver->mpi_comm );
         		        if (msg != 0) break;
         		        Execute(NULL,NULL,&f);
                         }
                         
 		}
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(solver->mpi_comm);
 		return 0;
 	}
 	int Execute(const double * x, double * grad, double * f) {
@@ -1353,7 +1353,7 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	double val;
         int msg = 0; 
         output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
-        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+        MPI_Bcast( &msg, 1, MPI_INT, 0, obj->solver->mpi_comm );
 	int ret = obj->Execute(x, grad, &val);
 	if (ret) {
 		ERROR("Error while executing calculations in optimize. exiting loop.\n");
