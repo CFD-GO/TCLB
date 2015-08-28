@@ -24,8 +24,12 @@
             Density-outlet="1."
             />
     </Model>
-
-    <CallPython module="test" function="test" pass_component="f[0],f[1],f[2]"/>
+    <!--
+     module.py must be in pythonpath
+     the "." is added to pythonpath automaticly
+     PYTHONPATH=$PYTHONPATH:./example mpirun -np 2 ./CLB/d2q9/main example/runexternal.xml 
+    -->
+    <CallPython module="runexternal" function="test" pass_component="f[0],f[1],f[2]"/>
 	<Solve Iterations="10000" output="output/">
         <VTK Iterations="1000"/>
     </Solve>
