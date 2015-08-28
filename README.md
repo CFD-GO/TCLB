@@ -33,7 +33,7 @@ Co-authors:
 Contributors:
 * Wojtek Regulski
 * [Zbigniew Gawłowicz](https://github.com/zgawlowicz)
-* Mariusz Rutkowski
+* [Mariusz Rutkowski](https://github.com/mrutkowski-aero)
 
 Developed at: [C-CFD Group](https://c-cfd.meil.pw.edu.pl/) at [Warsaw University of Technology](http://pw.edu.pl/) from 2012
 

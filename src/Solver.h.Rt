@@ -134,7 +134,8 @@ class Solver {
 	int setPar(const double * w);
 	int saveComp(const char*, const char*);
 	int loadComp(const char*, const char*);
-
+    int getComponentIntoBuffer(const char*, real_t *&);
+    int loadComponentFromBuffer(const char*, real_t*);
 /// Gets a Global index by name
 /**
  Gets the index of a Global by it's name

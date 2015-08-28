@@ -585,6 +585,7 @@ int Lattice::save(FTabs& tab, const char * filename) {
 
 	for(int i=0; i<n; i++)
 	{
+        output("Saving data slice %d, size %d", i, size[i]);
 		CudaMemcpy( pt, ptr[i], size[i], cudaMemcpyDeviceToHost);
 		fwrite(pt, size[i], 1, f);
 	}

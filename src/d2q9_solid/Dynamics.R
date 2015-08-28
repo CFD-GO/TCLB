@@ -48,19 +48,22 @@ AddSetting(name="nu", comment='viscosity', unit="m2/s")
 AddSetting(name="FluidAlfa", default=1, comment='inlet density', unit="m2/s")
 AddSetting(name="SoluteDiffusion", comment='Solute diffusion coefficient in liquid', unit="m2/s")
 AddSetting(name="C0", comment='Concentration 0')
-AddSetting(name="Teq", comment='Equilibrium temperature at interface')
+AddSetting(name="T0", comment='Temperature 0', unit="K")
+AddSetting(name="Teq", comment='Equilibrium temperature at interface', unit="K")
 
-AddSetting(name="Velocity", default="0m/s", comment='fluid velocity', zonal=TRUE)
-AddSetting(name="Pressure", comment='pressure', zonal=TRUE)
-AddSetting(name="Temperature", comment='temperature', zonal=TRUE)
+AddSetting(name="Velocity", default="0m/s", comment='fluid velocity', zonal=TRUE, unit="m/s")
+AddSetting(name="Pressure", comment='pressure', zonal=TRUE, unit="Pa")
+AddSetting(name="Temperature", comment='temperature', zonal=TRUE, unit="K")
 AddSetting(name="Concentration", comment='concentration', zonal=TRUE)
-AddSetting(name="Theta0", comment='Angle of preferential growth', zonal=TRUE)
+AddSetting(name="Theta0", comment='Angle of preferential growth', zonal=TRUE, unit="d")
 
 AddSetting(name="PartitionCoef", comment='Partition coefficient k')
 AddSetting(name="LiquidusSlope", comment='Liquidus slope m', unit="K")
 AddSetting(name="GTCoef", comment='Gibbs-Thomson coefficient gamma',unit="mK")
 AddSetting(name="SurfaceAnisotropy", comment='Degree of anisotropy of surface energy')
 AddSetting(name="SoluteCapillar", comment='Solutal capillary length d_0', unit="m")
+AddSetting(name="Buoyancy", comment="Buoyancy Boussinesq approximation", unit="m/s2K")
+
 
 AddGlobal(name="OutFlux");
 AddGlobal(name="Material");
