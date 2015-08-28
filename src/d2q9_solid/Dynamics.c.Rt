@@ -342,25 +342,6 @@ CudaDeviceFunction void CollisionMRT()
 		fi = R
 		for (i in 1:9) {?> if (<?R C( fi[i] ) ?> < 1.0) <?R } ?> interface = 0;
 	if (interface) {
-/*
-		real_t dx,dy,dxx,dxy,dyy,d2;
-		<?R
-		calculate_d(fi)
-		?>
-		d2 = dx*dx+dy*dy;
-		real_t K, theta;
-		if (d2 > 0.0) {
-			theta = acos(dx/sqrt(d2));
-			if (dy < 0) theta = 2*3.14159265358979311600 - theta;			
-			K = (2*dx*dy*dxy - dx*dx*dyy-dy*dy*dxx) * pow(d2,-1.5);
-		} else {
-			theta = 0;
-			K = 0;
-		}
-		real_t T = rhoT/rho;
-		real_t Cl_eq;
-		Cl_eq = C0 + ((T - Teq) + GTCoef * K * (1.0 - 15.0 * SurfaceAnisotropy * cos(4*(theta-Theta0))))/LiquidusSlope;
-*/
 		real_t Cl_eq = getCl_eq();
 		real_t dfi;
 		if (Cl_eq > C) {
@@ -375,6 +356,8 @@ CudaDeviceFunction void CollisionMRT()
 			Cs = Cs + C * PartitionCoef * dfi;
 		}
 	}
+	ax = - 2*ux*fi_s;
+	ay = - 2*uy*fi_s + Buoyancy * (rhoT / rho - T0);
 <?R
 	C( R, (f-feq) %*% M * OMEGA );
 ?>
