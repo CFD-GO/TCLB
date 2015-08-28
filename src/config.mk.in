@@ -10,6 +10,7 @@ PV_BUILD = @PV_BUILD@
 PV_BUILD_INC = @PV_BUILD_INC@
 PV_VERSION = @PV_VERSION@
 WITH_CATALYST = @WITH_CATALYST@
+EMBEDED_PYTHON = @EMBEDED_PYTHON@
 
 SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
 SOURCE=$(SOURCE_CU)
@@ -63,5 +64,9 @@ ifeq '$(strip $(WITH_CATALYST))' '1'
  SOURCE_CU += Catalyst.cpp
  OBJ += Catalyst.o
  HEADERS += Catalyst.h
+endif
+
+ifeq '$(strip $(EMBEDED_PYTHON))' '1'
+ OPT+=-D EMBEDED_PYTHON
 endif
 

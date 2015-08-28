@@ -140,6 +140,9 @@ submodules)
 	try "Loading gitmodules" mv gitmodules ../.gitmodules
 	
 	;;
+python-dev)
+    try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy
+    ;;
 *)
 	echo "Unknown type of install $inst"
 	usage
