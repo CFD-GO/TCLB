@@ -2,8 +2,8 @@
 	source("conf.R") 
 #	load("SUMMARY.Rdata")
 	c_header();
-	f = PV(Density$name[1:9])
-	U = as.matrix(Density[1:9,c("dx","dy")])
+	f = PV(Density$name)
+	U = as.matrix(Density[,c("dx","dy")])
 
 	u = PV("u[",1:2-1,"]")
 	uf = PV("uf")
@@ -75,7 +75,6 @@ CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 CudaDeviceFunction void Init() {
 	real_t u[2] = {Velocity,0.};
 	real_t d = Density;
-    BoundaryHelper = 1.;
 	SetEquilibrum(d,u);
 }
 

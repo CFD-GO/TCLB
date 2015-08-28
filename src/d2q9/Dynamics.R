@@ -23,8 +23,6 @@ AddDensity( name="f[8]", dx= 1, dy=-1)
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
 
-AddDensity(name="BoundaryHelper")
-
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
 #  comment - additional comment
