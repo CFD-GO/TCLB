@@ -146,6 +146,7 @@ class UnitEnv {
   std::map < std::string, UnitVal > units;
   std::map < std::string, UnitVal > gauge;
   double scale[m_unit];
+  double refine[m_unit];
 public:
   UnitEnv ();
   UnitVal readUnitOne( std::string val );
@@ -154,14 +155,24 @@ public:
   UnitVal readText( std::string val );
   inline UnitVal operator() (std::string str) { return readText(str); };
   inline double si(const UnitVal & v) {return v.val;};
-  inline double alt(const UnitVal & v) {
+  inline double alt(const UnitVal & v, int R) {
+    double ret = v.val;
+    if (R) {
+      for (int i=0; i<m_unit; i++) ret *= pow(scale[i]*refine[i],v.uni[i]);
+    } else {
+      for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
+    }
+    return ret;
+  };
+  inline double alt_norefine(const UnitVal & v) {
     double ret = v.val;
     for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
     return ret;
   };
-  inline double refineScale(int i, double ratio) { return scale[i] *= ratio; }
+  inline double refineScale(int i, double ratio) { return refine[i] *= ratio; }
+  inline void clearRefine() { for (int i=0; i<m_unit; i++) refine[i] = 1; }
   inline double si(const std::string str) {return readText(str).val;};
-  inline double alt(const std::string str) {
+  inline double altR(const std::string str,int R) {
     double ret = 0;
     int i=0, j=0;
     while (str[i]) {
@@ -171,7 +182,7 @@ public:
       case '\0':
         if (j>i) {
           UnitVal v = readText(str.substr(i,j-i));
-          ret += alt(v);
+          ret += alt(v,R);
         }
         i = j;
         break;
@@ -188,6 +199,8 @@ public:
     }                                                                                                               
     return ret;
   };
+  inline double alt(const std::string str) { return altR(str,1); }
+  inline double alt_norefine(const std::string str) { return altR(str,0); }
   inline double si(const std::string str, double def) { if (str.length() > 0) return si(str); else return def;};
   inline double alt(const std::string str, double def) { if (str.length() > 0) return alt(str); else return def;};
   void setUnit(std::string name, const UnitVal & v, double v2);
@@ -211,7 +224,10 @@ public:
     return env->si(*this);
   };
   inline double alt () {
-    return env->alt(*this);
+    return env->alt(*this,1);
+  };
+  inline double alt_norefine () {
+    return env->alt_norefine(*this);
   };
 };
 

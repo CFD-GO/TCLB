@@ -11,8 +11,10 @@ class vtkFileOut {
 	char * name; int name_size;
 	int parallel;
 	int size;
+	int rank_0;
 public:
 	vtkFileOut ();
+	vtkFileOut (int);
 	int Open(char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, char* selection);

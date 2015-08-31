@@ -87,7 +87,7 @@ public:
 		pugi::xml_attribute attr = node.attribute("Iterations");
 		startIter = solver->iter;
 		if (attr) {
-			double it = solver->units.alt(attr.value());
+			double it = solver->units.alt_norefine(attr.value());
 			everyIter = it;
 			output("Setting callback %s at %lf iterations\n", node.name(), it);
 		} else {
@@ -112,7 +112,7 @@ public:
 	int Init() {
 		pugi::xml_attribute attr = node.attribute("Iterations");
 		if (attr) {
-			double it = solver->units.alt(attr.value());
+			double it = solver->units.alt_norefine(attr.value());
 			startIter = solver->iter;
 			everyIter = it;
 			if (D_MPI_RANK == 0) {
@@ -2185,13 +2185,21 @@ class cbPythonCall: public Callback {
 class acGeometry: public Action {
 	public:
 	int Init() {
+		std::string mesh_name = "MESH0";
+		pugi::xml_attribute attr = node.attribute("name");
+		if (attr) mesh_name = attr.value();
+		if ( mesh_name == solver->mesh.name) {
+			printf("[%d] Loading my mesh (%s == %s)\n", D_MPI_RANK, mesh_name.c_str(), solver->mesh.name.c_str());
 			if (solver->geometry->load(node)) {
 				error("Error while loading geometry\n");
 				return -1;
 			}
 			solver->lattice->FlagOverwrite(solver->geometry->geom,solver->geometry->region);
 			solver->lattice->zSet.zone_max(solver->geometry->SettingZones.size()-1);
-			return 0;
+		} else {
+			printf("[%d] Not my mesh (%s != %s)\n", D_MPI_RANK, mesh_name.c_str(), solver->mesh.name.c_str());
+		}
+		return 0;
 	}
 };
 
