@@ -106,6 +106,7 @@ rdep)
 	github_install llaniewski/polyAlgebra
 	;;
 rpython)
+	normal_install rjson
 	normal_install rPython
 	;;
 cuda)
