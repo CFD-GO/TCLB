@@ -144,7 +144,7 @@ submodules)
 	
 	;;
 python-dev)
-    try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy
+    try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
     ;;
 *)
 	echo "Unknown type of install $inst"
