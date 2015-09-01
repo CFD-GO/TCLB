@@ -106,7 +106,7 @@ rdep)
 	github_install llaniewski/polyAlgebra
 	;;
 rpython)
-	normall_install rPython
+	normal_install rPython
 	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
