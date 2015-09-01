@@ -1,126 +1,32 @@
+source("lib/lattice.R")
 
 AddDensity(
-	name = paste("f",0:18,sep=""),
+	name = paste("f",1:19-1,sep=""),
 	dx   = d3q19[,1],
 	dy   = d3q19[,2],
 	dz   = d3q19[,3],
-	comment=paste("density F",0:18),
+	comment=paste("flow LB density F",1:19-1),
 	group="f"
 )
 
-f = PV(Density$name)
-
 AddDensity(
-	name = paste("T",1:nrow(MRTT)-1,sep=""),
+	name = paste("g",1:7-1,sep=""),
 	dx   = d3q7[,1],
 	dy   = d3q7[,2],
 	dz   = d3q7[,3],
-	comment=paste("density T",1:nrow(MRTT)-1),
-	group="T"
+	comment=paste("heat LB density G",1:7-1),
+	group="g"
 )
-
-f = PV(Density$name[Density$group=="f"])
-fT = PV(Density$name[Density$group=="T"])
-
-
-rho = PV("rho")
-J = PV(c("J[0]","J[1]","J[2]"))
-rho0 = 1
-
-if (FALSE) {
-	we = 0
-	weJ = -475/63
-	wxx = 0
-} else {
-	we = 3
-	weJ = -11/2
-	wxx = -1/2
-}
-
-pxx = 1/(3*rho0) * (J[1]*J[1]*2 - J[2] * J[2] - J[3] * J[3]) 
-pww = 1/(rho0) * (J[2] * J[2] - J[3] * J[3]) 
-pxy = 1/(rho0) * (J[1]*J[2]) 
-pyz = 1/(rho0) * (J[2]*J[3]) 
-pxz = 1/(rho0) * (J[1]*J[3]) 
-
-Req = rbind(
-	rho,
-	-11*rho + 19/rho0*sum(J*J),
-	we*rho + weJ/rho0*sum(J*J),
-	J[1],
-	-2/3*J[1],
-	J[2],
-	-2/3*J[2],
-	J[3],
-	-2/3*J[3],
-	pxx*3,
-	wxx*pxx*3,
-	pww,
-	wxx*pww,
-	pxy,
-	pyz,
-	pxz,
-	0,
-	0,
-	0
-)
-
-U = MRTMAT[,selU]
-#f = PV(Density$name)
-R = PV(paste("R",0:18,sep=""))
-
-
-R[1] = rho
-R[c(4,6,8)] = J
-selR = c(2,3,5,7,9:19)
-
-#R[[1]] = rho[[1]]
-#R[[4]] = J[[1]]
-#R[[6]] = J[[2]]
-#R[[8]] = J[[3]]
-
-
-renum = c(19, 1, 2, 3, 4, 5, 6, 7, 11, 8, 12, 9, 13, 10, 14, 15, 17, 16, 18)
-
-I = rep(0, 19)
-I[renum] = 1:19
-
-if (FALSE) {
-Sy = rbind(
-	PV(0),
-	PV(1.19),
-	PV(1.4),
-	PV(0),
-	PV(1.2),
-	PV(0),
-	PV(1.2),
-	PV(0),
-	PV(1.2),
-	PV("omega"),
-	PV(1.4),
-	PV("omega"),
-	PV(1.4),
-	PV("omega"),
-	PV("omega"),
-	PV("omega"),
-	PV(1.98),
-	PV(1.98),
-	PV(1.98)
-)
-	
-}
 
 AddQuantity( name="Rho" )
 AddQuantity( name="T" )
 AddQuantity( name="U", vector=T )
 
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
-AddSetting(name="InletTemperature", default=1, comment='inlet density')
-AddSetting(name="HeaterTemperature", default=1, comment='inlet density')
+AddSetting(name="nu", default=1.6666666, comment='viscosity')
+AddSetting(name="Velocity", default="0m/s", comment='inlet velocity', zonal=TRUE)
+AddSetting(name="Pressure", default="0Pa", comment='inlet pressure', zonal=TRUE)
+AddSetting(name="Temperature", default=1, comment='inlet density', zonal=TRUE)
 AddSetting(name="FluidAlpha", default=1, comment='inlet density')
 
+AddNodeType("ADDITIONALS","Heater")
