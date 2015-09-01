@@ -30,10 +30,10 @@ before_install:
     - sudo tools/install.sh r
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
+    - tools/install.sh rpython
     - gem install coveralls-lcov
     - tools/install.sh submodules
     - sudo tools/install.sh coveralls
-    - sudo tools/install.sh python-dev
     - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
     - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
     - export PATH=${CUDA_HOME}/bin:${PATH}
@@ -43,7 +43,7 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines
     - make $MODEL/source
     - make $MODEL
     - ./configure 

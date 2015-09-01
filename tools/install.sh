@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] r|rdep|cuda|submodules|openmpi|coveralls [VERSION]"
+	echo "install.sh [dry] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython [VERSION]"
 	exit -2
 }
 
@@ -104,6 +104,9 @@ rdep)
 	github_install llaniewski/rtemplate
 	github_install llaniewski/gvector
 	github_install llaniewski/polyAlgebra
+	;;
+rpython)
+	normall_install rPython
 	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
