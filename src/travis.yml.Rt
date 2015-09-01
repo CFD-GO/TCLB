@@ -35,6 +35,7 @@ before_install:
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
     - tools/install.sh rpython
+    - sudo tools/install.sh python-dev
     - gem install coveralls-lcov
     - tools/install.sh submodules
     - sudo tools/install.sh coveralls
@@ -47,12 +48,12 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python
     - make $MODEL/source
     - make $MODEL
     - ./configure 
     - make $MODEL/clean
-    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python
     - make $MODEL
     - tools/tests.sh $MODEL
 
