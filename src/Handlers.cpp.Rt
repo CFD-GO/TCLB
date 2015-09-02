@@ -39,8 +39,9 @@
 
 #ifdef EMBEDED_PYTHON
     #include "Python.h"
-    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+//    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
     #include <numpy/arrayobject.h>
+//    #include <numpy/old_defines.h>
 #endif
 
 #define ITERATION_STOP 1
@@ -2123,9 +2124,11 @@ class cbPythonCall: public Callback {
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
                 if (sizeof(real_t) == sizeof(float) ) {
-                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_FLOAT, buffer);
+//                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_FLOAT, buffer);
+                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
                 } else if (sizeof(real_t) == sizeof(double) ){
-                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_DOUBLE, buffer);
+//                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_DOUBLE, buffer);
+                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
                 }
                 
                 pArgs = PyTuple_New(1);
