@@ -6,6 +6,10 @@
 /*     Here we have all the initialization and the main loop   */
 /*-------------------------------------------------------------*/
 
+#ifdef EMBEDED_PYTHON
+#include <Python.h>
+#endif
+
 #include "Consts.h"
 #include "Global.h"
 #include <mpi.h>
@@ -23,10 +27,6 @@
 //#include <unistd.h>
 
 #include "Solver.h"
-
-#ifdef EMBEDED_PYTHON
-#include <Python.h>
-#endif
 
 // Reads units from configure file and applies them to the solver
 void readUnits(pugi::xml_node config, Solver* solver) {
