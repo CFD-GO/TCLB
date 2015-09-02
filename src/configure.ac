@@ -102,7 +102,7 @@ fi
 if test "x${enable_cuda}" != "xno"
 then
 
-    if test "x{debug-kernel}" != "xno"
+    if test "x{debug-kernel}" == "xyes"
     then
      AC_MSG_RESULT(>>>> NVCC debug output enabled <<<<)
 	 NVFLAGS="${NVFLAGS} -keep -v"
