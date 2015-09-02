@@ -75,7 +75,7 @@ template < class N > dim3 GetThreads() {
 
 template < class N > class ThreadNumber {
   public:
-  static int ky, sy;
+  static unsigned int ky, sy;
   static void Init(int ny) {
 	dim3 th = GetThreads< N >();
 	sy = th.y;
@@ -86,8 +86,8 @@ template < class N > class ThreadNumber {
   static inline int getSY() { return sy; }
 };
 
-template < class N > int ThreadNumber< N >::ky = 0;
-template < class N > int ThreadNumber< N >::sy = 0;
+template < class N > unsigned int ThreadNumber< N >::ky = 0;
+template < class N > unsigned int ThreadNumber< N >::sy = 0;
   
 /// Initialize Thread/Block number variables
 int InitDim(int ny) {
