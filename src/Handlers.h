@@ -27,6 +27,7 @@ class vHandler {
 	double everyIter; ///< Interval by which it should be activated
 	pugi::xml_node node; ///< XML element connected to the Handler
 	Solver* solver; ///< The solver object connected to the Handler
+	virtual ~vHandler();
 	virtual int Init(); ///< Initialize the Handler
 	virtual int DoIt(); ///< Do what have to be done
 	virtual int Finish(); ///< Finalize the Handler

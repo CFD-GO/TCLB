@@ -113,7 +113,7 @@ int MainCallback(int seg, int tot, Solver* solver) {
 			if (left_m < 60) {
 				sprintf(left, "%2dm %2ds", left_m, left_s);
 			} else {
-				int left_h = left_h/60;
+				int left_h = left_m/60;
 				left_m = left_m - left_h*60;
 				sprintf(left,  "%dh %2dm", left_h, left_m);
 			}
