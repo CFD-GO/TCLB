@@ -338,7 +338,9 @@
 
     #define RunKernelMaxThreads 1
     extern uint3 CpuBlock;
-    #pragma omp threadprivate(CpuBlock)
+    #ifdef CROSS_OPENMP
+      #pragma omp threadprivate(CpuBlock)
+    #endif
     extern uint3 CpuThread;
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
