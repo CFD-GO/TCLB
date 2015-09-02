@@ -108,7 +108,7 @@ int InitDim(int ny) {
 
 /// Allocation of a GPU memory Buffer
 void * BAlloc(size_t size) {
-  char * tmp;
+  char * tmp = NULL;
     ALLOCPRINT1;
     #ifdef DIRECT_MEM
       CudaMallocHost( (void**)&tmp, size );
@@ -128,7 +128,7 @@ void BPreAlloc(void ** ptr, size_t size) {
 /// Allocation of memory for an FTabs
 void FTabs::Alloc(int nx,int ny,int nz) {
   size_t size;
-  char * tmp;
+  char * tmp = NULL;
   <?R for (m in NonEmptyMargin) { ?>
     size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
     ALLOCPRINT1;
@@ -196,7 +196,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 
     InitDim(ny);
 
-    char * tmp;
+    char * tmp=NULL;
     size_t size;
 
     size = (size_t) nx*ny*nz*sizeof(flag_t);

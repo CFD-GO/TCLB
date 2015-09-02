@@ -191,12 +191,14 @@ int myprint(int level, const char *fmt, ...)
       rank = D_str_rank;
     }
     if (level < D_error_level) {
-      special_print(stdout, rank, level, D_out, D_out, buf);
+      return special_print(stdout, rank, level, D_out, D_out, buf);
     } else {
-      special_print(stderr, rank, level, D_err, D_err, buf);
+      int ret = special_print(stderr, rank, level, D_err, D_err, buf);
       if (D_echo_error) {
-        special_print(stdout, rank, level, D_out, D_out, buf);
+        int ret2 = special_print(stdout, rank, level, D_out, D_out, buf);
+	if (abs(ret2) > abs(ret)) ret = ret2;
       }
+      return ret;
     }
 }
 

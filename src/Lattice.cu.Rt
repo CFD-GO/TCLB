@@ -580,7 +580,7 @@ int Lattice::save(FTabs& tab, const char * filename) {
 	}
 
 	void ** ptr;
-	void * pt;
+	void * pt=NULL;
 	size_t * size;
 	size_t maxsize;
 	int n;
@@ -612,7 +612,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 	}
 
 	void ** ptr;
-	void * pt;
+	void * pt = NULL;
 	size_t * size;
 	size_t maxsize;
 	int n;
@@ -622,7 +622,8 @@ int Lattice::load(FTabs& tab, const char * filename) {
 
 	for(int i=0; i<n; i++)
 	{
-		fread(pt, size[i], 1, f);
+		int ret = fread(pt, size[i], 1, f);
+		if (ret != 1) ERROR("Could not read in Lattice::load");
 		CudaMemcpy( ptr[i], pt, size[i], cudaMemcpyHostToDevice);
 	}
 
@@ -977,7 +978,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 	lbRegion inter = region.intersect(over);
 //        debug1("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;
-	<?%s q$type ?> * buf;
+	<?%s q$type ?> * buf=NULL;
 	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s q$type ?>));
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {	lbRegion small = inter;
