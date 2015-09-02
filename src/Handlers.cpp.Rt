@@ -1357,7 +1357,7 @@ class acOptimize: public GenericAction {
 
 double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	acOptimize * obj = (acOptimize *) data;
-	assert(n == obj->par);
+	assert(n == (unsigned int)obj->par);
 	double val = NAN;
         int msg = 0; 
         output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
