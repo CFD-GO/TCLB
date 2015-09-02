@@ -76,7 +76,7 @@ template < class N > dim3 GetThreads() {
 template < class N > class ThreadNumber {
   public:
   static unsigned int ky, sy;
-  static void Init(int ny) {
+  static void Init(size_t ny) {
 	dim3 th = GetThreads< N >();
 	sy = th.y;
 	ky = ny/th.y;
