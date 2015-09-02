@@ -77,6 +77,10 @@ AC_ARG_ENABLE([debug-kernel],
 AC_ARG_WITH([python],
 	AC_HELP_STRING([--with-python],
 		[Enable CallPython handler, requires python-dev]))
+
+AC_ARG_ENABLE([paranoid],
+	AC_HELP_STRING([--enable-paranoid],
+		[Makes GCC paranoid.]))
 			
 NVFLAGS=""
 
@@ -438,6 +442,11 @@ fi
 if test "x${enable_marklines}" == "xyes"
 then
 	RTOPT="${RTOPT} --mark-lines"
+fi
+
+if test "x${enable_marklines}" == "xyes"
+then
+	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.
