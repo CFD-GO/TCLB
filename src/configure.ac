@@ -239,7 +239,7 @@ CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
 
 if  test "x${with_python}" == "xyes"; then
-	AC_CHECK_PROG(PC,[python-config],[yes],[no])
+    AC_CHECK_PROG(PC,[python-config],[yes],[no])
     if test "x${PC}" == "xyes"; then
         python_config="python-config"
     fi
@@ -250,7 +250,8 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_RESULT([${PF}])
     
     AC_MSG_CHECKING([Python Embandinng: compiler flags])
-    PF=$($python_config --cflags)
+#    PF=$($python_config --cflags)
+    PF=$($python_config --includes)
     CPP_OPT="${CPPFLAGS} ${PF}"
     EMBEDED_PYTHON=1
     AC_MSG_RESULT([${PF}])
