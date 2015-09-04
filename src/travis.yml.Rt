@@ -61,7 +61,6 @@ script:
     - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
     - make $MODEL/source
     - make $MODEL
-    - ./configure 
     - make $MODEL/clean
     - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python --enable-paranoid
     - make $MODEL
