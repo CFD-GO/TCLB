@@ -35,7 +35,7 @@ CudaDeviceFunction real_t getSubiter(){
 }
 
 CudaDeviceFunction void CalcPsi(){
-    psi - getPsi();
+    psi = getPsi();
 }
 CudaDeviceFunction real_t getrho_e(){
     const real_t psi = getPsi();
