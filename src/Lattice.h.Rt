@@ -61,7 +61,7 @@ public:
   SyntheticTurbulence ST;
   int ZoneIter;
   std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
-  int settings_i; ///< Index in settings_record that is on the CUDA const
+  unsigned int settings_i; ///< Index in settings_record that is on the CUDA const
   void push_setting(int,real_t,real_t); ///< Set the setting (and push to settings_record if recording)
   void pop_settings(); ///< Pop the setting from settings_record
   int Record_Iter; ///< Recorded iteration number (Now)

@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] r|rdep|cuda|submodules|openmpi|coveralls [VERSION]"
+	echo "install.sh [dry] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython [VERSION]"
 	exit -2
 }
 
@@ -105,6 +105,10 @@ rdep)
 	github_install llaniewski/gvector
 	github_install llaniewski/polyAlgebra
 	;;
+rpython)
+	normal_install rjson
+	normal_install rPython
+	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
 	CUDA=$1
@@ -141,7 +145,7 @@ submodules)
 	
 	;;
 python-dev)
-    try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy
+    try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
     ;;
 *)
 	echo "Unknown type of install $inst"

@@ -5,10 +5,10 @@ class lbRegion {
 public:
   int dx,dy,dz;
   int nx,ny,nz;
-  inline lbRegion():nx(1),ny(1),nz(1),dx(0),dy(0),dz(0){}
-  inline lbRegion(int w, int h):nx(w),ny(h),nz(1),dx(0),dy(0),dz(0) {};
-  inline lbRegion(int x, int y, int w, int h):nx(w),ny(h),nz(1),dx(x),dy(y),dz(0){};
-  inline lbRegion(int x, int y, int z, int w, int h, int d):nx(w),ny(h),nz(d),dx(x),dy(y),dz(z){};
+  inline lbRegion():dx(0),dy(0),dz(0),nx(1),ny(1),nz(1){}
+  inline lbRegion(int w, int h):dx(0),dy(0),dz(0),nx(w),ny(h),nz(1) {};
+  inline lbRegion(int x, int y, int w, int h):dx(x),dy(y),dz(0),nx(w),ny(h),nz(1){};
+  inline lbRegion(int x, int y, int z, int w, int h, int d):dx(x),dy(y),dz(z),nx(w),ny(h),nz(d){};
   CudaHostFunction CudaDeviceFunction inline int size() { return nx*ny*nz; };
   CudaHostFunction CudaDeviceFunction inline size_t sizeL() { return nx*ny*nz; };
   inline int isIn(int x, int y) { return (x >= dx) && (y >= dy) && (x-dx < nx) && (y-dy < ny); }

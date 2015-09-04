@@ -5,6 +5,16 @@
 	Models$test[Models$adjoint] = "no test" # Do not test adjoint models (for now)
 
 ?>
+#####################################################
+#                                                   #
+#   WARNING: .travis.yml file is generated          #
+#               from src/travis.yml.Rt              #
+#                                                   #
+#    1. do not modify .travis.yml !                 #
+#    2. after modifying src/travis.yml and run      #
+#          > make travis                            #
+#                                                   #
+#####################################################
 language: c
 
 git:
@@ -34,6 +44,8 @@ before_install:
     - sudo tools/install.sh r
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
+    - sudo tools/install.sh python-dev
+    - tools/install.sh rpython
     - gem install coveralls-lcov
     - tools/install.sh submodules
     - sudo tools/install.sh coveralls
@@ -46,12 +58,11 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
     - make $MODEL/source
     - make $MODEL
-    - ./configure 
     - make $MODEL/clean
-    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python --enable-paranoid
     - make $MODEL
     - tools/tests.sh $MODEL
 
