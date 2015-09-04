@@ -50,6 +50,7 @@ AddSetting(name="epsilon", comment='')
 AddSetting(name="dt", comment='')
 
 AddSetting(name="psi_bc", default=1, comment='psi at  boundary - zeta', zonal=T)
+AddSetting(name="psi0", default=1, comment='initial psi - zeta', zonal=T)
 
 
 #AddGlobal(name="OutFlux");
