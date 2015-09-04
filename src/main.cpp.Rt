@@ -63,7 +63,9 @@ CudaEvent_t     start, stop; // CUDA events to measure time
 // Main callback function called every some iterations to display speed
 int MainCallback(int seg, int tot, Solver* solver) {
 	int begin=false, end=false;
+
 	if (tot ==   0) begin=true;
+
 	if (tot == seg) end=true;
 	
 	static int iter=0;
@@ -75,7 +77,7 @@ int MainCallback(int seg, int tot, Solver* solver) {
 	static int steps = 1;
 	if ((iter < steps) & (!end)) return -1;
 	if (iter == 0) return -2;
-	float   elapsedTime; // Elapsed times
+	float   elapsedTime=0; // Elapsed times
 	CudaEventRecord( stop, 0 );
 	CudaEventSynchronize( stop );
 	CudaEventElapsedTime( &elapsedTime, start, stop );

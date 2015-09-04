@@ -68,6 +68,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	Record_Iter = 0;
 	Iter = 0;
 	total_iterations = 0;
+	segment_iterations = 0;
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
