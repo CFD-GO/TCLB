@@ -445,7 +445,7 @@ then
 	RTOPT="${RTOPT} --mark-lines"
 fi
 
-if test "x${enable_marklines}" == "xyes"
+if test "x${enable_paranoid}" == "xyes"
 then
 	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
 fi
