@@ -307,7 +307,7 @@ int main ( int argc, char * argv[] )
 			tot_sizes += mymesh.size;
 		}
 	}
-	if (mesh_sizes.size() > solver.mpi_size) {
+	if ((int) mesh_sizes.size() > solver.mpi_size) {
 		ERROR("More meshes then processes");
 		return -1;
 	}
