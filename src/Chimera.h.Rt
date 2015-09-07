@@ -1,0 +1,40 @@
+<?R library(polyAlgebra) ?>
+
+struct OneMesh {
+	real_t M[12]; ///< Transformation matrix
+	real_t rev; ///< scaling factor for inverse
+	int kx,ky,kz;
+	int rank_0;
+	int * pos;
+};
+
+int get_ind(vector_t p) {
+	<?R
+		D = c("x","y","z")
+		p = PV("p.",D)
+		np = PV("np.",D)
+		M = PV("W.M[",1:12-1,"]")
+		A = M[1:9];
+		dim(A)=c(3,3);
+		dp = M[1:3+9];
+		C(p, (p - dp + 0.5)*PV("p.rev"));
+		C(p, A %*% p);
+
+		C(p, p %*% A + dp);
+	?>
+	for (W in meshes) {
+	int x,y,z,i;
+	i=0;
+	<?R
+		off = PV(0); 
+		for (d in rev(D)) {
+?> 
+	if (p.<?%s d ?> < 0) continue;
+	i = i * W.k<?%s d ?>;
+	for (<?%s d ?> =0;<?%s d ?> <W.k<?%s d ?>;<?%s d ?> ++) if (p.<?%s d ?> < W.pos[i+<?%s d ?>]) break;
+	if (<?%s d ?> >= W.k<?%s d ?> ) continue;
+	i = i + <?%s d ?>;
+	<?R } ?>
+	}
+}
+
