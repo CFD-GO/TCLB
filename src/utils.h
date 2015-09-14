@@ -61,6 +61,8 @@ class name_set {
 		}
 };
 
+
+// This function creates the full path to a file (creates all the directories)
 inline int mkpath(char* file_path_, mode_t mode) {
   char file_path[1024];
   if (file_path_ == NULL) return -1;
@@ -88,5 +90,10 @@ inline int mkpath(char* file_path_, mode_t mode) {
   }
   return 0;
 }
+
+inline int mkpath(char* file_path_) {
+  return mkpath(file_path_, 0775);
+}
+
 
 #endif                
