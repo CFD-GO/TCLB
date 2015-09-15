@@ -1,24 +1,9 @@
 <?R
 	source("conf.R");
 	c_header();
-        U = MRTMAT[,selU]   
-        
 ?>
-
-CudaDeviceFunction real_t getRhoB(){
-        return <?R C(sum(PV(Density$adjoint_name[Density$group == "f"]))) ?>;
-}
 
 CudaDeviceFunction real_t getWB(){
         return wb;
 }
 
-CudaDeviceFunction real_t getTB(){
-        return <?R C(sum(PV(Density$adjoint_name[Density$group == "T"]))) ?>;
-}
-
-CudaDeviceFunction vector_t getUB(){
-        vector_t u;
-	<?R C(PV(c("u.x","u.y", "u.z")) == PV(Density$adjoint_name[Density$group == "f"]) %% U) ?>;
-	return u;
-}
