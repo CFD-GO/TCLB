@@ -486,18 +486,29 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 		now.y_ = y;
 		now.z_ = z;
 		constContainer.getType(now);
-		constContainer.pop(now); <?R
-		if (q$adjoint) { ?>
-		constContainer.pop_adj(now); <?R
-                } ?>
-		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t") {
-                  for (coef in c("x","y","z")) { ?>
-		w.<?%s coef ?> *= scale; <?R
-		  }
-		} else { ?>
-		w *= scale; <?R
-                } ?>
+		<?%s q$type ?> w;
+//		if (now.NodeType) {
+			constContainer.pop(now); <?R
+			if (q$adjoint) { ?>
+			constContainer.pop_adj(now); <?R
+	                } ?>
+			w = now.get<?%s q$name ?>(); <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+			w.<?%s coef ?> *= scale; <?R
+			  }
+			} else { ?>
+			w *= scale; <?R
+	                } ?>
+//		} else { <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+//			w.<?%s coef ?> = nan(""); <?R
+			  }
+			} else { ?>
+//			w = nan(""); <?R
+	                } ?>
+//		}
 		tab[r.offset(x,y,z)] = w;
 	}
 }
