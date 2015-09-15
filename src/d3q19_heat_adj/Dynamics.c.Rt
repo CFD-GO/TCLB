@@ -23,6 +23,7 @@
 /*-------------------------------------------------------------*/
 
 CudaDeviceFunction real_t getRho(){
+	if (NodeType & NODE_BOUNDARY) return 1;
 	return <?R C(sum(f)) ?>;
 }
 
@@ -39,8 +40,16 @@ CudaDeviceFunction real_t getT(){
 }
     
 CudaDeviceFunction vector_t getU(){
-	real_t d = getRho();
 	vector_t u;
+	if (NodeType & NODE_BOUNDARY) {
+		u.x=0;
+		u.y=0;
+		u.z=0;
+//		if ((NodeType & NODE_BOUNDARY) == NODE_Wall) return u;
+//		u.x=Velocity;
+		return u;
+	}
+	real_t d = getRho();
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
@@ -74,49 +83,47 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
 	real_t ux=Velocity, uy, uz, rho, rhoT;
-<?R
-	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="ux")
-	ZouHeNew(geq, g, direction=1, sign=-1, order=0, known=c("ux","rho"))
-?>
+<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="ux") ?>
+	rhoT = Temperature*rho;
+<?R	C(g, geq$feq);	?>
 }
 
 CudaDeviceFunction void EPressure()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R
-	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="ux")
-	ZouHeNew(geq, g, direction=1, sign=-1, order=0, known=c("ux","rho"))
-?>
+<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="ux") ?>
+	rhoT = Temperature*rho;
+<?R	C(g, geq$feq);	?>
 }
 
 
 CudaDeviceFunction void WPressure()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R
-	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="rho")
-	ZouHeNew(geq, g, direction=1, sign=1, order=0, known=c("ux","rho"))
-?>
+<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="rho") ?>
+	rhoT = Temperature*rho;
+<?R	C(g, geq$feq);	?>
 }
 
 CudaDeviceFunction void WPressureLimited()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R
-	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="rho")
-	ZouHeNew(geq, g, direction=1, sign=1, order=0, known=c("ux","rho"))
-?>
+<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="rho") ?>
+	if (ux > Velocity) {
+		ux = Velocity;
+<?R		ZouHeNew(feq, f, direction=1, sign=1, order=1, known="ux") ?>
+	}
+	rhoT = Temperature*rho;
+<?R	C(g, geq$feq);	?>
 }
 
 
 CudaDeviceFunction void WVelocity()
 {
 	real_t ux=Velocity, uy, uz, rho, rhoT;
-<?R
-	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="ux")
-	ZouHeNew(geq, g, direction=1, sign=1, order=0, known=c("ux","rho"))
-?>
-
+<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="ux") ?>
+	rhoT = Temperature*rho;
+<?R	C(g, geq$feq);	?>
 }
 
 CudaDeviceFunction void Run() {
