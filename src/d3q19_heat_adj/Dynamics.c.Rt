@@ -91,7 +91,7 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void EPressure()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="ux") ?>
+<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="rho") ?>
 	rhoT = Temperature*rho;
 <?R	C(g, geq$feq);	?>
 }
@@ -195,6 +195,21 @@ CudaDeviceFunction void CollisionMRT()
 	C( u, f %*% U * ( rho^(-1) ) )
 	C( rhoT, sum(g) )
 ?>
+	real_t T = rhoT/rho;
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) {
+		AddToFlux( ux*rho );
+		AddToHeatFlux( T*ux*rho );
+		AddToHeatSquareFlux( T*T*ux*rho );
+	}
+	if ((NodeType & NODE_OBJECTIVE) == NODE_Thermometer) {
+		AddToTemperatureAtPoint(T);
+		if (T > LimitTemperature) {
+			AddToHighTemperature((T-LimitTemperature)*(T-LimitTemperature));
+		} else {
+			AddToLowTemperature( (T-LimitTemperature)*(T-LimitTemperature));
+		}
+	}
+
 	ax=0;
 	ay=0;
 	Q=0;
