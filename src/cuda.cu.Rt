@@ -61,6 +61,13 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
+<?R	for (n in rows(NodeTypes)) {	?>
+#define Iam<?%s n$name ?> ((NodeType & NODE_<?%s n$group?>) == NODE_<?%s n$name ?>)
+<?R	}	?>
+<?R	for (n in names(Node_Group)) {	?>
+#define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
+<?R	}	?>
+
 #define NODE_H
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
