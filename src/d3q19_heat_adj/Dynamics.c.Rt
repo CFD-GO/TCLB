@@ -83,7 +83,7 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
 	real_t ux=Velocity, uy, uz, rho, rhoT;
-<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="ux") ?>
+<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, mom=c(rho,u[1],0,0), known="ux") ?>
 	rhoT = Temperature*rho;
 <?R	C(g, geq$feq);	?>
 }
@@ -91,7 +91,7 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void EPressure()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, known="rho") ?>
+<?R	ZouHeNew(feq, f, direction=1, sign=-1, order=1, mom=c(rho,u[1],0,0), known="rho") ?>
 	rhoT = Temperature*rho;
 <?R	C(g, geq$feq);	?>
 }
@@ -100,7 +100,7 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void WPressure()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="rho") ?>
+<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, mom=c(rho,u[1],0,0), known="rho") ?>
 	rhoT = Temperature*rho;
 <?R	C(g, geq$feq);	?>
 }
@@ -108,10 +108,10 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void WPressureLimited()
 {
 	real_t ux, uy, uz, rho=1.+3.*Pressure, rhoT;
-<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="rho") ?>
+<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, mom=c(rho,u[1],0,0), known="rho") ?>
 	if (ux > Velocity) {
 		ux = Velocity;
-<?R		ZouHeNew(feq, f, direction=1, sign=1, order=1, known="ux") ?>
+<?R		ZouHeNew(feq, f, direction=1, sign=1, order=1, mom=c(rho,u[1],0,0), known="ux") ?>
 	}
 	rhoT = Temperature*rho;
 <?R	C(g, geq$feq);	?>
@@ -121,7 +121,7 @@ CudaDeviceFunction void WPressureLimited()
 CudaDeviceFunction void WVelocity()
 {
 	real_t ux=Velocity, uy, uz, rho, rhoT;
-<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, known="ux") ?>
+<?R	ZouHeNew(feq, f, direction=1, sign=1, order=1, mom=c(rho,u[1],0,0), known="ux") ?>
 	rhoT = Temperature*rho;
 <?R	C(g, geq$feq);	?>
 }
@@ -188,8 +188,8 @@ CudaDeviceFunction void CollisionMRT()
         OMEGA = c(
 		PV(rep("omega",19))
 	)
+	OMEGA[feq$order != 2] = PV("omega2")
         OMEGA_T = PV("omegaT");
-	OMEGA_C = PV("omegaC");
 
 	C( rho, sum(f) )
 	C( u, f %*% U * ( rho^(-1) ) )
@@ -215,7 +215,8 @@ CudaDeviceFunction void CollisionMRT()
 	Q=0;
 	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) Q = Temperature*rho - rhoT;
 	real_t omega = 1.0-1.0/(3*nu + 0.5);
-	real_t omega2 = omega;
+//	real_t omega2 = omega;
+	real_t omega2 = 0;
 	real_t omegaT = 1.0-1.0/(3*FluidAlpha + 0.5);
 <?R
 	C( R, (f-feq$feq) %*% feq$mat * OMEGA );
