@@ -15,7 +15,9 @@
 
 # Calculating equlibrium density set
 	source("lib/feq.R")
-	feq = MRT_eq(d3q19, rho, u*rho );
+	cor = rho*V(u[3]^2,u[2]^2,u[1]^2)*(-1.0/6.0)
+	feq = MRT_eq(d3q19, rho, u*rho, correction=cor);
+	feq2 = MRT_eq(d3q19, rho, u*rho);
 	geq = MRT_eq(d3q7, rhoT, u*rhoT, order=1, sigma2=1/4 );
 ?>
 /*  Dynamics for d3q19 model with heat transfer                */
