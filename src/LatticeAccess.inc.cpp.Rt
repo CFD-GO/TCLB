@@ -10,17 +10,6 @@
 #include "Lattice.h"
 #include "mpi.h"
 
-/// Push only parameters
-template <class N> CudaDeviceFunction void LatticeContainer::push_param(N & node) 
-{
-<?R #	InOut("push", "out", Density, sel=Density$parameter); ?>
-}
-
-/// Push everything exept parameters
-template <class N> CudaDeviceFunction void LatticeContainer::push_noparam(N & node) 
-{
-<?R #	InOut("push", "out", Density, sel=(! Density$parameter)); ?>
-}
 
 /// Get only type of node
 template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
@@ -149,9 +138,9 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   load.field = function(d,f,p,dp,MContext) field.access(d=d,f=f,p=p,dp=dp,pattern="get",access="get",MContext=MContext)
   save.field = function(d,f,p,MContext)    field.access(d=d,f=f,p=p,      pattern="put",access="set",MContext=MContext)
 
-# mc = require(parallel)
+ mc = require(parallel)
 # mc = require(multicore)
- mc = FALSE
+# mc = FALSE
  if (!mc) {
   txtlapply = function(x,FUN,...,mc.cores=1) lapply(x,FUN,...)
  } else {
@@ -172,19 +161,30 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
  
 
  
+ all_stages = c(rows(Stages),list(
+	list(
+		load.densities = rep(TRUE, nrow(DensityAll)),
+		save.fields = rep(TRUE, length(Fields)),
+		suffix=""
+	),
+	list(
+		load.densities = !DensityAll$param,
+		save.fields = !Fields$parameter,
+		suffix="_noparam"
+	),
+	list(
+		load.densities = DensityAll$param,
+		save.fields = Fields$parameter,
+		suffix="_param"
+	)
+ ))
 
- txtlapply(c(rows(Stages),list(NULL)), function(s) {
+ txtlapply(all_stages, function(s) {
 # lapply(1:length(s_list), function(s_i) {
 # for (s in c(rows(Stages),list(NULL))) {
-  if (is.null(s)) {
-    s$load.densities = rep(TRUE, nrow(DensityAll))
-    s$save.fields = rep(TRUE, length(Fields))
-    s$suffix=""
-  } else {
-    s$load.densities = DensityAll[,s$tag];
-    s$save.fields = Fields[,s$tag];
-    s$suffix = paste("_",s$name,sep="")
-  } 
+  if (is.null(s$load.densities))  s$load.densities = DensityAll[,s$tag];
+  if (is.null(s$save.fields))  s$save.fields = Fields[,s$tag];
+  if (is.null(s$suffix))  s$suffix = paste("_",s$name,sep="")
 
   ?>
 template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node) 

@@ -27,13 +27,10 @@ u.z =    f5 - f6 + f11 + f12 - f13 - f14 + f15 + f16 - f17 - f18 ;
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        vector_t u = getU();
-        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
-        if (NodeType == NODE_Solid){
-                ret.y = 0;
-        } else {
-                ret.y = 1;
-        }
+//        vector_t u = getU();
+//        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+        ret.x = getT();
+        ret.y = w;
         return ret;
 }
 

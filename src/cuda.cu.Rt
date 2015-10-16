@@ -236,30 +236,10 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                         } ?>
 		constContainer.push_<?%s s$name ?>_adj(*this); <?R
 		} else if (tp$Stream == "Opt") { ?>
-
-                constContainer.pop_<?%s s$name ?>(*this); <?R
-		        for (i in 1:nrow(Density)) {
-		                d=Density[i,]; ?>
-		<?%s d$adjoint_name ?> = <?%s d$name ?>; <?R
-		        } ?>
-
-		<?%s s$main ?>();
-//		constContainer.push_noparam_<?%s s$name ?>(*this); <?R
-		        for (i in 1:nrow(Density)) {
-		                d=Density[i,]; ?>
-		<?%s d$name ?> = <?%s d$adjoint_name ?>; <?R
-		        } ?>
-		constContainer.pop_<?%s s$name ?>_adj(*this); <?R
-		        for (d in rows(Density)) if (d$parameter) { ?>
-		<?%s d$adjoint_name ?> = GradientSmooth*<?%s d$adjoint_name ?>; <?R
-		        } ?>
-		Run_b(); <?R
-		        for (d in rows(Density)) if (d$parameter) { ?>
-                <?%s d$adjoint_name ?> /= 1.+GradientSmooth; <?R
-                        } ?>
-		constContainer.push_<?%s s$name ?>_adj(*this);
+		constContainer.pop_param(*this);
+		constContainer.pop_param_adj(*this); 
 		Opt();
-//		constContainer.push_param_<?%s s$name ?>(*this); <?R
+		constContainer.push_param(*this); <?R
 		} else if (tp$Stream == "Init") { ?>
 		constContainer.getType(*this);
 		Init();
