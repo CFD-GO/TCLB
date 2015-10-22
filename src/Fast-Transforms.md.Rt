@@ -1,0 +1,28 @@
+<?R
+source("lib/cumulant.R")
+source("lib/FMT.R")
+
+
+for (d in 2:3) {
+  I = do.call(expand.grid,list(0:2,0:2,0:2)[1:d])
+  M = do.call(PV,c("m",unclass(I)))
+  K = do.call(PV,c("c",unclass(I)))
+  K[1]=0
+  ret = FCT_eq(I,M,K)
+  for (order in 1:d) {
+    ord = rowSums(I != 0)
+    sel = ord <= order
+    name = paste("d",d,"q",sum(sel),sep="")
+    sink(paste("Fast-Transform-",name,".md",sep=""))
+    w = FMT_num[[d]][sel]
+    cat(paste("#define ",ToC(M[sel][order(w)])," f",sort(w),"\n",sep=""),sep="")
+    FMT(I, M, sel)
+    C(M[sel],ret[sel])
+    C(K[sel],K[sel]+(M[sel]-ret[sel])*M[1]^(-1))
+    FMT(I, M, sel, inverse = TRUE)
+    sink()
+  }
+}
+
+
+?>
