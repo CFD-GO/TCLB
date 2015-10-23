@@ -14,12 +14,29 @@ for (d in 2:3) {
     sel = ord <= order
     name = paste("d",d,"q",sum(sel),sep="")
     sink(paste("Fast-Transform-",name,".md",sep=""))
-    w = FMT_num[[d]][sel]
+?>
+Conventional names:
+```c
+<?R w = FMT_num[[d]][sel]
     cat(paste("#define ",ToC(M[sel][order(w)])," f",sort(w),"\n",sep=""),sep="")
-    FMT(I, M, sel)
-    C(M[sel],ret[sel])
-    C(K[sel],K[sel]+(M[sel]-ret[sel])*M[1]^(-1))
-    FMT(I, M, sel, inverse = TRUE)
+?>```
+Moment transform:
+```c
+<?R FMT(I, M, sel) ?>
+```
+Cumulant calculation:
+```c
+<?R C(K[sel],K[sel]+(M[sel]-ret[sel])*M[1]^(-1)) ?>
+```
+Moments from cumulants:
+```c
+<?R C(M[sel],ret[sel]) ?>
+```
+Reverse moment transform:
+```c
+<?R FMT(I, M, sel, inverse = TRUE) ?>
+```
+<?R 
     sink()
   }
 }
