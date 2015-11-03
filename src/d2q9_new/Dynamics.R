@@ -13,6 +13,10 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
+AddField(name="f[1]", dx=1);
+
+
+
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
 #  name - name of the field
 #  type - C type of the field, "real_t" - for single/double float, and "vector_t" for 3D vector single/double float

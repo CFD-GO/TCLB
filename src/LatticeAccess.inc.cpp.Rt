@@ -138,9 +138,9 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   load.field = function(d,f,p,dp,MContext) field.access(d=d,f=f,p=p,dp=dp,pattern="get",access="get",MContext=MContext)
   save.field = function(d,f,p,MContext)    field.access(d=d,f=f,p=p,      pattern="put",access="set",MContext=MContext)
 
- mc = require(parallel)
+# mc = require(parallel)
 # mc = require(multicore)
-# mc = FALSE
+ mc = FALSE
  if (!mc) {
   txtlapply = function(x,FUN,...,mc.cores=1) lapply(x,FUN,...)
  } else {
