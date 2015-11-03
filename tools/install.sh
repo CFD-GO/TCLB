@@ -92,7 +92,12 @@ dry && echo Running dry install
 case "$inst" in
 r)
 	CRAN="http://cran.rstudio.com"
-	try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $(lsb_release -cs)/"
+	DIST=$(lsb_release -cs)
+	if lsb_release -sid | grep "Mint"
+	then
+		DIST=trusty
+	fi
+	try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
 	try "Adding repository key" apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9
 	try "Updating APT" apt-get update -qq
 	try "Installing R base" apt-get install --no-install-recommends r-base-dev r-recommended qpdf
