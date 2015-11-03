@@ -95,7 +95,7 @@ r)
 	DIST=$(lsb_release -cs)
 	if lsb_release -sid | grep "Mint"
 	then
-		DIST=trusty
+		DIST=trusty # All Mints are Trusty :-)
 	fi
 	try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
 	try "Adding repository key" apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9
