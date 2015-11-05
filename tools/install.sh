@@ -92,11 +92,11 @@ dry && echo Running dry install
 case "$inst" in
 r)
 	CRAN="http://cran.rstudio.com"
-	#DIST=$(lsb_release -cs)
-	#if lsb_release -sid | grep "Mint"
-	#then
+	DIST=$(lsb_release -cs)
+	if lsb_release -sid | grep "Mint"
+	then
 		DIST=trusty # All Mints are Trusty :-)
-	#fi
+	fi
 	try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
 	try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
 	try "Updating APT" apt-get update -qq
