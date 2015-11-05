@@ -98,9 +98,9 @@ r)
 		DIST=trusty # All Mints are Trusty :-)
 	fi
 	try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
-	try "Adding repository key" apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9
+	try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
 	try "Updating APT" apt-get update -qq
-	try "Installing R base" apt-get install --no-install-recommends r-base-dev r-recommended qpdf
+	try "Installing R base" apt-get install -y --no-install-recommends r-base-dev r-recommended qpdf
 	try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
 	;;
 rdep)
