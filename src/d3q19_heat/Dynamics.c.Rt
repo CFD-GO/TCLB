@@ -1,19 +1,22 @@
 <?R
 	source("conf.R") 
+	source("lib/boundary.R")
+	c_header();
 
-calcRhoJ = rbind(
-        rho == sum(f),
-        J == f %% U
-)
+# Creating variables for symbolic computations
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	g = PV(DensityAll$name[DensityAll$group=="g"])
+	rho =  PV("rho")
+	u = PV(c("ux","uy","uz"))
+	rhoT = PV("rhoT")
 
-calcRfromF = R == f %% MRTMAT
-calcReq = R == Req
-calcFfromR = f == R %% MRTMAT.inv
-calcFeq = f == Req %% MRTMAT.inv
+# Extracting velocity set
+	U = d3q19
 
-p=PV(1/4)
-RTeq = PV("rho")*rbind(PV(1),J[1],J[2],J[3],p,p,p)
-calcTeq = fT == solve(MRTT) %% RTeq
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	feq = MRT_eq(d3q19, rho, u*rho );
+	geq = MRT_eq(d3q7, rhoT, u*rhoT, order=1, sigma2=1/4 );
 ?>
 
 CudaDeviceFunction real_t getRho(){
@@ -21,13 +24,13 @@ CudaDeviceFunction real_t getRho(){
 }
 
 CudaDeviceFunction real_t getT(){
-	return (<?R C(sum(fT)) ?>)/(<?R C(sum(f)) ?>);
+	return (<?R C(sum(g)) ?>)/(<?R C(sum(f)) ?>);
 }
     
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y", "u.z")) == f %% U) ?>
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
 	u.z /= d;
@@ -54,28 +57,8 @@ CudaDeviceFunction void Collision()
 
 CudaDeviceFunction void BounceBack()
 {
-     real_t uf;
-<?R
-	uf = PV("uf")
-	by(Density,Density$group,function(d){
-		i = order(d$dx,d$dy,d$dz)
-		j = order(-d$dx,-d$dy,-d$dz)
-		if (any(d[i,c("dx","dy","dz")]!=-d[j,c("dx","dy","dz")])) stop("Density directions are not fully symetric!");
-		V = cbind(i,j);
-		sel = V[,1] > V[,2]
-		V = V[sel,]
-		f = PV(d$name)
-		for (i in 1:nrow(V))
-		{
-			w = list(
-				uf==f[V[i,1]],
-				f[V[i,1]]==f[V[i,2]],
-				f[V[i,2]]==uf
-			)
-			for (h in w) C(h)
-		}
-	NULL})
-?>}
+	<?R FullBounceBack() ?>
+}
 
 CudaDeviceFunction void EVelocity()
 {
@@ -91,70 +74,18 @@ CudaDeviceFunction void eqWVelocity()
 }
 
 
-<?R
-	X = U[,1]
-	Y = U[,2]
-	Z = U[,3]
-?>
-
 CudaDeviceFunction void WVelocity()
 {
-     real_t rho, Nxy, Nxz;
-	real_t ux = InletVelocity;
-
-<?R
-	C(rho == sum(f[X <  0]),float=F)
-	C(rho == sum(f[X == 0]) + 2 * rho, float=F)
-?>
-	rho = rho / (1. - ux);
-
-	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2.;
-	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2.;
-
-	f<?%d -1 + I[ 1] ?> = f<?%d -1 + I[ 2] ?> + rho * ux / 3.;
-	f<?%d -1 + I[ 8] ?> = f<?%d -1 + I[11] ?> + rho * ux / 6. + Nxy;
-	f<?%d -1 + I[ 7] ?> = f<?%d -1 + I[12] ?> + rho * ux / 6. - Nxy;
-	f<?%d -1 + I[ 9] ?> = f<?%d -1 + I[14] ?> + rho * ux / 6. - Nxz;
-	f<?%d -1 + I[10] ?> = f<?%d -1 + I[13] ?> + rho * ux / 6. + Nxz;
-
-        rho = rho*InletTemperature;
-        <?R
-		RTeq = PV("rho")*rbind(PV(1),PV("ux"),0,0,p,p,p)
-		C(fT == solve(MRTT) %% RTeq)
-        ?>
 
 }
 
 CudaDeviceFunction void EPressure()
 {
-     real_t rho = 1.0;
-     real_t Nxy, Nxz;
-     real_t ux;
-<?R
-	ux = PV("ux")
-	C(ux == sum(f[X >  0]),float=F)
-	C(ux == sum(f[X == 0]) + 2 * ux, float=F)
-?>
-	ux =  -1. + ux / rho;
 
-	Nxy = (<?R C(sum(f[X == 0 & Y > 0]) - sum(f[X == 0 & Y < 0])) ?>)/2;
-	Nxz = (<?R C(sum(f[X == 0 & Z > 0]) - sum(f[X == 0 & Z < 0])) ?>)/2;
-
-	f<?%d -1 + I[ 2] ?> = f<?%d -1 + I[ 1] ?> - rho * ux / 3.0;
-	f<?%d -1 + I[11] ?> = f<?%d -1 + I[ 8] ?> - rho * ux / 6.0 - Nxy;
-	f<?%d -1 + I[12] ?> = f<?%d -1 + I[ 7] ?> - rho * ux / 6.0 + Nxy;
-	f<?%d -1 + I[14] ?> = f<?%d -1 + I[ 9] ?> - rho * ux / 6.0 + Nxz;
-	f<?%d -1 + I[13] ?> = f<?%d -1 + I[10] ?> - rho * ux / 6.0 - Nxz;
-
-	
-        rho =2*T1 + <?R C(sum(fT[-(2:3)])) ?>;
-	rho = rho/(1.+ux);
-	T2 = T1 - rho*ux;
 }
 
 
 CudaDeviceFunction void Run() {
-//	printf("Run %d %d -> (%d,%d)\n", CudaBlock.x, CudaBlock.y, X, Y);
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_EVelocity:
 		EVelocity();
@@ -183,74 +114,64 @@ CudaDeviceFunction void Run() {
     }
 }
 
-CudaDeviceFunction void SetEquilibrum(real_t rho, real_t J[3], real_t Teq)
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t ux, real_t uy, real_t uz, real_t rhoT)
 {
 	<?R
-		C(calcFeq);
-	?>
-	J[0] /= rho;
-	J[1] /= rho;
-	J[2] /= rho;
-	rho = Teq;
-	<?R
-		C(calcTeq);
+		C(f,feq$feq);
+		C(g,geq$feq);
 	?>
 }
 
 CudaDeviceFunction void Init() {
-	real_t u[3] = {InletVelocity, 0., 0.};
 	real_t d = 1.0;
-	SetEquilibrum(d,u,InletTemperature);
+	SetEquilibrum( 1.0, Velocity, 0., 0., Temperature*1.0 );
 }
+
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t J[3], rho, omT;
-	real_t <?R cat(ToC(R[selR]), sep=",") ?>;
-
-	#define S1  0.0
-	#define S2  1.0//19
-	#define S3  1.0//4
-	#define S4  0.0
-	#define S5  1.0//2
-	#define S6  0.0
-	#define S7  1.0//2
-	#define S8  0.0
-	#define S9  1.0//2
-	#define S10 omega
-	#define S11 1.0//4
-	#define S12 omega
-	#define S13 1.0//4
-	#define S14 omega
-	#define S15 omega
-	#define S16 omega
-	#define S17 1.0//98
-	#define S18 1.0//98
-	#define S19 1.0//98
+	real_t M[19];
+	real_t rho, ux, uy, uz, rhoT;
+	real_t ax, ay, Q;
 <?R
-        Sy = PV(paste("S",1:19,"",sep=""))
+        R = PV("M[",1:19-1,"]")
+        OMEGA = c(
+		PV(rep("omega",19))
+	)
+        OMEGA_T = PV("omegaT");
+	OMEGA_C = PV("omegaC");
 
-#C( calcRhoJ )
-C( calcRfromF ,float =F);
-C( calcReq[selR] , eqstring = "-=" )
-
-# C( f == f + (R * Sy[sel]) %% (M.inv * -1)[sel,] );
-
-C( f == (R * Sy)[selR] %% MRTMAT.inv[selR,] , eqstring = "-=");
-
+	C( rho, sum(f) )
+	C( u, f %*% U * ( rho^(-1) ) )
+	C( rhoT, sum(g) )
 ?>
-
-        J[0] /= rho;
-        J[1] /= rho;  
-        J[2] /= rho;
-        rho = <?R C(sum(fT)) ?>;
-	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj3) {
-		rho = HeaterTemperature;
-	}
-
-	omT = 1/(0.5+FluidAlpha*4);
-        <?R
-		omega=PV("omT");
-                C(fT == omega*calcTeq - fT*(omega-1)); 
-        ?>
+	ax=0;
+	ay=0;
+	Q=0;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) Q = Temperature*rho - rhoT;
+	real_t omega = 1.0-1.0/(3*nu + 0.5);
+	real_t omega2 = omega;
+	real_t omegaT = 1.0-1.0/(3*FluidAlpha + 0.5);
+<?R
+	C( R, (f-feq$feq) %*% feq$mat * OMEGA );
+?>
+	ux += ax;
+	uy += ay;
+<?R
+	C( R, R + feq$Req);
+	C( R, R * (1 / diag(t(feq$mat) %*% feq$mat)));
+	C( f, R %*% t(feq$mat) );
+?>
+	ux -= ax/2.0;
+	uy -= ay/2.0;
+<?R
+	RT = R[1:7]
+	C( RT, (g-geq$feq) %*% geq$mat * OMEGA_T );
+?>
+	rhoT += Q;
+<?R
+	C( RT, RT + geq$Req);
+	C( RT, RT * (1/ diag(t(geq$mat) %*% geq$mat)));
+	C( g, RT %*% t(geq$mat) );
+?>
 }

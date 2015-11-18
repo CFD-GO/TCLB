@@ -204,7 +204,8 @@ inline flag_t Geometry::Dot(int x, int y, int z)
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);
 	return geom[i] = (geom[i] & (~fg_mask)) | fg;
-    }
+    } else 
+    return NODE_None;
 }
 
 /// Check if a point is inside a sphere
@@ -299,15 +300,14 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	}
     }
     for (int i = 0; i < ntri; i++) {
-	tri[i].p1[0] += 1e-7 - 0.5;
-	tri[i].p2[0] += 1e-7 - 0.5;
-	tri[i].p3[0] += 1e-7 - 0.5;
-	tri[i].p1[1] += 1e-7 - 0.5;
-	tri[i].p2[1] += 1e-7 - 0.5;
-	tri[i].p3[1] += 1e-7 - 0.5;
-	tri[i].p1[2] += 1e-7 - 0.5;
-	tri[i].p2[2] += 1e-7 - 0.5;
-	tri[i].p3[2] += 1e-7 - 0.5;
+	for (int j = 0; j < 3; j++) {
+		tri[i].p1[j] += 1e-7 - 0.5;
+		tri[i].p2[j] += 1e-7 - 0.5;
+		tri[i].p3[j] += 1e-7 - 0.5;
+		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
+		tri[i].p2[j] = myround(tri[i].p2[j] * 1e5) * 1e-5;
+		tri[i].p3[j] = myround(tri[i].p3[j] * 1e5) * 1e-5;
+	}
     }
     return 0;
 }
@@ -379,7 +379,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 		c2 /= c0;
 		if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
 		    c3 = 1. - c1 - c2;
-		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c1 + tri[i].p3[1] * c2;
+		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
 		    for (int y = reg.dy; y <= h; y++) {
 //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
 			if (reg.isIn(x, y, z))

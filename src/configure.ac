@@ -77,6 +77,10 @@ AC_ARG_ENABLE([debug-kernel],
 AC_ARG_WITH([python],
 	AC_HELP_STRING([--with-python],
 		[Enable CallPython handler, requires python-dev]))
+
+AC_ARG_ENABLE([paranoid],
+	AC_HELP_STRING([--enable-paranoid],
+		[Makes GCC paranoid.]))
 			
 NVFLAGS=""
 
@@ -98,7 +102,7 @@ fi
 if test "x${enable_cuda}" != "xno"
 then
 
-    if test "x{debug-kernel}" != "xno"
+    if test "x{debug-kernel}" == "xyes"
     then
      AC_MSG_RESULT(>>>> NVCC debug output enabled <<<<)
 	 NVFLAGS="${NVFLAGS} -keep -v"
@@ -235,7 +239,7 @@ CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
 
 if  test "x${with_python}" == "xyes"; then
-	AC_CHECK_PROG(PC,[python-config],[yes],[no])
+    AC_CHECK_PROG(PC,[python-config],[yes],[no])
     if test "x${PC}" == "xyes"; then
         python_config="python-config"
     fi
@@ -246,7 +250,8 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_RESULT([${PF}])
     
     AC_MSG_CHECKING([Python Embandinng: compiler flags])
-    PF=$($python_config --cflags)
+#    PF=$($python_config --cflags)
+    PF=$($python_config --includes)
     CPP_OPT="${CPPFLAGS} ${PF}"
     EMBEDED_PYTHON=1
     AC_MSG_RESULT([${PF}])
@@ -438,6 +443,11 @@ fi
 if test "x${enable_marklines}" == "xyes"
 then
 	RTOPT="${RTOPT} --mark-lines"
+fi
+
+if test "x${enable_paranoid}" == "xyes"
+then
+	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.

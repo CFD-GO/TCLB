@@ -3,6 +3,13 @@
 	c_header();
 ?>
 
+#ifdef EMBEDED_PYTHON
+    #include "Python.h"
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    #include <numpy/arrayobject.h>
+//    #include <numpy/old_defines.h>
+#endif
+
 
 #include "Consts.h"
 #include "pugixml.hpp"
@@ -34,13 +41,6 @@
 
 #ifdef WITH_CATALYST
         #include "Catalyst.h"
-#endif
-
-
-#ifdef EMBEDED_PYTHON
-    #include "Python.h"
-    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-    #include <numpy/arrayobject.h>
 #endif
 
 #define ITERATION_STOP 1
@@ -215,7 +215,7 @@ public:
 		pugi::xml_attribute attr = node.attribute("what");
 		if (attr) {
 	                par = attr.value();
-                        int i = par.find_first_of('-');
+                        unsigned int i = par.find_first_of('-');
                         if (i == string::npos) {
 				ERROR("Can only optimal control a parameters in a specific zone\n");
 				return -1;
@@ -300,7 +300,7 @@ public:
 		pugi::xml_attribute attr = node.attribute("what");
 		if (attr) {
 	                par = attr.value();
-                        int i = par.find_first_of('-');
+                        unsigned int i = par.find_first_of('-');
                         if (i == string::npos) {
 				ERROR("Can only optimal control a parameters in a specific zone\n");
 				return -1;
@@ -475,6 +475,7 @@ public:
 	int Finish() {
 		delete hand;
 		double w = pi;
+		return 0;
 	}
 	int NumberOfParameters() {
 		return Pars;
@@ -816,7 +817,7 @@ class cbStop: public Callback {
                 if (solver->mpi_rank == 0) {
                         int any = 0;
                         output("Stop criterium:");
-                        for (int i=0;i<what.size();i++) {
+                        for (size_t i=0;i<what.size();i++) {
                                 double v = solver->lattice->globals[ what[i] ];
                                 if (fabs(old[i] - v) > change[i]) any++;
                                 if (D_MPI_RANK == 0) {
@@ -835,7 +836,7 @@ class cbStop: public Callback {
                         if (score >= times) {
                                 if (D_MPI_RANK == 0) notice("Stop.\n");
                                 ret = ITERATION_STOP;
-                                for (int i=0;i<what.size();i++) {
+                                for (size_t i=0;i<what.size();i++) {
                                         old[i] = -12341234;
                                 }
                                 score=0;
@@ -870,20 +871,20 @@ class cbKeep: public Callback {
 			error("No What attribute in %s\n", node.name());
 			return -1;
 		}
-		if (attr = node.attribute("Above")) {
+		if ( (attr = node.attribute("Above")) ) {
 			thr = attr.as_double();
                         my_type = 1;
-		} else if (attr = node.attribute("Below")) {
+		} else if ( (attr = node.attribute("Below")) ) {
 			thr = attr.as_double();
                         my_type = -1;
-		} else if (attr = node.attribute("Equal")) {
+		} else if ( (attr = node.attribute("Equal")) ) {
 			thr = attr.as_double();
                         my_type = 0;
 		} else {
 			error("%s should have Above, Below or Equal attribute\n", node.name());
 			return -1;		        
 		}
-		if (attr = node.attribute("Force")) {
+		if ( (attr = node.attribute("Force")) ) {
 			force = attr.as_double();
 		} else {
 		        force = 1;
@@ -970,7 +971,7 @@ class GenericAction: public Action {
 		output("Collecting parameters from Design elements\n");
 		if (parSize < 0) {
 			parSize = 0;
-			for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+			for (size_t i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
 				output("Getting number of parameters from %s\n", solver->hands[i]->node.name());
 				int k = solver->hands[i]->NumberOfParameters();
 				parSize += k;
@@ -982,7 +983,7 @@ class GenericAction: public Action {
 	};
 	int Parameters(int type, double * tab) {
 		int offset = 0, size = 0, ret=0;
-		for (int i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
+		for (size_t i=0; i<solver->hands.size(); i++) if (solver->hands[i].Type()  == HANDLER_DESIGN) {
 			output("Parameters from %s (%d)\n", solver->hands[i]->node.name(), type);
 			size = solver->hands[i]->NumberOfParameters();
 			if (offset + size > parSize) { offset = offset + size; break; }
@@ -1018,6 +1019,20 @@ class MainContainer: public GenericAction {
 		GenericAction::Init();
 		char filename[STRING_LEN];
 		solver->outIterFile("config", ".xml", filename);
+		pugi::xml_node n = solver->configfile.append_child("Run");
+		n.append_attribute("model").set_value(MODEL);
+		pugi::xml_node c = n.append_child("Code");
+		c.append_attribute("version").set_value(VERSION);
+		#ifdef CALC_DOUBLE_PRECISION
+			c.append_attribute("precision").set_value("double");
+		#else
+			c.append_attribute("precision").set_value("float");
+		#endif
+		#ifdef CROSS_CPU
+			c.append_attribute("cross").set_value("CPU");
+		#else
+			c.append_attribute("cross").set_value("GPU");
+		#endif
 		solver->configfile.save_file(filename);
 		return GenericAction::ExecuteInternal();
 	}
@@ -1036,7 +1051,7 @@ class acSolve: public GenericAction {
 		int stop=0;
 		do {
 			int next_it = Next(solver->iter);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				int it  = solver->hands[i].Next(solver->iter);
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
@@ -1046,7 +1061,7 @@ class acSolve: public GenericAction {
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					int ret = solver->hands[i].DoIt();
 					switch (ret) {
@@ -1078,7 +1093,7 @@ class acOptSolve: public GenericAction {
 		int stop=0;
 		do {
 			int next_it = Next(solver->iter);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				int it  = solver->hands[i].Next(solver->iter);
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
@@ -1088,7 +1103,7 @@ class acOptSolve: public GenericAction {
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					int ret = solver->hands[i].DoIt();
 					switch (ret) {
@@ -1128,7 +1143,7 @@ class acUSAdjoint: public GenericAction {
 		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
 		do {
 			int next_it = Prev(solver->iter);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				int it  = solver->hands[i].Prev(solver->iter);
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
@@ -1138,7 +1153,7 @@ class acUSAdjoint: public GenericAction {
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					solver->hands[i].DoIt();
 				}
@@ -1170,7 +1185,7 @@ class acSAdjoint: public GenericAction {
 		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
 		do {
 			int next_it = Next(solver->iter);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				int it  = solver->hands[i].Next(solver->iter);
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
@@ -1180,7 +1195,7 @@ class acSAdjoint: public GenericAction {
        			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
 			MPI_Barrier(MPI_COMM_WORLD);
-			for (int i=0; i<solver->hands.size(); i++) {
+			for (size_t i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					solver->hands[i].DoIt();
 				}
@@ -1355,8 +1370,8 @@ class acOptimize: public GenericAction {
 
 double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	acOptimize * obj = (acOptimize *) data;
-	assert(n == obj->par);
-	double val;
+	assert(n == (unsigned int)obj->par);
+	double val = NAN;
         int msg = 0; 
         output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
         MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
@@ -1370,9 +1385,9 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 double FMaterialMore(unsigned int n, const double * x, double * grad, void * data) {
 	acOptimize * obj = (acOptimize *) data;
 	double material = 0.0;
-	for (int i=0;i<n; i++) material += x[i];
+	for (size_t i=0;i<n; i++) material += x[i];
 	if (grad) {
-        	for (int i=0;i<n; i++) grad[i] = 1;
+        	for (size_t i=0;i<n; i++) grad[i] = 1;
         }
         output("Material %le (%le at start)\n", material, obj->material);
 	return material - obj->material;
@@ -1380,9 +1395,9 @@ double FMaterialMore(unsigned int n, const double * x, double * grad, void * dat
 double FMaterialLess(unsigned int n, const double * x, double * grad, void * data) {
 	acOptimize * obj = (acOptimize *) data;
 	double material = 0.0;
-	for (int i=0;i<n; i++) material += x[i];
+	for (size_t i=0;i<n; i++) material += x[i];
 	if (grad) {
-        	for (int i=0;i<n; i++) grad[i] = -1;
+        	for (size_t i=0;i<n; i++) grad[i] = -1;
         }
         output("Material %le (%le at start)\n", material, obj->material);
 	return obj->material - material;
@@ -1513,7 +1528,7 @@ class conControl: public Action {
 	        for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
 	                debug0("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
 	                par = attr.name();
-                        int i = par.find_first_of('-');
+                        size_t i = par.find_first_of('-');
                         if (i == string::npos) {
                                 zone = "";
                                 zone_number = -1;
@@ -1548,7 +1563,7 @@ class conControl: public Action {
                 if (it->second.size() != fill.size()) {
                         fill.resize(it->second.size());
                 }
-                for (int i=0; i < it->second.size(); i++) {
+                for (size_t i=0; i < it->second.size(); i++) {
                         fill[i] = 0;
                 }
                 
@@ -1585,12 +1600,12 @@ class conControl: public Action {
                         }    
                         if (it == cont.end()) {
                                 output("Setting 1 with a scale of %lf (*%lf)\n", nscale, scale);
-                                for (int i=0; i < fill.size(); i++) {
+                                for (size_t i=0; i < fill.size(); i++) {
                                         fill[i] += nscale * scale;
                                 }
                         } else {
                                 output("Getting %s from context with a scale of %lf (*%lf)\n", it->first.c_str(), nscale, scale);
-                                for (int i=0; i < fill.size(); i++) {
+                                for (size_t i=0; i < fill.size(); i++) {
                                         fill[i] += it->second[i] * nscale * scale;
                                 }
                         }
@@ -1641,7 +1656,7 @@ class conControl: public Action {
                                 while (std::getline(myfile, line)) {
                                         std::istringstream ss(line);
                                         std::string token;
-                                        int i = 0;
+                                        size_t i = 0;
                                         while(std::getline(ss, token, ',')) {
                                                 if (i >= names.size()) {
                                                         error("More data then names in header in CSV file %s\n", nm);
@@ -1692,7 +1707,7 @@ class conControl: public Action {
                                 } else {
                                         alpha = (1.0 * i - csv_data[ "_time" ][k])/(csv_data[ "_time" ][k+1]-csv_data[ "_time" ][k]);
                                 }
-                                for (int j=0; j<names.size(); j++) {
+                                for (size_t j=0; j<names.size(); j++) {
                                         double val = csv_data[ names[j] ][k]*(1-alpha) + csv_data[ names[j] ][k+1]*alpha;
                                         context[ names[j] ].push_back(val);
                                 }
@@ -1785,7 +1800,7 @@ class acParams: public Action {
 	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
 	                debug0("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
 	                par = attr.name();
-                        int i = par.find_first_of('-');
+                        size_t i = par.find_first_of('-');
                         if (i == string::npos) {
                                 zone = "";
                                 zone_number = -1;
@@ -2144,6 +2159,13 @@ class cbPythonCall: public Callback {
 	        /* pFunc is a new reference */
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
+                if (sizeof(real_t) == sizeof(float) ) {
+//                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_FLOAT, buffer);
+                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
+                } else if (sizeof(real_t) == sizeof(double) ){
+//                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_DOUBLE, buffer);
+                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
+                }
                 
                 
                 pArgs = PyTuple_New(n_components+1);

@@ -63,10 +63,12 @@ int Lattice::Offset(int x, int y, int z)
 */
 Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
+	DEBUG_M;
 	reverse_save=0;
 	Record_Iter = 0;
 	Iter = 0;
 	total_iterations = 0;
+	segment_iterations = 0;
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
@@ -76,6 +78,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->px = region.dx;
 	container->py = region.dy;
 	container->pz = region.dz;
+	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
 	}
@@ -87,8 +90,11 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	aSnaps[0].PreAlloc(_region.nx,_region.ny,_region.nz);
 	aSnaps[1].PreAlloc(_region.nx,_region.ny,_region.nz);
 #endif
+	DEBUG_M;
 	MPIInit(mpi);
+	DEBUG_M;
 	CudaAllocFinalize();
+	DEBUG_M;
 
 	container->in = Snaps[0];
 	container->out = Snaps[1];
@@ -536,6 +542,9 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 #ifdef ADJOINT
         <?%s FunName ?>(tab0, tab1, iter_type);
         <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type);
+        container->RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
+        container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream); 
+        CudaDeviceSynchronize();
 #else
 	ERROR("This model doesn't have adjoint!\n");
 	exit (-1);
@@ -575,7 +584,7 @@ int Lattice::save(FTabs& tab, const char * filename) {
 	}
 
 	void ** ptr;
-	void * pt;
+	void * pt=NULL;
 	size_t * size;
 	size_t maxsize;
 	int n;
@@ -607,7 +616,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 	}
 
 	void ** ptr;
-	void * pt;
+	void * pt = NULL;
 	size_t * size;
 	size_t maxsize;
 	int n;
@@ -617,7 +626,8 @@ int Lattice::load(FTabs& tab, const char * filename) {
 
 	for(int i=0; i<n; i++)
 	{
-		fread(pt, size[i], 1, f);
+		int ret = fread(pt, size[i], 1, f);
+		if (ret != 1) ERROR("Could not read in Lattice::load");
 		CudaMemcpy( ptr[i], pt, size[i], cudaMemcpyHostToDevice);
 	}
 
@@ -972,7 +982,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 	lbRegion inter = region.intersect(over);
 //        debug1("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
         int x = inter.dx, y = inter.dy;
-	<?%s q$type ?> * buf;
+	<?%s q$type ?> * buf=NULL;
 	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s q$type ?>));
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {	lbRegion small = inter;

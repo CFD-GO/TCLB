@@ -62,15 +62,15 @@ cudaError_t HandleError( cudaError_t err,
                 sort(ptrlist.begin(), ptrlist.end());
                 ptrpair ptr;
                 size_t fullsize=0;
-                for (int i = 0; i < ptrlist.size(); i++) {
+                for (size_t i = 0; i < ptrlist.size(); i++) {
                         size_t size = ptrlist[i].size;
-                        int align = MEM_ALIGN;
+                        size_t align = MEM_ALIGN;
                         while (align > size) align /= 2;
                         size = (((size-1)/align)+1)*align;
                         fullsize += size;
                         ptrlist[i].size=size;
                 }
-                char * tmp;
+                char * tmp = NULL;
                 if (fullsize > 1e9) {
                         NOTICE("[%d] Cumulative allocation of %d b (%.1f GB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e9);
                 } else if (fullsize > 1e6) {

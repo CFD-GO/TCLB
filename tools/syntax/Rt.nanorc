@@ -1,0 +1,43 @@
+## PHP Syntax Highlighting
+syntax "Rt" "\.[rR][tT]$"
+color brightwhite start="<\?(R|%)?" end="\?>"
+# Functions
+color brightblue "([a-zA-Z0-9_.]*)\("
+# Special functions
+color red "[^a-z0-9_-]{1}(t|c|paste[0]?)\("
+# polyAlgebra special function
+color brightred "[^a-z0-9_-]{1}(PV|C)\("
+# Constructs
+color magenta "[^a-z0-9_-]{1}(function|break|if|else|for|while|return|TRUE|FALSE|NULL)[^a-z0-9_-]{1}"
+# Special Characters
+color yellow "[(),]"
+color magenta "[{}]"
+color white "[;]"
+#color white "\["
+#color white "\]"
+color white "[=][^>]"
+color brightred "\$[a-z]*"
+color blue "\$"
+color yellow "[:=+*/-]"
+color yellow "%[a-z+*/-]*%"
+# Numbers
+# color magenta "[+-]*([0-9]\.)*[0-9]+([eE][+-]?([0-9]\.)*[0-9])*"
+# color magenta "0x[0-9a-zA-Z]*"
+# Bitwise Operations
+# color magenta "(\;|\||\^){1}"
+# And/Or/SRO/etc
+# color green "(\;\;|\|\||::|=>|->)"
+# STRINGS!
+color white "('[^']*')|(\"[^\"]*\")"
+# Online Comments
+color green "#.*$"
+# General HTML
+color white start="\?>" end="<\?(R|%)?"
+# trailing whitespace
+color ,green "[^[:space:]]{1}[[:space:]]+$"
+# multi-line comments
+color brightyellow start="/\*" end="\*/"
+
+# RT Tags
+color brightgreen "(<\?R)|(\?>)"
+color brightgreen "(<\?%[a-z0-9.]*)"

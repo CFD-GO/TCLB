@@ -7,7 +7,7 @@
 #define ZONESETTINGS_H
 
 class ZoneSettings {
-  int len;
+  size_t len;
   real_t ** cpuTab;
   real_t * cpuConst;
 public:
@@ -57,7 +57,7 @@ public:
     CopyToGPU();  
   }
   
-  inline void setLen(int nlen) {
+  inline void setLen(size_t nlen) {
     for (int i=0; i<TIME_SEG; i++) {
       if (cpuValues[i] != NULL) {
          free(cpuValues[i]);
@@ -86,18 +86,18 @@ public:
 
   inline void set_internal(int i, const double* val) {
     Alloc(i);
-    for (int j=0; j<len; j++) {
+    for (size_t j=0; j<len; j++) {
       cpuValues[i][j] = val[j];
     }
     Alloc(i+DT_OFFSET);
-    for (int j=1; j<len-1; j++) {
+    for (size_t j=1; j<len-1; j++) {
       cpuValues[i+DT_OFFSET][j] = (val[j+1] - val[j-1])/2;
     }
     cpuValues[i+DT_OFFSET][0] = (val[1] - val[len-1])/2;
     cpuValues[i+DT_OFFSET][len-1] = (val[0] - val[len-2])/2;
     Alloc(i+GRAD_OFFSET);
     Alloc(i+GRAD_OFFSET+DT_OFFSET);
-    for (int j=0; j<len; j++) {
+    for (size_t j=0; j<len; j++) {
       cpuValues[i+GRAD_OFFSET][j] = 0;
       cpuValues[i+GRAD_OFFSET+DT_OFFSET][j] = 0;
     }
@@ -141,7 +141,7 @@ public:
     CopyToGPU();  
   }
   
-  inline double get(int s, int z, int it) {
+  inline double get(int s, int z, size_t it) {
     assert(s >=  0);
     assert(s <   ZONESETTINGS);
     assert(z >=  0);
@@ -166,7 +166,7 @@ public:
     if (cpuValues[i] == NULL) {
       tab[0] = cpuConst[i];
     } else {
-      for (int it=0; it<len; it++) {
+      for (size_t it=0; it<len; it++) {
         tab[it] = cpuValues[i][it];
       }
     }
@@ -182,10 +182,10 @@ public:
     if (cpuValues[i] == NULL) {
       tab[0] = cpuConst[i];
     } else {
-      for (int it=0; it<len; it++) {
+      for (size_t it=0; it<len; it++) {
         tab[it] = cpuValues[i][it];
       }
-      for (int j=1; j<len-1; j++) {
+      for (size_t j=1; j<len-1; j++) {
         tab[j+1] += 0.5*cpuValues[i+DT_OFFSET][j];
         tab[j-1] -= 0.5*cpuValues[i+DT_OFFSET][j];
       }
@@ -196,7 +196,7 @@ public:
     }
   }
 
-  inline int getLen(int s, int z) {
+  inline size_t getLen(int s, int z) {
     assert(s >=  0);
     assert(s <   ZONESETTINGS);
     assert(z >=  0);
@@ -245,7 +245,7 @@ public:
     CudaFree(gpuConst);
   }
   
-  inline int getLen() { return len; }
+  inline size_t getLen() { return len; }
 };
 
 #endif

@@ -1,4 +1,14 @@
 
+#####################################################
+#                                                   #
+#   WARNING: .travis.yml file is generated          #
+#               from src/travis.yml.Rt              #
+#                                                   #
+#    1. do not modify .travis.yml !                 #
+#    2. after modifying src/travis.yml and run      #
+#          > make travis                            #
+#                                                   #
+#####################################################
 language: c
 
 git:
@@ -20,7 +30,6 @@ env:
     - MODEL=d2q9_solid 
     - MODEL=d3q19 
     - MODEL=d3q19_heat 
-    - MODEL=d3q19_kuper 
     - MODEL=d3q19_les 
     - MODEL=d3q27 
 
@@ -30,10 +39,11 @@ before_install:
     - sudo tools/install.sh r
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
+    - sudo tools/install.sh python-dev
+    - tools/install.sh rpython
     - gem install coveralls-lcov
     - tools/install.sh submodules
     - sudo tools/install.sh coveralls
-    - sudo tools/install.sh python-dev
     - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
     - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
     - export PATH=${CUDA_HOME}/bin:${PATH}
@@ -43,12 +53,11 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
     - make $MODEL/source
     - make $MODEL
-    - ./configure 
     - make $MODEL/clean
-    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python --enable-paranoid
     - make $MODEL
     - tools/tests.sh $MODEL
 

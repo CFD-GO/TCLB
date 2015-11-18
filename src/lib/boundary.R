@@ -74,3 +74,36 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	for (i in 1:(length(Rs)-1)) if (i != direction) C_pull( Rs[i+1], Js[i])
 	C(f[sel], fs[sel])
 }	
+
+ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
+  U = EQ$U
+  W1 = cbind(U,i=1:nrow(U))
+  W2 = cbind(-U,j=1:nrow(U))
+  ret = merge(W1,W2)
+  bounce = 1:nrow(U)
+  bounce[ret$i] = ret$j
+  sel = sign*U[,direction]>0
+  fs = f
+  feq = EQ$feq
+  fs[sel] = (feq + (fs-feq)[bounce])[sel]
+  Rs = fs %*% EQ$mat
+  if (missing(mom)) {
+	e = EQ$Req[EQ$order <= order] - Rs[EQ$order <= order]
+  } else {
+	e = mom - Rs[EQ$order <= order]
+  }
+  known = c(known, ".M", ToC(f[!sel]))
+  all = unique(do.call(c,lapply(fs@vec,function(x) names(x))))
+  needed = setdiff(all, known)
+  m = do.call(cbind,lapply(e@vec, function(x) apply(x[,needed,drop=FALSE]!=0,2,function(i) sum(abs(x$.M[i])))))
+  m = abs(m) > 1e-10
+  while (length(needed) > 0) {
+    i = which(colSums(m) == 1)[1]
+    if (is.na(i)) stop("Cannot solve the boundary problem in ZouHe")
+    C_pull(e[i],needed[m[,i]])
+    needed = needed[!m[,i]]
+    e = e[-i]
+    m = m[-m[,i],-i,drop=FALSE]
+  }
+  C(f[sel],fs[sel])
+}

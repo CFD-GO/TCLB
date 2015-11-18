@@ -307,7 +307,7 @@
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
     #define CudaMemcpyAsync(a__,b__,c__,d__,e__) CudaMemcpy(a__, b__, c__, d__)
     #define CudaMemset(a__,b__,c__) memset(a__, b__, c__)
-    #define CudaMalloc(a__,b__) CudaSuccess; assert( (*((void**)(a__)) = malloc(b__)) != NULL )
+    #define CudaMalloc(a__,b__) (assert( (*((void**)(a__)) = malloc(b__)) != NULL ), CudaSuccess)
     #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaFree(a__) free(a__)
     #define CudaFreeHost(a__) free(a__)
@@ -338,7 +338,9 @@
 
     #define RunKernelMaxThreads 1
     extern uint3 CpuBlock;
-    #pragma omp threadprivate(CpuBlock)
+    #ifdef CROSS_OPENMP
+      #pragma omp threadprivate(CpuBlock)
+    #endif
     extern uint3 CpuThread;
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);

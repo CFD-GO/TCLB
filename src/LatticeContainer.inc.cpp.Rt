@@ -75,8 +75,8 @@ template < class N > dim3 GetThreads() {
 
 template < class N > class ThreadNumber {
   public:
-  static int ky, sy;
-  static void Init(int ny) {
+  static unsigned int ky, sy;
+  static void Init(size_t ny) {
 	dim3 th = GetThreads< N >();
 	sy = th.y;
 	ky = ny/th.y;
@@ -86,8 +86,8 @@ template < class N > class ThreadNumber {
   static inline int getSY() { return sy; }
 };
 
-template < class N > int ThreadNumber< N >::ky = 0;
-template < class N > int ThreadNumber< N >::sy = 0;
+template < class N > unsigned int ThreadNumber< N >::ky = 0;
+template < class N > unsigned int ThreadNumber< N >::sy = 0;
   
 /// Initialize Thread/Block number variables
 int InitDim(int ny) {
@@ -108,7 +108,7 @@ int InitDim(int ny) {
 
 /// Allocation of a GPU memory Buffer
 void * BAlloc(size_t size) {
-  char * tmp;
+  char * tmp = NULL;
     ALLOCPRINT1;
     #ifdef DIRECT_MEM
       CudaMallocHost( (void**)&tmp, size );
@@ -128,7 +128,7 @@ void BPreAlloc(void ** ptr, size_t size) {
 /// Allocation of memory for an FTabs
 void FTabs::Alloc(int nx,int ny,int nz) {
   size_t size;
-  char * tmp;
+  char * tmp = NULL;
   <?R for (m in NonEmptyMargin) { ?>
     size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
     ALLOCPRINT1;
@@ -196,7 +196,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 
     InitDim(ny);
 
-    char * tmp;
+    char * tmp=NULL;
     size_t size;
 
     size = (size_t) nx*ny*nz*sizeof(flag_t);
@@ -402,6 +402,12 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     N now;
+    if (x < 0) return;
+    if (y < 0) return;
+    if (z < 0) return;
+    if (x >= constContainer.nx) return;
+    if (y >= constContainer.ny) return;
+    if (z >= constContainer.nz) return;
     now.x_ = x;
     now.y_ = y;
     now.z_ = z;
@@ -486,18 +492,29 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 		now.y_ = y;
 		now.z_ = z;
 		constContainer.getType(now);
-		constContainer.pop(now); <?R
-		if (q$adjoint) { ?>
-		constContainer.pop_adj(now); <?R
-                } ?>
-		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t") {
-                  for (coef in c("x","y","z")) { ?>
-		w.<?%s coef ?> *= scale; <?R
-		  }
-		} else { ?>
-		w *= scale; <?R
-                } ?>
+		<?%s q$type ?> w;
+//		if (now.NodeType) {
+			constContainer.pop(now); <?R
+			if (q$adjoint) { ?>
+			constContainer.pop_adj(now); <?R
+	                } ?>
+			w = now.get<?%s q$name ?>(); <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+			w.<?%s coef ?> *= scale; <?R
+			  }
+			} else { ?>
+			w *= scale; <?R
+	                } ?>
+//		} else { <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+//			w.<?%s coef ?> = nan(""); <?R
+			  }
+			} else { ?>
+//			w = nan(""); <?R
+	                } ?>
+//		}
 		tab[r.offset(x,y,z)] = w;
 	}
 }

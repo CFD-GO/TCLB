@@ -26,7 +26,7 @@ MRT_integerOrtogonal = function(M) {
   M
 }
 
-MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2, ortogonal=TRUE, mat=NULL) {
+MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2, ortogonal=TRUE, mat, correction) {
   rho_str = ToC(rho)
   W = MRT_polyMatrix(U)
   p=W$p
@@ -48,7 +48,16 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
 	x
   })
   ret = list(Req=H, mat=W$mat, p=W$p, order=W$order, U=U)
+  if (!missing(correction)) {
+	sel = ret$order > 3
+	if (sum(sel) != length(correction)) stop("Correction of wrong length in MRT_eq")
+	ret$Req[sel] = ret$Req[sel] + correction
+  }
+  if (missing(mat)) {
+	mat = attr(U,"MAT")
+  }
   if (! is.null(mat)) {
+	if (! is.matrix(mat)) stop("\"mat\" provided to MRT_eq is not a matrix")
 	M = mat
 	ret$order  = apply(abs(solve(W$mat) %*% M) > 1e-10,2,function(x) max(W$order[x]))
 	ret$Req = ret$Req %*% (solve(W$mat) %*% M)
@@ -60,12 +69,12 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
 	ret$mat = M
 	ret$p = NULL
   }
+  ret$feq = ret$Req %*% solve(ret$mat)
   ret
 }
 
 MRT_feq = function(...) {
-  ret = MRT_eq(...)
-	feq =  ret$Req %*% solve(ret$mat)
-	feq
+	ret = MRT_eq(...)
+	ret$feq
 }
 

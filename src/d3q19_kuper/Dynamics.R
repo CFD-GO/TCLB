@@ -55,6 +55,11 @@ AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential', default="1")
 
+AddSetting(name="BoundaryVelocity_x", default="0m/s", comment='boundary velocity')
+AddSetting(name="BoundaryVelocity_y", default="0m/s", comment='boundary velocity')
+AddSetting(name="BoundaryVelocity_z", default="0m/s", comment='boundary velocity')
+AddSetting(name="Boundary_rho", default="0m/s", comment='boundary velocity')
+
 AddSetting(name="Magic", comment='K', default="0.01")
 AddSetting(name="MagicA", comment='A in force calculation', default="-0.152")
 

@@ -16,7 +16,7 @@ void runif(int n, double * tab) {
    tab[i] = (double)rand()/RAND_MAX;
 }
 
-double rnorm(int n, double *tab) {
+void rnorm(int n, double *tab) {
   for (int i=0;i<n;i++) {
    double w[2];
    runif(2, w);
@@ -92,7 +92,7 @@ void SyntheticTurbulence::CalcQuant() {
 }
 
 double SyntheticTurbulence::EnergySpectrum(double w) {
-
+ return 0;
 }
 
 void SyntheticTurbulence::setVonKarman(double Le, double Ld, double Lmin, double Lmax){
