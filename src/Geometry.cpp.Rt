@@ -438,18 +438,18 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 			}
 		    }
-	}
-        else if (strcmp(n.name(),"Pipe") == 0) {
-         debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
-            DEBUG1(reg.print();)
+	}    
+    else if (strcmp(n.name(),"Pipe") == 0) {
+	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
+	    DEBUG1(reg.print();)
             for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-                for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
-                   for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
-                         if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
-                                Dot(x,y,z);
-                        }
-                   }
-        }
+		for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+		   for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+			 if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
+				Dot(x,y,z);
+			}
+		   }
+	} 
     else if (strcmp(n.name(), "Wedge") == 0) {
 //                      reg = region.intersect(reg);
 	    debug1("Filling wedge with flag %d (%d)\n", fg, fg_mask);
