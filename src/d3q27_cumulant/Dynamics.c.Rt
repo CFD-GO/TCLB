@@ -160,6 +160,11 @@ f020 = f022 + f021 + f020; f021 = -f022 + f021; f022 = f021 + f022*2.;
 f120 = f122 + f121 + f120; f121 = -f122 + f121; f122 = f121 + f122*2.; 
 f220 = f222 + f221 + f220; f221 = -f222 + f221; f222 = f221 + f222*2.; 
 
+//Getting the velocity from the moments and the forcing term
+vector_t u;
+u.x = (f100 + ForceX)/f000;
+u.y = (f010 + ForceY)/f000;
+u.z = (f001 + ForceZ)/f000;
 
 <?R
 	cumulants = paste("c",P$x,P$y,P$z,sep="");
@@ -198,10 +203,9 @@ c222 = ( -c122*f100 - c202*f020 - c102*f120 - c220*f002 - c120*f102 - c200*f022 
 
 ///////
        real_t dxu,dyv,dzw;
-       dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - f000);
+       dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
        dyv = dxu + 3.*w[0]/2.*(c200 - c020);
        dzw = dxu + 3.*w[0]/2.*(c200 - c002);
-       vector_t u = getU();
        real_t gcor1 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.y*u.y*dyv);
        real_t gcor2 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.z*u.z*dzw);
        real_t gcor3 = 3.*(1 - w[1]/2.)*(u.x*u.x*dxu + u.y*u.y*dyv + u.z*u.z*dzw);
