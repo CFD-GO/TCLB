@@ -4,6 +4,13 @@
 #include <set>
 #include <string>
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <cstring>
+#include <errno.h>
+#include <assert.h>
+#include <sys/stat.h>
+
 inline void stripbare(char * str)
 {
 	int i = 0, j=0;
@@ -53,5 +60,40 @@ class name_set {
 			return myset.count(what) > 0;
 		}
 };
+
+
+// This function creates the full path to a file (creates all the directories)
+inline int mkpath(char* file_path_, mode_t mode) {
+  char file_path[1024];
+  if (file_path_ == NULL) return -1;
+  if (*file_path_ == '\0') return 0;
+  if (strlen(file_path_) >= STRING_LEN) {
+    error("too long path in mkdir: %s\n", file_path_);
+    return -1;
+  }
+  strcpy(file_path,file_path_);
+  debug1("mkdir: %s (-p)\n", file_path);
+  char* p;
+  for (p=strchr(file_path+1, '/'); p; p=strchr(p+1, '/')) {
+    *p='\0';
+    if (mkdir(file_path, mode)==-1) {
+      if (errno!=EEXIST) {
+        debug1("mkdir: %s - cannot create\n", file_path);
+        *p='/'; return -1;
+      } else {
+        debug1("mkdir: %s - exists\n", file_path);
+      }
+    } else {
+        debug1("mkdir: %s - created\n", file_path);
+    }
+    *p='/';
+  }
+  return 0;
+}
+
+inline int mkpath(char* file_path_) {
+  return mkpath(file_path_, 0775);
+}
+
 
 #endif                

@@ -402,6 +402,12 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     N now;
+    if (x < 0) return;
+    if (y < 0) return;
+    if (z < 0) return;
+    if (x >= constContainer.nx) return;
+    if (y >= constContainer.ny) return;
+    if (z >= constContainer.nz) return;
     now.x_ = x;
     now.y_ = y;
     now.z_ = z;
@@ -486,18 +492,29 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 		now.y_ = y;
 		now.z_ = z;
 		constContainer.getType(now);
-		constContainer.pop(now); <?R
-		if (q$adjoint) { ?>
-		constContainer.pop_adj(now); <?R
-                } ?>
-		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t") {
-                  for (coef in c("x","y","z")) { ?>
-		w.<?%s coef ?> *= scale; <?R
-		  }
-		} else { ?>
-		w *= scale; <?R
-                } ?>
+		<?%s q$type ?> w;
+//		if (now.NodeType) {
+			constContainer.pop(now); <?R
+			if (q$adjoint) { ?>
+			constContainer.pop_adj(now); <?R
+	                } ?>
+			w = now.get<?%s q$name ?>(); <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+			w.<?%s coef ?> *= scale; <?R
+			  }
+			} else { ?>
+			w *= scale; <?R
+	                } ?>
+//		} else { <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+//			w.<?%s coef ?> = nan(""); <?R
+			  }
+			} else { ?>
+//			w = nan(""); <?R
+	                } ?>
+//		}
 		tab[r.offset(x,y,z)] = w;
 	}
 }

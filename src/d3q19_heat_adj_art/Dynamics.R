@@ -11,7 +11,7 @@ AddDensity(
 )
 
 AddDensity(
-	name = paste("g",1:7-1,sep=""),
+	name = paste("T",1:7-1,sep=""),
 	dx   = d3q7[,1],
 	dy   = d3q7[,2],
 	dz   = d3q7[,3],

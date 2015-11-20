@@ -1,0 +1,22 @@
+## Here is an example for xml files.
+##
+
+syntax "clb" ".*\.clb(.xml)?$"
+color white "^.+$"
+color red  start="<" end=">"
+color brightwhite   "<[/]?[^ />]*"
+color cyan   "<[/]?"
+color cyan   "[/]?>"
+color white "[^ =]*=[\"'][^\"']*[\"']"
+color yellow "[dnf][xyz]="
+color yellow "Iterations="
+color magenta "name=[\"'][^\"']*[\"']"
+color yellow "name="
+color yellow "what="
+color yellow "gauge="
+color green "=[\"'][-]?[0-9.][a-z0-8.+/-]*[\"']"
+color blue "[\"']"
+color brightblue "="
+color yellow start="<!DOCTYPE" end="[/]?>"
+color yellow start="<!--" end="-->"
+color red    "&[^;]*;"
