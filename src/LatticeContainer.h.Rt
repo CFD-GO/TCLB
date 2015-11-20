@@ -6,6 +6,7 @@
   File defining LatticeContainer and some additional CUDA functions
 */
 #include "SyntheticTurbulence.h"
+#include "Chimera.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -54,6 +55,7 @@ class LatticeContainer {
   int MaxZones;
   real_t** ZoneSettings;
   real_t* ConstZoneSettings;
+  AllMesh meshes;
   STWaveSet ST;
   void Alloc (int,int,int);
   void Free();

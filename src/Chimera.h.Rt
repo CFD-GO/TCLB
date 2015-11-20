@@ -1,5 +1,8 @@
 <?R library(polyAlgebra) ?>
 
+#ifndef CHIMERA_H
+#define CHIMERA_H 1
+
 struct OneMesh {
 	real_t M[12]; ///< Transformation matrix
 	real_t rev; ///< scaling factor for inverse
@@ -8,33 +11,53 @@ struct OneMesh {
 	int * pos;
 };
 
-int get_ind(vector_t p) {
+struct AllMesh {
+	OneMesh * mesh;
+	int size;
+};
+
+inline int get_ind(const AllMesh & meshes, vector_t p) {
+	int n = 0;
 	<?R
 		D = c("x","y","z")
 		p = PV("p.",D)
 		np = PV("np.",D)
-		M = PV("W.M[",1:12-1,"]")
+		M = PV("meshes.mesh[n].M[",1:12-1,"]")
 		A = M[1:9];
 		dim(A)=c(3,3);
 		dp = M[1:3+9];
-		C(p, (p - dp + 0.5)*PV("p.rev"));
+		C(p, (p - dp + 0.5)*PV("meshes.mesh[n].rev"));
 		C(p, A %*% p);
 
 		C(p, p %*% A + dp);
 	?>
-	for (W in meshes) {
-	int x,y,z,i;
+	for (n=0; n < meshes.size; n++) {
+	int i,j;
 	i=0;
 	<?R
 		off = PV(0); 
 		for (d in rev(D)) {
 ?> 
 	if (p.<?%s d ?> < 0) continue;
-	i = i * W.k<?%s d ?>;
-	for (<?%s d ?> =0;<?%s d ?> <W.k<?%s d ?>;<?%s d ?> ++) if (p.<?%s d ?> < W.pos[i+<?%s d ?>]) break;
-	if (<?%s d ?> >= W.k<?%s d ?> ) continue;
-	i = i + <?%s d ?>;
+	i = i * meshes.mesh[n].k<?%s d ?>;
+	for (j =0;j<meshes.mesh[n].k<?%s d ?>;j ++) if (p.<?%s d ?> < meshes.mesh[n].pos[i+j]) break;
+	if (j >= meshes.mesh[n].k<?%s d ?> ) continue;
+	i = i + j;
 	<?R } ?>
+	i += meshes.mesh[n].rank_0;
+	return i;
 	}
+	return -1;
 }
 
+class MeshData {
+
+	OneMesh * mesh;
+	int size;
+	
+	AllMesh gpu_mesh;
+	int * gpu_pos;
+	
+}
+
+#endif
