@@ -242,6 +242,8 @@ template <class N> CudaGlobalFunction void RunKernel()
 		now.Pre();
 		if (now.y_ < constContainer.fy) {
 			now.RunElement();
+		} else {
+			now.OutOfDomain();
 		}
 		now.Glob();
 	#ifndef GRID_3D
