@@ -138,6 +138,25 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	return ret;
     }
     ret = getRegion(node.parent());
+    attr = node.attribute("sx");
+    if (attr) {
+	int w = val(attr);
+	ret.dx += w;
+	ret.nx -= w;
+    }
+    attr = node.attribute("sy");
+    if (attr) {
+	int w = val(attr);
+	ret.dy += w;
+	ret.ny -= w;
+    }
+    attr = node.attribute("sz");
+    if (attr) {
+	int w = val(attr);
+	ret.dz += w;
+	ret.nz -= w;
+    }
+    
     attr = node.attribute("dx");
     if (attr) {
 	int w = val(attr);

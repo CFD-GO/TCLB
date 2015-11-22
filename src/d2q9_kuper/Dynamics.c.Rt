@@ -60,6 +60,10 @@ CudaDeviceFunction vector_t getF() {
     if (((NodeType & NODE_BOUNDARY) != 0x0  ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry)) {
         F.x=0;
         F.y=0;
+        <?R
+            Force = PV(c("F.x","F.y"));
+            C(Force, f %*% U);
+        ?>
     } else {
         <?R
             R = PV(c(paste("R[",1:9-1,"]",sep="")))
@@ -126,7 +130,8 @@ CudaDeviceFunction void BounceBack()
 	
    }
 ?>
-
+    AddToWallForceX(<?%s ToC(f %*% U[,1]) ?>);
+	AddToWallForceY(<?%s ToC(f %*% U[,2]) ?>);
 }
 
 //CudaDeviceFunction void MovingWall()
