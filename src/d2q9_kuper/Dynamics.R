@@ -72,5 +72,5 @@ AddGlobal(name="WallForceY", comment='force y')
 
 AddNodeType(name="NMovingWall", group="BOUNDARY")
 AddNodeType(name="MovingWall", group="BOUNDARY")
-AddNodeType(name="BottomSymmetry",group="BOUNDARY")
+AddNodeType(name="RightSymmetry",group="BOUNDARY")
 AddNodeType(name="TopSymmetry",group="BOUNDARY")
