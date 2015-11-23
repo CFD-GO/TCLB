@@ -213,7 +213,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		if (tp$Stream == "Opt") { ?>
 	CudaDeviceFunction inline void Opt() {
 	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
-		        for (d in row(Density)) {
+		        for (d in rows(Density)) {
                                 if (d$parameter) { ?>
                 <?%s d$name ?> += <?%s d$adjoint_name ?>*Descent;
                 if (<?%s d$name ?> > 1.0f) <?%s d$name ?> = 1.0f;
