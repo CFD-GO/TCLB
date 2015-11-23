@@ -375,5 +375,59 @@ SyntheticTurbulence:
         unit: float
       comment: Time wave-length of the syntetic turbulence (can be also `TimeWaveNumber` or `TimeWaveFrequency`)
 
+LoadBinary:
+  type: action
+  comment: Load a Field from a binary file (low level)
+  attr:
+    - name: file
+      val:
+        string: file
+      comment: path to a binary file (without the suffix)
+    - name: comp
+      val:
+        select:
+          special: Fields
+      comment: Field to load from the binary file
+
+SaveBinary:
+  type: action
+  comment: Save a Field to a binary file (low level)
+  attr:
+    - name: file
+      val:
+        string: outfile
+      comment: the name of the binary file
+    - name: filename
+      val:
+        string: file
+      comment: full path to the binary file
+    - name: comp
+      val:
+        select:
+          special: Fields
+      comment: Field to save to the binary file
 
 
+LoadMemoryDump:
+  type: action
+  comment: Load all fields from a dump created by Save element
+  attr:
+    - name: file
+      val:
+        string: file
+      comment: path to a binary file (without the suffix)
+
+SaveMemoryDump:
+  type: action
+  comment: |
+        Save all fields, to be loaded later on with LoadMemoryDump
+        Warning: Save and Load Memory Dump have to be used on the *same number of cores*, same model and same precision.
+  attr:
+    - name: file
+      val:
+        string: outfile
+      comment: the name of the binary file
+    - name: filename
+      val:
+        string: file
+      comment: full path to the binary file
