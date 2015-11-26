@@ -860,7 +860,7 @@ class cbFailcheck: public Callback {
 	int DoIt() {
 		Callback::DoIt();
                 int ret = 0;
-		bool cond,fin;
+		int cond,fin;
 		fin = false;
 		cond = false;
 		<?R for (q in rows(Quantities)) { ?>
@@ -874,7 +874,7 @@ class cbFailcheck: public Callback {
 			<?R } ?>
 		}
 		<?R } ?>
-		MPI_Allreduce(&cond,&fin,1,MPI_C_BOOL,MPI_LOR,MPI_COMM_WORLD);
+		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPI_COMM_WORLD);
 		if (fin) { 
 			 notice("Stopping due to Nan value\n");
 			 ret = ITERATION_STOP;
