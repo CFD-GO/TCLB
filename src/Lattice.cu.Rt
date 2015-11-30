@@ -1151,3 +1151,10 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 } <?R
         } ?>
 
+void Lattice::resetAverage() {
+        <?R for (d in rows(DensityAll) ) if (d$average) { ?>
+          CudaMemset(&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t)); <?R
+        }
+?>
+} 
+

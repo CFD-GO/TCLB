@@ -153,6 +153,7 @@ public:
   void clearGlobals();
   void clearGlobals_Adj();
   double getObjective();
+  void resetAverage();
   void setSetting(int i, real_t tmp);
 <?R for (v in rows(Settings)) { ?>
 	void <?%s v$FunName ?>(real_t);<?R
