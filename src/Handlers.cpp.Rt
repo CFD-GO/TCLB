@@ -851,6 +851,41 @@ class cbStop: public Callback {
 	}
 };
 
+class cbFailcheck: public Callback {
+	lbRegion reg;
+	public:
+	int Init() {
+		Callback::Init();
+		return 0;
+	}
+	int DoIt() {
+		Callback::DoIt();
+                int ret = 0;
+		int cond,fin;
+		fin = false;
+		cond = false;
+		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		if (!cond) {
+			<?%s q$type ?> tmp;
+			solver->lattice->Get<?%s q$name ?>(reg,&tmp);
+			<?R if (q$vector) { ?>
+	                cond = ((std::isnan(tmp.x)) || (std::isnan(tmp.y)) || (std::isnan(tmp.z)));  
+			<?R } else { ?>  
+			cond = (std::isnan(tmp));
+			<?R } ?>
+		}
+		<?R }; ifdef(); ?>
+		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPI_COMM_WORLD);
+		if (fin) { 
+			 notice("Stopping due to Nan value\n");
+			 ret = ITERATION_STOP;
+		}
+		return ret;
+	}	
+	int Finish() {
+		return Callback::Finish();
+	}
+};	
 class cbKeep: public Callback {
 	int old_iter_type;
 	int my_type;
@@ -2296,6 +2331,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new cbStop;
     } else if (name=="Keep") {
 		ret = new cbKeep;
+    } else if (name=="Failcheck") {
+                ret = new cbFailcheck;
     } else if (name=="Solve") {
 		ret = new acSolve;
     } else if (name=="OptSolve") {

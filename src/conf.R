@@ -88,7 +88,7 @@ ifdef = function(val=F, tag="ADJOINT") {
 }
 
 
-DensityAll = data.frame()
+DensityAll = data.frame(parameter=logical(0))
 Globals = data.frame()
 Settings = data.frame()
 ZoneSettings = data.frame()
@@ -310,7 +310,11 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no
 	}
 	if (is.logical(load.densities)) {
 		if ((length(load.densities) != 1) && (length(load.densities) != nrow(DensityAll))) stop("Wrong length of load.densities in AddStage")
-		DensityAll[,s$tag] <<- load.densities
+		if (nrow(DensityAll) > 0) {
+			DensityAll[,s$tag] <<- load.densities
+		} else {
+			DensityAll[,s$tag] <<- logical(0);
+		}
 	} else stop("load.densities should be logical or character")
 
 	if (is.character(save.fields)) {
