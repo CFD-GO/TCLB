@@ -7,7 +7,7 @@ AC_INIT([CLB],[0.01])
 AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
  
-m4_include([src/m4/lx_find_mpi.m4])
+m4_include([tools/m4/lx_find_mpi.m4])
 
 AC_ARG_WITH([gcc],
 	AS_HELP_STRING([--with-gcc=compiler_bindir],[specify the directory containing gcc, e.g. /usr/bin]),
