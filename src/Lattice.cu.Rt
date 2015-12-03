@@ -70,6 +70,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	total_iterations = 0;
 	segment_iterations = 0;
 	callback_iter = 1;
+	reset_iter = 0;
 	nSnaps = ns;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
@@ -1152,7 +1153,7 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
         } ?>
 
 void Lattice::resetAverage() {
-        <?R for (d in rows(DensityAll) ) if (d$average) { ?>
+        <?R for (d in rows(DensityAll) ) if (d$average)  { ?>
           CudaMemset(&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t)); <?R
         }
 ?>
