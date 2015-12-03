@@ -62,9 +62,13 @@ CudaDeviceFunction vector_t getF() {
         F.y=0;
         <?R
             Force = PV(c("F.x","F.y"));
-            C(Force, f %*% U);
+            C(Force, 2.* f %*% U);
         ?>
     } else {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;
+    }
         <?R
             R = PV(c(paste("R[",1:9-1,"]",sep="")))
             C(R , ph);
@@ -98,9 +102,11 @@ CudaDeviceFunction vector_t getF() {
         	C(R[-1] , (R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
         	C(Force , (R*gs) %*% U)
         ?>
-//        F.x = -2./3. * F.x;
-//        F.y = -2./3. * F.y;
-	}
+	    F.x = F.x + -2./3. * F.x;
+        F.y = F.x + -2./3. * F.y;
+//        F.x = 0;
+//        F.y = 0;
+//}
 
     F.z = 0;
 	return F;
@@ -436,8 +442,8 @@ CudaDeviceFunction void CollisionMRT()
 	C( R, (f-feq) %*% M * OMEGA );
 ?>
     vector_t F = getF();
-    ux = ux+F.x*(-2./3.)/rho + (GravitationX );
-    uy = uy+F.y*(-2./3.)/rho + (GravitationY ); 
+    ux = ux+F.x/rho + (GravitationX );
+    uy = uy+F.y/rho + (GravitationY ); 
     
 <?R
 	C( R, R + feq %*% M);
