@@ -32,3 +32,15 @@ AddNodeType("Smagorinsky", "LES")
 AddNodeType("Stab", "ENTROPIC")
 AddNodeType("SymmetryY", "BOUNDARY")
 AddNodeType("SymmetryZ", "BOUNDARY")
+
+#Averaging values
+
+AddQuantity( name="avgU",unit="m/s",vector=T,average=T)
+AddQuantity( name="varU",comment="avgU",vector=T,variance=T)
+AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgUX",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgUY",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgUZ",dx=0,dy=0,dz=0,average=T)
+

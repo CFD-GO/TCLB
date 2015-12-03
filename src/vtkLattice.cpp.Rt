@@ -45,12 +45,44 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		delete[] NodeType;
 	}
 
-	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	<?R for (q in rows(Quantities)) if (!(q$variance))  { ifdef(q$adjoint); ?>
 	{
 		if (what->in("<?%s q$name ?>")) {
 			double v = units.alt("<?%s q$unit ?>");
-			<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-			lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+	                <?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+                        lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+                        <?R if (q$average) { ?> 
+                        <?R if (q$vector) {?> 
+                                for (int i = 0; i< size; i++) {
+                                        tmp[i].x = tmp[i].x /(lattice->Iter - lattice->reset_iter);
+                                        tmp[i].y = tmp[i].y /(lattice->Iter - lattice->reset_iter);
+                                        tmp[i].z = tmp[i].z /(lattice->Iter - lattice->reset_iter);
+                                }
+                                <?R for (qq in rows(Quantities)) if ((qq$variance) && (qq$comment==q$name))  { ?> 
+                                        <?%s q$type ?>* tmp2 = new <?%s q$type ?>[size];
+                                        lattice->Get<?%s qq$name ?>(reg, tmp2, 1/v);
+                                        for (int i = 0; i<size; i++) {
+                                                tmp2[i].x = tmp2[i].x /(lattice->Iter - lattice->reset_iter);
+                                                tmp2[i].y = tmp2[i].y /(lattice->Iter - lattice->reset_iter);
+                                                tmp2[i].z = tmp2[i].z /(lattice->Iter - lattice->reset_iter);
+                                        }
+                                        vtkFile.WriteField("<?%s qq$name ?>",tmp2);
+                                        delete[] tmp2;
+                                <?R }; ?>       
+                        <?R }  else { ?>
+                                for (int i=0; i<size;i++) 
+                                        tmp[i] = tmp[i] /(lattice->Iter - lattice->reset_iter);
+                                <?R for (qq in rows(Quantities)) if ((qq$variance) && (qq$comment==q$name))  { ?> 
+                                <?%s q$type ?>* tmp2 = new <?%s q$type ?>[size];
+                                        lattice->Get<?%s qq$name ?>(reg, tmp2, 1/v);
+                                        for (int i = 0; i<size; i++) 
+                                                tmp2[i] = tmp2[i] /(lattice->Iter - lattice->reset_iter);
+                                        vtkFile.WriteField("<?%s qq$name ?>",tmp2);
+                                        delete[] tmp2;
+                                <?R } ?>
+                        <?R } ?> 
+                        <?R } ?>
+			
 			vtkFile.WriteField("<?%s q$name ?>",tmp);
 			delete[] tmp;
 		}

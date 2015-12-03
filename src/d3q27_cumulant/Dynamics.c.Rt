@@ -38,6 +38,20 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+CudaDeviceFunction vector_t getavgU(){
+	vector_t u;
+	u.x = avgUX;
+	u.y = avgUY;
+  	u.z = avgUZ;
+	return u;
+}
+CudaDeviceFunction vector_t getvarU(){
+	vector_t u;
+	u.x = varUX;
+	u.y = varUY;
+	u.z = varUZ;
+	return u;
+}
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
@@ -197,13 +211,14 @@ c222 = ( -c122*f100 - c202*f020 - c102*f120 - c220*f002 - c120*f102 - c200*f022 
 
 //Getting the velocity from the cummulants and force term
 
-vector_t u;
-u.x = c100 + ForceX/(2.*f000);
-u.y = c010 + ForceY/(2.*f000);
-u.z = c001 + ForceZ/(2.*f000);
+//vector_t u;
+//u.x = c100 + ForceX/(2.*f000);
+//u.y = c010 + ForceY/(2.*f000);
+//u.z = c001 + ForceZ/(2.*f000);
 
 ///////
        real_t dxu,dyv,dzw;
+       vector_t u = getU();
        dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
        dyv = dxu + 3.*w[0]/2.*(c200 - c020);
        dzw = dxu + 3.*w[0]/2.*(c200 - c002);
@@ -221,14 +236,14 @@ u.z = c001 + ForceZ/(2.*f000);
 //Cumulants relation 
 
 	c000 = c000;//000  no change
- 	c100 = c100 + ForceX;//100 - change only due to force term
+ 	//c100 = c100 + ForceX;//100 - change only due to force term
 
         c200 = (a + b + cc)/3.; // 200
         c020 = (cc - 2*a + b)/3.;//020
         c002 = (cc - 2*b + a)/3.; 
 
-        c010 = c010 + ForceY; //010 - change only due to force term
-        c001 = c001 + ForceZ ; //001 - change only due to force term
+        //c010 = c010 + ForceY; //010 - change only due to force term
+        //c001 = c001 + ForceZ ; //001 - change only due to force term
 
 	c110 = c110 * (1-w[0]);
 	c011 = c011 * (1-w[0]);
@@ -238,7 +253,6 @@ u.z = c001 + ForceZ/(2.*f000);
 		<?%s i ?> = 0.0;
 	<?R } ?>
 /////////
-
 f000 = f000;
 f100 = c100*f000;
 f200 = c200*f000 + c100*f100;
@@ -294,6 +308,13 @@ f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211;
 f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
+
+avgUX = avgUX + getU().x;
+avgUY = avgUY + getU().y;
+avgUZ = avgUZ + getU().z;
+varUX = varUX + getU().x*getU().x;
+varUY = varUY + getU().y*getU().y;
+varUZ = varUZ + getU().z*getU().z;
 
 }
 
