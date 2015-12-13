@@ -70,7 +70,6 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	total_iterations = 0;
 	segment_iterations = 0;
 	callback_iter = 1;
-	reset_iter = 0;
 	nSnaps = ns;
 	container = new LatticeContainer;
 	Snaps = new FTabs[nSnaps];
@@ -79,6 +78,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->px = region.dx;
 	container->py = region.dy;
 	container->pz = region.dz;
+	container->iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -673,6 +673,7 @@ void Lattice::Init()
 	iSnaps[0]=0;
 	Record_Iter=0;
 	Iter = 0;
+	container->iter = 0;
 	Snap=0;
    MPI_Barrier(MPI_COMM_WORLD);
    Action_Init(1,0,ITER_NO);
@@ -815,6 +816,7 @@ void Lattice::Iterate(int niter, int iter_type)
 				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 				Iter ++;
+				container->iter ++;
 			}
 			break;
                 case ITER_OPT:
@@ -825,6 +827,7 @@ void Lattice::Iterate(int niter, int iter_type)
 				}
 				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
 				Iter ++;
+				container->iter ++;
 			}
                         break;
 		}
@@ -1153,6 +1156,7 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
         } ?>
 
 void Lattice::resetAverage() {
+	container->reset_iter = container->iter;
         <?R for (d in rows(DensityAll) ) if (d$average)  { ?>
           CudaMemset(&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t)); <?R
         }

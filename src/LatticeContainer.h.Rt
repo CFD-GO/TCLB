@@ -50,6 +50,7 @@ class LatticeContainer {
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
 	int px,py,pz;
+  int reset_iter; //< number of last average reset,for dynamics 
   int ZoneIndex;
   int MaxZones;
   real_t** ZoneSettings;
