@@ -854,14 +854,12 @@ class cbAveraging: public Callback{
         public:
         int Init() {
 		Callback::Init();
-		solver->lattice->resetAverage(); // - setting the initial values of cummulative densities for storing averages  to zero
-                solver->lattice->reset_iter = solver->lattice->Iter;
+		solver->lattice->resetAverage();
                 return 0;
         }
         int DoIt() {
                 Callback::DoIt();
-		solver->lattice->reset_iter = solver->lattice->Iter;
-                solver->lattice->resetAverage();
+                solver->lattice->resetAverage(); // reseting averages-storing densities and setting reset_iter to iter
                 return 0;
         }
         int Finish() {

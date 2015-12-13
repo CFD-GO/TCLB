@@ -215,7 +215,7 @@ AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=
 	Globals <<- rbind(Globals,g)
 }
 
-AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F, average=F,variance=F) {
+AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 	if (missing(name)) stop("Have to supply name in AddQuantity!")
 	if (comment == "") {
 		comment = name
@@ -231,9 +231,7 @@ AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F, average=
 		unit=unit,
 		adjoint=adjoint,
 		vector=vector,
-		comment=comment,
-		average=average,
-		variance=variance
+		comment=comment
 	)
 	Quantities <<- rbind(Quantities,q)
 }	

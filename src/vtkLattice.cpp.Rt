@@ -45,7 +45,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		delete[] NodeType;
 	}
 
-	<?R for (q in rows(Quantities))?>
+	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	{
 		if (what->in("<?%s q$name ?>")) {
 			double v = units.alt("<?%s q$unit ?>");
