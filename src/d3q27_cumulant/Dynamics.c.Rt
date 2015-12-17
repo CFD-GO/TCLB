@@ -37,7 +37,7 @@ CudaDeviceFunction vector_t getU(){
 	u.z /= d;
 	return u;
 }
-
+#ifdef avgUX
 CudaDeviceFunction vector_t getavgU(){
 	vector_t u;
 	u.x = avgUX;
@@ -52,6 +52,7 @@ CudaDeviceFunction vector_t getvarU(){
 	u.z = varUZ;
 	return u;
 }
+#endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
@@ -63,7 +64,6 @@ CudaDeviceFunction float2 Color() {
         }
         return ret;
 }
-
 CudaDeviceFunction void BounceBack()
 {
 <?R FullBounceBack() ?>
@@ -314,13 +314,13 @@ f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211;
 f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
-
+#ifdef avgUX
 avgUX = avgUX + getU().x;
 avgUY = avgUY + getU().y;
 avgUZ = avgUZ + getU().z;
 varUX = varUX + getU().x*getU().x;
 varUY = varUY + getU().y*getU().y;
 varUZ = varUZ + getU().z*getU().z;
-
+#endif
 }
 

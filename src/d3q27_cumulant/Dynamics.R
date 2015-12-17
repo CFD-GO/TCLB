@@ -20,6 +20,7 @@ AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Smag", comment='Smagorinsky constant')
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
+AddSetting(name="Ave",default=0,comment='Averaging indicator') #Change default to 1,if you want for average values to be calculated,0 - for default,fast solution
 
 
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
@@ -40,10 +41,8 @@ AddDensity( name="SynthTX",dx=0,dy=0,dz=0)
 AddDensity( name="SynthTY",dx=0,dy=0,dz=0)
 AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
 
-
-
 #Averaging values
-
+if (Ave == 1) {
 AddQuantity( name="avgU",unit="m/s",vector=T)
 AddQuantity( name="varU",comment="avgU",vector=T)
 AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
@@ -52,4 +51,4 @@ AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="avgUX",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="avgUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="avgUZ",dx=0,dy=0,dz=0,average=T)
-
+}
