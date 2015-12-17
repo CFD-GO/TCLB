@@ -1,4 +1,4 @@
-
+	
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -21,6 +21,7 @@ AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Smag", comment='Smagorinsky constant')
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 
+
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
 AddSetting(name="ForceX", comment='Force force X')
 AddSetting(name="ForceY", comment='Force force Y')
@@ -33,10 +34,18 @@ AddNodeType("Stab", "ENTROPIC")
 AddNodeType("SymmetryY", "BOUNDARY")
 AddNodeType("SymmetryZ", "BOUNDARY")
 
+#Adding terms for supporting time-correlation for synthetic turbulence
+
+AddDensity( name="SynthTX",dx=0,dy=0,dz=0)
+AddDensity( name="SynthTY",dx=0,dy=0,dz=0)
+AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
+
+
+
 #Averaging values
 
-AddQuantity( name="avgU",unit="m/s",vector=T,average=T)
-AddQuantity( name="varU",comment="avgU",vector=T,variance=T)
+AddQuantity( name="avgU",unit="m/s",vector=T)
+AddQuantity( name="varU",comment="avgU",vector=T)
 AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
