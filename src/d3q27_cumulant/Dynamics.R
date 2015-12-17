@@ -43,12 +43,17 @@ AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
 
 #Averaging values
 if (Ave == 1) {
+AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vector=T)
 AddQuantity( name="avgU",unit="m/s",vector=T)
-AddQuantity( name="varU",comment="avgU",vector=T)
+AddQuantity( name="varU",vector=T)
 AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="avgUX",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="avgUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="avgUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUXUY",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUXUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUYUZ",dx=0,dy=0,dz=0,average=T)
+
 }

@@ -38,20 +38,29 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 #ifdef avgUX
+
 CudaDeviceFunction vector_t getavgU(){
-	vector_t u;
-	u.x = avgUX;
-	u.y = avgUY;
-  	u.z = avgUZ;
-	return u;
+        vector_t u;
+        u.x = avgUX/average_iter;
+        u.y = avgUY/average_iter;
+        u.z = avgUZ/average_iter;
+        return u;
 }
 CudaDeviceFunction vector_t getvarU(){
-	vector_t u;
-	u.x = varUX;
-	u.y = varUY;
-	u.z = varUZ;
-	return u;
+        vector_t u;
+        u.x = varUX/average_iter - getavgU().x*getavgU().x;
+        u.y = varUY/average_iter - getavgU().y*getavgU().y;
+        u.z = varUZ/average_iter - getavgU().z*getavgU().z;
+        return u;
 }
+CudaDeviceFunction vector_t getReStr(){
+        vector_t st;
+        st.x = varUYUZ/average_iter - getavgU().y*getavgU().z;
+        st.y = varUXUZ/average_iter - getavgU().x*getavgU().z;
+        st.z = varUXUY/average_iter - getavgU().x*getavgU().y;
+        return st;
+}
+
 #endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
