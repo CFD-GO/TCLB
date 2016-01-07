@@ -60,7 +60,11 @@ CudaDeviceFunction vector_t getReStr(){
         st.z = varUXUY/average_iter - getavgU().x*getavgU().y;
         return st;
 }
-
+CudaDeviceFunction real_t getKinE(){
+	real_t ke;
+	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
+	return ke;
+}
 #endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
@@ -107,9 +111,27 @@ CudaDeviceFunction void EPressure()
 {
 <?R ZouHe(EQ, 1, -1, "pressure") ?>
 }
+CudaDeviceFunction void TopSymmetry()
+{
+//Symmetry on the top of the boundary
 
+f222 = f212;
+f122 = f112;
+f022 = f012;
+f221 = f211;
+f121 = f111;
+f021 = f011;
+f220 = f210;
+f120 = f110;
+f020 = f010;
+
+}
 CudaDeviceFunction void Run() {
+    if ((NodeType & NODE_BOUNDARY) == NODE_Tinlet) SynthInit(); 
     switch (NodeType & NODE_BOUNDARY) {
+	case NODE_TopSymmetry:
+		TopSymmetry();
+		break;
 	case NODE_WPressure:
 		WPressure();
 		break;
@@ -149,12 +171,25 @@ CudaDeviceFunction void Init() {
 	vector_t ST = SyntheticTurbulence(0);
 	ST.x = Turbulence*ST.x*k_bb + SynthTX*k_aa;
 	ST.y = Turbulence*ST.y*k_bb + SynthTY*k_aa;
-	ST.z = Turbulence*ST.z*k_bb + SynthTZ*k_aa;
+	ST.z = Turbulence*ST.z*k_bb + SynthTZ*k_aa; 
 	SynthTX = ST.x;
 	SynthTY = ST.y;
 	SynthTZ = ST.z;
 	ST.x = ST.x + Velocity;	
 	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
+}
+
+CudaDeviceFunction void SynthInit() {
+        real_t k_aa = exp(-1/constContainer.ST.TimeWN);
+        real_t k_bb =  sqrt(1 - k_aa*k_aa);
+       	vector_t ST = SyntheticTurbulence(0);
+        ST.x = Turbulence*ST.x*k_bb + SynthTX*k_aa;
+        ST.y = Turbulence*ST.y*k_bb + SynthTY*k_aa;
+       	ST.z = Turbulence*ST.z*k_bb + SynthTZ*k_aa; 
+        SynthTX = ST.x;
+        SynthTY = ST.y;
+        SynthTZ = ST.z;
+        ST.x = ST.x + Velocity; 
 }
 
 CudaDeviceFunction void CollisionMRT()
