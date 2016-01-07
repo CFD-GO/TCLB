@@ -179,6 +179,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 	} else {
 		if (missing(equation)) stop("'derived' provided, but no 'equation' in AddSetting")
 	}
+	if (name == 'Ave') Ave <<-default; 
 	s = data.frame(
 		name=name,
 		derived=derived,
