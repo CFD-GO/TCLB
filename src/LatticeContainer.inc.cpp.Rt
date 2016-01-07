@@ -29,11 +29,12 @@ CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
 }
 
-/// Init Settings with 0 in GPU constant memory
+/// Init Settings with default in GPU constant memory
 void initSettings() {
 	real_t val = 0;
 <?R for (v in rows(Settings)) {
 	if (is.na(v$derived)) { ?>
+			val = <?%s v$default ?> ;
 			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
 	}} ?>
 }
