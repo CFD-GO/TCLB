@@ -195,7 +195,9 @@ CudaDeviceFunction void SynthInit() {
 CudaDeviceFunction void CollisionMRT()
 {
  	 real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
-
+ 	 if (((NodeType & NODE_BOUNDARY) ==  NODE_WPressure) ||  ((NodeType & NODE_BOUNDARY) ==  NODE_EPressure) 
+		|| ((NodeType & NODE_BOUNDARY) ==  NODE_WVelocity)) 
+	w[0] = 1.0/(3*nubuffer+0.5);
 f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
 f010 = f210 + f110 + f010; f110 = -f210 + f110; f210 = f110 + f210*2.; 
 f020 = f220 + f120 + f020; f120 = -f220 + f120; f220 = f120 + f220*2.; 
