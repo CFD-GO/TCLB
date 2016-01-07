@@ -22,7 +22,6 @@ AddSetting(name="Smag", comment='Smagorinsky constant')
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 AddSetting(name="Ave",default=0,comment='Averaging indicator') #Change default to 1,if you want for average values to be calculated,0 - for default,fast solution
 
-
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
 AddSetting(name="ForceX", comment='Force force X')
 AddSetting(name="ForceY", comment='Force force Y')
@@ -34,7 +33,9 @@ AddNodeType("Smagorinsky", "LES")
 AddNodeType("Stab", "ENTROPIC")
 AddNodeType("SymmetryY", "BOUNDARY")
 AddNodeType("SymmetryZ", "BOUNDARY")
-
+AddNodeType("Tinlet","BOUNDARY")
+AddNodeType("TopSymmetry","BOUNDARY")
+	
 #Adding terms for supporting time-correlation for synthetic turbulence
 
 AddDensity( name="SynthTX",dx=0,dy=0,dz=0)
@@ -43,6 +44,8 @@ AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
 
 #Averaging values
 if (Ave == 1) {
+
+AddQuantity(name="KinE",comment="Turbulent kinetic energy")
 AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vector=T)
 AddQuantity( name="avgU",unit="m/s",vector=T)
 AddQuantity( name="varU",vector=T)
