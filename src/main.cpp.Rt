@@ -301,6 +301,11 @@ int main ( int argc, char * argv[] )
 	// Initializing the lattice of a specific size
 	if (solver.setSize(nx,ny,nz,ns)) return -1;
 
+	//Setting settings to default
+	<?R for (v in rows(Settings)) {
+	if (is.na(v$derived)) { ?>
+		solver.lattice->setSetting(<?%s v$index ?>,solver.units.alt("<?%s v$default ?>")); <?R
+	}} ?> 
 	// Initializing the CUDA events and setting callback
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );
