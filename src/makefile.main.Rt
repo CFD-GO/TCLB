@@ -55,6 +55,12 @@ wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", 
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 	@$(INDENT) $@
 
+wiki/% : src/%.Rt
+	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) || rm $@
+	@$(INDENT) $@
+
+
 travis : .travis.yml
 
 .travis.yml : src/travis.yml.Rt src/*/conf.mk

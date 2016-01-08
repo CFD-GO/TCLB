@@ -26,7 +26,7 @@ MRT_integerOrtogonal = function(M) {
   M
 }
 
-MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2, ortogonal=TRUE, mat) {
+MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2, ortogonal=TRUE, mat, correction) {
   rho_str = ToC(rho)
   W = MRT_polyMatrix(U)
   p=W$p
@@ -48,6 +48,11 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
 	x
   })
   ret = list(Req=H, mat=W$mat, p=W$p, order=W$order, U=U)
+  if (!missing(correction)) {
+	sel = ret$order > 3
+	if (sum(sel) != length(correction)) stop("Correction of wrong length in MRT_eq")
+	ret$Req[sel] = ret$Req[sel] + correction
+  }
   if (missing(mat)) {
 	mat = attr(U,"MAT")
   }

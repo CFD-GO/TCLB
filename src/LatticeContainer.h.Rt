@@ -59,26 +59,15 @@ class LatticeContainer {
   void Alloc (int,int,int);
   void Free();
   CudaDeviceFunction void fill();
-<?R for (s in c(rows(Stages),list(NULL))) {
-  if (is.null(s)) {
-    s$load.densities = rep(TRUE, nrow(DensityAll))
-    s$save.fields = rep(TRUE, length(Fields))
-    s$suffix=""
-  } else {
-    s$load.densities = DensityAll[,s$tag];
-    s$save.fields = Fields[,s$tag];
-    s$suffix = paste("_",s$name,sep="")
-  } 
+<?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
   ?>
-  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>(N & f);
-  template<class N>  CudaDeviceFunction void push_param<?%s s$suffix ?>(N & f);
-  template<class N>  CudaDeviceFunction void push_noparam<?%s s$suffix ?>(N & f);
-  template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>(N & f);
+  template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
+  template<class N>  CudaDeviceFunction void pull<?%s s ?>(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
 #ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pull<?%s s$suffix ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pull<?%s s ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
 #endif
 <?R } ?>
 

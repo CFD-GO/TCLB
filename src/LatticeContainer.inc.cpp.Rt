@@ -241,6 +241,8 @@ template <class N> CudaGlobalFunction void RunKernel()
 		now.Pre();
 		if (now.y_ < constContainer.fy) {
 			now.RunElement();
+		} else {
+			now.OutOfDomain();
 		}
 		now.Glob();
 	#ifndef GRID_3D
@@ -401,6 +403,12 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     N now;
+    if (x < 0) return;
+    if (y < 0) return;
+    if (z < 0) return;
+    if (x >= constContainer.nx) return;
+    if (y >= constContainer.ny) return;
+    if (z >= constContainer.nz) return;
     now.x_ = x;
     now.y_ = y;
     now.z_ = z;
