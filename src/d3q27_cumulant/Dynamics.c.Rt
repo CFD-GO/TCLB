@@ -126,12 +126,33 @@ f120 = f110;
 f020 = f010;
 
 }
+
+CudaDeviceFunction void BottomSymmetry()
+{
+//Symmetry on the bottom of the boundary
+f212=f222;
+f112=f122;
+f012=f022;
+f211=f221;
+f111=f121;
+f011=f021;
+f210=f220;
+f110=f120;
+f010=f020;
+
+}
+
 CudaDeviceFunction void Run() {
-    if ((NodeType & NODE_BOUNDARY) == NODE_Tinlet) SynthInit(); 
     switch (NodeType & NODE_BOUNDARY) {
+	case NODE_WVelocityTurbulent:
+		WVelocityTurbulent();
+		break;
 	case NODE_TopSymmetry:
 		TopSymmetry();
 		break;
+	case NODE_BottomSymmetry:
+               	BottomSymmetry();
+                break;
 	case NODE_WPressure:
 		WPressure();
 		break;
@@ -166,12 +187,10 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 }
 
 CudaDeviceFunction void Init() {
-	real_t k_aa = exp(-1/constContainer.ST.TimeWN);
-        real_t k_bb =  sqrt(1 - k_aa*k_aa);
 	vector_t ST = SyntheticTurbulence(0);
-	ST.x = Turbulence*ST.x*k_bb + SynthTX*k_aa;
-	ST.y = Turbulence*ST.y*k_bb + SynthTY*k_aa;
-	ST.z = Turbulence*ST.z*k_bb + SynthTZ*k_aa; 
+	ST.x = Turbulence*ST.x;
+	ST.y = Turbulence*ST.y;
+	ST.z = Turbulence*ST.z; 
 	SynthTX = ST.x;
 	SynthTY = ST.y;
 	SynthTZ = ST.z;
@@ -179,7 +198,7 @@ CudaDeviceFunction void Init() {
 	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
 }
 
-CudaDeviceFunction void SynthInit() {
+CudaDeviceFunction void WVelocityTurbulent() {
         real_t k_aa = exp(-1/constContainer.ST.TimeWN);
         real_t k_bb =  sqrt(1 - k_aa*k_aa);
        	vector_t ST = SyntheticTurbulence(0);
@@ -189,7 +208,8 @@ CudaDeviceFunction void SynthInit() {
         SynthTX = ST.x;
         SynthTY = ST.y;
         SynthTZ = ST.z;
-        ST.x = ST.x + Velocity; 
+        ST.x = ST.x + Velocity;
+	//boundary condition for ST.x,ST.y,ST.z should be here afterwards
 }
 
 CudaDeviceFunction void CollisionMRT()

@@ -1,4 +1,4 @@
-	
+Ave = TRUE	
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -19,9 +19,7 @@ AddSetting(name="nu", default=1.6666666, comment='Viscosity')
 AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer')
 AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
-AddSetting(name="Smag", comment='Smagorinsky constant')
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
-AddSetting(name="Ave",default=0,comment='Averaging indicator') #Change default to 1,if you want for average values to be calculated,0 - for default,fast solution
 
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
 AddSetting(name="ForceX", comment='Force force X')
@@ -30,12 +28,11 @@ AddSetting(name="ForceZ", comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-AddNodeType("Smagorinsky", "LES")
-AddNodeType("Stab", "ENTROPIC")
 AddNodeType("SymmetryY", "BOUNDARY")
 AddNodeType("SymmetryZ", "BOUNDARY")
-AddNodeType("Tinlet","BOUNDARY")
+AddNodeType("WVelocityTurbulent","BOUNDARY")
 AddNodeType("TopSymmetry","BOUNDARY")
+AddNodeType("BottomSymmetry","BOUNDARY")
 	
 #Adding terms for supporting time-correlation for synthetic turbulence
 
@@ -44,7 +41,7 @@ AddDensity( name="SynthTY",dx=0,dy=0,dz=0)
 AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
 
 #Averaging values
-if (Ave == 1) {
+if (Ave) {
 
 AddQuantity(name="KinE",comment="Turbulent kinetic energy")
 AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vector=T)
