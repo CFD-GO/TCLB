@@ -31,6 +31,8 @@ types:
       - name: Iterations
         val:
           unit: int
+  setup:
+    name: Setup Elements
   callback:
     name: Callbacks
     attr:
@@ -128,6 +130,7 @@ CLBConfig:
     - type: callback
     - type: container
     - type: params
+    - type: setup
 
 Log:
   type: callback
@@ -185,6 +188,7 @@ Model:
   type: container
   children:
     - type: params
+    - type: setup
 
 
 Adjoint:
@@ -323,7 +327,7 @@ Repeat:
       comment: Numer of Times to repeat a segment
 
 Control:
-  type: action
+  type: setup
   comment: Element prescribing time-dependent Settings
   example: |
     <Control Iterations="1s">
@@ -332,9 +336,14 @@ Control:
         <Params PR="Cos*2+1"/>
       </CSV>
     </Control>
+  attr:
+    - name: Iterations
+      val:
+        unit: int
+      comment: Length of the time-dependentcy
 
 SyntheticTurbulence:
-  type: action
+  type: setup
   comment: Prescribe properties of the synthetic turbulence generated for initialization and boundary conditions
   attr:
     - name: Modes

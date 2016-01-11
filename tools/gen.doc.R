@@ -21,7 +21,7 @@ element.link = function(n)
       paste("[[",d$name,"]]",sep="")
     } else {
       dt = dat$types[[d$type]]
-      paste("[[<code>&lt;",d$name,"/&gt;</code>|",dt$name,"#",d$name,"]]",sep="")
+      paste("[[<code>&lt;",d$name,"/&gt;</code>|",dt$name,"#",tolower(d$name),"]]",sep="")
     }
   }
 })
