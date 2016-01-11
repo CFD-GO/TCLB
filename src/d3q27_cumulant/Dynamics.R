@@ -1,4 +1,4 @@
-
+Ave = TRUE	
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -15,10 +15,10 @@ AddDensity(
 AddQuantity( name="P",unit="Pa")
 AddQuantity( name="U",unit="m/s",vector=T)
 
-AddSetting(name="nu", default=1.6666666, comment='Viscosity',zonal=TRUE)
+AddSetting(name="nu", default=1.6666666, comment='Viscosity')
+AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer')
 AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
-AddSetting(name="Smag", comment='Smagorinsky constant')
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
@@ -28,7 +28,33 @@ AddSetting(name="ForceZ", comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-AddNodeType("Smagorinsky", "LES")
-AddNodeType("Stab", "ENTROPIC")
 AddNodeType("SymmetryY", "BOUNDARY")
 AddNodeType("SymmetryZ", "BOUNDARY")
+AddNodeType("WVelocityTurbulent","BOUNDARY")
+AddNodeType("TopSymmetry","BOUNDARY")
+AddNodeType("BottomSymmetry","BOUNDARY")
+	
+#Adding terms for supporting time-correlation for synthetic turbulence
+
+AddDensity( name="SynthTX",dx=0,dy=0,dz=0)
+AddDensity( name="SynthTY",dx=0,dy=0,dz=0)
+AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
+
+#Averaging values
+if (Ave) {
+
+AddQuantity(name="KinE",comment="Turbulent kinetic energy")
+AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vector=T)
+AddQuantity( name="avgU",unit="m/s",vector=T)
+AddQuantity( name="varU",vector=T)
+AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgUX",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgUY",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUXUY",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUXUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="varUYUZ",dx=0,dy=0,dz=0,average=T)
+
+}
