@@ -2,85 +2,69 @@
 # Process this file with autoconf to produce a configure script.
 
 
-AC_PREREQ([2.63])
-AC_INIT([CLB], 0.01)
+AC_PREREQ([2.69])
+AC_INIT([CLB],[0.01])
 AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
+ 
+m4_include([tools/m4/lx_find_mpi.m4])
 
 AC_ARG_WITH([gcc],
-	AC_HELP_STRING([--with-gcc=compiler_bindir],
-		[specify the directory containing gcc, e.g. /usr/bin]),
+	AS_HELP_STRING([--with-gcc=compiler_bindir],[specify the directory containing gcc, e.g. /usr/bin]),
 	[COMPILER_BINDIR="$withval"])
 
 AC_ARG_ENABLE([cuda],
-	AC_HELP_STRING([--enable-cuda=cuda_home],
-		[specify the root of your cuda install, e.g. /usr/local/cuda]))
+	AS_HELP_STRING([--enable-cuda=cuda_home],[specify the root of your cuda install, e.g. /usr/local/cuda]))
 
 AC_ARG_WITH([mpi-include],
-	AC_HELP_STRING([--with-mpi-include=mpi_include],
-		[specify the full path to your mpi headers, e.g. /usr/include/mpi]),
+	AS_HELP_STRING([--with-mpi-include=mpi_include],[specify the full path to your mpi headers, e.g. /usr/include/mpi]),
 	[MPI_INCLUDE="$withval"])
 
 AC_ARG_WITH([mpi-lib],
-	AC_HELP_STRING([--with-mpi-lib=mpi_lib],
-		[specify the full path to your mpi shared libraries, e.g. /usr/lib/openmpi/]),
+	AS_HELP_STRING([--with-mpi-lib=mpi_lib],[specify the full path to your mpi shared libraries, e.g. /usr/lib/openmpi/]),
 	[MPI_LIB="$withval"])
 
 AC_ARG_ENABLE([graphics],
-	AC_HELP_STRING([--enable-graphics],
-		[make a GUI version]))
+	AS_HELP_STRING([--enable-graphics],[make a GUI version]))
 
 AC_ARG_ENABLE([double],
-	AC_HELP_STRING([--enable-double],
-		[make a double precision version]))
+	AS_HELP_STRING([--enable-double],[make a double precision version]))
 
 AC_ARG_WITH([cuda-arch],
-	AC_HELP_STRING([--with-cuda-arch=arch],
-		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30)]))
+	AS_HELP_STRING([--with-cuda-arch=arch],[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30)]))
 
 AC_ARG_WITH([nlopt],
-	AC_HELP_STRING([--with-nlopt=nlopt],
-		[specify the full path to your nlopt library]))
+	AS_HELP_STRING([--with-nlopt=nlopt],[specify the full path to your nlopt library]))
 
 AC_ARG_WITH([catalyst],
-	AC_HELP_STRING([--with-catalyst=path],
-		[specify the full path to your paraview source and build]))
+	AS_HELP_STRING([--with-catalyst=path],[specify the full path to your paraview source and build]))
 
 AC_ARG_WITH([verbosity_level],
-	AC_HELP_STRING([--with-verbosity-level=level],
-		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
+	AS_HELP_STRING([--with-verbosity-level=level],[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
 
 AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--enable-debug],
-		[enables debug version (gcc -g)]))
+	AS_HELP_STRING([--enable-debug],[enables debug version (gcc -g)]))
 
 AC_ARG_ENABLE([waitany],
-	AC_HELP_STRING([--enable-waitany],
-		[enables MPI WaitAny (default)]))
+	AS_HELP_STRING([--enable-waitany],[enables MPI WaitAny (default)]))
 
 AC_ARG_ENABLE([openmp],
-	AC_HELP_STRING([--enable-openmp],
-		[enable openMP in the CPU code]))
+	AS_HELP_STRING([--enable-openmp],[enable openMP in the CPU code]))
 
 AC_ARG_ENABLE([coverage],
-	AC_HELP_STRING([--enable-coverage],
-		[enable coverage testing]))
+	AS_HELP_STRING([--enable-coverage],[enable coverage testing]))
 
 AC_ARG_ENABLE([marklines],
-	AC_HELP_STRING([--enable-marklines],
-		[enable marking lines with pragma in RT]))
+	AS_HELP_STRING([--enable-marklines],[enable marking lines with pragma in RT]))
 
 AC_ARG_ENABLE([debug-kernel],
-	AC_HELP_STRING([--with-debug-kernel],
-		[enable NVCC pos compile stats for debug (lots of output!)]))
+	AS_HELP_STRING([--with-debug-kernel],[enable NVCC pos compile stats for debug (lots of output!)]))
 
 AC_ARG_WITH([python],
-	AC_HELP_STRING([--with-python],
-		[Enable CallPython handler, requires python-dev]))
+	AS_HELP_STRING([--with-python],[Enable CallPython handler, requires python-dev]))
 
 AC_ARG_ENABLE([paranoid],
-	AC_HELP_STRING([--enable-paranoid],
-		[Makes GCC paranoid.]))
+	AS_HELP_STRING([--enable-paranoid],[Makes GCC paranoid.]))
 			
 NVFLAGS=""
 
@@ -192,6 +176,19 @@ then
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
 		CUDA_SUFF="30"
+	elif test "$CUDA_ARCH" == "sm_35"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+		CUDA_SUFF="35"
+	elif test "$CUDA_ARCH" == "sm_50"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+		CUDA_SUFF="50"
+
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -224,9 +221,12 @@ else
 fi
 
 AC_MSG_CHECKING([MPI include path])
+
+LX_FIND_MPI()
+
 if test -z "${MPI_INCLUDE}"; then
 	if test -z "${MPI}"; then
-		MPI_INCLUDE="/usr/include/mpi"
+		MPI_INCLUDE="${MPI_CFLAGS}"
 	else
 		MPI_INCLUDE="${MPI}/include"
 	fi
@@ -234,7 +234,7 @@ if test -z "${MPI_INCLUDE}"; then
 else
 	AC_MSG_RESULT([${MPI_INCLUDE}])
 fi
-CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
+CPPFLAGS="${CPPFLAGS} ${MPI_INCLUDE}"
 
 
 
@@ -263,7 +263,7 @@ fi
 AC_MSG_CHECKING([MPI library path])
 if test -z "${MPI_LIB}"; then
 	if test -z "${MPI}"; then
-		MPI_LIB="/usr/lib/openmpi/lib"
+		MPI_LIB="${MPI_CLDFLAGS}"
 	else
 		MPI_LIB="${MPI}/lib"
 	fi
@@ -271,7 +271,7 @@ if test -z "${MPI_LIB}"; then
 else
 	AC_MSG_RESULT([${MPI_LIB}])
 fi
-LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
+LDFLAGS="${LDFLAGS} ${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
 AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
 

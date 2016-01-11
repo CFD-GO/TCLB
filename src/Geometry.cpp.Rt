@@ -61,6 +61,28 @@ int Geometry::val(pugi::xml_attribute attr)
     }
     return myround(units.alt(attr.value()));
 }
+/// Return rounded unit-free value of an xml attribute, extract first char as prefix 
+/**
+        Get the value of an xml attribute, calculate the units
+        and round the result to full integer. Print error when no default.
+        \param attr XML attribute
+*/
+int Geometry::val_p(pugi::xml_attribute attr, char* prefix)
+{
+    if (!attr) {
+    error("Attribute without value and default\n");
+	return -1;
+    }
+    std::string tmp = attr.value();
+    *prefix = tmp[0];
+    if (*prefix == '>' || *prefix == '<'){
+        tmp = tmp.substr(1);
+    } else {
+        *prefix = '+';
+    }
+    return myround(units.alt(tmp));
+}
+
 
 /// Return unit-free value of an xml attribute
 double Geometry::val_d(pugi::xml_attribute attr)
@@ -138,27 +160,46 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	return ret;
     }
     ret = getRegion(node.parent());
+
+    char side; 
+    
     attr = node.attribute("dx");
     if (attr) {
-	int w = val(attr);
-	if (w < 0)
-	    w = ret.nx + w;
+	int w = val_p(attr, &side);
+    
+    if (side == '<') {
+        w = ret.nx + w;
+    } else if (side == '+') {
+    	if (w < 0)
+	        w = ret.nx + w;
+    }
+
 	ret.dx += w;
 	ret.nx -= w;
     }
     attr = node.attribute("dy");
     if (attr) {
-	int w = val(attr);
-	if (w < 0)
-	    w = ret.ny + w;
+	int w = val_p(attr, &side);
+
+    if (side == '<') {
+        w = ret.ny + w;
+    } else if (side == '+') {
+    	if (w < 0)
+	        w = ret.ny + w;
+    }
+
 	ret.dy += w;
 	ret.ny -= w;
     }
     attr = node.attribute("dz");
     if (attr) {
-	int w = val(attr);
-	if (w < 0)
-	    w = ret.nz + w;
+	int w = val_p(attr, &side);
+    if (side == '<') {
+        w = ret.nz + w;
+    } else if (side == '+') {
+    	if (w < 0)
+	        w = ret.nz + w;
+    }
 	ret.dz += w;
 	ret.nz -= w;
     }
