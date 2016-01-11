@@ -49,8 +49,8 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	{
 		if (what->in("<?%s q$name ?>")) {
 			double v = units.alt("<?%s q$unit ?>");
-			<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-			lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+	                <?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+                        lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
 			vtkFile.WriteField("<?%s q$name ?>",tmp);
 			delete[] tmp;
 		}
