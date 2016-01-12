@@ -64,7 +64,7 @@ The software is free to use for non-commercial purposes.
 *Any usage should be acknowledged accordingly (at least with a reference to this repository).*
 * Author wanting to use this software in scientific publications should consult the author for the apropriate reference.
 * Any commercial use should be consulted beforehead with the author
-* Any derivaed code (even if only on a specific model) should be acknowledged
+* Any derived code (even if only on a specific model) should be acknowledged
 
 And, most importantly: if the software proved to be useful for you, please write!
 
