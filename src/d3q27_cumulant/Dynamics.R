@@ -1,4 +1,4 @@
-Ave = TRUE	
+Ave = FALSE	
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -22,9 +22,9 @@ AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
-AddSetting(name="ForceX", comment='Force force X')
-AddSetting(name="ForceY", comment='Force force Y')
-AddSetting(name="ForceZ", comment='Force force Z')
+AddSetting(name="ForceX",default=0, comment='Force force X')
+AddSetting(name="ForceY",default=0,comment='Force force Y')
+AddSetting(name="ForceZ",default=0,comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
