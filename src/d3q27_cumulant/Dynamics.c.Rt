@@ -209,7 +209,8 @@ CudaDeviceFunction void WVelocityTurbulent() {
         SynthTY = ST.y;
         SynthTZ = ST.z;
         ST.x = ST.x + Velocity;
-	//boundary condition for ST.x,ST.y,ST.z should be here afterwards
+	<?R ZouHe(EQ, 1, 1, "velocity",V=PV("ST.x"),V3=c(PV("ST.x"),PV("ST.y"),PV("ST.z"))) ?>
+
 }
 
 CudaDeviceFunction void CollisionMRT()
