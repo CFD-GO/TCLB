@@ -72,6 +72,7 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 		C( PV(Js[direction]), nJ )
 	}
 	for (i in 1:(length(Rs)-1)) if (i != direction) C_pull( Rs[i+1], Js[i])
+	for (i in 1:(length(Rs)-1)) if ((i != direction) && !(is.zero(V3[i]))) C(PV(Js[i]),PV(Js[i])+ rho*V3[i])
 	C(f[sel], fs[sel])
 }	
 
