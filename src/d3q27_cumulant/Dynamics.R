@@ -1,4 +1,4 @@
-Ave = FALSE	
+Ave = FALSE
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -45,16 +45,20 @@ if (Ave) {
 
 AddQuantity(name="KinE",comment="Turbulent kinetic energy")
 AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vector=T)
+AddQuantity( name="Dissipation",comment="Dissipation e")
 AddQuantity( name="avgU",unit="m/s",vector=T)
 AddQuantity( name="varU",vector=T)
 AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="avgUX",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="avgUY",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="avgUZ",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUXUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUXUZ",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUYUZ",dx=0,dy=0,dz=0,average=T)
 
+AddDensity( name="avgdxu2",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgdyv2",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgdzw2",dx=0,dy=0,dz=0,average=T)
+AddField(name="avgUX",dx=c(-1,1),average=T)
+AddField(name="avgUY",dy=c(-1,1),average=T)
+AddField(name="avgUZ",dz=c(1,-1),average=T)
 }
