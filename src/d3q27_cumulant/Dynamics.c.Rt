@@ -32,9 +32,9 @@ CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
-	u.x /= d;
-	u.y /= d;
-	u.z /= d;
+	u.x = (u.x + ForceX/2.)/d;
+	u.y = (u.y + ForceY/2.)/d;
+	u.z = (u.z + ForceZ/2.)/d;
 	return u;
 }
 #ifdef avgUX
