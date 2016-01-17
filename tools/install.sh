@@ -81,7 +81,15 @@ function github_install {
 
 function normal_install {
 	name=$1
-	try "Installing $name" R -e "options(repos='http://cran.rstudio.com');install.packages('$name')"
+	try "Installing $name" R --slave <<EOF
+		options(repos='http://cran.rstudio.com');
+		p = Sys.getenv("R_LIBS_USER");
+		if ( (p != "") && (!dir.exists(p)) ) {
+			dir.create(p,recursive=TRUE);
+			.libPaths(p);
+		}
+		install.packages('$name');
+EOF
 }
 
 
