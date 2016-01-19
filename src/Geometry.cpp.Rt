@@ -319,9 +319,21 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     STL_tri *tri;
     int ntri;
     int ret;
+    int insideOut=0;
     if (!n.attribute("file")) {
 	error("No 'file' attribute in 'STL' element in xml conf\n");
 	return -1;
+    }
+    if (n.attribute("side")) {
+        std::string side=n.attribute("side").value();
+        if (side == "in") {
+	    insideOut=0;
+        } else if (side == "out") {
+            insideOut=1;
+        } else {
+	    error("'side' in 'STL' element have to be 'in' or 'out'\n");
+	    return -1;
+	}
     }
     debug1("------ STL -----\n");
     FILE *f = fopen(n.attribute("file").value(), "rb");
