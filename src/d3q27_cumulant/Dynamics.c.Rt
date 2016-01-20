@@ -38,6 +38,9 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 #ifdef avgUX
+CudaDeviceFunction real_t getaverageP(){
+	return avgP;
+}
 CudaDeviceFunction real_t getDissipation(){
         real_t diss;
        	diss = nu*((avgdxu2/average_iter)-(avgUX(1,0,0) - avgUX(-1,0,0))*(avgUX(1,0,0) - avgUX(-1,0,0))/(4*average_iter*average_iter));
@@ -215,16 +218,14 @@ CudaDeviceFunction void WVelocityTurbulent() {
         SynthTY = ST.y;
         SynthTZ = ST.z;
         ST.x = ST.x + Velocity;
-	<?R ZouHe(EQ, 1, 1, "velocity",V=PV("ST.x"),V3=c(PV("ST.x"),PV("ST.y"),PV("ST.z"))) ?>
+	<?R ZouHe(EQ, 1, 1, "velocity",V=PV("ST.x"),V3=c(PV("ST.x"),PV("ST.y"),PV("ST.z"))) ?> 
 
 }
 
 CudaDeviceFunction void CollisionMRT()
 {	
  	 real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
- 	 if (((NodeType & NODE_BOUNDARY) ==  NODE_WPressure) ||  ((NodeType & NODE_BOUNDARY) ==  NODE_EPressure) 
-		|| ((NodeType & NODE_BOUNDARY) ==  NODE_WVelocity)) 
-	w[0] = 1.0/(3*nubuffer+0.5);
+ 	 if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
 f010 = f210 + f110 + f010; f110 = -f210 + f110; f210 = f110 + f210*2.; 
 f020 = f220 + f120 + f020; f120 = -f220 + f120; f220 = f120 + f220*2.; 
@@ -393,6 +394,7 @@ f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021;
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
 #ifdef avgUX
+avgP =  avgP + getP();
 avgUX = avgUX(0,0,0) + getU().x;
 avgUY = avgUY(0,0,0) + getU().y;
 avgUZ = avgUZ(0,0,0) + getU().z;
