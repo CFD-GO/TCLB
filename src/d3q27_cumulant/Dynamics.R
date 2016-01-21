@@ -48,6 +48,8 @@ AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vecto
 AddQuantity( name="Dissipation",comment="Dissipation e")
 AddQuantity( name="avgU",unit="m/s",vector=T)
 AddQuantity( name="varU",vector=T)
+AddQuantity( name="averageP",unit="Pa")
+AddDensity( name="avgP",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
 AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
