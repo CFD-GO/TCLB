@@ -84,7 +84,7 @@ function normal_install {
 	try "Installing $name" R --slave <<EOF
 		options(repos='http://cran.rstudio.com');
 		p = Sys.getenv("R_LIBS_USER");
-		if ( (p != "") && (!dir.exists(p)) ) {
+		if ( (p != "") && (!file.exists(p)) ) {
 			dir.create(p,recursive=TRUE);
 			.libPaths(p);
 		}
