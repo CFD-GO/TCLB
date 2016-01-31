@@ -902,7 +902,45 @@ class cbFailcheck: public Callback {
 		return Callback::Finish();
 	}
 };	
-
+class cbSample: public Callback{
+	std::string nm;
+	name_set s;  //list of quantites to export
+	lbRegion loc; // position of the point(by default nx-ny-nz all 1)
+	public:
+	int Init(){
+		Callback::Init();
+		pugi::xml_attribute attr=node.attribute("what");
+		if (attr) {
+			s.add_from_string(attr.value(),',');
+		}
+		else {
+			s.add_from_string("all",',');
+		}
+		attr = node.attribute("dx");
+		if (attr) {
+			loc.dx = node.value(attr);
+		}
+		attr = node.attribute("dy");
+		if (attr) {
+			loc.dy = node.value(attr);
+		}
+		attr = node.attribute("dz");
+		if (attr) {
+			loc.dz = node.value(attr);
+		}
+		solver->lattice->initSample(s.myset.size(),it,loc) //initilializing buffer for the sampler with size n*iterations and location loc
+		return 0;
+	int DoIt() {
+		Callback::DoIt();
+		//Do the output of s quantities into csv file with name nm
+		//solver->lattice->sample->writeCPU();
+		//sample->writetoFile->sample->writeFile();
+		return 0;
+		}
+	int Finish(){
+	   return Callback::Finish();
+	 }	 
+	}
 class cbKeep: public Callback {
 	int old_iter_type;
 	int my_type;
@@ -2035,7 +2073,7 @@ class acLoadBinary: public Action {
 		if (attr2) {
 			solver->loadComp(attr.value(), attr2.value());
 		} else {
-		//	solver->lattice->loadSolution(attr.value());
+		solver->lattice->loadSolution(attr.value());
             error("Missing comp parameter in LoadBinary");
 		}
 		return 0;
@@ -2069,8 +2107,8 @@ class cbSaveBinary: public Callback {
 		if (attr) {
 			solver->saveComp(fn.c_str(), attr.value());
 		} else {
-		//	solver->lattice->saveSolution(fn.c_str());
-            error("Missing comp attribute in SaveBinary");
+			solver->lattice->saveSolution(fn.c_str());
+            	//error("Missing comp attribute in SaveBinary");
 		}
 		return 0;
 	};
@@ -2300,6 +2338,8 @@ vHandler * getHandler(pugi::xml_node node) {
                 ret = new cbFailcheck;
     } else if (name=="Average") {
 		ret = new cbAveraging;
+    } else if (name=="Sample") {
+		ret = new cbSample;
     } else if (name=="Solve") {
 		ret = new acSolve;
     } else if (name=="OptSolve") {

@@ -58,6 +58,7 @@ private:
 public:
   ZoneSettings zSet;
   SyntheticTurbulence ST;
+  Sampler *sample; //initializing sampler with zero size
   int ZoneIter;
   std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
   unsigned int settings_i; ///< Index in settings_record that is on the CUDA const
