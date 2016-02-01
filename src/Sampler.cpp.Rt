@@ -60,7 +60,7 @@ int Sampler::writeHistory(int iter) {
 	<?%s q$type ?> tmp;
 	if (quant->in("<?%s q$name ?>")) {
 		CudaMemcpy(&gpu_buffer[location["<?%s q$name ?>"]],tmp,sizeof(<?R q$type ?>),cudaMemcpyDeviceToHost);
-		csvWriteElement(f,<?%s q$type ?>); 
+		csvWriteElement(f,tmp); 
 	<?R }; ifdef(); ?> } 
      flose(filename);
      return 0;
