@@ -444,6 +444,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 <?R } ?>
 	Snap = tab1;
+	//TODO: One - primal iteration,we can actually add the update Samples part here
 	MarkIteration();
 };
 
@@ -1167,27 +1168,26 @@ void Lattice::resetAverage() {
           CudaMemset(&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
 	 <?R } ?>
 } 
-
-void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,<?%s q$type ?> *buf) //Getting quanity from a point into the buffer
-{
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,real_t* buf)
+ //Getting quanity from a point into the buffer
+{	
+	<?%s q$type ?>* tempbuf;
        	container->in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, buf, scale));
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, tempbuf, scale));
 
-
-	/*Should be put to run on each iteration,where?
-	 Upper after each iterations
+}
+<?R } ;ifdef() ?>
+void Lattice::updateAllSamples(lbRegion loc,real_t scale,int iter){
+	if (sample->size != 0) {
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-	  if (what->in("<?%s q$name ?>"))
+	  if (sample->quant->in("<?%s q$name ?>"))
 	{
-		solver->lattice->GetSample(loc,scale,sample_buffer[<?R q$index ?>*curr_it]);
+		GetSample<?%s q$name ?>(loc,scale,&sample->gpu_buffer[(sample->location["<?%s q$name ?>"])*iter]);
 	}
-	<?R }; ifdef() ?>	*/
-}
-void Lattice::InitSample(namespace what,int iter_count)
-{
-	//allocating memory for sampler size int*iter_count
-
-}
+	<?R }; ifdef() ?>	 
+	}
+	}
 
