@@ -1,0 +1,89 @@
+
+#include <mpi.h>
+#include "utils.h"
+#include "Consts.h"
+#include "Global.h"
+#include "cross.h"
+#include "types.h"
+#include <math.h>
+#include <stdlib.h>
+<?R
+       	source("conf.R")
+       	c_header();
+?>
+
+class Sampler: {
+	typedef std::map< std::string , std::vector<int> > Location;
+	private:	
+		double * gpu_buffer; 
+	public:
+		Location location;
+		name_set *quant;
+		int size;
+		int initCSV(const char* name);
+		int writeHistory(int curr_iter);
+		void Allocate(name_set quantities,int total_iter);
+		const char *filename;
+		
+	};
+inline int csvWriteElement(FILE * f, float tmp) { return fprintf(f, "%g\n" , tmp); }
+inline int csvWriteElement(FILE * f, double tmp) { return fprintf(f, "%lg\n" , tmp); }
+inline int csvWriteElement(FILE * f, float3 tmp) { return fprintf(f, "%g\t,%g\t,%g\n" , tmp.x, tmp.y, tmp.z); }
+inline int csvWriteElement(FILE * f, double3 tmp) { return fprintf(f, "%lg\t%lg\t%lg\n" , tmp.x, tmp.y, tmp.z); }
+inline int csvWriteElement(FILE * f, vector_t tmp) {
+       	csvWriteElement(f, tmp.x);
+       	fprintf(f,"\t");
+       	csvWriteElement(f, tmp.y);
+       	fprintf(f,"\t");
+       	return csvWriteElement(f, tmp.z);
+	fprintf(f,"\n");
+}
+int Sampler::initCSV(const char *name) //Initializing a csv file for time evolution of a point
+     {
+     filename = name;
+     if (mpi.rank == 0) {
+ 	    FILE * f = NULL;
+            f = fopen(filename, "wt");
+    	     assert( f != NULL );
+            fprintf(f,"\"Iteration\",\"Time_si\"");
+            <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+            if (quant->in("<?%s q$name ?>")) {
+		//dosomething
+            <?R }; ifdef(); ?> }
+      return 0;
+     }
+int Sampler::writeHistory(int iter) {
+     printf("Updating sample point history");
+     f = fopen(filename,"at");
+     fprintf(f,"%d\t",iter);
+     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	<?%s q$type ?> tmp;
+	if (quant->in("<?%s q$name ?>")) {
+		CudaMemcpy(&gpu_buffer[location["<?%s q$name ?>"]],tmp,sizeof(<?R q$type ?>),cudaMemcpyDeviceToHost);
+		csvWriteElement(f,<?%s q$type ?>); 
+	<?R }; ifdef(); ?> } 
+     flose(filename);
+     return 0;
+ }
+int Sampler::Allocate(name_set nquantites,int iter)
+{
+int i = 0;
+quant = nquantities;
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+if (quant->in("<?%s q$name ?>"))
+ {	
+	location["<?%s q$name ?>"] = i;	
+	i++;
+	<?R if (q$vector) {?>
+	i = i + 2;
+	<?R }; ?> 
+}
+size = i*iter;
+<?R }; ifdef(); ?>
+CudaMalloc((void**)&gpu_buffer, size*sizeof(<?R q$type ?>)); 
+}
+int Sampler::Sampler()
+{
+size = 0;
+name_set = " ";
+}
