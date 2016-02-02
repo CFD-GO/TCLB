@@ -1169,10 +1169,9 @@ void Lattice::resetAverage() {
 	 <?R } ?>
 } 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,real_t* buf)
+void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,<?%s q$type ?>* buf)
  //Getting quanity from a point into the buffer
 {	
-	<?%s q$type ?>* tempbuf;
        	container->in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
@@ -1185,7 +1184,7 @@ void Lattice::updateAllSamples(lbRegion loc,real_t scale,int iter){
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	  if (sample->quant->in("<?%s q$name ?>"))
 	{
-		GetSample<?%s q$name ?>(loc,scale,&sample->gpu_buffer[(sample->location["<?%s q$name ?>"])*iter]);
+		GetSample<?%s q$name ?>(loc,scale,&sample->gpu_buffer[(sample->location["<?%s q$name ?>"])*container->iter]);
 	}
 	<?R }; ifdef() ?>	 
 	}

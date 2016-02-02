@@ -903,11 +903,12 @@ class cbFailcheck: public Callback {
 	}
 };	
 class cbSample: public Callback{
-	std::string nm;
+	char  *nm;
 	name_set s;  //list of quantites to export
 	lbRegion loc; // position of the point(by default nx-ny-nz all 1)
 	public:
 	int Init(){
+		nm="whatever.csv";
 		Callback::Init();
 		pugi::xml_attribute attr=node.attribute("what");
 		if (attr) {
@@ -918,29 +919,32 @@ class cbSample: public Callback{
 		}
 		attr = node.attribute("dx");
 		if (attr) {
-			loc.dx = node.value(attr);
+			loc.dx = solver->units.alt(attr.value());
 		}
 		attr = node.attribute("dy");
 		if (attr) {
-			loc.dy = node.value(attr);
+			loc.dy = solver->units.alt(attr.value());
 		}
 		attr = node.attribute("dz");
 		if (attr) {
-			loc.dz = node.value(attr);
+			loc.dz = solver->units.alt(attr.value());
 		}
-		solver->lattice->initSample(s.myset.size(),it,loc) //initilializing buffer for the sampler with size n*iterations and location loc
+		solver->lattice->sample->initCSV(nm);
+		solver->lattice->sample->Allocate(&s,everyIter); //initilializing buffer for the sampler with size n*iterations and location loc
 		return 0;
+		}
 	int DoIt() {
 		Callback::DoIt();
 		//Do the output of s quantities into csv file with name nm
-		//solver->lattice->sample->writeCPU();
-		//sample->writetoFile->sample->writeFile();
+		solver->lattice->sample->writeHistory();
 		return 0;
 		}
 	int Finish(){
+	   //solver->lattice->sample->free();
 	   return Callback::Finish();
 	 }	 
-	}
+};
+
 class cbKeep: public Callback {
 	int old_iter_type;
 	int my_type;
