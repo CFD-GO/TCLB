@@ -144,3 +144,21 @@ for (m in Margin) { ?>
 	
 #define DEBUG_H 1
 #endif
+
+
+#ifndef D2Q9_w_and_e
+
+ const  real_t 	wt[5] = {2./6., 	1./6., 1./6., 1./6., 1./6.};
+ const  real_t 	wf[9] = {4./9., 	1./9., 1./9., 1./9., 1./9., 	1./36., 1./36., 1./36., 1./36.};
+
+	<?R source("lib/lattice.R") ?>
+	
+	real_t const  d2q9_ex[9] = {<?R cat(d2q9[,1],sep=",") ?>};
+	real_t const  d2q9_ey[9] = {<?R cat(d2q9[,2],sep=",") ?>};
+	real_t const  d2q5_ex[5] = {<?R cat(d2q9[1:5,1],sep=",") ?>};
+	real_t const  d2q5_ey[5] = {<?R cat(d2q9[1:5,2],sep=",") ?>};
+
+
+#endif
+#define D2Q9_w_and_e
+
