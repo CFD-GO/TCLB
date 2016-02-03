@@ -330,8 +330,8 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
                 now.z_ = constContainer.nz - 1;
                 now.RunElement();
 	}
-	now.Glob();
 #endif
+	now.Glob();
 }
 
 /// Copy oneself to the GPU constant memory
