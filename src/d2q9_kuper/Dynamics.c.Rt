@@ -100,10 +100,10 @@ CudaDeviceFunction vector_t getF() {
 	        gs = c(0,1,1,1,1,1/4,1/4,1/4,1/4);
             A = PV("MagicA")
         	C(R[-1] , (R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
-        	C(Force , (R*gs) %*% U)
+        	C(Force , Force -(0.666666666666666666)*(R*gs) %*% U)
         ?>
-	    F.x = F.x + -2./3. * F.x;
-        F.y = F.x + -2./3. * F.y;
+//	    F.x = F.x + -2./3. * F.x;
+//        F.y = F.x + -2./3. * F.y;
 //        F.x = 0;
 //        F.y = 0;
 //}
