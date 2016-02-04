@@ -41,6 +41,7 @@ private:
   lbRegion getRegion(const pugi::xml_node& node);
   int val(pugi::xml_attribute attr, int def);
   int val(pugi::xml_attribute attr);
+  int val_p(pugi::xml_attribute attr, char* prefix);
   double val_d(pugi::xml_attribute attr);
   flag_t Dot(int x, int y, int z);
 };
