@@ -2145,7 +2145,16 @@ class cbPythonCall: public Callback {
         if (firstTime){
             firstTime = false;
             #ifdef EMBEDED_PYTHON
-            std::string oldpath( getenv( "PYTHONPATH" ) );
+
+            char const* syspythonpath = getenv( "PYTHONPATH" );
+
+            std::string oldpath;
+            
+            if ( syspythonpath == NULL ) {
+            //  Big problem...
+            } else {
+                oldpath = std::string( syspythonpath );
+            }            
             
             oldpath.resize (oldpath.size()+1,':');
             oldpath.resize (oldpath.size()+1,'.');
@@ -2194,7 +2203,7 @@ class cbPythonCall: public Callback {
      //   output("buffer size: %d", size);
 ////BEGIN PYTHON HANDLING
 
-	
+    	
         
 
 	    PyObject *pName, *pModule, *pOffsets, *pFunc;
@@ -2211,13 +2220,13 @@ class cbPythonCall: public Callback {
 	        /* pFunc is a new reference */
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
-                if (sizeof(real_t) == sizeof(float) ) {
+//                if (sizeof(real_t) == sizeof(float) ) {
 //                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_FLOAT, buffer);
-                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
-                } else if (sizeof(real_t) == sizeof(double) ){
+//                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
+//                } else if (sizeof(real_t) == sizeof(double) ){
 //                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_DOUBLE, buffer);
-                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
-                }
+//                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
+//                }
                 
                 
                 pArgs = PyTuple_New(n_components+1);
