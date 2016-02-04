@@ -2145,7 +2145,14 @@ class cbPythonCall: public Callback {
         if (firstTime){
             firstTime = false;
             #ifdef EMBEDED_PYTHON
-            setenv("PYTHONPATH",".",1);
+            std::string oldpath( getenv( "PYTHONPATH" ) );
+            
+            oldpath.resize (oldpath.size()+1,':');
+            oldpath.resize (oldpath.size()+1,'.');
+
+            setenv("PYTHONPATH",oldpath.c_str(),1);
+            debug1("PYTHONPATH set to %s", oldpath.c_str() );
+
             Py_Initialize();
             _import_array();
             #endif
@@ -2164,19 +2171,34 @@ class cbPythonCall: public Callback {
 		if (!module || !function || !comp) {
             error("Missing params in PythonCall");
         }
+
+        std::vector<std::string> components;
+        std::vector<real_t*> buffers;
+
+
+        char *str = strdup(comp.value());  // We own str's memory now.
+        char *token;
+        int n_components = 0;
+        while ((token = strsep(&str, ","))) {
+            components.push_back(std::string(token));
+            n_components++;
+        }
+
+        buffers.resize(n_components);
+
+        free(str);        
+
         //variable menaged by selver!!
-        real_t * buffer;
-        long int size = solver->getComponentIntoBuffer(comp.value(), buffer);
 #ifdef EMBEDED_PYTHON
 
-        output("buffer size: %d", size);
+     //   output("buffer size: %d", size);
 ////BEGIN PYTHON HANDLING
 
 	
+        
 
-
-	    PyObject *pName, *pModule, *pDict, *pFunc;
-	    PyObject *pInputData, *pValue, *pArgs;
+	    PyObject *pName, *pModule, *pOffsets, *pFunc;
+	    PyObject *pValue, *pArgs;
 
 	    pName = PyString_FromString(module.value());
 	    /* Error checking of pName left out */
@@ -2197,21 +2219,50 @@ class cbPythonCall: public Callback {
                       pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
                 }
                 
-                pArgs = PyTuple_New(1);
-                //pInputData reference is stolen here
-                PyTuple_SetItem(pArgs, 0, pInputData);
+                
+                pArgs = PyTuple_New(n_components+1);
+                
+                long int offsets[3] = {-1,-1,-1};
 
+                for (int i =0; i<n_components; i++){
+                    const char * component = components[i].c_str();
+    
+                    PyObject* pInputData;
+                    real_t * buffer;
+                    long int dims[3];
+
+                    long int size = solver->getComponentIntoBuffer(component, buffer, dims, offsets );
+    
+                    if (sizeof(real_t) == sizeof(float) ) {
+                        pInputData = PyArray_SimpleNewFromData(3, dims, PyArray_FLOAT, buffer);
+                    } else if (sizeof(real_t) == sizeof(double) ){
+                        pInputData = PyArray_SimpleNewFromData(3, dims, PyArray_DOUBLE, buffer);
+                    }
+                
+                    buffers[i] = buffer;
+
+                    //pInputData reference is stolen here
+                    PyTuple_SetItem(pArgs, i+1, pInputData);
+                }
+                
+                pOffsets = PyTuple_New(3);    
+                for (int k=0; k < 3; k++){
+                    PyTuple_SetItem(pOffsets, k, PyInt_FromLong(offsets[k]));
+                }
+    
+                PyTuple_SetItem(pArgs, 0, pOffsets);
+ 
 		        pValue = PyObject_CallObject(pFunc, pArgs);
                 Py_DECREF(pArgs);
 	            if (pValue != NULL) {
-	                printf("Result of call: %ld\n", PyInt_AsLong(pValue));
+	                output("Result of Python call: %ld\n", PyInt_AsLong(pValue));
 	                Py_DECREF(pValue);
 	            }
 	            else {
 	                Py_DECREF(pFunc);
 	                Py_DECREF(pModule);
 	                PyErr_Print();
-	                fprintf(stderr,"Call failed\n");
+	                error("PythonCall failed\n");
 	                return 1;
 	            }
                 
@@ -2219,23 +2270,24 @@ class cbPythonCall: public Callback {
 	        else {
 	            if (PyErr_Occurred())
 	                PyErr_Print();
-	            fprintf(stderr, "Cannot find function \"%s\"\n", function.value());
+	                error("PythonCall: Cannot find function \"%s\"\n", function.value());
 	        }
 	        Py_XDECREF(pFunc);
 	        Py_DECREF(pModule);
 	    }
 	    else {
 	        PyErr_Print();
-	        fprintf(stderr, "Failed to load \"%s\"\n", module.value());
+	        error("PythonCall: Failed to load \"%s\"\n", module.value());
 	        return 1;
 	    }
        
-
-        for (int k =0; k < 10; k++){
-            printf("%f\n", ((real_t*)buffer)[k]);
+        for (int i =0; i<n_components; i++){
+            const char * component = components[i].c_str();
+            for (int k =0; k < 10; k++){
+                debug2("PythonCall after, buffer %d, value %d: %f\n",i,k, buffers[i][k]);
+            }
+            int status = solver->loadComponentFromBuffer(component, buffers[i]);
         }
-        int status = solver->loadComponentFromBuffer(comp.value(), buffer);
-
 //	    Py_Finalize();
 //END PYTHON HANDLING
 #else
