@@ -46,8 +46,8 @@ CudaDeviceFunction vector_t getU(){
 ?>
 	vector_t F;
 	F = getF();
-    u.x = u.x+F.x*(-2./3.)*0.5;
-    u.y = u.y+F.y*(-2./3.)*0.5;
+    u.x = u.x+F.x*0.5;
+    u.y = u.y+F.y*0.5;
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;
@@ -57,10 +57,18 @@ CudaDeviceFunction vector_t getU(){
 CudaDeviceFunction vector_t getF() {
 	vector_t F;
 	real_t R[9];
-    if (((NodeType & NODE_BOUNDARY) != 0x0  ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry)) {
+    if (((NodeType & NODE_BOUNDARY) != 0x0  ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry)  &&  ((NodeType & NODE_BOUNDARY) != NODE_RightSymmetry))   {
         F.x=0;
         F.y=0;
+        <?R
+            Force = PV(c("F.x","F.y"));
+            C(Force, 2.* f %*% U);
+        ?>
     } else {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;
+    }
         <?R
             R = PV(c(paste("R[",1:9-1,"]",sep="")))
             C(R , ph);
@@ -76,14 +84,29 @@ CudaDeviceFunction vector_t getF() {
             ?>
      
         }
+        if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry) {
+             <?R
+                reflect_to =  c(6,3,7) + 1;
+                reflect_from = c(5,1,8) + 1;
+                for (i in 1:3)
+                {
+                    C( R[reflect_to[i]], R[reflect_from[i]] )
+                }
+            ?>
+     
+        }       
         <?R
             Force = PV(c("F.x","F.y"));
 	        gs = c(0,1,1,1,1,1/4,1/4,1/4,1/4);
             A = PV("MagicA")
         	C(R[-1] , (R * R * A + R * R[1] * (A*(-2)+1))[-1],float=F)
-        	C(Force ,(R*gs) %*% U)
+        	C(Force , Force -(0.666666666666666666)*(R*gs) %*% U)
         ?>
-	}
+//	    F.x = F.x + -2./3. * F.x;
+//        F.y = F.x + -2./3. * F.y;
+//        F.x = 0;
+//        F.y = 0;
+//}
 
     F.z = 0;
 	return F;
@@ -98,9 +121,12 @@ CudaDeviceFunction real_t getP(){
 	double rho2;
     if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry ) {
         SymmetryTop();
-	}   
+	}  
+    if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry ) {
+        SymmetryRight();
+	}      
 	rho2 = <?R C(sum(f)) ?>;
-    if (((NodeType & NODE_BOUNDARY) != 0x0 ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry)){
+    if (((NodeType & NODE_BOUNDARY) != 0x0 ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry) &&   ((NodeType & NODE_BOUNDARY) != NODE_RightSymmetry)){
             rho2 = Density;
 	}
 
@@ -126,7 +152,8 @@ CudaDeviceFunction void BounceBack()
 	
    }
 ?>
-
+    AddToWallForceX(<?%s ToC(f %*% U[,1]) ?>);
+	AddToWallForceY(<?%s ToC(f %*% U[,2]) ?>);
 }
 
 //CudaDeviceFunction void MovingWall()
@@ -247,8 +274,11 @@ CudaDeviceFunction void CalcPhi() {
     if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry ) {
         SymmetryTop();
 	}
+    if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry ) {
+        SymmetryRight();
+	}
 	rho2 = <?R C(sum(f)) ?>;
-    if (((NodeType & NODE_BOUNDARY) != 0x0 ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry))  {
+    if (((NodeType & NODE_BOUNDARY) != 0x0 ) &&  ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry) &&  ((NodeType & NODE_BOUNDARY) != NODE_RightSymmetry)   )  {
         rho2 = Density;
 	}
 
@@ -286,6 +316,10 @@ CudaDeviceFunction void Run() {
     case NODE_TopSymmetry:
         SymmetryTop();
         break;
+    case NODE_RightSymmetry:
+        SymmetryRight();
+        break;
+
     }
     switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
@@ -303,6 +337,22 @@ CudaDeviceFunction void SymmetryTop()
 <?R
   reflect_to =  c(4,7,8) + 1;
   reflect_from = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+#    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>
+}
+
+CudaDeviceFunction void SymmetryRight()
+{
+// *******************
+// Symmetry BC for RIGHT WALL
+// *******************    
+<?R
+  reflect_to =  c(6,3,7) + 1;
+  reflect_from = c(5,1,8) + 1;
   for (i in 1:3)
   {
 	C( f[reflect_to[i]], f[reflect_from[i]] )
@@ -392,8 +442,8 @@ CudaDeviceFunction void CollisionMRT()
 	C( R, (f-feq) %*% M * OMEGA );
 ?>
     vector_t F = getF();
-    ux = ux+F.x*(-2./3.)/rho + (GravitationX );
-    uy = uy+F.y*(-2./3.)/rho + (GravitationY ); 
+    ux = ux+F.x/rho + (GravitationX );
+    uy = uy+F.y/rho + (GravitationY ); 
     
 <?R
 	C( R, R + feq %*% M);
