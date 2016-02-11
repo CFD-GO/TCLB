@@ -1,6 +1,5 @@
 
 #include "mpi.h"
-#include "utils.h"
 #include "Consts.h"
 #include "Global.h"
 #include "cross.h"
@@ -12,39 +11,57 @@
        	source("conf.R")
        	c_header();
 ?>
-
+Sampler::Sampler(){ //constructor is fine
+	size = 0;
+	startIter = 0;
+	lbRegion pos;
+	position = pos;
+}
 int Sampler::initCSV(const char *name) //Initializing a csv file for time evolution of a point
      {
+     int rrank;
+     MPI_Comm_rank(MPI_COMM_WORLD, &rrank);
      filename = name;
-    // if (mpi.rank == 0) {
+     if (rrank == 0) {
  	    FILE * f = NULL;
-            f = fopen(filename, "wt");
-    	     assert( f != NULL );
-            fprintf(f,"\"Iteration\",\"Time_si\"");
+            f = fopen(name, "wt");
+	    output("Initializing %s\n",filename);
+    	    assert( f != NULL );
+            fprintf(f,"\"Iteration\",\"Time_si\t");
             <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
             if (quant->in("<?%s q$name ?>")) 
-		//dosomething 
+		fprintf(f,"<?%s q$name ?>\t");
             <?R }; ifdef(); ?> 
+     fprintf(f,"\n");
      fclose(f); 
      return 0;
-     //}
+     } 	
 }
-int Sampler::writeHistory(int iter) {
+int Sampler::writeHistory(int curr_iter) {
+     int rrank;
+     MPI_Comm_rank(MPI_COMM_WORLD, &rrank);
+     if (rrank == 0){
      printf("Updating sample point history");
      FILE* f = fopen(filename,"at");
-     fprintf(f,"%d\t",iter);
-     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+     for (int i = startIter; i< curr_iter; i++){
+    fprintf(f,"%d\t",i);     
+    <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	if (quant->in("<?%s q$name ?>")) {
 		<?%s q$type ?> tmp;
-		CudaMemcpy(&tmp,&gpu_buffer[location["<?%s q$name ?>"]],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost);
-		csvWriteElement(f,tmp);  }
-	<?R }; ifdef(); ?> 
-     fclose(f);
+		CudaMemcpy(&tmp,&gpu_buffer[location["<?%s q$name ?>"] + (i - startIter)*size],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost);
+		csvWriteElement(f,tmp);
+		  }
+		<?R }; ifdef(); ?> 
+	      fprintf(f,"\n");
+	}
+      fclose(f);
+    }
      return 0;
  }
-int Sampler::Allocate(name_set* nquantities,int iter)
+int Sampler::Allocate(name_set* nquantities,int start,int iter)
 {
 int i = 0;
+startIter=start;
 quant = nquantities;
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 if (quant->in("<?%s q$name ?>"))
@@ -56,7 +73,19 @@ if (quant->in("<?%s q$name ?>"))
 	<?R }; ?> 
 }
 size = i*iter;
+
 <?R }; ifdef(); ?>
 CudaMalloc((void**)&gpu_buffer, size*sizeof(real_t)); //Assuming quantites can be vectors made from real_t/normal values only 
+size = size/iter;
 return 0;
+}
+int Sampler::Finish()
+{
+//Clean everything and get ready for the next sampling
+ CudaFree(gpu_buffer);
+ size = 0;
+ startIter = 0;
+ lbRegion pos;
+ position = pos;
+ return 0;
 }

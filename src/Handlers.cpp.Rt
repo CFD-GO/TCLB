@@ -903,12 +903,13 @@ class cbFailcheck: public Callback {
 	}
 };	
 class cbSample: public Callback{
-	char  *nm;
-	name_set s;  //list of quantites to export
-	lbRegion loc; // position of the point(by default nx-ny-nz all 1)
 	public:
 	int Init(){
-		nm="whatever.csv";
+		name_set s;
+		std::string filename; 
+		lbRegion loc; //default position in 0-0-0 cube of size 1
+		std::string nm="Sampler";
+		char fn[STRING_LEN];
 		Callback::Init();
 		pugi::xml_attribute attr=node.attribute("what");
 		if (attr) {
@@ -929,18 +930,21 @@ class cbSample: public Callback{
 		if (attr) {
 			loc.dz = solver->units.alt(attr.value());
 		}
-		solver->lattice->sample->initCSV(nm);
-		solver->lattice->sample->Allocate(&s,everyIter); //initilializing buffer for the sampler with size n*iterations and location loc
+		solver->outIterFile(nm.c_str(),".csv",fn);
+		filename = fn;
+		solver->lattice->sample->position = loc;	
+		solver->lattice->sample->Allocate(&s,startIter,everyIter); //initilializing buffer for the sampler with size n*iterations and location loc
+		solver->lattice->sample->initCSV(filename.c_str());
 		return 0;
 		}
 	int DoIt() {
 		Callback::DoIt();
-		//Do the output of s quantities into csv file with name nm
-		solver->lattice->sample->writeHistory();
+		solver->lattice->sample->writeHistory(solver->iter);
+		solver->lattice->sample->startIter = solver->iter;
 		return 0;
 		}
 	int Finish(){
-	   //solver->lattice->sample->free();
+	   solver->lattice->sample->Finish();
 	   return Callback::Finish();
 	 }	 
 };
@@ -1932,7 +1936,16 @@ class acParams: public Action {
 
 class acSyntheticTurbulence: public Action {
 	public:
-
+	/*#Size_Inlet=10
+	#Lt=0.1*Size_Inlet
+	Lt=10
+	MainWaveN=1.453*9.*4*atan(1.0)/(55*Lt)
+	Tu=0.06 # u'/U - percentage of fluctuations to free stream velocity
+	Uf=0.033103 # u'/U -free stream velocity
+	k=1.5*(Tu*Uf)^2 #turbulent kinetic energy
+	e=((k)^1.5)/Lt # turbulent dissipationn
+	#Another formula for turbulent dissipation
+	eta=(e/(nu^3))^0.25 #diffusion lengthscale */
 	int ReadWaveNumer(std::string name, double * var) {
 		int set = 0;
 		double val = *var;
@@ -2002,7 +2015,7 @@ class acSyntheticTurbulence: public Action {
 		if (spec == "Von Karman") {
 			double mainWN, diffWN, maxWN, minWN;
 			if (ReadWaveNumer("Main", &mainWN)) {
-				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");
+				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");		
 				return -1;
 			}
 			if (ReadWaveNumer("Diffusion", &diffWN)) {

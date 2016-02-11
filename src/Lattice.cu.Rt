@@ -72,6 +72,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
+	sample = new Sampler;
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
@@ -444,8 +445,10 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 <?R } ?>
 	Snap = tab1;
+	lbRegion damn;
 	//TODO: One - primal iteration,we can actually add the update Samples part here
 	MarkIteration();
+	updateAllSamples(sample->position,1.0);	
 };
 
 /// Adjoint Iteration
@@ -1169,22 +1172,34 @@ void Lattice::resetAverage() {
 	 <?R } ?>
 } 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,<?%s q$type ?>* buf)
- //Getting quanity from a point into the buffer
+void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,real_t* buf)
 {	
        	container->in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, tempbuf, scale));
+	//lbRegion small = region.intersect(over);
+	
+	/*lbRegion inter = region.intersect(over);
+	int x = inter.dx, y = inter.dy;
+       	for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+       	{       lbRegion small = inter;
+               	small.dz = z;
+               	small.nz = 1;
+               	small.dx -= region.dx;
+               	small.dy -= region.dy;
+               	small.dz -= region.dz;
+               	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , di$
+       	}*/
 
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale));
 }
 <?R } ;ifdef() ?>
-void Lattice::updateAllSamples(lbRegion loc,real_t scale,int iter){
+void Lattice::updateAllSamples(lbRegion loc,real_t scale){
 	if (sample->size != 0) {
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	  if (sample->quant->in("<?%s q$name ?>"))
 	{
-		GetSample<?%s q$name ?>(loc,scale,&sample->gpu_buffer[(sample->location["<?%s q$name ?>"])*container->iter]);
+		GetSample<?%s q$name ?>(loc,scale,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size]);
 	}
 	<?R }; ifdef() ?>	 
 	}
