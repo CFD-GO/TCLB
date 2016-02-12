@@ -903,11 +903,11 @@ class cbFailcheck: public Callback {
 	}
 };	
 class cbSample: public Callback{
+	name_set s;
+        std::string filename; 
+        lbRegion loc; //default position in 0-0-0 cube of size 1
 	public:
 	int Init(){
-		name_set s;
-		std::string filename; 
-		lbRegion loc; //default position in 0-0-0 cube of size 1
 		std::string nm="Sampler";
 		char fn[STRING_LEN];
 		Callback::Init();
