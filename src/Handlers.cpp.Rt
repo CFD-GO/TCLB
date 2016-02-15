@@ -905,7 +905,7 @@ class cbFailcheck: public Callback {
 class cbSample: public Callback{
 	name_set s;
         std::string filename; 
-        lbRegion loc; //default position in 0-0-0 cube of size 1
+        lbRegion loc;
 	public:
 	int Init(){
 		std::string nm="Sampler";
@@ -918,22 +918,30 @@ class cbSample: public Callback{
 		else {
 			s.add_from_string("all",',');
 		}
-		attr = node.attribute("dx");
-		if (attr) {
-			loc.dx = solver->units.alt(attr.value());
-		}
-		attr = node.attribute("dy");
-		if (attr) {
-			loc.dy = solver->units.alt(attr.value());
-		}
-		attr = node.attribute("dz");
-		if (attr) {
-			loc.dz = solver->units.alt(attr.value());
-		}
+		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+			output("Attribute name is %s",par.name());
+			attr = par.attribute("dx");
+			if (attr) {
+				loc.dx = solver->units.alt(attr.value());
+			}
+			attr = par.attribute("dy");
+			if (attr) {
+					loc.dy = solver->units.alt(attr.value());
+			}
+			attr = par.attribute("dz");
+			if (attr) {
+				loc.dz = solver->units.alt(attr.value());
+			}
+			loc = solver->region.intersect(loc); 
+			if (loc.nx == 1) {
+ 				printf("Point belogs to the process %d",solver->mpi.rank);
+				solver->lattice->sample->addPoint(loc,solver->mpi.rank);
+ 			} 
+		} 
 		solver->outIterFile(nm.c_str(),".csv",fn);
 		filename = fn;
-		solver->lattice->sample->position = loc;	
-		solver->lattice->sample->Allocate(&s,startIter,everyIter); //initilializing buffer for the sampler with size n*iterations and location loc
+		solver->lattice->sample->mpis = solver->mpi;		
+		solver->lattice->sample->Allocate(&s,startIter,everyIter); 
 		solver->lattice->sample->initCSV(filename.c_str());
 		return 0;
 		}
@@ -2442,3 +2450,5 @@ vHandler * getHandler(pugi::xml_node node) {
 	if (ret != NULL) ret->node = node;
 	return ret;
 }
+
+

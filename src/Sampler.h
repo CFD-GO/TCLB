@@ -6,7 +6,12 @@
 #include "types.h"
 #include <math.h>
 #include <stdlib.h>
+#include <vector>
 
+struct sreg {
+	int rank;
+	lbRegion location;
+};
 class Sampler {
        	typedef std::map< std::string , int > Location;
        	private:        
@@ -18,10 +23,14 @@ class Sampler {
                	Location location;
                	name_set *quant;
                	int size;
+		std::vector <sreg> spoints; 
+		MPIInfo mpis; 
 		int startIter;
+		int totalIter;
                	int initCSV(const char* name);
                	int writeHistory(int curr_iter);
                	int Allocate(name_set* quantities,int total_iter,int noidea);
+		int addPoint(lbRegion loc,int rank);
                	const char *filename;
 		int Finish();
        	};

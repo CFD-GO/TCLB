@@ -448,7 +448,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	lbRegion damn;
 	//TODO: One - primal iteration,we can actually add the update Samples part here
 	MarkIteration();
-	updateAllSamples(sample->position,1.0);	
+	updateAllSamples(1.0);	
 };
 
 /// Adjoint Iteration
@@ -1177,31 +1177,19 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,real_t* buf)
        	container->in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
-	//lbRegion small = region.intersect(over);
-	
-	/*lbRegion inter = region.intersect(over);
-	int x = inter.dx, y = inter.dy;
-       	for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-       	{       lbRegion small = inter;
-               	small.dz = z;
-               	small.nz = 1;
-               	small.dx -= region.dx;
-               	small.dy -= region.dy;
-               	small.dz -= region.dz;
-               	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , di$
-       	}*/
-
 	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale));
 }
 <?R } ;ifdef() ?>
-void Lattice::updateAllSamples(lbRegion loc,real_t scale){
-	if (sample->size != 0) {
-	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-	  if (sample->quant->in("<?%s q$name ?>"))
-	{
-		GetSample<?%s q$name ?>(loc,scale,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size]);
-	}
-	<?R }; ifdef() ?>	 
-	}
-	}
+void Lattice::updateAllSamples(real_t scale){
+ if (sample->size != 0) {
+	for (int j = 0; j < sample->spoints.size(); j++) { 
+		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	 	 if (sample->quant->in("<?%s q$name ?>"))
+		{
+			GetSample<?%s q$name ?>(sample->spoints[j].location,scale,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size + sample->totalIter*j]);
+		}
+		<?R }; ifdef() ?>	 
+	} 
+ }
+}
 
