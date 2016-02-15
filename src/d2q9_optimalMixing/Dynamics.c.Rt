@@ -120,7 +120,6 @@ CudaDeviceFunction void NMovingWall()
 	real_t wallShearForce = (f[5]*d2q9_ex[5] + f[6]*d2q9_ex[6]) - (f[7]*d2q9_ex[7] + f[8]*d2q9_ex[8]);
 
 	AddToNWallForce(wallShearForce);
-	//AddToNWallForce(1);
 }
 
 
@@ -192,8 +191,8 @@ CudaDeviceFunction void CollisionMRT()
 		g[i] = (1. - omegaT)* g[i] + omegaT* geq[i];
 	}
 
-	
-	
-	AddToTotalTempSqr(1.0);
+	//AddToNWallForce(1.0);
+	AddToTotalTempSqr(T*T);
+	//AddToTotalTempSqr(1.0);
 }
 
