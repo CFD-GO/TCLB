@@ -49,6 +49,8 @@ AddSetting(name="Temperature", default="0K", comment='Temperature', zonal=TRUE)
 
 
 AddNodeType("NMovingWall", "BOUNDARY")
+AddNodeType("SWall", "BOUNDARY")
 
 AddGlobal("TotalTempSqr")
-AddGlobal("NWallForce")
+AddGlobal("NMovingWallForce")
+AddGlobal("SWallForce")
