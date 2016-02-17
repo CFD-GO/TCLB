@@ -20,7 +20,7 @@ Sampler::Sampler(){
 int Sampler::initCSV(const char *name) 
      {
      filename = name;
-     if (mpis.rank == 0) {
+     //if (mpis.rank == 0) {
  	    FILE * f = NULL;
             f = fopen(name, "wt");
 	    output("Initializing %s\n",filename);
@@ -33,20 +33,19 @@ int Sampler::initCSV(const char *name)
      fprintf(f,"\n");
      fclose(f); 
      return 0;
-     } 	
+    // } 	
 }
 int Sampler::writeHistory(int curr_iter) {
-     printf("Updating sample point history");
      FILE* f = fopen(filename,"at");
      for (int j = 0; j <  spoints.size(); j++) {
-	if (mpis.rank == spoints[j].rank) {  
-     		fprintf(f,"%d\t%d\t%d\n",spoints[j].location.dx,spoints[j].location.dy,spoints[j].location.dz);
+	if (mpis.rank == spoints[j].rank) { 
+     		fprintf(f,"Point %d: %d\t%d\t%d\n",j,spoints[j].location.dx,spoints[j].location.dy,spoints[j].location.dz);
 		for (int i = startIter; i< curr_iter; i++){
    	 		fprintf(f,"%d\t",i);     
 	    		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 			if (quant->in("<?%s q$name ?>")) {
 				<?%s q$type ?> tmp;
-				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j)],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost); 
+				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost); 
 				csvWriteElement(f,tmp);
 		 	 	}
 			<?R }; ifdef(); ?> 
@@ -63,19 +62,18 @@ totalIter = iter;
 int i = 0;
 startIter=start;
 quant = nquantities;
-if (mpis.rank == 0) {
-	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-	if (quant->in("<?%s q$name ?>"))
- 	{	
-		location["<?%s q$name ?>"] = i;	
-		i++;
-		<?R if (q$vector) {?>
-		i = i + 2;
-		<?R }; ?> 
-	}
-	<?R }; ifdef(); ?>
-	CudaMalloc((void**)&gpu_buffer, size*iter*spoints.size()*sizeof(real_t)); 
-}
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+if (quant->in("<?%s q$name ?>"))
+ {	
+	location["<?%s q$name ?>"] = i;	
+	i++;
+	<?R if (q$vector) {?>
+	i = i + 2;
+	<?R }; ?> 
+     }
+<?R }; ifdef(); ?>
+CudaMalloc((void**)&gpu_buffer, i*totalIter*spoints.size()*sizeof(real_t)); 
+size = i;
 return 0;
 }
 

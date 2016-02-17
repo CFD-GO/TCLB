@@ -905,7 +905,7 @@ class cbFailcheck: public Callback {
 class cbSample: public Callback{
 	name_set s;
         std::string filename; 
-        lbRegion loc;
+        //lbRegion loc;
 	public:
 	int Init(){
 		std::string nm="Sampler";
@@ -919,7 +919,7 @@ class cbSample: public Callback{
 			s.add_from_string("all",',');
 		}
 		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
-			output("Attribute name is %s",par.name());
+			lbRegion loc;
 			attr = par.attribute("dx");
 			if (attr) {
 				loc.dx = solver->units.alt(attr.value());
@@ -933,10 +933,7 @@ class cbSample: public Callback{
 				loc.dz = solver->units.alt(attr.value());
 			}
 			loc = solver->region.intersect(loc); 
-			if (loc.nx == 1) {
- 				printf("Point belogs to the process %d",solver->mpi.rank);
-				solver->lattice->sample->addPoint(loc,solver->mpi.rank);
- 			} 
+			if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
 		} 
 		solver->outIterFile(nm.c_str(),".csv",fn);
 		filename = fn;

@@ -446,7 +446,6 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 <?R } ?>
 	Snap = tab1;
 	lbRegion damn;
-	//TODO: One - primal iteration,we can actually add the update Samples part here
 	MarkIteration();
 	updateAllSamples(1.0);	
 };
@@ -1182,14 +1181,15 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,real_t* buf)
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(real_t scale){
  if (sample->size != 0) {
-	for (int j = 0; j < sample->spoints.size(); j++) { 
+	for (int j = 0; j < sample->spoints.size(); j++) {
+		if (mpi.rank == sample->spoints[j].rank) { 
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	 	 if (sample->quant->in("<?%s q$name ?>"))
 		{
-			GetSample<?%s q$name ?>(sample->spoints[j].location,scale,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size + sample->totalIter*j]);
+			GetSample<?%s q$name ?>(sample->spoints[j].location,scale,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
 		}
 		<?R }; ifdef() ?>	 
-	} 
+	} }
  }
 }
 

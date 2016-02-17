@@ -7,6 +7,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <vector>
+/* 
+Class used for optimal storing and output of the evolution of the particular point/{set of points}.
+Each point and output data is controlled, by the mpi rank related to that point, according to initial mesh division
+*/
 
 struct sreg {
 	int rank;
