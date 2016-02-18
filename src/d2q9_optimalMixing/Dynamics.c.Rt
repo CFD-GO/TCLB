@@ -89,8 +89,8 @@ CudaDeviceFunction void Run() {
 		BounceBack();
 		break;
 	case NODE_SWall:
-		BounceBack();
-		CalcSWallShearForce();	
+		//BounceBack();
+		BounceBack_and_CalcSWallShearForce();	
 		break;
 	case NODE_NMovingWall:
 		NMovingWall();
@@ -103,11 +103,35 @@ CudaDeviceFunction void Run() {
     }
 }
 
-CudaDeviceFunction void CalcSWallShearForce()
+CudaDeviceFunction void BounceBack_and_CalcSWallShearForce()
 {
 	//real_t SWallShearForce = (f[5]*d2q9_ex[5] + f[6]*d2q9_ex[6]) - (f[7]*d2q9_ex[7] + f[8]*d2q9_ex[8]) ; // wall -> bounce back
 
-	real_t SWallShearForce = 2 * (f[5]*d2q9_ex[5] + f[6]*d2q9_ex[6]);
+	real_t SWallShearForce = - (f[7]*d2q9_ex[7] + f[8]*d2q9_ex[8]) ; //in
+
+	real_t tmp;
+	tmp = f[2];
+	f[2] = f[4];
+	f[4] = tmp;
+	tmp = f[1];
+	f[1] = f[3];
+	f[3] = tmp;
+	tmp = f[6];
+	f[6] = f[8];
+	f[8] = tmp;
+	tmp = f[5];
+	f[5] = f[7];
+	f[7] = tmp;
+
+	tmp = g[2];
+	g[2] = g[4];
+	g[4] = tmp;
+	tmp = g[1];
+	g[1] = g[3];
+	g[3] = tmp;
+
+	SWallShearForce +=  (f[5]*d2q9_ex[5] + f[6]*d2q9_ex[6]); //out
+
 	AddToSWallForce(SWallShearForce); 
 }
 CudaDeviceFunction void NMovingWall()
