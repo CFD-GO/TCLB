@@ -183,11 +183,10 @@ int main ( int argc, char * argv[] )
 	DEBUG_M;
 	InitPrint(DEBUG_LEVEL, 6, 8);
 	MPI_Barrier(MPI_COMM_WORLD);
+	std::clock_t global_start;
 
 	if (solver.mpi_rank == 0) {
-		std::clock_t start;
-		
-		start = std::clock();
+		global_start = std::clock();
 	}
 	if (solver.mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
@@ -337,7 +336,7 @@ int main ( int argc, char * argv[] )
 	CudaEventDestroy( stop );
 
 	if (solver.mpi_rank == 0) {
-		double duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		double duration = (std::clock() - global_start) / (double)CLOCKS_PER_SEC;
 		cout << " \n duration: " << duration << " [s] = " << duration / 60 << " min" << endl;
 	}
 	MPI_Finalize();
