@@ -66,7 +66,11 @@ AddGlobal(name="Density2",         comment='density at Obj2')
 AddGlobal(name="Density3",         comment='density at Obj3')
 
 AddGlobal(name="SumUsqr",         comment='Sumo o U**2')
+AddGlobal(name="WallForceX", comment='force x')
+AddGlobal(name="WallForceY", comment='force y')
+
+
 AddNodeType(name="NMovingWall", group="BOUNDARY")
 AddNodeType(name="MovingWall", group="BOUNDARY")
-AddNodeType(name="BottomSymmetry",group="BOUNDARY")
+AddNodeType(name="RightSymmetry",group="BOUNDARY")
 AddNodeType(name="TopSymmetry",group="BOUNDARY")

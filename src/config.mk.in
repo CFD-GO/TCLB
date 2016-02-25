@@ -50,6 +50,7 @@ ifeq '$(strip $(WITH_CATALYST))' '1'
  PV_INCLUDES += VTK/Filters/Modeling
  PV_INCLUDES += VTK/Filters/Sources
  PV_INCLUDES += VTK/Rendering/Core
+ PV_INCLUDES += VTK/Utilities/KWIML
  PV_INCLUDES += ParaViewCore/VTKExtensions/Core
  PV_INCLUDES += CoProcessing/PythonCatalyst
  PV_CPPFLAGS += $(addprefix -I $(PV_BUILD_INC)/, $(PV_INCLUDES))

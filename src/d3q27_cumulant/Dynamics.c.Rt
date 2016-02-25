@@ -168,6 +168,9 @@ CudaDeviceFunction void Run() {
 	case NODE_WVelocity:
 		WVelocity();
 		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
 	case NODE_EPressure:
 		EPressure();
 		break;
@@ -320,7 +323,6 @@ u.z = c001 + ForceZ/(2.*f000);
 
 //Cumulants relation 
 
-	c000 = c000;//000  no change
  	c100 = c100 + ForceX;//100 - change only due to force term
 
         c200 = (a + b + cc)/3.; // 200
