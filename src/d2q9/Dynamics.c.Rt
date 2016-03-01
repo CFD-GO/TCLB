@@ -28,12 +28,12 @@
         }
 ?>
 
-#define S2 1.3333
-#define S3 1.0
-#define S5 1.0
-#define S7 1.0
-#define S8 omega
-#define S9 omega
+//#define S2 1.3333
+//#define S3 1.0
+//#define S5 1.0
+//#define S7 1.0
+//#define S8 omega
+//#define S9 omega
 
 
 CudaDeviceFunction real_t getRho(){
@@ -46,6 +46,8 @@ CudaDeviceFunction vector_t getU(){
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
+    u.x += GravitationX*0.5;
+    u.y += GravitationY*0.5;
 	u.z = 0.0;
 	return u;
 }
@@ -168,55 +170,78 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t u[2], usq, d, R[6];
+	real_t M[9];
+	real_t rho, ux, uy, usq;
+    
 <?R
-        R = PV(c(
-		"d",
-		paste("u[",1:2-1,"]",sep=""),
-		paste("R[",1:6-1,"]",sep="")
-	))
-        Sy = c(
-		PV(c(0,0,0)),
-		PV("S",c(2,3,5,7,8,9))
-	)
+# Calculating equlibrium density set
+    	source("lib/feq.R")
+        rho = PV("rho")
+        u = PV(c("ux","uy"))
+        feq = MRT_feq(U, rho, u*rho );
+        R = PV("M[",1:9-1,"]")
+#        OMEGA = c(
+#		PV(rep(0,3)),
+#		PV(rep("omega2",4)),
+#		PV(rep("omega",2))
+#	)
+        OMEGA = PV("S",1:9-1,"")
 
-M = matrix(c(
-      1,  1,  1,  1,  1,  1,  1,  1,  1,
-      0,  1,  0, -1,  0,  1, -1, -1,  1,
-      0,  0,  1,  0, -1,  1,  1, -1, -1,
-     -4, -1, -1, -1, -1,  2,  2,  2,  2,
-      4, -2, -2, -2, -2,  1,  1,  1,  1,
-      0, -2,  0,  2,  0,  1, -1, -1,  1,
-      0,  0, -2,  0,  2,  1,  1, -1, -1,
-      0,  1, -1,  1, -1,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
+	M = matrix(c(
+	      1,  1,  1,  1,  1,  1,  1,  1,  1,
+	      0,  1,  0, -1,  0,  1, -1, -1,  1,
+	      0,  0,  1,  0, -1,  1,  1, -1, -1,
+	     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+	      4, -2, -2, -2, -2,  1,  1,  1,  1,
+	      0, -2,  0,  2,  0,  1, -1, -1,  1,
+	      0,  0, -2,  0,  2,  1,  1, -1, -1,
+	      0,  1, -1,  1, -1,  0,  0,  0,  0,
+	      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-	norms = diag(t(M) %*% M)
-	C( R, f %*% M, float=F);
-	C(usq, sum(u*u));
-	
+	C( rho, sum(f) )
+	C( u, f %*% U * ( rho^(-1) ) )
 ?>
+    
+
 switch (NodeType & NODE_OBJECTIVE) {
 case NODE_Outlet:
-	AddToOutletFlux(u[0]/d);
-	AddToPressureLoss(-u[0]/d*((d-1.)/3. + usq/d/2.));
+    <?R 
+        usq=PV('usq')
+        C(usq,sum(u%*%u))
+    ?>
+	AddToOutletFlux(ux/rho);
+	AddToPressureLoss(-ux/rho*((rho-1.)/3. + usq/rho/2.));
 	break;
 case NODE_Inlet:
-	AddToInletFlux(u[0]/d);
-	AddToPressureLoss(u[0]/d*((d-1.)/3. + usq/d/2.));
+    <?R
+        usq=PV('usq')
+        C(usq,sum(u%*%u))
+    ?>
+
+
+
+	AddToInletFlux(ux/rho);
+	AddToPressureLoss(ux/rho*((rho-1.)/3. + usq/rho/2.));
 	break;
 }
-R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
-R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
-R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
-R[3] = R[3]*(1-S7)  +  S7*(-u[1]);
-R[4] = R[4]*(1-S8)  +  S8*(u[0]*u[0] - u[1]*u[1]);
-R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
+
+
+//	real_t omega = 1.0-1.0/(3*nu + 0.5);
+//	real_t omega2 = omega;
 <?R
-	for (i in 1:length(R)) { ?>
-<?R C(R[i]) ?> /= <?%d norms[i] ?>; <?R
-	} ?>
-<?R
-	C( f, R %*% t(M), float=F);
+	C( R, (f-feq) %*% M * OMEGA );
 ?>
+    ux = ux + GravitationX ;
+    uy = uy + GravitationY ; 
+    
+<?R
+	C( R, R + feq %*% M);
+	C( R, R * (1/ diag(t(M) %*% M)));
+	C( f, R %*% t(M) );
+?>
+
 }
+
+
+
+
