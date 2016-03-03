@@ -64,6 +64,40 @@ CudaDeviceFunction float2 Color() {
         return ret;
 }
 
+CudaDeviceFunction void SymmetryTop()
+{
+// *******************
+// Symmetry BC for TOP WALL
+// *******************    
+<?R
+  reflect_to =  c(4,7,8) + 1;
+  reflect_from = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+  }
+?>
+}
+
+CudaDeviceFunction void SymmetryBottom()
+{
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+<?R
+  reflect_from =  c(4,7,8) + 1;
+  reflect_to = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+  }
+?>
+}
+
+
+
+
+
 CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 {
 <?R
@@ -97,6 +131,12 @@ CudaDeviceFunction void Run() {
 		break;
 	case NODE_EPressure:
 		EPressure();
+		break;
+	case NODE_TopSymmetry:
+		SymmetryTop();
+		break;
+	case NODE_BottomSymmetry:
+		SymmetryBottom();
 		break;
     }
     if (NodeType & NODE_MRT)

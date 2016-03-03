@@ -50,3 +50,6 @@ AddSetting(name="S5", default="0", comment='MRT Sx')
 AddSetting(name="S6", default="0", comment='MRT Sx')
 AddSetting(name="S7", default="1.-omega", comment='MRT Sx')
 AddSetting(name="S8", default="1.-omega",  comment='MRT Sx')
+
+AddNodeType(name="BottomSymmetry",group="BOUNDARY")
+AddNodeType(name="TopSymmetry",group="BOUNDARY")
