@@ -86,14 +86,14 @@ do
 			do
 				g=tests/$MODEL/$r
 				echo -n " > Checking $r... "
-				if test -f "$r"
+				EXT=${r##*.}
+				if test -f "$r" || [[ "x$EXT" == "xsha1" ]]
 				then
 					if ! test -f "$g"
 					then
 						echo "$g not found - this should not happen!"
 						exit -123
 					fi
-					EXT=${r##*.}
 					R="WRONG"
 					COMMENT=""
 					case "$EXT" in
@@ -101,6 +101,10 @@ do
 						COMMENT="(csvdiff)"
 						tools/csvdiff -a "$r" -b "$g" -x 1e-10 >/dev/null && R="OK"
 						;;
+					sha1)
+						COMMENT="(SHA1 checksum)"
+                        sha1sum -c "$g" >> /dev/null && R="OK"
+                        ;;
 					*)
 						diff "$r" "$g" >/dev/null && R="OK"
 						;;
