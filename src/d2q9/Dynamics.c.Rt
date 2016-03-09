@@ -218,8 +218,8 @@ CudaDeviceFunction void CollisionMRT()
 #		PV(rep("omega2",4)),
 #		PV(rep("omega",2))
 #	)
-        OMEGA = PV("S",1:9-1,"")
-
+#        OMEGA = PV("S",1:9-1,"")
+    OMEGA = PV(c(0,0,0, "S3", "S4", "S56", "S56", "S78", "S78"))
 	M = matrix(c(
 	      1,  1,  1,  1,  1,  1,  1,  1,  1,
 	      0,  1,  0, -1,  0,  1, -1, -1,  1,

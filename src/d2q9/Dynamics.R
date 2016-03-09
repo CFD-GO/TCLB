@@ -28,8 +28,8 @@ AddQuantity(name="U",unit="m/s",vector=T)
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", S78='1.0/(3*nu + 0.5) - 1.0', default=.16666666, comment='viscosity')
+AddSetting(name="omega", S78='1-omega', comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
