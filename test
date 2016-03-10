@@ -1,6 +1,7 @@
 #!/bin/bash
-# make configure
-# ./configure --enable-double --disable-graphics --disable-cuda
-# make d2q9
+#make configure
+#./configure --enable-double --disable-graphics --disable-cuda
+#make d2q9
 
-CLB/d2q9/main example/karman.xml
+#mpirun -np 8 CLB/wave/main example/example.xml
+CLB/wave/main example/example.xml
