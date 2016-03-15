@@ -1,7 +1,14 @@
 #!/bin/bash
 #make configure
 #./configure --enable-double --disable-graphics --disable-cuda
-#make d2q9
 
-#mpirun -np 8 CLB/wave/main example/example.xml
-CLB/wave/main example/example.xml
+rm output/*
+
+file_name="d2q9_SRT_example"
+model_name="d2q9_SRT"
+
+make ${model_name}
+
+mpirun -np 8 CLB/${model_name}/main example/${file_name}.xml
+#CLB/${model_name}/main example/${file_name}.xml
+paraview output/${file_name}_VTK_P00_..pvti &
