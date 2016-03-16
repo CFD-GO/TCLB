@@ -23,7 +23,7 @@ class Sampler {
        	public:
 		Sampler();
 		lbRegion position;
-		double *gpu_buffer;
+		real_t *gpu_buffer;
                	Location location;
                	name_set *quant;
                	int size;
