@@ -490,8 +490,26 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 			}
 		    }
-	}    
-    else if (strcmp(n.name(),"Pipe") == 0) {
+    } else if (strcmp(n.name(), "OffgridSphere") == 0) {
+
+        double x0 = units.alt(n.attribute("x").value());
+        double y0 = units.alt(n.attribute("y").value());
+        double z0 = units.alt(n.attribute("z").value());
+        double R0 = units.alt(n.attribute("R").value());
+        double R2 = R0*R0;
+	    debug1("Filling sphere with flag %d (%d)\n, with center at (%f,%f,%f) and radius %f", fg, fg_mask, x0, y0, z0, R0);
+	    DEBUG1(reg.print();)
+		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+               double xx =  (.5 + x - x0);  
+               double yy =  (.5 + y - y0);  
+               double zz =  (.5 + z - z0);  
+			if ( xx*xx + yy*yy + zz*zz <=  R2 ) {
+			    Dot(x, y, z);
+			}
+		}
+	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
 	    DEBUG1(reg.print();)
             for (int x = reg.dx; x < reg.dx + reg.nx; x++)
