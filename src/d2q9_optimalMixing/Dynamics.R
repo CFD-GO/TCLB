@@ -52,5 +52,6 @@ AddNodeType("NMovingWall", "BOUNDARY")
 AddNodeType("SWall", "BOUNDARY")
 
 AddGlobal("TotalTempSqr")
+AddGlobal("CountCells")
 AddGlobal("NMovingWallForce")
 AddGlobal("SWallForce")
