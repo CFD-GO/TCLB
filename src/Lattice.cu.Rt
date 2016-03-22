@@ -542,7 +542,7 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 {
 #ifdef ADJOINT
         <?%s FunName ?>(tab0, tab1, iter_type);
-        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type);
+        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
         container->RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
         container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream); 
         CudaDeviceSynchronize();
