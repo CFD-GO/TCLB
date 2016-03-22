@@ -226,7 +226,7 @@ CudaDeviceFunction void CollisionMRT()
 		g[i] = (1. - omegaT)* g[i] + omegaT* geq[i];
 	}
 
-	
+	AddToCountCells(1);
 	AddToTotalTempSqr(T*T);
 
     if ((NodeType & NODE_BOUNDARY) == NODE_NMovingWall)
