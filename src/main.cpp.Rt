@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <assert.h>
 
+#include <ctime>
+
 // for isatty
 //#include <unistd.h>
 
@@ -167,6 +169,8 @@ bool find_adjoint(pugi::xml_node node)
 // Main program function
 int main ( int argc, char * argv[] )
 {
+
+
 	// Error handling for scanf
 	#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
 	MPI_Init(&argc, &argv);
@@ -179,7 +183,11 @@ int main ( int argc, char * argv[] )
 	DEBUG_M;
 	InitPrint(DEBUG_LEVEL, 6, 8);
 	MPI_Barrier(MPI_COMM_WORLD);
+	std::clock_t global_start;
 
+	if (solver.mpi_rank == 0) {
+		global_start = std::clock();
+	}
 	if (solver.mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
@@ -326,6 +334,11 @@ int main ( int argc, char * argv[] )
 	debug2("cudaFree ...\n");
 	CudaEventDestroy( start );
 	CudaEventDestroy( stop );
+
+	if (solver.mpi_rank == 0) {
+		double duration = (std::clock() - global_start) / (double)CLOCKS_PER_SEC;
+		cout << " \n duration: " << duration << " [s] = " << duration / 60 << " min" << endl;
+	}
 	MPI_Finalize();
 	return 0;
 }
