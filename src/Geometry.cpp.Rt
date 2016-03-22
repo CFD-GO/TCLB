@@ -495,9 +495,32 @@ int Geometry::Draw(pugi::xml_node & node)
         double x0 = units.alt(n.attribute("x").value());
         double y0 = units.alt(n.attribute("y").value());
         double z0 = units.alt(n.attribute("z").value());
-        double R0 = units.alt(n.attribute("R").value());
-        double R2 = R0*R0;
-	    debug1("Filling sphere with flag %d (%d)\n, with center at (%f,%f,%f) and radius %f", fg, fg_mask, x0, y0, z0, R0);
+
+        double Rx,Ry,Rz;
+        if ( n.attribute("R").empty() ){
+           Rx = units.alt(n.attribute("Rx").value());
+           Ry = units.alt(n.attribute("Ry").value());
+           Rz = units.alt(n.attribute("Rz").value());
+        } else {
+           double R = units.alt(n.attribute("R").value());
+           Rx = R;
+           Ry = R;
+           Rz = R;
+        }
+
+        double Rx2 = Rx*Rx;
+        double Ry2 = Ry*Ry;
+        double Rz2 = Rz*Rz;
+   
+        reg.dx = x0 - Rx - 5;
+        reg.dy = y0 - Ry - 5;
+        reg.dz = z0 - Rz - 5;
+
+        reg.nx = 2*Rz + 10;
+        reg.ny = 2*Ry + 10;
+        reg.nz = 2*Rz + 10;
+
+	    debug1("Filling sphere with flag %d (%d)\n, with center at (%lf,%lf,%lf) and radius (%lf,%lf,%lf)", fg, fg_mask, x0, y0, z0, Rx,Ry,Rz);
 	    DEBUG1(reg.print();)
 		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
@@ -505,9 +528,9 @@ int Geometry::Draw(pugi::xml_node & node)
                double xx =  (.5 + x - x0);  
                double yy =  (.5 + y - y0);  
                double zz =  (.5 + z - z0);  
-			if ( xx*xx + yy*yy + zz*zz <=  R2 ) {
+			   if ( xx*xx/Rx2 + yy*yy/Ry2 + zz*zz/Rz2 < 1. ) {
 			    Dot(x, y, z);
-			}
+			   }
 		}
 	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
