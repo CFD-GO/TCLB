@@ -36,8 +36,7 @@ CudaDeviceFunction vector_t getU(){
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        vector_t u = getU();
-        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        ret.x = getT();
         if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
