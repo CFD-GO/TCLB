@@ -185,9 +185,7 @@ int main ( int argc, char * argv[] )
 	MPI_Barrier(MPI_COMM_WORLD);
 	std::clock_t global_start;
 
-	if (solver.mpi_rank == 0) {
-		global_start = std::clock();
-	}
+	global_start = std::clock();
 	if (solver.mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
@@ -337,7 +335,7 @@ int main ( int argc, char * argv[] )
 
 	if (solver.mpi_rank == 0) {
 		double duration = (std::clock() - global_start) / (double)CLOCKS_PER_SEC;
-		cout << " \n duration: " << duration << " [s] = " << duration / 60 << " min" << endl;
+		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
 	}
 	MPI_Finalize();
 	return 0;
