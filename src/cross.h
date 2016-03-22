@@ -350,6 +350,13 @@
     {
       sum[0] += val;
     }
+    
+//    template <typename T>
+    inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
+      {
+        if (yes) sum[0] += val;
+      }
+
 
     template <typename T>
     inline void atomicMax(T * sum, T val)
