@@ -55,6 +55,7 @@ AddGlobal("TotalTempSqr")
 AddGlobal("CountCells")
 AddGlobal("NMovingWallForce")
 AddGlobal("SWallForce")
+AddGlobal("MovingWallPower")
 
 
 

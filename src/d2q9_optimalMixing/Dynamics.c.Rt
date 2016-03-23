@@ -131,6 +131,7 @@ CudaDeviceFunction void NMovingWall()
 
 
 	AddToNMovingWallForce( -(<?R C(f[5+1]*d2q9[5+1,1] + f[6+1]*d2q9[6+1,1])?>) ); // in - przed kolizja 
+	AddToMovingWallPower( -MovingWallVelocity*(<?R C(f[5+1]*d2q9[5+1,1] + f[6+1]*d2q9[6+1,1])?>) );
 }
 
 
@@ -180,6 +181,7 @@ CudaDeviceFunction void CollisionMRT()
     if ((NodeType & NODE_BOUNDARY) == NODE_NMovingWall)
     {
 		AddToNMovingWallForce(<?R C(f[7+1]*d2q9[7+1,1] + f[8+1]*d2q9[8+1,1]) ?>);	// out - po kolozji
+		AddToMovingWallPower(MovingWallVelocity*(<?R C(f[7+1]*d2q9[7+1,1] + f[8+1]*d2q9[8+1,1]) ?>));
     }
 }
 
