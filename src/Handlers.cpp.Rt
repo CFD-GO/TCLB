@@ -273,13 +273,13 @@ public:
 			output("Getting the params from the zone\n");
 			solver->lattice->zSet.get(par_index, zone_number, tab);
 			fprintf(f,"GET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
 			fprintf(f,"SET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			solver->lattice->zSet.set(par_index, zone_number, tab);
 			return 0;
@@ -287,7 +287,7 @@ public:
 			output("Getting gradient of a param in zone\n");
 			solver->lattice->zSet.get_grad(par_index, zone_number, tab);
 			fprintf(f,"GRAD");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_UPPER:
@@ -383,13 +383,13 @@ public:
 			solver->lattice->zSet.get(par_index, zone_number, tab2);
 			for (int i=0; i<Pars2;i+=2) tab[i/2]=tab2[i];
 			fprintf(f,"GET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
 			fprintf(f,"SET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			for (int i=0; i<Pars;i++) {
 				if (2*i<Pars2) tab2[2*i] = tab[i];
@@ -415,7 +415,7 @@ public:
 				}
 			}
 			fprintf(f,"GRAD");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_UPPER:
