@@ -205,6 +205,7 @@ class OptimalControl : public Design {
 	int zone_number, par_index;
 	int old_iter_type;
 	FILE * f;
+	double lower, upper;
 public:
 	int Init() {
 		std::string par;
@@ -245,6 +246,20 @@ public:
 		output("Lenght of the control: %d\n", Pars);
 		old_iter_type = solver->iter_type;
 		solver->iter_type |= ITER_GLOBS;
+		attr = node.attribute("lower");
+		if (attr) {
+			lower = solver->units.alt(attr.value());
+		} else {
+			notice("lower bound not set in %s - setting to -1\n",node.name());
+			lower = -1;
+		}
+		attr = node.attribute("upper");
+		if (attr) {
+			upper = solver->units.alt(attr.value());
+		} else {
+			notice("upper bound not set in %s - setting to 1\n",node.name());
+			upper = 1;
+		}
 		f = fopen((par + "-" + zone + "_optimalControl.csv").c_str(),"w");
 		assert( f != NULL );
 		return Design::Init();
@@ -274,6 +289,12 @@ public:
 			fprintf(f,"GRAD");
 			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
 			fprintf(f,"\n");
+			return 0;
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) tab[i]=upper;
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) tab[i]=lower;
 			return 0;
 		default:
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
