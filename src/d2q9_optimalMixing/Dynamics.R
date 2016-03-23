@@ -55,3 +55,9 @@ AddGlobal("TotalTempSqr")
 AddGlobal("CountCells")
 AddGlobal("NMovingWallForce")
 AddGlobal("SWallForce")
+
+
+
+AddQuantity(name="RhoB",adjoint=TRUE)
+AddQuantity(name="TB",adjoint=TRUE) 
+

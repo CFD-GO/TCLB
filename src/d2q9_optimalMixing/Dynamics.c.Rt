@@ -113,9 +113,10 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void NMovingWall()
 {
-	const real_t u[2] = {MovingWallVelocity,0.0};
+	real_t u[2];
 	real_t rho;
-
+	u[0] = MovingWallVelocity;
+	u[1] = 0.0;
 	rho = 1. / (1 + u[1]);
 	rho *= (f[0] + f[1] + f[3]) + 2 * (f[2] + f[5] + f[6]);
 
