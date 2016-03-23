@@ -4,7 +4,7 @@
 ?>
 MAIN_FUN=Run
 #VARIABLES="<?%s paste(Density$name,collapse=" ") ?> <?%s paste(Globals$name[! Globals$adjoint],collapse=" ") ?>"
-VARIABLES="<?%s paste(c_table_decl(Density$name), collapse=" ") ?> <?%s paste(Globals$name[! Globals$adjoint],collapse=" ") ?>"
+VARIABLES="<?%s paste(c_table_decl(Density$name,sizes=FALSE), collapse=" ") ?> <?%s paste(Globals$name[! Globals$adjoint],collapse=" ") ?>"
 #SETTINGS="<?%s paste(Settings$name[! Settings$adjoint],collapse=" ") ?>"
 <?R
 	s = ZoneSettings$name[! ZoneSettings$adjoint]
