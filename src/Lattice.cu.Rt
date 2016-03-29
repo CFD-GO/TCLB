@@ -1181,7 +1181,7 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion small, real_t scale,real_t* buf)
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(){
  if (sample->size != 0) {
-	for (int j = 0; j < sample->spoints.size(); j++) {
+	for (size_t j = 0; j < sample->spoints.size(); j++) {
 		if (mpi.rank == sample->spoints[j].rank) { 
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	 	 if (sample->quant->in("<?%s q$name ?>"))

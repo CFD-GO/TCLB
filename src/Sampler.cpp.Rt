@@ -35,9 +35,9 @@ int Sampler::initCSV(const char *name)
 }
 int Sampler::writeHistory(int curr_iter) {
      FILE* f = fopen(filename,"at");
-     for (int j = 0; j <  spoints.size(); j++) {
+     for (size_t j = 0; j <  spoints.size(); j++) {
 	if (mpis.rank == spoints[j].rank) { 
-     		fprintf(f,"Point %d: %d\t%d\t%d\n",j,spoints[j].location.dx,spoints[j].location.dy,spoints[j].location.dz);
+     		//fprintf(f,"Point %d: %d\t%d\t%d\n",j,spoints[j].location.dx,spoints[j].location.dy,spoints[j].location.dz); TODO: fix later
 		for (int i = startIter; i< curr_iter; i++){
    	 		fprintf(f,"%d\t",i);     
 	    		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
