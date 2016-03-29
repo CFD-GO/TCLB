@@ -64,8 +64,8 @@ for (i in alli) {
 	} else {
 		l = lines[i]
 		l1 = sub("[ pushpopreallook]*","",l);
-		l1 = sub("_.*$","",l1);
-		tp = switch(l1,"4"="float","8"="double");
+		l1 = sub("[_]?\\(.*$","",l1);
+		tp = switch(l1,"4"="float","8"="double", "unknown");
 		l1 = sub("[^(]*[(]","",l);
 		l1 = sub("[)].*","",l1);
 		var = l1;
