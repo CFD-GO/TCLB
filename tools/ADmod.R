@@ -65,9 +65,27 @@ for (i in alli) {
 		l = lines[i]
 		l1 = sub("[ pushpopreallook]*","",l);
 		l1 = sub("[_]?\\(.*$","",l1);
-		tp = switch(l1,"4"="float","8"="double", "unknown");
+		tp = switch(l1,
+			"4"=list(type="float",array=FALSE),
+			"8"=list(type="double",array=FALSE),
+			"4array"=list(type="float",array=TRUE),
+                        "8array"=list(type="double",array=TRUE),
+                                 NULL);
+		if (is.null(tp)) stop("Unknown type of push/pop: ",l);
+		ar = tp$array
+		tp = tp$type
 		l1 = sub("[^(]*[(]","",l);
 		l1 = sub("[)].*","",l1);
+		if (ar) {
+			l2 = sub("^[^,]*,[ ]*","", l1);
+			ar_size = as.integer(l2);
+			ar_dec = paste("[",ar_size,"]",sep="")
+			ar_idx = paste("[",1:ar_size-1,"]",sep="")
+			l1 = sub(",.*$","",l1);
+		} else {
+			ar_dec = ""
+			ar_idx = ""
+		}
 		var = l1;
 		var = sub("^[&]","",var);
 		if (var %in% fix) {
@@ -78,16 +96,16 @@ for (i in alli) {
 				idx = idx + 1
 				name = paste(tmpname, idx, sep="_")
 				if (idx > decl) {
-					vars = c(vars, paste(tp,name,";"));
+					vars = c(vars, paste(tp," ",name,ar_dec,"; // ADmod.R: ",l,sep=""));
 					decl = idx;
 				}
-				buf = c(buf, paste(name,"=", var, "; //",l));
+				buf = c(buf, paste(name,ar_idx," = ", var,ar_idx, "; // ADmod.R: ",l,sep=""));
 			} else if (grepl("lookreal", l)) {
 				name = paste(tmpname, idx, sep="_")
-				buf = c(buf, paste(var, " = ", name,"; //",l));
+				buf = c(buf, paste(var,ar_idx, " = ", name,ar_idx,"; // ADmod.R: ",l,sep=""));
 			} else {
 				name = paste(tmpname, idx, sep="_")
-				buf = c(buf, paste(var, " = ", name,"; //",l));
+				buf = c(buf, paste(var,ar_idx, " = ", name,ar_idx,"; // ADmod.R: ",l,sep=""));
 				idx = idx - 1;
 			}
 		}
