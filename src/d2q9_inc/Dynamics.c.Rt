@@ -1,33 +1,52 @@
 <?R
 	source("conf.R") 
+    source("lib/boundary.R")
+    source("lib/feq.R")
 #	load("SUMMARY.Rdata")
 	c_header();
 	U = as.matrix(Density[,c("dx","dy")])
 
-	u = PV("u[",1:2-1,"]")
+
+	EQ = MRT_eq(U, ortogonal=FALSE)
+    wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+    wi = subst(wi, rho=1)
+    wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+    wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W))
+	H = chol(W[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+
+#u = PV("u[",1:2-1,"]")
 	uf = PV("uf")
 	d = PV("d")
 	usq = PV("usq")
 	omega = PV("omega")
-        uf1 = uf;
-        uf2 = uf;
-        uf3 = uf;
-	t1 = 4/9
-	t2 = 1/9
-	t3 = 1/36
-	c_squ = 1/3
-	wi = c(t1,t2,t2,t2,t2,t3,t3,t3,t3)
+   	c_squ = 1/3
 	tn = diag(wi)
-	bounce = c(0,3,4,1,2,7,8,5,6)
 
-	f = PV(Density$name) + wi
+	f = PV(Density$name) 
 	f_clean = PV(Density$name) 
 
 	c_sq = 1/3
 	
-#	Feq = function( d = PV("d"), u = PV("u[",1:2-1,"]") ) {
-#          wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d
-#        }
+    drho = PV("drho")
+    u = PV(c("u.x","u.y"))
+
+	Feq = function( d, u ) {
+       wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + d)
+    }        
+
+	EQ = MRT_eq(U, mat=B)
+
+    feq0 = Feq(drho,u) 
+    EQ$feq = Feq(drho,u)
+    EQ$Req = Feq(drho,u) %*% EQ$mat
+
 ?>
 
 
@@ -36,11 +55,11 @@ CudaDeviceFunction real_t getRho(){
 }
     
 CudaDeviceFunction vector_t getU(){
-	real_t d = <?R C(sum(f)) ?>;
+//	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
-	u.x /= d;
-	u.y /= d;
+//	u.x /= d;
+//	u.y /= d;
     u.x += GravitationX*0.5;
     u.y += GravitationY*0.5;
 	u.z = 0.0;
@@ -93,13 +112,12 @@ CudaDeviceFunction void SymmetryBottom()
 
 
 
-CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
+CudaDeviceFunction void SetEquilibrum(real_t drho, real_t ub[2])
 {
+    vector_t u;
 <?R
-	u = PV("u[",1:2-1,"]")
-	d = PV("d")
-	c_sq = 1/3
-        C( f_clean,  f_clean - f + wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
+    C(u,PV(c("ub[1]","ub[2]")))
+    C( f_clean, f_clean - f + EQ$feq )
 ?>
 }
 
@@ -142,86 +160,54 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void BounceBack()
 {
-     real_t uf;
-<?R
-  V = cbind(1:9, bounce+1)
-  sel = V[,1] > V[,2]
-  V = V[sel,]
-  for (i in 1:nrow(V))
-  {
-	C(uf, f_clean[V[i,1]])
-        C(f_clean[V[i,1]], f_clean[V[i,2]])
-        C(f_clean[V[i,2]], uf)
-	
-   }
-?>
+<?R FullBounceBack() ?>
 }
 
 CudaDeviceFunction void EVelocity()
 {
-        real_t rho, ru;
-	real_t ux0 = Velocity;
-	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
-	ru = rho * ux0;
-	f[3] = f[1] - (2./3.) * ru;
-	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+vector_t u;
+<?R 
+#ZouHeNew(EQ,f, 1, -1, 1,  known="ux") 
+?>
 }
 
 CudaDeviceFunction void WPressure()
 {
-        real_t ru, ux0;
-	real_t rho = Density;
-	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
-	ru = rho * ux0;
+double drho = Density;
+vector_t u;
 
-	f[1] = f[3] - (2./3.) * ru;
-	f[5] = f[7] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
-	f[8] = f[6] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+
+<?R ZouHeNew(EQ,f, 1, 1, 1,  known="drho") ?>
 }
 
 CudaDeviceFunction void WVelocity()
 {
-        real_t rho, ru;
-	real_t u[2] = {Velocity,0.};
-	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
-	ru = rho * u[0];
-	f[1] = f[3] + (2./3.) * ru;
-	f[5] = f[7] + (1./6.) * ru + (1./2.)*(f[4] - f[2]);
-	f[8] = f[6] + (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+double ux = Velocity;
+<?R 
+#ZouHeNew(EQ,f, 1, 1, 1, known="ux") 
+?>
 }
 
 CudaDeviceFunction void EPressure()
 {
-        real_t ru, ux0;
-	real_t rho = Density;
-	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
-	ru = rho * ux0;
+double drho = Density;
+vector_t u;
 
-	f[3] = f[1] - (2./3.) * ru;
-	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+<?R ZouHeNew(EQ,f, 1, -1, 1,  known="drho") ?> 
 }
 
 CudaDeviceFunction void CollisionMRT()
 {
 	real_t M[9];
-	real_t drho, ux, uy, usq, rho;
-    
-<?R
-# Calculating equlibrium density set
-    	source("lib/feq.R")
-        drho = PV("drho")
-        u = PV(c("ux","uy"))
+	real_t drho, usq;
+    vector_t u;
 
-	    Feq = function( d, u ) {
-          wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d
-        }        
-# feq = MRT_feq(U, PV(1.), u ) + MRT_feq(U, drho, u )  ;
-        feq = Feq(PV(1.), u ) + Feq(drho, u )  ;
+<?R
+    
+
         
         R = PV("M[",1:9-1,"]")
-        rho = PV("rho") 
+        drho = PV("drho") 
 #        OMEGA = c(
 #		PV(rep(0,3)),
 #		PV(rep("omega2",4)),
@@ -229,6 +215,7 @@ CudaDeviceFunction void CollisionMRT()
 #	)
 #        OMEGA = PV("S",1:9-1,"")
     OMEGA = PV(c(0,0,0, "S3", "S4", "S56", "S56", "S78", "S78"))
+#	M = EQ$mat;
 	M = matrix(c(
 	      1,  1,  1,  1,  1,  1,  1,  1,  1,
 	      0,  1,  0, -1,  0,  1, -1, -1,  1,
@@ -240,9 +227,9 @@ CudaDeviceFunction void CollisionMRT()
 	      0,  1, -1,  1, -1,  0,  0,  0,  0,
 	      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-    C( rho, sum(f) )    
-	C( drho, sum(f)-1 )
-	C( u, f %*% U * ( rho^(-1) ) )
+    C( drho, sum(f) )    
+#	C( drho, sum(f)-1 )
+	C( u, f %*% U  )
 ?>
     
 
@@ -252,8 +239,8 @@ case NODE_Outlet:
         usq=PV('usq')
         C(usq,sum(u%*%u))
     ?>
-	AddToOutletFlux(ux/rho);
-	AddToPressureLoss(-ux/rho*((rho-1.)/3. + usq/rho/2.));
+	AddToOutletFlux(u.x);
+	AddToPressureLoss(-u.x*(drho/3. + usq/2.));
 	break;
 case NODE_Inlet:
     <?R
@@ -263,8 +250,8 @@ case NODE_Inlet:
 
 
 
-	AddToInletFlux(ux/rho);
-	AddToPressureLoss(ux/rho*((rho-1.)/3. + usq/rho/2.));
+	AddToInletFlux(u.x);
+	AddToPressureLoss(u.x*((drho)/3. + usq/2.));
 	break;
 }
 
@@ -272,15 +259,16 @@ case NODE_Inlet:
 //	real_t omega = 1.0-1.0/(3*nu + 0.5);
 //	real_t omega2 = omega;
 <?R
-	C( R, (f-feq) %*% M * OMEGA );
+	C( R, (f-EQ$feq) %*% M * OMEGA );
 ?>
-    ux = ux + GravitationX ;
-    uy = uy + GravitationY ; 
+    u.x = u.x + GravitationX ;
+    u.y = u.y + GravitationY ; 
     
 <?R
-	C( R, R + feq %*% M);
+	C( R, R + EQ$feq %*% M);
 	C( R, R * (1/ diag(t(M) %*% M)));
-	C( f_clean, f_clean - f +  R %*% t(M) );
+C( f_clean, f_clean - f +  R %*% t(M) );
+#C(f,f+(1+OMEGA[8])*( feq0-f  ) )
 ?>
 
 }
