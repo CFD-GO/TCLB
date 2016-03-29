@@ -4,6 +4,7 @@
 #include "Global.h"
 #include "cross.h"
 #include "types.h"
+#include "unit.h"
 #include <math.h>
 #include <stdlib.h>
 #include <vector>
@@ -18,8 +19,6 @@ struct sreg {
 };
 class Sampler {
        	typedef std::map< std::string , int > Location;
-       	private:        
-       //        	double * gpu_buffer; 
        	public:
 		Sampler();
 		lbRegion position;
@@ -27,6 +26,7 @@ class Sampler {
                	Location location;
                	name_set *quant;
                	int size;
+		UnitEnv units;
 		std::vector <sreg> spoints; 
 		MPIInfo mpis; 
 		int startIter;

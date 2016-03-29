@@ -20,20 +20,18 @@ Sampler::Sampler(){
 int Sampler::initCSV(const char *name) 
      {
      filename = name;
-     //if (mpis.rank == 0) {
- 	    FILE * f = NULL;
-            f = fopen(name, "wt");
-	    output("Initializing %s\n",filename);
-    	    assert( f != NULL );
-            fprintf(f,"\"Iteration\",\"Time_si\t");
-            <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-            if (quant->in("<?%s q$name ?>")) 
-		fprintf(f,"<?%s q$name ?>\t");
-            <?R }; ifdef(); ?> 
+     FILE * f = NULL;
+     f = fopen(name, "wt");
+     output("Initializing %s\n",filename);
+     assert( f != NULL );
+     fprintf(f,"\"Iteration\",\"Time_si\t");
+     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+     if (quant->in("<?%s q$name ?>")) 
+	fprintf(f,"<?%s q$name ?>\t");
+     <?R }; ifdef(); ?> 
      fprintf(f,"\n");
      fclose(f); 
      return 0;
-    // } 	
 }
 int Sampler::writeHistory(int curr_iter) {
      FILE* f = fopen(filename,"at");

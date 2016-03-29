@@ -151,8 +151,7 @@ public:
   <?R tp = "double" ?>
   void Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>
-  void updateAllSamples(real_t scale);
-  void butWhy();
+  void updateAllSamples();
   void getGlobals(real_t * tab); 
   void calcGlobals();
   void clearGlobals();
