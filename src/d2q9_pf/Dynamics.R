@@ -39,13 +39,6 @@ AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="Smag", comment='Smagorinsky constant')
-
-AddSetting(name="SL_U", comment='Shear Layer velocity')
-AddSetting(name="SL_lambda", comment='Shear Layer lambda')
-AddSetting(name="SL_delta", comment='Shear Layer disturbance')
-AddSetting(name="SL_L", comment='Shear Layer length scale')
-
 
 # Globals - table of global integrals that can be monitored and optimized
 
@@ -53,5 +46,3 @@ AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
-AddNodeType("Smagorinsky", "LES")
-AddNodeType("Stab", "ENTROPIC")
