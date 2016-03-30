@@ -1,4 +1,6 @@
-
+//TODO: Check if the sampler works on the proper region( local and global memory,as lukasz said)
+//TODO: Change output to more suitable form
+//TODO: Clean up everything, for example check if the all includes are used normally and if, types, constructors, desctructors 
 #include "mpi.h"
 #include "Consts.h"
 #include "Global.h"
@@ -14,8 +16,7 @@
 Sampler::Sampler(){ 
 	size = 0;
 	startIter = 0;
-	lbRegion pos;
-	position = pos;
+	position = lbRegion();
 }
 int Sampler::initCSV(const char *name) 
      {
@@ -37,7 +38,12 @@ int Sampler::writeHistory(int curr_iter) {
      FILE* f = fopen(filename,"at");
      for (size_t j = 0; j <  spoints.size(); j++) {
 	if (mpis.rank == spoints[j].rank) { 
-     		//fprintf(f,"Point %d: %d\t%d\t%d\n",j,spoints[j].location.dx,spoints[j].location.dy,spoints[j].location.dz); TODO: fix later
+		vector_t tmp_loc;
+		tmp_loc.x = spoints[j].location.dx;
+		tmp_loc.y = spoints[j].location.dy;
+		tmp_loc.z = spoints[j].location.dz;
+     		fprintf(f,"Point coordinates: ");
+		csvWriteElement(f,tmp_loc);
 		for (int i = startIter; i< curr_iter; i++){
    	 		fprintf(f,"%d\t",i);     
 	    		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>

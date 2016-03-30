@@ -5,7 +5,6 @@
 #include "cross.h"
 #include "types.h"
 #include "unit.h"
-#include <math.h>
 #include <stdlib.h>
 #include <vector>
 /* 
