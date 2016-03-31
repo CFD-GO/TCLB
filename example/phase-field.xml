@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0">
+
+
+    <!--- WARNING -->
+    <!--- USE s as second in N-S related parameters -->
+    <!--- USE t as second in Nerst-Planck related parameters -->
+    <!-- DO NOT MIX in stady state sims, t_to_s unit is necessary to corelate time units properly -->
+
+    <!--    <Units>
+
+        <Params D="0.00000001m2/t" gauge="0.1666666666666"/>        
+        <Params nu="0.001sPa" gauge="0.1666666666"/>
+        <Params epsilon = "0.000000000695C/Vm" gauge="1" />
+        <Params rho0="1000kg/m3" gauge="1"/>
+
+        <Params x = "0.000008m" gauge="256"/>
+    
+    </Units>    
+    -->
+    <Geometry nx="128" ny="128">
+
+		<MRT><Box /></MRT>
+
+     	<None name="disc">
+            <Sphere  ny="64" nx="64" dx="32" dy="32" />
+        </None>
+        <!--    <None name="default">
+            <Box nx="64" ny="12" dy="58"/>
+        </None>
+     -->
+        <!--        <Wall mask="ALL" name="wall2">
+            <Box  ny="1" dx="600nm" nx="800um"/>
+            <Box dy="50" ny="28" dx="230" nx="28"/>
+        </Wall>-->
+
+
+	</Geometry>
+    <Model>
+        <Params PhaseField="-0.5"/>
+        <Params PhaseField-disc="0.5"/>
+        <Params W="0.33333" />
+        <Params M="0.001" />
+        <Params Velocity="0.01"/>
+    </Model>
+    	<VTK />
+	<Solve Iterations="30000" output="output/">
+		<VTK Iterations="100"/>
+	</Solve>
+</CLBConfig>
+
+
