@@ -370,11 +370,14 @@ void MainFree( Solver *d);
 	        	NOTICE("Running graphics at %dx%d\n", region.nx, region.ny);
 			bitmap = new GPUAnimBitmap( region.nx, region.ny, this );
 			RunMainLoop();
+			debug0("Graphics done");
 	        #endif
 	
 		// Creating Lattice (GPU allocation is here)
+		debug0("Creating Lattice object ...");
 		lattice = new Lattice(region, mpi, ns);
-	   
+	   	debug0("Lattice done");
+
 <?R for (s in rows(ZoneSettings)) { ?>
 		lattice->zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
 <?R } ?>
