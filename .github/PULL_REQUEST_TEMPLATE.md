@@ -1,26 +1,22 @@
+## Things we would appriciate:
 
-We are really glad, that you would like to contribute to TCLB, bu for everyone's sake we will appreciate that you will:
+We are really glad that you would like to contribute to TCLB. We would appreciate if you first take little time to check the points below before you proceed.
 
-== Check ==
+### Code references
+- [ ] Original references - if you implement a model/feature from some paper/book, please leave a reference in the code
+- [ ] Wiki references - if you added feature or configure arguments, please add it as a wiki entry and reference it in the code
+- [ ] Author references - if you added a model, please provide the details of the author as: `Maintainer: your-name @your-github-login`
 
-[] Original references - some paper/book, so original author will be noted and others will know what was exactly implemented
+### Comments in the pull request:
+- [ ] Issues references - if your pull request is solving/changeing some Issue, please reference it in comments or name of this pull request
 
-[] Wiki references     - some new futures/models/configure args etc? Did you made proper wiki entry and did you made proper link in code
+### Coding standard
+- [ ] You did a clever trick? Please leave a suitable comment
+- [ ] Please don't brake naming convention (at least look at surrounding code)
+- [ ] Try too use meaningful variable names
 
-[] Issues references     - bugfix? Maybe "fixes #xx" ?
-
-[] Author references     - use a template "# Maintainer: Michal Dzikowski @mdzik" So we know who's model is it. You could use "Implemented by", if you don't want to take care of a model in the future.
-
-== Coding standard ==
-
-[] clever trick? leave a note ;)
-
-[] don't brake naming convention (at least look at surrounding)
-
-[] try too use meaningful variable names
-
-== Cross compile ==
-
-[] CPU x86_64
-
-[] GPU CUDA 2.5 / double precision
+### Compilation
+The code will be tested automaticly with Travis-CI, but before that, you can test your code on your machine
+- [ ] Paranoid CPU build: `./configure --disable-cuda --enable-paranoid`
+- [ ] CUDA capable GPU build (capability 2.0): `./configure --with-cuda-arch=sm_20`
+You can also activate Travis automatic builds on your fork of the code.
