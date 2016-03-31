@@ -1,12 +1,8 @@
-//TODO: Check if the sampler works on the proper region( local and global memory,as lukasz said)
-//TODO: Change output to more suitable form
-//TODO: Clean up everything, for example check if the all includes are used normally and if, types, constructors, desctructors 
 #include "mpi.h"
 #include "Consts.h"
 #include "Global.h"
 #include "cross.h"
 #include "types.h"
-#include <math.h>
 #include <stdlib.h>
 #include "Sampler.h"
 <?R
@@ -25,10 +21,10 @@ int Sampler::initCSV(const char *name)
      f = fopen(name, "wt");
      output("Initializing %s\n",filename);
      assert( f != NULL );
-     fprintf(f,"\"Iteration\",\"Time_si\t");
+     fprintf(f,"Iteration,");
      <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
      if (quant->in("<?%s q$name ?>")) 
-	fprintf(f,"<?%s q$name ?>\t");
+	fprintf(f,"<?%s q$name ?>,");
      <?R }; ifdef(); ?> 
      fprintf(f,"\n");
      fclose(f); 
