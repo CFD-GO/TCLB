@@ -9,6 +9,8 @@ We are really glad, that you would like to contribute to TCLB, bu for everyone's
 
 [] Issues references     - bugfix? Maybe "fixes #xx" ?
 
+[] Author references     - use a template "# Maintainer: Michal Dzikowski @mdzik" So we know who's model is it. You could use "Implemented by", if you don't want to take care of a model in the future.
+
 == Coding standard ==
 
 [] clever trick? leave a note ;)
