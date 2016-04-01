@@ -24,7 +24,8 @@ int Sampler::initCSV(const char *name)
      fprintf(f,"Iteration,");
      <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
      if (quant->in("<?%s q$name ?>")) 
-	fprintf(f,"<?%s q$name ?>,");
+	<?R if (!q$vector) { ?> fprintf(f,"<?%s q$name ?>,");
+	<?R } else { ?> fprintf(f,"<?%s q$name ?>.x,<?%s q$name ?>.y,<?%s q$name ?>.z,"); <?R } ?>
      <?R }; ifdef(); ?> 
      fprintf(f,"\n");
      fclose(f); 
