@@ -58,28 +58,9 @@ f[8] = ( 1 + ( ( -1 + u[1] )*u[1] + ( 1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
 }
 
 CudaDeviceFunction void Init() {
-        real_t rho, ux, uy;
-        rho = (1+Pressure*3);
-        if (SL_L > 0) {
-                if (Y < SL_L/2) {
-                        ux = SL_U * tanh(SL_lambda * ( Y/SL_L - 0.25 ));
-                } else {
-                        ux = SL_U * tanh(SL_lambda * ( 0.75 - Y/SL_L ));
-                }
-                uy = SL_delta * SL_U * sin(2*pi*(X/SL_L+0.25));
-        } else {
-                ux=0;
-                uy=0;
-        }
-        ux = Velocity+ux;
-         
-        real_t uu[2];
-        uu[0] = ux*rho;
-        uu[1] = uy*rho;
-        SetEquilibrum(
-                rho,
-                uu
-        );
+        real_t u[2] = {Velocity,0.};
+        real_t d = Density;
+        SetEquilibrum(d,u);
 }
 
 
@@ -173,24 +154,15 @@ CudaDeviceFunction void EPressure()
 }
 CudaDeviceFunction void CollisionMRT()
 {
+
  real_t c[9],m[9];
   real_t u[2],usq,d;
   d = getRho();
   u[0] = (f[8] - f[7] - f[6] + f[5] - f[3] + f[1]);
   u[1] = (-f[8] - f[7] + f[6] + f[5] - f[4] + f[2]);
   usq = u[0]*u[0] + u[1]*u[1];
-  switch (NodeType & NODE_OBJECTIVE) {
-  case NODE_Outlet:
-        AddToOutletFlux(u[0]/d);
-        AddToPressureLoss(-u[0]/d*((d-1.)/3. + usq/d/2.));
-        break;
-  case NODE_Inlet:
-        AddToInletFlux(u[0]/d);
-        AddToPressureLoss(u[0]/d*((d-1.)/3. + usq/d/2.));
-        break;
-  }
    real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
-//     real_t w[5] = {0.9,1.,1.,1.,1.};
+ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 
 for (int i = 0;i<9;i++) m[i] = f[i];
 //First determing moments from density-probability function
@@ -276,101 +248,3 @@ for (int i = 0;i<9;i++) m[i] = f[i];
 
  for (int i = 0;i<9;i++) f[i] = m[i];
 }
-/*CudaDeviceFunction void CollisionMRT()
-{
- real_t c[9];//,m[9];
-  real_t u[2],usq,d;
-  d = getRho();
-  u[0] = (f[8] - f[7] - f[6] + f[5] - f[3] + f[1]);
-  u[1] = (-f[8] - f[7] + f[6] + f[5] - f[4] + f[2]);
-  usq = u[0]*u[0] + u[1]*u[1];
-  switch (NodeType & NODE_OBJECTIVE) {
-  case NODE_Outlet:
-        AddToOutletFlux(u[0]/d);
-        AddToPressureLoss(-u[0]/d*((d-1.)/3. + usq/d/2.));
-        break;
-  case NODE_Inlet:
-        AddToInletFlux(u[0]/d);
-        AddToPressureLoss(u[0]/d*((d-1.)/3. + usq/d/2.));
-        break;
-  }
-   real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
-
-
-//for (int i = 0;i<9;i++) m[i] = f[i];
-//First determing moments from density-probability function
-  
-  f[0] = f[3] + f[1] + f[0]; 
-  f[1] = -f[3] + f[1];
-  f[3] = f[1] + f[3]*2.; 
-  f[2] = f[6] + f[5] + f[2];
-  f[5] = -f[6] + f[5];
-  f[6] = f[5] + f[6]*2.; 
-  f[4] = f[7] + f[8] + f[4];
-  f[8] = -f[7] + f[8];
-  f[7] = f[8] + f[7]*2.; 
-  f[0] = f[4] + f[2] + f[0];
-  f[2] = -f[4] + f[2];
-  f[4] = f[2] + f[4]*2.; 
-  f[1] = f[8] + f[5] + f[1];
-  f[5] = -f[8] + f[5];
-  f[8] = f[5] + f[8]*2.; 
-  f[3] = f[7] + f[6] + f[3];
-  f[6] = -f[7] + f[6];
-  f[7] = f[6] + f[7]*2.; 
-  
-//Cummulant calculation from moments
-  c[0] = f[0];
-  c[1] = f[1]/f[0];
-  c[3] = ( -c[1]*f[1] + f[3] )/f[0];
-  c[2] = f[2]/f[0];
-  c[5] = ( -c[1]*f[2] + f[5] )/f[0];
-  c[6] = ( -c[5]*f[1] - c[3]*f[2] - c[1]*f[5] + f[6] )/f[0];
-  c[4] = ( -c[2]*f[2] + f[4] )/f[0];
-  c[8] = ( -c[1]*f[4] + f[8] - c[5]*f[2]*2. )/f[0];
-  c[7] = ( -c[8]*f[1] - c[3]*f[4] - c[1]*f[8] + f[7] + ( -c[6]*f[2] - c[5]*f[5] )*2. )/f[0];
-//Cummulant relaxation:
-
- c[1] = -c[1];
- c[3] = (1 - w[1])*c[3] + w[1];
- c[2] =-c[2];
- c[4] = (1 - w[1])*c[4] + w[1];
- c[5] =  (1- w[0])*c[5];
- c[6] =  (1 - w[2])*c[6];
- c[7] =  (1 - w[3])*c[7];
- c[8] = (1 - w[2])*c[8]; 
-
-
-// moment calculation from cummulants
-
-  f[0] = f[0];
-  f[1] = c[1]*f[0];
-  f[3] = c[3]*f[0] + c[1]*f[1];
-  f[2] = c[2]*f[0];
-  f[5] = c[5]*f[0] + c[1]*f[2];
-  f[6] = c[6]*f[0] + c[5]*f[1] + c[3]*f[2] + c[1]*f[5];
-  f[4] = c[4]*f[0] + c[2]*f[2];
-  f[8] = c[8]*f[0] + c[1]*f[4] + c[5]*f[2]*2.;
-  f[7] = c[7]*f[0] + c[8]*f[1] + c[3]*f[4] + c[1]*f[8] + ( c[6]*f[2] + c[5]*f[5] )*2.;
- 
- //Transformation from moment to density distribution function
-
-  f[0] = -f[3] + f[0];
-  f[1] = ( f[3] + f[1] )/2.;
-  f[3] = f[3] - f[1]; 
-  f[2] = -f[6] + f[2];
-  f[5] = ( f[6] + f[5] )/2.;
-  f[6] = f[6] - f[5]; 
-  f[4] = -f[7] + f[4];
-  f[8] = ( f[7] + f[8] )/2.;
-  f[7] = f[7] - f[8]; 
-  f[0] = -f[4] + f[0];
-  f[2] = ( f[4] + f[2] )/2.;
-  f[4] = f[4] - f[2]; 
-  f[1] = -f[8] + f[1];
-  f[5] = ( f[8] + f[5] )/2.;
-  f[8] = f[8] - f[5]; 
-  f[3] = -f[7] + f[3];
-  f[6] = ( f[7] + f[6] )/2.;
-  f[7] = f[7] - f[6]; 
-}*/ 
