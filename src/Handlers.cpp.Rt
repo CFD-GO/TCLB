@@ -942,21 +942,26 @@ class cbSample: public Callback{
 			s.add_from_string("all",',');
 		}
 		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
-			lbRegion loc;
-			attr = par.attribute("dx");
-			if (attr) {
-				loc.dx = solver->units.alt(attr.value());
-			}
-			attr = par.attribute("dy");
-			if (attr) {
+			if (strcmp(par.name(),"Point") == 0) {
+				lbRegion loc;
+				attr = par.attribute("dx");
+				if (attr) {
+					loc.dx = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dy");
+				if (attr) {
 					loc.dy = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dz");
+				if (attr) {
+					loc.dz = solver->units.alt(attr.value());
+				}
+				loc = solver->region.intersect(loc);
+				if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
+			} else {
+				error("Uknown element in Sampler\n");
+				return -1;
 			}
-			attr = par.attribute("dz");
-			if (attr) {
-				loc.dz = solver->units.alt(attr.value());
-			}
-			loc = solver->region.intersect(loc);
-			if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
 		} 
 		solver->outIterFile(nm.c_str(),".csv",fn);
 		filename = fn;
