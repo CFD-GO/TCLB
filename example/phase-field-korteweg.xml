@@ -18,24 +18,24 @@
     
     </Units>    
     -->
-    <Geometry nx="256" ny="256">
+    <Geometry nx="1024" ny="256">
 
 		<MRT><Box /></MRT>
 
      	<None name="disc">
             <!--<Box  ny="64"  dy="32" />-->
-            <Sphere  ny="64" nx="128" dx="64" dy="64" />
+            <Box  ny="200" nx="400" dx="28" dy="28" />
         </None>
         <!--    <None name="default">
             <Box nx="64" ny="12" dy="58"/>
         </None>
      
-        <Wall mask="ALL" name="wall2">
+-->
+        <Wall mask="ALL">
             <Box  ny="1" />
             <Box dy="-1"/>
         </Wall>
 
--->
 	</Geometry>
     <Model>
         <Params PhaseField="-0.5"/>
@@ -47,17 +47,17 @@
         <Params Fscale="0.0" />
         <Params omega="1" />
         <Params omega_l="1" />
-        <Params GravitationX="0.0000"/>
+        <Params GravitationX="0.000001"/>
     </Model>
     	<VTK />
-	<Solve Iterations="3000" output="output/">
-		<VTK Iterations="500"/>
+        <Solve Iterations="5000" output="output/">
+            <VTK Iterations="1000"/>
     </Solve>
-
-    <Params Fscale="-0.001"/>
-
-	<Solve Iterations="5000" output="output/">
-		<VTK Iterations="500"/>
+    <Params omega="1" />
+    <Params omega_l="0.5" />
+    <Params Fscale="0.02"/>
+	<Solve Iterations="150000" output="output/">
+		<VTK Iterations="5000"/>
     </Solve>
 
 </CLBConfig>

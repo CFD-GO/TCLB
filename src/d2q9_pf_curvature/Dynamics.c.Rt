@@ -224,6 +224,9 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CalcPhi() {
    phi = getPhaseField() ;
+   if (NodeType & NODE_BOUNDARY == NODE_Wall) {
+    phi = PhaseField;
+   }
 //   real_t ph2 = ph2 * ph2;
  //   phi = ph -(ph2/2 + ph2*ph2/4); 
 }
