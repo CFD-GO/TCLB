@@ -1,7 +1,8 @@
 <?R
 # #############
 # based on "Conservative phase-field lattice Boltzmann model for interface tracking equation"
-# implemented by M. Dzikowski 2016
+# implemented and authored by M. Dzikowski 2016
+# Maintainer: Michal Dzikowski @mdzik
 # #############
 
 	source("conf.R") 
@@ -37,6 +38,7 @@
 # things related to h
     h = PV(Density$name[Density$group=='h'])
     pf = PV("pf")
+    phi = PV(paste("phi(",-U[,1],",",-U[,2],")"))
     n = PV(c("n.x","n.y"))
     c_sq = 1/3.
     Bh = PV('Bh')
@@ -46,6 +48,10 @@
         }
     k01 = PV("k01")
     k10 = PV("k10")
+    UN = t(U[1:9,])
+    wis = rep(1./9., 9)
+    wis[1] = wis[1] - 1
+    phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
 ?>
 
 #define pi 3.141592653589793116
@@ -59,19 +65,27 @@ CudaDeviceFunction real_t getPhaseField(){
 }
     
 CudaDeviceFunction vector_t getU(){
-	real_t d = <?R C(sum(f)) ?>;
+	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y")), f %*% U) ?>
+<?R 
+    C(PV(c("u.x","u.y")) , f %*% U)
+?>
+	vector_t F;
+	F = getF();
+    u.x = u.x+F.x*0.5;
+    u.y = u.y+F.y*0.5;
 	u.x /= d;
 	u.y /= d;
-	u.z = 0.0;
+	u.z = 0;
 	return u;
 }
+
 
 CudaDeviceFunction vector_t getNormal(){
     real_t k01, k10;
     vector_t n;
-    vector_t u = getU();
+   /**
+     vector_t u = getU();
 
     <?R
     
@@ -83,19 +97,91 @@ CudaDeviceFunction vector_t getNormal(){
     C(k01, sum(h%*%ee_y) )
     
     ?>
+
+    */
+    <?R
+        C(c(k10, k01), phis%*%U)
+#        C(k10, (phis)%*%U[,2]) 
+
+    ?>
     real_t ln = sqrt(k10*k10 + k01*k01);    
-    if (ln == 0.){
+    if(ln == 0.){
         n.x = 0.;
         n.y = 0.;
     } else {
-        n.x = - k10 / ln;
-        n.y = - k01 / ln;
+        n.x =  k10 / ln;
+        n.y =  k01 / ln;
     }
+
     return n;
 
 }
+CudaDeviceFunction vector_t getF() {
+    real_t rho = getRho();
+    vector_t Force = getInterfaceForce();
+    
+    Force.x = Fscale * Force.x;
+    Force.y = Fscale * Force.y;
+
+    Force.x += GravitationX*rho ;
+    Force.y += GravitationY*rho ;
+    return Force;
+
+}
+
+CudaDeviceFunction vector_t getInterfaceForce() {
+	vector_t F = getNormal();
+    real_t curv = getCurvature();
+    real_t phi_l = getPhaseField();
+    F.z = 0;
+    F.x = curv  *  F.x * exp(- MagicA * phi_l*phi_l);
+    F.y = curv  *  F.y * exp(- MagicA * phi_l*phi_l);
+
+	return F;
+}
+
+CudaDeviceFunction real_t getCurvature() {
+    real_t laplace = 0;
+	vector_t F = getNormal();
+    real_t omega_ph =  1/( 3 * M + 0.5); 
+    real_t k01, k10;
+    vector_t grad;
+
+    <?R
+    
+#   ee_x = U[,1] - u[1]
+#    ee_y = U[,2] - u[2]
 
 
+#   C(k10, sum(h%*%ee_x) )
+#   C(k01, sum(h%*%ee_y) )
+    
+    ?> 
+    real_t curv;
+
+    real_t ln = 0;    
+//    if (ln < 1E-8){
+//        curv = 0; 
+ //   } else {
+        <?R      
+     
+
+            C( PV('laplace'), 3 * wis%*%phis  )
+        ?>
+        real_t phi_l = phi(0,0);
+
+      //  grad.x = -3*omega_ph * (k10 + k10 / ln * (1-4*phi_l*phi_l)/ 6 * W * (1./omega_ph - 0.5));
+      //  grad.y = -3*omega_ph * (k01 + k01 / ln * (1-4*phi_l*phi_l)/ 6 * W * (1./omega_ph - 0.5));
+        
+        ln = (4 * phi_l*phi_l - 1.) * W;
+    if (ln == 0){
+        curv = 0;
+    } else {
+        curv =   ( laplace - 2. * phi_l * ( 16.*phi_l*phi_l - 4.  ) * W * W  ) / ln  ;
+    }
+
+    return curv;
+}
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
@@ -134,6 +220,12 @@ CudaDeviceFunction void Init() {
 		uy*rho,
         C
 	);
+}
+
+CudaDeviceFunction void CalcPhi() {
+   phi = getPhaseField() ;
+//   real_t ph2 = ph2 * ph2;
+ //   phi = ph -(ph2/2 + ph2*ph2/4); 
 }
 
 CudaDeviceFunction void Run() {
@@ -188,6 +280,8 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction void CollisionMRT()
 {
+    vector_t n = getNormal();
+    real_t pf = getPhaseField();
 <?R
 	MI = solve(EQ$mat)
 	P = MI %*% diag(1/wi) %*% t(MI)
@@ -197,7 +291,7 @@ CudaDeviceFunction void CollisionMRT()
 	R[!selR] = EQ$Req[!selR]
 ?>
 	real_t <?R C(R,sep=",") ?>;
-	real_t gamma  = 1-omega;
+	real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
     real_t gamma2 = gamma;
 <?R
 	S = PV("S",1:nrow(U)-1);
@@ -213,9 +307,11 @@ CudaDeviceFunction void CollisionMRT()
 	C( R[selR], (R * S)[selR]);
 
 ?>
-    Jx = Jx + rho*GravitationX ;
-    Jy = Jy + rho*GravitationY ; 
-    
+    //Jx = Jx + rho*GravitationX ;
+    //Jy = Jy + rho*GravitationY ; 
+    vector_t F = getF();
+    Jx = Jx + F.x ;
+    Jy = Jy + F.y ; 
 <?R
 
 
@@ -225,12 +321,12 @@ CudaDeviceFunction void CollisionMRT()
 
 
     # part related to h
-?>
-    vector_t n = getNormal();
-    real_t pf = getPhaseField();
+?> 
+
     vector_t u = getU();
     real_t omega_ph =  1/( 3 * M + 0.5); 
     real_t Bh;
+
 <?R
     u = PV(c('u.x', 'u.y'))
     n = PV(c('n.x', 'n.y'))
@@ -240,18 +336,4 @@ CudaDeviceFunction void CollisionMRT()
     C( h, h - omega_ph * ( h - Heq(pf,n,u) ) )
 
 ?>
-}
-
-CudaDeviceFunction vector_t getA()
-{
-	real_t <?R C(R,sep=",") ?>;
-	vector_t ret;
-<?R
-#	C( R, f %*% EQ$mat );
-#	C( R[selR], (R - EQ$Req)[selR]);
-#	C( PV("ret.y"), ds %*% P %*% dh)
-#	C( PV("ret.z"), dh %*% P %*% dh)
-?>
-	ret.x = ret.y/ret.z;
-	return ret;
 }
