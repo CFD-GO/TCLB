@@ -1,23 +1,6 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
 
-
-    <!--- WARNING -->
-    <!--- USE s as second in N-S related parameters -->
-    <!--- USE t as second in Nerst-Planck related parameters -->
-    <!-- DO NOT MIX in stady state sims, t_to_s unit is necessary to corelate time units properly -->
-
-    <!--    <Units>
-
-        <Params D="0.00000001m2/t" gauge="0.1666666666666"/>        
-        <Params nu="0.001sPa" gauge="0.1666666666"/>
-        <Params epsilon = "0.000000000695C/Vm" gauge="1" />
-        <Params rho0="1000kg/m3" gauge="1"/>
-
-        <Params x = "0.000008m" gauge="256"/>
-    
-    </Units>    
-    -->
     <Geometry nx="1024" ny="256">
 
 		<MRT><Box /></MRT>
@@ -26,12 +9,8 @@
             <!--<Box  ny="64"  dy="32" />-->
             <Box  ny="200" nx="400" dx="28" dy="28" />
         </None>
-        <!--    <None name="default">
-            <Box nx="64" ny="12" dy="58"/>
-        </None>
-     
--->
-        <Wall mask="ALL">
+        
+	<Wall mask="ALL">
             <Box  ny="1" />
             <Box dy="-1"/>
         </Wall>
