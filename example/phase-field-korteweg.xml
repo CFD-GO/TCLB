@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0">
+
+
+    <!--- WARNING -->
+    <!--- USE s as second in N-S related parameters -->
+    <!--- USE t as second in Nerst-Planck related parameters -->
+    <!-- DO NOT MIX in stady state sims, t_to_s unit is necessary to corelate time units properly -->
+
+    <!--    <Units>
+
+        <Params D="0.00000001m2/t" gauge="0.1666666666666"/>        
+        <Params nu="0.001sPa" gauge="0.1666666666"/>
+        <Params epsilon = "0.000000000695C/Vm" gauge="1" />
+        <Params rho0="1000kg/m3" gauge="1"/>
+
+        <Params x = "0.000008m" gauge="256"/>
+    
+    </Units>    
+    -->
+    <Geometry nx="256" ny="256">
+
+		<MRT><Box /></MRT>
+
+     	<None name="disc">
+            <!--<Box  ny="64"  dy="32" />-->
+            <Sphere  ny="64" nx="128" dx="64" dy="64" />
+        </None>
+        <!--    <None name="default">
+            <Box nx="64" ny="12" dy="58"/>
+        </None>
+     
+        <Wall mask="ALL" name="wall2">
+            <Box  ny="1" />
+            <Box dy="-1"/>
+        </Wall>
+
+-->
+	</Geometry>
+    <Model>
+        <Params PhaseField="-0.5"/>
+        <Params PhaseField-disc="0.5"/>
+        <Params W=".05" />
+        <Params M="0.1" />
+        <Params Velocity="0."/>
+        <Params MagicA="100" />
+        <Params Fscale="0.0" />
+        <Params omega="1" />
+        <Params omega_l="1" />
+        <Params GravitationX="0.0000"/>
+    </Model>
+    	<VTK />
+	<Solve Iterations="3000" output="output/">
+		<VTK Iterations="500"/>
+    </Solve>
+
+    <Params Fscale="-0.001"/>
+
+	<Solve Iterations="5000" output="output/">
+		<VTK Iterations="500"/>
+    </Solve>
+
+</CLBConfig>
+
+
