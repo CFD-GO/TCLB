@@ -4,10 +4,10 @@
 
 rm output/*
 
-file_name="d2q9_SRT_example"
-model_name="d2q9_SRT"
+file_name="karman"
+model_name="d2q9"
 
-make ${model_name}
+#make ${model_name}
 
 mpirun -np 8 CLB/${model_name}/main example/${file_name}.xml
 #CLB/${model_name}/main example/${file_name}.xml
