@@ -51,7 +51,7 @@ table_from_text = function(text) {
 	tab
 }
 
-c_table_decl = function(d) {
+c_table_decl = function(d, sizes=TRUE) {
 	trim <- function (x) gsub("^\\s+|\\s+$", "", x)
 	d = as.character(d)
 	sel = grepl("\\[",d)
@@ -70,7 +70,11 @@ c_table_decl = function(d) {
 		w = do.call(rbind,w)
 		w = data.frame(w)
 		w[,3] = as.integer(as.character(w[,3]))
-		w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
+		if (sizes) {
+			w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
+		} else {
+			w = by(w,w[,2],function(x) {x[1,2]})
+		}
 		w = do.call(c,as.list(w))
 	} else {
 		w = c()
