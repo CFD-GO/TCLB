@@ -2062,33 +2062,7 @@ class acSyntheticTurbulence: public Action {
 			}
 			output("Setting one-wave spectrum with length=%lg\n", 1/WN); 
 			solver->lattice->ST.setOneWave(WN);
-		}/* else if (spec == "Free stream") {
-			double mainWn,t_scale;
-			double diffWn;
-			double k,e = -1.;
-			if (ReadWaveNumer("Main", &t_scale)) {
-                                ERROR("Must provide turbulent lengthscale for synthetic turbulence\n");
-                                return -1;
-                        }
-       			mainWn = 1.453*9.*4*atan(1.0)/(55*t_scale);
-			pugi::xml attribute attr = node.attribute("Intensity");
- 			if (!attr) {
-				ERROR("Must provide percentage of free stream turbulence");
-				return -1;
-			}
-       			k=1.5*(attr.value*Velocity)^2;
-	        		 	diffWn=(e/(nu^3))^0.25;			
-				}
-			 if (e == -1.){
-				ERROR("Must provide viscosity, for setting up free-stream turbulence");
-				return -1;
-			 }
-       			 e=((k)^1.5)/t_scale; // turbulent dissipationn
-			 maxWN = 8*atan(1)/4; 
-			 minWN = mainWN / 2; 
-			 output("Setting Von Karman spectrum with main length=%lg and diffusion length=%lg. With spread of %d modes across lengths %lg - %lg\n", 1/mainWN, 1/diffWN, nmodes, 1/maxWN, 1/minWN); 
-			 solver->lattice->ST.setVonKarman(mainWN, diffWN, minWN, maxWN);
-		} */else {
+		} else {
 			ERROR("Unknown spectrum type \"%s\" in %s\n", spec.c_str(), node.name());
 			return -1;
 		}
