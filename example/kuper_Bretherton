@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="256" ny="2560" predef="none" model="MRT">
+		<MRT><Box/></MRT>
+		<Wall mask="ALL" name="zwall">
+			<Box nx="1"/>
+			<Box dx="-1"/>
+		</Wall>
+		<Wet name="zdry">
+			<Box dx="40" fx="-41" ny="800"/>
+		</Wet>
+	</Geometry>
+	<Model>
+		<Params InletVelocity="0.0"/>
+		<Params omega="1"/>
+		<Params
+			Density="3.2600529440452366"
+			Density-zdry="0.014500641645077492"
+			Density-zwall="3.2600529440452366"
+			Temperature="0.56"
+			FAcc="1"
+			Magic="0.08"
+			MagicA="-0.152"
+			MagicF="-0.6666666666666"
+			GravitationY="0.0000002"
+			GravitationX="0.0"
+	                S0="0"
+        	   	S1="0"
+           	    	S2="0"
+	            	S3="0"
+        	    	S4="0"
+                        S5="0"
+            		S6="0"
+            		S7="0"
+            		S8="0"         
+        />
+	</Model>
+
+	<Solve Iterations="1" output="output/"></Solve>
+	<VTK/>
+	<Params Magic="0.004"/>
+	<Params Wetting="0."/>
+	          <Solve Iterations="50000" output="output/">
+        <VTK Iterations="10000"/>
+    </Solve>
+    <Params Magic="0.002"/>
+    <Params Wetting="0."/>
+        <Solve Iterations="50000" output="output/">
+        <VTK Iterations="10000"/>
+    </Solve>
+    <Params Magic="0.001"/>
+    <Params Wetting="0."/>
+        <Solve Iterations="50000" output="output/">
+        <VTK Iterations="10000"/>
+    </Solve>
+    <Params Magic="0.0005"/>
+    <Params Wetting="0."/>
+        <Solve Iterations="50000" output="output/">
+        <VTK Iterations="10000"/>
+    </Solve>
+	
+</CLBConfig>
