@@ -3,15 +3,15 @@
 #  dx,dy,dz - direction of streaming
 #  comment - additional comment
 
-AddDensity( name="f[0]", dx= 0, dy= 0)
-AddDensity( name="f[1]", dx= 1, dy= 0)
-AddDensity( name="f[2]", dx= 0, dy= 1)
-AddDensity( name="f[3]", dx=-1, dy= 0)
-AddDensity( name="f[4]", dx= 0, dy=-1)
-AddDensity( name="f[5]", dx= 1, dy= 1)
-AddDensity( name="f[6]", dx=-1, dy= 1)
-AddDensity( name="f[7]", dx=-1, dy=-1)
-AddDensity( name="f[8]", dx= 1, dy=-1)
+AddDensity( name="f[0]", dx= 0, dy= 0, group='f')
+AddDensity( name="f[1]", dx= 1, dy= 0, group='f')
+AddDensity( name="f[2]", dx= 0, dy= 1, group='f')
+AddDensity( name="f[3]", dx=-1, dy= 0, group='f')
+AddDensity( name="f[4]", dx= 0, dy=-1, group='f')
+AddDensity( name="f[5]", dx= 1, dy= 1, group='f')
+AddDensity( name="f[6]", dx=-1, dy= 1, group='f')
+AddDensity( name="f[7]", dx=-1, dy=-1, group='f')
+AddDensity( name="f[8]", dx= 1, dy=-1, group='f')
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
 #  name - name of the field
@@ -28,19 +28,23 @@ AddQuantity(name="U",unit="m/s",vector=T)
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 
-AddSetting(name="nu", default=1.6666666, comment='viscosity')
+AddSetting(name="omega", S78='1-omega', comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
-AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)
-
-AddSetting(name="SL_U", comment='Shear Layer velocity')
-AddSetting(name="SL_lambda", comment='Shear Layer lambda')
-AddSetting(name="SL_delta", comment='Shear Layer disturbance')
-AddSetting(name="SL_L", comment='Shear Layer length scale')
-
+AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
+AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
+
+AddSetting(name="S3", default="-0.333333333", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
+AddSetting(name="S56", default="0", comment='MRT Sx')
+AddSetting(name="S78", default="0", comment='MRT Sx')
+
+AddNodeType(name="BottomSymmetry",group="BOUNDARY")
+AddNodeType(name="TopSymmetry",group="BOUNDARY")

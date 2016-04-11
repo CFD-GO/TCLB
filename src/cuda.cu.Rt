@@ -194,6 +194,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
+		} else { ?>
+	#undef DYNAMICS_B_LOADED <?R
 		} ?>
 //	#include "Dynamics.h"
 #ifdef CALC_DOUBLE_PRECISION

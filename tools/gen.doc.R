@@ -77,15 +77,15 @@ for (n in t$ofthistype){
   cat(d$comment,"\n")
   if (!is.null(d$children)) {
     ret = sapply(d$children, function(k) {
-      if (!is.null(k$type)) {
+      if (is.character(k)) {
+        ret = element.link(k)
+      } else if (!is.null(k$type)) {
         ret = type.link(k$type)
         dt = dat$types[[k$type]]
         if (!is.null(dt$ofthistype)){
           ret = paste(ret," (",paste(element.link(dt$ofthistype),collapse=", "),")",sep="")
         }
         ret
-      } else if (is.character(k)) {
-        ret = element.link(k)
       } else stop("what?:", k)
     })
     cat("Possible children:", paste(ret,collapse=", "),"\n\n")

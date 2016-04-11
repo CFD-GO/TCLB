@@ -205,6 +205,7 @@ class OptimalControl : public Design {
 	int zone_number, par_index;
 	int old_iter_type;
 	FILE * f;
+	double lower, upper;
 public:
 	int Init() {
 		std::string par;
@@ -245,6 +246,20 @@ public:
 		output("Lenght of the control: %d\n", Pars);
 		old_iter_type = solver->iter_type;
 		solver->iter_type |= ITER_GLOBS;
+		attr = node.attribute("lower");
+		if (attr) {
+			lower = solver->units.alt(attr.value());
+		} else {
+			notice("lower bound not set in %s - setting to -1\n",node.name());
+			lower = -1;
+		}
+		attr = node.attribute("upper");
+		if (attr) {
+			upper = solver->units.alt(attr.value());
+		} else {
+			notice("upper bound not set in %s - setting to 1\n",node.name());
+			upper = 1;
+		}
 		f = fopen((par + "-" + zone + "_optimalControl.csv").c_str(),"w");
 		assert( f != NULL );
 		return Design::Init();
@@ -258,13 +273,13 @@ public:
 			output("Getting the params from the zone\n");
 			solver->lattice->zSet.get(par_index, zone_number, tab);
 			fprintf(f,"GET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
 			fprintf(f,"SET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			solver->lattice->zSet.set(par_index, zone_number, tab);
 			return 0;
@@ -272,8 +287,14 @@ public:
 			output("Getting gradient of a param in zone\n");
 			solver->lattice->zSet.get_grad(par_index, zone_number, tab);
 			fprintf(f,"GRAD");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
+			return 0;
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) tab[i]=upper;
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) tab[i]=lower;
 			return 0;
 		default:
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
@@ -362,13 +383,13 @@ public:
 			solver->lattice->zSet.get(par_index, zone_number, tab2);
 			for (int i=0; i<Pars2;i+=2) tab[i/2]=tab2[i];
 			fprintf(f,"GET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
 			fprintf(f,"SET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			for (int i=0; i<Pars;i++) {
 				if (2*i<Pars2) tab2[2*i] = tab[i];
@@ -394,7 +415,7 @@ public:
 				}
 			}
 			fprintf(f,"GRAD");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_UPPER:
@@ -872,11 +893,14 @@ class cbFailcheck: public Callback {
 	public:
 	int Init() {
 		Callback::Init();
+		reg.dx = solver->region.dx;
+		reg.dy = solver->region.dy;
+		reg.dz = solver->region.dz;
 		return 0;
 	}
 	int DoIt() {
 		Callback::DoIt();
-                int ret = 0;
+        	int ret = 0;
 		int cond,fin;
 		fin = false;
 		cond = false;
@@ -902,6 +926,62 @@ class cbFailcheck: public Callback {
 		return Callback::Finish();
 	}
 };	
+class cbSample: public Callback{
+	name_set s;
+        std::string filename; 
+	public:
+	int Init(){
+		std::string nm="Sampler";
+		char fn[STRING_LEN];
+		Callback::Init();
+		pugi::xml_attribute attr=node.attribute("what");
+		if (attr) {
+			s.add_from_string(attr.value(),',');
+		}
+		else {
+			s.add_from_string("all",',');
+		}
+		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+			if (strcmp(par.name(),"Point") == 0) {
+				lbRegion loc;
+				attr = par.attribute("dx");
+				if (attr) {
+					loc.dx = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dy");
+				if (attr) {
+					loc.dy = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dz");
+				if (attr) {
+					loc.dz = solver->units.alt(attr.value());
+				}
+				loc = solver->region.intersect(loc);
+				if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
+			} else {
+				error("Uknown element in Sampler\n");
+				return -1;
+			}
+		} 
+		solver->outIterFile(nm.c_str(),".csv",fn);
+		filename = fn;
+		solver->lattice->sample->units = solver->units;
+		solver->lattice->sample->mpis = solver->mpi;		
+		solver->lattice->sample->Allocate(&s,startIter,everyIter); 
+		solver->lattice->sample->initCSV(filename.c_str());
+		return 0;
+		}
+	int DoIt() {
+		Callback::DoIt();
+		solver->lattice->sample->writeHistory(solver->iter);
+		solver->lattice->sample->startIter = solver->iter;
+		return 0;
+		}
+	int Finish(){
+	   solver->lattice->sample->Finish();
+	   return Callback::Finish();
+	 }	 
+};
 
 class cbKeep: public Callback {
 	int old_iter_type;
@@ -1890,7 +1970,6 @@ class acParams: public Action {
 
 class acSyntheticTurbulence: public Action {
 	public:
-
 	int ReadWaveNumer(std::string name, double * var) {
 		int set = 0;
 		double val = *var;
@@ -1960,7 +2039,7 @@ class acSyntheticTurbulence: public Action {
 		if (spec == "Von Karman") {
 			double mainWN, diffWN, maxWN, minWN;
 			if (ReadWaveNumer("Main", &mainWN)) {
-				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");
+				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");		
 				return -1;
 			}
 			if (ReadWaveNumer("Diffusion", &diffWN)) {
@@ -2035,7 +2114,7 @@ class acLoadBinary: public Action {
 		if (attr2) {
 			solver->loadComp(attr.value(), attr2.value());
 		} else {
-		//	solver->lattice->loadSolution(attr.value());
+		solver->lattice->loadSolution(attr.value());
             error("Missing comp parameter in LoadBinary");
 		}
 		return 0;
@@ -2069,8 +2148,8 @@ class cbSaveBinary: public Callback {
 		if (attr) {
 			solver->saveComp(fn.c_str(), attr.value());
 		} else {
-		//	solver->lattice->saveSolution(fn.c_str());
-            error("Missing comp attribute in SaveBinary");
+			solver->lattice->saveSolution(fn.c_str());
+            	//error("Missing comp attribute in SaveBinary");
 		}
 		return 0;
 	};
@@ -2361,6 +2440,8 @@ vHandler * getHandler(pugi::xml_node node) {
                 ret = new cbFailcheck;
     } else if (name=="Average") {
 		ret = new cbAveraging;
+    } else if (name=="Sample") {
+		ret = new cbSample;
     } else if (name=="Solve") {
 		ret = new acSolve;
     } else if (name=="OptSolve") {
@@ -2446,3 +2527,5 @@ vHandler * getHandler(pugi::xml_node node) {
 	if (ret != NULL) ret->node = node;
 	return ret;
 }
+
+
