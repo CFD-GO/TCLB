@@ -893,11 +893,14 @@ class cbFailcheck: public Callback {
 	public:
 	int Init() {
 		Callback::Init();
+		reg.dx = solver->region.dx;
+		reg.dy = solver->region.dy;
+		reg.dz = solver->region.dz;
 		return 0;
 	}
 	int DoIt() {
 		Callback::DoIt();
-                int ret = 0;
+        	int ret = 0;
 		int cond,fin;
 		fin = false;
 		cond = false;
@@ -923,6 +926,62 @@ class cbFailcheck: public Callback {
 		return Callback::Finish();
 	}
 };	
+class cbSample: public Callback{
+	name_set s;
+        std::string filename; 
+	public:
+	int Init(){
+		std::string nm="Sampler";
+		char fn[STRING_LEN];
+		Callback::Init();
+		pugi::xml_attribute attr=node.attribute("what");
+		if (attr) {
+			s.add_from_string(attr.value(),',');
+		}
+		else {
+			s.add_from_string("all",',');
+		}
+		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+			if (strcmp(par.name(),"Point") == 0) {
+				lbRegion loc;
+				attr = par.attribute("dx");
+				if (attr) {
+					loc.dx = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dy");
+				if (attr) {
+					loc.dy = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dz");
+				if (attr) {
+					loc.dz = solver->units.alt(attr.value());
+				}
+				loc = solver->region.intersect(loc);
+				if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
+			} else {
+				error("Uknown element in Sampler\n");
+				return -1;
+			}
+		} 
+		solver->outIterFile(nm.c_str(),".csv",fn);
+		filename = fn;
+		solver->lattice->sample->units = solver->units;
+		solver->lattice->sample->mpis = solver->mpi;		
+		solver->lattice->sample->Allocate(&s,startIter,everyIter); 
+		solver->lattice->sample->initCSV(filename.c_str());
+		return 0;
+		}
+	int DoIt() {
+		Callback::DoIt();
+		solver->lattice->sample->writeHistory(solver->iter);
+		solver->lattice->sample->startIter = solver->iter;
+		return 0;
+		}
+	int Finish(){
+	   solver->lattice->sample->Finish();
+	   return Callback::Finish();
+	 }	 
+};
 
 class cbKeep: public Callback {
 	int old_iter_type;
@@ -1911,7 +1970,6 @@ class acParams: public Action {
 
 class acSyntheticTurbulence: public Action {
 	public:
-
 	int ReadWaveNumer(std::string name, double * var) {
 		int set = 0;
 		double val = *var;
@@ -1981,7 +2039,7 @@ class acSyntheticTurbulence: public Action {
 		if (spec == "Von Karman") {
 			double mainWN, diffWN, maxWN, minWN;
 			if (ReadWaveNumer("Main", &mainWN)) {
-				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");
+				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");		
 				return -1;
 			}
 			if (ReadWaveNumer("Diffusion", &diffWN)) {
@@ -2056,7 +2114,7 @@ class acLoadBinary: public Action {
 		if (attr2) {
 			solver->loadComp(attr.value(), attr2.value());
 		} else {
-		//	solver->lattice->loadSolution(attr.value());
+		solver->lattice->loadSolution(attr.value());
             error("Missing comp parameter in LoadBinary");
 		}
 		return 0;
@@ -2090,8 +2148,8 @@ class cbSaveBinary: public Callback {
 		if (attr) {
 			solver->saveComp(fn.c_str(), attr.value());
 		} else {
-		//	solver->lattice->saveSolution(fn.c_str());
-            error("Missing comp attribute in SaveBinary");
+			solver->lattice->saveSolution(fn.c_str());
+            	//error("Missing comp attribute in SaveBinary");
 		}
 		return 0;
 	};
@@ -2382,6 +2440,8 @@ vHandler * getHandler(pugi::xml_node node) {
                 ret = new cbFailcheck;
     } else if (name=="Average") {
 		ret = new cbAveraging;
+    } else if (name=="Sample") {
+		ret = new cbSample;
     } else if (name=="Solve") {
 		ret = new acSolve;
     } else if (name=="OptSolve") {
@@ -2467,3 +2527,5 @@ vHandler * getHandler(pugi::xml_node node) {
 	if (ret != NULL) ret->node = node;
 	return ret;
 }
+
+

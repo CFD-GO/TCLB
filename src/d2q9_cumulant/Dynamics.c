@@ -12,6 +12,7 @@
 #define S7 1.0
 #define S8 omega
 #define S9 omega
+#define pi 3.141592653589793116
 
 
 CudaDeviceFunction real_t getRho(){
@@ -57,10 +58,11 @@ f[8] = ( 1 + ( ( -1 + u[1] )*u[1] + ( 1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
 }
 
 CudaDeviceFunction void Init() {
-	real_t u[2] = {Velocity,0.};
-	real_t d = Density;
-	SetEquilibrum(d,u);
+        real_t u[2] = {Velocity,0.};
+        real_t d = Density;
+        SetEquilibrum(d,u);
 }
+
 
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
@@ -150,55 +152,99 @@ CudaDeviceFunction void EPressure()
 	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
 	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
 }
-
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t u[2], usq, d, R[6];
-d = f[8] + f[7] + f[6] + f[5] + f[4] + f[3] + f[2] + f[1] + f[0];
-u[0] = f[8] - f[7] - f[6] + f[5] - f[3] + f[1];
-u[1] = -f[8] - f[7] + f[6] + f[5] - f[4] + f[2];
-R[0] = -f[4] - f[3] - f[2] - f[1] + ( f[8] + f[7] + f[6] + f[5] - f[0]*2 )*2;
-R[1] = f[8] + f[7] + f[6] + f[5] + ( -f[4] - f[3] - f[2] - f[1] + f[0]*2 )*2;
-R[2] = f[8] - f[7] - f[6] + f[5] + ( f[3] - f[1] )*2;
-R[3] = -f[8] - f[7] + f[6] + f[5] + ( f[4] - f[2] )*2;
-R[4] = -f[4] + f[3] - f[2] + f[1];
-R[5] = -f[8] + f[7] - f[6] + f[5];
-usq = u[1]*u[1] + u[0]*u[0];
 
-switch (NodeType & NODE_OBJECTIVE) {
-case NODE_Outlet:
-	AddToOutletFlux(u[0]/d);
-	AddToPressureLoss(-u[0]/d*((d-1.)/3. + usq/d/2.));
-	break;
-case NODE_Inlet:
-	AddToInletFlux(u[0]/d);
-	AddToPressureLoss(u[0]/d*((d-1.)/3. + usq/d/2.));
-	break;
-}
-R[0] = R[0]*(1-S2)  +  S2*(-2. * d + 3. * usq);
-R[1] = R[1]*(1-S3)  +  S3*(d - 3.*usq);
-R[2] = R[2]*(1-S5)  +  S5*(-u[0]);
-R[3] = R[3]*(1-S7)  +  S7*(-u[1]);
-R[4] = R[4]*(1-S8)  +  S8*(u[0]*u[0] - u[1]*u[1]);
-R[5] = R[5]*(1-S9)  +  S9*(u[0]*u[1]);
+ real_t c[9],m[9];
+  real_t u[2],usq,d;
+  d = getRho();
+  u[0] = (f[8] - f[7] - f[6] + f[5] - f[3] + f[1]);
+  u[1] = (-f[8] - f[7] + f[6] + f[5] - f[4] + f[2]);
+  usq = u[0]*u[0] + u[1]*u[1];
+   real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
+ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 
-d /= 9; 
-u[0] /= 6; 
-u[1] /= 6; 
-R[0] /= 36; 
-R[1] /= 36; 
-R[2] /= 12; 
-R[3] /= 12; 
-R[4] /= 4; 
-R[5] /= 4; 
-f[0] = d + ( R[1] - R[0] )*4;
-f[1] = R[4] - R[0] + u[0] + d + ( -R[2] - R[1] )*2;
-f[2] = -R[4] - R[0] + u[1] + d + ( -R[3] - R[1] )*2;
-f[3] = R[4] - R[0] - u[0] + d + ( R[2] - R[1] )*2;
-f[4] = -R[4] - R[0] - u[1] + d + ( R[3] - R[1] )*2;
-f[5] = R[5] + R[3] + R[2] + R[1] + u[1] + u[0] + d + R[0]*2;
-f[6] = -R[5] + R[3] - R[2] + R[1] + u[1] - u[0] + d + R[0]*2;
-f[7] = R[5] - R[3] - R[2] + R[1] - u[1] - u[0] + d + R[0]*2;
-f[8] = -R[5] - R[3] + R[2] + R[1] - u[1] + u[0] + d + R[0]*2;
+for (int i = 0;i<9;i++) m[i] = f[i];
+//First determing moments from density-probability function
+  
+  m[0] = m[3] + m[1] + m[0]; 
+  m[1] = -m[3] + m[1];
+  m[3] = m[1] + m[3]*2.; 
+  m[2] = m[6] + m[5] + m[2];
+  m[5] = -m[6] + m[5];
+  m[6] = m[5] + m[6]*2.; 
+  m[4] = m[7] + m[8] + m[4];
+  m[8] = -m[7] + m[8];
+  m[7] = m[8] + m[7]*2.; 
+  m[0] = m[4] + m[2] + m[0];
+  m[2] = -m[4] + m[2];
+  m[4] = m[2] + m[4]*2.; 
+  m[1] = m[8] + m[5] + m[1];
+  m[5] = -m[8] + m[5];
+  m[8] = m[5] + m[8]*2.; 
+  m[3] = m[7] + m[6] + m[3];
+  m[6] = -m[7] + m[6];
+  m[7] = m[6] + m[7]*2.; 
+  
+//Cummulant calculation from moments
+  c[0] = m[0];
+  c[1] = m[1]/m[0];
+  c[3] = ( -c[1]*m[1] + m[3] )/m[0];
+  c[2] = m[2]/m[0];
+  c[5] = ( -c[1]*m[2] + m[5] )/m[0];
+  c[6] = ( -c[5]*m[1] - c[3]*m[2] - c[1]*m[5] + m[6] )/m[0];
+  c[4] = ( -c[2]*m[2] + m[4] )/m[0];
+  c[8] = ( -c[1]*m[4] + m[8] - c[5]*m[2]*2. )/m[0];
+  c[7] = ( -c[8]*m[1] - c[3]*m[4] - c[1]*m[8] + m[7] + ( -c[6]*m[2] - c[5]*m[5] )*2. )/m[0];
+//Cumulant relaxation:
+ real_t  a = (c[3] + c[4]);
+ real_t  b = (c[3] - c[4]);
+ //real_t Dxu = - w[0]*(2*c[3] - c[4])/(2.*d) - w[1]*(c[3] + c[4])/d;
+ //real_t Dyv =  - w[0]*(2*c[4] - c[3])/(2.*d) - w[1]*(c[3] + c[4])/d;
+// c[1] = -c[1];
+  // c[3] = (1 - w[0])*c[3] + w[0]*1./3;
+   c[3] = ((1 - w[1])*a + w[1]*2./3. + (1 - w[0])*b)/2.;
+// c[2] =-c[2];
+  // c[4] = (1 - w[0])*c[4] + w[0]*1./3;
+   c[4] = ((1 - w[1])*a + w[1]*2./3. - (1 - w[0])*b)/2.;
+ c[5] =  (1- w[0])*c[5];
+ c[6] =  (1 - w[2])*c[6];
+ c[7] =  (1 - w[3])*c[7];
+ c[8] = (1 - w[2])*c[8]; 
 
+
+// Moment calculation from cummulants
+
+  m[0] = m[0];
+  m[1] = c[1]*m[0];
+  m[3] = c[3]*m[0] + c[1]*m[1];
+  m[2] = c[2]*m[0];
+  m[5] = c[5]*m[0] + c[1]*m[2];
+  m[6] = c[6]*m[0] + c[5]*m[1] + c[3]*m[2] + c[1]*m[5];
+  m[4] = c[4]*m[0] + c[2]*m[2];
+  m[8] = c[8]*m[0] + c[1]*m[4] + c[5]*m[2]*2.;
+  m[7] = c[7]*m[0] + c[8]*m[1] + c[3]*m[4] + c[1]*m[8] + ( c[6]*m[2] + c[5]*m[5] )*2.;
+ 
+ //Transformation from moment to density distribution function
+
+  m[0] = -m[3] + m[0];
+  m[1] = ( m[3] + m[1] )/2.;
+  m[3] = m[3] - m[1]; 
+  m[2] = -m[6] + m[2];
+  m[5] = ( m[6] + m[5] )/2.;
+  m[6] = m[6] - m[5]; 
+  m[4] = -m[7] + m[4];
+  m[8] = ( m[7] + m[8] )/2.;
+  m[7] = m[7] - m[8]; 
+  m[0] = -m[4] + m[0];
+  m[2] = ( m[4] + m[2] )/2.;
+  m[4] = m[4] - m[2]; 
+  m[1] = -m[8] + m[1];
+  m[5] = ( m[8] + m[5] )/2.;
+  m[8] = m[8] - m[5]; 
+  m[3] = -m[7] + m[3];
+  m[6] = ( m[7] + m[6] )/2.;
+  m[7] = m[7] - m[6]; 
+
+ for (int i = 0;i<9;i++) f[i] = m[i];
 }

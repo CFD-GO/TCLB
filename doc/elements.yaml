@@ -154,6 +154,21 @@ Stop:
         numeric: int
       comment: Numer of times the change have to be below the limit to stop the computation.
 
+Sample:
+  comment: Effecient sampling of quantities on each iteration, without need for VTK
+  example: <Sample Iterations="1000" what="U,P" ><Point dx="10" dy="20"/></Sample>
+  type: callback
+  attr:
+    - name: Iterations
+      val:
+        numeric: int
+      comment: Iteration period after which the sampled data will be written to a file
+    - name: what
+      optional: true
+      val:
+        list:
+        - special: Quantities
+      comment: List of Quantities to be sampled. By default all are sampled.
 
 Box:
   type: geom

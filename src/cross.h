@@ -225,7 +225,7 @@
     #define RunKernelMaxThreads (GetMaxThreads())
     #define CudaFuncAttributes cudaFuncAttributes
     #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( cudaFuncGetAttributes(a__, b__) )
-
+    #define ISFINITE(l__) isfinite(l__)
   #else
     #include <assert.h>
     #include <time.h>
@@ -363,14 +363,14 @@
     {
       if (val > sum[0]) sum[0] = val;
     }
-
+  #define ISFINITE(l__) std::isfinite(l__)
 
   #endif
 
     CudaError cudaPreAlloc(void ** ptr, size_t size);
     CudaError cudaAllocFinalize();
     CudaError cudaAllocFreeAll();
-
+  
 #endif
 #define CROSS_H
 
