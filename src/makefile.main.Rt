@@ -189,7 +189,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/%:$(SRC)/%
 	@echo "  CP         $@"
-	@$(CP) -r $< $@
+	@$(CP) $< $@
 
 <?%s d ?>/%:$(SRC)/%.Rt
 	@echo "  RT         $@"
