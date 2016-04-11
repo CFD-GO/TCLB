@@ -1,0 +1,97 @@
+#include "mpi.h"
+#include "Consts.h"
+#include "Global.h"
+#include "cross.h"
+#include "types.h"
+#include <stdlib.h>
+#include "Sampler.h"
+<?R
+       	source("conf.R")
+       	c_header();
+?>
+Sampler::Sampler(){ 
+	size = 0;
+	startIter = 0;
+	position = lbRegion();
+}
+int Sampler::initCSV(const char *name) 
+     {
+     filename = name;
+     FILE * f = NULL;
+     f = fopen(name, "wt");
+     output("Initializing %s\n",filename);
+     assert( f != NULL );
+     fprintf(f,"Iteration,");
+     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+     if (quant->in("<?%s q$name ?>")) 
+	<?R if (!q$vector) { ?> fprintf(f,"<?%s q$name ?>,");
+	<?R } else { ?> fprintf(f,"<?%s q$name ?>.x,<?%s q$name ?>.y,<?%s q$name ?>.z,"); <?R } ?>
+     <?R }; ifdef(); ?> 
+     fprintf(f,"\n");
+     fclose(f); 
+     return 0;
+}
+int Sampler::writeHistory(int curr_iter) {
+     FILE* f = fopen(filename,"at");
+     for (size_t j = 0; j <  spoints.size(); j++) {
+	if (mpis.rank == spoints[j].rank) { 
+		vector_t tmp_loc;
+		tmp_loc.x = spoints[j].location.dx;
+		tmp_loc.y = spoints[j].location.dy;
+		tmp_loc.z = spoints[j].location.dz;
+     		fprintf(f,"Point coordinates: ");
+		csvWriteElement(f,tmp_loc);
+		for (int i = startIter; i< curr_iter; i++){
+   	 		fprintf(f,"%d,",i);     
+	    		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+			if (quant->in("<?%s q$name ?>")) {
+				<?%s q$type ?> tmp;
+				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost); 
+				csvWriteElement(f,tmp);
+		 	 	}
+			<?R }; ifdef(); ?> 
+	      		fprintf(f,"\n");
+		}
+		}
+       } 
+      fclose(f);
+     return 0;
+ }
+int Sampler::Allocate(name_set* nquantities,int start,int iter)
+{
+totalIter = iter;
+int i = 0;
+startIter=start;
+quant = nquantities;
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+if (quant->in("<?%s q$name ?>"))
+ {	
+	location["<?%s q$name ?>"] = i;	
+	i++;
+	<?R if (q$vector) {?>
+	i = i + 2;
+	<?R }; ?> 
+     }
+<?R }; ifdef(); ?>
+CudaMalloc((void**)&gpu_buffer, i*totalIter*spoints.size()*sizeof(real_t)); 
+size = i;
+return 0;
+}
+
+int Sampler::addPoint(lbRegion loc,int rank){ 
+	sreg temp;
+	temp.location = loc;
+	temp.rank = rank;
+	spoints.push_back(temp);
+	return 0;
+}
+
+int Sampler::Finish()
+{
+ CudaFree(gpu_buffer);
+ size = 0;
+ startIter = 0;
+ lbRegion pos;
+ position = pos;
+ return 0;
+}
