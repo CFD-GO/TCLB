@@ -161,7 +161,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  CP         $@"
-	@cp $< $@
+	@$(CP) $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
@@ -175,11 +175,11 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
-	@cp $< $@
+	@$(CP) $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%
 	@echo "  CP         $@"
-	@cp $< $@
+	@$(CP) $< $@
 
 <?R } ?>
 
@@ -189,7 +189,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/%:$(SRC)/%
 	@echo "  CP         $@"
-	@cp -r $< $@
+	@$(CP) -r $< $@
 
 <?%s d ?>/%:$(SRC)/%.Rt
 	@echo "  RT         $@"
@@ -202,12 +202,12 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 %.hp:%.c $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"
-	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
+	@$(CP) $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
 
 %.hp:%.cpp $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"
-	@cp $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
+	@$(CP) $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
 
 %_sp.c:%.c
