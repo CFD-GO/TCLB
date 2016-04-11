@@ -57,7 +57,7 @@ CudaDeviceFunction vector_t getU(){
 CudaDeviceFunction vector_t getF() {
 	vector_t F;
 	real_t R[9];
-    if (((NodeType & NODE_BOUNDARY) != 0x0  ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry)  &&  ((NodeType & NODE_BOUNDARY) != NODE_RightSymmetry))   {
+    if ((NodeType & NODE_BOUNDARY) == NODE_Wall  )    {
         F.x=0;
         F.y=0;
         <?R
