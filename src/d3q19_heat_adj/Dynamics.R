@@ -33,7 +33,7 @@ AddQuantity( name="Rho" )
 AddQuantity( name="T" )
 AddQuantity( name="U", vector=T )
 
-AddSetting(name="nu", default=1.6666666, comment='viscosity')
+AddSetting(name="nu", default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity', zonal=TRUE)
 AddSetting(name="Pressure", default="0Pa", comment='inlet pressure', zonal=TRUE)
 AddSetting(name="Temperature", default=1, comment='inlet density', zonal=TRUE)

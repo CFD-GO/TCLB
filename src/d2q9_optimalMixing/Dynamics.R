@@ -38,9 +38,9 @@ AddDensity( name="g[4]", dx= 0, dy=-1, group="g")
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 
 AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="omegaT", comment='one over relaxation time - thermal')
-AddSetting(name="K", omegaT='1.0/(3*K + 0.5)', default=1.6666666, comment='thermal_diffusivity')
+AddSetting(name="K", omegaT='1.0/(3*K + 0.5)', default=0.16666666, comment='thermal_diffusivity')
 
 AddSetting(name="MovingWallVelocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
