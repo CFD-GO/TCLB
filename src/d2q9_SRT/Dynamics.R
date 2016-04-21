@@ -24,7 +24,8 @@ AddSetting( name="nu", omega='1.0/(3*nu+0.5)', default=0.16666666, comment='visc
 AddSetting( name="Velocity",default=0, comment='inlet/outlet/init velocity', zonal=TRUE)
 AddSetting( name="Velocity_x",default=0, comment='inlet/outlet/init velocity in x', zonal=TRUE )
 AddSetting( name="Velocity_y",default=0, comment='inlet/outlet/init velocity in y', zonal=TRUE )
-AddSetting( name="Acceleration",default=0, comment='body/external acceleration', zonal=TRUE)
+AddSetting( name="GravitationX",default=0, comment='body/external acceleration', zonal=TRUE)
+AddSetting( name="GravitationY",default=0, comment='body/external acceleration', zonal=TRUE)
 AddSetting( name="Density",default=1, comment='Density')
 
 

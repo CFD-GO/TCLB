@@ -16,7 +16,7 @@ BGK-lattice Boltzmann method
 
 CudaDeviceFunction float2 Color() {
 // used for graphics - can usually ignore function
-        float2 ret;
+ /*       float2 ret;
         vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
         if (NodeType == NODE_Solid){
@@ -24,7 +24,7 @@ CudaDeviceFunction float2 Color() {
         } else {
                 ret.y = 1;
         }
-        return ret;
+        return ret;*/
 }
 
 CudaDeviceFunction void Init() {
@@ -53,12 +53,15 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
-	case NODE_NVelocity:
-		NVelocity();
-		break;
+//	case NODE_NVelocity:
+//		NVelocity();
+//		break;
     }
-	if (NodeType & NODE_BGK) 
+	if (NodeType & NODE_MRT) 
 	{
+	// Set as if MRT as majority of examples specify
+	// solution zone as MRT box, so avoid changing 
+	// input files.
 		CollisionBGK();
 	}
 }
@@ -67,10 +70,11 @@ CudaDeviceFunction void CollisionBGK() {
 // Here we perform a single relaxation time collision operation.
 // We save memory here by using a single dummy variable
 
-	real_t u[2], usq, d, f_temp[9];
+	real_t u[2], d, f_temp[9];
 	d = getRho();
-	u[0] = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d;
-	u[1] = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d;
+	// pu* = pu + rG
+	u[0] = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/d + GravitationX/omega );
+	u[1] = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/d + GravitationY/omega );
 	f_temp[0] = f[0];
 	f_temp[1] = f[1];
 	f_temp[2] = f[2];
@@ -153,8 +157,9 @@ CudaDeviceFunction vector_t getU() {
 // This function defines the macroscopic velocity at the current node.
 	real_t d = f[8]+f[7]+f[6]+f[5]+f[4]+f[3]+f[2]+f[1]+f[0];
 	vector_t u;
-	u.x = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d;
-	u.y = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d;
+	// pv = pu + G/2
+	u.x = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/d + GravitationX*0.5 );
+	u.y = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/d + GravitationY*0.5 );
 	u.z = 0;
 	return u;
 }
@@ -167,10 +172,10 @@ f[1] = ( 2. + ( -u[1]*u[1] + ( 1 + u[0] )*u[0]*2. )*3. )*d/18.;
 f[2] = ( 2. + ( -u[0]*u[0] + ( 1 + u[1] )*u[1]*2. )*3. )*d/18.;
 f[3] = ( 2. + ( -u[1]*u[1] + ( -1 + u[0] )*u[0]*2. )*3. )*d/18.;
 f[4] = ( 2. + ( -u[0]*u[0] + ( -1 + u[1] )*u[1]*2. )*3. )*d/18.;
-f[5] = ( 1 + ( ( 1 + u[1] )*u[1] + ( 1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
-f[6] = ( 1 + ( ( 1 + u[1] )*u[1] + ( -1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
-f[7] = ( 1 + ( ( -1 + u[1] )*u[1] + ( -1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
-f[8] = ( 1 + ( ( -1 + u[1] )*u[1] + ( 1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
+f[5] = ( 1. + ( ( 1 + u[1] )*u[1] + ( 1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
+f[6] = ( 1. + ( ( 1 + u[1] )*u[1] + ( -1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
+f[7] = ( 1. + ( ( -1 + u[1] )*u[1] + ( -1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
+f[8] = ( 1. + ( ( -1 + u[1] )*u[1] + ( 1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
 }
 
 
