@@ -17,6 +17,7 @@
       #define CudaConstantMemory
       template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
+      template <class T> inline const real_t max (const real_t& x, const T& y) { return x < y ? y : x; };
     #else
 //      #include "../../cub/cub/cub.cuh"
       #define CudaDeviceFunction __device__
@@ -238,6 +239,7 @@
     #endif
     template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
     template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
+    template <class T> inline const real_t max (const real_t& x, const T& y) { return x < y ? y : x; };
     struct float2 { float x,y; };
     struct float3 { float x,y,z; };
     struct double2 { double x,y; };
