@@ -56,6 +56,15 @@ vtkFileOut::vtkFileOut ()
 	f= NULL;
 	fp = NULL;
 	size = 0;
+	rank_0 = 0;
+};
+
+vtkFileOut::vtkFileOut (int rank_0_)
+{
+	f= NULL;
+	fp = NULL;
+	size = 0;
+	rank_0 = rank_0_;
 };
 
 int vtkFileOut::Open(char* filename) {
@@ -66,7 +75,7 @@ int vtkFileOut::Open(char* filename) {
 	name = new char[s];
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	if(rank == 0) {
+	if(rank == rank_0) {
 		strcpy(name, filename);
 		n=name;
 		while(*n != '\0') {
@@ -132,15 +141,19 @@ void vtkFileOut::Init(lbRegion regiontot, lbRegion region, char* selection, doub
 	{
 		reg = region;
 		MPI_Bcast(&reg, 6, MPI_INT, i, MPI_COMM_WORLD);
+		int their_rank_0 = rank_0;
+		MPI_Bcast(&their_rank_0, 1, MPI_INT, i, MPI_COMM_WORLD);
 		strcpy(buf, name);
 		MPI_Bcast(buf, name_size, MPI_CHAR, i, MPI_COMM_WORLD);
 		if (fp != NULL) {
-			fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s\"/>\n",
-				reg.dx, reg.dx + reg.nx,
-				reg.dy, reg.dy + reg.ny,
-				reg.dz, reg.dz + reg.nz,
-				buf
-			);
+			if (their_rank_0 == rank_0) {
+				fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s\"/>\n",
+					reg.dx, reg.dx + reg.nx,
+					reg.dy, reg.dy + reg.ny,
+					reg.dz, reg.dz + reg.nz,
+					buf
+				);
+			}
 		}
 	}
 	delete[] buf;

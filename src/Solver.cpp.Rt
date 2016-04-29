@@ -219,7 +219,7 @@ void MainFree( Solver *d);
 		print("writing vtk");
 		char filename[STRING_LEN];
 		outIterFile(nm, ".vti", filename);
-		int ret = vtkWriteLattice(filename, lattice, units, s);
+		int ret = vtkWriteLattice(filename, lattice, units, s, mesh.rank_0);
 		return ret;
 	}
 
@@ -261,7 +261,7 @@ void MainFree( Solver *d);
 	\param nz Z size of the lattice (1 for 3D)
 	\param ns Number of Snapshots allocated
 */
-	int Solver::setSize(int nx, int ny, int nz, int ns) {
+	int Solver::setSize(int nx, int ny, int nz, int ns, int rank_0, int cores) {
 		info.region.nx = nx;
 		info.region.ny = ny;
 		info.region.nz = nz;
@@ -271,7 +271,7 @@ void MainFree( Solver *d);
 //			NOTICE("small mesh: resetting number of threads to: %dx%d\n", info.xsdim, info.ysdim);
 //		}
 		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
-		MPIDivision();
+		MPIDivision(rank_0, cores);
 		InitAll(ns);
 		return 0;
 	}
@@ -280,17 +280,20 @@ void MainFree( Solver *d);
 /**
 	Divides the lattice into simmilar-size parts for MPI parallel processing
 */
-	int Solver::MPIDivision() {
-		if (mpi_rank == 0) {
-			Par_sizes = new int[mpi_size];
-			Par_disp = new int[mpi_size];
+	int Solver::MPIDivision(int rank_0, int cores) {
+		printf("----------------> %d %d %d %d\n", mpi_rank, rank_0, cores, info.region.nx);
+
+		if (mpi_rank == rank_0) {
+			info.region.print();
+			Par_sizes = new int[cores];
+			Par_disp = new int[cores];
 			int divz,divy;
 			float com, mincom, optcom;
-			mincom = (1+mpi_size) * (info.region.ny+info.region.nz);
-			optcom = 2 * sqrt((float) info.region.ny*info.region.nz*mpi_size);
-			for (divz = 1; divz <= mpi_size; divz ++)
-				if (mpi_size % divz == 0) {
-	                                divy = mpi_size / divz;
+			mincom = (1+cores) * (info.region.ny+info.region.nz);
+			optcom = 2 * sqrt((float) info.region.ny*info.region.nz*cores);
+			for (divz = 1; divz <= cores; divz ++)
+				if (cores % divz == 0) {
+	                                divy = cores / divz;
 	                                com = divz * info.region.ny + divy * info.region.nz;
 	                                char buf[8000];
 	                                char * str = buf;
@@ -316,7 +319,7 @@ void MainFree( Solver *d);
 	                                                        str += sprintf(str, " %d",zlens[i]);
 	                                                }
 	                                                str += sprintf(str, "\n");
-	                                                int dz=0,dy=0,k=0;;
+	                                                int dz=0,dy=0,k=rank_0;;
 	                                                for (int i=0; i<divz; i++) {
 								dy=0;
 		                                                for (int j=0; j<divy; j++) {
@@ -331,7 +334,7 @@ void MainFree( Solver *d);
 	                                                        }
 	                                                        dz += zlens[i];
 	                                                }
-	                                                fillSides(mpi, 1, divy, divz);
+	                                                fillSides(mpi, 1, divy, divz, rank_0);
 	                                        } else {
 	                                                str += sprintf(str, "Mesh too small to divide\n");
 	                                        }
@@ -343,18 +346,21 @@ void MainFree( Solver *d);
 					debug2(buf);
 	                	}
 	                int k = 0;
-	                for (int i=0; i < mpi_size; i++) {
+	                for (int i=0; i < cores; i++) {
 	                        debug2("Processor %d will get: %dx%dx%d\n", i, mpi.node[i].region.nx, mpi.node[i].region.ny,mpi.node[i].region.nz);
 	                        if (k < mpi.node[i].region.size()) k = mpi.node[i].region.size();
 	                }
-	                float overhead = ((double)(  k*mpi_size - info.region.size()  )) / info.region.size();
+	                float overhead = ((double)(  k*cores - info.region.size()  )) / info.region.size();
 	                notice("Max region size: %d. Mesh size %d. Overhead: %2.f%%\n", k, info.region.size(), overhead * 100);
 		}
-	
-	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPI_COMM_WORLD);
+		for (int i=0; i<mpi_size; i++) {
+			printf("Bcast: %d %d %d\n", i, D_MPI_RANK, mpi.node[i].rank_0);
+		        MPI_Bcast(mpi.node+i, sizeof(NodeInfo), MPI_BYTE, mpi.node[i].rank_0, mpi_comm);
+		}
 	        region = mpi.node[mpi_rank].region;
 	        mpi.totalregion = info.region;
 	        output("Local lattice size: %dx%dx%d\n", region.nx, region.ny,region.nz);
+	        printf("Local lattice size: %dx%dx%d\n", region.nx, region.ny,region.nz);
 		return 0;
 	}
 
@@ -431,7 +437,7 @@ int Solver::getPars() {
 	}
 	Par_size = j * <?%d sum(Density$parameter==T) ?>;
 	debug1("Par_size: %d\n",Par_size);
-	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, mpi_comm);
 	if (mpi_rank == 0) {
 		int i;
 		Par_disp[0] = 0;
@@ -464,7 +470,7 @@ int Solver::getPar(double * wb) {
 	}
 <?R } ?>
 	assert(j == Par_size);
-	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, mpi_comm);
 	delete[] wb_l;
 	delete[] buf;
 	return 0;
@@ -606,7 +612,7 @@ int Solver::getDPar(double * wb) {
 	#endif
 	output("L2 norm of gradient: %lg\n", sqrt(sum));
 	assert(j == Par_size);
-	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, mpi_comm);
 	delete[] wb_l;
 	delete[] buf;
 	return 0;
@@ -624,7 +630,7 @@ int Solver::setPar(const double * w) {
 	real_t * buf = new real_t[n];
 	double * w_l = new double[Par_size];
 	DEBUG_M;
-	MPI_Scatterv(const_cast<double *>(w), Par_sizes, Par_disp,  MPI_DOUBLE, w_l, Par_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Scatterv(const_cast<double *>(w), Par_sizes, Par_disp,  MPI_DOUBLE, w_l, Par_size, MPI_DOUBLE, 0, mpi_comm);
 	DEBUG_M;
 	int j=0;
 	double sum =0;

@@ -38,14 +38,14 @@ void initSettings() {
 	\param ny Number of segments in Y direction
 	\param nz Number of segments in Z direction
 */
-void fillSides(MPIInfo mpi, int nx, int ny, int nz)
+void fillSides(MPIInfo mpi, int nx, int ny, int nz, int rank_0)
 {
 	int x, y, z, k, j;
 <?R
 	sides = function(name, dx, dy, dz) {
 ?>
 		j = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
-		mpi.node[k].<?%s name ?> = j;
+		mpi.node[rank_0 + k].<?%s name ?> = rank_0 + j;
 <?R
 	}
 ?>

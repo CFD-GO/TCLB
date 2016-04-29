@@ -9,6 +9,7 @@
 #include "Consts.h"
 #include "types.h"
 #include <string>
+#include <mpi.h>
 
 #ifdef _WIN32
   #define isatty(...) 1
@@ -30,9 +31,20 @@
         float y;
     } vector_t_b;
 
+struct Mesh {
+	int nx, ny, nz;
+	int nm, ns;
+	int size;
+	int rank_0;
+	int cores;
+	std::string name;
+};
+
+
 /// Information on connectivity of a processor
     struct NodeInfo {
         lbRegion region; ///< Local Lattice region
+	int rank_0;
         int rank; ///< MPI rank of the processor <?R
 for (m in Margin) { ?>
         int <?%s m$side ?>; ///< MPI rank of the processor on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] side <?R
@@ -46,9 +58,10 @@ for (m in Margin) { ?>
         int size; ///< MPI size
         int rank; ///< (My) MPI rank
         int gpu; ///< (My) GPU selected
+	MPI_Comm comm;
     };
 
-    void fillSides(MPIInfo, int, int, int);
+    void fillSides(MPIInfo, int, int, int, int);
 
 /// Main data structure for the lattice
 /**
@@ -72,6 +85,8 @@ for (m in Margin) { ?>
 	    return *this;
         }
     };
+
+
 
 #define INFO_H 1
 #endif

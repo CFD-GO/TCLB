@@ -14,12 +14,12 @@
 
 #ifdef CROSS_NOFORK
 
-int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what)
+int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what, int rank_0)
 {
 	size_t size;
 	lbRegion reg = lattice->region;
 	size = reg.size();
-	vtkFileOut vtkFile;
+	vtkFileOut vtkFile(rank_0);
 	if (vtkFile.Open(filename)) {return -1;}
 	double spacing = 1/units.alt("m");	
 	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
@@ -76,7 +76,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 
 #else
 
-int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what)
+int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what, int rank_0)
 {
 	int size;
 	lbRegion reg = lattice->region;

@@ -59,6 +59,7 @@ std::string strFromDouble(double val) {
 
   UnitEnv::UnitEnv (){
     for (int i=0; i<m_unit; i++) scale[i]=1;
+    clearRefine();
     UnitVal A(1);
     for (int i=0; i<m_unit; i++ ) {
       A.base_unit(i);

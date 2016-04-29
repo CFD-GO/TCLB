@@ -35,6 +35,7 @@ const int maxSnaps=33;
 */
 class Lattice {
 private:
+  MPI_Comm mpi_comm;
   LatticeContainer * container; ///< Main Container object
   real_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
   real_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers

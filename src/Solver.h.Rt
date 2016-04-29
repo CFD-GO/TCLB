@@ -57,6 +57,7 @@ struct InfoBlock {
 class Solver {
     public:
 	InfoBlock info; ///< Information common among the cores
+	Mesh mesh; ///< My (Solver's) mesh
 	MPIInfo mpi; ///< Information on MPI connectivity
 	MPI_Comm mpi_comm; ///< Solver's MPI_COMM_WORLD
 	pugi::xml_document configfile;
@@ -121,8 +122,8 @@ class Solver {
 	int writeVTK(const char * nm, name_set * s);
 	int writeTXT(const char * nm, name_set * s, int type);
 	int writeBIN(const char * nm);
-	int setSize(int,int,int,int);
-	int MPIDivision();
+	int setSize(int,int,int,int,int,int);
+	int MPIDivision(int,int);
 	int InitAll(int);
 	int RunMainLoop();
 	int EventLoop();
