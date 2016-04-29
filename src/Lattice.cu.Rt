@@ -72,12 +72,14 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
+	sample = new Sampler;
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
 	container->px = region.dx;
 	container->py = region.dy;
 	container->pz = region.dz;
+	container->iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -444,6 +446,7 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 <?R } ?>
 	Snap = tab1;
 	MarkIteration();
+	updateAllSamples();	
 };
 
 /// Adjoint Iteration
@@ -541,7 +544,7 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 {
 #ifdef ADJOINT
         <?%s FunName ?>(tab0, tab1, iter_type);
-        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type);
+        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
         container->RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
         container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream); 
         CudaDeviceSynchronize();
@@ -675,6 +678,7 @@ void Lattice::Init()
 	iSnaps[0]=0;
 	Record_Iter=0;
 	Iter = 0;
+	container->iter = 0;
 	Snap=0;
    MPI_Barrier(mpi.comm);
    Action_Init(1,0,ITER_NO);
@@ -817,6 +821,7 @@ void Lattice::Iterate(int niter, int iter_type)
 				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 				Iter ++;
+				container->iter ++;
 			}
 			break;
                 case ITER_OPT:
@@ -827,6 +832,7 @@ void Lattice::Iterate(int niter, int iter_type)
 				}
 				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
 				Iter ++;
+				container->iter ++;
 			}
                         break;
 		}
@@ -1153,4 +1159,39 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
                 } ?>
 } <?R
         } ?>
+
+void Lattice::resetAverage() {
+	container->reset_iter = container->iter;
+	<?R for (d in rows(DensityAll)) if (d$average) {?> 
+	  CudaMemset(&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));	 
+	<?R } ?> 
+        <?R for (f in Fields)  if ((f$average) && (!(f$name %in% Density$name)))   { ?>
+          CudaMemset(&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
+	 <?R } ?>
+} 
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
+{	
+       	container->in = Snaps[Snap];
+       	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
+       	container->CopyToConst();
+	lbRegion small = region.intersect(over);
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale));
+}
+<?R } ;ifdef() ?>
+void Lattice::updateAllSamples(){
+ if (sample->size != 0) {
+	for (size_t j = 0; j < sample->spoints.size(); j++) {
+		if (mpi.rank == sample->spoints[j].rank) { 
+		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	 	 if (sample->quant->in("<?%s q$name ?>"))
+		{
+                        double v = sample->units.alt("<?%s q$unit ?>");
+			GetSample<?%s q$name ?>(sample->spoints[j].location,1/v,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
+		}
+		<?R }; ifdef() ?>	 
+	} }
+ }
+}
+
 

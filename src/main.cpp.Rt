@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <assert.h>
 
+#include <ctime>
+
 // for isatty
 //#include <unistd.h>
 
@@ -167,6 +169,8 @@ bool find_adjoint(pugi::xml_node node)
 // Main program function
 int main ( int argc, char * argv[] )
 {
+
+
 	// Error handling for scanf
 	#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
 	MPI_Init(&argc, &argv);
@@ -179,7 +183,9 @@ int main ( int argc, char * argv[] )
 	DEBUG_M;
 	InitPrint(DEBUG_LEVEL, 6, 8);
 	MPI_Barrier(MPI_COMM_WORLD);
+	std::clock_t global_start;
 
+	global_start = std::clock();
 	if (solver.mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
@@ -397,6 +403,11 @@ int main ( int argc, char * argv[] )
 	// Initializing the lattice of a specific size
 	if (solver.setSize(solver.mesh.nx,solver.mesh.ny,solver.mesh.nz,ns, solver.mesh.rank_0, solver.mesh.cores)) return -1;
 
+	//Setting settings to default
+	<?R for (v in rows(Settings)) {
+	if (is.na(v$derived)) { ?>
+		solver.lattice->setSetting(<?%s v$index ?>,solver.units.alt("<?%s v$default ?>")); <?R
+	}} ?> 
 	// Initializing the CUDA events and setting callback
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );
@@ -417,6 +428,11 @@ int main ( int argc, char * argv[] )
 	debug2("cudaFree ...\n");
 	CudaEventDestroy( start );
 	CudaEventDestroy( stop );
+
+	if (solver.mpi_rank == 0) {
+		double duration = (std::clock() - global_start) / (double)CLOCKS_PER_SEC;
+		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
+	}
 	MPI_Finalize();
 	return 0;
 }

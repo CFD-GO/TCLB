@@ -50,7 +50,7 @@ AddQuantity( name="U",unit="m/s",vector=T)
 AddQuantity( name="WB",adjoint=T)
 
 # AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", default=1.6666666, comment='viscosity')
+AddSetting(name="nu", default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity', zonal=T)
 AddSetting(name="Density", default=1, comment='inlet density', zonal=T)
 AddSetting(name="Theta", default=1, comment='inlet density')

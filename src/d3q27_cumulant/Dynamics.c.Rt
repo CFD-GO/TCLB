@@ -32,12 +32,49 @@ CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
-	u.x /= d;
-	u.y /= d;
-	u.z /= d;
+	u.x = (u.x + ForceX/2.)/d;
+	u.y = (u.y + ForceY/2.)/d;
+	u.z = (u.z + ForceZ/2.)/d;
 	return u;
 }
-
+#ifdef avgUX
+CudaDeviceFunction real_t getaverageP(){
+	return avgP;
+}
+CudaDeviceFunction real_t getDissipation(){
+        real_t diss;
+       	diss = nu*((avgdxu2/average_iter)-(avgUX(1,0,0) - avgUX(-1,0,0))*(avgUX(1,0,0) - avgUX(-1,0,0))/(4*average_iter*average_iter));
+       	diss = diss + nu*((avgdyv2/average_iter) -(avgUY(0,1,0) - avgUY(0,-1,0))*(avgUY(0,1,0) - avgUY(0,-1,0))/(4*average_iter*average_iter));
+       	diss = diss + nu*((avgdzw2/average_iter) - (avgUZ(0,0,1) - avgUZ(0,0,-1))*(avgUZ(0,0,1) - avgUZ(0,0,-1))/(4*average_iter*average_iter));
+        return diss;
+}
+CudaDeviceFunction vector_t getavgU(){
+        vector_t u;
+        u.x = avgUX(0,0,0)/average_iter;  //avgUX(0,0,0) in fact
+        u.y = avgUY(0,0,0)/average_iter;
+        u.z = avgUZ(0,0,0)/average_iter;
+        return u;
+}
+CudaDeviceFunction vector_t getvarU(){
+        vector_t u;
+        u.x = varUX/average_iter - getavgU().x*getavgU().x;
+        u.y = varUY/average_iter - getavgU().y*getavgU().y;
+        u.z = varUZ/average_iter - getavgU().z*getavgU().z;
+        return u;
+}
+CudaDeviceFunction vector_t getReStr(){
+        vector_t st;
+        st.x = varUYUZ/average_iter - getavgU().y*getavgU().z;
+        st.y = varUXUZ/average_iter - getavgU().x*getavgU().z;
+        st.z = varUXUY/average_iter - getavgU().x*getavgU().y;
+        return st;
+}
+CudaDeviceFunction real_t getKinE(){
+	real_t ke;
+	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
+	return ke;
+}
+#endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
@@ -49,7 +86,6 @@ CudaDeviceFunction float2 Color() {
         }
         return ret;
 }
-
 CudaDeviceFunction void BounceBack()
 {
 <?R FullBounceBack() ?>
@@ -84,14 +120,56 @@ CudaDeviceFunction void EPressure()
 {
 <?R ZouHe(EQ, 1, -1, "pressure") ?>
 }
+CudaDeviceFunction void TopSymmetry()
+{
+//Symmetry on the top of the boundary
+
+f222 = f212;
+f122 = f112;
+f022 = f012;
+f221 = f211;
+f121 = f111;
+f021 = f011;
+f220 = f210;
+f120 = f110;
+f020 = f010;
+
+}
+
+CudaDeviceFunction void BottomSymmetry()
+{
+//Symmetry on the bottom of the boundary
+f212=f222;
+f112=f122;
+f012=f022;
+f211=f221;
+f111=f121;
+f011=f021;
+f210=f220;
+f110=f120;
+f010=f020;
+
+}
 
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
+	case NODE_WVelocityTurbulent:
+		WVelocityTurbulent();
+		break;
+	case NODE_TopSymmetry:
+		TopSymmetry();
+		break;
+	case NODE_BottomSymmetry:
+               	BottomSymmetry();
+                break;
 	case NODE_WPressure:
 		WPressure();
 		break;
 	case NODE_WVelocity:
 		WVelocity();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
 		break;
 	case NODE_EPressure:
 		EPressure();
@@ -122,16 +200,35 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 
 CudaDeviceFunction void Init() {
 	vector_t ST = SyntheticTurbulence(0);
-	ST.x = Velocity + Turbulence*ST.x;
+	ST.x = Turbulence*ST.x;
 	ST.y = Turbulence*ST.y;
-	ST.z = Turbulence*ST.z;
+	ST.z = Turbulence*ST.z; 
+	SynthTX = ST.x;
+	SynthTY = ST.y;
+	SynthTZ = ST.z;
+	ST.x = ST.x + Velocity;	
 	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
 }
 
-CudaDeviceFunction void CollisionMRT()
-{
- 	 real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
+CudaDeviceFunction void WVelocityTurbulent() {
+        real_t k_aa = exp(-1/constContainer.ST.TimeWN);
+        real_t k_bb =  sqrt(1 - k_aa*k_aa);
+       	vector_t ST = SyntheticTurbulence(0);
+        ST.x = Turbulence*ST.x*k_bb + SynthTX*k_aa;
+        ST.y = Turbulence*ST.y*k_bb + SynthTY*k_aa;
+       	ST.z = Turbulence*ST.z*k_bb + SynthTZ*k_aa; 
+        SynthTX = ST.x;
+        SynthTY = ST.y;
+        SynthTZ = ST.z;
+        ST.x = ST.x + Velocity;
+	<?R ZouHe(EQ, 1, 1, "velocity",V=PV("ST.x"),V3=c(PV("ST.x"),PV("ST.y"),PV("ST.z"))) ?> 
 
+}
+
+CudaDeviceFunction void CollisionMRT()
+{	
+ 	 real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
+ 	 if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
 f010 = f210 + f110 + f010; f110 = -f210 + f110; f210 = f110 + f210*2.; 
 f020 = f220 + f120 + f020; f120 = -f220 + f120; f220 = f120 + f220*2.; 
@@ -204,9 +301,15 @@ u.z = c001 + ForceZ/(2.*f000);
 
 ///////
        real_t dxu,dyv,dzw;
+      // vector_t u = getU();
        dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
        dyv = dxu + 3.*w[0]/2.*(c200 - c020);
        dzw = dxu + 3.*w[0]/2.*(c200 - c002);
+       #ifdef avgUX
+       avgdxu2 = avgdxu2 + dxu*dxu;
+       avgdyv2 = avgdyv2 + dyv*dyv;
+       avgdzw2 = avgdzw2 + dzw*dzw;
+       #endif
        real_t gcor1 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.y*u.y*dyv);
        real_t gcor2 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.z*u.z*dzw);
        real_t gcor3 = 3.*(1 - w[1]/2.)*(u.x*u.x*dxu + u.y*u.y*dyv + u.z*u.z*dzw);
@@ -220,7 +323,6 @@ u.z = c001 + ForceZ/(2.*f000);
 
 //Cumulants relation 
 
-	c000 = c000;//000  no change
  	c100 = c100 + ForceX;//100 - change only due to force term
 
         c200 = (a + b + cc)/3.; // 200
@@ -238,7 +340,6 @@ u.z = c001 + ForceZ/(2.*f000);
 		<?%s i ?> = 0.0;
 	<?R } ?>
 /////////
-
 f000 = f000;
 f100 = c100*f000;
 f200 = c200*f000 + c100*f100;
@@ -294,6 +395,17 @@ f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211;
 f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
-
+#ifdef avgUX
+avgP =  avgP + getP();
+avgUX = avgUX(0,0,0) + getU().x;
+avgUY = avgUY(0,0,0) + getU().y;
+avgUZ = avgUZ(0,0,0) + getU().z;
+varUX = varUX + getU().x*getU().x;
+varUY = varUY + getU().y*getU().y;
+varUZ = varUZ + getU().z*getU().z;
+varUXUY = varUXUY + getU().x*getU().y;
+varUXUZ = varUXUZ + getU().x*getU().z;
+varUYUZ = varUYUZ + getU().y*getU().z;
+#endif
 }
 

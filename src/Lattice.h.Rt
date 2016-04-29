@@ -9,7 +9,7 @@
 #include <utility>
 #include "ZoneSettings.h"
 #include "SyntheticTurbulence.h"
-
+#include "Sampler.h"
 class lbRegion;
 class LatticeContainer;
 
@@ -59,6 +59,7 @@ private:
 public:
   ZoneSettings zSet;
   SyntheticTurbulence ST;
+  Sampler *sample; //initializing sampler with zero size
   int ZoneIter;
   std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording
   unsigned int settings_i; ///< Index in settings_record that is on the CUDA const
@@ -95,6 +96,7 @@ public:
   int segment_iterations;
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
+  int reset_iter;
   inline void MarkIteration() {
     total_iterations ++;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
@@ -145,15 +147,18 @@ public:
 <?R }
     for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
+  void GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* tab);
   inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };
   <?R tp = "double" ?>
   void Get<?%s q$name ?>_<?%s tp ?>(lbRegion over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>
+  void updateAllSamples();
   void getGlobals(real_t * tab); 
   void calcGlobals();
   void clearGlobals();
   void clearGlobals_Adj();
   double getObjective();
+  void resetAverage();
   void setSetting(int i, real_t tmp);
 <?R for (v in rows(Settings)) { ?>
 	void <?%s v$FunName ?>(real_t);<?R

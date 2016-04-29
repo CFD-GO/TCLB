@@ -10,7 +10,6 @@
 #include "Global.h"
 #include "Lattice.h"
 #include "mpi.h"
-
 #define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
 #define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, tmp+size)
 
@@ -242,6 +241,8 @@ template <class N> CudaGlobalFunction void RunKernel()
 		now.Pre();
 		if (now.y_ < constContainer.fy) {
 			now.RunElement();
+		} else {
+			now.OutOfDomain();
 		}
 		now.Glob();
 	#ifndef GRID_3D
@@ -329,8 +330,8 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
                 now.z_ = constContainer.nz - 1;
                 now.RunElement();
 	}
-	now.Glob();
 #endif
+	now.Glob();
 }
 
 /// Copy oneself to the GPU constant memory
@@ -419,7 +420,7 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
      w = v.y;
     }
 
-if (isfinite(l)) {
+if (ISFINITE(l)) {
 
     l = l * 111;
     if (               (l <-111)) {r = 255; g = 255; b = 255; }

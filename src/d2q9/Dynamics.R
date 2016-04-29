@@ -28,14 +28,23 @@ AddQuantity(name="U",unit="m/s",vector=T)
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="omega", S78='1-omega', comment='one over relaxation time')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)
-
+AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
+AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
+
+AddSetting(name="S3", default="-0.333333333", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
+AddSetting(name="S56", default="0", comment='MRT Sx')
+AddSetting(name="S78", default="0", comment='MRT Sx')
+
+AddNodeType(name="BottomSymmetry",group="BOUNDARY")
+AddNodeType(name="TopSymmetry",group="BOUNDARY")

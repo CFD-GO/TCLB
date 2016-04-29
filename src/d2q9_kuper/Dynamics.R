@@ -24,7 +24,7 @@ AddQuantity(name="P", unit="Pa");
 AddQuantity(name="F", unit="N", vector=T);
 
 AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=1.6666666, comment='viscosity')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')
@@ -66,7 +66,11 @@ AddGlobal(name="Density2",         comment='density at Obj2')
 AddGlobal(name="Density3",         comment='density at Obj3')
 
 AddGlobal(name="SumUsqr",         comment='Sumo o U**2')
+AddGlobal(name="WallForceX", comment='force x')
+AddGlobal(name="WallForceY", comment='force y')
+
+
 AddNodeType(name="NMovingWall", group="BOUNDARY")
 AddNodeType(name="MovingWall", group="BOUNDARY")
-AddNodeType(name="BottomSymmetry",group="BOUNDARY")
+AddNodeType(name="RightSymmetry",group="BOUNDARY")
 AddNodeType(name="TopSymmetry",group="BOUNDARY")

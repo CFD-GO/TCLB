@@ -248,6 +248,9 @@ CudaDeviceFunction void Run() {
 		CollisionMRT();
 		break;
     }
+    if (NodeType & NODE_DESIGNSPACE) {
+            AddToMaterialPenalty(w*(1-w));
+    }
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz, real_t T)
