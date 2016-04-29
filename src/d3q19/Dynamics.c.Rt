@@ -35,6 +35,7 @@ CudaDeviceFunction vector_t getU(){
 	u.x /= d;
 	u.y /= d;
 	u.z /= d;
+	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) u.x = u.y = u.z = 0;
 	return u;
 }
 
@@ -42,7 +43,7 @@ CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
-        if (NodeType == NODE_Solid){
+        if ((NodeType & NODE_BOUNDARY) == NODE_Wall){
                 ret.y = 0;
         } else {
                 ret.y = 1;

@@ -99,6 +99,7 @@ class Solver {
 */
         inline void outIterFile(const char * name, const char * suffix, char * out) {
                 sprintf(out, "%s_%s_P%02d_%08d%s", info.outpath, name, mpi_rank, iter, suffix);
+		mkpath(out);
         };
 /// Generate a Case-specific filename
 /**
@@ -110,6 +111,7 @@ class Solver {
 */
         inline void outGlobalFile(const char * name, const char * suffix, char * out) {
                 sprintf(out, "%s_%s_P%02d%s", info.outpath, name, mpi_rank, suffix);
+		mkpath(out);
         };
 /// Set output prefix
 	void setOutput(const char * out);
@@ -135,7 +137,7 @@ class Solver {
 	int setPar(const double * w);
 	int saveComp(const char*, const char*);
 	int loadComp(const char*, const char*);
-    int getComponentIntoBuffer(const char*, real_t *&);
+    int getComponentIntoBuffer(const char*, real_t *&, long int* , long int* );
     int loadComponentFromBuffer(const char*, real_t*);
 /// Gets a Global index by name
 /**

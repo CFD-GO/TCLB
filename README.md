@@ -1,7 +1,6 @@
 CudneLB - the templated version
 ===
-[![Build Status](https://travis-ci.org/llaniewski/TCLB.svg?branch=develop)](https://travis-ci.org/llaniewski/TCLB)
-[![Coverage Status](https://coveralls.io/repos/llaniewski/TCLB/badge.svg?branch=develop&service=github)](https://coveralls.io/github/llaniewski/TCLB?branch=develop)
+[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![Coverage Status](https://coveralls.io/repos/github/CFD-GO/TCLB/badge.svg?branch=develop)](https://coveralls.io/github/CFD-GO/TCLB?branch=develop)
 
 CudneLB is a MPI+CUDA or MPI+CPU high-performance CFD simulation code, based on Lattice Boltzmann Method.
 
@@ -55,16 +54,17 @@ Contributors:
 * Wojtek Regulski
 * [Zbigniew Gawłowicz](https://github.com/zgawlowicz)
 * [Mariusz Rutkowski](https://github.com/mrutkowski-aero)
+* [Dmytro Sashko](https://github.com/shkodm)
 
 Developed at: [C-CFD Group](https://c-cfd.meil.pw.edu.pl/) at [Warsaw University of Technology](http://pw.edu.pl/) from 2012
 
 ## License
 The software is free to use for non-commercial purposes.
 
-*Any usege should be acknowledged accordingly (at least with a reference to this repository).*
+*Any usage should be acknowledged accordingly (at least with a reference to this repository).*
 * Author wanting to use this software in scientific publications should consult the author for the apropriate reference.
 * Any commercial use should be consulted beforehead with the author
-* Any derivaed code (even if only on a specific model) should be acknowledged
+* Any derived code (even if only on a specific model) should be acknowledged
 
 And, most importantly: if the software proved to be useful for you, please write!
 

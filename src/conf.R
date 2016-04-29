@@ -51,7 +51,7 @@ table_from_text = function(text) {
 	tab
 }
 
-c_table_decl = function(d) {
+c_table_decl = function(d, sizes=TRUE) {
 	trim <- function (x) gsub("^\\s+|\\s+$", "", x)
 	d = as.character(d)
 	sel = grepl("\\[",d)
@@ -70,7 +70,11 @@ c_table_decl = function(d) {
 		w = do.call(rbind,w)
 		w = data.frame(w)
 		w[,3] = as.integer(as.character(w[,3]))
-		w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
+		if (sizes) {
+			w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
+		} else {
+			w = by(w,w[,2],function(x) {x[1,2]})
+		}
 		w = do.call(c,as.list(w))
 	} else {
 		w = c()
@@ -88,7 +92,7 @@ ifdef = function(val=F, tag="ADJOINT") {
 }
 
 
-DensityAll = data.frame()
+DensityAll = data.frame(parameter=logical(0))
 Globals = data.frame()
 Settings = data.frame()
 ZoneSettings = data.frame()
@@ -97,7 +101,7 @@ NodeTypes = data.frame()
 Fields = data.frame()
 
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
@@ -111,7 +115,8 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		comment=comment,
 		adjoint=adjoint,
 		group=group,
-		parameter=parameter
+		parameter=parameter,
+		average=average
 	)
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
@@ -120,16 +125,16 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 			comment=d$comment,
 			adjoint=d$adjoint,
 			group=d$group,
-			parameter=d$parameter
+			parameter=d$parameter,
+			average=d$average,
 		)
 	}
 }
 
-AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F) {
+AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F) {
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
 	comment = ifelse(comment == "", name, comment);
-
 		d = data.frame(
 			name=name,
 			minx=min(dx,-stencil2d,-stencil3d,na.rm=T),
@@ -141,7 +146,8 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			comment=comment,
 			adjoint=adjoint,
 			group=group,
-			parameter=parameter
+			parameter=parameter,
+			average=average
 		)
 
 		if (any(Fields$name == d$name)) {
@@ -310,7 +316,11 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no
 	}
 	if (is.logical(load.densities)) {
 		if ((length(load.densities) != 1) && (length(load.densities) != nrow(DensityAll))) stop("Wrong length of load.densities in AddStage")
-		DensityAll[,s$tag] <<- load.densities
+		if (nrow(DensityAll) > 0) {
+			DensityAll[,s$tag] <<- load.densities
+		} else {
+			DensityAll[,s$tag] <<- logical(0);
+		}
 	} else stop("load.densities should be logical or character")
 
 	if (is.character(save.fields)) {

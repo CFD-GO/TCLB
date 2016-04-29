@@ -92,10 +92,8 @@ AC_PROG_CC
 AC_CHECK_HEADERS([float.h malloc.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
-if test "x${enable_double}" == "xno"
+if test "x${enable_double}" != "xno"
 then
-	AC_DEFINE([CALC_DOUBLE_PRECISION], [0], [Making a single precision version])
-else
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
 fi
 
@@ -440,9 +438,11 @@ then
 	LDFLAGS="${LDFLAGS} -fprofile-arcs -ftest-coverage"
 fi
 
+CP=cp
 if test "x${enable_marklines}" == "xyes"
 then
 	RTOPT="${RTOPT} --mark-lines"
+	CP=./tools/cp_line
 fi
 
 if test "x${enable_paranoid}" == "xyes"
@@ -465,6 +465,7 @@ fi
 #AC_FUNC_STRTOD
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
 
+AC_SUBST(CP)
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(PV_BUILD)

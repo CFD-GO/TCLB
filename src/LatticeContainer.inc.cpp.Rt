@@ -10,7 +10,6 @@
 #include "Global.h"
 #include "Lattice.h"
 #include "mpi.h"
-
 #define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
 #define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, tmp+size)
 
@@ -242,6 +241,8 @@ template <class N> CudaGlobalFunction void RunKernel()
 		now.Pre();
 		if (now.y_ < constContainer.fy) {
 			now.RunElement();
+		} else {
+			now.OutOfDomain();
 		}
 		now.Glob();
 	#ifndef GRID_3D
@@ -329,8 +330,8 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
                 now.z_ = constContainer.nz - 1;
                 now.RunElement();
 	}
-	now.Glob();
 #endif
+	now.Glob();
 }
 
 /// Copy oneself to the GPU constant memory
@@ -402,6 +403,12 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
     N now;
+    if (x < 0) return;
+    if (y < 0) return;
+    if (z < 0) return;
+    if (x >= constContainer.nx) return;
+    if (y >= constContainer.ny) return;
+    if (z >= constContainer.nz) return;
     now.x_ = x;
     now.y_ = y;
     now.z_ = z;
@@ -413,7 +420,7 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
      w = v.y;
     }
 
-if (isfinite(l)) {
+if (ISFINITE(l)) {
 
     l = l * 111;
     if (               (l <-111)) {r = 255; g = 255; b = 255; }
@@ -486,18 +493,29 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 		now.y_ = y;
 		now.z_ = z;
 		constContainer.getType(now);
-		constContainer.pop(now); <?R
-		if (q$adjoint) { ?>
-		constContainer.pop_adj(now); <?R
-                } ?>
-		<?%s q$type ?> w = now.get<?%s q$name ?>(); <?R
-		if (q$type == "vector_t") {
-                  for (coef in c("x","y","z")) { ?>
-		w.<?%s coef ?> *= scale; <?R
-		  }
-		} else { ?>
-		w *= scale; <?R
-                } ?>
+		<?%s q$type ?> w;
+//		if (now.NodeType) {
+			constContainer.pop(now); <?R
+			if (q$adjoint) { ?>
+			constContainer.pop_adj(now); <?R
+	                } ?>
+			w = now.get<?%s q$name ?>(); <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+			w.<?%s coef ?> *= scale; <?R
+			  }
+			} else { ?>
+			w *= scale; <?R
+	                } ?>
+//		} else { <?R
+			if (q$type == "vector_t") {
+	                  for (coef in c("x","y","z")) { ?>
+//			w.<?%s coef ?> = nan(""); <?R
+			  }
+			} else { ?>
+//			w = nan(""); <?R
+	                } ?>
+//		}
 		tab[r.offset(x,y,z)] = w;
 	}
 }

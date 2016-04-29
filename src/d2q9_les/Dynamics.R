@@ -17,7 +17,7 @@ AddQuantity( name="W")
 AddQuantity( name="WB",adjoint=T)
 
 AddSetting(name="tau0", comment='one over relaxation time')
-AddSetting(name="nu", tau0='3*nu + 0.5', default=1.6666666, comment='viscosity')
+AddSetting(name="nu", tau0='3*nu + 0.5', default=0.16666666, comment='viscosity')
 
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)

@@ -61,6 +61,28 @@ int Geometry::val(pugi::xml_attribute attr)
     }
     return myround(units.alt(attr.value()));
 }
+/// Return rounded unit-free value of an xml attribute, extract first char as prefix 
+/**
+        Get the value of an xml attribute, calculate the units
+        and round the result to full integer. Print error when no default.
+        \param attr XML attribute
+*/
+int Geometry::val_p(pugi::xml_attribute attr, char* prefix)
+{
+    if (!attr) {
+    error("Attribute without value and default\n");
+    return -1;
+    }
+    std::string tmp = attr.value();
+    *prefix = tmp[0];
+    if (*prefix == '>' || *prefix == '<'){
+        tmp = tmp.substr(1);
+    } else {
+        *prefix = '+';
+    }
+    return myround(units.alt(tmp));
+}
+
 
 /// Return unit-free value of an xml attribute
 double Geometry::val_d(pugi::xml_attribute attr)
@@ -138,27 +160,46 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	return ret;
     }
     ret = getRegion(node.parent());
+
+    char side; 
+    
     attr = node.attribute("dx");
     if (attr) {
-	int w = val(attr);
-	if (w < 0)
-	    w = ret.nx + w;
+	int w = val_p(attr, &side);
+    
+    if (side == '<') {
+        w = ret.nx + w;
+    } else if (side == '+') {
+    	if (w < 0)
+	        w = ret.nx + w;
+    }
+
 	ret.dx += w;
 	ret.nx -= w;
     }
     attr = node.attribute("dy");
     if (attr) {
-	int w = val(attr);
-	if (w < 0)
-	    w = ret.ny + w;
+	int w = val_p(attr, &side);
+
+    if (side == '<') {
+        w = ret.ny + w;
+    } else if (side == '+') {
+    	if (w < 0)
+	        w = ret.ny + w;
+    }
+
 	ret.dy += w;
 	ret.ny -= w;
     }
     attr = node.attribute("dz");
     if (attr) {
-	int w = val(attr);
-	if (w < 0)
-	    w = ret.nz + w;
+	int w = val_p(attr, &side);
+    if (side == '<') {
+        w = ret.nz + w;
+    } else if (side == '+') {
+    	if (w < 0)
+	        w = ret.nz + w;
+    }
 	ret.dz += w;
 	ret.nz -= w;
     }
@@ -300,15 +341,14 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	}
     }
     for (int i = 0; i < ntri; i++) {
-	tri[i].p1[0] += 1e-7 - 0.5;
-	tri[i].p2[0] += 1e-7 - 0.5;
-	tri[i].p3[0] += 1e-7 - 0.5;
-	tri[i].p1[1] += 1e-7 - 0.5;
-	tri[i].p2[1] += 1e-7 - 0.5;
-	tri[i].p3[1] += 1e-7 - 0.5;
-	tri[i].p1[2] += 1e-7 - 0.5;
-	tri[i].p2[2] += 1e-7 - 0.5;
-	tri[i].p3[2] += 1e-7 - 0.5;
+	for (int j = 0; j < 3; j++) {
+		tri[i].p1[j] += 1e-7 - 0.5;
+		tri[i].p2[j] += 1e-7 - 0.5;
+		tri[i].p3[j] += 1e-7 - 0.5;
+		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
+		tri[i].p2[j] = myround(tri[i].p2[j] * 1e5) * 1e-5;
+		tri[i].p3[j] = myround(tri[i].p3[j] * 1e5) * 1e-5;
+	}
     }
     return 0;
 }
@@ -320,9 +360,21 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     STL_tri *tri;
     int ntri;
     int ret;
+    int insideOut=0;
     if (!n.attribute("file")) {
 	error("No 'file' attribute in 'STL' element in xml conf\n");
 	return -1;
+    }
+    if (n.attribute("side")) {
+        std::string side=n.attribute("side").value();
+        if (side == "in") {
+	    insideOut=0;
+        } else if (side == "out") {
+            insideOut=1;
+        } else {
+	    error("'side' in 'STL' element have to be 'in' or 'out'\n");
+	    return -1;
+	}
     }
     debug1("------ STL -----\n");
     FILE *f = fopen(n.attribute("file").value(), "rb");
@@ -335,7 +387,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
     char *lev = (char *) malloc(reg.size() * sizeof(char));
     for (int i = 0; i < reg.size(); i++)
-	lev[i] = 0;
+	lev[i] = insideOut;
     debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     ret = fread(tri, ntri, sizeof(STL_tri), f);
     fclose(f);
@@ -380,7 +432,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 		c2 /= c0;
 		if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
 		    c3 = 1. - c1 - c2;
-		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c1 + tri[i].p3[1] * c2;
+		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
 		    for (int y = reg.dy; y <= h; y++) {
 //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
 			if (reg.isIn(x, y, z))
@@ -438,7 +490,59 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 			}
 		    }
-	}    
+    } else if (strcmp(n.name(), "OffgridSphere") == 0) {
+
+        double x0 = units.alt(n.attribute("x").value());
+        double y0 = units.alt(n.attribute("y").value());
+        double z0 = units.alt(n.attribute("z").value());
+
+        double Rx,Ry,Rz;
+        if ( n.attribute("R").empty() ){
+           Rx = units.alt(n.attribute("Rx").value());
+           Ry = units.alt(n.attribute("Ry").value());
+           Rz = units.alt(n.attribute("Rz").value());
+        } else {
+           double R = units.alt(n.attribute("R").value());
+           Rx = R;
+           Ry = R;
+           Rz = R;
+        }
+
+        double Rx2 = Rx*Rx;
+        double Ry2 = Ry*Ry;
+        double Rz2 = Rz*Rz;
+   
+        reg.dx = x0 - Rx - 5;
+        reg.dy = y0 - Ry - 5;
+        reg.dz = z0 - Rz - 5;
+
+        reg.nx = 2*Rz + 10;
+        reg.ny = 2*Ry + 10;
+        reg.nz = 2*Rz + 10;
+
+	    debug1("Filling sphere with flag %d (%d)\n, with center at (%lf,%lf,%lf) and radius (%lf,%lf,%lf)", fg, fg_mask, x0, y0, z0, Rx,Ry,Rz);
+	    DEBUG1(reg.print();)
+		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+               double xx =  (.5 + x - x0);  
+               double yy =  (.5 + y - y0);  
+               double zz =  (.5 + z - z0);  
+			   if ( xx*xx/Rx2 + yy*yy/Ry2 + zz*zz/Rz2 < 1. ) {
+			    Dot(x, y, z);
+			   }
+		}
+	} else if (strcmp(n.name(),"Pipe") == 0) {
+	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
+	    DEBUG1(reg.print();)
+            for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+		   for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+			 if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
+				Dot(x,y,z);
+			}
+		   }
+	} 
     else if (strcmp(n.name(), "Wedge") == 0) {
 //                      reg = region.intersect(reg);
 	    debug1("Filling wedge with flag %d (%d)\n", fg, fg_mask);

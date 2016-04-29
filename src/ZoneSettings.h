@@ -49,6 +49,9 @@ public:
     zone_max(z);
     if (z == -1) {
       for (int i=0;i<ZONE_MAX; i++) {
+        if (cpuConst[s+ZONESETTINGS*i] != 0.0 && cpuConst[s+ZONESETTINGS*i] != val ){
+             WARNING("Zone-specific settings in zone %d were overwritten from %lf to %lf", i, cpuConst[s+ZONESETTINGS*i], val );
+        }
         cpuConst[s+ZONESETTINGS*i] = val;
       }
     } else {

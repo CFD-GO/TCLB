@@ -113,7 +113,7 @@ void SyntheticTurbulence::setVonKarman(double Le, double Ld, double Lmin, double
  for (int i=0;i<size;i++) sum = sum + pow(Amplitudes[i],2.0);
  output("Total energy of synthetic turbulence: %2.0lf%% of spectrum\n", sum*100);
  if (sum < 0.7) NOTICE("Total energy of synthetic turbulence is below 70%% of the spectrum\n");
- else if (sum < 0.8) notice("Total energy of synthetic turbulence is below 70%% of the spectrum\n");
+ else if (sum < 0.8) notice("Total energy of synthetic turbulence is below 80%% of the spectrum\n");
  else if (sum > 1) NOTICE("Total energy of synthetic turbulence is above 100%% of the spectrum\n");
  
  Generate();

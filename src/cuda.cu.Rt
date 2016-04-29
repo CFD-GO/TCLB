@@ -51,7 +51,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define Y (y_ + constContainer.py)
 #define Z (z_ + constContainer.pz)
 #define SyntheticTurbulence(t) constContainer.getST(t,x_,y_,z_)
-
+#define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
 <?R
 	for(s in rows(ZoneSettings)) { ?>
 //#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
@@ -61,6 +61,13 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
+<?R	for (n in rows(NodeTypes)) {	?>
+#define Iam<?%s n$name ?> ((NodeType & NODE_<?%s n$group?>) == NODE_<?%s n$name ?>)
+<?R	}	?>
+<?R	for (n in names(Node_Group)) {	?>
+#define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
+<?R	}	?>
+
 #define NODE_H
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
@@ -68,6 +75,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         CudaDeviceFunction void Pre(){};
         CudaDeviceFunction void RunElement(){};
         CudaDeviceFunction void Glob(){};
+	CudaDeviceFunction void OutOfDomain() {};
 };
 
 <?R
@@ -175,9 +183,19 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
         } ?>
 		}
+	}
+	CudaDeviceFunction void inline GlobDiffOutOfDomain() { 
+		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
+        for (g in rows(Globs)) if (g$zonal) {
+		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
+                atomicSumDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
+        } ?>
+		}
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
+		} else { ?>
+	#undef DYNAMICS_B_LOADED <?R
 		} ?>
 //	#include "Dynamics.h"
 #ifdef CALC_DOUBLE_PRECISION
@@ -197,8 +215,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		if (tp$Stream == "Opt") { ?>
 	CudaDeviceFunction inline void Opt() {
 	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
-		        for (i in 1:nrow(Density)) {
-		                d=Density[i,];
+		        for (d in rows(Density)) {
                                 if (d$parameter) { ?>
                 <?%s d$name ?> += <?%s d$adjoint_name ?>*Descent;
                 if (<?%s d$name ?> > 1.0f) <?%s d$name ?> = 1.0f;
@@ -209,8 +226,9 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
         } <?R
 	        } ?>
 	CudaDeviceFunction inline void RunElement() {
-	        constContainer.getType(*this);
-		PreDiff();<?R
+	   constContainer.getType(*this);
+	   PreDiff();
+		<?R
 		if (tp$Stream == "Adj") { ?>
 		constContainer.pop_<?%s s$name ?>(*this);
 		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
@@ -229,30 +247,10 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                         } ?>
 		constContainer.push_<?%s s$name ?>_adj(*this); <?R
 		} else if (tp$Stream == "Opt") { ?>
-
-                constContainer.pop_<?%s s$name ?>(*this); <?R
-		        for (i in 1:nrow(Density)) {
-		                d=Density[i,]; ?>
-		<?%s d$adjoint_name ?> = <?%s d$name ?>; <?R
-		        } ?>
-
-		<?%s s$main ?>();
-//		constContainer.push_noparam_<?%s s$name ?>(*this); <?R
-		        for (i in 1:nrow(Density)) {
-		                d=Density[i,]; ?>
-		<?%s d$name ?> = <?%s d$adjoint_name ?>; <?R
-		        } ?>
-		constContainer.pop_<?%s s$name ?>_adj(*this); <?R
-		        for (d in rows(Density)) if (d$parameter) { ?>
-		<?%s d$adjoint_name ?> = GradientSmooth*<?%s d$adjoint_name ?>; <?R
-		        } ?>
-		Run_b(); <?R
-		        for (d in rows(Density)) if (d$parameter) { ?>
-                <?%s d$adjoint_name ?> /= 1.+GradientSmooth; <?R
-                        } ?>
-		constContainer.push_<?%s s$name ?>_adj(*this);
+		constContainer.pop_param(*this);
+		constContainer.pop_param_adj(*this); 
 		Opt();
-//		constContainer.push_param_<?%s s$name ?>(*this); <?R
+		constContainer.push_param(*this); <?R
 		} else if (tp$Stream == "Init") { ?>
 		constContainer.getType(*this);
 		Init();
@@ -264,7 +262,10 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
-		GlobDiff();
+	   GlobDiff();
+	}
+	CudaDeviceFunction inline void OutOfDomain() {
+	   GlobDiffOutOfDomain();
 	} <?R
         } ########################################################################################### ?>
 }; <?R

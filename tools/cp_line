@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if test "$#" -ne 2
+then
+	echo "usage: cp_line file1 file2"
+exit -1
+fi
+                
+if test -f "$1"
+then
+	R --vanilla --slave -e "cat('#line 1 \"',rtemplate:::relativePath('$1','$2'),'\" \n',sep='')" >$2
+	cat $1 >> $2
+else
+	cp $1 $2
+fi

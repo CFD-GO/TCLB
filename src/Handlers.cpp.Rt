@@ -205,6 +205,7 @@ class OptimalControl : public Design {
 	int zone_number, par_index;
 	int old_iter_type;
 	FILE * f;
+	double lower, upper;
 public:
 	int Init() {
 		std::string par;
@@ -245,6 +246,20 @@ public:
 		output("Lenght of the control: %d\n", Pars);
 		old_iter_type = solver->iter_type;
 		solver->iter_type |= ITER_GLOBS;
+		attr = node.attribute("lower");
+		if (attr) {
+			lower = solver->units.alt(attr.value());
+		} else {
+			notice("lower bound not set in %s - setting to -1\n",node.name());
+			lower = -1;
+		}
+		attr = node.attribute("upper");
+		if (attr) {
+			upper = solver->units.alt(attr.value());
+		} else {
+			notice("upper bound not set in %s - setting to 1\n",node.name());
+			upper = 1;
+		}
 		f = fopen((par + "-" + zone + "_optimalControl.csv").c_str(),"w");
 		assert( f != NULL );
 		return Design::Init();
@@ -258,13 +273,13 @@ public:
 			output("Getting the params from the zone\n");
 			solver->lattice->zSet.get(par_index, zone_number, tab);
 			fprintf(f,"GET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
 			fprintf(f,"SET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			solver->lattice->zSet.set(par_index, zone_number, tab);
 			return 0;
@@ -272,8 +287,14 @@ public:
 			output("Getting gradient of a param in zone\n");
 			solver->lattice->zSet.get_grad(par_index, zone_number, tab);
 			fprintf(f,"GRAD");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
+			return 0;
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) tab[i]=upper;
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) tab[i]=lower;
 			return 0;
 		default:
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
@@ -362,13 +383,13 @@ public:
 			solver->lattice->zSet.get(par_index, zone_number, tab2);
 			for (int i=0; i<Pars2;i+=2) tab[i/2]=tab2[i];
 			fprintf(f,"GET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
 			fprintf(f,"SET");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			for (int i=0; i<Pars;i++) {
 				if (2*i<Pars2) tab2[2*i] = tab[i];
@@ -394,7 +415,7 @@ public:
 				}
 			}
 			fprintf(f,"GRAD");
-			for (int i=0;i<Pars;i++) fprintf(f,",%lf",(double) tab[i]);
+			for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
 			fprintf(f,"\n");
 			return 0;
 		case PAR_UPPER:
@@ -850,6 +871,117 @@ class cbStop: public Callback {
 		return Callback::Finish();
 	}
 };
+class cbAveraging: public Callback{
+        public:
+        int Init() {
+		Callback::Init();
+		solver->lattice->resetAverage();
+                return 0;
+        }
+        int DoIt() {
+                Callback::DoIt();
+                solver->lattice->resetAverage(); // reseting averages-storing densities and setting reset_iter to iter
+                return 0;
+        }
+        int Finish() {
+                return Callback::Finish();
+        }
+};
+
+class cbFailcheck: public Callback {
+	lbRegion reg;
+	public:
+	int Init() {
+		Callback::Init();
+		reg.dx = solver->region.dx;
+		reg.dy = solver->region.dy;
+		reg.dz = solver->region.dz;
+		return 0;
+	}
+	int DoIt() {
+		Callback::DoIt();
+        	int ret = 0;
+		int cond,fin;
+		fin = false;
+		cond = false;
+		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		if (!cond) {
+			<?%s q$type ?> tmp;
+			solver->lattice->Get<?%s q$name ?>(reg,&tmp);
+			<?R if (q$vector) { ?>
+	                cond = ((std::isnan(tmp.x)) || (std::isnan(tmp.y)) || (std::isnan(tmp.z)));  
+			<?R } else { ?>  
+			cond = (std::isnan(tmp));
+			<?R } ?>
+		}
+		<?R }; ifdef(); ?>
+		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPI_COMM_WORLD);
+		if (fin) { 
+			 notice("Stopping due to Nan value\n");
+			 ret = ITERATION_STOP;
+		}
+		return ret;
+	}	
+	int Finish() {
+		return Callback::Finish();
+	}
+};	
+class cbSample: public Callback{
+	name_set s;
+        std::string filename; 
+	public:
+	int Init(){
+		std::string nm="Sampler";
+		char fn[STRING_LEN];
+		Callback::Init();
+		pugi::xml_attribute attr=node.attribute("what");
+		if (attr) {
+			s.add_from_string(attr.value(),',');
+		}
+		else {
+			s.add_from_string("all",',');
+		}
+		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+			if (strcmp(par.name(),"Point") == 0) {
+				lbRegion loc;
+				attr = par.attribute("dx");
+				if (attr) {
+					loc.dx = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dy");
+				if (attr) {
+					loc.dy = solver->units.alt(attr.value());
+				}
+				attr = par.attribute("dz");
+				if (attr) {
+					loc.dz = solver->units.alt(attr.value());
+				}
+				loc = solver->region.intersect(loc);
+				if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
+			} else {
+				error("Uknown element in Sampler\n");
+				return -1;
+			}
+		} 
+		solver->outIterFile(nm.c_str(),".csv",fn);
+		filename = fn;
+		solver->lattice->sample->units = solver->units;
+		solver->lattice->sample->mpis = solver->mpi;		
+		solver->lattice->sample->Allocate(&s,startIter,everyIter); 
+		solver->lattice->sample->initCSV(filename.c_str());
+		return 0;
+		}
+	int DoIt() {
+		Callback::DoIt();
+		solver->lattice->sample->writeHistory(solver->iter);
+		solver->lattice->sample->startIter = solver->iter;
+		return 0;
+		}
+	int Finish(){
+	   solver->lattice->sample->Finish();
+	   return Callback::Finish();
+	 }	 
+};
 
 class cbKeep: public Callback {
 	int old_iter_type;
@@ -1019,6 +1151,20 @@ class MainContainer: public GenericAction {
 		GenericAction::Init();
 		char filename[STRING_LEN];
 		solver->outIterFile("config", ".xml", filename);
+		pugi::xml_node n = solver->configfile.append_child("Run");
+		n.append_attribute("model").set_value(MODEL);
+		pugi::xml_node c = n.append_child("Code");
+		c.append_attribute("version").set_value(VERSION);
+		#ifdef CALC_DOUBLE_PRECISION
+			c.append_attribute("precision").set_value("double");
+		#else
+			c.append_attribute("precision").set_value("float");
+		#endif
+		#ifdef CROSS_CPU
+			c.append_attribute("cross").set_value("CPU");
+		#else
+			c.append_attribute("cross").set_value("GPU");
+		#endif
 		solver->configfile.save_file(filename);
 		return GenericAction::ExecuteInternal();
 	}
@@ -1824,7 +1970,6 @@ class acParams: public Action {
 
 class acSyntheticTurbulence: public Action {
 	public:
-
 	int ReadWaveNumer(std::string name, double * var) {
 		int set = 0;
 		double val = *var;
@@ -1894,7 +2039,7 @@ class acSyntheticTurbulence: public Action {
 		if (spec == "Von Karman") {
 			double mainWN, diffWN, maxWN, minWN;
 			if (ReadWaveNumer("Main", &mainWN)) {
-				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");
+				ERROR("Must provide MainWaveNumber for synthetic turbulence Von Karman spectrum\n");		
 				return -1;
 			}
 			if (ReadWaveNumer("Diffusion", &diffWN)) {
@@ -1969,7 +2114,7 @@ class acLoadBinary: public Action {
 		if (attr2) {
 			solver->loadComp(attr.value(), attr2.value());
 		} else {
-		//	solver->lattice->loadSolution(attr.value());
+		solver->lattice->loadSolution(attr.value());
             error("Missing comp parameter in LoadBinary");
 		}
 		return 0;
@@ -2003,8 +2148,8 @@ class cbSaveBinary: public Callback {
 		if (attr) {
 			solver->saveComp(fn.c_str(), attr.value());
 		} else {
-		//	solver->lattice->saveSolution(fn.c_str());
-            error("Missing comp attribute in SaveBinary");
+			solver->lattice->saveSolution(fn.c_str());
+            	//error("Missing comp attribute in SaveBinary");
 		}
 		return 0;
 	};
@@ -2079,7 +2224,23 @@ class cbPythonCall: public Callback {
         if (firstTime){
             firstTime = false;
             #ifdef EMBEDED_PYTHON
-            setenv("PYTHONPATH",".",1);
+
+            char const* syspythonpath = getenv( "PYTHONPATH" );
+
+            std::string oldpath;
+            
+            if ( syspythonpath == NULL ) {
+            //  Big problem...
+            } else {
+                oldpath = std::string( syspythonpath );
+            }            
+            
+            oldpath.resize (oldpath.size()+1,':');
+            oldpath.resize (oldpath.size()+1,'.');
+
+            setenv("PYTHONPATH",oldpath.c_str(),1);
+            debug1("PYTHONPATH set to %s", oldpath.c_str() );
+
             Py_Initialize();
             _import_array();
             #endif
@@ -2098,19 +2259,34 @@ class cbPythonCall: public Callback {
 		if (!module || !function || !comp) {
             error("Missing params in PythonCall");
         }
+
+        std::vector<std::string> components;
+        std::vector<real_t*> buffers;
+
+
+        char *str = strdup(comp.value());  // We own str's memory now.
+        char *token;
+        int n_components = 0;
+        while ((token = strsep(&str, ","))) {
+            components.push_back(std::string(token));
+            n_components++;
+        }
+
+        buffers.resize(n_components);
+
+        free(str);        
+
         //variable menaged by selver!!
-        real_t * buffer;
-        long int size = solver->getComponentIntoBuffer(comp.value(), buffer);
 #ifdef EMBEDED_PYTHON
 
-        output("buffer size: %d", size);
+     //   output("buffer size: %d", size);
 ////BEGIN PYTHON HANDLING
 
-	
+    	
+        
 
-
-	    PyObject *pName, *pModule, *pDict, *pFunc;
-	    PyObject *pInputData, *pValue, *pArgs;
+	    PyObject *pName, *pModule, *pOffsets, *pFunc;
+	    PyObject *pValue, *pArgs;
 
 	    pName = PyString_FromString(module.value());
 	    /* Error checking of pName left out */
@@ -2123,29 +2299,58 @@ class cbPythonCall: public Callback {
 	        /* pFunc is a new reference */
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
-                if (sizeof(real_t) == sizeof(float) ) {
+//                if (sizeof(real_t) == sizeof(float) ) {
 //                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_FLOAT, buffer);
-                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
-                } else if (sizeof(real_t) == sizeof(double) ){
+//                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
+//                } else if (sizeof(real_t) == sizeof(double) ){
 //                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_DOUBLE, buffer);
-                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
+//                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
+//                }
+                
+                
+                pArgs = PyTuple_New(n_components+1);
+                
+                long int offsets[3] = {-1,-1,-1};
+
+                for (int i =0; i<n_components; i++){
+                    const char * component = components[i].c_str();
+    
+                    PyObject* pInputData;
+                    real_t * buffer;
+                    long int dims[3];
+
+                    long int size = solver->getComponentIntoBuffer(component, buffer, dims, offsets );
+    
+                    if (sizeof(real_t) == sizeof(float) ) {
+                        pInputData = PyArray_SimpleNewFromData(3, dims, PyArray_FLOAT, buffer);
+                    } else if (sizeof(real_t) == sizeof(double) ){
+                        pInputData = PyArray_SimpleNewFromData(3, dims, PyArray_DOUBLE, buffer);
+                    }
+                
+                    buffers[i] = buffer;
+
+                    //pInputData reference is stolen here
+                    PyTuple_SetItem(pArgs, i+1, pInputData);
                 }
                 
-                pArgs = PyTuple_New(1);
-                //pInputData reference is stolen here
-                PyTuple_SetItem(pArgs, 0, pInputData);
-
+                pOffsets = PyTuple_New(3);    
+                for (int k=0; k < 3; k++){
+                    PyTuple_SetItem(pOffsets, k, PyInt_FromLong(offsets[k]));
+                }
+    
+                PyTuple_SetItem(pArgs, 0, pOffsets);
+ 
 		        pValue = PyObject_CallObject(pFunc, pArgs);
                 Py_DECREF(pArgs);
 	            if (pValue != NULL) {
-	                printf("Result of call: %ld\n", PyInt_AsLong(pValue));
+	                output("Result of Python call: %ld\n", PyInt_AsLong(pValue));
 	                Py_DECREF(pValue);
 	            }
 	            else {
 	                Py_DECREF(pFunc);
 	                Py_DECREF(pModule);
 	                PyErr_Print();
-	                fprintf(stderr,"Call failed\n");
+	                error("PythonCall failed\n");
 	                return 1;
 	            }
                 
@@ -2153,23 +2358,24 @@ class cbPythonCall: public Callback {
 	        else {
 	            if (PyErr_Occurred())
 	                PyErr_Print();
-	            fprintf(stderr, "Cannot find function \"%s\"\n", function.value());
+	                error("PythonCall: Cannot find function \"%s\"\n", function.value());
 	        }
 	        Py_XDECREF(pFunc);
 	        Py_DECREF(pModule);
 	    }
 	    else {
 	        PyErr_Print();
-	        fprintf(stderr, "Failed to load \"%s\"\n", module.value());
+	        error("PythonCall: Failed to load \"%s\"\n", module.value());
 	        return 1;
 	    }
        
-
-        for (int k =0; k < 10; k++){
-            printf("%f\n", ((real_t*)buffer)[k]);
+        for (int i =0; i<n_components; i++){
+            const char * component = components[i].c_str();
+            for (int k =0; k < 10; k++){
+                debug2("PythonCall after, buffer %d, value %d: %f\n",i,k, buffers[i][k]);
+            }
+            int status = solver->loadComponentFromBuffer(component, buffers[i]);
         }
-        int status = solver->loadComponentFromBuffer(comp.value(), buffer);
-
 //	    Py_Finalize();
 //END PYTHON HANDLING
 #else
@@ -2238,6 +2444,12 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new cbStop;
     } else if (name=="Keep") {
 		ret = new cbKeep;
+    } else if (name=="Failcheck") {
+                ret = new cbFailcheck;
+    } else if (name=="Average") {
+		ret = new cbAveraging;
+    } else if (name=="Sample") {
+		ret = new cbSample;
     } else if (name=="Solve") {
 		ret = new acSolve;
     } else if (name=="OptSolve") {
@@ -2323,3 +2535,5 @@ vHandler * getHandler(pugi::xml_node node) {
 	if (ret != NULL) ret->node = node;
 	return ret;
 }
+
+
