@@ -341,7 +341,7 @@ case ...:
 \end{lstlisting}
 \newpage
 \subsection{D2Q9 Single Relaxation Time LBM}
-Here we look to specify how one would go look to create a new lattice Boltzmann (LB) scheme in TCLB. For simplicity, we shall start by looking at the single relaxation, BGK collision LBM and apply it to lid-driven cavity flow. It is assumed the user has basic knowledge of the LB equations.
+Here we look to specify how one would go look to create a new lattice Boltzmann (LB) scheme in TCLB. For simplicity, we shall start by looking at the single relaxation, BGK collision LBM and apply it to Poiseuille flow. It is assumed the user has basic knowledge of the LB equations.
 \subsubsection{Governing Equations}
 The LB equation is given as a discrete form of the Boltzmann transport equation as,
 \begin{align*}
@@ -364,6 +364,19 @@ c_s^2 &= \frac{1}{3} \\
 1/9		& i=1-4 \\
 1/36	& i=5-8
 \end{cases}
+\end{align*}
+\subsubsection{Boundary Conditions}
+For this specific example, we are looking at flow through a channel. We can accept periodic conditions along the x-axis but have to give no-slip wall conditions to limit the y-domain. To do this with LBM, the halfway bounce-back method is used. In this particle distribution functions that stream into a node flagged as "wall" are reversed, or "bounced-back" in the direction from which they came. Therefore, in the general d2q9 lattice, we get $f_0 = f'_0$, $f_1 = f'_3$, $f_2 = f'_4$, $f_3 = f'_1$, $f_4 = f'_2$, $f_5 = f'_7$, $f_6 = f'_8$, $f_7 = f'_5$, $f_8 = f'_6$, where ' indicates post-bounce-back direction.
+
+\subsubsection{Body Force Implementation}
+There are a number of different body force implementations utilised in the literature. For this exercise, we consider a that a body force $\mathbf{G}$ in each time increment results in a momentum change equal to $\Delta(\rho \mathbf{u})=\mathbf{G}$. To incorporate this, we modify the equilibrium velocity,
+\begin{align*}
+\rho \mathbf{u}^* = \rho \mathbf{u}+\tau\mathbf{G}
+\end{align*} 
+
+This approach ultimately acts to relax each particle distribution function towards an equilibrium momentum that has included the time-incremental change due to the applied body force. To obtain the bulk fluid velocity, the before and after momentum average is taken giving,
+\begin{align*}
+\rho \mathbf{v} = \rho \mathbf{u}+0.5\mathbf{G}
 \end{align*}
 
 \subsubsection{Model Creation in TCLB}
@@ -418,8 +431,8 @@ CudaDeviceFunction vector_t getU() {
 // This function defines the macroscopic velocity at the current node.
         real_t d = f[8]+f[7]+f[6]+f[5]+f[4]+f[3]+f[2]+f[1]+f[0];
         vector_t u;
-        u.x = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d;
-        u.y = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d;
+        u.x = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d + GravitationX*0.5;
+        u.y = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d + GravitationY*0.5;
         u.z = 0
         return u
 }
@@ -432,8 +445,8 @@ CudaDeviceFunction void CollisionBGK() {
 // We can save memory here by using a single dummy variable in place of f_temp - goes from ~10gb/s to ~11
 	real_t u[2], usq, d, f_temp[9];
 	d = getRho();
-	u[0] = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d;
-	u[1] = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d;
+	u[0] = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d + GravitationX/omega;
+	u[1] = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d + GravitationY/omega;
 	f_temp[0] = f[0];
 	f_temp[1] = f[1];
 	f_temp[2] = f[2];
@@ -456,7 +469,7 @@ CudaDeviceFunction void CollisionBGK() {
 }
 \end{lstlisting}
 
-Before we run any example cases, we must first define some boundary conditions. For this, we will look to prescribe the LBM's bounce-back scheme for solid walls and we will look to create a Poiseuille type flow by applying constant velocity to the west inlet and constant pressure to the east outlet (Zou/He BC). The \textit{WVelocity} and \textit{EPressure} are built-in NodeTypes in TCLB, so we are not required to specify these in \textit{Dynamics.R}. We do however, need to describe the dynamics of these conditions as we have three unknown distribution functions streaming into the domain through both the inlet and outlet. Refer to the works of Zou and He if to better understand the construction of these boundaries\footnote{Zou, Q. and He, X. (1997), ``On pressure and velocity boundary conditions for the lattice Boltzmann BGK model", \textit{American Institute of Physics}}.\\
+Before we run any example cases, we must first define some boundary conditions. For this, we will look to prescribe the LBM's bounce-back scheme for solid walls and could look to create a Poiseuille type flow by applying constant velocity to the west inlet and constant pressure to the east outlet (Zou/He BC). However, a simpler approach is to apply a body force to a periodic channel allowing for the result to be compared to analytical solutions. The \textit{WVelocity} and \textit{EPressure} are built-in NodeTypes in TCLB, so we are not required to specify these in \textit{Dynamics.R}. We do however, need to describe the dynamics of these conditions as we have three unknown distribution functions streaming into the domain through both the inlet and outlet. Refer to the works of Zou and He if to better understand the construction of these boundaries\footnote{Zou, Q. and He, X. (1997), ``On pressure and velocity boundary conditions for the lattice Boltzmann BGK model", \textit{American Institute of Physics}}.\\
 
 The dynamics of the boundaries are set up in \textit{Dynamics.c} as follows:
 \begin{lstlisting}
@@ -526,33 +539,36 @@ We know have all we need to simulate a simple Poiseuille flow, we just need to w
 \begin{lstlisting}
 <?xml version="1.0"?>
 <CLBConfig version="2.0" output="output/">
-        <Geometry nx="1024" ny="100">
-		<BGK><Box/></BGK>
-		<WVelocity name="Inlet"><Inlet/></WVelocity>
-		<EPressure name="Outlet"><Outlet/></EPressure>
-		<Inlet nx='1' dx='5'><Box/></Inlet>
-		<Outlet nx='1' dx='-5'><Box/></Outlet>
-		<Wall>
-			<Box ny="1"/>
-            <Box dy="-1"/>
-		</Wall>
-	</Geometry>
-	<Model>
-		<Params Velocity="0.01" />
-		<Params nu="0.02"/>
-	</Model>
-	<VTK Iterations="1000"/>
-	<Solve Iterations="10000"/>
+        <Units>
+                <Params size="0.0005m" gauge="1"/>
+                <Params nu="1e-5m2/s" gauge="0.1666666666"/>
+        </Units>
+        <Geometry nx="0.02m" ny="0.0105m">
+                <BGK><Box/></BGK>
+                <Wall mask="ALL">
+                        <Channel/>
+                </Wall>
+        </Geometry>
+        <Model>
+                <Params Velocity="0.0"/>
+                <Params omega="1.0"/>
+                <Params GravitationX="0.000311634m/s2"/>
+                <Params Density="1000kg/m3"/>
+        </Model>
+        <VTK/>
+        <VTK Iterations="50000"/>
+        <Solve Iterations="50000"/>
 </CLBConfig>
 \end{lstlisting}
 
-We work through this in the normal fashion, firstly specifying the xml header, as well as the CLBConfig and the location for our simulation output. From here we specify BGK collision inside the domain of size (1024x100x1), with constant velocity inlet on the west side and constant pressure outlet on the east side. Below this, we have indicated that the top and bottom layer of cells are to be simulated as a wall. This concludes the geometry set up and we now specify model specific parameters as well as output print timing (VTK Iterations) and total simulation time (Solve Iterations).
+We work through this in the normal fashion, firstly specifying the xml header, as well as the CLBConfig and the location for our simulation output. From here we specify the unit scales and the BGK collision inside the domain of size (1024x100x1). Below this, we have indicated that the top and bottom layer of cells are to be simulated as a wall using the \lstinline$<Channel/>$ command. This concludes the geometry set up and we now specify model specific parameters as well as output print timing (VTK Iterations) and total simulation time (Solve Iterations).\\
 
-Making the model and running with the input file above gives us the result shown in Figure \ref{fig:d2q9_SRT_example}.
+Making the model and running with the input file above gives us the result shown in Figure \ref{fig:d2q9_SRT_example}. \\
 
+This figure shows a maximum velocity of 0.00035189 m/s which aligns very closely with the analytical maximum of 0.000351563m/s.
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.75\textwidth]{figures/d2q9_SRT_example.png}
+\includegraphics[width=1.0\textwidth]{figures/d2q9_SRT_verification.png}
 \caption{d2q9\_SRT\_example output for Poiseuille flow}
 \label{fig:d2q9_SRT_example}
 \end{figure}

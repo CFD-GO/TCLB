@@ -4,6 +4,7 @@
 #           flow at arbitrarily high density ratios - Lycett-Brown & Luo (2015)"
 # implemented by T. Mitchell 2016
 # #############
+
 	source("conf.R") 
 	source("lib/feq.R")
 	c_header();
@@ -33,7 +34,11 @@ CudaDeviceFunction void Init() {
 	real_t u[2] = {Velocity,VelocityY};
 	real_t rho = Density;
 	SetEquilibrum(rho,u);
+	//for (int i = 0; i<9; i++){
+	//	printf("\n %6.4lf", f[i]);
+	//}
 	calcPsi();
+	//printf("\n Rho=%6.4lf , Psi=%6.4lf",rho,psi);
 }
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
@@ -62,10 +67,13 @@ CudaDeviceFunction void Run() {
     }
     if (NodeType & NODE_MRT)
     {
+		calcPsi();
 		CollisionMRT();
+		/*for (int i = 0; i<9; i++){
+			printf("\n %6.4lf", f[i]);
+		}*/
 		BodyForce();
     }
-    calcPsi();
 }
 CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2]) {
 real_t usq, uf;
@@ -96,7 +104,6 @@ CudaDeviceFunction vector_t getU(){
 		C(PV(c("u.x","u.y")), f %*% U) 
 	?>
 	F = getF(); 
-	// Need to check about dividing by d -> large results if gas phase?
 	u.x = u.x + F.x*0.5;
 	u.y = u.y + F.y*0.5;
 	u.z = 0.0;
@@ -105,21 +112,41 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 CudaDeviceFunction vector_t getF(){
-	real_t rho = getRho();
+	real_t rho = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
 	vector_t F = PPForce();
 	F.x += GravitationX*rho ; // Need to check implementation
 	F.y += GravitationY*rho ; // as to incorporate buoyancy effects	
 	F.z = 0.0;
 	return F;
 }
+CudaDeviceFunction real_t getP(){
+// Carnahan-Starling EoS.
+	real_t p0,bp, d;
+	d = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
+	bp = d*beta/4.0;
+	p0 = d*R*T*(1+bp+bp*bp-bp*bp*bp)/pow(1-bp,3) - alpha*d*d;
+    /*printf("\n rho in P, %6.4lf",d);
+	printf("\n T=%6.4lf",T);
+	printf("\n R=%6.4lf",R);
+	printf("\n alpha=%6.4lf",alpha);
+	printf("\n p0=%6.4lf",p0);*/
+	return p0;
+}
+CudaDeviceFunction real_t getPsi(){
+	return psi(0,0);
+}
+// Pseudopotential Specific Functions
 CudaDeviceFunction vector_t PPForce(){
 	real_t R[9];
 	vector_t F;
 	<?R
-	    Force = PV(c("F.x","F.y"));
+		Force = PV(c("F.x","F.y"));
        	R = PV(c(paste("R[",1:9-1,"]",sep="")))
         C(R , ph);
     ?>
+    //for (int i =0; i<9;i++){
+		//printf("\n Phi %d is %d", i, R[i]);
+	//}
 // Symmetry alteration same as kuper model - set outside psi equal to inside
 	if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry) {
 	<?R
@@ -139,25 +166,41 @@ CudaDeviceFunction vector_t PPForce(){
 	} 
     <?R
     # tn_force From McDonald & Turner 2015:
-		tn_force = matrix( c(t1,t2,t2,t2,t2,t3,t3,t3,t3),9,1)
-	    G  = PV("G")
-	    temp = tn_force * R
-	    temp = t(temp) %*% U
-		temp = c_squ*temp
-	    C(Force,G * R[1] * temp)  
-	?>
+    # tn_force = matrix( c(0,2,2,2,2,1,1,1,1),9,1)
+    # tn_force taken as lattice weightings
+	tn_force = matrix( c(t1,t2,t2,t2,t2,t3,t3,t3,t3),9,1)
+	# tn_force taken as weightings from kupershtok model
+	# tn_force = matrix( c(0,1,1,1,1,1/4,1/4,1/4,1/4),9,1)
+	G  = PV("G")
+	temp = tn_force * R
+	temp = t(temp) %*% U
+	temp = c_squ*temp
+	C(Force,G * R[1] * temp)  
+    ?>
+   /*
+// Beta force attempt 6/5/16 - Zarghami et al (2015)
+	real_t c0 = 6.0;
+	real_t c1 = 1/3.0;
+	real_t c2 = 1/12.0;
+	real_t B  = 1.16;
+	real_t dx = c1*(R[1]-R[3]) + c2*(R[5]-R[6]-R[7]+R[8]);
+	real_t dy = c1*(R[2]-R[4]) + c2*(R[5]+R[6]-R[7]-R[8]);
+	F.x = -c0*B*R[0]*G * ( dx ) -  (1-B) * c0*G*( dx*dx )/2.0;
+	F.x = -c0*B*R[0]*G * ( dy ) -  (1-B) * c0*G*( dy*dy )/2.0;
+	*/
 	F.z = 0.0;
 	return F;
 }
 CudaDeviceFunction void calcPsi(){
 // Calculate psi at each point so that pseudopotential force
-// can be found. Carnahan-Starling EoS applied.
-	real_t p0,bp, d;
-	d = getRho();
-	bp = d*beta/4.0;
-	p0 = d*R*T*(1+bp+bp*bp-bp*bp*bp)/pow(1-bp,3) - alpha*d*d;	
+// can be found.
+	real_t p0, d;
+	d = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
+	p0 = getP();
+	//printf("\n Pressure, %6.4lf", p0);
 	psi = sqrt(2*(p0-d/3.0)/(G/3.0));
 }
+// Boundary Conditions
 // Boundary Conditions
 CudaDeviceFunction void BounceBack() {
      real_t uf;
@@ -288,7 +331,7 @@ CudaDeviceFunction void CollisionMRT() {
 CudaDeviceFunction void BodyForce() {
 	real_t S[9], theta[4];
 	real_t ux, uy, uf, gamma;
-	real_t rho = getRho();
+	real_t rho = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
 	vector_t Force = getF();
 	real_t c_squ = 1/3.0;
 	<?R 
@@ -315,30 +358,64 @@ CudaDeviceFunction void BodyForce() {
 	w[5] = 1/36.0;
 	w[6] = 1/36.0;
 	w[7] = 1/36.0;
-	w[8] = 1/36.0;
-S[0]=w[0]*(((0.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[1]=w[1]*(((1.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[2]=w[2]*(((0.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[3]=w[3]*(((-1.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[4]=w[4]*(((0.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[5]=w[5]*(((1.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[6]=w[6]*(((-1.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[7]=w[7]*(((-1.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
-S[8]=w[8]*(((1.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	w[8] = 1/36.0;/*
+	w[0] = 0.0;
+	w[1] = 1.0;
+	w[2] = 1.0;
+	w[3] = 1.0;
+	w[4] = 1.0;
+	w[5] = 1/4.0;
+	w[6] = 1/4.0;
+	w[7] = 1/4.0;
+	w[8] = 1/4.0;
+	S[0]=w[0]*(((0.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[1]=w[1]*(((1.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[2]=w[2]*(((0.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[3]=w[3]*(((-1.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[4]=w[4]*(((0.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[5]=w[5]*(((1.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[6]=w[6]*(((-1.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[7]=w[7]*(((-1.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[8]=w[8]*(((1.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	/*printf("\n rho, %6.4lf", rho);
+	printf("\n gamma, %6.4lf", gamma);
+	printf("\n omega, %6.4lf", tempomega);
+	printf("\n G, %6.4lf", G);
+	printf("\n psi, %6.4lf", psi);
+	for (int i=0;i<9;i++){
+		//if (S[i] > 0.1){
+			printf("\n S %d is",i);
+			printf("%6.4lf",S[i]);
+			printf("\n f %d is",i);
+			printf("%6.4lf",f[i]);
+			//printf("\n ux is %6.4lf, uy is %6.4lf", ux,uy);
+			//printf("\n fx is %6.4lf, fy is %6.4lf",Force.x,Force.y);
+		//}
+	}*/
+	// Excel Generated Code:
+S[0]=w[0]*((0.0-ux+0.0*(0.0*ux+0.0*uy)/c_squ)*Force.x+(0.0-uy+0.0*(0.0*ux+0.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(0.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[1]=w[1]*((1.0-ux+1.0*(1.0*ux+0.0*uy)/c_squ)*Force.x+(0.0-uy+0.0*(1.0*ux+0.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[2]=w[2]*((0.0-ux+0.0*(0.0*ux+1.0*uy)/c_squ)*Force.x+(1.0-uy+1.0*(0.0*ux+1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(0.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[3]=w[3]*((-1.0-ux+-1.0*(-1.0*ux+0.0*uy)/c_squ)*Force.x+(0.0-uy+0.0*(-1.0*ux+0.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(-1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[4]=w[4]*((0.0-ux+0.0*(0.0*ux+-1.0*uy)/c_squ)*Force.x+(-1.0-uy+-1.0*(0.0*ux+-1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(0.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[5]=w[5]*((1.0-ux+1.0*(1.0*ux+1.0*uy)/c_squ)*Force.x+(1.0-uy+1.0*(1.0*ux+1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[6]=w[6]*((-1.0-ux+-1.0*(-1.0*ux+1.0*uy)/c_squ)*Force.x+(1.0-uy+1.0*(-1.0*ux+1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(-1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[7]=w[7]*((-1.0-ux+-1.0*(-1.0*ux+-1.0*uy)/c_squ)*Force.x+(-1.0-uy+-1.0*(-1.0*ux+-1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(-1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[8]=w[8]*((1.0-ux+1.0*(1.0*ux+-1.0*uy)/c_squ)*Force.x+(-1.0-uy+-1.0*(1.0*ux+-1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+	
 	// Alter PDF's
-f[0]=f[0]+S[0];
-f[1]=f[1]+S[1];
-f[2]=f[2]+S[2];
-f[3]=f[3]+S[3];
-f[4]=f[4]+S[4];
-f[5]=f[5]+S[5];
-f[6]=f[6]+S[6];
-f[7]=f[7]+S[7];
-f[8]=f[8]+S[8];
+	f[0]=f[0]+S[0];
+	f[1]=f[1]+S[1];
+	f[2]=f[2]+S[2];
+	f[3]=f[3]+S[3];
+	f[4]=f[4]+S[4];
+	f[5]=f[5]+S[5];
+	f[6]=f[6]+S[6];
+	f[7]=f[7]+S[7];
+	f[8]=f[8]+S[8];
 
 
 }
-
 
 // FOR GUI-graphics
 CudaDeviceFunction float2 Color() {
