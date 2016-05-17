@@ -106,14 +106,34 @@ CudaDeviceFunction void EVelocity()
 <?R ZouHe(EQ, 1, -1, "velocity") ?>
 }
 
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void SVelocity()
+{
+<?R ZouHe(EQ, 2, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void NVelocity()
+{
+<?R ZouHe(EQ, 2, -1, "velocity") ?>
+}
+
 CudaDeviceFunction void WPressure()
 {
 <?R ZouHe(EQ, 1, 1, "pressure") ?>
 }
 
-CudaDeviceFunction void WVelocity()
+CudaDeviceFunction void SPressure()
 {
-<?R ZouHe(EQ, 1, 1, "velocity") ?>
+<?R ZouHe(EQ, 2, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void NPressure()
+{
+<?R ZouHe(EQ, 2, -1, "pressure") ?>
 }
 
 CudaDeviceFunction void EPressure()
@@ -162,17 +182,29 @@ CudaDeviceFunction void Run() {
 	case NODE_BottomSymmetry:
                	BottomSymmetry();
                 break;
+	case NODE_EPressure:
+                EPressure();
+               	break;
 	case NODE_WPressure:
 		WPressure();
 		break;
+	case NODE_SPressure:
+                SPressure();
+                break;
+	case NODE_NPressure:
+                NPressure();
+                break;
 	case NODE_WVelocity:
 		WVelocity();
 		break;
+	 case NODE_NVelocity:
+                NVelocity();
+                break;
+	 case NODE_SVelocity:
+                SVelocity();
+                break;
 	case NODE_EVelocity:
 		EVelocity();
-		break;
-	case NODE_EPressure:
-		EPressure();
 		break;
 	case NODE_SymmetryY:
 		SymmetryY();

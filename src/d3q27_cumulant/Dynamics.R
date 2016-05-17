@@ -33,6 +33,10 @@ AddNodeType("SymmetryZ", "BOUNDARY")
 AddNodeType("WVelocityTurbulent","BOUNDARY")
 AddNodeType("TopSymmetry","BOUNDARY")
 AddNodeType("BottomSymmetry","BOUNDARY")
+AddNodeType("NVelocity", "BOUNDARY")
+AddNodeType("SVelocity", "BOUNDARY")
+AddNodeType("NPressure", "BOUNDARY")
+AddNodeType("SPressure", "BOUNDARY")
 	
 #Adding terms for supporting time-correlation for synthetic turbulence
 
