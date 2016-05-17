@@ -1,0 +1,16 @@
+<?R
+	source("conf.R")
+	f = PV("fb[",1:9-1,"]")
+	g = PV("gb[",1:5-1,"]")
+?>
+
+CudaDeviceFunction real_t getRhoB(){
+	return <?R C(sum(f)) ?> ;
+}
+
+CudaDeviceFunction real_t getTB()
+{
+	return <?R C(sum(g)) ?> ;
+}
+
+

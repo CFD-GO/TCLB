@@ -17,6 +17,7 @@
       #define CudaConstantMemory
       template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
+      inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     #else
 //      #include "../../cub/cub/cub.cuh"
       #define CudaDeviceFunction __device__
@@ -225,7 +226,7 @@
     #define RunKernelMaxThreads (GetMaxThreads())
     #define CudaFuncAttributes cudaFuncAttributes
     #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( cudaFuncGetAttributes(a__, b__) )
-
+    #define ISFINITE(l__) isfinite(l__)
   #else
     #include <assert.h>
     #include <time.h>
@@ -238,6 +239,7 @@
     #endif
     template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
     template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
+    inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     struct float2 { float x,y; };
     struct float3 { float x,y,z; };
     struct double2 { double x,y; };
@@ -350,20 +352,27 @@
     {
       sum[0] += val;
     }
+    
+//    template <typename T>
+    inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
+      {
+        if (yes) sum[0] += val;
+      }
+
 
     template <typename T>
     inline void atomicMax(T * sum, T val)
     {
       if (val > sum[0]) sum[0] = val;
     }
-
+  #define ISFINITE(l__) std::isfinite(l__)
 
   #endif
 
     CudaError cudaPreAlloc(void ** ptr, size_t size);
     CudaError cudaAllocFinalize();
     CudaError cudaAllocFreeAll();
-
+  
 #endif
 #define CROSS_H
 
