@@ -108,3 +108,45 @@ ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
   }
   C(f[sel],fs[sel])
 }
+
+ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rhs) {
+	type=match.arg(type)
+	if (missing(rhs)) rhs = switch(type,
+		velocity=PV("Velocity"),
+		pressure=PV("Pressure")*3+1,
+		'do nothing'=PV("Pressure")+1./3.
+	)
+	d = length(n)
+	if (sum(n == 0) != d-1) stop("Normal have to be cartesian")
+	if (sum(abs(n)) != 1)   stop("Normal have to be cartesian versor")
+	direction = which(n != 0)
+	if (is.data.frame(EQ) || is.matrix(EQ)) {
+		U = as.matrix(EQ)
+	} else {
+		U = EQ$U
+	}
+	R = paste0("R",c("x","y","z"))[1:d]
+	EQ2 = MRT_eq(U, ortogonal=FALSE, J=PV(R))
+	bounce = Bounce(U)
+	sel = as.vector((U %*% n) > 0)
+	fs = f
+	feq = EQ2$feq
+	fs[sel] = (feq + (fs - feq)[bounce])[sel]
+	if (type == "do nothing") {
+		rhs = rhs * n
+		eqn = fs %*% EQ2$D2 %*% n
+	} else if (type == "pressure") {
+		eqn = V(fs %*% EQ2$U %*% diag(d))
+		eqn[direction] = V(sum(fs))
+		rhs = rhs * n;
+	} else if (type == "velocity") {
+		eqn = V( fs %*% EQ2$U %*% diag(d))
+		rhs = rhs * n * sum(fs)
+	} else stop("Unknown type in ZueHe")
+	cat("/*********", type, "-type Zue He boundary condition  ****************/\n");
+	eqn = eqn - rhs;
+	if (length(eqn) != length(R)) stop("Something is terribly wrong")
+	for (i in 1:length(R)) { cat("type_f "); C_pull(eqn[i],R[i]); }
+	C(f[sel],fs[sel]);
+}
+
