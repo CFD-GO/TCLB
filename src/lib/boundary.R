@@ -1,4 +1,14 @@
 
+Bounce = function(U, FUN=function(U) {-U} ) {
+	W1 = cbind(U,i=1:nrow(U))
+	W2 = cbind(-U,j=1:nrow(U))
+	ret = merge(W1,W2)
+	bounce = 1:nrow(U)
+	bounce[ret$i] = ret$j
+	bounce
+}
+
+
 FullBounceOp = function(op) {
 	cat("real_t tmp;\n")
 	tmp=PV("tmp")
@@ -33,7 +43,14 @@ FullSymmetryZ = function() {
 
 C_pull = function(W, var) {
 	ret = div.mod(W[[1]],var)
-	cat(var, " = (", ToC(ret[[1]]), ") / (", ToC(ret[[2]]*(-1)), ");\n")
+	A = ret[[1]]*(-1)
+	B = ret[[2]]
+
+	if (nrow(B) > 1) {
+		cat(var, " = (", ToC(A), ") / (", ToC(B), ");\n")
+	} else {
+		cat(var, " = ", ToC(A * (B ** -1)), ";\n")
+	}
 }
 
 ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("Velocity"), V3) {
@@ -128,7 +145,7 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 	R = paste0("R",c("x","y","z"))[1:d]
 	EQ2 = MRT_eq(U, ortogonal=FALSE, J=PV(R))
 	bounce = Bounce(U)
-	sel = as.vector((U %*% n) > 0)
+	sel = as.vector((U %*% n) < 0)
 	fs = f
 	feq = EQ2$feq
 	fs[sel] = (feq + (fs - feq)[bounce])[sel]
@@ -138,7 +155,7 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 	} else if (type == "pressure") {
 		eqn = V(fs %*% EQ2$U %*% diag(d))
 		eqn[direction] = V(sum(fs))
-		rhs = rhs * n;
+		rhs = rhs * abs(n);
 	} else if (type == "velocity") {
 		eqn = V( fs %*% EQ2$U %*% diag(d))
 		rhs = rhs * n * sum(fs)
