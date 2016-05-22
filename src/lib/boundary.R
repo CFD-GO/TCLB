@@ -127,6 +127,7 @@ ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
 }
 
 ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rhs) {
+  # --- Prepare arguments
 	type=match.arg(type)
 	if (missing(rhs)) rhs = switch(type,
 		velocity=PV("Velocity"),
@@ -142,28 +143,35 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 	} else {
 		U = EQ$U
 	}
+  # --- Create a new F equilibrum with 'R' as momentum
 	R = paste0("R",c("x","y","z"))[1:d]
 	EQ2 = MRT_eq(U, ortogonal=FALSE, J=PV(R))
-	bounce = Bounce(U)
-	sel = as.vector((U %*% n) < 0)
-	fs = f
 	feq = EQ2$feq
-	fs[sel] = (feq + (fs - feq)[bounce])[sel]
+	sel = as.vector((U %*% n) < 0)
+  # --- Creating new 'fs' that has symetric non-equilibrum part
+	bounce = Bounce(U)
+	fs = f; fs[sel] = (feq + (fs - feq)[bounce])[sel]
+  # --- Preparing moments to set
 	if (type == "do nothing") {
+	  # --- Set 2nd order moment tensor times normal vector
 		rhs = rhs * n
 		eqn = fs %*% EQ2$D2 %*% n
 	} else if (type == "pressure") {
+          # --- Set density and non-normal velocity compoments
 		eqn = V(fs %*% EQ2$U %*% diag(d))
 		eqn[direction] = V(sum(fs))
 		rhs = rhs * abs(n);
 	} else if (type == "velocity") {
+          # --- Set all velocity components
 		eqn = V( fs %*% EQ2$U %*% diag(d))
 		rhs = rhs * n * sum(fs)
-	} else stop("Unknown type in ZueHe")
-	cat("/*********", type, "-type Zue He boundary condition  ****************/\n");
+	} else stop("Unknown type in ZouHe")
+	cat("/********* ", type, "-type Zue He boundary condition  ****************/\n",sep="");
 	eqn = eqn - rhs;
 	if (length(eqn) != length(R)) stop("Something is terribly wrong")
-	for (i in 1:length(R)) { cat("type_f "); C_pull(eqn[i],R[i]); }
+  # --- Solving all equations for 'R'
+	for (i in 1:length(R)) { cat("real_t "); C_pull(eqn[i],R[i]); }
+  # --- Setting the missing densities f
 	C(f[sel],fs[sel]);
 }
 
