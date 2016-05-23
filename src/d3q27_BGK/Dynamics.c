@@ -1,8 +1,26 @@
 /*-------------------------------------------------------------*/
-/*  CLB - Cudne LB - Stencil Version                           */
+/*  	CLB - Cudne LB - Stencil Version                           */
 /*     CUDA based Adjoint Lattice Boltzmann Solver             */
-/*     Author: Lukasz Laniewski-Wollk                          */
+/*     Author: Wojciech Regulski                          */
+/*     Author e-mail wojtek.regulski@gmail.com
 /*     Developed at: Warsaw University of Technology - 2012    */
+/*
+	Description:
+	This is the standard implementation of the BGK collision model [1] 
+	- a very basic model used in the kinetic theory and th LBM framework 
+ 	The force term is added in a way propsed by Kuperstokh [2]:
+
+	delta f_force = f_eq(u+du) - f_eq(u) where du = u+force/rho
+
+	Mind that we add load to the momentum, J, thus no division by rho takes place in our implementation.
+
+	References:
+	[1]    Bhatnagar, P.L., Gross, E.P., Krook, M., 1954. A model for collision processes in gases. I. small amplitude processes in charged and neutral one-component systems.
+	Phys. Rev. 94, 511-525. URL http://	link.aps.org/doi/10.1103/PhysRev.94.511.
+
+	[2]	Kupershtokh, A., Medvedev, D., Karpov, D., 2009. "On equations of state in a lattice Boltzmann method". Comput. Math. Appl. 58 (5), 965-974
+
+
 /*-------------------------------------------------------------*/
 
 
@@ -60,7 +78,7 @@ f200 = tmp;
 tmp = f101;
 f101 = f202;
 f202 = tmp;
-tmp = f102;f222 + f122 + f022 + f212 + f112 + f012 + f202 + f102 + f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001 + f220 + f120 + f020 + f210 + f110 + f010 + f200 + f100 + f000;
+tmp = f102;
 f102 = f201;
 f201 = tmp;
 tmp = f120;
@@ -122,7 +140,7 @@ f122 = tmp;
 
 CudaDeviceFunction void SymmetryZ()
 {
-real_t tmp;f222 + f122 + f022 + f212 + f112 + f012 + f202 + f102 + f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001 + f220 + f120 + f020 + f210 + f110 + f010 + f200 + f100 + f000;
+real_t tmp;
 tmp = f001;
 f001 = f002;
 f002 = tmp;
@@ -391,29 +409,31 @@ f000 = ( rho*2. + ( -Jz*Jz - Jy*Jy - Jx*Jx )/rho*3. )*4./27.;
 f100 = ( rho*2. + ( Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.;
 f200 = ( rho*2. + ( -Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.;
 f010 = ( rho*2. + ( Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
-f110 = rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jx + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.;
-f210 = rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jy - Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
+f002 = ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
+f001 = ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 f020 = ( rho*2. + ( -Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
+	
 f120 = rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy + Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
 f220 = rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy - Jx + ( Jy*Jy + ( Jx + Jy*3. )*Jx )/rho )*2. )/36.;
-f001 = ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 f101 = rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz + Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.;
 f201 = rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz - Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.;
 f011 = rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz + Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
-f111 = ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-f211 = ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f110 = rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jx + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.;
+f210 = rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jy - Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
 f021 = rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz - Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
-f121 = ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-f221 = ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-f002 = ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 f102 = rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz + Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.;
 f202 = rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz - Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.;
 f012 = rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz + Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
-f112 = ( rho + ( -Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-f212 = ( rho + ( -Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 f022 = rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
+
 f122 = ( rho + ( -Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 f222 = ( rho + ( -Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f121 = ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f221 = ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f111 = ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f211 = ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f112 = ( rho + ( -Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+f212 = ( rho + ( -Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 
 }
 
@@ -429,85 +449,113 @@ CudaDeviceFunction void CollisionMRT()
  	real_t Jx, Jy, Jz;
 	real_t rho;
 	rho = f222 + f122 + f022 + f212 + f112 + f012 + f202 + f102 + f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001 + f220 + f120 + f020 + f210 + f110 + f010 + f200 + f100 + f000;
-	Jx = -f222 + f122 - f212 + f112 - f202 + f102 - f221 + f121 - f211 + f111 - f201 + f101 - f220 + f120 - f210 + f110 - f200 + f100;
-	Jy = -f222 - f122 - f022 + f212 + f112 + f012 - f221 - f121 - f021 + f211 + f111 + f011 - f220 - f120 - f020 + f210 + f110 + f010;
-	Jz = -f222 - f122 - f022 - f212 - f112 - f012 - f202 - f102 - f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001;
+	Jx   = -f222 + f122 - f212 + f112 - f202 + f102 - f221 + f121 - f211 + f111 - f201 + f101 - f220 + f120 - f210 + f110 - f200 + f100;
+	Jy   = -f222 - f122 - f022 + f212 + f112 + f012 - f221 - f121 - f021 + f211 + f111 + f011 - f220 - f120 - f020 + f210 + f110 + f010;
+	Jz   = -f222 - f122 - f022 - f212 - f112 - f012 - f202 - f102 - f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001;
 	
 	f000 =(1.-omega)*f000 + omega*( ( rho*2. + ( -Jz*Jz - Jy*Jy - Jx*Jx )/rho*3. )*4./27.);
 	f100 =(1.-omega)*f100 + omega*( ( rho*2. + ( Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.);
 	f200 =(1.-omega)*f200 + omega*( ( rho*2. + ( -Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.);
 	f010 =(1.-omega)*f010 + omega*( ( rho*2. + ( Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.);
-	f110 =(1.-omega)*f110+ omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jx + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.);
-	f210 =(1.-omega)*f210 + omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jy - Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.);
+	f001 =(1.-omega)*f001 + omega*( ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.);
 	f020 =(1.-omega)*f020 + omega*( ( rho*2. + ( -Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.);
+	f002 =(1.-omega)*f002 + omega*( ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.);
+	
+	f110 =(1.-omega)*f110 + omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + (  Jx  + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.);
+	f210 =(1.-omega)*f210 + omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + (  Jy  -  Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.);
 	f120 =(1.-omega)*f120 + omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy + Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.);
-        f220 =(1.-omega)*f220 + omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy - Jx + ( Jy*Jy + ( Jx + Jy*3. )*Jx )/rho )*2. )/36.);
-        f001 =(1.-omega)*f001 + omega*( ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.);
-        f101 =(1.-omega)*f101 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz + Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.);
-        f201 =(1.-omega)*f201 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz - Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.);
-        f011 =(1.-omega)*f011 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz + Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.);
-        f111 =(1.-omega)*f111 + omega*( ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
-        f211 =(1.-omega)*f211 + omega*( ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
-        f021 =(1.-omega)*f021 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz - Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.);
-        f121 =(1.-omega)*f121 + omega*( ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
-        f221 =(1.-omega)*f221 + omega*( ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
-        f002 =(1.-omega)*f002 + omega*( ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.);
+        f220 =(1.-omega)*f220 + omega*( rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy  - Jx + ( Jy*Jy + ( Jx + Jy*3. )*Jx )/rho )*2. )/36.);
+        f101 =(1.-omega)*f101 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + (  Jz + Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.);
+        f201 =(1.-omega)*f201 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + (  Jz  - Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.);
+        f011 =(1.-omega)*f011 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + (  Jz + Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.);
+	f022 =(1.-omega)*f022 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz  - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.);
+        f021 =(1.-omega)*f021 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + (  Jz  - Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.);
         f102 =(1.-omega)*f102 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz + Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.);
-        f202 =(1.-omega)*f202 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz - Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.);
+        f202 =(1.-omega)*f202 + omega*( rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz  - Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.);
         f012 =(1.-omega)*f012 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz + Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.);
+	
         f112 =(1.-omega)*f112 + omega*( ( rho + ( -Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
         f212 =(1.-omega)*f212 + omega*( ( rho + ( -Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
-        f022 =(1.-omega)*f022 + omega*( rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.);
+        f121 =(1.-omega)*f121 + omega*( ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
+        f221 =(1.-omega)*f221 + omega*( ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
+	f111 =(1.-omega)*f111 + omega*( ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
+        f211 =(1.-omega)*f211 + omega*( ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
         f122 =(1.-omega)*f122 + omega*( ( rho + ( -Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
         f222 =(1.-omega)*f222 + omega*( ( rho + ( -Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963);
 	
+	switch (NodeType & NODE_ADDITIONALS) {
+		
+		case NODE_XYslice1:
+		AddToXYvx(Jx/rho);
+		AddToXYvy(Jy/rho);
+		AddToXYvz(Jz/rho);
+		AddToXYrho1(rho);
+		AddToXYarea(1);
+		break;
+		
+		case NODE_XYslice2:
+		AddToXYrho2(rho);
+		break;
+		
+		case NODE_XZslice1:
+		AddToXZvx(Jx/rho);
+		AddToXZvy(Jy/rho);
+		AddToXZvz(Jz/rho);
+		AddToXZrho1(rho);
+		AddToXZarea(1);
+		break;
+		
+		case NODE_XZslice2:
+		AddToXZrho2(rho);
+		break;
+		
+		case NODE_YZslice1:
+		AddToYZvx(Jx/rho);
+		AddToYZvy(Jy/rho);
+		AddToYZvz(Jz/rho);
+		AddToYZrho1(rho);
+		AddToYZarea(1);
+		break;
+		
+		case NODE_YZslice2:
+		AddToYZrho2(rho);
+		break;
+		
+	}
+	
 	
 	/* this conditional statement is either performed on the whole GPU or not because forces are defined globally */
-	if( ForceX*ForceX + ForceY*ForceY + ForceZ*ForceZ > 1e-16 ){
-		
-		/* add Force term in Kuperstokh way:
-
-		Mind that we add load to the momentum, J, thus no division by rho takes place.
-		Based on the formula (18) that I put again the paper on foams, 
-		
-		delta f_force = f_eq(u+du) - f_eq(u) where du = u+force/rho
-
-		"Pressure drop in flow across ceramic foams--A numerical and experimental study"
-		
-		The original idea comes from:
-		
-		Kupershtokh, A., Medvedev, D., Karpov, D., 2009. "On equations of state in a lattice Boltzmann method". Comput. Math. Appl. 58 (5), 965-974
-
-		*/
+	if( ForceX!=0.0 || ForceY  != 0.0 || ForceZ != 0.0 ){
 		
 	f000 -= ( rho*2. + ( -Jz*Jz - Jy*Jy - Jx*Jx )/rho*3. )*4./27.;
 	f100 -= ( rho*2. + ( Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.;
 	f200 -= ( rho*2. + ( -Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.;
 	f010 -= ( rho*2. + ( Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
-	f110 -= rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jx + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.;
-	f210 -= rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jy - Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
+	f002 -= ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
+	f001 -= ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 	f020 -= ( rho*2. + ( -Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
+	
 	f120 -= rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy + Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
 	f220 -= rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy - Jx + ( Jy*Jy + ( Jx + Jy*3. )*Jx )/rho )*2. )/36.;
-	f001 -= ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 	f101 -= rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz + Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.;
 	f201 -= rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz - Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.;
 	f011 -= rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz + Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
-	f111 -= ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f211 -= ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+	f110 -= rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jx + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.;
+	f210 -= rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jy - Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
 	f021 -= rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz - Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
-	f121 -= ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f221 -= ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f002 -= ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 	f102 -= rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz + Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.;
 	f202 -= rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz - Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.;
 	f012 -= rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz + Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
+	f022 -= rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
+	
 	f112 -= ( rho + ( -Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 	f212 -= ( rho + ( -Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f022 -= rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
+	f121 -= ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+	f221 -= ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 	f122 -= ( rho + ( -Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 	f222 -= ( rho + ( -Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	
+	f111 -= ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+	f211 -= ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;	
 	Jx+= ForceX;
 	Jy+= ForceY;
 	Jz+= ForceZ;
@@ -516,30 +564,34 @@ CudaDeviceFunction void CollisionMRT()
 	f100 += ( rho*2. + ( Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.;
 	f200 += ( rho*2. + ( -Jx*2. + ( -Jz*Jz - Jy*Jy + Jx*Jx*2. )/rho )*3. )/27.;
 	f010 += ( rho*2. + ( Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
+	f001 += ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
+	f002 += ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
+	f020 += ( rho*2. + ( -Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
+	
 	f110 += rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jx + Jy + ( Jx*Jx + ( Jy + Jx*3. )*Jy )/rho )*2. )/36.;
 	f210 += rho*0.0185185185185185 + ( -Jz*Jz/rho + ( Jy - Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
-	f020 += ( rho*2. + ( -Jy*2. + ( -Jz*Jz - Jx*Jx + Jy*Jy*2. )/rho )*3. )/27.;
 	f120 += rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy + Jx + ( Jy*Jy + ( Jx - Jy*3. )*Jx )/rho )*2. )/36.;
 	f220 += rho*0.0185185185185185 + ( -Jz*Jz/rho + ( -Jy - Jx + ( Jy*Jy + ( Jx + Jy*3. )*Jx )/rho )*2. )/36.;
-	f001 += ( rho*2. + ( Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 	f101 += rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz + Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.;
 	f201 += rho*0.0185185185185185 + ( -Jy*Jy/rho + ( Jz - Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.;
-	f011 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz + Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
-	f111 += ( rho + ( Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f211 += ( rho + ( Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f021 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz - Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
-	f121 += ( rho + ( Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f221 += ( rho + ( Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f002 += ( rho*2. + ( -Jz*2. + ( -Jy*Jy - Jx*Jx + Jz*Jz*2. )/rho )*3. )/27.;
 	f102 += rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz + Jx + ( Jz*Jz + ( Jx - Jz*3. )*Jx )/rho )*2. )/36.;
 	f202 += rho*0.0185185185185185 + ( -Jy*Jy/rho + ( -Jz - Jx + ( Jz*Jz + ( Jx + Jz*3. )*Jx )/rho )*2. )/36.;
 	f012 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz + Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
+	f011 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz + Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
+	f021 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( Jz - Jy + ( Jz*Jz + ( Jy - Jz*3. )*Jy )/rho )*2. )/36.;
+	f022 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
+	
+	f121 += ( rho + (  Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+	f221 += ( rho + (  Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+	f111 += ( rho + (  Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
+	f211 += ( rho + (  Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 	f112 += ( rho + ( -Jz + Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( -Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 	f212 += ( rho + ( -Jz + Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( -Jz*Jy + ( Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
-	f022 += rho*0.0185185185185185 + ( -Jx*Jx/rho + ( -Jz - Jy + ( Jz*Jz + ( Jy + Jz*3. )*Jy )/rho )*2. )/36.;
 	f122 += ( rho + ( -Jz - Jy + Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( -Jz - Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 	f222 += ( rho + ( -Jz - Jy - Jx + ( Jz*Jz + Jy*Jy + Jx*Jx + ( Jz*Jy + ( Jz + Jy )*Jx )*3. )/rho )*3. )*0.00462962962962963;
 		
 	}
+	
+	
 }
 
