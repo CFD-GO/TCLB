@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+		<!--<Units>
+				<Params size="0.0001m" gauge="1"/>
+				<Params nu="1e-5m2/s" gauge="0.166666666666"/>
+		</Units>-->
+        <Geometry nx="100" ny="100">
+		<MRT><Box/></MRT>
+		<None name="zdrop">
+            	<Sphere dx="10" fx="90" dy="10" fy="90"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Params omega_f="1"
+				omega_g="1"
+				rho_wet="0.0"
+				rho_wet-zdrop="2.0"
+				rho_dry="2.0"
+				rho_dry-zdrop="0.0"
+				/>
+		<Params
+				Gc="0.8"
+         />
+	</Model>
+	<VTK/>
+	<VTK Iterations="2000"/>
+	<Log Iterations="2000"/>
+	<Solve Iterations="20000"/>
+	<VTK Iterations="100"/>
+	<Solve Iterations="10000"/>
+</CLBConfig>
