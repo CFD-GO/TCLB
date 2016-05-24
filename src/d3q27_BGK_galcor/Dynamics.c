@@ -6,15 +6,43 @@
 /*     Developed at: Warsaw University of Technology - 2012    */
 /*
 	Description:
+	 - collision file implements BGK model with Galilean correction [1]
+	 - force term implemented in the Kuperstokh way [2] 
+	 - collision file can additionally drop data to buffers defines as XY_Slice1, XY_Slice2...
+
+	Model description:
 	This is the NEW implementation of the BGK collision model with the Gallilean-correctoin present in the equilibrium distribution [1].
 	The equilibrium has the PRODUCT_FORM now and the model has a significantly improved stability over standard BGK.
 	
- 	The force term is added in a way proposed by Kuperstokh [2]:
+	f_eq_ijk = - rho * X_i*Y_j*Z_k for		 i,j,k=-1,0,1
+	
+	with each of the elements has a Galilean correction in it, Gx,Gy,Gz. Galilean correction required 2nd moments of the distribution functions, M2x, M2y, M2z:
+	
+	2nd moments of distribution functions:
+	M2x=	+f100+f200+f110+f210+f220+f120+f101+f201+f102+f202+f111+f211+f221+f121+f112+f212+f222+f122;
+	M2y=	+f010+f020+f110+f210+f220+f120+f011+f021+f012+f022+f111+f211+f221+f121+f112+f212+f222+f122;
+	M2z=	+f001+f002+f101+f011+f201+f021+f102+f012+f202+f022+f111+f211+f221+f121+f112+f212+f222+f122;
+	
+	velocity derivatives:
+	DxUx = -omega*(1.5*M2x*RhoInv-0.5-1.5*Ux*Ux); 	
+	DyUy = -omega*(1.5*M2y*RhoInv-0.5-1.5*Uy*Uy);	
+	DzUz = -omega*(1.5*M2z*RhoInv-0.5-1.5*Uz*Uz);
 
-	delta f_force = f_eq(u+du) - f_eq(u) where du = u+force/rho
+	Gallilean corrections:
+	Gx = -9.*Ux*Ux * DxUx * nu;	
+	Gy = -9.*Uy*Uy * DyUy * nu;	
+	Gz = -9.*Uz*Uz * DzUz * nu;
 
-	Mind that we add load to the momentum, J, thus no division by rho takes place in our implementation.
-
+	product elements:
+	X_0 = -2./3. + Ux*Ux + Gx;		Y_0 = -2./3. + Uy*Uy + Gy;		Z_0 = -2./3. + Uz*Uz + Gz;
+	X_1 = -0.5*(X_0 + 1. + Ux);		Y_1 = -0.5*(Y_0 + 1. + Uy);		Z_1 = -0.5*(Z_0 + 1. + Uz);
+	X_2 = X_1 + Ux;				Y_2 = Y_1 + Uy;				Z_2 = Z_1 + Uz;
+	
+	Auxuliary variables:
+	RhoInv = 1./rho 	 - inverse density
+	omega  = 1/tau 	 - inverse of relaxation time
+	nu = 1./3/*(tau-0.5)  - kinematic viscosity
+	
 	References:
 	[1]   Geier M., Schönherr M., Pasquali A., Krafczyk M., The cumulant lattice Boltzmann equation in three dimensions: Theory and validation. Comput. Math. Appl. , 2015, 70, 507
 	[2]	Kupershtokh, A., Medvedev, D., Karpov, D., 2009. "On equations of state in a lattice Boltzmann method". Comput. Math. Appl. 58 (5), 965-974
@@ -405,13 +433,12 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 {
 	
 	/* equilibrium distribution in the product form - see file header and references therein for detailed explanation */
-	real_f X_0, X_1, X_2;
-	real_f Y_0, Y_1, Y_2;
-	real_f Z_0, Z_1, Z_2;
+	real_t X_0, X_1, X_2;
+	real_t Y_0, Y_1, Y_2;
+	real_t Z_0, Z_1, Z_2;
 	real_t Ux, Uy, Uz;
 	real_t Gx, Gy, Gz; //  Galilean corrections - they are usually non zero, but they are left here for code consistency with the collision term
 	Gx = 0.0;		Gy = 0.0;		Gz = 0.0;
-	
 	Ux = Jx/rho; 	Uy = Jy/rho; 	Uz = Jz/rho;
 	
 	
@@ -478,18 +505,18 @@ CudaDeviceFunction void CollisionMRT()
 	Uy = -f222 - f122 - f022 + f212 + f112 + f012 - f221 - f121 - f021 + f211 + f111 + f011 - f220 - f120 - f020 + f210 + f110 + f010;
 	Uz = -f222 - f122 - f022 - f212 - f112 - f012 - f202 - f102 - f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001;
 	
+	Ux *= rhoInv;
+	Uy *= rhoInv;
+	Uz *= rhoInv;
+	
 	/* 2nd moments of distribution function */
 	
 	real_t M2x=	+f100+f200+f110+f210+f220+f120+f101+f201+f102+f202+f111+f211+f221+f121+f112+f212+f222+f122;
 	real_t M2y=	+f010+f020+f110+f210+f220+f120+f011+f021+f012+f022+f111+f211+f221+f121+f112+f212+f222+f122;
 	real_t M2z=	+f001+f002+f101+f011+f201+f021+f102+f012+f202+f022+f111+f211+f221+f121+f112+f212+f222+f122;
 	
-	Ux *= rhoInv;
-	Uy *= rhoInv;
-	Uz *= rhoInv;
-	
 	/* velocity derivatives */
-	DxUx = -omega*(1.5*M2x*RhoInv-0.5-1.5*Ux*Ux); 	DyUy = -omega*(1.5*M2y*RhoInv-0.5-1.5*Uy*Uy);	DzUz = -omega*(1.5*M2z*RhoInv-0.5-1.5*Uz*Uz);
+	DxUx = -omega*(1.5*M2x*rhoInv-0.5-1.5*Ux*Ux); 	DyUy = -omega*(1.5*M2y*rhoInv-0.5-1.5*Uy*Uy);	DzUz = -omega*(1.5*M2z*rhoInv-0.5-1.5*Uz*Uz);
 
 	/* Gallilean corrections */
 	Gx = -9.*Ux*Ux * DxUx * nu;	Gy = -9.*Uy*Uy * DyUy * nu;	Gz = -9.*Uz*Uz * DzUz * nu;
@@ -535,24 +562,24 @@ CudaDeviceFunction void CollisionMRT()
 		/* add Force term in Kuperstokh way - see top of the file for description */
 		/* 1. We subtract the previous equilibrium. Of course this comes with "+" because equilibria have NEGATIVE signs */
 		
-	f000=+rho*X_0*Y_0*Z_0;		
-	f100=+rho*X_1*Y_0*Z_0;		f010=+rho*X_0*Y_1*Z_0;		f001=+rho*X_0*Y_0*Z_1;
-	f200=+rho*X_2*Y_0*Z_0;		f020=+rho*X_0*Y_2*Z_0;		f002=+rho*X_0*Y_0*Z_2;
+	f000+=rho*X_0*Y_0*Z_0;		
+	f100+=rho*X_1*Y_0*Z_0;		f010+=rho*X_0*Y_1*Z_0;		f001+=rho*X_0*Y_0*Z_1;
+	f200+=rho*X_2*Y_0*Z_0;		f020+=rho*X_0*Y_2*Z_0;		f002+=rho*X_0*Y_0*Z_2;
 
-	f110=+rho*X_1*Y_1*Z_0;		f210=+rho*X_2*Y_1*Z_0;		f220=+rho*X_2*Y_2*Z_0;
-	f120=+rho*X_1*Y_2*Z_0;		f101=+rho*X_1*Y_0*Z_1;		f011=+rho*X_0*Y_1*Z_1;
-	f201=+rho*X_2*Y_0*Z_1;		f021=+rho*X_0*Y_2*Z_1;		f102=+rho*X_1*Y_0*Z_2;
-	f012=+rho*X_0*Y_1*Z_2;		f202=+rho*X_2*Y_0*Z_2;		f022=+rho*X_0*Y_2*Z_2;
+	f110+=rho*X_1*Y_1*Z_0;		f210+=rho*X_2*Y_1*Z_0;		f220+=rho*X_2*Y_2*Z_0;
+	f120+=rho*X_1*Y_2*Z_0;		f101+=rho*X_1*Y_0*Z_1;		f011+=rho*X_0*Y_1*Z_1;
+	f201+=rho*X_2*Y_0*Z_1;		f021+=rho*X_0*Y_2*Z_1;		f102+=rho*X_1*Y_0*Z_2;
+	f012+=rho*X_0*Y_1*Z_2;		f202+=rho*X_2*Y_0*Z_2;		f022+=rho*X_0*Y_2*Z_2;
 
-	f111=+rho*X_1*Y_1*Z_1;		f211=+rho*X_2*Y_1*Z_1;		f221=+rho*X_2*Y_2*Z_1;
-	f121=+rho*X_1*Y_2*Z_1;		f112=+rho*X_1*Y_1*Z_2;		f212=+rho*X_2*Y_1*Z_2;
-	f222=+rho*X_2*Y_2*Z_2;		f122=+rho*X_1*Y_2*Z_2;
+	f111+=rho*X_1*Y_1*Z_1;		f211+=rho*X_2*Y_1*Z_1;		f221+=rho*X_2*Y_2*Z_1;
+	f121+=rho*X_1*Y_2*Z_1;		f112+=rho*X_1*Y_1*Z_2;		f212+=rho*X_2*Y_1*Z_2;
+	f222+=rho*X_2*Y_2*Z_2;		f122+=rho*X_1*Y_2*Z_2;
 		
 		/*2. Velocity modification, new Gallilean corrections and new products
 		NOTE: We do not modify DxUx and other derivatives - for spatially uniform force field that is not a big problem because pressure differences are not big and local force contributions do not differ much */
 	
 	Ux+= ForceX/rho;	Uy+= ForceY/rho;		Uz+= ForceZ/rho;
-	Gx = -9.*Ux*Ux * DxUx * nu_local;	Gy = -9.*Uy*Uy * DyUy * nu_local;	Gz = -9.*Uz*Uz * DzUz * nu_local;
+	Gx = -9.*Ux*Ux * DxUx * nu;	Gy = -9.*Uy*Uy * DyUy * nu;	Gz = -9.*Uz*Uz * DzUz * nu;
 
 	X_0 = -2./3. + Ux*Ux + Gx;		Y_0 = -2./3. + Uy*Uy + Gy;		Z_0 = -2./3. + Uz*Uz + Gz;
 	X_1 = -0.5*(X_0 + 1. + Ux);		Y_1 = -0.5*(Y_0 + 1. + Uy);		Z_1 = -0.5*(Z_0 + 1. + Uz);
@@ -560,35 +587,76 @@ CudaDeviceFunction void CollisionMRT()
 
 		/* 3. Add new equilibria to distributions */
 
-	f000=-rho*X_0*Y_0*Z_0;
-	f100=-rho*X_1*Y_0*Z_0;
-	f010=-rho*X_0*Y_1*Z_0;
-	f200=-rho*X_2*Y_0*Z_0;
-	f020=-rho*X_0*Y_2*Z_0;
-	f001=-rho*X_0*Y_0*Z_1;
-	f002=-rho*X_0*Y_0*Z_2;
+	f000-=rho*X_0*Y_0*Z_0;
+	f100-=rho*X_1*Y_0*Z_0;
+	f010-=rho*X_0*Y_1*Z_0;
+	f200-=rho*X_2*Y_0*Z_0;
+	f020-=rho*X_0*Y_2*Z_0;
+	f001-=rho*X_0*Y_0*Z_1;
+	f002-=rho*X_0*Y_0*Z_2;
 
-	f110=-rho*X_1*Y_1*Z_0;
-	f210=-rho*X_2*Y_1*Z_0;
-	f220=-rho*X_2*Y_2*Z_0;
-	f120=-rho*X_1*Y_2*Z_0;
-	f101=-rho*X_1*Y_0*Z_1;
-	f011=-rho*X_0*Y_1*Z_1;
-	f201=-rho*X_2*Y_0*Z_1;
-	f021=-rho*X_0*Y_2*Z_1;
-	f102=-rho*X_1*Y_0*Z_2;
-	f012=-rho*X_0*Y_1*Z_2;
-	f202=-rho*X_2*Y_0*Z_2;
-	f022=-rho*X_0*Y_2*Z_2;
+	f110-=rho*X_1*Y_1*Z_0;
+	f210-=rho*X_2*Y_1*Z_0;
+	f220-=rho*X_2*Y_2*Z_0;
+	f120-=rho*X_1*Y_2*Z_0;
+	f101-=rho*X_1*Y_0*Z_1;
+	f011-=rho*X_0*Y_1*Z_1;
+	f201-=rho*X_2*Y_0*Z_1;
+	f021-=rho*X_0*Y_2*Z_1;
+	f102-=rho*X_1*Y_0*Z_2;
+	f012-=rho*X_0*Y_1*Z_2;
+	f202-=rho*X_2*Y_0*Z_2;
+	f022-=rho*X_0*Y_2*Z_2;
 
-	f111=-rho*X_1*Y_1*Z_1;
-	f211=-rho*X_2*Y_1*Z_1;
-	f221=-rho*X_2*Y_2*Z_1;
-	f121=-rho*X_1*Y_2*Z_1;
-	f112=-rho*X_1*Y_1*Z_2;
-	f212=-rho*X_2*Y_1*Z_2;
-	f222=-rho*X_2*Y_2*Z_2;
-	f122=-rho*X_1*Y_2*Z_2;
+	f111-=rho*X_1*Y_1*Z_1;
+	f211-=rho*X_2*Y_1*Z_1;
+	f221-=rho*X_2*Y_2*Z_1;
+	f121-=rho*X_1*Y_2*Z_1;
+	f112-=rho*X_1*Y_1*Z_2;
+	f212-=rho*X_2*Y_1*Z_2;
+	f222-=rho*X_2*Y_2*Z_2;
+	f122-=rho*X_1*Y_2*Z_2;
+		
+	}
+	
+	/* adding stuff to lacal buffers */
+	switch (NodeType & NODE_ADDITIONALS) {
+		
+		case NODE_XYslice1:
+		AddToXYvx(Ux+0.5*ForceX);
+		AddToXYvy(Uy+0.5*ForceY);
+		AddToXYvz(Uz+0.5*ForceZ);
+		AddToXYrho1(rho);
+		AddToXYarea(1);
+		break;
+		
+		case NODE_XYslice2:
+		AddToXYrho2(rho);
+		break;
+		
+		case NODE_XZslice1:
+		AddToXZvx(Ux+0.5*ForceX);
+		AddToXZvy(Uy+0.5*ForceY);
+		AddToXZvz(Uz+0.5*ForceZ);
+		AddToXZrho1(rho);
+		AddToXZarea(1);
+		break;
+		
+		case NODE_XZslice2:
+		AddToXZrho2(rho);
+		break;
+		
+		case NODE_YZslice1:
+		AddToYZvx(Ux+0.5*ForceX);
+		AddToYZvy(Uy+0.5*ForceY);
+		AddToYZvz(Uz+0.5*ForceZ);
+		AddToYZrho1(rho);
+		AddToYZarea(1);
+		break;
+		
+		case NODE_YZslice2:
+		AddToYZrho2(rho);
+		break;
 		
 	}
 }

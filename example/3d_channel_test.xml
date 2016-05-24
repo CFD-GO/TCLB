@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0" output="output/">
-        <Geometry nx="256" ny="48" nz="48">
+        <Geometry nx="256" ny="32" nz="32">
 		<MRT><Box/></MRT>
 		<WVelocity name="Inlet"><Inlet/></WVelocity>
 		<EPressure name="Outlet"><Outlet/></EPressure>
@@ -14,6 +14,6 @@
 		<Params Velocity="0.01"/>
 		<Params nu="0.02"/>
 	</Model>
-	<VTK Iterations="1000"/>
-	<Solve Iterations="5000"/>
+	<VTK Iterations="10"/>
+	<Solve Iterations="50"/>
 </CLBConfig>
