@@ -36,7 +36,7 @@ C_pull = function(W, var) {
 	cat(var, " = (", ToC(ret[[1]]), ") / (", ToC(ret[[2]]*(-1)), ");\n")
 }
 
-ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("Velocity"), V3) {
+ZouHe = function(EQ, direction, sign, type, group=f, P=PV("Pressure"), V=PV("Velocity"), V3, predefined="false") {
 	if (missing(V3)) {
 		V3 = PV(rep(0,sum(EQ$order == 1)))
 		V3[direction] = V
@@ -50,7 +50,7 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	bounce[ret$i] = ret$j
 
 	sel = sign*U[,direction]>0
-	fs = f
+	fs = group
 	Js = c("Jx","Jy","Jz")
 	feq = EQ$Req %*% solve(EQ$mat)
 	fs[sel] = (feq + (fs-feq)[bounce])[sel]
@@ -60,7 +60,10 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	presc[direction + 1] = EQ$Req[EQ$order == 2][direction + 1]
 
 	Rs = fs %*% EQ$mat[,EQ$order<2] - presc
-	cat("real_t Jx, Jy, Jz, rho;\n")
+	if (predefined == "false")
+	{
+		cat("real_t Jx, Jy, Jz, rho;\n")
+	}	
 	rho = PV("rho")
 	if (type == "pressure") {
 		C( rho, P*3+1);
@@ -73,7 +76,7 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	}
 	for (i in 1:(length(Rs)-1)) if (i != direction) C_pull( Rs[i+1], Js[i])
 	for (i in 1:(length(Rs)-1)) if ((i != direction) && !(is.zero(V3[i]))) C(PV(Js[i]),PV(Js[i])+ rho*V3[i])
-	C(f[sel], fs[sel])
+	C(group[sel], fs[sel])
 }	
 
 ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
