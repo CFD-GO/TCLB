@@ -123,6 +123,8 @@ temp2 =-G * R[0] * temp2
 print_ccode(temp1, assign_to=Force[0])
 print_ccode(temp2, assign_to=Force[1])
 ?>
+	Force.x = Force.x + GravitationX;
+	Force.y = Force.y + GravitationY;
 	return Force;
 }
 CudaDeviceFunction vector_t getFg(){
@@ -146,6 +148,8 @@ temp2 =-G * R[0] * temp2
 print_ccode(temp1, assign_to=Force[0])
 print_ccode(temp2, assign_to=Force[1])
 ?>
+	Force.x = Force.x + GravitationX;
+	Force.y = Force.y + GravitationY;
 	return Force;
 }
 CudaDeviceFunction real_t getP(){
@@ -264,6 +268,8 @@ CudaDeviceFunction void Run() {
     }
     if (NodeType & NODE_MRT)
     {
+		//MRT operator has not been updated to correctly include
+		//multi-component force (on TO-DO list)
 		CollisionBGK();
     }
 }
@@ -319,22 +325,50 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void EVelocity()
 {
-<?R ZouHe(EQ, 1, -1, "velocity") ?>
+	real_t Velocity = Velocity_f;
+<?R 
+	ZouHe(EQ, 1, -1, "velocity",f) 
+?>
+	Velocity = Velocity_g;
+<?R
+    ZouHe(EQ_g, 1, -1,"velocity",g,predefined="true") 
+?>
 }
 
 CudaDeviceFunction void WPressure()
 {
-<?R ZouHe(EQ, 1, 1, "pressure") ?>
+	real_t Pressure = Pressure_f;
+<?R 
+	ZouHe(EQ, 1, 1, "pressure",f) 
+?>
+	Pressure = Pressure_g;
+<?R
+	ZouHe(EQ_g, 1, 1, "pressure",g,predefined="true")
+?>
 }
 
 CudaDeviceFunction void WVelocity()
 {
-<?R ZouHe(EQ, 1, 1, "velocity") ?>
+	real_t Velocity = Velocity_f;
+<?R 
+	ZouHe(EQ, 1, 1, "velocity",f)
+?>
+	real_t Velocity = Velocity_g;
+<?R
+	ZouHe(EQ_g, 1, 1, "velocity",g,predefined="true")
+?>
 }
 
 CudaDeviceFunction void EPressure()
 {
-<?R ZouHe(EQ, 1, -1, "pressure") ?>
+	real_t Pressure = Pressure_f;
+<?R 
+	ZouHe(EQ, 1, -1, "pressure",f) 
+?>
+	Pressure = Pressure_g;
+<?R
+	ZouHe(EQ_g, 1, -1, "pressure",g,predefined="true")
+?>
 }
 
 CudaDeviceFunction void CollisionMRT()

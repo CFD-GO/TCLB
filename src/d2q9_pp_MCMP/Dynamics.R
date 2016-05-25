@@ -39,7 +39,6 @@ AddAction("Init"     , c("BaseInit",     "CalcPsi_f","CalcPsi_g"))
 # Every field must correspond to a function in "Dynamics.c".
 # If one have filed [something] with type [type], one have to define a function: 
 # [type] get[something]() { return ...; }
-
 AddQuantity(name="Rho", unit="kg/m3")
 AddQuantity(name="Rhof",unit="kg/m3")
 AddQuantity(name="Rhog",unit="kg/m3")
@@ -48,7 +47,6 @@ AddQuantity(name="U",   unit="m/s",vector=T)
 AddQuantity(name="A",   unit="1",vector=T)
 AddQuantity(name="Ff",  unit="N",vector=T)
 AddQuantity(name="Fg",  unit="N",vector=T)
-
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
 #  comment - additional comment
@@ -58,14 +56,11 @@ AddSetting(name="omega_f", comment='one over relaxation time-wet')
 AddSetting(name="omega_g", comment='one over relaxation time-dry')
 AddSetting(name="nu_f", omega_f='1.0/(3*nu_f + 0.5)', default=1.6666666, comment='viscosity-wet')
 AddSetting(name="nu_g", omega_g='1.0/(3*nu_g + 0.5)', default=1.6666666, comment='viscosity-dry')
-AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
-AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="Smag", comment='Smagorinsky constant')
 
-AddSetting(name="SL_U", comment='Shear Layer velocity')
-AddSetting(name="SL_lambda", comment='Shear Layer lambda')
-AddSetting(name="SL_delta", comment='Shear Layer disturbance')
-AddSetting(name="SL_L", comment='Shear Layer length scale')
+AddSetting(name="Velocity_f", default=0, comment='inlet/outlet/init velocity 1st pop', zonal=T)
+AddSetting(name="Pressure_f", default=0, comment='inlet/outlet/init density 1st pop', zonal=T)
+AddSetting(name="Velocity_g", default=0, comment='inlet/outlet/init velocity 2nd pop', zonal=T)
+AddSetting(name="Pressure_g", default=0, comment='inlet/outlet/init density 2nd pop', zonal=T)
 
 AddSetting(name="rho_wet", comment='higher density fluid', zonal=T)
 AddSetting(name="rho_dry", comment='lower density fluid' , zonal=T)
@@ -76,6 +71,15 @@ AddSetting(name="G21", comment='fluid2-fluid1 interaction')
 AddSetting(name="Gc", comment='fluid-fluid interation')
 AddSetting(name="Gad1", comment='fluid1-wall interation')
 AddSetting(name="Gad2", comment='fluid2-wall interation')
+
+AddSetting(name="Smag", comment='Smagorinsky constant')
+AddSetting(name="SL_U", comment='Shear Layer velocity')
+AddSetting(name="SL_lambda", comment='Shear Layer lambda')
+AddSetting(name="SL_delta", comment='Shear Layer disturbance')
+AddSetting(name="SL_L", comment='Shear Layer length scale')
+
+AddSetting(name="GravitationX", default=0.0, comment='Body Force')
+AddSetting(name="GravitationY", default=0.0, comment='Body Force')
 
 # Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="TotalDensity1", comment='quantity of fluid-1', unit='kg/m3')
