@@ -51,7 +51,7 @@ Co-authors:
 * [Michał Dzikowski](https://github.com/mdzik)
 
 Contributors:
-* Wojtek Regulski
+* [Wojtek Regulski](https://github.com/wojtasMEiL)
 * [Zbigniew Gawłowicz](https://github.com/zgawlowicz)
 * [Mariusz Rutkowski](https://github.com/mrutkowski-aero)
 * [Dmytro Sashko](https://github.com/shkodm)
