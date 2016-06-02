@@ -48,6 +48,22 @@ int Geometry::val(pugi::xml_attribute attr, int def)
     }
 }
 
+/// Return rounded unit-free value of an xml attribute
+/**
+        Get the value of an xml attribute, calculate the units
+        and round the result to full integer
+        \param attr XML attribute
+        \param def Default value to return in case there is no such attribute
+*/
+double Geometry::val(pugi::xml_attribute attr, double def)
+{
+    if (!attr) {
+	return def;
+    } else {
+	return units.alt(attr.value(), def);
+    }
+}
+
 /// Return rounded unit-free value of an xml attribute (with no default)
 /**
         Get the value of an xml attribute, calculate the units
@@ -467,17 +483,20 @@ inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
 	double dl=1e-3;
 	attr = node.attribute("step");
 	if (attr) dl = attr.as_double();
+	attr = node.attribute("steps");
+	if (attr) dl = 1/units.alt(attr.value());
+	double def_r=1;
+	attr = node.attribute("r");
+	if (attr) def_r = units.alt(attr.value());
 	
 	int n = 0;
-	std::vector<double> x,y,z;
+	std::vector<double> nx,ny,nz,nr;
 	for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 		if (strcmp(par.name(),"Point") == 0) {
-		        double x0 = units.alt(par.attribute("x").value());
-		        double y0 = units.alt(par.attribute("y").value());
-		        double z0 = units.alt(par.attribute("z").value());
-			x.push_back(x0);
-			y.push_back(y0);
-			z.push_back(z0);
+			nx.push_back(units.alt(par.attribute("x").value()));
+			ny.push_back(units.alt(par.attribute("y").value()));
+			nz.push_back(units.alt(par.attribute("z").value()));
+			nr.push_back(val(par.attribute("r"),def_r));
 			n++;
 		} else {
 			NOTICE("Unknown element %s in Sweep\n", par.name());
@@ -491,7 +510,22 @@ inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
 		NOTICE("For order %d b-spline you need at least %d points\n", order, order+1);
 		order = n-1;
 	}
-	
+    output("Making a Sweep over region (%ld) with %lf step\n",reg.size(), dl);
+    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+		for (double l=0;l<1; l+= dl) {
+			double x0 = bspline(l, nx, order);
+			double y0 = bspline(l, ny, order);
+			double z0 = bspline(l, nz, order);
+			double r = bspline(l, nr, order);
+			if ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0) < r*r) {
+			    Dot(x, y, z);
+			}
+		}
+	    }
+
+	return 0;	
 }
 
 

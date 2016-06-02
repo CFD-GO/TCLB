@@ -41,6 +41,7 @@ private:
   int transformSTL( int, STL_tri*, pugi::xml_node n);
   lbRegion getRegion(const pugi::xml_node& node);
   int val(pugi::xml_attribute attr, int def);
+  double val(pugi::xml_attribute attr, double def);
   int val(pugi::xml_attribute attr);
   int val_p(pugi::xml_attribute attr, char* prefix);
   double val_d(pugi::xml_attribute attr);
