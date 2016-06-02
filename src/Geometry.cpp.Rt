@@ -11,6 +11,7 @@
 #include "def.h"
 #include "vtkOutput.h"
 #include "utils.h"
+#include "spline.h"
 #include <assert.h>
 
 /// Main constructor
@@ -454,6 +455,46 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     return 0;
 }
 
+
+/// Load a b-spline string
+inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
+{
+	pugi::xml_attribute attr;
+
+	int order=1;
+	attr = node.attribute("order");
+	if (attr) order = attr.as_int();
+	double dl=1e-3;
+	attr = node.attribute("step");
+	if (attr) dl = attr.as_double();
+	
+	int n = 0;
+	std::vector<double> x,y,z;
+	for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+		if (strcmp(par.name(),"Point") == 0) {
+		        double x0 = units.alt(par.attribute("x").value());
+		        double y0 = units.alt(par.attribute("y").value());
+		        double z0 = units.alt(par.attribute("z").value());
+			x.push_back(x0);
+			y.push_back(y0);
+			z.push_back(z0);
+			n++;
+		} else {
+			NOTICE("Unknown element %s in Sweep\n", par.name());
+		}
+	}
+	if (n == 0) {
+		NOTICE("No points in Sweep\n");
+		return 0;
+	}
+	if (order > n-1) {
+		NOTICE("For order %d b-spline you need at least %d points\n", order, order+1);
+		order = n-1;
+	}
+	
+}
+
+
 /// Main geometry-generating function
 int Geometry::Draw(pugi::xml_node & node)
 {
@@ -559,6 +600,11 @@ int Geometry::Draw(pugi::xml_node & node)
 	    debug1("Filling stl geometry with flag %d (%d)\n", fg, fg_mask);
 	    DEBUG1(reg.print();)
 		if (loadSTL(reg, n))
+		return -1;
+	} else if (strcmp(n.name(), "Sweep") == 0) {
+		debug1("Filling a sweep geometry with flag %d (%d)\n", fg, fg_mask);
+		DEBUG1(reg.print();)
+		if (loadSweep(reg, n))
 		return -1;
 	} else if (strcmp(n.name(), "Text") == 0) {
 	    lbRegion crop = getRegion(n.parent());

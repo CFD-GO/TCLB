@@ -37,6 +37,7 @@ private:
   int Draw(pugi::xml_node&);
   int loadZone(const char * name);
   int loadSTL( lbRegion reg, pugi::xml_node n);
+  int loadSweep( lbRegion reg, pugi::xml_node n);
   int transformSTL( int, STL_tri*, pugi::xml_node n);
   lbRegion getRegion(const pugi::xml_node& node);
   int val(pugi::xml_attribute attr, int def);
