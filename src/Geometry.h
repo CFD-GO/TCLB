@@ -30,6 +30,8 @@ public:
 private:
   flag_t fg; ///< Foreground flag used for filling
   flag_t fg_mask; ///< Foreground flag mask used for filling
+  flag_t fg_over;
+  flag_t fg_under;
   pugi::xml_node fg_xml; ///< Foreground flag XML element
   int setFlag(const pugi::char_t * name);
   int setMask(const pugi::char_t * name);

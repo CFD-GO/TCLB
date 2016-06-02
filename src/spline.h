@@ -14,7 +14,7 @@ inline double knot_bs(int i, int n, int k) {
 
 // 
 template <typename T>
-T bspline(double x, std::vector<T> p, int k) {
+T bspline_mod(double x, std::vector<T>& p, int k) {
   int n = p.size();
   int i = floor(x * (n - k))+k; // [k, n-1]
   if (k > n-1) {
@@ -33,5 +33,13 @@ T bspline(double x, std::vector<T> p, int k) {
   return p[i];
 }
 
+template <typename T>
+T bspline(double x, const std::vector<T>& p, int k) {
+  static std::vector<T> pcopy;
+  int n = p.size();
+  if (pcopy.size() != n) pcopy.resize(n);
+  for (int i=0;i<n;i++) pcopy[i] = p[i];
+  return bspline_mod(x,pcopy,k);
+}
 #define SPLINE_H
 #endif
