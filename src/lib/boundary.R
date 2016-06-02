@@ -164,7 +164,7 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 	} else if (type == "velocity") {
           # --- Set all velocity components
 		eqn = V( fs %*% EQ2$U %*% diag(d))
-		rhs = rhs * n * sum(fs)
+		rhs = rhs * abs(n) * sum(fs)
 	} else stop("Unknown type in ZouHe")
 	cat("/********* ", type, "-type Zue He boundary condition  ****************/\n",sep="");
 	eqn = eqn - rhs;
