@@ -1,3 +1,8 @@
+// 25/5/2016 - Model Developed based on Chp 3 of:
+// """"Multiphase Lattice Boltzmann methods: Theory and Application""""
+// Chp 3: Shan and Chen-type multi-component multiphase models
+// e.g. files start with d2q9_pp_MCMP
+// Maintainer: Travis Mitchell
 <?R
 #region R code Preamble
 	source("conf.R") 
@@ -102,12 +107,22 @@ print_ccode(numy/denxy, assign_to=u[1])
 	u.z = 0.0;
 		return u;
 }
+CudaDeviceFunction real_t EoS_CS(){
+	real_t d = <?R C(sum(f)) ?>;
+	real_t Tc=0.0943;
+	real_t temp_bp = b*d/4.0;
+	p = d*R*T*Tc*(1+temp_bp+temp_bp*temp_bp-temp_bp*temp_bp*temp_bp);
+	p = p/((1-temp_bp)*(1-temp_bp)*(1-temp_bp))
+	p = p - a*d*d;
+	return p;
+}
 CudaDeviceFunction vector_t getFf(){
 	vector_t Force;
 	real_t tempx, tempy, R[9];
 	Force.x = 0.0;
 	Force.y = 0.0;
 	Force.z = 0.0;
+	//Force from fluid g:
 <?python
 print_ccode(psi_f[0],assign_to=R[0])
 for i in range(1,9):
@@ -123,6 +138,9 @@ temp2 =-G * R[0] * temp2
 print_ccode(temp1, assign_to=Force[0])
 print_ccode(temp2, assign_to=Force[1])
 ?>
+	//Force due to f being non-ideal
+	
+	
 	Force.x = Force.x + GravitationX;
 	Force.y = Force.y + GravitationY;
 	return Force;
@@ -160,16 +178,24 @@ CudaDeviceFunction real_t getP(){
 }
 
 CudaDeviceFunction void CalcPsi_f(){
-	psi_f = <?R C(sum(f)) ?> ;
+	// As per Stiles and Xue (2016):
+	real_t d = <?R C(sum(f)) ?> ;
+	real_t p = EoS_CS();
+	
+	psi_f = math.sqrt( math.abs((2.0*(p-d/3.0)) / (6.0) ) )
 	if (NodeType & NODE_Wall)
 	{
+		// For application of cohesion force
 		psi_f = Gad2/Gc;
 	}
 }
 CudaDeviceFunction void CalcPsi_g(){
-	psi_g = <?R C(sum(g)) ?> ;
+	//Assume the gas is ideal
+	real_t d = <?R C(sum(g)) ?> ;
+	psi_g = 1.0*(1.0-exp(-d/1.0)); //assume rho_0=1 as per Stiles & Xue (2016)
 	if (NodeType & NODE_Wall)
 	{
+		// For application of cohesion force
 		psi_g = Gad1/Gc;
 	}
 }
@@ -234,7 +260,11 @@ CudaDeviceFunction void Init() {
 	uy_f = uy;
 	ux_g = Velocity+ux;
 	uy_g = uy;
-
+	if (NodeType & NODE_Wall){
+		SetEquilibrumf(0,0,0);
+		SetEquilibrumg(0,0,0);
+	}
+	else {
 	SetEquilibrumf(
 		rho_f,
 		ux_f*rho_f,
@@ -245,6 +275,7 @@ CudaDeviceFunction void Init() {
 		ux_g*rho_g,
 		uy_g*rho_g
 		);
+	}
 }
 
 CudaDeviceFunction void Run() {

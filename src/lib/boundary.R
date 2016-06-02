@@ -79,7 +79,7 @@ ZouHe = function(EQ, direction, sign, type, group=f, P=PV("Pressure"), V=PV("Vel
 	C(group[sel], fs[sel])
 }	
 
-ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
+ZouHeNew = function(EQ, f, direction, sign, order, group=f, known="rho",mom) {
   U = EQ$U
   W1 = cbind(U,i=1:nrow(U))
   W2 = cbind(-U,j=1:nrow(U))
@@ -87,7 +87,7 @@ ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
   bounce = 1:nrow(U)
   bounce[ret$i] = ret$j
   sel = sign*U[,direction]>0
-  fs = f
+  fs = group
   feq = EQ$feq
   fs[sel] = (feq + (fs-feq)[bounce])[sel]
   Rs = fs %*% EQ$mat

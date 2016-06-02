@@ -11,7 +11,6 @@ AddDensity( name="f[5]", dx= 1, dy= 1, group="f")
 AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
-
 AddDensity( name="g[0]", dx= 0, dy= 0, group="g")
 AddDensity( name="g[1]", dx= 1, dy= 0, group="g")
 AddDensity( name="g[2]", dx= 0, dy= 1, group="g")
@@ -21,7 +20,6 @@ AddDensity( name="g[5]", dx= 1, dy= 1, group="g")
 AddDensity( name="g[6]", dx=-1, dy= 1, group="g")
 AddDensity( name="g[7]", dx=-1, dy=-1, group="g")
 AddDensity( name="g[8]", dx= 1, dy=-1, group="g")
-
 AddField(name="psi_g",  stencil2d=1);
 AddField(name="psi_f",  stencil2d=1);
 
@@ -29,7 +27,6 @@ AddStage("BaseIteration", "Run",  save=Fields$group=="f" | Fields$group=="g", lo
 AddStage("CalcPsi_f"    , save="psi_f", load=DensityAll$group == "f" )
 AddStage("CalcPsi_g"    , save="psi_g", load=DensityAll$group == "g" )
 AddStage("BaseInit"     , "Init", save=Fields$group=="f" | Fields$group=="g", load=DensityAll$group=="f" | DensityAll$group =="g")
-
 AddAction("Iteration", c("BaseIteration","CalcPsi_f","CalcPsi_g"))
 AddAction("Init"     , c("BaseInit",     "CalcPsi_f","CalcPsi_g"))
 
@@ -51,33 +48,35 @@ AddQuantity(name="Fg",  unit="N",vector=T)
 #  name - name of the constant variable
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
-
+# Viscosity Settings:
 AddSetting(name="omega_f", comment='one over relaxation time-wet')
 AddSetting(name="omega_g", comment='one over relaxation time-dry')
-AddSetting(name="nu_f", omega_f='1.0/(3*nu_f + 0.5)', default=1.6666666, comment='viscosity-wet')
-AddSetting(name="nu_g", omega_g='1.0/(3*nu_g + 0.5)', default=1.6666666, comment='viscosity-dry')
-
+AddSetting(name="nu_f", omega_f='1.0/(3*nu_f + 0.5)', default=.16666666, comment='viscosity-wet')
+AddSetting(name="nu_g", omega_g='1.0/(3*nu_g + 0.5)', default=.16666666, comment='viscosity-dry')
+# Boundary Settings:
 AddSetting(name="Velocity_f", default=0, comment='inlet/outlet/init velocity 1st pop', zonal=T)
 AddSetting(name="Pressure_f", default=0, comment='inlet/outlet/init density 1st pop', zonal=T)
 AddSetting(name="Velocity_g", default=0, comment='inlet/outlet/init velocity 2nd pop', zonal=T)
 AddSetting(name="Pressure_g", default=0, comment='inlet/outlet/init density 2nd pop', zonal=T)
-
-AddSetting(name="rho_wet", comment='higher density fluid', zonal=T)
-AddSetting(name="rho_dry", comment='lower density fluid' , zonal=T)
-AddSetting(name="G11", comment='fluid1-fluid1 interaction')
-AddSetting(name="G22", comment='fluid2-fluid2 interaction')
-AddSetting(name="G12", comment='fluid1-fluid2 interaction')
-AddSetting(name="G21", comment='fluid2-fluid1 interaction')
-AddSetting(name="Gc", comment='fluid-fluid interation')
+# Density Settings:
+AddSetting(name="rho_wet", comment='higher density fluid - multiphase capable', zonal=T)
+AddSetting(name="rho_dry", comment='lower density fluid  - ideal gas assumption' , zonal=T)
+# MultiComponent Settings:
+AddSetting(name="Gc", comment='fluid1/2-fluid2/1 interation')
 AddSetting(name="Gad1", comment='fluid1-wall interation')
 AddSetting(name="Gad2", comment='fluid2-wall interation')
-
+# MultiPhase Settings:
+AddSetting(name="R", default=1.0, comment='EoS gas const')
+AddSetting(name="T", default=1.0, comment='EoS reduced temp')
+AddSetting(name="a", default=1.0, comment='EoS a')
+AddSetting(name="b", default=4.0, comment='EoS b')
+# Turbulence Settings:
 AddSetting(name="Smag", comment='Smagorinsky constant')
 AddSetting(name="SL_U", comment='Shear Layer velocity')
 AddSetting(name="SL_lambda", comment='Shear Layer lambda')
 AddSetting(name="SL_delta", comment='Shear Layer disturbance')
 AddSetting(name="SL_L", comment='Shear Layer length scale')
-
+# Body Force Settings:
 AddSetting(name="GravitationX", default=0.0, comment='Body Force')
 AddSetting(name="GravitationY", default=0.0, comment='Body Force')
 
