@@ -4,7 +4,7 @@
 #           flow at arbitrarily high density ratios - Lycett-Brown & Luo (2015)"
 # implemented by T. Mitchell 2016
 # #############
-
+#region RPreamble
 	source("conf.R") 
 	source("lib/feq.R")
 	c_header();
@@ -29,16 +29,38 @@
 	c_squ = 1/3
 	tn    = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
 	bounce = c(0,3,4,1,2,7,8,5,6)
+#endregion RPreamble
+?>
+<?python
+#region python preamble
+from sympy import *
+from sympy.printing import print_ccode
+G = var('G')
+ueq_f = var(['ueq_f.x', 'ueq_f.y'])
+ueq_g = var(['ueq_g.x', 'ueq_g.y'])
+rho = var('rho')
+om  = var(['omega_f', 'omega_g'])
+Densities = var(Density['name'])
+R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
+S = var(['S[0]','S[1]','S[2]','S[3]','S[4]','S[5]','S[6]','S[7]','S[8]'])
+w0 = 4/9.0
+w1 = 1/9.0
+w2 = 1/36.0
+w  = [w0, w1, w1, w1, w1, w2, w2, w2, w2]
+cx = [0, 1, 0, -1, 0, 1, -1, -1, 1]
+cy = [0, 0, 1, 0, -1, 1, 1, -1, -1]
+feq= [0, 0, 0, 0,  0, 0, 0,  0,  0]
+psi=[0, 0, 0, 0,  0, 0, 0,  0,  0]
+for i in range(9):
+	psi[i]= var(str('psi(' + str(cx[i]) + ',' + str(cy[i]) + ')'))
+u   = var(['u[0]', 'u[1]'])
+u1  = var([['uf.x', 'uf.y'],['ug.x', 'ug.y']])
+#endregion python preamble
 ?>
 CudaDeviceFunction void Init() {
 	real_t u[2] = {Velocity,VelocityY};
 	real_t rho = Density;
-	SetEquilibrum(rho,u);
-	//for (int i = 0; i<9; i++){
-	//	printf("\n %6.4lf", f[i]);
-	//}
-	calcPsi();
-	//printf("\n Rho=%6.4lf , Psi=%6.4lf",rho,psi);
+	SetEquilibrium(rho,u);
 }
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
@@ -67,15 +89,12 @@ CudaDeviceFunction void Run() {
     }
     if (NodeType & NODE_MRT)
     {
-		calcPsi();
-		CollisionMRT();
-		/*for (int i = 0; i<9; i++){
-			printf("\n %6.4lf", f[i]);
-		}*/
-		BodyForce();
+//		CollisionMRT();
+//		BodyForce();
+		CollisionBGK();
     }
 }
-CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2]) {
+CudaDeviceFunction void SetEquilibrium(real_t d, real_t u[2]) {
 real_t usq, uf;
 <?R
     C(usq , sum(u*u)*(1/c_squ)) ?>
@@ -125,11 +144,6 @@ CudaDeviceFunction real_t getP(){
 	d = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
 	bp = d*beta/4.0;
 	p0 = d*R*T*(1+bp+bp*bp-bp*bp*bp)/pow(1-bp,3) - alpha*d*d;
-    /*printf("\n rho in P, %6.4lf",d);
-	printf("\n T=%6.4lf",T);
-	printf("\n R=%6.4lf",R);
-	printf("\n alpha=%6.4lf",alpha);
-	printf("\n p0=%6.4lf",p0);*/
 	return p0;
 }
 CudaDeviceFunction real_t getPsi(){
@@ -144,9 +158,6 @@ CudaDeviceFunction vector_t PPForce(){
        	R = PV(c(paste("R[",1:9-1,"]",sep="")))
         C(R , ph);
     ?>
-    //for (int i =0; i<9;i++){
-		//printf("\n Phi %d is %d", i, R[i]);
-	//}
 // Symmetry alteration same as kuper model - set outside psi equal to inside
 	if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry) {
 	<?R
@@ -164,30 +175,36 @@ CudaDeviceFunction vector_t PPForce(){
 				C( R[reflect_to[i]], R[reflect_from[i]] )	}
 		?>
 	} 
-    <?R
+<?R
     # tn_force From McDonald & Turner 2015:
     # tn_force = matrix( c(0,2,2,2,2,1,1,1,1),9,1)
     # tn_force taken as lattice weightings
-	tn_force = matrix( c(t1,t2,t2,t2,t2,t3,t3,t3,t3),9,1)
+	#tn_force = matrix( c(t1,t2,t2,t2,t2,t3,t3,t3,t3),9,1)
 	# tn_force taken as weightings from kupershtok model
 	# tn_force = matrix( c(0,1,1,1,1,1/4,1/4,1/4,1/4),9,1)
-	G  = PV("G")
-	temp = tn_force * R
-	temp = t(temp) %*% U
-	temp = c_squ*temp
-	C(Force,G * R[1] * temp)  
-    ?>
-   /*
-// Beta force attempt 6/5/16 - Zarghami et al (2015)
-	real_t c0 = 6.0;
-	real_t c1 = 1/3.0;
-	real_t c2 = 1/12.0;
-	real_t B  = 1.16;
-	real_t dx = c1*(R[1]-R[3]) + c2*(R[5]-R[6]-R[7]+R[8]);
-	real_t dy = c1*(R[2]-R[4]) + c2*(R[5]+R[6]-R[7]-R[8]);
-	F.x = -c0*B*R[0]*G * ( dx ) -  (1-B) * c0*G*( dx*dx )/2.0;
-	F.x = -c0*B*R[0]*G * ( dy ) -  (1-B) * c0*G*( dy*dy )/2.0;
-	*/
+	#G  = PV("G")
+	#b  = PV("betaforcing")
+	#temp = tn_force * R
+	#temp = t(temp) %*% U
+	#temp = b * G * R[1] * c_squ*temp
+	#temp2 = R * R
+	#temp2 = tn_force * temp2
+	#temp2 = t(temp2) %*% U
+	#temp2 = 0.5*(1.0 - b) * G * temp2
+	#C(Force,temp + temp2)  
+?>
+<?python
+tempx = 0.0
+tempy = 0.0
+for i in range(9):
+    print_ccode(psi[i], assign_to=R[i])
+for i in range(1,9):
+    tempx += w[i]*R[i]*cx[i]
+    tempy += w[i]*R[i]*cy[i]
+F = var(['F.x', 'F.y'])
+print_ccode(tempx*(-G*R[0]),assign_to=F[0])
+print_ccode(tempy*(-G*R[0]),assign_to=F[1])
+?>
 	F.z = 0.0;
 	return F;
 }
@@ -197,10 +214,8 @@ CudaDeviceFunction void calcPsi(){
 	real_t p0, d;
 	d = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
 	p0 = getP();
-	//printf("\n Pressure, %6.4lf", p0);
 	psi = sqrt(2*(p0-d/3.0)/(G/3.0));
 }
-// Boundary Conditions
 // Boundary Conditions
 CudaDeviceFunction void BounceBack() {
      real_t uf;
@@ -238,7 +253,7 @@ CudaDeviceFunction void WVelocity(){
 	real_t rho2;
 	real_t u[2] = {Velocity,0.};
 	rho2 = Density;
-	SetEquilibrum(rho2,u);
+	SetEquilibrium(rho2,u);
 }
 CudaDeviceFunction void EPressure(){
         real_t ru;
@@ -327,6 +342,51 @@ CudaDeviceFunction void CollisionMRT() {
 	C( f, R %*% t(M) );
 ?>
 }
+CudaDeviceFunction void CollisionBGK() {
+// Here we perform a single relaxation time collision operation.
+	real_t rho, f_temp[9], u[2];
+	rho = <?R C(sum(f)) ?> ;
+	// pu = sum(e_i*f_i)
+	u[0] = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/rho );
+	u[1] = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/rho );
+	f_temp[0] = f[0];
+	f_temp[1] = f[1];
+	f_temp[2] = f[2];
+	f_temp[3] = f[3];
+	f_temp[4] = f[4];
+	f_temp[5] = f[5];
+	f_temp[6] = f[6];
+	f_temp[7] = f[7];
+	f_temp[8] = f[8];
+	// forcing term
+	vector_t Force = getF();
+	real_t gamma, c_squ, S[9], w[9];
+	gamma = 1 - 0.25*tempomega - rho*tempomega/(4*G*c_squ*psi*psi);
+<?python
+F = var(['Force.x', 'Force.y'])
+g = var('gamma')
+for i in range(9):
+    uf1x = (cx[i]-u[0])*3.0
+    uf1y = (cy[i]-u[1])*3.0
+    uf2x = (cx[i]*u[0]+cy[i]*u[1])*cx[i]*9.0
+    uf2y = (cx[i]*u[0]+cy[i]*u[1])*cy[i]*9.0
+    temp1 = ((F[0]*(uf1x+uf2x) + F[1]*(uf1y+uf2y)))
+    uf1x = (cx[i]*F[0]+cy[i]*F[1])**2/(2.0*rho/9.0)
+    uf2x = (F[0]*F[0]+F[1]*F[1])/(2.0*rho/3.0)
+    temp2 = (uf1x - uf2x)
+    print_ccode(w[i]*(temp1+temp2), assign_to=S[i]) 
+?>	
+	SetEquilibrium(rho, u);
+	f[0] = f_temp[0] - tempomega*(f_temp[0]-f[0])+S[0];	
+	f[1] = f_temp[1] - tempomega*(f_temp[1]-f[1])+S[1];
+	f[2] = f_temp[2] - tempomega*(f_temp[2]-f[2])+S[2];
+	f[3] = f_temp[3] - tempomega*(f_temp[3]-f[3])+S[3];	
+	f[4] = f_temp[4] - tempomega*(f_temp[4]-f[4])+S[4];
+	f[5] = f_temp[5] - tempomega*(f_temp[5]-f[5])+S[5];
+	f[6] = f_temp[6] - tempomega*(f_temp[6]-f[6])+S[6];	
+	f[7] = f_temp[7] - tempomega*(f_temp[7]-f[7])+S[7];
+	f[8] = f_temp[8] - tempomega*(f_temp[8]-f[8])+S[8];
+}
 // Body Force Operation - LBL Implementation:
 CudaDeviceFunction void BodyForce() {
 	real_t S[9], theta[4];
@@ -343,7 +403,7 @@ CudaDeviceFunction void BodyForce() {
 	?>
 	ux /= rho;
 	uy /= rho;
-	gamma = 1 - 0.25*omega - (eps_0/8.0)*rho*omega/(4*G*c_squ*psi*psi);
+	gamma = 1 - 0.25*tempomega - rho*tempomega/(4*G*c_squ*psi*psi);
 	// Calculate THETA: Additional higher order term
 	<?R
 	# Implement this once normal forcing is working
