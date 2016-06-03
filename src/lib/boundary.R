@@ -1,4 +1,14 @@
 
+Bounce = function(U, FUN=function(U) {-U} ) {
+	W1 = cbind(U,i=1:nrow(U))
+	W2 = cbind(-U,j=1:nrow(U))
+	ret = merge(W1,W2)
+	bounce = 1:nrow(U)
+	bounce[ret$i] = ret$j
+	bounce
+}
+
+
 FullBounceOp = function(op) {
 	cat("real_t tmp;\n")
 	tmp=PV("tmp")
@@ -33,7 +43,14 @@ FullSymmetryZ = function() {
 
 C_pull = function(W, var) {
 	ret = div.mod(W[[1]],var)
-	cat(var, " = (", ToC(ret[[1]]), ") / (", ToC(ret[[2]]*(-1)), ");\n")
+	A = ret[[1]]*(-1)
+	B = ret[[2]]
+
+	if (nrow(B) > 1) {
+		cat(var, " = (", ToC(A), ") / (", ToC(B), ");\n")
+	} else {
+		cat(var, " = ", ToC(A * (B ** -1)), ";\n")
+	}
 }
 
 ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("Velocity"), V3) {
@@ -108,3 +125,53 @@ ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
   }
   C(f[sel],fs[sel])
 }
+
+ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rhs) {
+  # --- Prepare arguments
+	type=match.arg(type)
+	if (missing(rhs)) rhs = switch(type,
+		velocity=PV("Velocity"),
+		pressure=PV("Pressure")*3+1,
+		'do nothing'=PV("Pressure")+1./3.
+	)
+	d = length(n)
+	if (sum(n == 0) != d-1) stop("Normal have to be cartesian")
+	if (sum(abs(n)) != 1)   stop("Normal have to be cartesian versor")
+	direction = which(n != 0)
+	if (is.data.frame(EQ) || is.matrix(EQ)) {
+		U = as.matrix(EQ)
+	} else {
+		U = EQ$U
+	}
+  # --- Create a new F equilibrum with 'R' as momentum
+	R = paste0("R",c("x","y","z"))[1:d]
+	EQ2 = MRT_eq(U, ortogonal=FALSE, J=PV(R))
+	feq = EQ2$feq
+	sel = as.vector((U %*% n) < 0)
+  # --- Creating new 'fs' that has symetric non-equilibrum part
+	bounce = Bounce(U)
+	fs = f; fs[sel] = (feq + (fs - feq)[bounce])[sel]
+  # --- Preparing moments to set
+	if (type == "do nothing") {
+	  # --- Set 2nd order moment tensor times normal vector
+		rhs = rhs * n
+		eqn = fs %*% EQ2$D2 %*% n
+	} else if (type == "pressure") {
+          # --- Set density and non-normal velocity compoments
+		eqn = V(fs %*% EQ2$U %*% diag(d))
+		eqn[direction] = V(sum(fs))
+		rhs = rhs * abs(n);
+	} else if (type == "velocity") {
+          # --- Set all velocity components
+		eqn = V( fs %*% EQ2$U %*% diag(d))
+		rhs = rhs * abs(n) * sum(fs)
+	} else stop("Unknown type in ZouHe")
+	cat("/********* ", type, "-type Zue He boundary condition  ****************/\n",sep="");
+	eqn = eqn - rhs;
+	if (length(eqn) != length(R)) stop("Something is terribly wrong")
+  # --- Solving all equations for 'R'
+	for (i in 1:length(R)) { cat("real_t "); C_pull(eqn[i],R[i]); }
+  # --- Setting the missing densities f
+	C(f[sel],fs[sel]);
+}
+
