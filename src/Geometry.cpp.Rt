@@ -122,6 +122,7 @@ int Geometry::setFlag(const pugi::char_t * name)
     }
     fg = node.attribute("value").as_int();
     E(setMask(node.attribute("mask").value()));
+    fg_mode = MODE_OVERWRITE;
     return 0;
 }
 
@@ -141,6 +142,26 @@ int Geometry::setMask(const pugi::char_t * name)
     }
     fg_mask = node.attribute("value").as_int(-1);
     return 0;
+}
+
+/// Set the forground flag mode
+/**
+        Set the foreground flag mode, by which the forground flag will be set
+        \param name Name of the flag mask/NodeType to set
+*/
+int Geometry::setMode(const pugi::char_t * mode)
+{
+	if (strcmp(mode, "overwrite") == 0) {
+		fg_mode = MODE_OVERWRITE;
+	} else if (strcmp(mode, "fill") == 0) {
+		fg_mode = MODE_FILL;
+	} else if (strcmp(mode, "change") == 0) {
+		fg_mode = MODE_CHANGE;
+	} else {
+		error("Unknown mode (in xml): %s\n", mode);
+		return -1;
+	}
+	return 0;
 }
 
 int Geometry::setZone(const pugi::char_t * name)
@@ -720,6 +741,8 @@ int Geometry::load(pugi::xml_node & node)
 	        E(setZone(attr.value()));
 	    } else if (strcmp(attr.name(), "mask") == 0) {
 	        E(setMask(attr.value()));
+	    } else if (strcmp(attr.name(), "mode") == 0) {
+	        E(setMode(attr.value()));
 	    } else {
 	        
 	    }
