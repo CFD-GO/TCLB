@@ -36,9 +36,9 @@ T bspline_mod(double x, std::vector<T>& p, int k) {
 template <typename T>
 T bspline(double x, const std::vector<T>& p, int k) {
   static std::vector<T> pcopy;
-  int n = p.size();
+  size_t n = p.size();
   if (pcopy.size() != n) pcopy.resize(n);
-  for (int i=0;i<n;i++) pcopy[i] = p[i];
+  for (size_t i=0;i<n;i++) pcopy[i] = p[i];
   return bspline_mod(x,pcopy,k);
 }
 #define SPLINE_H
