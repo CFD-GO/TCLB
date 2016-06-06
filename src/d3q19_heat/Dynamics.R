@@ -29,4 +29,4 @@ AddSetting(name="Pressure", default="0Pa", comment='inlet pressure', zonal=TRUE)
 AddSetting(name="Temperature", default=1, comment='inlet density', zonal=TRUE)
 AddSetting(name="FluidAlpha", default=1, comment='inlet density')
 
-AddNodeType("ADDITIONALS","Heater")
+AddNodeType("Heater","ADDITIONALS")
