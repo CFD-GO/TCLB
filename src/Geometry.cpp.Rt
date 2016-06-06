@@ -282,6 +282,11 @@ inline flag_t Geometry::Dot(int x, int y, int z)
 {
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);
+	if (geom[i] & fg_mask) {
+		if (fg_mode == MODE_FILL) return NODE_None;
+	} else {
+		if (fg_mode == MODE_CHANGE) return NODE_None;
+	}
 	return geom[i] = (geom[i] & (~fg_mask)) | fg;
     } else 
     return NODE_None;
