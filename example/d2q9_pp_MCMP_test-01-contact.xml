@@ -5,7 +5,7 @@
 				<Params nu="1e-5m2/s" gauge="0.166666666666"/>
 		</Units>-->
         <Geometry nx="200" ny="100">
-		<MRT><Box/></MRT>
+		<BGK><Box/></BGK>
 		<None name="zdrop">
             	<Box dx="80" fx="121" dy="0" fy="23"/>
 		</None>
@@ -14,12 +14,12 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params omega_f="1"
+		<Params omega="1"
 				omega_g="1"
-				rho_wet="0.06"
-				rho_wet-zdrop="2.0"
-				rho_dry="2.0"
-				rho_dry-zdrop="0.06"
+				Density="0.06"
+				Density-zdrop="2.0"
+				Density_dry="2.0"
+				Density_dry-zdrop="0.06"
 				GravitationX ="0.0"
 				GravitationY ="0.0"
 				/>

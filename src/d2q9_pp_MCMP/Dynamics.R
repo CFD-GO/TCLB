@@ -49,9 +49,9 @@ AddQuantity(name="Fg",  unit="N",vector=T)
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 # Viscosity Settings:
-AddSetting(name="omega_f", comment='one over relaxation time-wet')
+AddSetting(name="omega", comment='one over relaxation time-wet')
 AddSetting(name="omega_g", comment='one over relaxation time-dry')
-AddSetting(name="nu_f", omega_f='1.0/(3*nu_f + 0.5)', default=.16666666, comment='viscosity-wet')
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=.16666666, comment='viscosity-wet')
 AddSetting(name="nu_g", omega_g='1.0/(3*nu_g + 0.5)', default=.16666666, comment='viscosity-dry')
 # Boundary Settings:
 AddSetting(name="Velocity_f", default=0, comment='inlet/outlet/init velocity 1st pop', zonal=T)
@@ -59,8 +59,8 @@ AddSetting(name="Pressure_f", default=0, comment='inlet/outlet/init density 1st 
 AddSetting(name="Velocity_g", default=0, comment='inlet/outlet/init velocity 2nd pop', zonal=T)
 AddSetting(name="Pressure_g", default=0, comment='inlet/outlet/init density 2nd pop', zonal=T)
 # Density Settings:
-AddSetting(name="rho_wet", comment='higher density fluid - multiphase capable', zonal=T)
-AddSetting(name="rho_dry", comment='lower density fluid  - ideal gas assumption' , zonal=T)
+AddSetting(name="Density", comment='higher density fluid - multiphase capable', zonal=T)
+AddSetting(name="Density_dry", comment='lower density fluid  - ideal gas assumption' , zonal=T)
 # MultiComponent Settings:
 AddSetting(name="Gc", comment='fluid1/2-fluid2/1 interation')
 AddSetting(name="Gad1", comment='fluid1-wall interation')

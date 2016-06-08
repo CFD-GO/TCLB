@@ -55,7 +55,7 @@ G = var('Gc')
 ueq_f = var(['ueq_f.x', 'ueq_f.y'])
 ueq_g = var(['ueq_g.x', 'ueq_g.y'])
 rho = var(['rf', 'rg'])
-om  = var(['omega_f', 'omega_g'])
+om  = var(['omega', 'omega_g'])
 Densities = var(Density['name'])
 R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
 w0 = 4/9.0
@@ -109,10 +109,11 @@ print_ccode(numy/denxy, assign_to=u[1])
 }
 CudaDeviceFunction real_t EoS_CS(){
 	real_t d = <?R C(sum(f)) ?>;
+	real_t p;
 	real_t Tc=0.0943;
 	real_t temp_bp = b*d/4.0;
 	p = d*R*T*Tc*(1+temp_bp+temp_bp*temp_bp-temp_bp*temp_bp*temp_bp);
-	p = p/((1-temp_bp)*(1-temp_bp)*(1-temp_bp))
+	p = p/((1-temp_bp)*(1-temp_bp)*(1-temp_bp));
 	p = p - a*d*d;
 	return p;
 }
@@ -181,8 +182,8 @@ CudaDeviceFunction void CalcPsi_f(){
 	// As per Stiles and Xue (2016):
 	real_t d = <?R C(sum(f)) ?> ;
 	real_t p = EoS_CS();
-	
-	psi_f = math.sqrt( math.abs((2.0*(p-d/3.0)) / (6.0) ) )
+	psi_f = d;
+	//psi_f = math.sqrt( math.abs((2.0*(p-d/3.0)) / (6.0) ) );
 	if (NodeType & NODE_Wall)
 	{
 		// For application of cohesion force
@@ -192,7 +193,8 @@ CudaDeviceFunction void CalcPsi_f(){
 CudaDeviceFunction void CalcPsi_g(){
 	//Assume the gas is ideal
 	real_t d = <?R C(sum(g)) ?> ;
-	psi_g = 1.0*(1.0-exp(-d/1.0)); //assume rho_0=1 as per Stiles & Xue (2016)
+	psi_g = d;
+	//psi_g = 1.0*(1.0-exp(-d/1.0)); //assume rho_0=1 as per Stiles & Xue (2016)
 	if (NodeType & NODE_Wall)
 	{
 		// For application of cohesion force
@@ -243,8 +245,8 @@ CudaDeviceFunction void Init() {
 	real_t ux, uy;
 	real_t rho_f, ux_f, uy_f;
 	real_t rho_g, ux_g, uy_g;
-	rho_f = rho_wet;
-	rho_g = rho_dry;
+	rho_f = Density;
+	rho_g = Density_dry;
 	if (SL_L > 0) {
 		if (Y < SL_L/2) {
 			ux = SL_U * tanh(SL_lambda * ( Y/SL_L - 0.25 ));
@@ -256,9 +258,9 @@ CudaDeviceFunction void Init() {
 		ux=0;
 		uy=0;
 	}
-	ux_f = Velocity+ux;
+	ux_f = Velocity_f+ux;
 	uy_f = uy;
-	ux_g = Velocity+ux;
+	ux_g = Velocity_g+ux;
 	uy_g = uy;
 	if (NodeType & NODE_Wall){
 		SetEquilibrumf(0,0,0);
@@ -297,7 +299,7 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
     }
-    if (NodeType & NODE_MRT)
+    if (NodeType & NODE_BGK)
     {
 		//MRT operator has not been updated to correctly include
 		//multi-component force (on TO-DO list)
@@ -318,8 +320,8 @@ CudaDeviceFunction void CollisionBGK()
 	ueq_f.z = 0.0;
 	ueq_g.z = 0.0;
 	if (rf > 0.0001){
-		ueq_f.x = u_common.x + Force_f.x/(omega_f * rf);
-		ueq_f.y = u_common.y + Force_f.y/(omega_f * rf);}
+		ueq_f.x = u_common.x + Force_f.x/(omega * rf);
+		ueq_f.y = u_common.y + Force_f.y/(omega * rf);}
 	else {
 		ueq_f.x = u_common.x;
 		ueq_f.y = u_common.y;}
@@ -384,7 +386,7 @@ CudaDeviceFunction void WVelocity()
 <?R 
 	ZouHe(EQ, 1, 1, "velocity",f)
 ?>
-	real_t Velocity = Velocity_g;
+	Velocity = Velocity_g;
 <?R
 	ZouHe(EQ_g, 1, 1, "velocity",g,predefined="true")
 ?>
@@ -415,7 +417,7 @@ CudaDeviceFunction void CollisionMRT()
 	R[!selR] = EQ$Req[!selR]
 ?>
 	real_t <?R C(R,sep=",") ?>;
-	real_t gamma  = 1-omega_f;
+	real_t gamma  = 1-omega;
 <?R
 	S = PV("S",1:nrow(U)-1);
 	S[EQ$order <= 2] = PV("gamma")
@@ -427,8 +429,8 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 	
     vector_t F_f = getFf();
-    Jx = u.x + omega_f * F_f.x ;
-    Jy = u.y + omega_f * F_f.y ;
+    Jx = u.x + omega * F_f.x ;
+    Jy = u.y + omega * F_f.y ;
     
 	if (NodeType & NODE_LES) {
 		real_t Q, tau, tau0;
