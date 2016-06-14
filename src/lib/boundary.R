@@ -181,7 +181,7 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 		eqn = V( fs %*% EQ2$U %*% diag(d))
 		rhs = rhs * abs(n) * sum(fs)
 	} else stop("Unknown type in ZouHe")
-	cat("/********* ", type, "-type Zue He boundary condition  ****************/\n",sep="");
+	cat("/********* ", type, "-type Zou He boundary condition  ****************/\n",sep="");
 	eqn = eqn - rhs;
 	if (length(eqn) != length(R)) stop("Something is terribly wrong")
   # --- Solving all equations for 'R'
