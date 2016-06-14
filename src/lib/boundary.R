@@ -40,6 +40,21 @@ FullSymmetryZ = function() {
 	FullBounceOp(function(X) {X[3]=-X[3]; X});
 }
 
+SymmetryNew  = function(direction,sign) {
+        by(Density, Density$group, function(D) {
+                i = c("dx","dy","dz")
+                D1 = D[,c("name",i)]
+                D2 = D1
+                D2[,direction + 1] = -D2[,direction + 1]
+                D3 = merge(D1,D2,by=i)
+                D3$name.x < D3$name.y
+                D3 = D3[D3$name.x < D3$name.y,]
+                for ( i in seq_len(nrow(D3))) {
+                        if (sign > 0) C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
+                        else C( PV(D3$name.y[i]), PV(D3$name.x[i]) )
+                }
+        })
+}
 
 C_pull = function(W, var) {
 	ret = div.mod(W[[1]],var)
