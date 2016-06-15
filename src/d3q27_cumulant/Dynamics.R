@@ -28,8 +28,6 @@ AddSetting(name="ForceZ",default=0,comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-AddNodeType("SymmetryY", "BOUNDARY")
-AddNodeType("SymmetryZ", "BOUNDARY")
 AddNodeType("WVelocityTurbulent","BOUNDARY")
 AddNodeType("TopSymmetry","BOUNDARY")
 AddNodeType("BottomSymmetry","BOUNDARY")

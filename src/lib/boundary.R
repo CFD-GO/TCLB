@@ -32,15 +32,7 @@ FullBounceBack = function() {
 	FullBounceOp(function(X) -X);
 }
 
-FullSymmetryY = function() {
-	FullBounceOp(function(X) {X[2]=-X[2]; X});
-}
-
-FullSymmetryZ = function() {
-	FullBounceOp(function(X) {X[3]=-X[3]; X});
-}
-
-SymmetryNew  = function(direction,sign) {
+Symmetry  = function(direction,sign) {
         by(Density, Density$group, function(D) {
                 i = c("dx","dy","dz")
                 D1 = D[,c("name",i)]
