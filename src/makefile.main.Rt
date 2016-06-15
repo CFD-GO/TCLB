@@ -86,6 +86,7 @@ travis : .travis.yml
 for (d in destinations) {
 	for (i in 1:nrow(Models)) {
 		m = Models$name[i];
+		model_path = Models$path[i];
 		adjoint = Models$adjoint[i]
 		dest = paste(d,"/",m,"/",sep="")
 		src = "$(SOURCE_ALL)"
@@ -141,10 +142,10 @@ for (d in destinations) {
 <?%s d ?>/<?%s m ?> :
 	$(MKPATH) $@/
 
-wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w wiki/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w wiki/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 # for model <?%s m ?> and destination <?%s d ?>
 
@@ -160,36 +161,36 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  AUTO-DEP   $@"
 	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
-<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
 	@$(INDENT) $@
 
-<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
 	@$(INDENT) $@
 
-<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  CP         $@"
 	@$(MKPATH) $@
 	@$(CP) $< $@
 
-<?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
-<?%s d ?>/<?%s m ?>/%.code:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
-<?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
+<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%
 	@echo "  CP         $@ (model)"
 	@$(MKPATH) $@
 	@$(CP) $< $@
