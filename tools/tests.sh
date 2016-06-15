@@ -28,11 +28,11 @@ function try {
 
 test -z "$MODEL" && usage
 
-if ! test -d "src/$MODEL"
-then
-	echo \"$MODEL\" is not a model
-	usage
-fi
+#if ! test -d "src/$MODEL"
+#then
+#	echo \"$MODEL\" is not a model
+#	usage
+#fi
 
 if ! test -f "CLB/$MODEL/main"
 then
