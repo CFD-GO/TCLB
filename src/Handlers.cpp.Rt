@@ -1832,8 +1832,8 @@ class conControl: public Action {
                         }
                         int k = 0;
                         int max_k = csv_data[ "_time" ].size() - 2;
-                        if (max_k < 1) {
-                                error("Not enough records in CSV file or something went terribly wrong\n");
+                        if (max_k < 0) {
+                                error("Not enaugh records in CSV file or something went terribly wrong\n");
                                 return -1;
                         }
                                 
