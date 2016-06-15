@@ -148,10 +148,10 @@ CudaDeviceFunction void Run() {
 		WVelocityTurbulent();
 		break;
 	case NODE_NSymmetry:
-		TopSymmetry();
+		NSymmetry();
 		break;
 	case NODE_SSymmetry:
-               	BottomSymmetry();
+               	SSymmetry();
                 break;
 	case NODE_EPressure:
                 EPressure();
