@@ -130,13 +130,13 @@ CudaDeviceFunction void EPressure()
 {
 <?R ZouHe(EQ, 1, -1, "pressure") ?>
 }
-CudaDeviceFunction void TopSymmetry()
+CudaDeviceFunction void NSymmetry()
 {
 //Symmetry on the top of the boundary
 <?R Symmetry(2,-1) ?>
 }
 
-CudaDeviceFunction void BottomSymmetry()
+CudaDeviceFunction void SSymmetry()
 {
 //Symmetry on the bottom of the boundary
 <?R Symmetry(2,1) ?>
@@ -147,10 +147,10 @@ CudaDeviceFunction void Run() {
 	case NODE_WVelocityTurbulent:
 		WVelocityTurbulent();
 		break;
-	case NODE_TopSymmetry:
+	case NODE_NSymmetry:
 		TopSymmetry();
 		break;
-	case NODE_BottomSymmetry:
+	case NODE_SSymmetry:
                	BottomSymmetry();
                 break;
 	case NODE_EPressure:
