@@ -51,3 +51,4 @@ AddSetting(name="PDY", default=0, comment='plate diameter Y')
 AddSetting(name="PX", default=0, comment='plate position X', zonal=T)
 AddSetting(name="PY", default=0, comment='plate position Y', zonal=T)
 AddSetting(name="PR", default=0, comment='plate angle', zonal=T)
+
