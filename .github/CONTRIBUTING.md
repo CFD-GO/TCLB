@@ -14,6 +14,8 @@ We are really glad that you would like to contribute to TCLB. We would appreciat
 - [ ] You did a clever trick? Please leave a suitable comment
 - [ ] Please don't brake naming convention (at least look at surrounding code)
 - [ ] Try too use meaningful variable names
+- [ ]  Do not pull/merge XXX_new's.  Its either something different and should have different name or it is an replacement of XXX (in whole code)
+
 
 ### Compilation
 The code will be tested automaticly with Travis-CI, but before that, you can test your code on your machine
