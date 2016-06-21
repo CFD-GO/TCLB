@@ -1403,9 +1403,11 @@ class acOptimize: public GenericAction {
 				Parameters(PAR_LOWER, bound);
 				output("lower set to %lf\n", bound[0]);
 				nlopt_set_lower_bounds(opt, bound);
+				for (int i=0;i<par;i++) if (start[i] < bound[i]) start[i] = bound[i];
 				Parameters(PAR_UPPER, bound);
 				output("upper set to %lf\n", bound[0]);
 				nlopt_set_upper_bounds(opt, bound);
+				for (int i=0;i<par;i++) if (start[i] > bound[i]) start[i] = bound[i];
 				delete[] bound;
 			}
                         res = nlopt_set_max_objective(opt, FOptimize, this);
