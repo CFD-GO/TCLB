@@ -2309,14 +2309,7 @@ class cbPythonCall: public Callback {
 	        /* pFunc is a new reference */
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
-//                if (sizeof(real_t) == sizeof(float) ) {
-//                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_FLOAT, buffer);
-//                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_FLOAT, buffer);
-//                } else if (sizeof(real_t) == sizeof(double) ){
-//                    pInputData = PyArray_SimpleNewFromData(1, &size, PyArray_DOUBLE, buffer);
-//                      pInputData = PyArray_SimpleNewFromData(1, &size, NPY_DOUBLE, buffer);
-//                }
-                
+               
                 
                 pArgs = PyTuple_New(n_components+1);
                 
@@ -2332,9 +2325,9 @@ class cbPythonCall: public Callback {
                     long int size = solver->getComponentIntoBuffer(component, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
-                        pInputData = PyArray_SimpleNewFromData(3, dims, PyArray_FLOAT, buffer);
+                        pInputData = PyArray_SimpleNewFromData(3, dims, NPY_FLOAT, buffer);
                     } else if (sizeof(real_t) == sizeof(double) ){
-                        pInputData = PyArray_SimpleNewFromData(3, dims, PyArray_DOUBLE, buffer);
+                        pInputData = PyArray_SimpleNewFromData(3, dims, NPY_DOUBLE, buffer);
                     }
                 
                     buffers[i] = buffer;
