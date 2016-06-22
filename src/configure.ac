@@ -81,7 +81,9 @@ AC_ARG_WITH([python],
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
 		[Makes GCC paranoid.]))
-			
+AC_ARG_ENABLE([profiling],
+	AC_HELP_STRING([--enable-profiling],
+		[enable profiling for R in rtemplate]))		
 NVFLAGS=""
 
 # Checks for programs.
@@ -450,6 +452,12 @@ then
 	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
 fi
 
+RT="./tools/RT -b"
+if test "x${enable_profiling}" == "xyes"
+then
+	RT="${RT} -p"
+fi
+
 # Checks for typedefs, structures, and compiler characteristics.
 #AC_HEADER_STDBOOL
 #AC_C_INLINE
@@ -477,6 +485,7 @@ AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
 AC_SUBST(EMBEDED_PYTHON)
+AC_SUBST(RT)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
