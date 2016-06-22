@@ -6,12 +6,12 @@ NV_OPT = @NVFLAGS@
 CPU = @CROSS_CPU@
 
 TOOLS = tools
+RT = $(TOOLS)/RT -b
 RS = R --slave --quiet --vanilla -f
 INDENT = tools/myindent
 ADMOD = tools/ADmod.R
 MAKEHEADERS = tools/makeheaders
 
-RT=@RT@
 RTOPT=@RTOPT@
 RTOPT_ADJ=ADJOINT=1
 SRC=src
