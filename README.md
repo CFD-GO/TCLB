@@ -27,6 +27,7 @@ sudo tools/install.sh openmpi
 sudo tools/install.sh python-dev
      tools/install.sh rpython
 ```
+Scripts are supposed to work with Ubuntu (on Travis VMs). You could install parts begining with *sudo* by hand, and then use script to install R packages (locally, in ~/R): rdep and rpython
 
 ### Compilation
 This should work:
