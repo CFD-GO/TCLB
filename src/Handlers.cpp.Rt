@@ -2375,7 +2375,7 @@ class cbPythonCall: public Callback {
         for (int i =0; i<n_components; i++){
             const char * component = components[i].c_str();
             for (int k =0; k < 10; k++){
-                debug2("PythonCall after, buffer %d, value %d: %f\n",i,k, buffers[i][k]);
+                debug1("PythonCall after,comp %s,  buffer %d, value %d: %f\n",component,i,k, buffers[i][k]);
             }
             int status = solver->loadComponentFromBuffer(component, buffers[i]);
         }

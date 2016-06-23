@@ -3,15 +3,21 @@
 #  dx,dy,dz - direction of streaming
 #  comment - additional comment
 
-AddDensity( name="f[0]", dx= 0, dy= 0)
-AddDensity( name="f[1]", dx= 1, dy= 0)
-AddDensity( name="f[2]", dx= 0, dy= 1)
-AddDensity( name="f[3]", dx=-1, dy= 0)
-AddDensity( name="f[4]", dx= 0, dy=-1)
-AddDensity( name="f[5]", dx= 1, dy= 1)
-AddDensity( name="f[6]", dx=-1, dy= 1)
-AddDensity( name="f[7]", dx=-1, dy=-1)
-AddDensity( name="f[8]", dx= 1, dy=-1)
+AddDensity( name="f[0]", dx= 0, dy= 0, group="f")
+AddDensity( name="f[1]", dx= 1, dy= 0, group="f")
+AddDensity( name="f[2]", dx= 0, dy= 1, group="f")
+AddDensity( name="f[3]", dx=-1, dy= 0, group="f")
+AddDensity( name="f[4]", dx= 0, dy=-1, group="f")
+AddDensity( name="f[5]", dx= 1, dy= 1, group="f")
+AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
+AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
+AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
+
+# THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
+# COMMENT OUT FOR PERFORMANCE
+AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
+AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
 #  name - name of the field
