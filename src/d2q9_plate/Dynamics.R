@@ -44,6 +44,12 @@ AddQuantity( name="UB",adjoint=T,vector=T)
 
 AddGlobal(name="ForceX", comment='reaction force X')
 AddGlobal(name="ForceY", comment='reaction force Y')
+AddGlobal(name="Moment", comment='reaction force X')
+AddGlobal(name="PowerX", comment='reaction force Y')
+AddGlobal(name="PowerY", comment='reaction force X')
+AddGlobal(name="PowerR", comment='reaction force Y')
+AddGlobal(name="Power", comment='reaction force X')
+AddGlobal(name="Power2", comment='reaction force Y')
 
 
 AddSetting(name="PDX", default=0, comment='plate diameter X')
