@@ -2,7 +2,12 @@
 // """"Multiphase Lattice Boltzmann methods: Theory and Application""""
 // Chp 3: Shan and Chen-type multi-component multiphase models
 // e.g. files start with d2q9_pp_MCMP
-// Maintainer: Travis Mitchell
+// Maintainer: Travis-Mitchell @TravisMitchell
+
+// Code to be updated to:
+/*   High density ratio lattice Boltzmann method simulations of multicomponent
+ *   multiphase transport of H2O in air - Stiles and Xue (2016) */
+ 
 <?R
 #region R code Preamble
 	source("conf.R") 
@@ -86,6 +91,7 @@ CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)+sum(g)) ?> ;
 }  
 CudaDeviceFunction vector_t getU(){
+	// Common velocity
 	real_t rf = <?R C(sum(f)) ?>;
 	real_t rg = <?R C(sum(g)) ?>;
 	vector_t u,uf,ug;
@@ -108,6 +114,7 @@ print_ccode(numy/denxy, assign_to=u[1])
 		return u;
 }
 CudaDeviceFunction real_t EoS_CS(){
+	// TO DO: link to getFf() function
 	real_t d = <?R C(sum(f)) ?>;
 	real_t p;
 	real_t Tc=0.0943;
@@ -139,7 +146,7 @@ temp2 =-G * R[0] * temp2
 print_ccode(temp1, assign_to=Force[0])
 print_ccode(temp2, assign_to=Force[1])
 ?>
-	//Force due to f being non-ideal
+	//TO DO: Force due to f being non-ideal
 	
 	
 	Force.x = Force.x + GravitationX;
@@ -172,6 +179,7 @@ print_ccode(temp2, assign_to=Force[1])
 	return Force;
 }
 CudaDeviceFunction real_t getP(){
+	//TO DO: this will need to be updated when EoS implemented
 		real_t rf  = <?R C(sum(f))?>;
 		real_t rg  = <?R C(sum(g))?>;
 		real_t rho = rf+rg;
@@ -179,7 +187,7 @@ CudaDeviceFunction real_t getP(){
 }
 
 CudaDeviceFunction void CalcPsi_f(){
-	// As per Stiles and Xue (2016):
+	// TO DO: As per Stiles and Xue (2016)
 	real_t d = <?R C(sum(f)) ?> ;
 	real_t p = EoS_CS();
 	psi_f = d;

@@ -1,9 +1,16 @@
+// 25/5/2016 - Model Developed based on Lycett-Brown & Luo (LBL)
+// """"Improved forcing scheme in pseudopotential lattice Boltzmann""""
+// """"  methods for multiphase flow at arbitrarily high density   """"
+// """"                       ratios                               """"
+// Maintainer: Travis-Mitchell @TravisMitchell
+
+// Code to be updated to:
+/*   + Additional higher order forcing term to separate coupling of 
+ *   surface tension and diffuse interface width */
+/*   + General tidy up of boundary conditions and update to newer 
+ *   R code preamble also required */
+
 <?R
-# ############# Pseudopotential (pp) - Lycett-Brown & Luo (LBL)
-# based on "Improved forcing scheme in pseudopotential lattice Boltzmann methdos for multiphase
-#           flow at arbitrarily high density ratios - Lycett-Brown & Luo (2015)"
-# implemented by T. Mitchell 2016
-# #############
 #region RPreamble
 	source("conf.R") 
 	source("lib/feq.R")
@@ -37,9 +44,7 @@ from sympy import *
 from sympy.printing import print_ccode
 G = var('G')
 ueq_f = var(['ueq_f.x', 'ueq_f.y'])
-ueq_g = var(['ueq_g.x', 'ueq_g.y'])
 rho = var('rho')
-om  = var(['omega_f', 'omega_g'])
 Densities = var(Density['name'])
 R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
 S = var(['S[0]','S[1]','S[2]','S[3]','S[4]','S[5]','S[6]','S[7]','S[8]'])
@@ -175,7 +180,7 @@ CudaDeviceFunction vector_t PPForce(){
 				C( R[reflect_to[i]], R[reflect_from[i]] )	}
 		?>
 	} 
-<?R
+/*<?R
     # tn_force From McDonald & Turner 2015:
     # tn_force = matrix( c(0,2,2,2,2,1,1,1,1),9,1)
     # tn_force taken as lattice weightings
@@ -192,7 +197,7 @@ CudaDeviceFunction vector_t PPForce(){
 	#temp2 = t(temp2) %*% U
 	#temp2 = 0.5*(1.0 - b) * G * temp2
 	#C(Force,temp + temp2)  
-?>
+?>*/
 <?python
 tempx = 0.0
 tempy = 0.0

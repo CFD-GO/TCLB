@@ -1,7 +1,4 @@
 # Density - table of variables of LB Node to stream
-#  name - variable name to stream
-#  dx,dy,dz - direction of streaming
-#  comment - additional comment
 AddDensity( name="f[0]", dx= 0, dy= 0, group="f")
 AddDensity( name="f[1]", dx= 1, dy= 0, group="f")
 AddDensity( name="f[2]", dx= 0, dy= 1, group="f")
@@ -23,6 +20,7 @@ AddDensity( name="g[8]", dx= 1, dy=-1, group="g")
 AddField(name="psi_g",  stencil2d=1);
 AddField(name="psi_f",  stencil2d=1);
 
+# Stages - processes to run for initialisation and each iteration
 AddStage("BaseIteration", "Run",  save=Fields$group=="f" | Fields$group=="g", load=DensityAll$group=="f" | DensityAll$group =="g")
 AddStage("CalcPsi_f"    , save="psi_f", load=DensityAll$group == "f" )
 AddStage("CalcPsi_g"    , save="psi_g", load=DensityAll$group == "g" )
@@ -30,12 +28,7 @@ AddStage("BaseInit"     , "Init", save=Fields$group=="f" | Fields$group=="g", lo
 AddAction("Iteration", c("BaseIteration","CalcPsi_f","CalcPsi_g"))
 AddAction("Init"     , c("BaseInit",     "CalcPsi_f","CalcPsi_g"))
 
-# Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
-#  name - name of the field
-#  type - C type of the field, "real_t" - for single/double float, and "vector_t" for 3D vector single/double float
-# Every field must correspond to a function in "Dynamics.c".
-# If one have filed [something] with type [type], one have to define a function: 
-# [type] get[something]() { return ...; }
+# Quantities - table of fields that can be exported from the LB lattice
 AddQuantity(name="Rho", unit="kg/m3")
 AddQuantity(name="Rhof",unit="kg/m3")
 AddQuantity(name="Rhog",unit="kg/m3")
@@ -44,10 +37,8 @@ AddQuantity(name="U",   unit="m/s",vector=T)
 AddQuantity(name="A",   unit="1",vector=T)
 AddQuantity(name="Ff",  unit="N",vector=T)
 AddQuantity(name="Fg",  unit="N",vector=T)
+
 # Settings - table of settings (constants) that are taken from a .xml file
-#  name - name of the constant variable
-#  comment - additional comment
-# You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 # Viscosity Settings:
 AddSetting(name="omega", comment='one over relaxation time-wet')
 AddSetting(name="omega_g", comment='one over relaxation time-dry')
@@ -83,10 +74,10 @@ AddSetting(name="GravitationY", default=0.0, comment='Body Force')
 # Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="TotalDensity1", comment='quantity of fluid-1', unit='kg/m3')
 AddGlobal(name="TotalDensity2", comment='quantity of fluid-2', unit='kg/m3')
-
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
+# Node Types
 AddNodeType("Smagorinsky", "LES")
 AddNodeType("Stab", "ENTROPIC")
