@@ -24,8 +24,8 @@ CudaDeviceFunction vector_t getU(){
 	vector_t u;
     u.x = f[8] - f[7] - f[6] + f[5] - f[3] + f[1];
     u.y = -f[8] - f[7] + f[6] + f[5] - f[4] + f[2];
-    u.x += ForceX;
-    u.y += ForceY; 
+    u.x += ForceX * 0.5;
+    u.y += ForceY * 0.5; 
 	u.x /= d;
 	u.y /= d;
 	u.z = 0.0;
