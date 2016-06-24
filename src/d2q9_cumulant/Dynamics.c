@@ -22,8 +22,8 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = f[8] + f[7] + f[6] + f[5] + f[4] + f[3] + f[2] + f[1] + f[0];
 	vector_t u;
-u.x = f[8] - f[7] - f[6] + f[5] - f[3] + f[1];
-u.y = -f[8] - f[7] + f[6] + f[5] - f[4] + f[2];
+    u.x = f[8] - f[7] - f[6] + f[5] - f[3] + f[1];
+    u.y = -f[8] - f[7] + f[6] + f[5] - f[4] + f[2];
     u.x += ForceX;
     u.y += ForceY; 
 	u.x /= d;
@@ -157,12 +157,8 @@ CudaDeviceFunction void CollisionMRT()
 {
 
  real_t c[9],m[9];
-  real_t u[2],usq,d;
-  d = getRho();
-  u[0] = (f[8] - f[7] - f[6] + f[5] - f[3] + f[1]) + ForceX * 0.5 / d;
-  u[1] = (-f[8] - f[7] + f[6] + f[5] - f[4] + f[2]) + ForceY * 0.5 / d;
-  usq = u[0]*u[0] + u[1]*u[1];
-   real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
+ d = getRho();
+ real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
  if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 
 for (int i = 0;i<9;i++) m[i] = f[i];
