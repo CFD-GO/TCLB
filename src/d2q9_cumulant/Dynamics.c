@@ -156,7 +156,7 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void CollisionMRT()
 {
 
- real_t c[9],m[9];
+ real_t c[9],m[9], d;
  d = getRho();
  real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
  if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
