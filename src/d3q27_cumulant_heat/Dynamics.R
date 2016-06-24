@@ -31,11 +31,8 @@ AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer'
 AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
-AddSetting(name="Temperature",comment='Temperature',zonal=FALSE)
-AddSetting(name="HeaterTemperature",zonal=FALSE)
-AddSetting(name="InletTemperature",zonal=FALSE)
-AddSetting(name="Alpha",zonal=FALSE)
-AddSetting(name="SolidAlpha",zonal=FALSE)
+AddSetting(name="Temperature",comment='Temperature',zonal=TRUE)
+AddSetting(name="Alpha",zonal=TRUE)
 
 
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')

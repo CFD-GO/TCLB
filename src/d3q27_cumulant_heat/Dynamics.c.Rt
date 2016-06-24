@@ -106,18 +106,28 @@ CudaDeviceFunction void WVelocity()
  real_t ux = Jx/rho;
  real_t uy = Jy/rho;
  real_t uz = Jz/rho;
- real_t rhoT = rho*InletTemperature;
+ real_t rhoT = rho*Temperature;
  <?R C(g,geq$feq) ?>
 }
 
 CudaDeviceFunction void SVelocity()
 {
 <?R ZouHe(EQ, 2, 1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ real_t rhoT = rho*Temperature;
+ <?R C(g,geq$feq) ?>
 }
 
 CudaDeviceFunction void NVelocity()
 {
 <?R ZouHe(EQ, 2, -1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ real_t rhoT = rho*Temperature;
+ <?R C(g,geq$feq) ?>
 }
 
 CudaDeviceFunction void WPressure()
@@ -276,10 +286,9 @@ CudaDeviceFunction void CollisionMRT()
 	uz = Jz/rho; 	
         Q = 0;
 	real_t omegaT = 1.0 - 1.0/(3*Alpha + 0.5);
-	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) Q = HeaterTemperature*rho - rhoT;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) Q = Temperature*rho - rhoT;
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
 	{ 
-	omegaT = 1.0 - 1.0/(3*SolidAlpha + 0.5);
 ux = 0;
 uy = 0; 
 uz = 0;
