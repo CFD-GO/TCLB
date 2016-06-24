@@ -20,14 +20,14 @@ You'll need:
 
 You can install lot of these with the tools/install.sh script (if you are not afraid of running a script with sudo):
 ```bash
-sudo tools/install.sh cuda 6.5-14   # It is strongly recomended to install CUDA on your own
+sudo tools/install.sh cuda 6.5-14
 sudo tools/install.sh r
 sudo tools/install.sh openmpi
      tools/install.sh rdep
 sudo tools/install.sh python-dev
      tools/install.sh rpython
 ```
-Scripts are supposed to work with Ubuntu (on Travis VMs). You could install parts begining with *sudo* by hand, and then use script to install R packages (locally, in ~/R): rdep and rpython
+The `install.sh` script is designed to work on Ubuntu (e.g. on the [Travis-CI](https://travis-ci.org/CFD-GO/TCLB) VMs). You can install the **`sudo`** parts by yourself, and use script to install R packages: rdep and rpython.
 
 ### Compilation
 This should work:
