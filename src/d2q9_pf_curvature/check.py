@@ -34,7 +34,7 @@ pprint( simplify(expand(( lap - diff(phi,n,2))/grad)) )
 
 
 
-fvti = '/home/uqtmitc3/TCLB/output/phase-field-curvature_VTK_P00_00002000.pvti'
+fvti = '/home/mdzik/projekty/TCLB/output/phase-field-korteweg_VTK_P00_00001500.pvti'
 
 
 

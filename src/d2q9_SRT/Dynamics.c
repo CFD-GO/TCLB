@@ -94,41 +94,6 @@ CudaDeviceFunction void CollisionBGK() {
 	f[6] = f_temp[6] - omega*(f_temp[6]-f[6]);	
 	f[7] = f_temp[7] - omega*(f_temp[7]-f[7]);
 	f[8] = f_temp[8] - omega*(f_temp[8]-f[8]);
-
-/* Can use below if storing a 1x9 vector f_temp is unwanted.
-	real_t u[2], usq, d, f_temp, a;
-	d = f[8]+f[7]+f[6]+f[5]+f[4]+f[3]+f[2]+f[1]+f[0];
-	u[0] = ( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] ) / d;
-	u[1] = (-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] ) / d;
-	f_temp = f[0];
-	f[0] = ( 2. + ( -u[1]*u[1] - u[0]*u[0] )*3. )*d*2./9.;
-	f[0] = f_temp - omega*(f_temp-f[0]);
-	f_temp = f[1];
-	f[1] = ( 2. + ( -u[1]*u[1] + ( 1 + u[0] )*u[0]*2. )*3. )*d/18.;
-	f[1] = f_temp - omega*(f_temp-f[1]);
-	f_temp = f[2];
-	f[2] = ( 2. + ( -u[0]*u[0] + ( 1 + u[1] )*u[1]*2. )*3. )*d/18.;
-	f[2] = f_temp - omega*(f_temp-f[2]);
-	f_temp = f[3];
-	f[3] = ( 2. + ( -u[1]*u[1] + ( -1 + u[0] )*u[0]*2. )*3. )*d/18.;
-	f[3] = f_temp - omega*(f_temp-f[3]);
-	f_temp = f[4];
-	f[4] = ( 2. + ( -u[0]*u[0] + ( -1 + u[1] )*u[1]*2. )*3. )*d/18.;
-	f[4] = f_temp - omega*(f_temp-f[4]);
-	f_temp = f[5];
-	f[5] = ( 1 + ( ( 1 + u[1] )*u[1] + ( 1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
-	f[5] = f_temp - omega*(f_temp-f[5]);
-	f_temp = f[6];
-	f[6] = ( 1 + ( ( 1 + u[1] )*u[1] + ( -1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
-	f[6] = f_temp - omega*(f_temp-f[6]);
-	f_temp=f[7];
-	f[7] = ( 1 + ( ( -1 + u[1] )*u[1] + ( -1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
-	f[7] = f_temp - omega*(f_temp-f[7]);
-	f_temp = f[8];
-	f[8] = ( 1 + ( ( -1 + u[1] )*u[1] + ( 1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
-	f[8] = f_temp - omega*(f_temp-f[8]);
-	//if (f[0] > 0){printf(" \n test %d", d);}
-*/
 }
 CudaDeviceFunction void BounceBack() {
 // Method to reverse distribution functions along the bounding nodes.

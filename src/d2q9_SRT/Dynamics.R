@@ -28,9 +28,3 @@ AddSetting( name="GravitationX",default=0, comment='body/external acceleration',
 AddSetting( name="GravitationY",default=0, comment='body/external acceleration', zonal=TRUE)
 AddSetting( name="Density",default=1, comment='Density')
 
-
-# Wall, inlet, outlet are generic defaults I believe.
-## Add in Node types to cover boundaries
-#AddNodeType( name="Wall", group="BOUNDARY" )
-#AddNodeType( name="inlet", group="BOUNDARY" )
-#AddNodeType( name="outlet", group="BOUNDARY" )
