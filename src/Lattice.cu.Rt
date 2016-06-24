@@ -683,7 +683,7 @@ void Lattice::Init()
    MPI_Barrier(MPI_COMM_WORLD);
    Action_Init(1,0,ITER_NO);
    MPI_Barrier(MPI_COMM_WORLD);
-
+	clearGlobals();
 //   Stream();
 //   container->Init();
 //   Stream();
