@@ -182,7 +182,7 @@ CudaDeviceFunction void CollisionMRT()
   f[6] = -f[7] + f[6];
   f[7] = f[6] + f[7]*2.; 
   
-//Cuffulant calculation frof fofents
+//Cumulant calculation from moments
   c[0] = f[0];
   c[1] = f[1]/f[0];
   c[3] = ( -c[1]*f[1] + f[3] )/f[0];
