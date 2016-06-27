@@ -91,16 +91,6 @@ CudaDeviceFunction void BounceBack()
 <?R FullBounceBack() ?>
 }
 
-CudaDeviceFunction void SymmetryY()
-{
-<?R FullSymmetryY() ?>
-}
-
-CudaDeviceFunction void SymmetryZ()
-{
-<?R FullSymmetryZ() ?>
-}
-
 CudaDeviceFunction void EVelocity()
 {
 <?R ZouHe(EQ, 1, -1, "velocity") ?>
@@ -140,35 +130,16 @@ CudaDeviceFunction void EPressure()
 {
 <?R ZouHe(EQ, 1, -1, "pressure") ?>
 }
-CudaDeviceFunction void TopSymmetry()
+CudaDeviceFunction void NSymmetry()
 {
 //Symmetry on the top of the boundary
-
-f222 = f212;
-f122 = f112;
-f022 = f012;
-f221 = f211;
-f121 = f111;
-f021 = f011;
-f220 = f210;
-f120 = f110;
-f020 = f010;
-
+<?R Symmetry(2,-1) ?>
 }
 
-CudaDeviceFunction void BottomSymmetry()
+CudaDeviceFunction void SSymmetry()
 {
 //Symmetry on the bottom of the boundary
-f212=f222;
-f112=f122;
-f012=f022;
-f211=f221;
-f111=f121;
-f011=f021;
-f210=f220;
-f110=f120;
-f010=f020;
-
+<?R Symmetry(2,1) ?>
 }
 
 CudaDeviceFunction void Run() {
@@ -176,11 +147,11 @@ CudaDeviceFunction void Run() {
 	case NODE_WVelocityTurbulent:
 		WVelocityTurbulent();
 		break;
-	case NODE_TopSymmetry:
-		TopSymmetry();
+	case NODE_NSymmetry:
+		NSymmetry();
 		break;
-	case NODE_BottomSymmetry:
-               	BottomSymmetry();
+	case NODE_SSymmetry:
+               	SSymmetry();
                 break;
 	case NODE_EPressure:
                 EPressure();
@@ -205,12 +176,6 @@ CudaDeviceFunction void Run() {
                 break;
 	case NODE_EVelocity:
 		EVelocity();
-		break;
-	case NODE_SymmetryY:
-		SymmetryY();
-		break;
-	case NODE_SymmetryZ:
-		SymmetryZ();
 		break;
 	case NODE_Wall:
 		BounceBack();

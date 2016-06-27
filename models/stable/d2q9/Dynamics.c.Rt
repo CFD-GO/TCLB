@@ -2,9 +2,10 @@
 	source("conf.R") 
 #	load("SUMMARY.Rdata")
 	c_header();
-	f = PV(Density$name)
-	U = as.matrix(Density[,c("dx","dy")])
-
+#	f = PV(Density[Density$group=='f']$name)
+#	U = as.matrix(Density[Density$group=='f',c("dx","dy")])
+    U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+    f  = PV(Density$name[Density$group=="f"])
 	u = PV("u[",1:2-1,"]")
 	uf = PV("uf")
 	d = PV("d")
@@ -37,8 +38,12 @@ CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
-	u.x /= d;
+    u.x /= d;
 	u.y /= d;
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    u.x += BC[0]*0.5;
+    u.y += BC[1]*0.5;
+<?R } ?>
     u.x += GravitationX*0.5;
     u.y += GravitationY*0.5;
 	u.z = 0.0;
@@ -105,6 +110,12 @@ CudaDeviceFunction void Init() {
 	real_t u[2] = {Velocity,0.};
 	real_t d = Density;
 	SetEquilibrum(d,u);
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+   BC[0] = 0;
+   BC[1] = 0;
+<?R } ?>
+
+
 }
 
 CudaDeviceFunction void Run() {
@@ -264,9 +275,17 @@ case NODE_Inlet:
 <?R
 	C( R, (f-feq) %*% M * OMEGA );
 ?>
-    ux = ux + GravitationX ;
-    uy = uy + GravitationY ; 
-    
+  
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    ux = ux + GravitationX +  BC[0] ;
+    uy = uy + GravitationY +  BC[1] ; 
+<?R } else { ?>
+    ux = ux + GravitationX;
+    uy = uy + GravitationY; 
+<?R } ?>
+
+
+
 <?R
 	C( R, R + feq %*% M);
 	C( R, R * (1/ diag(t(M) %*% M)));
