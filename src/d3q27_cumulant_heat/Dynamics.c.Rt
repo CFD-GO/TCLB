@@ -1,3 +1,5 @@
+// d3q27-cumulant + d3q7-mrt based thermal model 
+// maintainer: Dmytro Sashko @shkodm
 <?R
 	source("conf.R")
 	c_header();
@@ -98,6 +100,14 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
 <?R ZouHe(EQ, 1, -1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ { 
+<?R paste(C(u,0)) ?> }
+ real_t rhoT = rho*Temperature; 
+ <?R C(g,geq$feq) ?>
 }
 
 CudaDeviceFunction void WVelocity()
@@ -106,6 +116,9 @@ CudaDeviceFunction void WVelocity()
  real_t ux = Jx/rho;
  real_t uy = Jy/rho;
  real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ { 
+<?R paste(C(u,0)) ?> } 
  real_t rhoT = rho*Temperature;
  <?R C(g,geq$feq) ?>
 }
@@ -116,6 +129,9 @@ CudaDeviceFunction void SVelocity()
  real_t ux = Jx/rho;
  real_t uy = Jy/rho;
  real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ { 
+<?R paste(C(u,0)) ?> } 
  real_t rhoT = rho*Temperature;
  <?R C(g,geq$feq) ?>
 }
@@ -126,6 +142,9 @@ CudaDeviceFunction void NVelocity()
  real_t ux = Jx/rho;
  real_t uy = Jy/rho;
  real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ {
+ <?R paste(C(u,0)) ?> } 
  real_t rhoT = rho*Temperature;
  <?R C(g,geq$feq) ?>
 }
