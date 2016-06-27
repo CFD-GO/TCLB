@@ -86,7 +86,9 @@ AC_ARG_WITH([python_config],
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
 		[Makes GCC paranoid.]))
-			
+AC_ARG_ENABLE([profiling],
+	AC_HELP_STRING([--enable-profiling],
+		[enable profiling for R in rtemplate]))		
 NVFLAGS=""
 
 # Checks for programs.
@@ -453,6 +455,11 @@ fi
 if test "x${enable_paranoid}" == "xyes"
 then
 	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
+fi
+
+if test "x${enable_profiling}" == "xyes"
+then
+	RTOPT="${RTOPT} -p"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.

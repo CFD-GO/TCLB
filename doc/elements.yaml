@@ -219,8 +219,10 @@ Optimize:
     - name: Method
       val:
         select:
-          MMA
-          L-BFGS-B
+          - MMA
+          - L-BFGS-B
+          - COBYLA
+          - NELDERMEAD
       comment: Optimization method
     - name: Material
       val:
