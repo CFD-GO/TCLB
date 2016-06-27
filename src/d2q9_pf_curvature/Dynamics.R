@@ -26,6 +26,7 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
 
 AddField("phi",stencil2d=1);
+AddField("wallMask", stencil2d=1);
 
 AddStage("BaseIteration", "Run", load=DensityAll$group == "f" | DensityAll$group == "h",  save=Fields$group=="f" | Fields$group=="h" ) 
 AddStage("CalcPhi", save="phi",load=DensityAll$group == "h")

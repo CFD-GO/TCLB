@@ -112,6 +112,14 @@ CudaDeviceFunction vector_t getNormal(){
         n.x =  k10 / ln;
         n.y =  k01 / ln;
     }
+/// TEST
+     <?R
+        n = PV(c('n.x', 'n.y'));
+        wallMasks = PV(paste('wallMask(',UN[1,],',',UN[2,],')')) 
+        C(n, wallMasks%*%U)
+#        C(k10, (phis)%*%U[,2]) 
+
+    ?>
 
     return n;
 
@@ -213,7 +221,12 @@ CudaDeviceFunction void Init() {
 	ux = Velocity+ux;
     C = PhaseField; 
 
-
+    if (NodeType & NODE_BOUNDARY == NODE_Wall) {
+        wallMask = 1.;
+    } else {
+        wallMask = 0.;
+    }
+   
 	SetEquilibrum(
 		rho,
 		ux*rho,
