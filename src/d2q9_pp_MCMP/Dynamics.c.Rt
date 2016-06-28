@@ -1,0 +1,559 @@
+// 25/5/2016 - Model Developed based on Chp 3 of:
+// """"Multiphase Lattice Boltzmann methods: Theory and Application""""
+// Chp 3: Shan and Chen-type multi-component multiphase models
+// e.g. files start with d2q9_pp_MCMP
+// Maintainer: Travis-Mitchell @TravisMitchell
+
+// Code to be updated to:
+/*   High density ratio lattice Boltzmann method simulations of multicomponent
+ *   multiphase transport of H2O in air - Stiles and Xue (2016) */
+ 
+<?R
+#region R code Preamble
+	source("conf.R") 
+	c_header();
+	
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+# First Population (f) - wet
+	U = t(as.matrix(rbind( Density$dx[Density$group=='f'], Density$dy[Density$group=='f'] ) ))
+	EQ = MRT_eq(U, ortogonal=FALSE)
+    wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+    wi = subst(wi, rho=1)
+    wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+    wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+	W = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W))
+	H = chol(W[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+	EQ = MRT_eq(U, mat=B)
+	f = PV(Density$name[Density$group=='f'])
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+# Secong Population (g) - dry
+	U_g = t(as.matrix(rbind( Density$dx[Density$group=='g'], Density$dy[Density$group=='g'] ) ))
+	EQ_g = MRT_eq(U_g, ortogonal=FALSE)
+    wi_g = subst(EQ_g$Req, Jx=0, Jy=0, Jz=0)
+    wi_g = subst(wi_g, rho=1)
+    wi_g = gapply(wi_g,function(x) x$.M, simplify=TRUE)
+    wi_g = wi_g %*% solve(EQ_g$mat)
+	wi_g = as.vector(wi_g)
+	W_g = solve(EQ_g$mat) %*% diag(1/wi_g) %*% solve(t(EQ_g$mat))
+	i_g = rev(1:nrow(W_g))
+	H_g = chol(W[i_g,i_g])[i_g,i_g]
+	H_g = H_g * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B_g = EQ_g$mat %*% t(H_g)
+	EQ_g = MRT_eq(U_g, mat=B_g)
+	g = PV(Density$name[Density$group=='g'])
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+#endregion R code Preamble
+?>
+<?python
+#region python preamble
+from sympy import *
+from sympy.printing import print_ccode
+G = var('Gc')
+ueq_f = var(['ueq_f.x', 'ueq_f.y'])
+ueq_g = var(['ueq_g.x', 'ueq_g.y'])
+rho = var(['rf', 'rg'])
+om  = var(['omega', 'omega_g'])
+Densities = var(Density['name'])
+R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
+w0 = 4/9.0
+w1 = 1/9.0
+w2 = 1/36.0
+w  = [w0, w1, w1, w1, w1, w2, w2, w2, w2]
+cx = [0, 1, 0, -1, 0, 1, -1, -1, 1]
+cy = [0, 0, 1, 0, -1, 1, 1, -1, -1]
+feq= [0, 0, 0, 0,  0, 0, 0,  0,  0]
+psi_f=[0, 0, 0, 0,  0, 0, 0,  0,  0]
+psi_g=[0, 0, 0, 0,  0, 0, 0,  0,  0]
+for i in range(9):
+	psi_f[i]= var(str('psi_f(' + str(cx[i]) + ',' + str(cy[i]) + ')'))
+	psi_g[i]= var(str('psi_g(' + str(cx[i]) + ',' + str(cy[i]) + ')')) 
+u   = var(['u.x', 'u.y'])
+u1  = var([['uf.x', 'uf.y'],['ug.x', 'ug.y']])
+#endregion python preamble
+?>
+#define pi 3.141592653589793116
+
+CudaDeviceFunction real_t getRhof(){
+	return <?R C(sum(f)) ?> ;
+}
+CudaDeviceFunction real_t getRhog(){
+	return <?R C(sum(g)) ?> ;
+}  
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)+sum(g)) ?> ;
+}  
+CudaDeviceFunction vector_t getU(){
+	// Common velocity
+	real_t rf = <?R C(sum(f)) ?>;
+	real_t rg = <?R C(sum(g)) ?>;
+	vector_t u,uf,ug;
+<?python
+numx = 0.0
+denxy = 0.0
+numy = 0.0
+for i in range(2):
+	denxy += rho[i]/om[i]
+	for j in range(9):
+		ind = i*9+j
+		numx += Densities[ind] * cx[j] / om[i]
+		numy += Densities[ind] * cy[j] / om[i]
+
+print_ccode(numx/denxy, assign_to=u[0])
+print_ccode(numy/denxy, assign_to=u[1])
+?>
+	
+	u.z = 0.0;
+		return u;
+}
+CudaDeviceFunction real_t EoS_CS(){
+	// TO DO: link to getFf() function
+	real_t d = <?R C(sum(f)) ?>;
+	real_t p;
+	real_t Tc=0.0943;
+	real_t temp_bp = b*d/4.0;
+	p = d*R*T*Tc*(1+temp_bp+temp_bp*temp_bp-temp_bp*temp_bp*temp_bp);
+	p = p/((1-temp_bp)*(1-temp_bp)*(1-temp_bp));
+	p = p - a*d*d;
+	return p;
+}
+CudaDeviceFunction vector_t getFf(){
+	vector_t Force;
+	real_t tempx, tempy, R[9];
+	Force.x = 0.0;
+	Force.y = 0.0;
+	Force.z = 0.0;
+	//Force from fluid g:
+<?python
+print_ccode(psi_f[0],assign_to=R[0])
+for i in range(1,9):
+	print_ccode(psi_g[i], assign_to=R[i])
+Force = var(['Force.x', 'Force.y'])
+temp1 = 0.0
+temp2 = 0.0
+for i in range(1,9):
+	temp1 += w[i]*cx[i]*R[i]
+	temp2 += w[i]*cy[i]*R[i]
+temp1 =-G * R[0] * temp1
+temp2 =-G * R[0] * temp2
+print_ccode(temp1, assign_to=Force[0])
+print_ccode(temp2, assign_to=Force[1])
+?>
+	//TO DO: Force due to f being non-ideal
+	
+	
+	Force.x = Force.x + GravitationX;
+	Force.y = Force.y + GravitationY;
+	return Force;
+}
+CudaDeviceFunction vector_t getFg(){
+	vector_t Force;
+	real_t tempx, tempy, R[9];
+	Force.x = 0.0;
+	Force.y = 0.0;
+	Force.z = 0.0;
+<?python
+print_ccode(psi_g[0],assign_to=R[0])
+for i in range(1,9):
+	print_ccode(psi_f[i], assign_to=R[i])
+Force = var(['Force.x', 'Force.y'])
+temp1 = 0.0
+temp2 = 0.0
+for i in range(1,9):
+	temp1 += w[i]*cx[i]*R[i]
+	temp2 += w[i]*cy[i]*R[i]
+temp1 =-G * R[0] * temp1
+temp2 =-G * R[0] * temp2
+print_ccode(temp1, assign_to=Force[0])
+print_ccode(temp2, assign_to=Force[1])
+?>
+	Force.x = Force.x + GravitationX;
+	Force.y = Force.y + GravitationY;
+	return Force;
+}
+CudaDeviceFunction real_t getP(){
+	//TO DO: this will need to be updated when EoS implemented
+		real_t rf  = <?R C(sum(f))?>;
+		real_t rg  = <?R C(sum(g))?>;
+		real_t rho = rf+rg;
+		return rho/3.0 + Gc * psi_g * psi_f/3.0;
+}
+
+CudaDeviceFunction void CalcPsi_f(){
+	// TO DO: As per Stiles and Xue (2016)
+	real_t d = <?R C(sum(f)) ?> ;
+	real_t p = EoS_CS();
+	psi_f = d;
+	//psi_f = math.sqrt( math.abs((2.0*(p-d/3.0)) / (6.0) ) );
+	if (NodeType & NODE_Wall)
+	{
+		// For application of cohesion force
+		psi_f = Gad2/Gc;
+	}
+}
+CudaDeviceFunction void CalcPsi_g(){
+	//Assume the gas is ideal
+	real_t d = <?R C(sum(g)) ?> ;
+	psi_g = d;
+	//psi_g = 1.0*(1.0-exp(-d/1.0)); //assume rho_0=1 as per Stiles & Xue (2016)
+	if (NodeType & NODE_Wall)
+	{
+		// For application of cohesion force
+		psi_g = Gad1/Gc;
+	}
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void SetEquilibrumf(real_t rho, real_t Jx, real_t Jy){
+	if (rho > 0.0001){
+<?R
+	feq = EQ$Req %*% solve(EQ$mat)
+	C( f, feq)
+?>}
+	else {
+<?python
+for i in range(9):
+	print_ccode(0.0, assign_to=Densities[i])
+?>
+	}
+}
+CudaDeviceFunction void SetEquilibrumg(real_t rho, real_t Jx, real_t Jy){
+	if (rho > 0.0001){
+<?R
+	geq = EQ_g$Req %*% solve(EQ_g$mat)
+	C( g, geq)
+?>}
+	else {
+<?python
+for i in range(9,18):
+	print_ccode(0.0, assign_to=Densities[i])
+?>
+	}
+}
+
+CudaDeviceFunction void Init() {
+	real_t ux, uy;
+	real_t rho_f, ux_f, uy_f;
+	real_t rho_g, ux_g, uy_g;
+	rho_f = Density;
+	rho_g = Density_dry;
+	if (SL_L > 0) {
+		if (Y < SL_L/2) {
+			ux = SL_U * tanh(SL_lambda * ( Y/SL_L - 0.25 ));
+		} else {
+			ux = SL_U * tanh(SL_lambda * ( 0.75 - Y/SL_L ));
+		}
+		uy = SL_delta * SL_U * sin(2*pi*(X/SL_L+0.25));
+	} else {
+		ux=0;
+		uy=0;
+	}
+	ux_f = Velocity_f+ux;
+	uy_f = uy;
+	ux_g = Velocity_g+ux;
+	uy_g = uy;
+	if (NodeType & NODE_Wall){
+		SetEquilibrumf(0,0,0);
+		SetEquilibrumg(0,0,0);
+	}
+	else {
+	SetEquilibrumf(
+		rho_f,
+		ux_f*rho_f,
+		uy_f*rho_f
+	);
+	SetEquilibrumg(
+		rho_g,
+		ux_g*rho_g,
+		uy_g*rho_g
+		);
+	}
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    }
+    if (NodeType & NODE_BGK)
+    {
+		//MRT operator has not been updated to correctly include
+		//multi-component force (on TO-DO list)
+		CollisionBGK();
+    }
+}
+
+CudaDeviceFunction void CollisionBGK()
+{
+	real_t uf;
+	real_t rg = <?R C(sum(g)) ?>;
+	real_t rf = <?R C(sum(f)) ?>;
+	vector_t u_common  = getU();
+	vector_t Force_f = getFf();
+	vector_t Force_g = getFg();
+	vector_t ueq_f;
+	vector_t ueq_g;
+	ueq_f.z = 0.0;
+	ueq_g.z = 0.0;
+	if (rf > 0.0001){
+		ueq_f.x = u_common.x + Force_f.x/(omega * rf);
+		ueq_f.y = u_common.y + Force_f.y/(omega * rf);}
+	else {
+		ueq_f.x = u_common.x;
+		ueq_f.y = u_common.y;}
+	if (rg > 0.0001){
+		ueq_g.x = u_common.x + Force_g.x/(omega_g * rg);
+		ueq_g.y = u_common.y + Force_g.y/(omega_g * rg);}
+	else{
+		ueq_g.x = u_common.x;
+		ueq_g.y = u_common.y;}
+	
+<?python
+for i in range(9):
+	cdotu = cx[i]*ueq_f[0] + cy[i]*ueq_f[1]
+	umag  = ueq_f[0]*ueq_f[0] + ueq_f[1]*ueq_f[1]
+	feq[i] = w[i]*rho[0]*(1.0 + (cdotu)*3.0 + (cdotu**2)*4.5 - 1.5*umag)
+	collide = Densities[i] - om[0]*(Densities[i] - feq[i])
+	print_ccode(collide, assign_to=Densities[i]) 
+for i in range(9):
+	cdotu = cx[i]*ueq_g[0] + cy[i]*ueq_g[1]
+	umag  = ueq_g[0]*ueq_g[0] + ueq_g[1]*ueq_g[1]
+	feq[i] = w[i]*rho[1]*(1.0 + (cdotu)*3.0 + (cdotu**2)*4.5 - 1.5*umag)
+	collide = Densities[i+9] - om[1]*(Densities[i+9] - feq[i])
+	print_ccode(collide, assign_to=Densities[i+9]) 
+?>
+AddToTotalDensity1(rf);
+AddToTotalDensity2(rg);
+}
+
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+	real_t Velocity = Velocity_f;
+<?R 
+	ZouHe(EQ, 1, -1, "velocity",f) 
+?>
+	Velocity = Velocity_g;
+<?R
+    ZouHe(EQ_g, 1, -1,"velocity",g,predefined="true") 
+?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+	real_t Pressure = Pressure_f;
+<?R 
+	ZouHe(EQ, 1, 1, "pressure",f) 
+?>
+	Pressure = Pressure_g;
+<?R
+	ZouHe(EQ_g, 1, 1, "pressure",g,predefined="true")
+?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+	real_t Velocity = Velocity_f;
+<?R 
+	ZouHe(EQ, 1, 1, "velocity",f)
+?>
+	Velocity = Velocity_g;
+<?R
+	ZouHe(EQ_g, 1, 1, "velocity",g,predefined="true")
+?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+	real_t Pressure = Pressure_f;
+<?R 
+	ZouHe(EQ, 1, -1, "pressure",f) 
+?>
+	Pressure = Pressure_g;
+<?R
+	ZouHe(EQ_g, 1, -1, "pressure",g,predefined="true")
+?>
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+	vector_t u = getU();
+<?R
+#region first population
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+	real_t <?R C(R,sep=",") ?>;
+	real_t gamma  = 1-omega;
+<?R
+	S = PV("S",1:nrow(U)-1);
+	S[EQ$order <= 2] = PV("gamma")
+	S[EQ$order >  2] = PV("gamma2")
+
+
+	C( R, f %*% EQ$mat );
+	C( R[selR], (R - EQ$Req)[selR]);
+?>
+	
+    vector_t F_f = getFf();
+    Jx = u.x + omega * F_f.x ;
+    Jy = u.y + omega * F_f.y ;
+    
+	if (NodeType & NODE_LES) {
+		real_t Q, tau, tau0;
+<?R
+	Rneq = R; Rneq[EQ$order < 2] = 0
+
+	p = PV(c("x","y")); dim(p) = c(2,1)
+	Q = p %*% t(p)
+	Q = subst(Q,x=U[,1],y=U[,2])
+	Q = Q %*% (Rneq %*% solve(EQ$mat))
+	C(PV("Q"), sum(Q^2))
+?>
+		Q = 18.* sqrt(Q) * Smag;
+		tau0 = 1/(1-gamma);
+		tau = tau0*tau0 + Q;
+		tau = sqrt(tau);
+		tau = (tau + tau0)/2;
+		gamma = 1. - 1./tau;
+	}
+	real_t gamma2 = gamma;
+	if (NodeType & NODE_ENTROPIC) {
+		real_t a,b;
+<?R
+	dh = R; dh[EQ$order <= 2] = 0
+	ds = R; ds[EQ$order != 2] = 0
+
+	C( PV("a"), ds %*% P %*% dh)
+	C( PV("b"), dh %*% P %*% dh)
+?>
+		gamma2 = - gamma2 * a/b;
+	}
+<?R
+
+	C( R[selR], (R * S)[selR]);
+	C( R[selR], (R + EQ$Req)[selR]);
+
+	C( f, R %*% solve(EQ$mat), float=F);
+ #endregion first population
+?>
+
+<?R
+#region second population
+	MI = solve(EQ_g$mat)
+	P = MI %*% diag(1/wi_g) %*% t(MI)
+
+	R = PV("R", 1:nrow(U_g)-1);
+	selR = EQ_g$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+	gamma  = 1-omega_g;
+<?R
+	S = PV("S",1:nrow(U_g)-1);
+	S[EQ_g$order <= 2] = PV("gamma")
+	S[EQ_g$order >  2] = PV("gamma2")
+
+
+	C( R, g %*% EQ_g$mat );
+	C( R[selR], (R - EQ_g$Req)[selR]);
+?>
+	
+	vector_t F_g = getFg();
+    Jx = u.x + omega_g * F_g.x ;
+    Jy = u.y + omega_g * F_g.y ;
+    
+	if (NodeType & NODE_LES) {
+		real_t Q, tau, tau0;
+<?R
+	Rneq = R; Rneq[EQ_g$order < 2] = 0
+
+	p = PV(c("x","y")); dim(p) = c(2,1)
+	Q = p %*% t(p)
+	Q = subst(Q,x=U_g[,1],y=U_g[,2])
+	Q = Q %*% (Rneq %*% solve(EQ_g$mat))
+	C(PV("Q"), sum(Q^2))
+?>
+		Q = 18.* sqrt(Q) * Smag;
+		tau0 = 1/(1-gamma);
+		tau = tau0*tau0 + Q;
+		tau = sqrt(tau);
+		tau = (tau + tau0)/2;
+		gamma = 1. - 1./tau;
+	}
+	gamma2 = gamma;
+	if (NodeType & NODE_ENTROPIC) {
+		real_t a,b;
+<?R
+	dh = R; dh[EQ_g$order <= 2] = 0
+	ds = R; ds[EQ_g$order != 2] = 0
+
+	C( PV("a"), ds %*% P %*% dh)
+	C( PV("b"), dh %*% P %*% dh)
+?>
+		gamma2 = - gamma2 * a/b;
+	}
+<?R
+
+	C( R[selR], (R * S)[selR]);
+	C( R[selR], (R + EQ_g$Req)[selR]);
+
+	C( g, R %*% solve(EQ_g$mat), float=F);
+#endregion second population
+?>
+ 
+}
+
+CudaDeviceFunction vector_t getA()
+{
+	real_t <?R C(R,sep=",") ?>;
+	vector_t ret;
+<?R
+	C( R, f %*% EQ$mat );
+	C( R[selR], (R - EQ$Req)[selR]);
+	C( PV("ret.y"), ds %*% P %*% dh)
+	C( PV("ret.z"), dh %*% P %*% dh)
+?>
+	ret.x = ret.y/ret.z;
+	return ret;
+}
