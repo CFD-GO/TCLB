@@ -898,11 +898,36 @@ class cbFailcheck: public Callback {
 		reg.dy = solver->region.dy;
 		reg.dz = solver->region.dz;
 	
-        reg.nx = solver->region.nx;
-		reg.ny = solver->region.ny;
-		reg.nz = solver->region.nz;
 
-    	rkept = 1;
+
+        pugi::xml_attribute attr = node.attribute("dx");
+        if (attr) {
+            reg.dx = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("dy");
+        if (attr) {
+            reg.dy = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("dz");
+        if (attr) {
+            reg.dz = solver->units.alt(attr.value());
+        }
+
+
+        pugi::xml_attribute attr = node.attribute("nx");
+        if (attr) {
+            reg.nx = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("ny");
+        if (attr) {
+            reg.ny = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("nz");
+        if (attr) {
+            reg.nz = solver->units.alt(attr.value());
+        }
+
+		rkept = 1;
 		return 0;
 	}
 	int DoIt() {
@@ -947,7 +972,9 @@ class cbFailcheck: public Callback {
 			   
                     <?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
         	    	solver->lattice->Get<?%s q$name ?>(reg,tmp);
-    
+
+                    cond = std::isnan(tmp[0]); // for single point
+                    
                     for (unsigned int k = 0; k < reg.size(); k++){  
     	       		    cond = cond || (std::isnan(tmp[k]));
                     }
