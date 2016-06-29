@@ -33,6 +33,8 @@ AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 AddSetting(name="Temperature",comment='Temperature',zonal=TRUE)
 AddSetting(name="Alpha",zonal=TRUE)
+AddSetting(name="Buoyancy",unit="N/K")
+AddSetting(name="BuoyancyT0",unit="K")
 
 
 AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')

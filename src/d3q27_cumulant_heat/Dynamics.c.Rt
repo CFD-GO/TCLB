@@ -20,7 +20,7 @@
 	source("lib/boundary.R")
 
 	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
-	geq = MRT_eq(d3q7, rhoT, u*rhoT);
+	geq = MRT_eq(d3q7, rhoT, u*rhoT, order=1);
 ?>
 
 CudaDeviceFunction real_t getRho(){
@@ -83,8 +83,9 @@ CudaDeviceFunction real_t getKinE(){
 #endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
-        vector_t u = getU();
-        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+//        vector_t u = getU();
+//        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+	ret.x = getT();
         if (NodeType == NODE_Solid){
                 ret.y = 0;
         } else {
@@ -456,7 +457,7 @@ u.z = c001 + ForceZ/(2.*f000);
         c020 = (cc - 2*a + b)/3.;//020
         c002 = (cc - 2*b + a)/3.; 
 
-        c010 = c010 + ForceY; //010 - change only due to force term
+        c010 = c010 + ForceY + (rhoT/rho-BuoyancyT0)*Buoyancy; //010 - change only due to force term
         c001 = c001 + ForceZ ; //001 - change only due to force term
 
 	c110 = c110 * (1-w[0]);
