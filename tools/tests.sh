@@ -72,10 +72,12 @@ then
 fi
 
 GLOBAL="OK"
+PP=$PYTHONPATH
 for t in $TESTS
 do
 	name=${t%.*}
 	RESULT="FAILED"
+    export PYTHONPATH=$PP:tests/$MODEL
 	if try "Running \"$name\" test" CLB/$MODEL/main "tests/$MODEL/$t"
 	then
 		RESULT="OK"
