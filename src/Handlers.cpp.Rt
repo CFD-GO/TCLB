@@ -914,7 +914,7 @@ class cbFailcheck: public Callback {
         }
 
 
-        pugi::xml_attribute attr = node.attribute("nx");
+        attr = node.attribute("nx");
         if (attr) {
             reg.nx = solver->units.alt(attr.value());
         }
