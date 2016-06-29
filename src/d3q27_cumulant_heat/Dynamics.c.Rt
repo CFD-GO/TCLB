@@ -253,6 +253,9 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz,real_t rhoT)
 {
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ 	{ 
+	<?R paste(C(J,0)) ?> } 
 	<?R
 		C(f, EQ$Req %*% solve(EQ$mat));
 	?>
