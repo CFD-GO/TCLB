@@ -57,7 +57,11 @@
 #define pi 3.141592653589793116
 
 CudaDeviceFunction real_t getRho(){
-	return <?R C(sum(f)) ?> ;
+    if (NodeType & NODE_BOUNDARY) {
+        return 1+Pressure*3;
+    } else {
+    	return <?R C(sum(f)) ?> ;
+    }
 }
     
 CudaDeviceFunction real_t getPhaseField(){
@@ -108,6 +112,23 @@ CudaDeviceFunction vector_t getNormal(){
     if(ln == 0.){
         n.x = 0.;
         n.y = 0.;
+    } else if (ln > 100) {
+    // at least one link is solid
+    // this is only on boundary, still not nice :/    
+        real_t t_x = 0;
+        real_t t_y = 0;
+
+        if phis(1,0) == -999 { t_x = t_x + 1};
+        if phis(1,1) == -999 { t_x = t_x + 1; t_y = t_y + 1};
+        if phis(0,1) == -999 { t_y = t_y + 1};
+        if phis(-1,1) == -999 { t_x = t_x - 1; t_y = t_y + 1};
+        if phis(-1,0) == -999 { t_x = t_x - 1};
+        if phis(-1,-1) == -999 { t_x = t_x - 1; t_y = t_y - 1};
+        if phis(0,-1) == -999 { t_y = t_y - 1};
+        if phis(1,-1) == -999 { t_x = t_x + 1; t_y = t_y - 1};
+    
+    
+    
     } else {
         n.x =  k10 / ln;
         n.y =  k01 / ln;
@@ -225,7 +246,7 @@ CudaDeviceFunction void Init() {
 CudaDeviceFunction void CalcPhi() {
    phi = getPhaseField() ;
    if (NodeType & NODE_BOUNDARY == NODE_Wall) {
-    phi = PhaseField;
+    phi = -999; //marker value
    }
 //   real_t ph2 = ph2 * ph2;
  //   phi = ph -(ph2/2 + ph2*ph2/4); 
@@ -269,6 +290,10 @@ CudaDeviceFunction void EVelocity()
 CudaDeviceFunction void WPressure()
 {
 <?R ZouHe(EQ, 1, 1, "pressure") ?>
+<?R
+    u = PV(c('Jx/rho', 'Jy/rho'))
+    C( h,  wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)* PV('PhaseField') )
+?>
 }
 
 CudaDeviceFunction void WVelocity()
@@ -279,6 +304,10 @@ CudaDeviceFunction void WVelocity()
 CudaDeviceFunction void EPressure()
 {
 <?R ZouHe(EQ, 1, -1, "pressure") ?>
+<?R
+    u = PV(c('Jx/rho', 'Jy/rho'))
+    C( h,  wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)* PV('PhaseField') )
+?>
 }
 
 CudaDeviceFunction void CollisionMRT()

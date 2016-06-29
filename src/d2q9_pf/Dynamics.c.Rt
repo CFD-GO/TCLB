@@ -229,6 +229,11 @@ CudaDeviceFunction void CollisionMRT()
     vector_t n = getNormal();
     real_t pf = getPhaseField();
     vector_t u = getU();
+    real_t d = getRho();
+
+//    u.x = u.x * d;
+//    u.y = u.y * d;
+
     real_t omega_ph =  1/( 3 * M + 0.5); 
     real_t Bh;
 <?R
