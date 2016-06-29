@@ -897,6 +897,18 @@ class cbFailcheck: public Callback {
 		reg.dx = solver->region.dx;
 		reg.dy = solver->region.dy;
 		reg.dz = solver->region.dz;
+               	pugi::xml_attribute attr = node.attribute("dx");
+                if (attr) {
+                       	reg.dx = solver->units.alt(attr.value());
+                }
+                attr = node.attribute("dy");
+                if (attr) {
+                        reg.dy = solver->units.alt(attr.value());
+                }
+                attr = node.attribute("dz");
+                if (attr) {
+                       	reg.dz = solver->units.alt(attr.value());
+                }
 		rkept = 1;
 		return 0;
 	}
