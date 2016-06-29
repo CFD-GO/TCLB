@@ -53,8 +53,6 @@ AddNodeType("XYslice",group="ADDITIONALS");
 AddNodeType("XZslice",group="ADDITIONALS");
 AddNodeType("YZslice",group="ADDITIONALS");
 
-
-
 #AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
 #AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")
 #AddGlobal(name="ZFlux", comment='Volume flux', unit="m3/s")
