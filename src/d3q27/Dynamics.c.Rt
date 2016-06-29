@@ -55,14 +55,14 @@ CudaDeviceFunction void BounceBack()
 <?R FullBounceBack() ?>
 }
 
-CudaDeviceFunction void SymmetryY()
+CudaDeviceFunction void NSymmetry()
 {
-<?R FullSymmetryY() ?>
+<?R Symmetry(2, -1) ?>
 }
 
-CudaDeviceFunction void SymmetryZ()
+CudaDeviceFunction void ISymmetry()
 {
-<?R FullSymmetryZ() ?>
+<?R Symmetry(3, 1) ?>
 }
 
 CudaDeviceFunction void EVelocity()
@@ -96,11 +96,11 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
-	case NODE_SymmetryY:
-		SymmetryY();
+	case NODE_NSymmetry:
+		NSymmetry();
 		break;
-	case NODE_SymmetryZ:
-		SymmetryZ();
+	case NODE_ISymmetry:
+		ISymmetry();
 		break;
 	case NODE_Wall:
 		BounceBack();

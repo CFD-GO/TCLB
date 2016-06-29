@@ -32,14 +32,21 @@ FullBounceBack = function() {
 	FullBounceOp(function(X) -X);
 }
 
-FullSymmetryY = function() {
-	FullBounceOp(function(X) {X[2]=-X[2]; X});
+Symmetry  = function(direction,sign) {
+        by(Density, Density$group, function(D) {
+                i = c("dx","dy","dz")
+                D1 = D[,c("name",i)]
+                D2 = D1
+                D2[,direction + 1] = -D2[,direction + 1]
+                D3 = merge(D1,D2,by=i)
+                D3$name.x < D3$name.y
+                D3 = D3[D3$name.x < D3$name.y,]
+                for ( i in seq_len(nrow(D3))) {
+                        if (sign > 0) C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
+                        else C( PV(D3$name.y[i]), PV(D3$name.x[i]) )
+                }
+        })
 }
-
-FullSymmetryZ = function() {
-	FullBounceOp(function(X) {X[3]=-X[3]; X});
-}
-
 
 C_pull = function(W, var) {
 	ret = div.mod(W[[1]],var)
@@ -53,7 +60,7 @@ C_pull = function(W, var) {
 	}
 }
 
-ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("Velocity"), V3) {
+ZouHe = function(EQ, direction, sign, type, group=f, P=PV("Pressure"), V=PV("Velocity"), V3, predefined="false") {
 	if (missing(V3)) {
 		V3 = PV(rep(0,sum(EQ$order == 1)))
 		V3[direction] = V
@@ -67,7 +74,7 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	bounce[ret$i] = ret$j
 
 	sel = sign*U[,direction]>0
-	fs = f
+	fs = group
 	Js = c("Jx","Jy","Jz")
 	feq = EQ$Req %*% solve(EQ$mat)
 	fs[sel] = (feq + (fs-feq)[bounce])[sel]
@@ -77,7 +84,10 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	presc[direction + 1] = EQ$Req[EQ$order == 2][direction + 1]
 
 	Rs = fs %*% EQ$mat[,EQ$order<2] - presc
-	cat("real_t Jx, Jy, Jz, rho;\n")
+	if (predefined == "false")
+	{
+		cat("real_t Jx, Jy, Jz, rho;\n")
+	}	
 	rho = PV("rho")
 	if (type == "pressure") {
 		C( rho, P*3+1);
@@ -90,10 +100,10 @@ ZouHe = function(EQ, direction, sign, type, group="f", P=PV("Pressure"), V=PV("V
 	}
 	for (i in 1:(length(Rs)-1)) if (i != direction) C_pull( Rs[i+1], Js[i])
 	for (i in 1:(length(Rs)-1)) if ((i != direction) && !(is.zero(V3[i]))) C(PV(Js[i]),PV(Js[i])+ rho*V3[i])
-	C(f[sel], fs[sel])
+	C(group[sel], fs[sel])
 }	
 
-ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
+ZouHeNew = function(EQ, f, direction, sign, order, group=f, known="rho",mom) {
   U = EQ$U
   W1 = cbind(U,i=1:nrow(U))
   W2 = cbind(-U,j=1:nrow(U))
@@ -101,7 +111,7 @@ ZouHeNew = function(EQ, f, direction, sign, order, group="f", known="rho",mom) {
   bounce = 1:nrow(U)
   bounce[ret$i] = ret$j
   sel = sign*U[,direction]>0
-  fs = f
+  fs = group
   feq = EQ$feq
   fs[sel] = (feq + (fs-feq)[bounce])[sel]
   Rs = fs %*% EQ$mat
@@ -166,7 +176,7 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 		eqn = V( fs %*% EQ2$U %*% diag(d))
 		rhs = rhs * abs(n) * sum(fs)
 	} else stop("Unknown type in ZouHe")
-	cat("/********* ", type, "-type Zue He boundary condition  ****************/\n",sep="");
+	cat("/********* ", type, "-type Zou He boundary condition  ****************/\n",sep="");
 	eqn = eqn - rhs;
 	if (length(eqn) != length(R)) stop("Something is terribly wrong")
   # --- Solving all equations for 'R'

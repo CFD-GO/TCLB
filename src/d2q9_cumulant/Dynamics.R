@@ -18,5 +18,6 @@ AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zona
 AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T)
 
 
-
+AddSetting(name="ForceX")
+AddSetting(name="ForceY")
 
