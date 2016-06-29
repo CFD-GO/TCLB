@@ -7,7 +7,7 @@ rm Dynamics_tmp.c Dynamics_b.c* ADpre_.h types_b.h tmp 2>/dev/null
 echo "#define CudaDeviceFunction" > Dynamics_tmp.c
 echo "#include \"../config.h\"" >> Dynamics_tmp.c
 echo "#include \"types.h\"" >> Dynamics_tmp.c
-//echo "#define CONFIG_H" >> Dynamics_tmp.c
+#echo "#define CONFIG_H" >> Dynamics_tmp.c
 echo "#include \"Consts.h\"" >> Dynamics_tmp.c
 echo "#include \"Dynamics.h\"" >> Dynamics_tmp.c
 echo "#include \"ADpre_.h\"" >> Dynamics_tmp.c

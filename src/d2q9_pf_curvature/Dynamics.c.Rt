@@ -133,7 +133,15 @@ CudaDeviceFunction vector_t getNormal(){
         n.x =  k10 / ln;
         n.y =  k01 / ln;
     }
+/// TEST
+     <?R
+        n = PV(c('n.x', 'n.y'));
+        wallMasks = PV(paste('wallMask(',UN[1,],',',UN[2,],')')) 
+        C(n, wallMasks%*%U)
 
+
+    ?>
+    n.x = wallMask(1,0);
     return n;
 
 }
@@ -233,8 +241,12 @@ CudaDeviceFunction void Init() {
 	uy=0;
 	ux = Velocity+ux;
     C = PhaseField; 
-
-
+    if (NodeType & NODE_BOUNDARY == NODE_Wall) {
+        wallMask = 1.;
+    } else {
+        wallMask = 0.;
+    }
+   
 	SetEquilibrum(
 		rho,
 		ux*rho,
@@ -250,6 +262,11 @@ CudaDeviceFunction void CalcPhi() {
    }
 //   real_t ph2 = ph2 * ph2;
  //   phi = ph -(ph2/2 + ph2*ph2/4); 
+   if (NodeType & NODE_BOUNDARY == NODE_Wall) {
+        wallMask = 1.;
+   } else {
+        wallMask = 2.;
+   }
 }
 
 CudaDeviceFunction void Run() {

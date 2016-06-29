@@ -6,10 +6,14 @@ library(numbers)
 MRT_polyMatrix = function(U) {
   if (any(U >  1)) stop("Too high velocities in calculate_feq")
   if (any(U < -1)) stop("Too high velocities in calculate_feq")
+  d = ncol(U)
+  d2 = expand.grid(i=1:d,j=1:d)
+  D2 = NULL; for (i in 1:nrow(d2)) { D2 = cbind(D2, U[,d2$i[i]] * U[,d2$j[i]]) }
+  dim(D2) = c(nrow(U), d,d)
   p = ifelse(U < 0,2,U)
   p = p[order(rowSums(p)),]
   W = NULL; for (i in 1:nrow(p)) {W = cbind(W, apply(t(U) ^ p[i,],2,prod)) }
-  list(order=rowSums(p), mat=W, p=p)
+  list(order=rowSums(p), mat=W, p=p, D2=D2)
 }
 
 MRT_integerOrtogonal = function(M) {
@@ -29,7 +33,7 @@ MRT_integerOrtogonal = function(M) {
 MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2, ortogonal=TRUE, mat, correction) {
   rho_str = ToC(rho)
   W = MRT_polyMatrix(U)
-  p=W$p
+  p = W$p
   H = rho[rep(1,nrow(U))];
   for (j in 1:nrow(U))
   {
@@ -47,7 +51,7 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
     } else {
 	x
   })
-  ret = list(Req=H, mat=W$mat, p=W$p, order=W$order, U=U)
+  ret = list(Req=H, mat=W$mat, p=W$p, order=W$order, U=U, D2=W$D2)
   if (!missing(correction)) {
 	sel = ret$order > 3
 	if (sum(sel) != length(correction)) stop("Correction of wrong length in MRT_eq")

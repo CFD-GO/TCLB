@@ -28,5 +28,5 @@ AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
 AddNodeType("Smagorinsky", "LES")
 AddNodeType("Stab", "ENTROPIC")
-AddNodeType("SymmetryY", "BOUNDARY")
-AddNodeType("SymmetryZ", "BOUNDARY")
+AddNodeType("NSymmetry", "BOUNDARY")
+AddNodeType("ISymmetry", "BOUNDARY")

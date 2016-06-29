@@ -11,6 +11,7 @@
 #include "def.h"
 #include "vtkOutput.h"
 #include "utils.h"
+#include "spline.h"
 #include <assert.h>
 
 /// Main constructor
@@ -44,6 +45,22 @@ int Geometry::val(pugi::xml_attribute attr, int def)
 	return def;
     } else {
 	return myround(units.alt(attr.value(), def));
+    }
+}
+
+/// Return rounded unit-free value of an xml attribute
+/**
+        Get the value of an xml attribute, calculate the units
+        and round the result to full integer
+        \param attr XML attribute
+        \param def Default value to return in case there is no such attribute
+*/
+double Geometry::val(pugi::xml_attribute attr, double def)
+{
+    if (!attr) {
+	return def;
+    } else {
+	return units.alt(attr.value(), def);
     }
 }
 
@@ -105,6 +122,7 @@ int Geometry::setFlag(const pugi::char_t * name)
     }
     fg = node.attribute("value").as_int();
     E(setMask(node.attribute("mask").value()));
+    fg_mode = MODE_OVERWRITE;
     return 0;
 }
 
@@ -124,6 +142,26 @@ int Geometry::setMask(const pugi::char_t * name)
     }
     fg_mask = node.attribute("value").as_int(-1);
     return 0;
+}
+
+/// Set the forground flag mode
+/**
+        Set the foreground flag mode, by which the forground flag will be set
+        \param name Name of the flag mask/NodeType to set
+*/
+int Geometry::setMode(const pugi::char_t * mode)
+{
+	if (strcmp(mode, "overwrite") == 0) {
+		fg_mode = MODE_OVERWRITE;
+	} else if (strcmp(mode, "fill") == 0) {
+		fg_mode = MODE_FILL;
+	} else if (strcmp(mode, "change") == 0) {
+		fg_mode = MODE_CHANGE;
+	} else {
+		error("Unknown mode (in xml): %s\n", mode);
+		return -1;
+	}
+	return 0;
 }
 
 int Geometry::setZone(const pugi::char_t * name)
@@ -244,6 +282,11 @@ inline flag_t Geometry::Dot(int x, int y, int z)
 {
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);
+	if (geom[i] & fg_mask) {
+		if (fg_mode == MODE_FILL) return NODE_None;
+	} else {
+		if (fg_mode == MODE_CHANGE) return NODE_None;
+	}
 	return geom[i] = (geom[i] & (~fg_mask)) | fg;
     } else 
     return NODE_None;
@@ -454,6 +497,64 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     return 0;
 }
 
+
+/// Load a b-spline string
+inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
+{
+	pugi::xml_attribute attr;
+
+	int order=1;
+	attr = node.attribute("order");
+	if (attr) order = attr.as_int();
+	double dl=1e-3;
+	attr = node.attribute("step");
+	if (attr) dl = attr.as_double();
+	attr = node.attribute("steps");
+	if (attr) dl = 1/units.alt(attr.value());
+	double def_r=1;
+	attr = node.attribute("r");
+	if (attr) def_r = units.alt(attr.value());
+	
+	int n = 0;
+	std::vector<double> nx,ny,nz,nr;
+	for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+		if (strcmp(par.name(),"Point") == 0) {
+			nx.push_back(units.alt(par.attribute("x").value()));
+			ny.push_back(units.alt(par.attribute("y").value()));
+			nz.push_back(units.alt(par.attribute("z").value()));
+			nr.push_back(val(par.attribute("r"),def_r));
+			n++;
+		} else {
+			NOTICE("Unknown element %s in Sweep\n", par.name());
+		}
+	}
+	if (n == 0) {
+		NOTICE("No points in Sweep\n");
+		return 0;
+	}
+	if (order > n-1) {
+		NOTICE("For order %d b-spline you need at least %d points\n", order, order+1);
+		order = n-1;
+	}
+    output("Making a Sweep over region (%ld) with %lf step\n",reg.size(), dl);
+    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+		for (double l=0;l<1; l+= dl) {
+			double x0 = bspline(l, nx, order);
+			double y0 = bspline(l, ny, order);
+			double z0 = bspline(l, nz, order);
+			double r = bspline(l, nr, order);
+			if ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0) < r*r) {
+			    Dot(x, y, z);
+			}
+		}
+	    }
+
+	return 0;	
+}
+
+
 /// Main geometry-generating function
 int Geometry::Draw(pugi::xml_node & node)
 {
@@ -560,6 +661,11 @@ int Geometry::Draw(pugi::xml_node & node)
 	    DEBUG1(reg.print();)
 		if (loadSTL(reg, n))
 		return -1;
+	} else if (strcmp(n.name(), "Sweep") == 0) {
+		debug1("Filling a sweep geometry with flag %d (%d)\n", fg, fg_mask);
+		DEBUG1(reg.print();)
+		if (loadSweep(reg, n))
+		return -1;
 	} else if (strcmp(n.name(), "Text") == 0) {
 	    lbRegion crop = getRegion(n.parent());
 	    crop = region.intersect(crop);
@@ -640,6 +746,8 @@ int Geometry::load(pugi::xml_node & node)
 	        E(setZone(attr.value()));
 	    } else if (strcmp(attr.name(), "mask") == 0) {
 	        E(setMask(attr.value()));
+	    } else if (strcmp(attr.name(), "mode") == 0) {
+	        E(setMode(attr.value()));
 	    } else {
 	        
 	    }
