@@ -256,19 +256,27 @@ for (i in selR) {
 
 real_t px = X - PX;
 real_t py = Y - PY;
-real_t tmp = px*cos(PR) + py*sin(PR);
-py =-px*sin(PR) + py*cos(PR);
-px = tmp;
-real_t dx = fabs(px*2);
-real_t dy = fabs(py*2);
+real_t dx = px*cos(PR) + py*sin(PR);
+real_t dy =-px*sin(PR) + py*cos(PR);
+dx = fabs(dx*2);
+dy = fabs(dy*2);
 if ((dx < PDX) && (dy < PDY)) {
 	real_t r = sqrt(px*px + py*py);
 //	u[0] = 2*(PX_DT - PR_DT*sin(PR)*r) - u[0];
 //	u[1] = 2*(PY_DT + PR_DT*cos(PR)*r) - u[1];
-	AddToForceX((PX_DT - PR_DT*sin(PR)*r) - u[0]);
-	AddToForceY((PY_DT + PR_DT*cos(PR)*r) - u[1]);
-	u[0] = (PX_DT - PR_DT*sin(PR)*r);
-	u[1] = (PY_DT + PR_DT*cos(PR)*r);
+	real_t Vx = PX_DT - PR_DT*py;
+	real_t Vy = PY_DT + PR_DT*px;
+	real_t Fx = Vx - u[0];
+	real_t Fy = Vy - u[1];
+	AddToForceX(Fx);
+	AddToForceY(Fy);
+	AddToMoment(Fx*py-Fy*px);
+	AddToPowerX(PX_DT*Fx);
+	AddToPowerY(PY_DT*Fy);
+	AddToPowerR(PR_DT*(-Fx*py+Fy*px));
+	AddToPower(Fx*Vx + Fy*Vy);
+	u[0] = u[0] + Fx;
+	u[1] = u[1] + Fy;
 }
 <?R
 	C(usq , sum(u*u)*dw);

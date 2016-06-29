@@ -533,6 +533,14 @@ int Solver::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  di
 <?R
 } 
 ?>
+    if (!somethingWritten){
+        output("Possible densities:\n");
+    <?R
+        for (d in rows(DensityAll)) { 
+            ?> output("-> <?%s d$name ?>\n") ; <?R
+        }
+    ?>
+    }
     assert(somethingWritten);
     if (somethingWritten) {
         output("...privided %s\n", comp);
