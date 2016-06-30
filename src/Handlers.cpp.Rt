@@ -949,7 +949,7 @@ class cbFailcheck: public Callback {
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
         
 		if (!cond) {
-            if (components.in("<?%s q$name ?>") || components.in("all") ) {
+            if (components.in("<?%s q$name ?>")) {
 	    	    <?R if (q$vector) { ?>
 	                if (reg.size() == 0) {
                         //  I dont think we need to check vectors in area, to expensive
