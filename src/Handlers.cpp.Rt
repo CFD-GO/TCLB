@@ -936,34 +936,20 @@ class cbFailcheck: public Callback {
 		int cond,fin,go;
 		fin = false;
 		cond = false;
-        go = false;
 
         pugi::xml_attribute comp = node.attribute("what");
-        std::vector<std::string> components;
-        std::vector<real_t*> buffers;
-        char *str = strdup(comp.value());  // We own str's memory now.
-        char *token;
-        int n_components = 0;
-        while ((token = strsep(&str, ","))) {
-            if (strlen(token) > 0 ){
-                components.push_back(std::string(token));
-                n_components++;
-            }
+ 
+        name_set components;
+        if(comp){
+            components.add_from_string(comp.value(),',');
+        } else {
+            components.add_from_string("all",',');
         }
-        buffers.resize(n_components);
-        free(str);      
-
 
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
         
 		if (!cond) {
-            go = false;
-            for (int n = 0; n < n_components; n++) {
-                if ( strcmp(components[n].c_str(), "<?%s q$name ?>" ) == 0 ||  strcmp(components[n].c_str(), "ALL" ) == 0  ) {
-                    go = true;
-                }  
-            }
-            if (go || n_components == 0 ) {
+            if (components.in("<?%s q$name ?>") || components.in("all") ) {
 	    	    <?R if (q$vector) { ?>
 	                if (reg.size() == 0) {
                         //  I dont think we need to check vectors in area, to expensive
@@ -982,8 +968,8 @@ class cbFailcheck: public Callback {
                     }
     
         		<?R } ?>
+                if(cond ){ notice("Checking <?%s q$name ?> discovered NaN"); }
             }
-            if(cond ){ notice("Checking <?%s q$name ?> discovered NaN"); }
 		}
 		<?R }; ifdef(); ?>
 
