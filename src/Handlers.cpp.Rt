@@ -964,12 +964,15 @@ class cbFailcheck: public Callback {
                 }  
             }
             if (go || n_components == 0 ) {
-                notice("... checking <?%s q$name ?>");
 	    	    <?R if (q$vector) { ?>
-	                 //  cond = ((std::isnan(tmp->x)) || (std::isnan(tmp->y)) || (std::isnan(tmp->z))); 
-                     //  I dont think we need to check vectors
+	                if (reg.size() == 0) {
+                        //  I dont think we need to check vectors in area, to expensive
+                        <?%s q$type ?> tmp;
+    	                solver->lattice->Get<?%s q$name ?>(reg,&tmp);
+                        cond = ((std::isnan(tmp.x)) || (std::isnan(tmp.y)) || (std::isnan(tmp.z))); 
+                    }
     	    	<?R } else { ?> 
-			   
+                    notice("Checking <?%s q$name ?>...");
                     <?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
         	    	solver->lattice->Get<?%s q$name ?>(reg,tmp);
 
