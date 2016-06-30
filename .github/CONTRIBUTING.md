@@ -3,7 +3,7 @@
 We are really glad that you would like to contribute to TCLB. We would appreciate if you first take little time to check the points below before you proceed.
 
 ### Code references
-- [ ] Original references - if you implement a model/feature from some paper/book, please leave a reference in the code. **NOICE:** This is very important part, and pull request may be rejected or postponed if you will not be able to provide reference data. If you are the author of the model (not only the implementation) also leave some references or preffered citation
+- [ ] Original references - if you implement a model/feature from some paper/book, please leave a reference in the code. **NOTICE:** This is very important part, and pull request may be rejected or postponed if you will not be able to provide reference data. If you are the author of the model (not only the implementation) also leave some references or preffered citation
 - [ ] Wiki references - if you added feature or configure arguments, please add it as a wiki entry and reference it in the code
 - [ ] Author references - if you added a model, complicated handler or physics based feature, please provide the details of the implementation author as: `Maintainer: your-name @your-github-login`
 
@@ -14,7 +14,8 @@ We are really glad that you would like to contribute to TCLB. We would appreciat
 - [ ] You did a clever trick? Please leave a suitable comment
 - [ ] Please don't brake naming convention (at least look at surrounding code)
 - [ ] Try too use meaningful variable names
-- [ ]  Do not pull/merge XXX_new's.  Its either something different and should have different name or it is an replacement of XXX (in whole code)
+- [ ] Do not pull/merge XXX_new's.  Its either something different and should have different name or it is an replacement of XXX (in whole code)
+- [ ] When working with model independent kernel files and handlers, take a look at the surrounding code. A lot of classes and useful function are already implemented. Remember: 'grep' is your friend 
 
 
 ### Compilation
