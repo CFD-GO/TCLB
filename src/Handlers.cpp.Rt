@@ -938,7 +938,7 @@ class cbFailcheck: public Callback {
 		cond = false;
         go = false;
 
-        pugi::xml_attribute comp = node.attribute("check_quantities");
+        pugi::xml_attribute comp = node.attribute("what");
         std::vector<std::string> components;
         std::vector<real_t*> buffers;
         char *str = strdup(comp.value());  // We own str's memory now.
