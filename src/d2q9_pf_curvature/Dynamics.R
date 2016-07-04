@@ -28,9 +28,17 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 AddField("phi"       ,stencil2d=1 );
 AddField("wallMask"  ,stencil2d=1 );
 
-AddStage("BaseIteration", "Run", load=DensityAll$group == "f" | DensityAll$group == "h" ,  save=Fields$group=="f" | Fields$group=="h" ) 
-AddStage("CalcPhi", save=Fields$name=="wallMask" | Fields$name=="phi" ,  load=DensityAll$group == "h")
-AddStage("BaseInit", "Init", save=Fields$group=="f" | Fields$group=="h"  ) 
+AddStage("BaseIteration", "Run", 
+         load=DensityAll$group == "f" | DensityAll$group == "h" ,  
+         save=Fields$group=="f" | Fields$group=="h" 
+         ) 
+AddStage("CalcPhi", 
+         save=Fields$name=="wallMask" | Fields$name=="phi" ,  
+         load=DensityAll$group == "h"
+         )
+AddStage("BaseInit", "Init", 
+         save=Fields$group=="f" | Fields$group=="h" 
+        ) 
 
 AddAction("Iteration", c("BaseIteration","CalcPhi"))
 AddAction("Init", c("BaseInit","CalcPhi"))
@@ -53,6 +61,7 @@ AddQuantity(name="PhaseField",unit="1")
 AddQuantity(name="Curvature",unit="1")
 
 AddQuantity(name="InterfaceForce", unit="1", vector=T)
+AddQuantity(name="BoundaryForcing", unit="1", vector=T)
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
 #  comment - additional comment
@@ -71,6 +80,8 @@ AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
 AddSetting(name="MagicA", default=0)
 AddSetting(name="Fscale", default=1)
+AddSetting(name="WettingAngle", default=0, zonal=T)
+
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")

@@ -80,9 +80,7 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
-
-CudaDeviceFunction vector_t getNormal(){
-    real_t k01, k10;
+CudaDeviceFunction vector_t getGradientPhi(){
     vector_t n;
    /**
      vector_t u = getU();
@@ -100,29 +98,34 @@ CudaDeviceFunction vector_t getNormal(){
 
     */
     <?R
-        C(c(k10, k01), phis%*%U)
+        C(PV(c("n.x", "n.y")), phis%*%U)
 #        C(k10, (phis)%*%U[,2]) 
 
     ?>
-    real_t ln = sqrt(k10*k10 + k01*k01);    
+    return n;
+
+}
+CudaDeviceFunction vector_t getNormal(){
+    vector_t n = getGradientPhi();
+    real_t ln = sqrt(n.x*n.x + n.y*n.y);    
     if(ln == 0.){
         n.x = 0.;
         n.y = 0.;
     } else {
-        n.x =  k10 / ln;
-        n.y =  k01 / ln;
+        n.x /= ln;
+        n.y /= ln;
     }
-/// TEST
-     <?R
+    return n;
+
+}
+CudaDeviceFunction vector_t getWallDirection(){
+    vector_t n;
+    <?R
         n = PV(c('n.x', 'n.y'));
         wallMasks = PV(paste('wallMask(',UN[1,],',',UN[2,],')')) 
         C(n, wallMasks%*%U)
-
-
     ?>
-    n.x = wallMask(1,0);
     return n;
-
 }
 CudaDeviceFunction vector_t getF() {
     real_t rho = getRho();
@@ -220,12 +223,7 @@ CudaDeviceFunction void Init() {
 	uy=0;
 	ux = Velocity+ux;
     C = PhaseField; 
-    if (NodeType & NODE_BOUNDARY == NODE_Wall) {
-        wallMask = 1.;
-    } else {
-        wallMask = 0.;
-    }
-   
+     
 	SetEquilibrum(
 		rho,
 		ux*rho,
@@ -236,15 +234,15 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CalcPhi() {
    phi = getPhaseField() ;
-   if (NodeType & NODE_BOUNDARY == NODE_Wall) {
+   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
     phi = PhaseField;
    }
 //   real_t ph2 = ph2 * ph2;
- //   phi = ph -(ph2/2 + ph2*ph2/4); 
-   if (NodeType & NODE_BOUNDARY == NODE_Wall) {
+ //   phi = ph -(ph2/2 + ph2*ph2/4);
+   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
         wallMask = 1.;
    } else {
-        wallMask = 2.;
+        wallMask = 0.;
    }
 }
 
@@ -298,6 +296,57 @@ CudaDeviceFunction void EPressure()
 <?R ZouHe(EQ, 1, -1, "pressure") ?>
 }
 
+CudaDeviceFunction vector_t getBoundaryForcing(){
+    vector_t n = getNormal();
+    real_t pf = getPhaseField();
+    vector_t wd = getWallDirection();
+    real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
+    real_t omega_ph =  1/( 3 * M + 0.5); 
+    real_t Bh;
+
+    vector_t Fa,Fb,gradPhi,du;
+    du.x = 0;
+    du.y = 0;
+    du.z = 0;
+    if ( lwd > 0 ) {
+       lwd = 1. / lwd;
+       real_t L =  (4 * pf*pf - 1.) * W;
+       real_t b = 0;
+
+<?R
+  
+    wd = PV(c("wd.x","wd.y"))
+    C(wd, wd*PV("lwd"))
+?>
+        gradPhi = getGradientPhi();
+   
+        real_t Ls = L * sin(WettingAngle+ pi  / 2.);
+        real_t Lc = L * cos(WettingAngle+ pi / 2.);
+
+        Fa.x = (gradPhi.x - (Lc*wd.x - Ls*wd.y) ) * exp(b*pf*pf);
+        Fa.y = (gradPhi.y - (Lc*wd.y + Ls*wd.x) ) * exp(b*pf*pf);
+
+        Ls = L * sin(3./2.*pi - WettingAngle);
+        Lc = L * cos(3./2.*pi - WettingAngle);
+
+        Fb.x = (gradPhi.x - (Lc*wd.x - Ls*wd.y) ) * exp(b*pf*pf);
+        Fb.y = (gradPhi.y - (Lc*wd.y + Ls*wd.x) ) * exp(b*pf*pf);
+
+        if ((Fa.x*Fa.x + Fa.y*Fa.y) > (Fb.x*Fb.x + Fb.y*Fb.y) )
+        {
+            Ls = L * sin(3./2.*pi - WettingAngle);
+            Lc = L * cos(3./2.*pi - WettingAngle);
+        } else {
+            Ls =  L * sin(WettingAngle + pi / 2.);
+            Lc =  L * cos(WettingAngle + pi / 2.);
+        }
+
+        du.x = ( (Lc*wd.x - Ls*wd.y) ) ;
+        du.y = ( (Lc*wd.y + Ls*wd.x) ) ;
+
+    }
+    return du;
+}
 CudaDeviceFunction void CollisionMRT()
 {
     vector_t n = getNormal();
@@ -352,8 +401,21 @@ CudaDeviceFunction void CollisionMRT()
     n = PV(c('n.x', 'n.y'))
     mob = PV("M")
     omega_ph=PV("omega_ph")
-    C(Bh, 3*mob * (1.-4.*pf*pf)*(W) )
-    C( h, h - omega_ph * ( h - Heq(pf,n,u) ) )
-
+    C( Bh, 3*mob * (1.-4.*pf*pf)*(W) )
+    C( h, (1-omega_ph )*h + omega_ph * Heq(pf,n,u) ) 
 ?>
+    vector_t du = getBoundaryForcing();
+//    du.x *= 0.3;
+//    du.y *= 0.3;
+    vector_t wd = getWallDirection();
+    real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
+    vector_t zero;
+    zero.x = 0;
+    zero.y = 0;
+    if ( lwd > 0 ) {
+<?R
+    du = PV(c("du.x","du.y"))
+    C( h, Heq(pf,du,PV(c("zero.x", "zero.y")) ))
+?>
+    }
 }
