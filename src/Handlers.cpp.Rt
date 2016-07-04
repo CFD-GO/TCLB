@@ -933,43 +933,31 @@ class cbFailcheck: public Callback {
 	int DoIt() {
 		Callback::DoIt();
        	int ret = 0;
-		int cond,fin,go;
+		int cond,fin;
 		fin = false;
 		cond = false;
-        go = false;
 
-        pugi::xml_attribute comp = node.attribute("check_quantities");
-        std::vector<std::string> components;
-        std::vector<real_t*> buffers;
-        char *str = strdup(comp.value());  // We own str's memory now.
-        char *token;
-        int n_components = 0;
-        while ((token = strsep(&str, ","))) {
-            if (strlen(token) > 0 ){
-                components.push_back(std::string(token));
-                n_components++;
-            }
+        pugi::xml_attribute comp = node.attribute("what");
+ 
+        name_set components;
+        if(comp){
+            components.add_from_string(comp.value(),',');
+        } else {
+            components.add_from_string("all",',');
         }
-        buffers.resize(n_components);
-        free(str);      
-
 
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
         
 		if (!cond) {
-            go = false;
-            for (int n = 0; n < n_components; n++) {
-                if ( strcmp(components[n].c_str(), "<?%s q$name ?>" ) == 0 ||  strcmp(components[n].c_str(), "ALL" ) == 0  ) {
-                    go = true;
-                }  
-            }
-            if (go || n_components == 0 ) {
-                notice("... checking <?%s q$name ?>");
+            if (components.in("<?%s q$name ?>")) {
 	    	    <?R if (q$vector) { ?>
-	                 //  cond = ((std::isnan(tmp->x)) || (std::isnan(tmp->y)) || (std::isnan(tmp->z))); 
-                     //  I dont think we need to check vectors
+	                if (reg.size() == 0) {
+                        //  I dont think we need to check vectors in area, to expensive
+                        <?%s q$type ?> tmp;
+    	                solver->lattice->Get<?%s q$name ?>(reg,&tmp);
+                        cond = ((std::isnan(tmp.x)) || (std::isnan(tmp.y)) || (std::isnan(tmp.z))); 
+                    }
     	    	<?R } else { ?> 
-			   
                     <?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
         	    	solver->lattice->Get<?%s q$name ?>(reg,tmp);
 
@@ -980,6 +968,7 @@ class cbFailcheck: public Callback {
                     }
     
         		<?R } ?>
+                if(cond ){ notice("Checking <?%s q$name ?> discovered NaN"); }
             }
 		}
 		<?R }; ifdef(); ?>
