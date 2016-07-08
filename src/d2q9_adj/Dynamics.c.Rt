@@ -25,7 +25,11 @@
 	t1 = 4/9
 	t2 = 1/9
 	t3 = 1/36
+	t1 = 4/9
+	t2 = 1/9
+	t3 = 1/36
 	c_squ = 1/3
+	wi = c(t1,t2,t2,t2,t2,t3,t3,t3,t3)        
 	tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
 	bounce = c(0,3,4,1,2,7,8,5,6)
 ?>
@@ -37,7 +41,7 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
-<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
 	u.x /= d;
 	u.y /= d;
 	u.z = 0;
@@ -57,12 +61,10 @@ CudaDeviceFunction void BounceBack()
   V = V[sel,]
   for (i in 1:nrow(V))
   {
-	w = list(
-           uf==f[V[i,1]],
-           f[V[i,1]]==f[V[i,2]],
-           f[V[i,2]]==uf
-	)
-	for (h in w) C(h)
+	C(uf, f[V[i,1]])
+        C(f[V[i,1]], f[V[i,2]])
+        C(f[V[i,2]], uf)
+	
    }
 ?>
 }
@@ -177,22 +179,15 @@ CudaDeviceFunction void Run() {
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
-{	real_t usq, uf;
-<?R C(usq == sum(u*u)*(1/c_squ)) ?>
+{
 <?R
-	for (i in 1:9) {
-         cat("//--",i,"-------------------------------------------------\n")
-         w2 = list(
-                 uf1 == (u %% t(U) * (1/c_squ))[i],
-                 uf2 == uf1 + (uf1*uf1+usq*(-1))*0.5 + 1,
-                 uf3 == d * uf2,
-                 f[i] == uf3 * tn[i,i]
-         )
-         for (h in w2) C(h)
-        }
+	u = PV("u[",1:2-1,"]")
+	d = PV("d")
+	c_sq = 1/3
+        C( f, wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*d)
 ?>
-
 }
+
 
 CudaDeviceFunction void Init() {
 	w = 1;
@@ -219,87 +214,83 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void CollisionMRT()
 {
-	real_t u[2], usq, d, R[6], uf, nw;
-	vector_t F;
+	real_t M[9];
+	real_t rho, ux, uy, usq;
+    
 <?R
-        R = PV(c(
-		"d",
-		paste("u[",1:2-1,"]",sep=""),
-		paste("R[",1:6-1,"]",sep="")
-	))
-        Sy = rbind(
-		PV(c(0,0,0)),
-		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
-	)
+# Calculating equlibrium density set
+    	source("lib/feq.R")
+        rho = PV("rho")
+        u = PV(c("ux","uy"))
+        feq = MRT_feq(U, rho, u*rho );
+        R = PV("M[",1:9-1,"]")
+#        OMEGA = c(
+#		PV(rep(0,3)),
+#		PV(rep("omega2",4)),
+#		PV(rep("omega",2))
+#	)
+#        OMEGA = PV("S",1:9-1,"")
+    OMEGA = PV(c(0,0,0, "S3", "S4", "S56", "S56", "S78", "S78"))
+	M = matrix(c(
+	      1,  1,  1,  1,  1,  1,  1,  1,  1,
+	      0,  1,  0, -1,  0,  1, -1, -1,  1,
+	      0,  0,  1,  0, -1,  1,  1, -1, -1,
+	     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+	      4, -2, -2, -2, -2,  1,  1,  1,  1,
+	      0, -2,  0,  2,  0,  1, -1, -1,  1,
+	      0,  0, -2,  0,  2,  1,  1, -1, -1,
+	      0,  1, -1,  1, -1,  0,  0,  0,  0,
+	      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
-M = matrix(c(
-      1,  1,  1,  1,  1,  1,  1,  1,  1,
-      0,  1,  0, -1,  0,  1, -1, -1,  1,
-      0,  0,  1,  0, -1,  1,  1, -1, -1,
-     -4, -1, -1, -1, -1,  2,  2,  2,  2,
-      4, -2, -2, -2, -2,  1,  1,  1,  1,
-      0, -2,  0,  2,  0,  1, -1, -1,  1,
-      0,  0, -2,  0,  2,  1,  1, -1, -1,
-      0,  1, -1,  1, -1,  0,  0,  0,  0,
-      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
-
-C( R == f %% M );
+	C( rho, sum(f) )
+	C( u, f %*% U * ( rho^(-1) ) )
 ?>
-//F = getF();
-//u[0] = u[0]+F.x*MagicF;
-//u[1] = u[1]+F.y*MagicF;
-<?R
-	d = PV("d");
-	dw = d
-	dw[[1]][1,2]=-1
-	C(usq == sum(u*u)*dw);
-	usq = PV("usq")
-	u = PV(c("u[0]","u[1]"))
-	Req = rbind(
-		d,
-		u,
-		d*(-2)+usq*3,
-		d - usq*3,
-		u[1]*(-1),
-		u[2]*(-1),
-		u[1]*u[1]*dw-u[2]*u[2]*dw,
-		u[1]*u[2]*dw
-	)
+    
 
-?>
-<?R
-        Sy = PV(paste("S",1:19,"",sep=""))
-	selR = c(4,5,6,7,8,9);
-#	cr = calcReq[selR]
-	Mw = colSums(M**2)
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> = (1.-<?%s ToC(Sy[i]) ?>)*(<?%s ToC(R[i] - Req[i]) ?> );
-<?R
-}
-?>
-if ((NodeType & NODE_OBJECTIVE) == NODE_Inlet) AddToPressDiff(-d);
-if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) AddToPressDiff(d);
+switch (NodeType & NODE_OBJECTIVE) {
+case NODE_Outlet:
+    <?R 
+        usq=PV('usq')
+        C(usq,sum(u%*%u))
+    ?>
+	AddToOutletFlux(ux/rho);
+	AddToPressureLoss(-ux/rho*((rho-1.)/3. + usq/rho/2.));
+	break;
+case NODE_Inlet:
+    <?R
+        usq=PV('usq')
+        C(usq,sum(u%*%u))
+    ?>
 
-nw = w / (1.0-PorocityGamma*(1.0-w));
-AddToDrag((1-nw)*u[0]);
-AddToLift((1-nw)*u[1]);
-u[0] = u[0]*nw;
-u[1] = u[1]*nw;
 
-//u[0]=u[0]+0.001;
-<?R
-	C(usq == sum(u*u)*dw);
-for (i in selR) {
-?>	<?%s ToC(R[i]) ?> += <?%s ToC(Req[i]) ?>;
-<?R
-}
-for (i in 1:length(R)) {
-?>	<?%s ToC(R[i]) ?> /= <?%f Mw[i] ?>;
-<?R
-}
-   C( f == R %% t(M) , float=F);
 
-?>
+	AddToInletFlux(ux/rho);
+	AddToPressureLoss(ux/rho*((rho-1.)/3. + usq/rho/2.));
+	break;
 }
 
+
+//	real_t omega = 1.0-1.0/(3*nu + 0.5);
+//	real_t omega2 = omega;
+<?R
+	C( R, (f-feq) %*% M * OMEGA );
+?>
+  
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    ux = ux + GravitationX +  BC[0] ;
+    uy = uy + GravitationY +  BC[1] ; 
+<?R } else { ?>
+    ux = ux + GravitationX;
+    uy = uy + GravitationY; 
+<?R } ?>
+
+
+
+<?R
+	C( R, R + feq %*% M);
+	C( R, R * (1/ diag(t(M) %*% M)));
+	C( f, R %*% t(M) );
+?>
+
+}
 
