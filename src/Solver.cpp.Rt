@@ -573,7 +573,9 @@ int Solver::getQuantitieIntoBuffer(const char* comp, real_t* &buf, long int*  di
         <?R if (q$type == 'vector_t') { ?>
             dim[3] = 3;
         <?R } ?>
+        #ifdef ADJOINT
     	lattice->Get<?%s q$name ?>(region, tmp_<?%s q$name ?>, 1);
+        #endif
         buf = (real_t*)tmp_<?%s q$name ?>;
         somethingWritten = true; 
     }

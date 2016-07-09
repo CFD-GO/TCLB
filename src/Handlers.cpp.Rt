@@ -1788,7 +1788,7 @@ class conControl: public Action {
                                 }
                                 ret = 1;
                         } else {
-                                ret = std::getline(ss, token, '*');
+                                ret = static_cast<bool>( std::getline(ss, token, '*') );
                         }
                         if (ret) {
                                 nscale = solver->units.alt(token);
