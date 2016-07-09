@@ -13,8 +13,12 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
-AddField(name="f[1]", dx=1);
+#AddField(name="f[1]", dx=1);
 
+# THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
+# COMMENT OUT FOR PERFORMANCE
+AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
+AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
@@ -33,11 +37,12 @@ AddQuantity(name="A",unit="1",vector=T)
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
 #  comment - additional comment
-# You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
+# You can state that another setting is 'derived' from this one stating for example: RelaxationRate='1.0/(3*Viscosity + 0.5)'
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
-AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="RelaxationRate", comment='one over relaxation time')
+AddSetting(name="Viscosity", RelaxationRate='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="Smag", comment='Smagorinsky constant')
 
@@ -46,7 +51,8 @@ AddSetting(name="SL_lambda", comment='Shear Layer lambda')
 AddSetting(name="SL_delta", comment='Shear Layer disturbance')
 AddSetting(name="SL_L", comment='Shear Layer length scale')
 
-
+AddSetting(name="GravitationX")
+AddSetting(name="GravitationY")
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
@@ -55,3 +61,14 @@ AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
 AddNodeType("Smagorinsky", "LES")
 AddNodeType("Stab", "ENTROPIC")
+
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+
+AddNodeType(name="NSymmetry", group="BOUNDARY")
+AddNodeType(name="SSymmetry", group="BOUNDARY")

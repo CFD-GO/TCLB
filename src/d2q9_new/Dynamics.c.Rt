@@ -5,7 +5,7 @@
 	source("lib/feq.R")
 	source("lib/boundary.R")
 
-	U = as.matrix(Density[,c("dx","dy")])
+	U = as.matrix(Density[Density$group=='f',c("dx","dy")])
 
 	EQ = MRT_eq(U, ortogonal=FALSE)
         wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
@@ -24,10 +24,14 @@
 
 	
 
-	f = PV(Density$name)
+	f = PV(Density[Density$group=='f',"name"])
 	rho = PV("rho")
 	J = PV("J",c("x","y"))
-
+    if ( any( DensityAll$group=="BC" ) ) {
+        BC_Velocity=PV(c('BC[0]', 'BC[1]'))
+    } else {
+        BC_Velocity=PV(c('VelocityX', 'VelocityY'))
+    }
 ?>
 
 #define pi 3.141592653589793116
@@ -40,8 +44,14 @@ CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
-	u.x /= d;
+    u.x /= d;
 	u.y /= d;
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    u.x += BC[0]*0.5;
+    u.y += BC[1]*0.5;
+<?R } ?>
+    u.x += GravitationX*0.5;
+    u.y += GravitationY*0.5;
 	u.z = 0.0;
 	return u;
 }
@@ -64,6 +74,11 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 	feq = EQ$Req %*% solve(EQ$mat)
 	C( f, feq)
 ?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+   BC[0] = Jx / rho;
+   BC[1] = Jy / rho;
+<?R } ?>
 }
 
 CudaDeviceFunction void Init() {
@@ -80,8 +95,8 @@ CudaDeviceFunction void Init() {
 		ux=0;
 		uy=0;
 	}
-	ux = Velocity+ux;
-
+	ux = VelocityX+ux;
+    uy = VelocityY+uy;
 
 	SetEquilibrum(
 		rho,
@@ -108,6 +123,18 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
+	case NODE_NVelocity:
+		WVelocity();
+		break;
+	case NODE_SVelocity:
+		WVelocity();
+		break;
+    case NODE_NSymmetry:
+        NSymmetry();
+        break;
+    case NODE_SSymmetry:
+        SSymmetry();
+        break;
     }
     if (NodeType & NODE_MRT)
     {
@@ -122,22 +149,42 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void EVelocity()
 {
-<?R ZouHe(EQ, 1, -1, "velocity") ?>
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "velocity", BC_Velocity) ?>
 }
 
 CudaDeviceFunction void WPressure()
 {
-<?R ZouHe(EQ, 1, 1, "pressure") ?>
+<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
 }
 
 CudaDeviceFunction void WVelocity()
 {
-<?R ZouHe(EQ, 1, 1, "velocity") ?>
+<?R ZouHeRewrite(EQ, f, c(1, 0), "velocity", BC_Velocity) ?>
 }
 
 CudaDeviceFunction void EPressure()
 {
-<?R ZouHe(EQ, 1, -1, "pressure") ?>
+<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
+}
+
+CudaDeviceFunction void NVelocity()
+{
+<?R ZouHeRewrite(EQ, f, c(0,-1), "velocity", BC_Velocity) ?>
+}
+
+CudaDeviceFunction void SVelocity()
+{
+<?R ZouHeRewrite(EQ, f, c(0, 1), "velocity", BC_Velocity) ?>
+}
+
+CudaDeviceFunction void NSymmetry()
+{
+<?R Symmetry(2,-1,'f') ?>
+}
+
+CudaDeviceFunction void SSymmetry()
+{
+<?R Symmetry(2,1,'f') ?>
 }
 
 CudaDeviceFunction void CollisionMRT()
@@ -151,7 +198,7 @@ CudaDeviceFunction void CollisionMRT()
 	R[!selR] = EQ$Req[!selR]
 ?>
 	real_t <?R C(R,sep=",") ?>;
-	real_t gamma  = 1-omega;
+	real_t gamma  = 1-RelaxationRate;
 <?R
 	S = PV("S",1:nrow(U)-1);
 	S[EQ$order <= 2] = PV("gamma")
@@ -196,7 +243,11 @@ CudaDeviceFunction void CollisionMRT()
 <?R
 
 	C( R[selR], (R * S)[selR]);
-	C( R[selR], (R + EQ$Req)[selR]);
+
+
+
+
+    C( R[selR], (R + EQ$Req)[selR]);
 
 	C( f, R %*% solve(EQ$mat), float=F);
 ?>
