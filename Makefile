@@ -1,3 +1,4 @@
+BUILDROOT = $(shell pwd)
 ifneq ($(MAKECMDGOALS),configure)
 	include config.main.mk
 	include makefile.main
@@ -18,4 +19,3 @@ config.main.mk: configure
 configure:src/configure.ac
 	@echo "  AUTOCONF   $@"
 	@autoconf --warnings=error -o $@ $< && rm -r autom4te.cache 2>/dev/null
-	
