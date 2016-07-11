@@ -188,9 +188,9 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
   # --- Solving all equations for 'R'
     i0 = (1:length(R))[ abs(n) != 0  ]
     cat("real_t "); C_pull(eqn[i0],R[i0]);
-    sel = 1:length(R)
-    sel = sel[sel != i0]
-	for (i in sel) { cat("real_t "); C_pull(eqn[i],R[i]); }
+    sl = 1:length(R)
+    sl = sl[sl != i0]
+	for (i in sl) { cat("real_t "); C_pull(eqn[i],R[i]); }
   # --- Setting the missing densities f
 	C(f[sel],fs[sel]);
 }

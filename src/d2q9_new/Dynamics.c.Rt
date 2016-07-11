@@ -47,8 +47,8 @@ CudaDeviceFunction vector_t getU(){
     u.x /= d;
 	u.y /= d;
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    u.x += BC[0]*0.5;
-    u.y += BC[1]*0.5;
+// u.x += BC[0]*0.5;
+//u.y += BC[1]*0.5;
 <?R } ?>
     u.x += GravitationX*0.5;
     u.y += GravitationY*0.5;
@@ -124,10 +124,10 @@ CudaDeviceFunction void Run() {
 		EPressure();
 		break;
 	case NODE_NVelocity:
-		WVelocity();
+		NVelocity();
 		break;
 	case NODE_SVelocity:
-		WVelocity();
+		SVelocity();
 		break;
     case NODE_NSymmetry:
         NSymmetry();
