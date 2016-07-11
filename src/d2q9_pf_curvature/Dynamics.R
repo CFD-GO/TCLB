@@ -37,6 +37,7 @@ AddDensity( name="d[8]", dx= 1, dy=-1, group="d")
 
 
 
+
 AddField("phi"       ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
@@ -48,6 +49,7 @@ AddStage("CalcPhi",
          load=DensityAll$group == "h"
          )
 AddStage("BaseInit", "Init") 
+
 
 AddAction("Iteration", c("BaseIteration","CalcPhi"))
 AddAction("Init", c("BaseInit","CalcPhi"))

@@ -118,6 +118,7 @@ CudaDeviceFunction vector_t getNormal(){
         n.x /= ln;
         n.y /= ln;
     }
+
     return n;
 
 }
@@ -235,7 +236,6 @@ CudaDeviceFunction void Init() {
 	uy=0;
 	ux = Velocity+ux;
     C = PhaseField; 
-     
 	SetEquilibrum(
 		rho,
 		ux*rho,
@@ -259,6 +259,8 @@ CudaDeviceFunction void CalcPhi() {
    } else {
         wallMask = 0.;
    }*/
+ //   phi = ph -(ph2/2 + ph2*ph2/4); 
+
 }
 
 CudaDeviceFunction void Run() {
