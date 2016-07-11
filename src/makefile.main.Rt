@@ -1,7 +1,7 @@
 <?R 
 	source("models.R")
 	Models = get.models();
-	destinations=c("$(BUILDROOT)/CLB");
+	destinations=c("$(BUILDROOT)/$(DEST)");
 ?>
 # MODELS: 
 #	<?%s paste(Models$name,collapse=", ") ?>
@@ -161,7 +161,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  CP         $@"
-	@$(CP) -r $< $@
+	@$(CP)  $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
@@ -175,11 +175,11 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
-	@$(CP) -r $< $@
+	@$(CP)  $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%
 	@echo "  CP         $@"
-	@$(CP) -r  $< $@
+	@$(CP)   $< $@
 
 <?R } ?>
 

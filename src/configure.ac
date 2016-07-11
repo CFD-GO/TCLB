@@ -5,7 +5,6 @@
 AC_PREREQ([2.63])
 AC_INIT([CLB], 0.01)
 AC_CONFIG_AUX_DIR([tools])
-AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
 
 AC_ARG_WITH([gcc],
 	AC_HELP_STRING([--with-gcc=compiler_bindir],
@@ -86,9 +85,17 @@ AC_ARG_WITH([python_config],
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
 		[Makes GCC paranoid.]))
+
 AC_ARG_ENABLE([profiling],
 	AC_HELP_STRING([--enable-profiling],
-		[enable profiling for R in rtemplate]))		
+		[enable profiling for R in rtemplate]))	
+
+AC_ARG_WITH([build_dest],
+	AC_HELP_STRING([--with-build-dest],
+		[Destination (relative) subdir name, default CLB]))
+
+
+
 NVFLAGS=""
 
 # Checks for programs.
@@ -99,10 +106,24 @@ AC_PROG_CC
 AC_CHECK_HEADERS([float.h malloc.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
+
 if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
 fi
+
+AC_MSG_CHECKING([Build dir])
+if test "x${with_build_dest}" != "x"
+then
+    DEST=${with_build_dest}
+else
+    DEST='CLB'  
+fi
+
+AC_MSG_RESULT([${DEST}])
+AC_CONFIG_HEADERS([${DEST}/config.h:src/config.h.in])
+
+
 
 if test "x${enable_cuda}" != "xno"
 then
@@ -489,7 +510,8 @@ AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
 AC_SUBST(EMBEDED_PYTHON)
+AC_SUBST(DEST)
 
-AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
+AC_CONFIG_FILES([${DEST}/config.mk:src/config.mk.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
