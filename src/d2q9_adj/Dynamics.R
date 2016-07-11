@@ -22,11 +22,26 @@ AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
 AddSetting(name="InletDensity", default=1, comment='inlet density')
 
+#Fran
+AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall', zonal=TRUE)
+AddSetting(name="S3", default="-0.333333333", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
+AddSetting(name="S56", default="0", comment='MRT Sx')
+AddSetting(name="S78", default="0", comment='MRT Sx')
+AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
+AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
+AddSetting(name="nu0", default=0.16666666, comment='viscosity')
+
 AddGlobal(name="PressDiff", comment='pressure loss')
 AddGlobal(name="Drag", comment='pressure loss')
 AddGlobal(name="Lift", comment='pressure loss')
 AddGlobal(name="MaterialPenalty", comment='material penalty')
 AddGlobal(name="Material", comment='material')
+
+#Fran
+AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
+AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
+AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
 AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of porocity (-infty,1)')
 AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
