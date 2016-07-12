@@ -64,7 +64,20 @@ CudaDeviceFunction real_t getRho(){
 }
     
 CudaDeviceFunction real_t getPhaseField(){
-	return <?R C(sum(h)) ?> ;
+
+   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+        return -999;
+   } else {
+    	return <?R C(sum(h)) ?> ;
+   }
+//   real_t ph2 = ph2 * ph2;
+ //   phi = ph -(ph2/2 + ph2*ph2/4);
+/*   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+        wallMask = 1.;
+   } else {
+        wallMask = 0.;
+   }*/
+ //   phi = ph -(ph2/2 + ph2*ph2/4); 
 }
     
 CudaDeviceFunction vector_t getU(){
@@ -96,15 +109,47 @@ CudaDeviceFunction vector_t getGradientPhi(){
 
     C(k10, sum(h%*%ee_x) )
     C(k01, sum(h%*%ee_y) )
-    
+     
     ?>
 
     */
+    real_t temp;
+    <?R
+        C(PV("temp"), sum(phis))
+    ?>
+    if (temp < -100) {
+    //   vector_t wd = getWallDirection();
+    //  real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
+    //   wd.x = wd.x / lwd;
+    //   wd.y = wd.y / lwd;
+        n.x = 0;
+        n.y = 0;
+        <?R
+            op = function(X) -X
+            n = PV(c("n.x", "n.y"))
+            for (j in 1:9) {
+        ?> 
+            if (<?R C(phis[j]) ?>  == -999) 
+            { 
+               <?R
+                op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] 
+                C(n , n + U[j,]*phis[op_i])
+                ?> 
+            } else {
+               <?R 
+                 C(n , n + U[j,]*phis[j])
+               ?> 
+            } 
+        <?R 
+        }
+        ?>
+    } else {
     <?R
         C(PV(c("n.x", "n.y")), phis%*%U)
 #        C(k10, (phis)%*%U[,2]) 
 
     ?>
+    }
     return n;
 
 }
@@ -187,11 +232,43 @@ CudaDeviceFunction real_t getCurvature() {
 //    if (ln < 1E-8){
 //        curv = 0; 
  //   } else {
-        <?R      
-     
+    real_t temp;
+    <?R
+        C(PV("temp"), sum(phis))
+    ?>
+    if (temp < -100) {
+    //   vector_t wd = getWallDirection();
+    //  real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
+    //   wd.x = wd.x / lwd;
+    //   wd.y = wd.y / lwd;
+        laplace = 0;
 
-            C( PV('laplace'), 3 * wis%*%phis  )
+        <?R
+            laplace = PV(c("laplace"))
+            for (j in 1:9) {
+        ?> 
+            if (<?R C(phis[j]) ?>  == -999) 
+            { 
+               <?R
+                op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] 
+                C(laplace , laplace + wis[j]*phis[op_i])
+                ?> 
+            } else {
+               <?R 
+                 C(laplace , laplace + wis[j]*phis[j])
+               ?> 
+            } 
+        <?R 
+        }
+            C(laplace, 3*laplace)
         ?>
+    } else {
+        <?R 
+            C( PV('laplace'), 3 * wis%*%phis  )
+        ?>    
+    }
+
+
         real_t phi_l = phi(0,0);
 
       //  grad.x = -3*omega_ph * (k10 + k10 / ln * (1-4*phi_l*phi_l)/ 6 * W * (1./omega_ph - 0.5));
@@ -249,18 +326,6 @@ CudaDeviceFunction void Init() {
 
 CudaDeviceFunction void CalcPhi() {
    phi = getPhaseField() ;
-   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
-    phi = PhaseField;
-   }
-//   real_t ph2 = ph2 * ph2;
- //   phi = ph -(ph2/2 + ph2*ph2/4);
-/*   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
-        wallMask = 1.;
-   } else {
-        wallMask = 0.;
-   }*/
- //   phi = ph -(ph2/2 + ph2*ph2/4); 
-
 }
 
 CudaDeviceFunction void Run() {
@@ -335,8 +400,8 @@ CudaDeviceFunction vector_t getBoundaryForcing(){
 
 <?R
   
-#    wd = PV(c("wd.x","wd.y"))
-#    C(wd, wd*PV("lwd"))
+    wd = PV(c("wd.x","wd.y"))
+    C(wd, wd*PV("lwd"))
 ?>
         gradPhi = getGradientPhi();
    
@@ -424,20 +489,14 @@ CudaDeviceFunction void CollisionMRT()
     C( Bh, 3*mob * (1.-4.*pf*pf)*(W) )
     C( h, (1-omega_ph )*h + omega_ph * Heq(pf,n,u) ) 
 ?>
-    vector_t du = getBoundaryForcing();
+//    vector_t du = getBoundaryForcing();
 //    du.x *= 0.3;
 //    du.y *= 0.3;
-    vector_t wd = getWallDirection();
-    real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
-    vector_t zero;
-    zero.x = 0;
-    zero.y = 0;
-    if ( lwd > 0 ) {
-<?R
-    du = PV(c("du.x","du.y"))
-    C( h, Heq(pf,du,PV(c("zero.x", "zero.y")) ))
-?>
-
+ //   vector_t wd = getWallDirection();
+ //   real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
+ //   vector_t zero;
+ //   zero.x = 0;
+ //   zero.y = 0;
     real_t sd;
     sd = d[0];
     for (int i = 1; i <9; i++ ){
@@ -448,5 +507,5 @@ CudaDeviceFunction void CollisionMRT()
     C( d, sd* PV('WallDistanceRatio') )
     ?>
 
-    }
+    
 }
