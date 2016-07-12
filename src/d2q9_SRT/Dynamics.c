@@ -75,6 +75,7 @@ CudaDeviceFunction void CollisionBGK() {
 	// pu* = pu + rG
 	u[0] = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/d + GravitationX/omega );
 	u[1] = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/d + GravitationY/omega );
+	// feq = f[0]; f new = f_temp[0]
 	f_temp[0] = f[0];
 	f_temp[1] = f[1];
 	f_temp[2] = f[2];

@@ -46,7 +46,7 @@ CudaDeviceFunction real_t getT(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
-<?R C(PV(c("u.x","u.y")) == f %% U) ?>
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
 //	u.x /= d;
 //	u.y /= d;
 	u.z = 0.0;
@@ -80,18 +80,13 @@ CudaDeviceFunction void BounceBack()
   V = V[sel,]
   for (i in 1:nrow(V))
   {
-	w = list(
-           uf==f[V[i,1]],
-           f[V[i,1]]==f[V[i,2]],
-           f[V[i,2]]==uf
-	)
-	for (h in w) C(h)
-	w = list(
-           uf==fT[V[i,1]],
-           fT[V[i,1]]==fT[V[i,2]]*PV("dump"),
-           fT[V[i,2]]==uf*PV("dump")
-	)
-	for (h in w) C(h)
+           C(uf,f[V[i,1]])
+           C(f[V[i,1]],f[V[i,2]])
+           C(f[V[i,2]],uf)
+	
+           C(uf,fT[V[i,1]])
+           C(fT[V[i,1]], fT[V[i,2]]*PV("dump"))
+           C(fT[V[i,2]], uf*PV("dump"))
    }
 ?>
 }
@@ -244,17 +239,14 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 {	real_t usq, uf;
-<?R C(usq == sum(u*u)*(1/c_squ)) ?>
+<?R C(usq, sum(u*u)*(1/c_squ)) ?>
 <?R
 	for (i in 1:9) {
          cat("//--",i,"-------------------------------------------------\n")
-         w2 = list(
-                 uf1 == (u %% t(U) * (1/c_squ))[i],
-                 uf2 == uf1 + (uf1*uf1+usq*(-1))*0.5 + 1,
-                 uf3 == d * uf2,
-                 f[i] == uf3 * tn[i,i]
-         )
-         for (h in w2) C(h)
+                 C(uf1 ,  (u %*% t(U) * (1/c_squ))[i]       )
+                 C(uf2 ,  uf1 + (uf1*uf1+usq*(-1))*0.5 + 1  )
+                 C(uf3 ,  d * uf2                           )
+                 C(f[i] ,  uf3 * tn[i,i]                    )
         }
 ?>
 
@@ -286,10 +278,6 @@ CudaDeviceFunction void CollisionMRT()
 		"Tx","Ty",
 		paste("R[",1:6-1,"]",sep="")
 	))
-        Sy = rbind(
-		PV(c(0,0,0)),
-		PV(paste("S",c(2,3,5,7,8,9),"",sep=""))
-	)
 
 M = matrix(c(
       1,  1,  1,  1,  1,  1,  1,  1,  1,
@@ -303,8 +291,8 @@ M = matrix(c(
       0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
 
 
-	C( R == f %% M );
-	C( usq == sum(u*u) );
+	C( R , f %*% M );
+	C( usq , sum(u*u) );
 ?>
 R[0] = R[0] -  (-2. * d + 3. * usq);
 R[1] = R[1] -  (d - 3.*usq);
@@ -315,7 +303,7 @@ R[5] = R[5] -  (u[0]*u[1]);
 	u[0] *= w;
 	u[1] *= w;
 <?R
-	C( usq == sum(u*u) );
+	C( usq , sum(u*u) );
 ?>
 
 R[0] = R[0]*(1-S2)  +  (-2. * d + 3. * usq);
@@ -326,7 +314,7 @@ R[4] = R[4]*(1-S8)  +  (u[0]*u[0] - u[1]*u[1]);
 R[5] = R[5]*(1-S9)  +  (u[0]*u[1]);
 
 <?R
-	C( f == R %% solve(M) );
+	C( f , R %*% solve(M) );
 ?>
 //	real_t us[2];
 	u[0] = u[0] / d;
@@ -338,7 +326,7 @@ real_t omegaT = FluidAlpha * w + SolidAlpha * (1-w);
 omegaT = 1.0/(3*omegaT + 0.5);
 
 <?R
-	C( RT == fT %% M );
+	C( RT , fT %*% M );
 ?>
 R[0] = R[0] - (-2*T);
 R[1] = R[1] - (T);
@@ -372,7 +360,7 @@ Tx = Tx*(1-Tom2) + (u[0]*T);
 Ty = Ty*(1-Tom2) + (u[1]*T);
 
 <?R
-	C( fT == RT %% solve(M) );
+	C( fT , RT %*% solve(M) );
 ?>
 
 }
