@@ -30,7 +30,7 @@ AddSetting(name="S56", default="0", comment='MRT Sx')
 AddSetting(name="S78", default="0", comment='MRT Sx')
 AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
 AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
-AddSetting(name="nu0", default=0.16666666, comment='viscosity')
+AddSetting(name="nu0", default=0.16666666, comment='viscosity0')
 
 AddGlobal(name="PressDiff", comment='pressure loss')
 AddGlobal(name="Drag", comment='pressure loss')

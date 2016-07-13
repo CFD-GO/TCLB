@@ -2,12 +2,6 @@
 	source("conf.R") ;
 	c_header();
 ?>
-#define S4 1.3333
-#define S5 1.0
-#define S6 1.0
-#define S7 1.0
-#define S8 omega
-#define S9 omega
 
 <?R
 	f = PV(Density$name[Density$group=="f"])
@@ -284,7 +278,11 @@ case NODE_Inlet:
     uy = uy + GravitationY; 
 <?R } ?>
 
-
+real_t nw = w / (1.0-PorocityGamma*(1.0-w));
+AddToDrag((1-nw)*ux);
+AddToLift((1-nw)*uy);
+ux = ux*nw;
+uy = uy*nw;
 
 <?R
 	C( R, R + feq %*% M);
