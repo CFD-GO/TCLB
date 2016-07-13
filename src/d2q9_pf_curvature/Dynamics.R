@@ -73,8 +73,8 @@ AddQuantity(name="PhaseField",unit="1")
 AddQuantity(name="Curvature",unit="1")
 
 AddQuantity(name="InterfaceForce", unit="1", vector=T)
-AddQuantity(name="BoundaryForcing", unit="1", vector=T)
-
+#AddQuantity(name="BoundaryForcing", unit="1", vector=T)
+#
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
 #  comment - additional comment

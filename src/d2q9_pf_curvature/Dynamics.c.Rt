@@ -68,20 +68,8 @@ CudaDeviceFunction real_t getRho(){
 }
     
 CudaDeviceFunction real_t getPhaseField(){
-
-   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
-        return -999;
-   } else {
-    	return <?R C(sum(h)) ?> ;
-   }
-//   real_t ph2 = ph2 * ph2;
- //   phi = ph -(ph2/2 + ph2*ph2/4);
-/*   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
-        wallMask = 1.;
-   } else {
-        wallMask = 0.;
-   }*/
- //   phi = ph -(ph2/2 + ph2*ph2/4); 
+        CalcPhi();
+    	return phi ;
 }
     
 CudaDeviceFunction vector_t getU(){
@@ -117,46 +105,13 @@ CudaDeviceFunction vector_t getGradientPhi(){
     ?>
 
     */
-    real_t temp;
+    InitPhisStencil();
     <?R
-        C(PV("temp"), sum(phis))
-    ?>
-    if (temp < -100) {
-        temp = 0;
-        <?R for (j in 1:9) { ?>
-            temp =  ( <?%s j-1 ?> * temp + ( <?R  C(phis[j]) ?> > -999 ?  <?R C(phis[j]) ?> : temp    ) ) * <?%s 1./j ?>;
-        <?R } ?>
-        n.x = 0;
-        n.y = 0;
-        <?R
-            op = function(X) -X
-            n = PV(c("n.x", "n.y"))
-            for (j in 1:9) {
-        ?> 
-            if (<?R C(phis[j]) ?>  == -999) 
-            {
-                <?R op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] ?>
-                if (<?R C(phis[op_i]) ?>  == -999) {
-                   <?R  C(n , n + U[j,]*PV("temp") ) ?>
-                } else {
-                   <?R  C(n , n + U[j,]*phis[op_i]) ?>
-                }
-                 
-            } else {
-               <?R 
-                 C(n , n + U[j,]*phis[j])
-               ?> 
-            } 
-        <?R 
-        }
-        ?>
-    } else {
-    <?R
-        C(PV(c("n.x", "n.y")), phis%*%U)
+        C(PV(c("n.x", "n.y")), PV(paste("rphis[",0:8,"]"))%*%U)
 #        C(k10, (phis)%*%U[,2]) 
 
     ?>
-    }
+    
     return n;
 
 }
@@ -172,16 +127,6 @@ CudaDeviceFunction vector_t getNormal(){
         real_t t_x = 0;
         real_t t_y = 0;
 
-        if phis(1,0) == -999 { t_x = t_x + 1};
-        if phis(1,1) == -999 { t_x = t_x + 1; t_y = t_y + 1};
-        if phis(0,1) == -999 { t_y = t_y + 1};
-        if phis(-1,1) == -999 { t_x = t_x - 1; t_y = t_y + 1};
-        if phis(-1,0) == -999 { t_x = t_x - 1};
-        if phis(-1,-1) == -999 { t_x = t_x - 1; t_y = t_y - 1};
-        if phis(0,-1) == -999 { t_y = t_y - 1};
-        if phis(1,-1) == -999 { t_x = t_x + 1; t_y = t_y - 1};
-    
-    
     
     } else {
         n.x /= ln;
@@ -211,7 +156,7 @@ CudaDeviceFunction vector_t getWallDirection(){
 }
 CudaDeviceFunction vector_t getF() {
     real_t rho = getRho();
-    real_t pf = getPhaseField();
+    real_t pf = <?R C(sum(h)) ?> ;
     vector_t Force = getInterfaceForce();
     
     Force.x = SurfaceTensionRate * Force.x;
@@ -227,12 +172,76 @@ CudaDeviceFunction vector_t getF() {
 CudaDeviceFunction vector_t getInterfaceForce() {
 	vector_t F = getNormal();
     real_t curv = getCurvature();
-    real_t phi_l = getPhaseField();
+    real_t phi_l = <?R C(sum(h)) ?> ;
     F.z = 0;
     F.x = curv  *  F.x * exp(- SurfaceTensionDecay * phi_l*phi_l);
     F.y = curv  *  F.y * exp(- SurfaceTensionDecay * phi_l*phi_l);
 
 	return F;
+}
+
+real_t rphis[9];
+bool rphis_set = false;
+CudaDeviceFunction void  InitPhisStencil(){
+
+    //TODO Use caching :/
+    rphis_set = false; 
+/*
+    if ( (NodeType & NODE_BOUNDARY) == NODE_SSymmetry ){
+       <?R 
+        for (j in (1:9)[ U[,2] > 0 ]) {
+            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
+            C(PV(paste("rphis[",j-1,"]")) , phis[op_i])                 
+        }
+        sel = (1:9)[U[,2]<=0]
+        C(PV(paste("rphis[",sel-1,"]")) , phis[sel])            
+       ?>
+
+        rphis_set = true;
+    }
+
+    if ( (NodeType & NODE_BOUNDARY) == NODE_NSymmetry ){
+       <?R 
+        for (j in (1:9)[ U[,2] < 0 ]) {
+            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
+            C(PV(paste("rphis[",j-1,"]")) , phis[op_i])                 
+        }
+        sel = (1:9)[U[,2]>=0]
+        C(PV(paste("rphis[",sel-1,"]")) , phis[sel])            
+       ?>
+
+        rphis_set = true;
+    }
+*/
+
+
+    if (rphis_set == false) {
+    real_t temp;
+    temp = 0;
+    <?R for (j in 1:9) { ?>
+        temp =  ( <?%s j-1 ?> * temp + ( <?R  C(phis[j]) ?> > -999 ?  <?R C(phis[j]) ?> : temp    ) ) * <?%s 1./j ?>;
+    <?R } ?>
+
+    <?R
+    for (j in 1:9) {
+    ?> 
+        if (<?R C(phis[j]) ?>  == -999) 
+        {
+            <?R op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] ?>
+            if (<?R C(phis[op_i]) ?>  == -999) {
+             <?R C(PV(paste("rphis[",j-1,"]")) , PV("temp")) ?> 
+            } else {
+             <?R C(PV(paste("rphis[",j-1,"]")) , phis[op_i]) ?> 
+            }
+                 
+        } else {
+            <?R C(PV(paste("rphis[",j-1,"]")) , phis[j]) ?> 
+        } 
+    <?R } ?>
+        rphis_set = true;
+    } 
+
+
 }
 
 CudaDeviceFunction real_t getCurvature() {
@@ -255,51 +264,11 @@ CudaDeviceFunction real_t getCurvature() {
     real_t curv;
 
     real_t ln = 0;    
-//    if (ln < 1E-8){
-//        curv = 0; 
- //   } else {
-    real_t temp;
+    InitPhisStencil();
     <?R
-        C(PV("temp"), sum(phis))
+           C( PV('laplace'), 3 * wis%*%PV(paste("rphis[",0:8,"]")  ))
     ?>
-
-
-
-
-    if (temp < -100) {
-        temp = 0;
-        <?R for (j in 1:9) { ?>
-            temp =  ( <?%s j-1 ?> * temp + ( <?R  C(phis[j]) ?> > -999 ?  <?R C(phis[j]) ?> : temp    ) ) * <?%s 1./j ?>;
-        <?R } ?>
-
-        laplace = 0;
-        <?R
-            laplace = PV(c("laplace"))
-            for (j in 1:9) {
-        ?> 
-            if (<?R C(phis[j]) ?>  == -999) 
-            {
-                <?R op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] ?>
-                if (<?R C(phis[op_i]) ?>  == -999) {
-                   <?R  C(laplace , laplace + wis[j]*PV("temp") ) ?>
-                } else {
-                   <?R C(laplace , laplace + wis[j]*phis[op_i]) ?>
-                }
-                 
-            } else {
-               <?R 
-                   C(laplace , laplace + wis[j]*phis[j])
-               ?> 
-            } 
-        <?R 
-        } 
-        C(laplace , 3 * laplace )
-        ?>
-         } else {
-    <?R
-           C( PV('laplace'), 3 * wis%*%phis  )
-    ?>
-    }
+   
 
 
         real_t phi_l = phi(0,0);
@@ -358,7 +327,45 @@ CudaDeviceFunction void Init() {
 }
 
 CudaDeviceFunction void CalcPhi() {
-   phi = getPhaseField() ;
+    if ( (NodeType & NODE_BOUNDARY) == NODE_SSymmetry ){
+       real_t ret = 0;
+       <?R 
+        ret = PV("ret")
+        for (j in (1:9)[ U[,2] > 0 ]) {
+            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
+            C( ret , ret + h[op_i])                 
+        }
+        sel = (1:9)[U[,2]<=0]
+        C(ret , ret + h[sel])            
+       ?>
+       phi =  ret;
+
+   }
+
+   if ( (NodeType & NODE_BOUNDARY) == NODE_NSymmetry ){
+        real_t ret = 0;
+        <?R 
+        ret = PV("ret")
+
+        for (j in (1:9)[ U[,2] < 0 ]) {
+            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
+            C( ret , ret + h[op_i])                
+        }
+        sel = (1:9)[U[,2]>=0]
+        C(ret , ret + h[sel])     
+        ?>
+        phi =  ret;
+
+   }
+
+
+   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+        phi =  -999;
+   } else {
+    	phi =  <?R C(sum(h)) ?> ;
+   }  
+    
+    
 }
 
 CudaDeviceFunction void Run() {
@@ -429,7 +436,7 @@ CudaDeviceFunction void EPressure()
 ?>
 }
 
-CudaDeviceFunction vector_t getBoundaryForcing(){
+/*CudaDeviceFunction vector_t getBoundaryForcing(){
     vector_t n = getNormal();
     real_t pf = getPhaseField();
     vector_t wd = getWallDirection();
@@ -480,10 +487,12 @@ CudaDeviceFunction vector_t getBoundaryForcing(){
     }
     return wd;
 }
+*/
+
 CudaDeviceFunction void CollisionMRT()
 {
     vector_t n = getNormal();
-    real_t pf = getPhaseField();
+    real_t pf = <?R C(sum(h)) ?> ;
 <?R
 	MI = solve(EQ$mat)
 	P = MI %*% diag(1/wi) %*% t(MI)
