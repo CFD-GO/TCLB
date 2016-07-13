@@ -1,7 +1,7 @@
 <?R
 # #############
-# based on "Conservative phase-field lattice Boltzmann model for interface tracking equation"
-# implemented and authored by M. Dzikowski 2016
+# Phase field advection based on "Conservative phase-field lattice Boltzmann model for interface tracking equation"
+# CSF multiphase model implemented and authored by M. Dzikowski 2016
 # Maintainer: Michal Dzikowski @mdzik
 # #############
 
@@ -53,7 +53,7 @@
     wis[1] = wis[1] - 1
     phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
     
-	d = PV(Density$name[Density$group=='d'])
+#	d = PV(Density$name[Density$group=='d'])
 
 ?>
 
@@ -118,10 +118,10 @@ CudaDeviceFunction vector_t getGradientPhi(){
         C(PV("temp"), sum(phis))
     ?>
     if (temp < -100) {
-    //   vector_t wd = getWallDirection();
-    //  real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
-    //   wd.x = wd.x / lwd;
-    //   wd.y = wd.y / lwd;
+        temp = 0;
+        <?R for (j in 1:9) { ?>
+            temp =  ( <?%s j-1 ?> * temp + ( <?R  C(phis[j]) ?> > -999 ?  <?R C(phis[j]) ?> : temp    ) ) * <?%s 1./j ?>;
+        <?R } ?>
         n.x = 0;
         n.y = 0;
         <?R
@@ -130,11 +130,14 @@ CudaDeviceFunction vector_t getGradientPhi(){
             for (j in 1:9) {
         ?> 
             if (<?R C(phis[j]) ?>  == -999) 
-            { 
-               <?R
-                op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] 
-                C(n , n + U[j,]*phis[op_i])
-                ?> 
+            {
+                <?R op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] ?>
+                if (<?R C(phis[op_i]) ?>  == -999) {
+                   <?R  C(n , n + U[j,]*PV("temp") ) ?>
+                } else {
+                   <?R  C(n , n + U[j,]*phis[op_i]) ?>
+                }
+                 
             } else {
                <?R 
                  C(n , n + U[j,]*phis[j])
@@ -170,11 +173,11 @@ CudaDeviceFunction vector_t getNormal(){
 CudaDeviceFunction vector_t getWallDirection(){
     vector_t n;
     <?R
-        n = PV(c('n.x', 'n.y'));
+#        n = PV(c('n.x', 'n.y'));
 #wallMasks = PV(paste('wallMask(',UN[1,],',',UN[2,],')')) 
-        C(n, d%*%U)
+#        C(n, d%*%U)
     ?>
-    real_t l = sqrt(n.x*n.x + n.y+n.y);
+/*    real_t l = sqrt(n.x*n.x + n.y+n.y);
     if (l == 0){
         l = 1.;
     } else {
@@ -182,7 +185,7 @@ CudaDeviceFunction vector_t getWallDirection(){
     }
 //    n.x = n.x * l;
   //  n.y = n.y * l;
-
+*/
     return n ;
 }
 CudaDeviceFunction vector_t getF() {
@@ -236,36 +239,43 @@ CudaDeviceFunction real_t getCurvature() {
     <?R
         C(PV("temp"), sum(phis))
     ?>
-    if (temp < -100) {
-    //   vector_t wd = getWallDirection();
-    //  real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
-    //   wd.x = wd.x / lwd;
-    //   wd.y = wd.y / lwd;
-        laplace = 0;
 
+
+
+
+    if (temp < -100) {
+        temp = 0;
+        <?R for (j in 1:9) { ?>
+            temp =  ( <?%s j-1 ?> * temp + ( <?R  C(phis[j]) ?> > -999 ?  <?R C(phis[j]) ?> : temp    ) ) * <?%s 1./j ?>;
+        <?R } ?>
+
+        laplace = 0;
         <?R
             laplace = PV(c("laplace"))
             for (j in 1:9) {
         ?> 
             if (<?R C(phis[j]) ?>  == -999) 
-            { 
-               <?R
-                op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] 
-                C(laplace , laplace + wis[j]*phis[op_i])
-                ?> 
+            {
+                <?R op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] ?>
+                if (<?R C(phis[op_i]) ?>  == -999) {
+                   <?R  C(laplace , laplace + wis[j]*PV("temp") ) ?>
+                } else {
+                   <?R C(laplace , laplace + wis[j]*phis[op_i]) ?>
+                }
+                 
             } else {
                <?R 
-                 C(laplace , laplace + wis[j]*phis[j])
+                   C(laplace , laplace + wis[j]*phis[j])
                ?> 
             } 
         <?R 
-        }
-            C(laplace, 3*laplace)
+        } 
+        C(laplace , 3 * laplace )
         ?>
-    } else {
-        <?R 
-            C( PV('laplace'), 3 * wis%*%phis  )
-        ?>    
+         } else {
+    <?R
+           C( PV('laplace'), 3 * wis%*%phis  )
+    ?>
     }
 
 
@@ -320,7 +330,7 @@ CudaDeviceFunction void Init() {
         C
 	);
     <?R
-        C(d,1)
+#       C(d,1)
     ?>
 }
 
@@ -357,7 +367,7 @@ CudaDeviceFunction void BounceBack()
 {
 <?R FullBounceBack() ?>
 <?R
-    C(d,1)
+#   C(d,1)
 ?>
 }
 
@@ -477,7 +487,9 @@ CudaDeviceFunction void CollisionMRT()
     # part related to h
 ?> 
 
-    vector_t u = getU();
+    vector_t u;
+    u.x = Jx + 0.5 * F.x;
+    u.y = Jy + 0.5 * F.y;
     real_t omega_ph =  1/( 3 * M + 0.5); 
     real_t Bh;
 
@@ -497,14 +509,14 @@ CudaDeviceFunction void CollisionMRT()
  //   vector_t zero;
  //   zero.x = 0;
  //   zero.y = 0;
-    real_t sd;
+ /*   real_t sd;
     sd = d[0];
     for (int i = 1; i <9; i++ ){
         sd = d[i] > sd ? d[i] : sd;
-    }
+    }*/
     <?R
-    sd =  PV('sd')
-    C( d, sd* PV('WallDistanceRatio') )
+#    sd =  PV('sd')
+#    C( d, sd* PV('WallDistanceRatio') )
     ?>
 
     

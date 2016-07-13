@@ -24,15 +24,15 @@ AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
-AddDensity( name="d[0]", dx= 0, dy= 0, group="d")
-AddDensity( name="d[1]", dx= 1, dy= 0, group="d")
-AddDensity( name="d[2]", dx= 0, dy= 1, group="d")
-AddDensity( name="d[3]", dx=-1, dy= 0, group="d")
-AddDensity( name="d[4]", dx= 0, dy=-1, group="d")
-AddDensity( name="d[5]", dx= 1, dy= 1, group="d")
-AddDensity( name="d[6]", dx=-1, dy= 1, group="d")
-AddDensity( name="d[7]", dx=-1, dy=-1, group="d")
-AddDensity( name="d[8]", dx= 1, dy=-1, group="d")
+#AddDensity( name="d[0]", dx= 0, dy= 0, group="d")
+#AddDensity( name="d[1]", dx= 1, dy= 0, group="d")
+#AddDensity( name="d[2]", dx= 0, dy= 1, group="d")
+#AddDensity( name="d[3]", dx=-1, dy= 0, group="d")
+#AddDensity( name="d[4]", dx= 0, dy=-1, group="d")
+#AddDensity( name="d[5]", dx= 1, dy= 1, group="d")
+#AddDensity( name="d[6]", dx=-1, dy= 1, group="d")
+#AddDensity( name="d[7]", dx=-1, dy=-1, group="d")
+#AddDensity( name="d[8]", dx= 1, dy=-1, group="d")
 
 
 
@@ -41,14 +41,14 @@ AddDensity( name="d[8]", dx= 1, dy=-1, group="d")
 AddField("phi"       ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
-         load=DensityAll$group == "f" | DensityAll$group == "h" | DensityAll$group == "d",  
-         save=Fields$group=="f" | Fields$group=="h"  | Fields$group=="d"
+         load=DensityAll$group == "f" | DensityAll$group == "h",# | DensityAll$group == "d",  
+         save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
          ) 
 AddStage("CalcPhi", 
          save=Fields$name=="phi" ,  
          load=DensityAll$group == "h"
          )
-AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h"  | Fields$group=="d"
+AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
 ) 
 
 
