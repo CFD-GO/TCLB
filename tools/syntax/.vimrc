@@ -1,7 +1,9 @@
-" COMPILED VIMRC optimized for nice CFD-GO IDE ;)
+"COMPILED VIMRC optimized for nice CFD-GO IDE ;)
 " best to work with neovim, should work without any problem with standard vim
 " Contains: syntax highlight, NERDTree, statusline, git integration etc.
 " Caretaker: mdzik
+
+
 
 
 call plug#begin('~/.vim/plugged')
@@ -14,29 +16,40 @@ Plug 'junegunn/vim-easy-align'
 " Any valid git URL is allowed
 Plug 'https://github.com/junegunn/vim-github-dashboard.git'
 
-" Group dependencies, vim-snippets depends on ultisnips
-Plug 'SirVer/ultisnips' | Plug 'honza/vim-snippets'
 
-" On-demand loading
 Plug 'scrooloose/nerdtree'
 
-", { 'on':  'NERDTreeToggle' }
-
-Plug 'tpope/vim-fireplace', { 'for': 'clojure' }
+"Plug 'tpope/vim-fireplace', { 'for': 'clojure' }
 Plug 'jistr/vim-nerdtree-tabs'
 " Using a non-master branch
 Plug 'rdnetto/YCM-Generator', { 'branch': 'stable' }
 
-" Plugin options
-Plug 'nsf/gocode', { 'tag': 'v.20150303', 'rtp': 'vim' }
 
-" Plugin outside ~/.vim/plugged with post-update hook
+
+"Plugin outside ~/.vim/plugged with post-update hook
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 
 " Unmanaged plugin (manually installed and updated)
 " Plug '~/my-prototype-plugin'
 Plug 'airblade/vim-gitgutter'
 " Add plugins to &runtimepath
+"
+Plug 'junegunn/fzf.vim'
+
+Plug 'junegunn/vim-peekaboo'
+
+Plug 'djoshea/vim-autoread'
+
+Plug 'tpope/vim-fugitive'
+
+Plug 'nathanaelkane/vim-indent-guides'
+
+Plug 'Xuyuanp/nerdtree-git-plugin'
+
+Plug 'ctrlpvim/ctrlp.vim'
+
+
+
 call plug#end()
 "autocmd VimEnter * NERDTree
 
@@ -290,7 +303,7 @@ set viminfo^=%
 set laststatus=2
 
 " Format the status line
-set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l
+set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l\ %{fugitive#statusline()}
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -373,9 +386,9 @@ map <leader>sen :set spell spelllang=en
 " => Misc
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " NERD Tree
-nmap <leader>t :NERDTreeToggle<CR>
+nmap <leader>t :NERDTreeTabsToggle<CR>
 
-"let NERDTreeShowBookmarks=1
+let NERDTreeShowBookmarks=1
 
 " Remove the Windows ^M - when the encodings gets messed up
 noremap <Leader>m mmHmt:%s/<C-V><cr>//ge<cr>'tzt'm
@@ -549,3 +562,16 @@ endfunction
 "aug END
 
 
+let g:NERDTreeIndicatorMapCustom = {
+    \ "Modified"  : "✹",
+    \ "Staged"    : "✚",
+    \ "Untracked" : "✭",
+    \ "Renamed"   : "➜",
+    \ "Unmerged"  : "═",
+    \ "Deleted"   : "✖",
+    \ "Dirty"     : "✗",
+    \ "Clean"     : "✔︎",
+    \ "Unknown"   : "?"
+    \ }
+
+let g:ctrlp_cmd = 'CtrlPMRUFiles'

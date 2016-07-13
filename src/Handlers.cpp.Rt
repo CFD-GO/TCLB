@@ -7,7 +7,6 @@
     #include "Python.h"
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
     #include <numpy/arrayobject.h>
-//    #include <numpy/old_defines.h>
 #endif
 
 
@@ -897,37 +896,94 @@ class cbFailcheck: public Callback {
 		reg.dx = solver->region.dx;
 		reg.dy = solver->region.dy;
 		reg.dz = solver->region.dz;
+	
+
+
+        pugi::xml_attribute attr = node.attribute("dx");
+        if (attr) {
+            reg.dx = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("dy");
+        if (attr) {
+            reg.dy = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("dz");
+        if (attr) {
+            reg.dz = solver->units.alt(attr.value());
+        }
+
+
+        attr = node.attribute("nx");
+        if (attr) {
+            reg.nx = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("ny");
+        if (attr) {
+            reg.ny = solver->units.alt(attr.value());
+        }
+        attr = node.attribute("nz");
+        if (attr) {
+            reg.nz = solver->units.alt(attr.value());
+        }
+
 		rkept = 1;
 		return 0;
 	}
 	int DoIt() {
 		Callback::DoIt();
-        	int ret = 0;
+       	int ret = 0;
 		int cond,fin;
 		fin = false;
 		cond = false;
+
+        pugi::xml_attribute comp = node.attribute("what");
+ 
+        name_set components;
+        if(comp){
+            components.add_from_string(comp.value(),',');
+        } else {
+            components.add_from_string("all",',');
+        }
+
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+        
 		if (!cond) {
-			<?%s q$type ?> tmp;
-			solver->lattice->Get<?%s q$name ?>(reg,&tmp);
-			<?R if (q$vector) { ?>
-	                cond = ((std::isnan(tmp.x)) || (std::isnan(tmp.y)) || (std::isnan(tmp.z)));  
-			<?R } else { ?>  
-			cond = (std::isnan(tmp));
-			<?R } ?>
+            if (components.in("<?%s q$name ?>")) {
+	    	    <?R if (q$vector) { ?>
+	                if (reg.size() == 0) {
+                        //  I dont think we need to check vectors in area, to expensive
+                        <?%s q$type ?> tmp;
+    	                solver->lattice->Get<?%s q$name ?>(reg,&tmp);
+                        cond = ((std::isnan(tmp.x)) || (std::isnan(tmp.y)) || (std::isnan(tmp.z))); 
+                    }
+    	    	<?R } else { ?> 
+                    <?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
+        	    	solver->lattice->Get<?%s q$name ?>(reg,tmp);
+
+                    cond = std::isnan(tmp[0]); // for single point
+                    
+                    for (int k = 0; k < reg.size(); k++){  
+    	       		    cond = cond || (std::isnan(tmp[k]));
+                    }
+    
+        		<?R } ?>
+                if(cond ){ notice("Checking <?%s q$name ?> discovered NaN"); }
+            }
 		}
 		<?R }; ifdef(); ?>
+
 		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPI_COMM_WORLD);
-	        if ((fin) && (rkept)) {
-                         rkept = 0;
-			 notice("NaN value discovered. Executing final actions from the Failcheck element before full stop...\n");
-                         for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
-                         	Handler hand(par, solver);
-                                if (hand) hand.DoIt();
-                         }
-                         notice("Stopping due to Nan value\n");
-                         ret = ITERATION_STOP;
-                }
+
+	    if ((fin) && (rkept)) {
+            rkept = 0;
+			notice("NaN value discovered. Executing final actions from the Failcheck element before full stop...\n");
+            for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+                Handler hand(par, solver);
+                if (hand) hand.DoIt();
+            }
+            notice("Stopping due to Nan value\n");
+            ret = ITERATION_STOP;
+        }
 		return ret;
 	}	
 	int Finish() {
@@ -1732,7 +1788,7 @@ class conControl: public Action {
                                 }
                                 ret = 1;
                         } else {
-                                ret = std::getline(ss, token, '*');
+                                ret = static_cast<bool>( std::getline(ss, token, '*') );
                         }
                         if (ret) {
                                 nscale = solver->units.alt(token);
@@ -2267,37 +2323,29 @@ class cbPythonCall: public Callback {
         pugi::xml_attribute module = node.attribute("module");
 		pugi::xml_attribute function = node.attribute("function");			
         pugi::xml_attribute comp = node.attribute("pass_component");
+        pugi::xml_attribute quan = node.attribute("quantities");
 
+
+        name_set components, quantities;
+        if(comp){
+            components.add_from_string(comp.value(),',');
+        }   
+        if(quan){
+            quantities.add_from_string(quan.value(),',');
+        } 
 		Callback::DoIt();
 
-		if (!module || !function || !comp) {
+		if (!module || !function || (!comp && !quan)) {
             error("Missing params in PythonCall");
         }
 
-        std::vector<std::string> components;
         std::vector<real_t*> buffers;
+        
 
-
-        char *str = strdup(comp.value());  // We own str's memory now.
-        char *token;
-        int n_components = 0;
-        while ((token = strsep(&str, ","))) {
-            components.push_back(std::string(token));
-            n_components++;
-        }
-
-        buffers.resize(n_components);
-
-        free(str);        
-
-        //variable menaged by selver!!
 #ifdef EMBEDED_PYTHON
 
-     //   output("buffer size: %d", size);
 ////BEGIN PYTHON HANDLING
-
-    	
-        
+ 
 
 	    PyObject *pName, *pModule, *pOffsets, *pFunc;
 	    PyObject *pValue, *pArgs;
@@ -2307,20 +2355,21 @@ class cbPythonCall: public Callback {
 	
 	    pModule = PyImport_Import(pName);
 	    Py_DECREF(pName);
-	
+        	
 	    if (pModule != NULL) {
+            int buff_id = 0; 
 	        pFunc = PyObject_GetAttrString( pModule, function.value() );
 	        /* pFunc is a new reference */
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
                
                 
-                pArgs = PyTuple_New(n_components+1);
-                
+                pArgs = PyTuple_New(components.size()+quantities.size()+1);
+                buffers.resize( components.size()+quantities.size() );
                 long int offsets[3] = {-1,-1,-1};
 
-                for (int i =0; i<n_components; i++){
-                    const char * component = components[i].c_str();
+                for (name_set::iterator it = components.begin(); it!=components.end(); ++it){
+                    const char * component = it->c_str();
     
                     PyObject* pInputData;
                     real_t * buffer;
@@ -2334,11 +2383,40 @@ class cbPythonCall: public Callback {
                         pInputData = PyArray_SimpleNewFromData(3, dims, NPY_DOUBLE, buffer);
                     }
                 
-                    buffers[i] = buffer;
+                    buffers[buff_id] = buffer;
 
                     //pInputData reference is stolen here
-                    PyTuple_SetItem(pArgs, i+1, pInputData);
+                    PyTuple_SetItem(pArgs, buff_id+1, pInputData);
+                    
+                    buff_id ++;
                 }
+
+
+                for (name_set::iterator it = quantities.begin(); it!=quantities.end(); ++it){
+                    const char * quantitie = it->c_str();
+    
+                    PyObject* pInputData;
+                    real_t * buffer;
+                    long int dims[4];
+
+                    long int size = solver->getQuantitieIntoBuffer(quantitie, buffer, dims, offsets );
+    
+                    if (sizeof(real_t) == sizeof(float) ) {
+                        pInputData = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT, buffer);
+                    } else if (sizeof(real_t) == sizeof(double) ){
+                        pInputData = PyArray_SimpleNewFromData(4, dims, NPY_DOUBLE, buffer);
+                    }
+                
+                    buffers[buff_id] = buffer;
+
+                    //pInputData reference is stolen here
+                    PyTuple_SetItem(pArgs, buff_id+1, pInputData);
+                    buff_id++;
+                }
+
+
+
+
                 
                 pOffsets = PyTuple_New(3);    
                 for (int k=0; k < 3; k++){
@@ -2369,20 +2447,30 @@ class cbPythonCall: public Callback {
 	        }
 	        Py_XDECREF(pFunc);
 	        Py_DECREF(pModule);
+            
+            int all_buff = buff_id;
+            buff_id = 0;
+
+            for (name_set::iterator it = components.begin(); it!=components.end(); ++it){
+                const char * component = it->c_str();
+                for (int k =0; k < 10; k++){
+                    debug1("PythonCall after,comp %s,  buffer %d, value %d: %f\n",component,buff_id,k, buffers[buff_id][k]);
+                }
+                int status = solver->loadComponentFromBuffer(component, buffers[buff_id]);
+                buff_id++;
+            }           
+            for (; buff_id <= all_buff; buff_id++){
+      //          delete [] buffers[buff_id];
+            }
+
 	    }
 	    else {
 	        PyErr_Print();
 	        error("PythonCall: Failed to load \"%s\"\n", module.value());
 	        return 1;
 	    }
-       
-        for (int i =0; i<n_components; i++){
-            const char * component = components[i].c_str();
-            for (int k =0; k < 10; k++){
-                debug1("PythonCall after,comp %s,  buffer %d, value %d: %f\n",component,i,k, buffers[i][k]);
-            }
-            int status = solver->loadComponentFromBuffer(component, buffers[i]);
-        }
+      
+
 //	    Py_Finalize();
 //END PYTHON HANDLING
 #else
