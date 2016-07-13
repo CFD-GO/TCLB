@@ -190,13 +190,15 @@ CudaDeviceFunction vector_t getWallDirection(){
 }
 CudaDeviceFunction vector_t getF() {
     real_t rho = getRho();
+    real_t pf = getPhaseField();
     vector_t Force = getInterfaceForce();
     
-    Force.x = Fscale * Force.x;
-    Force.y = Fscale * Force.y;
+    Force.x = SurfaceTensionRate * Force.x;
+    Force.y = SurfaceTensionRate * Force.y;
+	
+    Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
+    Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
 
-    Force.x += GravitationX*rho ;
-    Force.y += GravitationY*rho ;
     return Force;
 
 }
@@ -206,8 +208,8 @@ CudaDeviceFunction vector_t getInterfaceForce() {
     real_t curv = getCurvature();
     real_t phi_l = getPhaseField();
     F.z = 0;
-    F.x = curv  *  F.x * exp(- MagicA * phi_l*phi_l);
-    F.y = curv  *  F.y * exp(- MagicA * phi_l*phi_l);
+    F.x = curv  *  F.x * exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y = curv  *  F.y * exp(- SurfaceTensionDecay * phi_l*phi_l);
 
 	return F;
 }
@@ -356,6 +358,13 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
+    case NODE_NSymmetry:
+       <?R Symmetry(2,-1) ?>
+        break;
+    case NODE_SSymmetry:
+       <?R Symmetry(2,1) ?>
+        break;
+
     }
     if (NodeType & NODE_MRT)
     {

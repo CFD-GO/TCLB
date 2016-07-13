@@ -91,14 +91,18 @@ AddSetting(name="M", default=1, comment='Mobility')
 AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
-AddSetting(name="MagicA", default=0)
-AddSetting(name="Fscale", default=1)
+
+AddSetting(name="GravitationX_l", default=0)
+AddSetting(name="GravitationY_l", default=0)
+
+AddSetting(name="SurfaceTensionDecay", default=100)
+AddSetting(name="SurfaceTensionRate", default=0.1)
 AddSetting(name="WettingAngle", default=0, zonal=T)
-AddSetting(name="WallDistanceRatio", default=0.5, zonal=T)
+#AddSetting(name="WallDistanceRatio", default=0.5, zonal=T)
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
-AddNodeType(name="RightSymmetry",group="BOUNDARY")
-AddNodeType(name="TopSymmetry",group="BOUNDARY")
+AddNodeType(name="NSymmetry",group="BOUNDARY")
+AddNodeType(name="SSymmetry",group="BOUNDARY")
