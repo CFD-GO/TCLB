@@ -1,3 +1,10 @@
+#ifdef EMBEDED_PYTHON
+    #include "Python.h"
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
+
+
+
 #include <stdlib.h>
 #include <cstring>
 #include <iostream>
@@ -617,7 +624,7 @@ int Geometry::Draw(pugi::xml_node & node)
         reg.dy = y0 - Ry - 5;
         reg.dz = z0 - Rz - 5;
 
-        reg.nx = 2*Rz + 10;
+        reg.nx = 2*Rx + 10;
         reg.ny = 2*Ry + 10;
         reg.nz = 2*Rz + 10;
 
@@ -630,6 +637,41 @@ int Geometry::Draw(pugi::xml_node & node)
                double yy =  (.5 + y - y0);  
                double zz =  (.5 + z - z0);  
 			   if ( xx*xx/Rx2 + yy*yy/Ry2 + zz*zz/Rz2 < 1. ) {
+			    Dot(x, y, z);
+			   }
+		}
+	}  else if (strcmp(n.name(), "OffgridPipe") == 0) {
+
+        double x0 = units.alt(n.attribute("x").value());
+        double y0 = units.alt(n.attribute("y").value());
+        double z0 = units.alt(n.attribute("z").value());
+
+        double Rx,Ry;
+        if ( n.attribute("R").empty() ){
+           Rx = units.alt(n.attribute("Rx").value());
+           Ry = units.alt(n.attribute("Ry").value());
+        } else {
+           double R = units.alt(n.attribute("R").value());
+           Rx = R;
+           Ry = R;
+        }
+
+        double Rx2 = Rx*Rx;
+        double Ry2 = Ry*Ry;
+   
+        reg.dx = x0 - Rx - 5;
+        reg.dy = y0 - Ry - 5;
+
+        reg.nx = 2*Rx + 10;
+        reg.ny = 2*Ry + 10;
+	    debug1("Filling Z-pipe  with flag %d (%d)\n, with center at (%lf,%lfi,%f) and radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Rx,Ry);
+	    DEBUG1(reg.print();)
+		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+               double xx =  (.5 + x - x0);  
+               double yy =  (.5 + y - y0);  
+			   if ( xx*xx/Rx2 + yy*yy/Ry2 < 1. ) {
 			    Dot(x, y, z);
 			   }
 		}
@@ -655,7 +697,75 @@ int Geometry::Draw(pugi::xml_node & node)
 			if (inWedge((x - reg.dx) / (reg.nx - 1.), (y - reg.dy) / (reg.ny - 1.), (z - reg.dz) / (reg.nz - 1.), type)) {
 			    Dot(x, y, z);
 			}
-		    }
+         }
+    } else if (strcmp(n.name(), "PythonInline") == 0) {
+        #ifdef EMBEDED_PYTHON
+        
+        Py_Initialize();
+
+        // Make sure the GIL has been created since we need to acquire it in our
+        // callback to safely call into the python application.
+        if (! PyEval_ThreadsInitialized()) {
+            PyEval_InitThreads();
+        }
+        
+        PyObject *pGlobal;
+        PyObject* pyModule, *pLocal, *pValue;
+
+        PyGILState_STATE state;
+        state = PyGILState_Ensure();
+   
+        pyModule = PyImport_AddModule("__main__"); 
+        pLocal = PyModule_GetDict(pyModule);
+        pGlobal = PyModule_GetDict(pyModule);
+
+
+
+        pValue = PyRun_String( n.child_value(), Py_file_input, pGlobal, pLocal );
+
+
+        PyObject* pFunc = PyObject_GetAttrString(pyModule, "test"); ;
+        Py_INCREF(pFunc);
+        Py_DECREF(pValue);
+
+
+        if (pFunc && PyCallable_Check(pFunc)) {
+            PyObject* pArgs;
+            pArgs = PyTuple_New(3);
+  
+            for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+        	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+	            for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+
+                    PyTuple_SetItem( pArgs, 0, PyFloat_FromDouble((x-reg.dx)/(real_t)reg.nx));
+                    PyTuple_SetItem( pArgs, 1, PyFloat_FromDouble((y-reg.dy)/(real_t)reg.ny));
+                    PyTuple_SetItem( pArgs, 2, PyFloat_FromDouble((z-reg.dz)/(real_t)reg.nz));
+           
+                    //Call my function, passing it the number four
+                    pValue = PyObject_CallObject(pFunc, pArgs);
+
+           			if (  PyInt_AsLong(pValue) == 1 ) {
+   			             Dot(x, y, z);
+		            }
+                 
+                 }   
+            Py_DECREF(pArgs);
+        } else {
+            error("Provided Python code is not executable or does not contain 'test' function");        
+        }
+
+
+        Py_DECREF(pValue);
+        Py_XDECREF(pFunc);
+        Py_DECREF(pGlobal);
+        Py_DECREF(pLocal);
+        PyGILState_Release(state);
+        Py_Finalize();   
+
+        #else
+            error("You need to compile PYTHON support for this geometry element");
+        #endif
+
 	} else if (strcmp(n.name(), "STL") == 0) {
 	    debug1("Filling stl geometry with flag %d (%d)\n", fg, fg_mask);
 	    DEBUG1(reg.print();)
