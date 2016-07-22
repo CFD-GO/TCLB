@@ -48,7 +48,7 @@ inline double bspline_b(double x, int n, int w, int k, bool per) {
   if (w < 0) w=0;
   if (per) n = n + k;
   if (pcopy.size() != (size_t) n) pcopy.resize(n);
-  for (size_t i=0;i<n;i++) pcopy[i] = 0;
+  for (int i=0;i<n;i++) pcopy[i] = 0;
   pcopy[w] = 1;
   w = w + n - k;
   if (per && w < n) pcopy[w] = 1;
