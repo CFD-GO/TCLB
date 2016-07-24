@@ -22,7 +22,7 @@ if (! is.numeric(opt$limit)) stop("Limit not numeric.")
 eps = abs(opt$limit)
 
 opt$discard = strsplit(opt$discard,",")[[1]]
-if (! is.character(opt$discard)) stop("Distard list is not text")
+if (! is.character(opt$discard)) stop("Discard list is not text")
 
 tab1 = read(opt$filea)
 sel = names(tab1) %in% opt$discard
