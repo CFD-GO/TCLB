@@ -715,12 +715,12 @@ public:
 			return 0;
 		case PAR_UPPER:
 			for (int i=0;i<Pars;i++) {
-				tab[i]=upper;
+				tab[i] = upper;
 			}
 			return 0;
 		case PAR_LOWER:
 			for (int i=0;i<Pars;i++) {
-				tab[i]= lower;
+				tab[i] = lower;
 			}
 			return 0;
 		default:
@@ -1597,18 +1597,20 @@ class acOptimize: public GenericAction {
 		if (solver->mpi_rank == 0) {
 		DEBUG_M;
 		        method="MMA";
-        		pugi::xml_attribute attr = node.attribute("Method");
+        		pugi::xml_attribute attr = node.attribute("method");
         		if (attr) {
         		        method = attr.value();
                         }
 			<?R 
 				methods = data.frame(
-					name=c("LBFGS","MMA","COBYLA","NELDERMEAD"),
-					type=c("LD","LD","LN","LN")
+					name=c("LBFGS","MMA","COBYLA","NELDERMEAD", "DIRECT_L","ESCH"),
+					type=c("LD","LD","LN","LN","GN","GN")
 				)
+				methods$index = paste("NLOPT",methods$type,methods$name,sep="_")
 				for (method in rows(methods)) {
 			?> if (method == "<?%s method$name ?>") {
-        			opt = nlopt_create(NLOPT_<?%s method$type ?>_<?%s method$name ?>,par);
+				output("Setting the algorithm to <?%s method$name ?>(<?%s method$index ?>)\n");
+        			opt = nlopt_create(<?%s method$index ?>,par);
                         } else <?R } ?> {
        			        error("Unknown Method in Optimize: %s\n", method.c_str());
        			        exit(-1);
@@ -1715,7 +1717,9 @@ class acOptimize: public GenericAction {
 		if (GenericAction::ExecuteInternal()) return -1;
 		everyIter = solver->iter - startIter;
 //		solver->getDPar(grad);
-		GetGradient(grad);
+		if (grad == NULL) {
+			output("No need for gradient\n");
+		} else GetGradient(grad);
 		*f = solver->lattice->getObjective();
 		output("Evaluated objective: %lg\n", *f);
 		return 0;
