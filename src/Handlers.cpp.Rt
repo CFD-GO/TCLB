@@ -23,7 +23,7 @@
 #include "def.h"
 #include "utils.h"
 #include "unit.h"
-
+#include "spline.h"
 #include <sstream>
 #include <string>
 #include <fstream>
@@ -567,6 +567,161 @@ public:
 				tab[i]= -s/i0;
 			}
 			tab[0] = lower;
+			return 0;
+		default:
+			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
+			exit(-1);
+		}
+	};
+};
+
+class BSpline : public Design {
+	int Pars;
+	int Pars2;
+	double * tab2;
+	double lower, upper;
+	FILE * f;
+	Handler * hand;
+	double pi;
+	bool per;
+	int order;
+public:
+	int Init() {
+		Pars = -1;
+		pi = atan(1) * 4;
+		pugi::xml_attribute attr;
+                pugi::xml_node par = node.first_child();
+		if (! par) {
+			ERROR("%s needs exacly one child! - none found\n", node.name());
+			return -1;
+		}
+		hand = new Handler(par, solver);
+		par = par.next_sibling();
+		if (par) {
+			ERROR("%s needs exacly one child! - more found\n", node.name());
+			return -1;
+		}
+		if (! (*hand)) return -1;
+		if ((*hand).Type() != HANDLER_DESIGN) {
+			ERROR("%s needs child of design type!\n", node.name());
+			return -1;
+		}
+
+		Pars2 = (*hand)->NumberOfParameters();
+		attr = node.attribute("nodes");
+		if (attr) {
+			Pars = attr.as_int();
+		} else {
+			Pars = 10;
+			notice("number of modes not set in %s - setting to %d\n",node.name(), Pars);
+		}
+		output("Lenght of time-resolved control: %d\n", Pars2);
+		tab2 = new double[Pars2];
+		output("Lenght of b-spline control: %d\n", Pars);
+
+		attr = node.attribute("periodic");
+		if (attr) {
+			per=true;
+		} else {
+			per=false;
+		}
+
+		attr = node.attribute("order");
+		if (attr) {
+			order=attr.as_int();
+		} else {
+			order=3;
+		}
+
+		attr = node.attribute("lower");
+		if (attr) {
+			lower = solver->units.alt(attr.value());
+		} else {
+			notice("lower bound not set in %s - setting to -1\n",node.name());
+			lower = -1;
+		}
+		attr = node.attribute("upper");
+		if (attr) {
+			upper = solver->units.alt(attr.value());
+		} else {
+			notice("upper bound not set in %s - setting to 1\n",node.name());
+			upper = 1;
+		}
+		return Design::Init();
+	};
+	int Finish() {
+		delete hand;
+		double w = pi;
+		return 0;
+	}
+	int NumberOfParameters() {
+		return Pars;
+	};
+	double Pos(int j) {
+		if (per) return (1.0*j)/Pars2;
+		return j/(Pars2-1.0);
+	};
+	int Parameters(int type, double * tab) {
+		switch(type) {
+		case PAR_GET:
+			output("Getting the params and making fourier decomposition\n");
+			(*hand)->Parameters(type, tab2);
+			{
+                            double * mat = (double*) malloc(sizeof(double)*Pars*Pars);
+                            double * Y = (double*) malloc(sizeof(double)*Pars);
+                            for (int i=0; i<Pars;i++) {
+                                    Y[i]=0;
+                                    for (int k=0; k<Pars;k++) mat[i+Pars*k] = 0;
+                            }
+                            for (int j=0; j<Pars2; j++) {
+                                    double x = Pos(j);
+                                    for (int i=0; i<Pars;i++) {
+                                            double w = bspline_b(x, Pars, i, order, per);
+                                            Y[i] += w * tab2[j];
+                                            for (int k=0; k<Pars;k++) mat[i+Pars*k] += w * bspline_b(x, Pars, k, order, per);
+                                    }
+                            }
+                            for (int i=0; i<Pars;i++) {
+                                    for (int k=0; k<Pars;k++) printf("%5lf ", mat[i+Pars*k]);
+				printf("| %5lf\n", Y[i]);
+                            }
+			    
+			    GaussSolve (mat, Y, tab, Pars);
+                            free(mat);
+                            free(Y);
+			}
+			return 0;
+		case PAR_SET:
+			output("Setting the params with a fourier series\n");
+			for (int j=0; j<Pars2; j++) {
+				tab2[j] = 0;
+				double x = Pos(j);
+				for (int i=0; i<Pars;i++) {
+					tab2[j] += bspline_b(x, Pars, i, order, per) * tab[i];
+				}
+			}
+			(*hand)->Parameters(type, tab2);
+			return 0;
+		case PAR_GRAD:
+			output("Getting gradient and making fourier decomposition\n");
+			(*hand)->Parameters(type, tab2);
+			for (int i=0; i<Pars;i++) {
+				tab[i] = 0;
+				for (int j=0; j<Pars2; j++) {
+					double x = Pos(j);
+					tab[i] += bspline_b(x, Pars, i, order, per) * tab2[j];
+				}
+			}
+			return 0;
+		case PAR_UPPER:
+			for (int i=0;i<Pars;i++) {
+				tab[i] = upper;
+			}
+			return 0;
+		case PAR_LOWER:
+			for (int i=0;i<Pars;i++) {
+				tab[i] = lower;
+			}
 			return 0;
 		default:
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
@@ -1442,18 +1597,20 @@ class acOptimize: public GenericAction {
 		if (solver->mpi_rank == 0) {
 		DEBUG_M;
 		        method="MMA";
-        		pugi::xml_attribute attr = node.attribute("Method");
+        		pugi::xml_attribute attr = node.attribute("method");
         		if (attr) {
         		        method = attr.value();
                         }
 			<?R 
 				methods = data.frame(
-					name=c("LBFGS","MMA","COBYLA","NELDERMEAD"),
-					type=c("LD","LD","LN","LN")
+					name=c("LBFGS","MMA","COBYLA","NELDERMEAD", "DIRECT_L","ESCH"),
+					type=c("LD","LD","LN","LN","GN","GN")
 				)
+				methods$index = paste("NLOPT",methods$type,methods$name,sep="_")
 				for (method in rows(methods)) {
 			?> if (method == "<?%s method$name ?>") {
-        			opt = nlopt_create(NLOPT_<?%s method$type ?>_<?%s method$name ?>,par);
+				output("Setting the algorithm to <?%s method$name ?>(<?%s method$index ?>)\n");
+        			opt = nlopt_create(<?%s method$index ?>,par);
                         } else <?R } ?> {
        			        error("Unknown Method in Optimize: %s\n", method.c_str());
        			        exit(-1);
@@ -1560,7 +1717,9 @@ class acOptimize: public GenericAction {
 		if (GenericAction::ExecuteInternal()) return -1;
 		everyIter = solver->iter - startIter;
 //		solver->getDPar(grad);
-		GetGradient(grad);
+		if (grad == NULL) {
+			output("No need for gradient\n");
+		} else GetGradient(grad);
 		*f = solver->lattice->getObjective();
 		output("Evaluated objective: %lg\n", *f);
 		return 0;
@@ -2586,6 +2745,8 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new OptimalControlSecond;
     } else if (name=="Fourier") {
 		ret = new Fourier;
+    } else if (name=="BSpline") {
+		ret = new BSpline;
     } else if (name=="Optimize") {
 #ifdef WITH_NLOPT
 		ret = new acOptimize;

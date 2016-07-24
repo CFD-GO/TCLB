@@ -224,7 +224,7 @@ public:
 
   inline void ClearGrad () {
     for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
-      output("Clearing gradient in ZoneSettings (%d)\n", i);
+      debug0("Clearing gradient in ZoneSettings (%d)\n", i);
       CudaMemset(cpuTab[i], 0, sizeof(real_t) * len);
     }
   }
@@ -232,7 +232,7 @@ public:
   inline void CopyFromGPU () {
     for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
       assert(cpuTab[i] != NULL);
-      printf("Copying gradient data from GPU (%d)\n", i);
+      debug0("Copying gradient data from GPU (%d)\n", i);
       CudaMemcpy(cpuValues[i], cpuTab[i],  sizeof(real_t) * len, cudaMemcpyDeviceToHost);
     }
   }
