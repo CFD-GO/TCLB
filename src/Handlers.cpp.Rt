@@ -3,14 +3,13 @@
 	c_header();
 ?>
 
+#include "Consts.h"
 #ifdef EMBEDED_PYTHON
     #include "Python.h"
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
     #include <numpy/arrayobject.h>
 #endif
 
-
-#include "Consts.h"
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
@@ -2709,7 +2708,7 @@ vHandler * getHandler(pugi::xml_node node) {
 			pugi::xml_attribute attr = node.attribute("Iterations");
                 	if (attr) {
 				ret = new acSAdjoint;
-				WARNING("Making a steady adjoint, becouse you gave me Iterations - better to state type explicitly.\n");
+				WARNING("Making a steady adjoint, because you gave me Iterations - better to state type explicitly.\n");
 			} else {
 				WARNING("Default adjoint is unsteady - better state type explicitly next time.\n");
 				ret = new acUSAdjoint;
