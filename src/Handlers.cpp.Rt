@@ -3,14 +3,13 @@
 	c_header();
 ?>
 
+#include "Consts.h"
 #ifdef EMBEDED_PYTHON
     #include "Python.h"
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
     #include <numpy/arrayobject.h>
 #endif
 
-
-#include "Consts.h"
 #include "pugixml.hpp"
 #include "Global.h"
 #include <mpi.h>
