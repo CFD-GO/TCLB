@@ -37,10 +37,10 @@ class Sampler {
                	const char *filename;
 		int Finish();
        	};
-inline int csvWriteElement(FILE * f, float tmp) { return fprintf(f, "%g," , tmp); }
-inline int csvWriteElement(FILE * f, double tmp) { return fprintf(f, "%lg," , tmp); }
-inline int csvWriteElement(FILE * f, float3 tmp) { return fprintf(f, "%g,%g,%g," , tmp.x, tmp.y, tmp.z); }
-inline int csvWriteElement(FILE * f, double3 tmp) { return fprintf(f, "%lg,%lg,%lg," , tmp.x, tmp.y, tmp.z); }
+inline int csvWriteElement(FILE * f, float tmp) { return fprintf(f, ",%g" , tmp); }
+inline int csvWriteElement(FILE * f, double tmp) { return fprintf(f, ",%lg" , tmp); }
+inline int csvWriteElement(FILE * f, float3 tmp) { return fprintf(f, ",%g,%g,%g" , tmp.x, tmp.y, tmp.z); }
+inline int csvWriteElement(FILE * f, double3 tmp) { return fprintf(f, ",%lg,%lg,%lg" , tmp.x, tmp.y, tmp.z); }
 inline int csvWriteElement(FILE * f, vector_t tmp) {
        	csvWriteElement(f, tmp.x);
        	csvWriteElement(f, tmp.y);
