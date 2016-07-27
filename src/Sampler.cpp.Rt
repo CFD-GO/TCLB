@@ -21,7 +21,7 @@ int Sampler::initCSV(const char *name)
      f = fopen(name, "wt");
      output("Initializing %s\n",filename);
      assert( f != NULL );
-     fprintf(f,"Iteration,");
+     fprintf(f,"Iteration,X,Y,Z,");
      <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
      if (quant->in("<?%s q$name ?>")) 
 	<?R if (!q$vector) { ?> fprintf(f,"<?%s q$name ?>,");
@@ -39,10 +39,9 @@ int Sampler::writeHistory(int curr_iter) {
 		tmp_loc.x = spoints[j].location.dx;
 		tmp_loc.y = spoints[j].location.dy;
 		tmp_loc.z = spoints[j].location.dz;
-     		fprintf(f,"Point coordinates: ");
-		csvWriteElement(f,tmp_loc);
 		for (int i = startIter; i< curr_iter; i++){
-   	 		fprintf(f,"%d,",i);     
+   	 		fprintf(f,"%d,",i);
+ 			csvWriteElement(f,tmp_loc);
 	    		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 			if (quant->in("<?%s q$name ?>")) {
 				<?%s q$type ?> tmp;

@@ -954,6 +954,10 @@ class cbSample: public Callback{
 		std::string nm="Sampler";
 		char fn[STRING_LEN];
 		Callback::Init();
+		if (everyIter == 0) {
+                	error("Iteration value in sampler should not be zero");
+                	return -1;
+                }
 		pugi::xml_attribute attr=node.attribute("what");
 		if (attr) {
 			s.add_from_string(attr.value(),',');
