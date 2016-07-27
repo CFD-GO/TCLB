@@ -333,6 +333,28 @@ BSpline:
         unit: float
       comment: Upper limit on the values
 
+RepeatControl:
+  comment: >
+    Repeats a control for optimal control
+  example: |
+    <RepeatControl length="100" lower="-1" upper="1">
+      <OptimalControl what="Velocity-inlet"/>
+    </RepeatControl>
+  type: design
+  attr:
+    - name: length
+      val:
+        unit: int
+      comment: Length of the control to repeat
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the values
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the values
+
 Threshold:
   type: action
   comment: >
