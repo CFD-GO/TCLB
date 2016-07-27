@@ -87,6 +87,13 @@ for (m in Margin) { ?>
 #endif
 */
 #ifndef DEBUG_H   
+    #include <ctime>
+    extern std::clock_t global_start;
+
+    inline double get_walltime() {
+       return (std::clock() - global_start) / (double)CLOCKS_PER_SEC;
+    }
+
     extern int D_MPI_RANK;
     extern int D_TERMINAL;
 
