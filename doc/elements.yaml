@@ -305,6 +305,56 @@ Fourier:
         unit: float
       comment: Upper limit on the Fourier coefficients
 
+BSpline:
+  comment: >
+    Makes B-Spline transform/smoothing of a time-dependent Setting (OptimalControl)
+  example: |
+    <BSpline nodes="10" lower="-1" upper="1">
+      <OptimalControlSecond what="Velocity-inlet"/>
+    </BSpline>
+  type: design
+  attr:
+    - name: nodes
+      val:
+        numeric: int
+      comment: Number of degrees of freedom (parameters) of the b-spline
+    - name: periodic
+      val:
+        select:
+          - yes
+          - no
+      comment: If the b-spline should be periotic in the control period
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the values
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the values
+
+RepeatControl:
+  comment: >
+    Repeats a control for optimal control
+  example: |
+    <RepeatControl length="100" lower="-1" upper="1">
+      <OptimalControl what="Velocity-inlet"/>
+    </RepeatControl>
+  type: design
+  attr:
+    - name: length
+      val:
+        unit: int
+      comment: Length of the control to repeat
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the values
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the values
+
 Threshold:
   type: action
   comment: >

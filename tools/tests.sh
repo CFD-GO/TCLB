@@ -101,7 +101,7 @@ do
 					case "$EXT" in
 					csv)
 						COMMENT="(csvdiff)"
-						tools/csvdiff -a "$r" -b "$g" -x 1e-10 >/dev/null && R="OK"
+						tools/csvdiff -a "$r" -b "$g" -x 1e-10 -d Walltime >/dev/null && R="OK"
 						;;
 					sha1)
 						COMMENT="(SHA1 checksum)"
