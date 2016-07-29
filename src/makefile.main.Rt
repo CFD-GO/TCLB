@@ -188,7 +188,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 #	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
 
 #<?%s d ?>/%:$(SRC)/%
-#	@echo "  CP     4     $@"
+#	@echo "  CP         $@"
 #	@$(CP) $< $@
 
 <?%s d ?>/%:$(SRC)/%.Rt
