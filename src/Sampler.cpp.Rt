@@ -21,11 +21,11 @@ int Sampler::initCSV(const char *name)
      f = fopen(name, "wt");
      output("Initializing %s\n",filename);
      assert( f != NULL );
-     fprintf(f,"Iteration,");
+     fprintf(f,"Iteration,X,Y,Z");
      <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
      if (quant->in("<?%s q$name ?>")) 
-	<?R if (!q$vector) { ?> fprintf(f,"<?%s q$name ?>,");
-	<?R } else { ?> fprintf(f,"<?%s q$name ?>.x,<?%s q$name ?>.y,<?%s q$name ?>.z,"); <?R } ?>
+	<?R if (!q$vector) { ?> fprintf(f,",<?%s q$name ?>");
+	<?R } else { ?> fprintf(f,",<?%s q$name ?>.x,<?%s q$name ?>.y,<?%s q$name ?>.z"); <?R } ?>
      <?R }; ifdef(); ?> 
      fprintf(f,"\n");
      fclose(f); 
@@ -33,27 +33,26 @@ int Sampler::initCSV(const char *name)
 }
 int Sampler::writeHistory(int curr_iter) {
      FILE* f = fopen(filename,"at");
-     for (size_t j = 0; j <  spoints.size(); j++) {
-	if (mpis.rank == spoints[j].rank) { 
-		vector_t tmp_loc;
-		tmp_loc.x = spoints[j].location.dx;
-		tmp_loc.y = spoints[j].location.dy;
-		tmp_loc.z = spoints[j].location.dz;
-     		fprintf(f,"Point coordinates: ");
-		csvWriteElement(f,tmp_loc);
-		for (int i = startIter; i< curr_iter; i++){
-   	 		fprintf(f,"%d,",i);     
-	    		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+     for (int i = startIter; i< curr_iter; i++){
+	     for (size_t j = 0; j <  spoints.size(); j++) {
+		if (mpis.rank == spoints[j].rank) { 
+			vector_t tmp_loc;
+			tmp_loc.x = spoints[j].location.dx;
+			tmp_loc.y = spoints[j].location.dy;
+			tmp_loc.z = spoints[j].location.dz;
+			fprintf(f,"%d",i);
+			csvWriteElement(f,tmp_loc);
+			<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 			if (quant->in("<?%s q$name ?>")) {
 				<?%s q$type ?> tmp;
 				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost); 
 				csvWriteElement(f,tmp);
-		 	 	}
+				}
 			<?R }; ifdef(); ?> 
-	      		fprintf(f,"\n");
-		}
-		}
-       } 
+			fprintf(f,"\n");
+			}
+			}
+	       } 
       fclose(f);
      return 0;
  }

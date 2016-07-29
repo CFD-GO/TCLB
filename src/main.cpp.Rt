@@ -6,11 +6,12 @@
 /*     Here we have all the initialization and the main loop   */
 /*-------------------------------------------------------------*/
 
+#include "Consts.h"
+
 #ifdef EMBEDED_PYTHON
 #include <Python.h>
 #endif
 
-#include "Consts.h"
 #include "Global.h"
 #include <mpi.h>
 #include "Region.h"
@@ -166,6 +167,7 @@ bool find_adjoint(pugi::xml_node node)
 	} else return false;
 }
 
+
 // Main program function
 int main ( int argc, char * argv[] )
 {
@@ -183,7 +185,6 @@ int main ( int argc, char * argv[] )
 	DEBUG_M;
 	InitPrint(DEBUG_LEVEL, 6, 8);
 	MPI_Barrier(MPI_COMM_WORLD);
-	std::clock_t global_start;
 
 	global_start = std::clock();
 	if (solver.mpi_rank == 0) {

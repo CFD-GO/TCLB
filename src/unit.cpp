@@ -7,7 +7,7 @@
 #include "unit.h"
 #define IND(x,y) ((y)*n+(x))
 
-void gauss (double A[], double b[], double x[], int n)
+void GaussSolve (double A[], double b[], double x[], int n)
 {
   int i, j, k;
 
@@ -255,7 +255,7 @@ std::string strFromDouble(double val) {
       ERROR("Gauge variables under-constructed\n");
       throw(std::string("Wrong number of gauge variables"));
     }
-    gauss(Mat,b,x,m_unit);
+    GaussSolve(Mat,b,x,m_unit);
     for (int j=0;j<m_unit;j++) {
       scale[j] = exp(-x[j]);
     }

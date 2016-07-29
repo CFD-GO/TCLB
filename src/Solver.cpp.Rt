@@ -124,7 +124,7 @@ void MainFree( Solver *d);
                     f = fopen(filename, "wt");
                     assert( f != NULL );
 			
-                    fprintf(f,"\"Iteration\",\"Time_si\",\"Optimization\"");
+                    fprintf(f,"\"Iteration\",\"Time_si\",\"Walltime\",\"Optimization\"");
 		    <?R for (v in Settings$name) { ?>
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
@@ -173,7 +173,7 @@ void MainFree( Solver *d);
 			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
-			fprintf(f,"%d, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, opt_iter);
+			fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, get_walltime(), opt_iter);
 			for (int i=0; i< SETTINGS; i++) {
 				v = lattice->settings[i];
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);

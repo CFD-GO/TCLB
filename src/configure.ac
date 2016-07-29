@@ -260,6 +260,7 @@ if  test "x${with_python}" == "xyes"; then
     CPP_OPT="${CPPFLAGS} ${PF}"
     EMBEDED_PYTHON=1
     AC_MSG_RESULT([${PF}])
+	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
 fi
 
 
