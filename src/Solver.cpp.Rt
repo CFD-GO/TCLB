@@ -124,7 +124,7 @@ void MainFree( Solver *d);
                     f = fopen(filename, "wt");
                     assert( f != NULL );
 			
-                    fprintf(f,"\"Iteration\",\"Time_si\",\"Optimization\"");
+                    fprintf(f,"\"Iteration\",\"Time_si\",\"Walltime\",\"Optimization\"");
 		    <?R for (v in Settings$name) { ?>
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
@@ -173,7 +173,7 @@ void MainFree( Solver *d);
 			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
-			fprintf(f,"%d, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, opt_iter);
+			fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, get_walltime(), opt_iter);
 			for (int i=0; i< SETTINGS; i++) {
 				v = lattice->settings[i];
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
@@ -566,7 +566,7 @@ int Solver::getQuantitieIntoBuffer(const char* comp, real_t* &buf, long int*  di
 	output("Providing quantitie %s to buffer..\n", comp);
     bool somethingWritten = false;
 <?R 
-    for (q in rows(Quantities)) { 
+for (q in rows(Quantities)){ ifdef(q$adjoint); 
 ?>
 	if (strcmp(comp, "<?%s q$name ?>") == 0) {
     	<?%s q$type ?>* tmp_<?%s q$name ?> = new <?%s q$type ?>[n];
@@ -579,6 +579,7 @@ int Solver::getQuantitieIntoBuffer(const char* comp, real_t* &buf, long int*  di
     }
 <?R
 } 
+ifdef();
 ?>
     if (!somethingWritten){
         output("Possible quantities:\n");

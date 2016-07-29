@@ -67,7 +67,4 @@ ifeq '$(strip $(WITH_CATALYST))' '1'
  HEADERS += Catalyst.h
 endif
 
-ifeq '$(strip $(EMBEDED_PYTHON))' '1'
- OPT+=-D EMBEDED_PYTHON
-endif
 

@@ -21,7 +21,7 @@ AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Turbulence", comment='Turbulence intensity', zonal=TRUE)
 
-AddSetting(name="GalileanCorrection",default=0.,comment='Galilean correction term')
+AddSetting(name="GalileanCorrection",default=1.,comment='Galilean correction term')
 AddSetting(name="ForceX",default=0, comment='Force force X')
 AddSetting(name="ForceY",default=0,comment='Force force Y')
 AddSetting(name="ForceZ",default=0,comment='Force force Z')
