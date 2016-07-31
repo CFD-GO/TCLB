@@ -723,7 +723,9 @@ int Geometry::Draw(pugi::xml_node & node)
 
 
         pValue = PyRun_String( n.child_value(), Py_file_input, pGlobal, pLocal );
-
+        if (pValue == NULL){
+             error("Provided Python code is not executable or does not contain 'test' function");    
+        }
 
         PyObject* pFunc = PyObject_GetAttrString(pyModule, "test"); ;
         Py_INCREF(pFunc);
