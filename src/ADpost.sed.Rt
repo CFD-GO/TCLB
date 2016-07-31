@@ -4,15 +4,16 @@ s/void/CudaDeviceFunction void/
 <?R
 	for (v in rows(Settings)) {
 ?>
-s/0xFFFF<?%s v$index ?>/<?%s v$name ?>/g
+s/0xFFFF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?>/<?%s v$name ?>/g
 <?R
 	}
 	for (v in rows(ZoneSettings))
 		if (! v$adjoint) {
 ?>
-s/0xFFCF<?%s v$index ?>/<?%s v$name ?>/g
-s/0xFFDF<?%s v$index ?>/<?%s v$name ?>_DT/g
+s/0xFFCF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?>/<?%s v$name ?>/g
+s/0xFFDF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?>/<?%s v$name ?>_DT/g
 <?R
 	}
 ?>
 s/0xFFCCFFCC/NodeType/g
+

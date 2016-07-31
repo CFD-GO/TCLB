@@ -11,12 +11,12 @@ typedef struct {float x,y; } float2;
 
 <?R for (v in rows(Settings)) { ?>
 //	real_t <?%s v$name ?>;
-#define <?%s v$name ?> 0xFFFF<?%s v$index ?> <?R
+#define <?%s v$name ?> 0xFFFF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?> <?R
     } ?>
 #ifdef CONST_SETTINGS
 <?R for (v in rows(ZoneSettings)) if (! v$adjoint) { ?>
-#define <?%s v$name ?>    0xFFCF<?%s v$index ?>
-#define <?%s v$name ?>_DT 0xFFDF<?%s v$index ?><?R
+#define <?%s v$name ?>    0xFFCF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?>
+#define <?%s v$name ?>_DT 0xFFDF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?><?R
     } ?>
 #else
 <?R for (v in rows(ZoneSettings)) if (! v$adjoint) { ?>
@@ -38,3 +38,4 @@ real_t fabs(real_t val) {
 		return -val;
 	}
 }
+

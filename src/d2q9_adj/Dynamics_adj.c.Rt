@@ -16,7 +16,7 @@ CudaDeviceFunction real_t getWB(){
 
 CudaDeviceFunction vector_t getUB(){
         vector_t u;
-	<?R C(PV(c("u.x","u.y")) == PV(Density$adjoint_name[Density$group == "f"]) %% U) ?>;
+	<?R C(PV(c("u.x","u.y")) , PV(Density$adjoint_name[Density$group == "f"]) %*% U) ?>;
 	u.z=0;
 	return u;
 }
