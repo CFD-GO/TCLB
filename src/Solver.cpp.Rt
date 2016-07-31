@@ -108,6 +108,7 @@ void MainFree( Solver *d);
 		strcpy(_confname,info.conffile);
 		stripbare(_confname);
 		sprintf(info.outpath, "%s%s", out, _confname);
+		if (lattice != NULL) sprintf(lattice->snapFileName, "%s%s_Snap", out, _confname);
 		NOTICE("Setting output path to: %s\n", info.outpath);
 	}
 

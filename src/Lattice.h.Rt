@@ -71,6 +71,7 @@ public:
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
+  char snapFileName[STRING_LEN];
   Lattice (lbRegion region, MPIInfo, int);
   ~Lattice ();
   void MPIInit (MPIInfo);

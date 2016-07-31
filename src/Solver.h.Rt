@@ -79,7 +79,7 @@ class Solver {
 	void print(const char * str);
 	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
 	
-	inline Solver() : mpi_comm(MPI_COMM_WORLD) { Init(); };
+	inline Solver() : mpi_comm(MPI_COMM_WORLD), lattice(NULL) { Init(); };
 	~Solver();
 	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_) { Init(); };
 	void Init();
