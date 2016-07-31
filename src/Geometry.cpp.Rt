@@ -1,3 +1,4 @@
+#include "Consts.h"
 #ifdef EMBEDED_PYTHON
     #include "Python.h"
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -9,7 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include "pugixml.hpp"
-#include "Consts.h"
+
 #include "cross.h"
 #include "types.h"
 #include "Region.h"
@@ -722,7 +723,9 @@ int Geometry::Draw(pugi::xml_node & node)
 
 
         pValue = PyRun_String( n.child_value(), Py_file_input, pGlobal, pLocal );
-
+        if (pValue == NULL){
+             error("Provided Python code is not executable or does not contain 'test' function");    
+        }
 
         PyObject* pFunc = PyObject_GetAttrString(pyModule, "test"); ;
         Py_INCREF(pFunc);

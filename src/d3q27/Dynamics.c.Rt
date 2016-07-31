@@ -32,9 +32,14 @@ CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
 	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+    
+    u.x = u.x+ForceX*0.5;
+    u.y = u.y+ForceY*0.5;
+    u.z = u.z+ForceZ*0.5;
 	u.x /= d;
 	u.y /= d;
 	u.z /= d;
+
 	return u;
 }
 
@@ -193,6 +198,7 @@ CudaDeviceFunction void CollisionMRT()
 	Jx += ForceX;
 	Jy += ForceY;
 	Jz += ForceZ;
+    	AddToFlux((Jx+ForceX/2)/rho);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		Jx = 0;
 		Jy = 0;

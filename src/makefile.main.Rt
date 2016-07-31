@@ -84,7 +84,7 @@ for (d in destinations) {
 		src = paste("$(addprefix ",dest,",",src,")",sep="");
 		src_all = paste("$(addprefix ",dest,",",src_all,")",sep="");
 		src_all = paste(dest,src_all)
-		add = paste("$(addprefix ",d,"/,$(ADDITIONALS))",sep="")
+		add = paste("$(addprefix ",dest,"/,$(ADDITIONALS))",sep="")
 		src_all = paste(src_all,add)
 ?>
 <?%s m ?>:  | <?%s d ?>/<?%s m ?>
@@ -187,9 +187,9 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 #	@echo "  AUTOCONF   $@"
 #	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
 
-<?%s d ?>/%:$(SRC)/%
-	@echo "  CP         $@"
-	@$(CP) $< $@
+#<?%s d ?>/%:$(SRC)/%
+#	@echo "  CP         $@"
+#	@$(CP) $< $@
 
 <?%s d ?>/%:$(SRC)/%.Rt
 	@echo "  RT         $@"

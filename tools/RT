@@ -1,2 +1,3 @@
 #!/bin/bash
-R --vanilla --slave -e "rtemplate::RTscript()" --args $@
+R --slave -e "rtemplate::RTscript()" --args $@
+#R --vanilla --slave -e "rtemplate::RTscript()" --args $@

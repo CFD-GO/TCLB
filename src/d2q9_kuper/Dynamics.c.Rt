@@ -73,7 +73,8 @@ CudaDeviceFunction vector_t getF() {
             R = PV(c(paste("R[",1:9-1,"]",sep="")))
             C(R , ph);
         ?>
-        if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry) {
+         switch(NodeType & NODE_BOUNDARY){
+             case NODE_NSymmetry:
              <?R
                 reflect_to =  c(8,4,7) + 1;
                 reflect_from = c(5,2,6) + 1;
@@ -82,9 +83,21 @@ CudaDeviceFunction vector_t getF() {
                     C( R[reflect_to[i]], R[reflect_from[i]] )
                 }
             ?>
-     
-        }
-        if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry) {
+            break;
+
+             case NODE_SSymmetry:
+             <?R
+                reflect_to = c(5,2,6) + 1;
+                reflect_from = c(8,4,7) + 1;
+                for (i in 1:3)
+                {
+                    C( R[reflect_to[i]], R[reflect_from[i]] )
+                }
+            ?>
+            break;
+
+
+            case NODE_ESymmetry:
              <?R
                 reflect_to =  c(6,3,7) + 1;
                 reflect_from = c(5,1,8) + 1;
@@ -93,6 +106,7 @@ CudaDeviceFunction vector_t getF() {
                     C( R[reflect_to[i]], R[reflect_from[i]] )
                 }
             ?>
+            break;
      
         }       
         <?R
@@ -119,15 +133,24 @@ CudaDeviceFunction real_t getP(){
     double t = Temperature;
     double p;
 	double rho2;
-    if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry ) {
-        SymmetryTop();
-	}  
-    if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry ) {
-        SymmetryRight();
-	}      
+    switch(NodeType & NODE_BOUNDARY){
+        case NODE_NSymmetry:
+            NSymmetry();
+        break;
+        case NODE_SSymmetry:
+            SSymmetry();
+        break;
+        case NODE_ESymmetry:
+            ESymmetry();
+        break;
+	}
 	rho2 = <?R C(sum(f)) ?>;
-    if (((NodeType & NODE_BOUNDARY) != 0x0 ) && ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry) &&   ((NodeType & NODE_BOUNDARY) != NODE_RightSymmetry)){
-            rho2 = Density;
+    if (((NodeType & NODE_BOUNDARY) != 0x0 ) 
+            &&  ((NodeType & NODE_BOUNDARY) != NODE_NSymmetry) 
+            &&  ((NodeType & NODE_BOUNDARY) != NODE_SSymmetry)   
+            &&  ((NodeType & NODE_BOUNDARY) != NODE_ESymmetry)   
+    )  {
+        rho2 = Density;
 	}
 
 	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
@@ -271,14 +294,23 @@ CudaDeviceFunction void CalcPhi() {
          double t = Temperature;
         double p;
 	double rho2;
-    if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry ) {
-        SymmetryTop();
-	}
-    if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry ) {
-        SymmetryRight();
+    switch(NodeType & NODE_BOUNDARY){
+        case NODE_NSymmetry:
+            NSymmetry();
+        break;
+        case NODE_SSymmetry:
+            SSymmetry();
+        break;
+        case NODE_ESymmetry:
+            ESymmetry();
+        break;
 	}
 	rho2 = <?R C(sum(f)) ?>;
-    if (((NodeType & NODE_BOUNDARY) != 0x0 ) &&  ((NodeType & NODE_BOUNDARY) != NODE_TopSymmetry) &&  ((NodeType & NODE_BOUNDARY) != NODE_RightSymmetry)   )  {
+    if (((NodeType & NODE_BOUNDARY) != 0x0 ) 
+            &&  ((NodeType & NODE_BOUNDARY) != NODE_NSymmetry) 
+            &&  ((NodeType & NODE_BOUNDARY) != NODE_SSymmetry)   
+            &&  ((NodeType & NODE_BOUNDARY) != NODE_ESymmetry)   
+    )  {
         rho2 = Density;
 	}
 
@@ -313,11 +345,14 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
-    case NODE_TopSymmetry:
-        SymmetryTop();
+     case NODE_NSymmetry:
+        NSymmetry();
+    break;
+     case NODE_SSymmetry:
+        SSymmetry();
         break;
-    case NODE_RightSymmetry:
-        SymmetryRight();
+    case NODE_ESymmetry:
+        ESymmetry();
         break;
 
     }
@@ -329,10 +364,10 @@ CudaDeviceFunction void Run() {
     }
 //	CalcPhi();
 }
-CudaDeviceFunction void SymmetryTop()
+CudaDeviceFunction void NSymmetry()
 {
 // *******************
-// Symmetry BC for BOTTOM WALL
+// Symmetry BC for TOP WALL
 // *******************    
 <?R
   reflect_to =  c(4,7,8) + 1;
@@ -344,8 +379,23 @@ CudaDeviceFunction void SymmetryTop()
   }
 ?>
 }
-
-CudaDeviceFunction void SymmetryRight()
+CudaDeviceFunction void SSymmetry()
+{
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+<?R
+  reflect_to = c(2,6,5) + 1;
+  reflect_from = c(4,7,8) + 1;
+ 
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+#    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>
+}
+CudaDeviceFunction void ESymmetry()
 {
 // *******************
 // Symmetry BC for RIGHT WALL

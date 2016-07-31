@@ -17,21 +17,24 @@ AddQuantity( name="W")
 AddQuantity( name="WB",adjoint=T)
 
 AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
+AddSetting(name="nu", omega='1-1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="Velocity", default="0m/s", comment='inlet velocity', zonal=TRUE)
+AddSetting(name="Pressure", default="0Pa", comment='inlet pressure', zonal=TRUE)
 
-AddGlobal(name="PressDiff", comment='pressure loss')
+AddSetting(name="ForceX", comment='Gravitation in the direction of x')
+AddSetting(name="ForceY", comment='Gravitation in the direction of y')
+
 AddGlobal(name="Drag", comment='pressure loss')
 AddGlobal(name="Lift", comment='pressure loss')
 AddGlobal(name="MaterialPenalty", comment='material penalty')
 AddGlobal(name="Material", comment='material')
+AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
+AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
+AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
 AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of porocity (-infty,1)')
 AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
 
-AddNodeType("Porous","ADDITIONALS")
-AddSetting(name="InitPorocity", comment='initial porocity of Porous nodes')
+AddSetting(name="Porocity", comment='initial porocity of Porous nodes', zonal=TRUE)
 
-AddNodeType(name="MovingWall", group="BOUNDARY")
+#AddNodeType(name="MovingWall", group="BOUNDARY")
