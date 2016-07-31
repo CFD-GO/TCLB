@@ -175,10 +175,10 @@ int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
 
 
 
-inline int txtWriteElement(FILE * f, float tmp) { return fprintf(f, "%g" , tmp); }
-inline int txtWriteElement(FILE * f, double tmp) { return fprintf(f, "%lg" , tmp); }
-inline int txtWriteElement(FILE * f, float3 tmp) { return fprintf(f, "%g,%g,%g" , tmp.x, tmp.y, tmp.z); }
-inline int txtWriteElement(FILE * f, double3 tmp) { return fprintf(f, "%lg,%lg,%lg" , tmp.x, tmp.y, tmp.z); }
+inline int txtWriteElement(FILE * f, float tmp) { return fprintf(f, "%.8g" , tmp); }
+inline int txtWriteElement(FILE * f, double tmp) { return fprintf(f, "%.16lg" , tmp); }
+//inline int txtWriteElement(FILE * f, float3 tmp) { return fprintf(f, "%g,%g,%g" , tmp.x, tmp.y, tmp.z); }
+//inline int txtWriteElement(FILE * f, double3 tmp) { return fprintf(f, "%lg,%lg,%lg" , tmp.x, tmp.y, tmp.z); }
 inline int txtWriteElement(FILE * f, vector_t tmp) {
 	txtWriteElement(f, tmp.x);
 	fprintf(f,",");
