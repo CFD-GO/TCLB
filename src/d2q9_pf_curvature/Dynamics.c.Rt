@@ -181,7 +181,7 @@ CudaDeviceFunction vector_t getInterfaceForce() {
 }
 
 real_t rphis[9];
-bool rphis_set = false;
+bool rphis_set ;
 CudaDeviceFunction void  InitPhisStencil(){
 
     //TODO Use caching :/
@@ -425,6 +425,10 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void WVelocity()
 {
 <?R ZouHe(EQ, 1, 1, "velocity") ?>
+ <?R
+    u = PV(c('Jx/rho', 'Jy/rho'))
+    C( h,  wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)* PV('PhaseField') )
+ ?>   
 }
 
 CudaDeviceFunction void EPressure()

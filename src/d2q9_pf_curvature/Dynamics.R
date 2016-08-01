@@ -86,8 +86,8 @@ AddSetting(name="omega_l", comment='one over relaxation time, light phase')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="W", default=1, comment='Anty-diffusivity coeff')
-AddSetting(name="M", default=1, comment='Mobility')
+AddSetting(name="W", default=0.1, comment='Anty-diffusivity coeff')
+AddSetting(name="M", default=0.05, comment='Mobility')
 AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
@@ -104,5 +104,16 @@ AddSetting(name="WettingAngle", default=0, zonal=T)
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+
 AddNodeType(name="NSymmetry",group="BOUNDARY")
 AddNodeType(name="SSymmetry",group="BOUNDARY")
+
+AddNodeType(name="EPressure",group="BOUNDARY")
+AddNodeType(name="WPressure",group="BOUNDARY")
+
+AddNodeType(name="EVelocity",group="BOUNDARY")
+AddNodeType(name="WVelocity",group="BOUNDARY")
+
+
+
+
