@@ -171,12 +171,14 @@ CudaDeviceFunction vector_t getF() {
     real_t rho = getRho();
     real_t pf = <?R C(sum(h)) ?> ;
     vector_t Force = getInterfaceForce();
-    
-    Force.x = SurfaceTensionRate * Force.x;
-    Force.y = SurfaceTensionRate * Force.y;
+    //surface tension
+  //  Force.x = SurfaceTensionRate * Force.x;
+  //  Force.y = SurfaceTensionRate * Force.y;
 	
+    //bouncy
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
     Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
+
 
     return Force;
 
@@ -186,9 +188,54 @@ CudaDeviceFunction vector_t getInterfaceForce() {
 	vector_t F = getNormal();
     real_t curv = getCurvature();
     real_t phi_l = <?R C(sum(h)) ?> ;
+    if (phi_l * phi_l > 0.245) { 
+        phi_l = 0.5; 
+    }
+    real_t scale =  W * (1-4*phi_l*phi_l);
+
     F.z = 0;
-    F.x = curv  *  F.x * exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y = curv  *  F.y * exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.x =  SurfaceTensionRate * curv  *  F.x  * scale; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  SurfaceTensionRate * curv  *  F.y  * scale;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+
+
+    //wetting angle forcing
+    <?R cat('real_t '); C(PV('temp'), sum(phis)) ?>;
+    
+    if (temp < - 100) {
+        vector_t n;
+
+        n.x = 0;
+        n.y = 0;
+        n.z = 0;
+       <?R for (j in 1:9) { ?> 
+            n.x += <?R C(phis[j]) ?> == -999 ? 0 : <?%s U[j,1]?>;
+            n.y += <?R C(phis[j]) ?> == -999 ? 0 : <?%s U[j,2]?>;
+       <?R } ?>
+       real_t l = sqrt(n.x*n.x + n.y*n.y);
+       if (l == 0){
+           l = 1.;
+       } else {
+            l = 1. / l;
+       }
+       //convert to tangent versor
+       temp = n.x;
+       n.x = -n.y * l ;
+       n.y = temp * l ;
+
+       vector_t p_n = getNormal();
+       real_t sign = n.x*p_n.x + n.y*p_n.y;
+    
+       if (sign < 0){
+         n.x = -n.x;
+         n.y = -n.y;
+       }
+        
+       F.x =  WallAdhesion*n.x * scale;
+       F.y =  WallAdhesion*n.y * scale;
+    
+    }
+
+
 
 	return F;
 }

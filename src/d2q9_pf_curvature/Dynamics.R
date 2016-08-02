@@ -97,7 +97,8 @@ AddSetting(name="GravitationY_l", default=0)
 
 AddSetting(name="SurfaceTensionDecay", default=100)
 AddSetting(name="SurfaceTensionRate", default=0.1)
-AddSetting(name="WettingAngle", default=0, zonal=T)
+AddSetting(name="WallAdhesion", default=0, zonal=T)
+AddSetting(name="WallAdhesionDecay", default=0, zonal=T)
 #AddSetting(name="WallDistanceRatio", default=0.5, zonal=T)
 # Globals - table of global integrals that can be monitored and optimized
 
