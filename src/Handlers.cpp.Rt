@@ -1929,6 +1929,9 @@ class acFDTest: public GenericOptimizer {
 	double * grad;
 	double * lower, * upper;
 	int order;
+	int par_start, par_num;
+	double h_min,h_max;
+	int h_n;
 	public:
 	int OptimizerInit() {
 		start = NULL;
@@ -1954,6 +1957,35 @@ class acFDTest: public GenericOptimizer {
 		order = order + (order % 2);
 		order = order / 2;
 		
+		attr = node.attribute("parameters");
+		par_start = 0;
+		par_num = Pars;
+		if (attr) {
+			std::string par = attr.value();
+                        unsigned int i = par.find_first_of(':');
+                        if (i == string::npos) {
+				par_start = attr.as_int();
+                        } else {
+				if (i == 0) {
+					par_num = atoi(par.substr(i+1).c_str())+1;
+				} else if (i == par.size()-1) {
+					par_start = atoi(par.substr(0,i).c_str());
+					par_num = Pars - par_start;
+				} else {
+					par_start = atoi(par.substr(0,i).c_str());
+					par_num = atoi(par.substr(i+1).c_str()) - par_start + 1;
+				}
+			}			
+		}
+		notice("Parameters in test: %d:%d (%d) from %d\n",par_start,par_start+par_num-1,par_num,Pars);
+		if (par_num < 1) { ERROR("You need at least one parameter in FDTest"); return -1; }
+		if (par_start < 0) { ERROR("You need at least one parameter in FDTest"); return -1; }
+		if ((par_start < 0) || (par_start >= Pars) || (par_start+par_num > Pars)) {
+			ERROR("Parameter out of bounds in FDTest");
+			return -1;
+		}
+
+
 		start = new double[Pars];
 		grad = new double[Pars];
 		lower = new double[Pars];
