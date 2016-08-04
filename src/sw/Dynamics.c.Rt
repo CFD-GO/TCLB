@@ -185,7 +185,7 @@ CudaDeviceFunction float2 Color() {
         float2 ret;
 //        vector_t u = getU();
 //        ret.x = sqrt(u.x*u.x + u.y*u.y);
-	real_t d = getRho();
+	real_t d = getRho()/Height;
 	ret.x = (d-1)*111;
 //	ret.x=wb;
 	if ((NodeType & NODE_OBJECTIVE) == NODE_Obj1) {
