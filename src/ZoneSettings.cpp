@@ -14,8 +14,8 @@ int ZoneSettings::dumpToFile(const char* filename) {
     }
   }
   fprintf(f,"\n");
-  for (int it=0; it<len; it++) {
-    fprintf(f,"%d",it);
+  for (size_t it=0; it<len; it++) {
+    fprintf(f,"%ld",it);
     for (int z=0; z<MaxZones; z++) {
       for (int s=0; s<ZONESETTINGS; s++) {
         for (int d=0; d<2; d++) {
