@@ -1977,12 +1977,38 @@ class acFDTest: public GenericOptimizer {
 				}
 			}			
 		}
-		notice("Parameters in test: %d:%d (%d) from %d\n",par_start,par_start+par_num-1,par_num,Pars);
+		output("Parameters in test: %d:%d (%d) from %d\n",par_start,par_start+par_num-1,par_num,Pars);
 		if (par_num < 1) { ERROR("You need at least one parameter in FDTest"); return -1; }
 		if (par_start < 0) { ERROR("You need at least one parameter in FDTest"); return -1; }
 		if ((par_start < 0) || (par_start >= Pars) || (par_start+par_num > Pars)) {
 			ERROR("Parameter out of bounds in FDTest");
 			return -1;
+		}
+
+		h_min = log(1e-11);
+		attr = node.attribute("hmin");
+		if (attr) {
+			double h = attr.as_double();
+			if (h <= 0) { ERROR("You need to provide a H > 0 in FDTest"); return -1; }
+			h_min = log(h);
+		}
+		h_max = log(1);
+		attr = node.attribute("hmax");
+		if (attr) {
+			double h = attr.as_double();
+			if (h <= 0) { ERROR("You need to provide a H > 0 in FDTest"); return -1; }
+			h_max = log(h);
+		}
+		h_n = 24;
+		attr = node.attribute("levels");
+		if (attr) {
+			h_n = attr.as_int();
+			if (h_n < 2) { ERROR("You need to provide a levels >= 2 in FDTest"); return -1; }
+		}
+		output("Levels is test: %le .. %le (%d)\n",exp(h_min), exp(h_max), h_n);
+		for (int ih=0; ih<h_n; ih++) {
+			double h = exp(h_min + ((h_max - h_min)*ih)/(h_n-1));
+			notice("H Level: %le\n", h);
 		}
 
 
@@ -2013,10 +2039,11 @@ class acFDTest: public GenericOptimizer {
 		for (int o=0; o < order; o++) fprintf(f,", LeftObj%d",o+1);
 		for (int o=order; o >0; o--) fprintf(f,", CentralDiff%d",o);
 		fprintf(f,"\n");
-		for (int k=0; k<Pars; k++) {
+		for (int k=par_start; k<par_start+par_num; k++) {
 			output("Testing parameter %d",k);
-			for (int ih=0; ih<24; ih++) {
-				double h = dx[k] * pow(10.0, ih * 0.5 - 11);
+			for (int ih=0; ih<h_n; ih++) {
+				double h = dx[k] * exp(h_min + ((h_max - h_min)*ih)/(h_n-1));
+				output("Running h=%le\n",h);
 				for (int i=0;i<Pars; i++) x[i] = start[i];
 				double val[9]; const int p=4;
 				for (int m=-order; m<=order;m++) if(m != 0) {
