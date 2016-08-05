@@ -2035,7 +2035,7 @@ class acFDTest: public GenericOptimizer {
 		f = fopen((std::string(solver->info.outpath) + "_FD_test.csv").c_str(),"w");
 		fprintf(f, "Parameter, Value, Gradient, H");
 		for (int o=order; o > 0; o--) fprintf(f,", RightObj%d",o);
-		fprintf(f, ", Objective,");
+		fprintf(f, ", Objective");
 		for (int o=0; o < order; o++) fprintf(f,", LeftObj%d",o+1);
 		for (int o=order; o >0; o--) fprintf(f,", CentralDiff%d",o);
 		fprintf(f,"\n");
