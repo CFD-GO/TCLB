@@ -1,18 +1,14 @@
 // 19/7/2016 - Model Developed: A. Fakhari, M. Geier, T. Lee
 // """"A mass-conserving LBM with dynamic grid refinement for immiscible
 //     two-phase flows""""
-// e.g. files start with d2q9_pf_press
+// 
 // Maintainer: Travis-Mitchell @TravisMitchell
 //		Phase Field Implementation manipulated from: d2q9_pf - @mzdik
 
 // Code updates:
-//		19/7/16 - No grid refinement used, possibly discuss with Lukasz/Michal
-//				   in regards to chimera branch.
-//		20/7/16 - Successful build of code - unstable run, issue with attempting to dynamically
-//					select stencil values - need to be defined when compiled :/.
-//    				So defined stencils in GradCPhi, GradMPhi which is not the best option (should do with python).
-//		27/7/16 - Attempted switch to python generated code, but even though runs in python, it won't generate the code
-//   				in TCLB
+//		19/07/16 - No dynamic grid refinement used, possibly discuss with Lukasz/Michal.
+//		05/08/16 - Typo error found in getMu - fixed
+//				 - MRT relaxation - new variables defined so that matrix multiplication not computed while updating R[0], R[1] etc.
   
    
 <?R
@@ -38,7 +34,9 @@
 	B = EQ$mat %*% t(H)
 
 	EQ = MRT_eq(U, mat=B)
-
+	
+	S = PV(c("S[0]","S[1]","S[2]","S[3]","S[4]","S[5]","S[6]","S[7]","S[8]"))
+	
 	f = PV(Density$name[Density$group=='f'])
 	rho = PV("rho")
 	J = PV("J",c("x","y"))
@@ -88,6 +86,7 @@ GMPhi = var(['Rm[0]','Rm[1]','Rm[2]','Rm[3]','Rm[4]','Rm[5]','Rm[6]','Rm[7]','Rm
 G = var(['Gamma[0]','Gamma[1]','Gamma[2]','Gamma[3]','Gamma[4]','Gamma[5]','Gamma[6]','Gamma[7]','Gamma[8]'])
 R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
 F_b = var(['Fb_x','Fb_y'])
+F_g = var(['rho*GravitationX', 'rho*GravitationY'])
 #end 
 ?>
 
@@ -107,46 +106,48 @@ CudaDeviceFunction vector_t getU(){
 	real_t pf   = PhaseF(0,0);
 	real_t rho  = Density_l + (Density_h - Density_l) * (pf-PhaseField_l)/(PhaseField_h-PhaseField_l);
 	real_t mu   = getMu();
-	real_t Fb_x = (rho-Density_h)*GravitationX;
-	real_t Fb_y = (rho-Density_h)*GravitationY;	
-	real_t GradCPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
-	real_t GradCPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
+	real_t Fb_x = (rho-Density_h)*BuoyancyX;
+	real_t Fb_y = (rho-Density_h)*BuoyancyY;
+	real_t GradPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
+	real_t GradPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
 	
 	vector_t u;
 	<?R C(PV(c("u.x","u.y")), f %*% U) ?>
-	u.x = (3.0/rho) * (u.x + 0.5*(mu*GradCPhix+Fb_x));
-	u.y = (3.0/rho) * (u.y + 0.5*(mu*GradCPhiy+Fb_y));
+	u.x = (3.0/rho) * (u.x + 0.5*(mu*GradPhix + Fb_x + rho*GravitationX));
+	u.y = (3.0/rho) * (u.y + 0.5*(mu*GradPhiy + Fb_y + rho*GravitationY));
 	u.z = 0.0;
 	return u;
 }
 CudaDeviceFunction real_t getP(){
 	vector_t u = getU();
-	real_t GradCPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
-	real_t GradCPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
-	real_t Drho = (Density_h - Density_l);
-	real_t   p = <?R C(sum(f)) ?> + Drho*(GradCPhix*u.x + GradCPhiy*u.y)/6.0;
+	real_t GradPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
+	real_t GradPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
+	
+	real_t   p = <?R C(sum(f)) ?> + (Density_h - Density_l)*(GradPhix*u.x + GradPhiy*u.y)/6.0;
 	return p;
 }
 CudaDeviceFunction real_t getMu(){
 	real_t mu, pf = PhaseF(0,0);
 	real_t pfavg = 0.5*(PhaseField_l+PhaseField_h);
-	real_t lpPhi = LaplacePhi();
+	real_t lpPhi = (PhaseF(1,1)+PhaseF(-1,1)+PhaseF(1,-1)+PhaseF(-1,-1) +
+				4.0*(PhaseF(1,0)+PhaseF(-1,0)+PhaseF(0,1)+PhaseF(0,-1) ) -
+					20.0*PhaseF(0,0))/6.0;
 	
-	return mu = 4.0*(12.0*sigma/M) *(pf-PhaseField_l)*(pf-PhaseField_h)*(pf-pfavg) - (1.5*sigma*W) * lpPhi;
+	return mu = 4.0*(12.0*sigma/W) *(pf-PhaseField_l)*(pf-PhaseField_h)*(pf-pfavg) - (1.5*sigma*W) * lpPhi;
 }
 CudaDeviceFunction vector_t getNormal(){
 	vector_t n;
-	vector_t gradPhi = GradPhi();
-	gradPhi.z = 0.0;
+	real_t GradPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
+	real_t GradPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
 							  
-	real_t magGradPhi = sqrt(gradPhi.x * gradPhi.x + gradPhi.y * gradPhi.y);
+	real_t magGradPhi = sqrt(GradPhix * GradPhix + GradPhiy * GradPhiy);
 	
 	if (magGradPhi == 0){
 		n.x = 0.0;
 		n.y = 0.0;
 	} else {
-		n.x = gradPhi.x/magGradPhi;
-		n.y = gradPhi.y/magGradPhi;
+		n.x = GradPhix/magGradPhi;
+		n.y = GradPhiy/magGradPhi;
 	}
 	n.z = 0.0;
 	
@@ -155,11 +156,14 @@ CudaDeviceFunction vector_t getNormal(){
 }
 CudaDeviceFunction vector_t getInterfaceForce(){
 	real_t mu = getMu();
-	vector_t gradPhi = GradPhi();
+	real_t GradPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
+	real_t GradPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
 	vector_t Force;
-	Force.x = mu*gradPhi.x;
-	Force.y = mu*gradPhi.y;
+	
+	Force.x = mu*GradPhix;
+	Force.y = mu*GradPhiy;
 	Force.z = 0;
+	
 	return Force;
 }
 
@@ -167,33 +171,10 @@ CudaDeviceFunction vector_t getInterfaceForce(){
 CudaDeviceFunction void calcPhaseF(){
 	PhaseF = <?R C(sum(h)) ?>;
 }
-CudaDeviceFunction vector_t GradPhi(){
-	vector_t gradPhi;
-	
-	gradPhi.x = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
-	gradPhi.y = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
-	gradPhi.z = 0.0;
-	
-	return gradPhi;
-}
-CudaDeviceFunction real_t LaplacePhi(){
-	real_t LpPhi;
-	LpPhi = (PhaseF(1,1)+PhaseF(-1,1)+PhaseF(1,-1)+PhaseF(-1,-1) +
-				4.0*(PhaseF(1,0)+PhaseF(-1,0)+PhaseF(0,1)+PhaseF(0,-1) ) -
-					20.0*PhaseF(0,0))/6.0;
-	return LpPhi;
-}
 
 //	INITIALISATION:
-CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t pf){
-<?R
-	feq = EQ$Req %*% solve(EQ$mat)
-	C( f, feq)
-    u = PV(c('Jx/rho', 'Jy/rho'))
-    C( h,  wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*pf  )
-?>
-}
 CudaDeviceFunction void Init() {
+	// This allows gradients to be calculated in equilibrium functions.
 	PhaseF = PhaseField;
 }
 CudaDeviceFunction void Init_distributions(){
@@ -202,14 +183,15 @@ CudaDeviceFunction void Init_distributions(){
 	real_t pf    = PhaseF(0,0);
 	vector_t n   = getNormal();
 	real_t mu    = getMu();
-	real_t pf_av = 0.5*(PhaseField_h+PhaseField_l);
-	real_t theta = (3.0*M) * (1-4*(pf-pf_av)*(pf-pf_av))/W;
+	real_t pfavg = 0.5*(PhaseField_h+PhaseField_l);
+	real_t theta = (3.0*M) * (1.0-4.0*(pf-pfavg)*(pf-pfavg))/W;
 	
 	real_t rho   = Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
+	AddToTotalDensity(rho);
 	vector_t u   = {VelocityX, VelocityY, 0.0};
 	
-	real_t Fb_x = (rho-Density_h)*GravitationX;
-	real_t Fb_y = (rho-Density_h)*GravitationY;
+	real_t Fb_x = (rho-Density_h)*BuoyancyX;
+	real_t Fb_y = (rho-Density_h)*BuoyancyY;
 	
 	real_t GradPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
 	real_t GradPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
@@ -225,15 +207,22 @@ CudaDeviceFunction void Init_distributions(){
 	Rc[6] = 0.5*(PhaseF(-1,1) -PhaseF(1,-1)) ;
 	Rc[7] = 0.5*(PhaseF(-1,-1)-PhaseF(1,1))  ;
 	Rc[8] = 0.5*(PhaseF(1,-1) -PhaseF(-1,1)) ;
+
 	
 <?python
+print('// Gamma = f^eq/rho')
 for i in range(9): 
-	print_ccode( w[i] * (1 + 3.0*(ex[i]*u[0]+ey[i]*u[1])+4.5*(ex[i]*u[0]+ey[i]*u[1])**2-1.5*(u[0]*u[0]+u[1]*u[1])) ,assign_to=G[i])
-for i in range(9):
-	print_ccode( G[i]*pf+theta*w[i]*(ex[i]*n[0]+ey[i]*n[1]), assign_to=h[i])
-for i in range(9):
-	print_ccode( 0.0 -0.5*( (G[i]-w[i])*(rho_h-rho_l)/3.0 + G[i]*mu)*( GCPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) ) - 0.5*G[i]*( (ex[i]-u[0])*F_b[0] + (ey[i]-u[1])*F_b[1] ), assign_to=f[i])
+	print_ccode( w[i]*(1 + 3.0*(ex[i]*u[0]+ey[i]*u[1]) + 4.5*(ex[i]*u[0]+ey[i]*u[1])*(ex[i]*u[0]+ey[i]*u[1]) - 1.5*(u[0]*u[0]+u[1]*u[1])) ,assign_to=G[i])	
+print('// h = h^eq')
+for i in range(9): 
+	print_ccode( G[i]*pf+theta*w[i]*(ex[i]*n[0]+ey[i]*n[1]), assign_to=h[i])	
+print('// gbar = g - 0.5*interfaceterms - 0.5*bodyforceterms')												
+for i in range(9): 
+	interfaceterms = 0.5*( (G[i]-w[i])*(rho_h-rho_l)/3.0 + G[i]*mu) * ( GCPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )
+	bodyforceterms = 0.5*G[i]*( (ex[i]-u[0])*(F_b[0]+F_g[0]) + (ey[i]-u[1])*(F_b[1]+F_g[1]) )
+	print_ccode( 0.0 - interfaceterms - bodyforceterms, assign_to=f[i])					
 ?>
+
 }
 
 //	ITERATION:
@@ -261,6 +250,7 @@ CudaDeviceFunction void Run() {
 		CollisionMRT();
     } else if (NodeType & NODE_BGK) {
 		CollisionBGK();
+		printf("NOT IMPLEMENTED");
 	}
 }
 CudaDeviceFunction void CollisionMRT(){
@@ -268,23 +258,23 @@ CudaDeviceFunction void CollisionMRT(){
 // 	1a. Evaluate macroscopic variables
 	real_t pf   = PhaseF(0,0);
 	real_t rho  = Density_l + (Density_h-Density_l) * (pf-PhaseField_l)/(PhaseField_h-PhaseField_l);
-	
+	AddToTotalDensity(rho);
 	real_t mu   = getMu();
-	real_t Fb_x = (rho-Density_h)*GravitationX;
-	real_t Fb_y = (rho-Density_h)*GravitationY;	
+	real_t Fb_x = (rho-Density_h)*BuoyancyX;
+	real_t Fb_y = (rho-Density_h)*BuoyancyY;	
 	real_t GradPhix = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
 	real_t GradPhiy = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
 	
 	vector_t u;
 	<?R C(PV(c("u.x","u.y")), f %*% U) ?>
-	u.x = (3.0/rho) * (u.x + 0.5*(mu*GradPhix+Fb_x));
-	u.y = (3.0/rho) * (u.y + 0.5*(mu*GradPhiy+Fb_y));
+	u.x = (3.0/rho) * (u.x + 0.5*(mu*GradPhix+Fb_x+rho*GravitationX));
+	u.y = (3.0/rho) * (u.y + 0.5*(mu*GradPhiy+Fb_y+rho*GravitationY));
 	u.z = 0.0;
 	
 	real_t   p = <?R C(sum(f)) ?> + (Density_h-Density_l)*(GradPhix*u.x + GradPhiy*u.y)/6.0;
 
 	real_t Rc[9],Rm[9];
-	real_t R[9] ,Gamma[9];	
+	real_t R[9] ,Gamma[9], S[9];	
 	
 	Rc[0] = 0.0;
 	Rc[1] = 0.5*(PhaseF(1,0)  -PhaseF(-1,0)) ;
@@ -304,16 +294,17 @@ CudaDeviceFunction void CollisionMRT(){
 	Rm[6] = 0.25*(-PhaseF(-2,2) +5*PhaseF(-1,1) -3*PhaseF(0,0)-PhaseF(1,-1)) ;
 	Rm[7] = 0.25*(-PhaseF(-2,-2)+5*PhaseF(-1,-1)-3*PhaseF(0,0)-PhaseF(1,1))  ;
 	Rm[8] = 0.25*(-PhaseF(2,-2) +5*PhaseF(1,-1) -3*PhaseF(0,0)-PhaseF(-1,1)) ;
+	
 //	1b. Perform the collision:
-// 	1b. i)Determine Gamma_i, geq^bar_i --> R_i = f_i-geq^bar_i	
+// 	1b. i)Determine Gamma_i, feq^bar_i --> R_i = f_i-feq^bar_i	
 <?python
 for i in range(9): 
 	print_ccode( w[i] * (1 + 3.0*(ex[i]*u[0]+ey[i]*u[1])+4.5*(ex[i]*u[0]+ey[i]*u[1])**2-1.5*(u[0]*u[0]+u[1]*u[1])) ,assign_to=G[i])
 for i in range(9):
-	temp0 =  G[i]*rho/3.0 + w[i] * (pressure-rho/3.0)
-	temp1 =  0.5*((G[i]-w[i])*(rho_h-rho_l)+mu*G[i]) * (GCPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )
-	temp2 =  0.5*G[i]*( (ex[i]-u[0])*F_b[0] + (ey[i]-u[1])*F_b[1])
-	print_ccode( f[i] - (temp0 - temp1 - temp2), assign_to=R[i]) 
+	temp0 =  G[i]*rho/3.0 + w[i] * (pressure-rho/3.0)													#gbar^eq
+	temp1 =  0.5*((G[i]-w[i])*(rho_h-rho_l)/3.0+mu*G[i]) * (GCPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )	#surface and shifted forcing term 
+	temp2 =  0.5*G[i]*( (ex[i]-u[0])*(F_b[0]+F_g[0]) + (ey[i]-u[1])*(F_b[1]+F_g[1]))					#external forcing term
+	print_ccode( f[i] - (temp0 - temp1 - temp2), assign_to=R[i]) 										#gbar - gbar^eq
 ?>
 //	1b. ii)Jump Into Momentum space:
 <?R    
@@ -330,45 +321,44 @@ for i in range(9):
 	  0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
  
     R = PV("R[",1:9-1,"]")
-	C( R, R %*% M )
+	C( S, R %*% M )
 ?>
 //	1b.iii) Relax in Momentum space:
 	real_t tau = 0.5 + 1.0/( omega_l + (omega_h - omega_l)*(pf-PhaseField_l)/(PhaseField_h-PhaseField_l) );
-	R[0] *= S0;
-	R[1] *= S1;
-	R[2] *= S2;
-	R[3] *= S3;
-	R[4] *= S4;
-	R[5] *= S5;
-	R[6] *= S6;
-	R[7] *= 1.0/(tau);
-	R[8] *= 1.0/(tau);	
-//	1b.iv) Transform to shifted-Pressure space:
+	S[0] *= S0;
+	S[1] *= S1;
+	S[2] *= S2;
+	S[3] *= S3;
+	S[4] *= S4;
+	S[5] *= S5;
+	S[6] *= S6;
+	S[7] *= 1.0/(tau);
+	S[8] *= 1.0/(tau);	
+//	1b.iv) Transform to back to shifted-Pressure space:
 <?R
-	C( R, R %*% solve(M) )
+	C( R, S %*% solve(M) )
 #endregion MRT relaxation
 ?>
-//	1b.v) Add in additional terms
+//	1b.v) Add in additional terms i.e. surface tension, buoyancy/gravitational
 <?python
 for i in range(9):
-	temp0 =  G[i]*rho/3.0 + w[i] * (pressure-rho/3.0)
-	temp1 =  ((G[i]-w[i])*(rho_h-rho_l)+mu*G[i]) * (GMPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )
-	temp2 =  G[i]*( (ex[i]-u[0])*F_b[0] + (ey[i]-u[1])*F_b[1])
-	print_ccode( temp0 + temp1 + temp2, assign_to=f[i]) 								
+	temp1 =  ((G[i]-w[i])*(rho_h-rho_l)/3.0+mu*G[i]) * (GMPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )	#surface and shifted forcing term 
+	temp2 =  G[i]*( (ex[i]-u[0])*(F_b[0]+F_g[0]) + (ey[i]-u[1])*(F_b[1]+F_g[1]))					#external forcing term
+	
+	print_ccode( f[i] - R[i] + temp1 + temp2, assign_to=f[i]) 										# gbar = gbar - collision + sum(forcings)							
 ?>
+
+
 //	2. PHASEFIELD COLLISION OPERATION:
+// 	Possible To Do: implement MRT relaxation of pf distribution
     vector_t n = getNormal();
-    real_t omega_ph =  1.0/( 3 * M + 0.5); 
-    real_t theta;
+    real_t omega_ph =  1.0/( 3.0 * M + 0.5); 
+    real_t pfavg = 0.5*(PhaseField_h+PhaseField_l);
+    real_t theta = (3.0*M) * (1.0-4.0*(pf-pfavg)*(pf-pfavg))/W;
 <?R
     u = PV(c('u.x', 'u.y'))
     n = PV(c('n.x', 'n.y'))
     omega_ph=PV("omega_ph")
-    mob = PV("M")
-    PhaseF = PV(c('PhaseField_h','PhaseField_l'))
-    Winv=PV("(1.0/W)")
-    avg = 0.5*(PhaseF[1]+PhaseF[2])
-    C(theta, 3*mob * (1.-4.*(pf-avg)*(pf-avg))*(Winv) )
     C( h, h - omega_ph * ( h - Heq(pf,n,u) ) )
 ?>	
 }
@@ -381,6 +371,8 @@ CudaDeviceFunction void BounceBack()
 {
 <?R FullBounceBack() ?>
 }
+// 	To Do Boundary Conditions:
+//		These have not yet been tested/implemented
 CudaDeviceFunction void EVelocity()
 {
 	real_t Velocity = VelocityX;
