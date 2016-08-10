@@ -52,7 +52,7 @@
     Bh = 3*mob * (1.-4.*pf*pf)*W 
 
     EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
-    EQ_h$Req = EQ_h$feq %*% EQ_h$mat - EQ$Req 
+    EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
 
 #	Heq = function( pf, n, u ) {
 #          wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*pf + Bh * wi *n %*% t(U)
@@ -129,23 +129,58 @@ CudaDeviceFunction vector_t getGradientPhi(){
 
 }
 CudaDeviceFunction vector_t getNormal(){
-    vector_t n = getGradientPhi();
+    vector_t n, nw;// = getGradientPhi();
+    n.x = 0;
+    n.y = 0;
+    nw.x = 0;
+    nw.y = 0;
+    bool inwall = false;
+   <?R
+    for (j in 1:9) {
+    ?> 
+        if (<?R C(phis[j]) ?>  != -999) {
+            n.x = n.x + <?R C(phis[j]*U[j,1]) ?>;
+            n.y = n.y + <?R C( phis[j]*U[j,2]) ?>;
+        } else {
+            nw.x = nw.x + <?R C(U[j,1]) ?>;
+            nw.y = nw.y + <?R C(U[j,2]) ?>;
+            inwall = true;
+        }
+    <?R } ?>
+  
     real_t ln = sqrt(n.x*n.x + n.y*n.y);    
     if(ln == 0.){
         n.x = 0.;
         n.y = 0.;
-    } else if (ln > 100) {
-    // at least one link is solid
-    // this is only on boundary, still not nice :/    
-        real_t t_x = 0;
-        real_t t_y = 0;
-
-    
     } else {
         n.x /= ln;
         n.y /= ln;
     }
 
+    if (inwall){
+        ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
+        if(ln == 0.){
+            nw.x = 0.;
+            nw.y = 0.;
+        } else {
+            nw.x /= ln;
+            nw.y /= ln;
+        }
+   
+        ln = n.x*nw.x + n.y*nw.y;
+
+        n.x = n.x - nw.x * ln;
+        n.y = n.y - nw.y * ln;
+        
+        ln = sqrt(n.x*n.x + n.y*n.y);    
+        if(ln == 0.){
+            n.x = 0.;
+            n.y = 0.;
+        } else {
+            n.x /= ln;
+            n.y /= ln;
+        }
+    }
     return n;
 
 }
@@ -186,7 +221,7 @@ CudaDeviceFunction vector_t getF() {
 
 CudaDeviceFunction vector_t getInterfaceForce() {
 	vector_t F = getNormal();
-    real_t curv = getCurvature();
+    real_t curv = 0;// getCurvature();
     real_t phi_l = <?R C(sum(h)) ?> ;
     if (phi_l * phi_l > 0.245) { 
         phi_l = 0.5; 
@@ -306,41 +341,84 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 CudaDeviceFunction real_t getCurvature() {
     real_t laplace = 0;
-	vector_t F = getNormal();
+	vector_t n = getNormal();
     real_t omega_ph =  1/( 3 * M + 0.5); 
     real_t k01, k10;
     vector_t grad;
 
-    <?R
-    
-#   ee_x = U[,1] - u[1]
-#    ee_y = U[,2] - u[2]
-
-
-#   C(k10, sum(h%*%ee_x) )
-#   C(k01, sum(h%*%ee_y) )
-    
-    ?> 
     real_t curv;
 
     real_t ln = 0;    
     InitPhisStencil();
-    <?R
+/**    <?R
            C( PV('laplace'), 3 * wis%*%PV(paste("rphis[",0:8,"]")  ))
     ?>
-   
-
-
         real_t phi_l = phi(0,0);
-
-      //  grad.x = -3*omega_ph * (k10 + k10 / ln * (1-4*phi_l*phi_l)/ 6 * W * (1./omega_ph - 0.5));
-      //  grad.y = -3*omega_ph * (k01 + k01 / ln * (1-4*phi_l*phi_l)/ 6 * W * (1./omega_ph - 0.5));
-        
         ln = (4 * phi_l*phi_l - 1.) * W;
     if (ln == 0){
         curv = 0;
     } else {
         curv =   ( laplace - 2. * phi_l * ( 16.*phi_l*phi_l - 4.  ) * W * W  ) / ln  ;
+    }
+**/
+
+    real_t phi_l = phi(0,0);
+    ln = (4 * phi_l*phi_l - 1.) * W;
+    if (-ln < 1E-1){
+        curv = 0;
+    } else {
+    
+        real_t rr0 = 1;
+        real_t dr = 0.01;
+        real_t f_1 = 1;
+        real_t f_2 = 1;
+        real_t A = 1;
+
+        real_t r_r0[9];
+        real_t tmp[9];
+        
+
+        <?R
+
+        rr0 = PV('rr0')
+        dr = PV('dr')
+        f_1 = PV('f_1')
+        f_2 = PV('f_2')
+        A = PV('A')
+        r_r0 = PV(paste("r_r0[",0:8,"]")) 
+        tmp = PV(paste("tmp[",0:8,"]"))  
+
+        C(r_r0, PV(paste("atanh(-rphis[",0:8,"]*2.)/2./W")))
+#LOOOP
+
+         xx = (rr0+r_r0[1]) * n[1]
+         yy = (rr0+r_r0[1]) * n[2]
+         rr =  (U[,1]-xx)^2 + (U[,2]-yy)^2        
+        ?>
+      for (int i = 0; i < 1; i++) { 
+         <?R
+
+         C(tmp,PV(paste("sqrt(",ToC(rr),")")))
+         C(f_1, sum((r_r0 - (tmp - rr0)))  )  
+  
+         C(rr0, rr0 + dr)
+         C(tmp,PV(paste("sqrt(",ToC(rr),")")))
+         C(f_2, sum((r_r0 - (tmp - rr0)))  )  
+        
+         C(A,  (f_2 - f_1) * (dr^-1) )
+         C(tmp[1], (  A * (rr0) -f_2) * (A^-1)  )
+         ###########
+        ?>
+        // dr = 0.5 * fabs( rr0 - tmp[0] );
+         rr0 = tmp[0];
+        
+      }
+      curv = A;
+
+      if (isnan(curv)){
+            curv = 0;
+      }
+    
     }
 
     return curv;
@@ -621,10 +699,10 @@ CudaDeviceFunction void CollisionMRT()
 
     # part related to h
 ?> 
-
+    real_t d = <?R C(sum(f)) ?>;
     vector_t u;
-    u.x = Jx + 0.5 * F.x;
-    u.y = Jy + 0.5 * F.y;
+    u.x = (Jx + 0.5 * F.x) / d;
+    u.y = (Jy + 0.5 * F.y) / d;
     real_t omega_ph =  1/( 3 * M + 0.5); 
     real_t Bh;
 
