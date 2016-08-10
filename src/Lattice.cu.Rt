@@ -194,7 +194,7 @@ void Lattice::startRecord()
 	}
 	{
 		char filename[STRING_LEN];
-		sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
+		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
 		save(Snaps[Snap], filename);
 	}
@@ -683,6 +683,8 @@ void Lattice::Init()
    MPI_Barrier(MPI_COMM_WORLD);
    Action_Init(1,0,ITER_NO);
    MPI_Barrier(MPI_COMM_WORLD);
+	Iter = 0;
+	container->iter = 0;
 	clearGlobals();
 //   Stream();
 //   container->Init();
@@ -723,7 +725,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (reverse_save) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
 			char filename[STRING_LEN];
-			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, imx);
+			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
 			ERROR("I have to read from disk, but reverse_save is not switched on\n");
@@ -746,7 +748,7 @@ void Lattice::IterateTill(int it, int iter_type)
 			if (reverse_save) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
 				char filename[STRING_LEN];
-				sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, s2);
+				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}
 		}

@@ -307,6 +307,7 @@ int main ( int argc, char * argv[] )
 
 	// Initializing the lattice of a specific size
 	if (solver.setSize(nx,ny,nz,ns)) return -1;
+	solver.setOutput("");
 
 	//Setting settings to default
 	<?R for (v in rows(Settings)) {
