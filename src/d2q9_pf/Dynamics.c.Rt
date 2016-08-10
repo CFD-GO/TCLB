@@ -65,6 +65,13 @@ CudaDeviceFunction vector_t getU(){
 	u.x /= d;
 	u.y /= d;
 	u.z = 0.0;
+
+ <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (OverwriteVelocityField) {
+        u.x = BC[0] ;
+        u.y = BC[1] ; 
+    }
+ <?R } ?>   
 	return u;
 }
 
@@ -197,7 +204,7 @@ CudaDeviceFunction void CollisionMRT()
 	R[!selR] = EQ$Req[!selR]
 ?>
 	real_t <?R C(R,sep=",") ?>;
-	real_t gamma  = 1-omega;
+	real_t gamma  = 1-RelaxationRate;
     real_t gamma2 = gamma;
 <?R
 	S = PV("S",1:nrow(U)-1);
@@ -228,21 +235,33 @@ CudaDeviceFunction void CollisionMRT()
 ?>
     vector_t n = getNormal();
     real_t pf = getPhaseField();
+
     vector_t u = getU();
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (OverwriteVelocityField) {
+        u.x = BC[0] ;
+        u.y = BC[1] ; 
+    }
+<?R } ?>
+   
+
+
+
     real_t d = getRho();
 
 //    u.x = u.x * d;
 //    u.y = u.y * d;
 
-    real_t omega_ph =  1/( 3 * M + 0.5); 
+    real_t RelaxationRate_ph =  1/( 3 * M + 0.5); 
     real_t Bh;
 <?R
     u = PV(c('u.x', 'u.y'))
     n = PV(c('n.x', 'n.y'))
     mob = PV("M")
-    omega_ph=PV("omega_ph")
+    RelaxationRate_ph=PV("RelaxationRate_ph")
     C(Bh, 3*mob * (1.-4.*pf*pf)*(W) )
-    C( h, h - omega_ph * ( h - Heq(pf,n,u) ) )
+    C( h, h - RelaxationRate_ph * ( h - Heq(pf,n,u) ) )
 
 ?>
 }

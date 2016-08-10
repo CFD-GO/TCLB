@@ -244,7 +244,17 @@ CudaDeviceFunction void CollisionMRT()
 
 	C( R[selR], (R * S)[selR]);
 
+?>
 
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    ux = ux + GravitationX +  BC[0] ;
+    uy = uy + GravitationY +  BC[1] ; 
+<?R } else { ?>
+    ux = ux + GravitationX;
+    uy = uy + GravitationY; 
+<?R } ?>
+
+<?R
 
 
     C( R[selR], (R + EQ$Req)[selR]);

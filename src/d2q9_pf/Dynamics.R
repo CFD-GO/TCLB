@@ -25,7 +25,16 @@ AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
 
+# THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION
+# set to FALSE for performance
+if (TRUE) {
 
+    AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
+    AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+
+    AddSetting(name="OverwriteVelocityField", default="0")
+
+}
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
 #  name - name of the field
@@ -46,12 +55,12 @@ AddQuantity(name="PhaseField",unit="1")
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="RelaxationRate", comment='one over relaxation time')
+AddSetting(name="Viscosity", RelaxationRate='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="W", default=1, comment='Anty-diffusivity coeff')
-AddSetting(name="M", default=1, comment='Mobility')
+AddSetting(name="W", default=0.33333, comment='Anty-diffusivity coeff')
+AddSetting(name="M", default=0.001, comment='Mobility')
 AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
