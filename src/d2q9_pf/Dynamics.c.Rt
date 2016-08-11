@@ -37,15 +37,29 @@
 # things related to h
     h = PV(Density$name[Density$group=='h'])
     pf = PV("pf")
+    phi = PV(paste("phi(",-U[,1],",",-U[,2],")"))
     n = PV(c("n.x","n.y"))
     c_sq = 1/3.
     Bh = PV('Bh')
     W = PV("W")	
-	Heq = function( pf, n, u ) {
-          wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*pf + Bh * wi *n %*% t(U)
-        }
+    n = c(PV('n.x'),PV('n.y'))
+    
+    EQ_h = MRT_eq(U,mat=B)
+    EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
+    
+    mob = PV("M")
+    Bh = 3*mob * (1.-4.*pf*pf)*W 
+
+    EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
+    EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+    UN = t(U[1:9,])
+    phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
+    
+    
     k01 = PV("k01")
     k10 = PV("k10")
+
+
 ?>
 
 #define pi 3.141592653589793116
@@ -65,6 +79,9 @@ CudaDeviceFunction vector_t getU(){
 	u.x /= d;
 	u.y /= d;
 	u.z = 0.0;
+    u.x += GravitationX * 0.5;
+    u.y += GravitationY * 0.5;
+
 
  <?R if ( any( DensityAll$group=="BC" ) ) { ?>
     if (OverwriteVelocityField) {
@@ -123,7 +140,12 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t p
 	C( f, feq)
     u = PV(c('Jx/rho', 'Jy/rho'))
     C( h,  wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*pf  )
-?>
+
+
+   if ( any( DensityAll$group=="BC" ) ) { ?>
+        BC[0] = 0;
+        BC[1] = 0; 
+  <?R } ?>
 }
 
 CudaDeviceFunction void Init() {
@@ -161,6 +183,12 @@ CudaDeviceFunction void Run() {
 	case NODE_EPressure:
 		EPressure();
 		break;
+    case NODE_NPressure:
+        NPressure();
+        break;
+    case NODE_SPressure:
+        SPressure();
+        break;
     }
     if (NodeType & NODE_MRT)
     {
@@ -175,23 +203,96 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void EVelocity()
 {
-<?R ZouHe(EQ, 1, -1, "velocity") ?>
+    {
+<?R 
+    ZouHeRewrite(EQ,   f, c(1,0), type="velocity")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
 }
+CudaDeviceFunction void EPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(1,0), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
 
 CudaDeviceFunction void WPressure()
 {
-<?R ZouHe(EQ, 1, 1, "pressure") ?>
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(-1,0), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(-1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
 }
 
 CudaDeviceFunction void WVelocity()
 {
-<?R ZouHe(EQ, 1, 1, "velocity") ?>
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(-1,0), type="velocity")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(-1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
 }
 
-CudaDeviceFunction void EPressure()
+
+CudaDeviceFunction void NPressure()
 {
-<?R ZouHe(EQ, 1, -1, "pressure") ?>
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(0,1), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(0,1), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
 }
+
+
+
+CudaDeviceFunction void SPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(0,-1), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(0,-1), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+
+
+
 
 CudaDeviceFunction void CollisionMRT()
 {
@@ -245,23 +346,11 @@ CudaDeviceFunction void CollisionMRT()
     }
 <?R } ?>
    
-
-
-
-    real_t d = getRho();
-
-//    u.x = u.x * d;
-//    u.y = u.y * d;
-
     real_t RelaxationRate_ph =  1/( 3 * M + 0.5); 
     real_t Bh;
 <?R
-    u = PV(c('u.x', 'u.y'))
-    n = PV(c('n.x', 'n.y'))
-    mob = PV("M")
     RelaxationRate_ph=PV("RelaxationRate_ph")
-    C(Bh, 3*mob * (1.-4.*pf*pf)*(W) )
-    C( h, h - RelaxationRate_ph * ( h - Heq(pf,n,u) ) )
+    C( h, h - RelaxationRate_ph * ( h - EQ_h$feq ) )
 
 ?>
 }

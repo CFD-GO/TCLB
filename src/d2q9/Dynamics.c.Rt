@@ -164,7 +164,7 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void EPressure()
 {
-<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "pressure") ?>
 }
 
 CudaDeviceFunction void NVelocity()
@@ -247,11 +247,11 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    ux = ux + GravitationX +  BC[0] ;
-    uy = uy + GravitationY +  BC[1] ; 
+    Jx = Jx + GravitationX*rho +  BC[0] ;
+    Jy = Jy + GravitationY*rho +  BC[1] ; 
 <?R } else { ?>
-    ux = ux + GravitationX;
-    uy = uy + GravitationY; 
+    Jx = Jx + GravitationX*rho;
+    Jy = Jy + GravitationY*rho; 
 <?R } ?>
 
 <?R

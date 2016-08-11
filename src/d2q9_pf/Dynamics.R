@@ -61,7 +61,7 @@ AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zon
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="W", default=0.33333, comment='Anty-diffusivity coeff')
 AddSetting(name="M", default=0.001, comment='Mobility')
-AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
+AddSetting(name="PhaseField", default=0.5, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
 
@@ -70,4 +70,17 @@ AddSetting(name="GravitationY", default=0)
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+
+
+
+
+AddNodeType(name="NPressure",group="BOUNDARY")
+AddNodeType(name="SPressure",group="BOUNDARY")
+AddNodeType(name="WPressure",group="BOUNDARY")
+AddNodeType(name="EPressure",group="BOUNDARY")
+
+
+AddNodeType(name="WVelocity",group="BOUNDARY")
+AddNodeType(name="EVelocity",group="BOUNDARY")
+
 

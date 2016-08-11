@@ -88,7 +88,7 @@ AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zon
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="W", default=0.1, comment='Anty-diffusivity coeff')
 AddSetting(name="M", default=0.05, comment='Mobility')
-AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
+AddSetting(name="PhaseField", default=0.5, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
 
