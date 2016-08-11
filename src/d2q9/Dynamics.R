@@ -17,6 +17,9 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
 # THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
 # COMMENT OUT FOR PERFORMANCE
+# If present thei are used:
+# As VelocityX/Y for Boundary conditions
+# As mass force (+ GravitationX/Y) in fluid
 AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
 AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 
@@ -31,7 +34,6 @@ AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
 
-AddQuantity(name="A",unit="1",vector=T)
 
 
 # Settings - table of settings (constants) that are taken from a .xml file
@@ -44,12 +46,6 @@ AddSetting(name="Viscosity", RelaxationRate='1.0/(3*Viscosity + 0.5)', default=0
 AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="Smag", comment='Smagorinsky constant')
-
-AddSetting(name="SL_U", comment='Shear Layer velocity')
-AddSetting(name="SL_lambda", comment='Shear Layer lambda')
-AddSetting(name="SL_delta", comment='Shear Layer disturbance')
-AddSetting(name="SL_L", comment='Shear Layer length scale')
 
 AddSetting(name="GravitationX")
 AddSetting(name="GravitationY")
@@ -59,9 +55,8 @@ AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
-AddNodeType("Smagorinsky", "LES")
-AddNodeType("Stab", "ENTROPIC")
 
+#Node types for boundaries
 AddNodeType(name="EPressure", group="BOUNDARY")
 AddNodeType(name="WPressure", group="BOUNDARY")
 

@@ -76,27 +76,21 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 ?>
 
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-   BC[0] = Jx / rho;
-   BC[1] = Jy / rho;
+   if ( IamBOUNDARY ) {
+       BC[0] = Jx / rho;
+       BC[1] = Jy / rho;
+   } else {
+       BC[0] = 0;
+       BC[1] = 0;
+   }
 <?R } ?>
 }
 
 CudaDeviceFunction void Init() {
 	real_t rho, ux, uy;
 	rho = (1+Pressure*3);
-	if (SL_L > 0) {
-		if (Y < SL_L/2) {
-			ux = SL_U * tanh(SL_lambda * ( Y/SL_L - 0.25 ));
-		} else {
-			ux = SL_U * tanh(SL_lambda * ( 0.75 - Y/SL_L ));
-		}
-		uy = SL_delta * SL_U * sin(2*pi*(X/SL_L+0.25));
-	} else {
-		ux=0;
-		uy=0;
-	}
-	ux = VelocityX+ux;
-    uy = VelocityY+uy;
+	ux = VelocityX;
+    uy = VelocityY;
 
 	SetEquilibrum(
 		rho,
@@ -189,6 +183,7 @@ CudaDeviceFunction void SSymmetry()
 
 CudaDeviceFunction void CollisionMRT()
 {
+
 <?R
 	MI = solve(EQ$mat)
 	P = MI %*% diag(1/wi) %*% t(MI)
@@ -197,82 +192,58 @@ CudaDeviceFunction void CollisionMRT()
 	selR = EQ$order > 1
 	R[!selR] = EQ$Req[!selR]
 ?>
+
+
+ 
 	real_t <?R C(R,sep=",") ?>;
 	real_t gamma  = 1-RelaxationRate;
+	real_t gamma2 = gamma;
+    real_t Jsq=0;
+
 <?R
 	S = PV("S",1:nrow(U)-1);
 	S[EQ$order <= 2] = PV("gamma")
 	S[EQ$order >  2] = PV("gamma2")
-
-
 	C( R, f %*% EQ$mat );
+
+?>
+
+    switch (NodeType & NODE_OBJECTIVE) {
+        case NODE_Outlet:
+<?R 
+            Jsq=PV('Jsq')
+            C(Jsq,sum(J%*%J))
+?>
+            AddToOutletFlux(Jx/rho);
+            AddToPressureLoss(-Jx/rho*((rho-1.)/3. + Jsq/rho/2.));
+        break;
+        case NODE_Inlet:
+<?R
+            Jsq=PV('Jsq')
+            C(Jsq,sum(J%*%J))
+?>
+           AddToInletFlux(Jx/rho);
+           AddToPressureLoss(Jx/rho*((rho-1.)/3. + usq/rho/2.));
+       break;
+    }
+
+<?R
 	C( R[selR], (R - EQ$Req)[selR]);
-
-
-?>
-	if (NodeType & NODE_LES) {
-		real_t Q, tau, tau0;
-<?R
-	Rneq = R; Rneq[EQ$order < 2] = 0
-
-	p = PV(c("x","y")); dim(p) = c(2,1)
-	Q = p %*% t(p)
-	Q = subst(Q,x=U[,1],y=U[,2])
-	Q = Q %*% (Rneq %*% solve(EQ$mat))
-	C(PV("Q"), sum(Q^2))
-?>
-		Q = 18.* sqrt(Q) * Smag;
-		tau0 = 1/(1-gamma);
-		tau = tau0*tau0 + Q;
-		tau = sqrt(tau);
-		tau = (tau + tau0)/2;
-		gamma = 1. - 1./tau;
-	}
-	real_t gamma2 = gamma;
-	if (NodeType & NODE_ENTROPIC) {
-		real_t a,b;
-<?R
-	dh = R; dh[EQ$order <= 2] = 0
-	ds = R; ds[EQ$order != 2] = 0
-
-	C( PV("a"), ds %*% P %*% dh)
-	C( PV("b"), dh %*% P %*% dh)
-?>
-		gamma2 = - gamma2 * a/b;
-	}
-<?R
-
 	C( R[selR], (R * S)[selR]);
 
 ?>
 
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    Jx = Jx + GravitationX*rho +  BC[0] ;
-    Jy = Jy + GravitationY*rho +  BC[1] ; 
+    Jx = Jx + (GravitationX +  BC[0])*rho ;
+    Jy = Jy + (GravitationY +  BC[1])*rho ; 
 <?R } else { ?>
     Jx = Jx + GravitationX*rho;
     Jy = Jy + GravitationY*rho; 
 <?R } ?>
 
 <?R
-
-
     C( R[selR], (R + EQ$Req)[selR]);
-
 	C( f, R %*% solve(EQ$mat), float=F);
 ?>
 }
 
-CudaDeviceFunction vector_t getA()
-{
-	real_t <?R C(R,sep=",") ?>;
-	vector_t ret;
-<?R
-	C( R, f %*% EQ$mat );
-	C( R[selR], (R - EQ$Req)[selR]);
-	C( PV("ret.y"), ds %*% P %*% dh)
-	C( PV("ret.z"), dh %*% P %*% dh)
-?>
-	ret.x = ret.y/ret.z;
-	return ret;
-}
