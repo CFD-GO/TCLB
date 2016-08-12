@@ -41,7 +41,11 @@ AddQuantity(name="U",unit="m/s",vector=T)
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: RelaxationRate='1.0/(3*Viscosity + 0.5)'
 
-AddSetting(name="RelaxationRate", comment='one over relaxation time')
+AddSetting(
+           name="RelaxationRate", 
+           S2='1-RelaxationRate',       
+           comment='one over relaxation time'
+            )
 AddSetting(name="Viscosity", RelaxationRate='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
@@ -54,6 +58,10 @@ AddSetting(name="GravitationY")
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+
+AddSetting(name="S2", default="0", comment='MRT Sx')
+AddSetting(name="S3", default="0", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
 
 
 #Node types for boundaries

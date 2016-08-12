@@ -47,8 +47,10 @@ CudaDeviceFunction vector_t getU(){
     u.x /= d;
 	u.y /= d;
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    u.x += BC[0]*0.5;
-    u.y += BC[1]*0.5;
+    if (!IamBOUNDARY) {   
+        u.x += BC[0]*0.5;
+        u.y += BC[1]*0.5;
+    }
 <?R } ?>
     u.x += GravitationX*0.5;
     u.y += GravitationY*0.5;
@@ -143,32 +145,32 @@ CudaDeviceFunction void BounceBack()
 
 CudaDeviceFunction void EVelocity()
 {
-<?R ZouHeRewrite(EQ, f, c(-1, 0), "velocity", BC_Velocity) ?>
+<?R ZouHeRewrite(EQ, f, c(1, 0), "velocity", BC_Velocity) ?>
 }
 
 CudaDeviceFunction void WPressure()
 {
-<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "pressure") ?>
 }
 
 CudaDeviceFunction void WVelocity()
 {
-<?R ZouHeRewrite(EQ, f, c(1, 0), "velocity", BC_Velocity) ?>
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "velocity", BC_Velocity) ?>
 }
 
 CudaDeviceFunction void EPressure()
 {
-<?R ZouHeRewrite(EQ, f, c(-1, 0), "pressure") ?>
+<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
 }
 
 CudaDeviceFunction void NVelocity()
 {
-<?R ZouHeRewrite(EQ, f, c(0,-1), "velocity", BC_Velocity) ?>
+<?R ZouHeRewrite(EQ, f, c(0,1), "velocity", BC_Velocity) ?>
 }
 
 CudaDeviceFunction void SVelocity()
 {
-<?R ZouHeRewrite(EQ, f, c(0, 1), "velocity", BC_Velocity) ?>
+<?R ZouHeRewrite(EQ, f, c(0, -1), "velocity", BC_Velocity) ?>
 }
 
 CudaDeviceFunction void NSymmetry()
@@ -196,14 +198,13 @@ CudaDeviceFunction void CollisionMRT()
 
  
 	real_t <?R C(R,sep=",") ?>;
-	real_t gamma  = 1-RelaxationRate;
-	real_t gamma2 = gamma;
-    real_t Jsq=0;
+    real_t Usq=0;
 
 <?R
-	S = PV("S",1:nrow(U)-1);
-	S[EQ$order <= 2] = PV("gamma")
-	S[EQ$order >  2] = PV("gamma2")
+    S=PV("S",1:nrow(U)-1);
+	S[EQ$order == 2] = PV("S2")
+	S[EQ$order == 3] = PV("S3")
+ 	S[EQ$order == 4] = PV("S4")   
 	C( R, f %*% EQ$mat );
 
 ?>
@@ -211,19 +212,20 @@ CudaDeviceFunction void CollisionMRT()
     switch (NodeType & NODE_OBJECTIVE) {
         case NODE_Outlet:
 <?R 
-            Jsq=PV('Jsq')
-            C(Jsq,sum(J%*%J))
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+
 ?>
-            AddToOutletFlux(Jx/rho);
-            AddToPressureLoss(-Jx/rho*((rho-1.)/3. + Jsq/rho/2.));
+            AddToOutletFlux(Jx/rho/rho);
+            AddToPressureLoss(-(Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
         break;
         case NODE_Inlet:
 <?R
-            Jsq=PV('Jsq')
-            C(Jsq,sum(J%*%J))
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
 ?>
-           AddToInletFlux(Jx/rho);
-           AddToPressureLoss(Jx/rho*((rho-1.)/3. + usq/rho/2.));
+           AddToInletFlux(Jx/rho/rho);
+           AddToPressureLoss((Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
        break;
     }
 
@@ -234,8 +236,10 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    Jx = Jx + (GravitationX +  BC[0])*rho ;
-    Jy = Jy + (GravitationY +  BC[1])*rho ; 
+    if (!IamBOUNDARY) {
+        Jx = Jx + (GravitationX +  BC[0])*rho ;
+        Jy = Jy + (GravitationY +  BC[1])*rho ; 
+    }
 <?R } else { ?>
     Jx = Jx + GravitationX*rho;
     Jy = Jy + GravitationY*rho; 
