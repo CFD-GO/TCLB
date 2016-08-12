@@ -37,7 +37,7 @@ add.include.dir = function(dir) {
 }
 linemark=function(...) {invisible(NULL)}
 
-MODEL='d2q9_pf_curvature'
+MODEL='d2q9_pf'
 
 add.include.dir('./tools/')
 add.include.dir('./src/')
@@ -74,4 +74,34 @@ EQ = MRT_eq(U, mat=B)
 
 
 
+f = PV(Density$name[Density$group=='f'])
+rho = PV("rho")
+J = PV("J",c("x","y"))
+u = PV(c("u.x","u.y"))
+
+
+# things related to h
+h = PV(Density$name[Density$group=='h'])
+pf = PV("pf")
+#  phi = PV(paste("phi(",-U[,1],",",-U[,2],")"))
+n = PV(c("n.x","n.y"))
+c_sq = 1/3.
+Bh = PV('Bh')
+W = PV("W")	
+n = c(PV('n.x'),PV('n.y'))
+
+EQ_h = MRT_eq(U,mat=B)
+EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
+
+mob = PV("M")
+Bh = 3*mob * (1.-4.*pf*pf)*W 
+
+EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
+EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+UN = t(U[1:9,])
+phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
+
+
+k01 = PV("k01")
+k10 = PV("k10")
 
