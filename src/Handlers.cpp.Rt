@@ -731,9 +731,13 @@ class RepeatControl : public Design {
 	double lower, upper;
 	FILE * f;
 	Handler * hand;
+	bool flip;
+	double flip_level;
 public:
 	int Init() {
 		Pars = -1;
+		flip_level = 0.0;
+		flip = false;
 		pugi::xml_attribute attr;
                 pugi::xml_node par = node.first_child();
 		if (! par) {
@@ -777,6 +781,13 @@ public:
 			notice("upper bound not set in %s - setting to 1\n",node.name());
 			upper = 1;
 		}
+		attr = node.attribute("flip");
+		if (attr) {
+			flip = true;
+			flip_level = solver->units.alt(attr.value());
+		} else {
+			flip = false;
+		}
 		return Design::Init();
 	};
 	int Finish() {
@@ -786,25 +797,32 @@ public:
 	int NumberOfParameters() {
 		return Pars;
 	};
+	double Flip(double v, double l, int j) {
+		if (!flip) return v;
+		j -= j % Pars;
+		j /= Pars;
+		if (j % 2 == 0) return v;
+		return l-v;
+	};
 	int Parameters(int type, double * tab) {
 		switch(type) {
 		case PAR_GET:
 			output("Getting the params and making pariodic means\n");
 			(*hand)->Parameters(type, tab2);
 			for (int i=0; i<Pars;i++) tab[i] = 0;
-			for (int j=0; j<Pars2; j++) tab[j % Pars] += tab2[j];
+			for (int j=0; j<Pars2; j++) tab[j % Pars] += Flip(tab2[j],flip_level,j);
 			for (int i=0; i<Pars;i++) tab[i] = tab[i] / floor((Pars2 - i - 1.0)/Pars+1);
 			return 0;
 		case PAR_SET:
 			output("Setting the params with a reapet control\n");
-			for (int j=0; j<Pars2; j++) tab2[j] = tab[j % Pars];
+			for (int j=0; j<Pars2; j++) tab2[j] = Flip(tab[j % Pars],flip_level,j);
 			(*hand)->Parameters(type, tab2);
 			return 0;
 		case PAR_GRAD:
 			output("Getting gradient and making fourier decomposition\n");
 			(*hand)->Parameters(type, tab2);
 			for (int i=0; i<Pars;i++) tab[i] = 0;
-			for (int j=0; j<Pars2; j++) tab[j % Pars] += tab2[j];
+			for (int j=0; j<Pars2; j++) tab[j % Pars] += Flip(tab2[j],0.0,j);
 			return 0;
 		case PAR_UPPER:
 			for (int i=0;i<Pars;i++) tab[i] = upper;
