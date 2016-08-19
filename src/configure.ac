@@ -257,7 +257,7 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_CHECKING([Python Embandinng: compiler flags])
 #    PF=$($python_config --cflags)
     PF=$($python_config --includes)
-    CPP_OPT="${CPPFLAGS} ${PF}"
+    CPPFLAGS="${CPPFLAGS} ${PF}"
     EMBEDED_PYTHON=1
     AC_MSG_RESULT([${PF}])
 	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
