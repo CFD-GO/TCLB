@@ -9,27 +9,29 @@ Bounce = function(U, FUN=function(U) {-U} ) {
 }
 
 
-FullBounceOp = function(op) {
+FullBounceOp = function(op, group) {
 	cat("real_t tmp;\n")
 	tmp=PV("tmp")
         by(Density, Density$group, function(D) {
-                i = c("dx","dy","dz")
-                D1 = D[,c("name",i)]
-                D2 = D1
-                D2[,i] = op(D2[,i])
-                D3 = merge(D1,D2,by=i)
-                D3$name.x < D3$name.y
-                D3 = D3[D3$name.x < D3$name.y,]
-                for ( i in seq_len(nrow(D3))) {
+                 if (  group == '' || D[1,'group'] %in% group ) {  
+                    i = c("dx","dy","dz")
+                    D1 = D[,c("name",i)]
+                    D2 = D1
+                    D2[,i] = op(D2[,i])
+                    D3 = merge(D1,D2,by=i)
+                    D3$name.x < D3$name.y
+                    D3 = D3[D3$name.x < D3$name.y,]
+                    for ( i in seq_len(nrow(D3))) {
                         C( tmp, PV(D3$name.x[i]) )
                         C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
                         C( PV(D3$name.y[i]), tmp )
+                    }
                 }
         })
 }
 
-FullBounceBack = function() {
-	FullBounceOp(function(X) -X);
+FullBounceBack = function(group='') {
+	FullBounceOp(function(X) -X, group);
 }
 
 Symmetry  = function(direction,sign,group='') {
