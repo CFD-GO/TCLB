@@ -29,13 +29,43 @@
     wps = c(0., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8.)
 
 #Basic variables
-    rho = PV("rho")
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
     ulb = PV(c("ulb.x","ulb.y"))
 # Calculating equlibrium density set
-	source("lib/feq.R")
-    feq = MRT_feq(U, rho, ulb*rho );
-    du = PV(c("du.x", "du.y"))
-    feq2 = MRT_feq(U, rho, (ulb+du)*rho );
+## f
+    
+    
+    source("lib/feq.R")
+ 	source("lib/boundary.R")
+
+   
+#    feq = MRT_feq(U, rho, ulb*rho );
+#    du = PV(c("du.x", "du.y"))
+#    feq2 = MRT_feq(U, rho, (ulb+du)*rho );
+
+	EQ = MRT_eq(U, ortogonal=FALSE)
+    wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+    wi = subst(wi, rho=1)
+    wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+    wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W))
+	H = chol(W[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+	EQ = MRT_eq(U, mat=B)
+
+    feq = EQ$feq
+
+#end f
+
+
+
+
 
 #	geq = MRT_feq(U, rhoT, u*rhoT );
 
@@ -66,7 +96,11 @@
 
 # one over square of speed of sound
 
-
+    if ( any( DensityAll$group=="BC" ) ) {
+        BC_Velocity=PV(c('BC[0]', 'BC[1]'))
+    } else {
+        BC_Velocity=PV(c('VelocityX', 'VelocityY'))
+    }
 
 ?>
 
@@ -203,6 +237,21 @@ CudaDeviceFunction void Run() {
     case NODE_TopSymmetry:
         SymmetryTop();
         break;
+
+
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_NVelocity:
+		NVelocity();
+		break;
+	case NODE_SVelocity:
+		SVelocity();
+		break;
+        
     }
 
 
@@ -222,7 +271,8 @@ CudaDeviceFunction void Init() {
 	
     vector_t ulb = {0.,0.}, u={0,0};
     real_t rho = 1.;
-    
+    real_t Jx = u.x / rho;
+    real_t Jy = u.y / rho;
 
 <?R
     psi0=PV("psi0");
@@ -235,6 +285,17 @@ CudaDeviceFunction void Init() {
     C( h_1, n_inf_1 * wi);
     C(phi, wp0 * phi0);
 ?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+   if ( IamBOUNDARY ) {
+       BC[0] = u.x;
+       BC[1] = u.y;
+   } else {
+       BC[0] = 0;
+       BC[1] = 0;
+   }
+<?R } ?>
+
 }
 
 
@@ -242,8 +303,8 @@ CudaDeviceFunction void CollisionBGK()
 {
 	real_t M[9];
 	real_t psi, rho_e, rho, n0, n1;
-    real_t BK;
-    vector_t u, Force, du, ulb;
+    real_t BK, Jx,Jy;
+    vector_t u, Force, ulb;
 
 	rho_e = getrho_e();
     psi = getPsi();
@@ -300,16 +361,15 @@ CudaDeviceFunction void CollisionBGK()
 
 
         
-        C(ulb, f %*% U)
-    ?>
- 	    ulb.x /= rho;
-    	ulb.y /= rho;
-	    ulb.z = 0;       
-    <?R
+        C(J, f %*% U)
         omega = PV("omega")
-        C(du, PV(c("Force.x","Force.y")))
-        C(f,  f - omega*(f -  feq) + (feq2 - feq) ) 
-
+#C(du, PV(c("Force.x","Force.y")))
+#        C(f,  f - omega*(f -  feq) + (feq2 - feq) ) 
+        C(f, (omega-1) * (EQ$feq - f)  )
+    
+        C( J, J + PV( c("Force.x","Force.y")  ))
+   
+        C(f, f + EQ$feq)
     ?>
       
 //    }
@@ -485,4 +545,59 @@ CudaDeviceFunction void EPressure()
 ?>
 
 }
+
+
+
+<?R
+velocityBC = function(n) {
+     ?> { <?R
+        ZouHeRewrite(EQ, f, n, "velocity", BC_Velocity) 
+     ?> } <?R
+
+     ?> { <?R
+        FullBounceBack(group="g") 
+     ?> } <?R
+   
+        u = BC_Velocity 
+        cu = (u[1] * U[,1] + u[2] * U[,2]) 
+        EQ_h = EQ
+        EQ_h$feq =  wi * n1 * (1. - cu * cs2^-1)
+        EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+        
+     ?> { <?R  
+        ZouHeRewrite(EQ_h, h_0, n, "pressure", n_inf_0)
+     ?> } <?R
+      
+     ?> { <?R
+        ZouHeRewrite(EQ_h, h_1, n, "pressure", n_inf_1)
+     ?> } <?R
+     
+     ?> { <?R
+        C(phi, wp*phi_bc)
+     ?> } <?R
+
+}
+
+
+?>
+
+CudaDeviceFunction void EVelocity()
+{
+   <?R velocityBC(c(1,0)) ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+   <?R velocityBC(c(-1,0)) ?>
+}
+
+CudaDeviceFunction void NVelocity()
+{
+   <?R velocityBC(c(0,1)) ?>
+}
+CudaDeviceFunction void SVelocity()
+{
+   <?R velocityBC(c(0,1)) ?>
+}
+
 

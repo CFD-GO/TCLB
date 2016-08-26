@@ -126,3 +126,16 @@ AddNodeType("TopSymmetry","BOUNDARY")
 #AddNodeType("ForceConcentration","ADDITIONALS")
 #AddNodeType("Seed","ADDITIONALS")
 
+
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+
+
+
+AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
+AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+
+
+
