@@ -572,10 +572,6 @@ velocityBC = function(n) {
         ZouHeRewrite(EQ_h, h_1, n, "pressure", n_inf_1)
      ?> } <?R
      
-     ?> { <?R
-        C(phi, wp*phi_bc)
-     ?> } <?R
-
 }
 
 
@@ -584,20 +580,49 @@ velocityBC = function(n) {
 CudaDeviceFunction void EVelocity()
 {
    <?R velocityBC(c(1,0)) ?>
+   { <?R
+        C(phi, wp*phi_bc)
+   ?> } 
+
+      
 }
 
 CudaDeviceFunction void WVelocity()
 {
    <?R velocityBC(c(-1,0)) ?>
+   { <?R
+        C(phi, wp*phi_bc)
+   ?>}
+
+    
 }
 
 CudaDeviceFunction void NVelocity()
 {
    <?R velocityBC(c(0,1)) ?>
+ <?R
+  reflect_to =  c(4,7,8) + 1;
+  reflect_from = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>      
+
 }
 CudaDeviceFunction void SVelocity()
 {
-   <?R velocityBC(c(0,1)) ?>
+   <?R velocityBC(c(0,-1)) ?>
+
+<?R
+  reflect_from =  c(4,7,8) + 1;
+  reflect_to = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>
+      
 }
 
 
