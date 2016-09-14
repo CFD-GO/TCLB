@@ -242,6 +242,22 @@ fi
 CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
 
+AC_MSG_CHECKING([MPI library path])
+if test -z "${MPI_LIB}"; then
+	if test -z "${MPI}"; then
+		MPI_LIB="/usr/lib/openmpi/lib"
+	else
+		MPI_LIB="${MPI}/lib"
+	fi
+	AC_MSG_RESULT([${MPI_LIB}])
+else
+	AC_MSG_RESULT([${MPI_LIB}])
+fi
+LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
+AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
+AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+
+
 
 if  test "x${with_python}" == "xyes"; then
    
@@ -266,20 +282,8 @@ fi
 
 
 
-AC_MSG_CHECKING([MPI library path])
-if test -z "${MPI_LIB}"; then
-	if test -z "${MPI}"; then
-		MPI_LIB="/usr/lib/openmpi/lib"
-	else
-		MPI_LIB="${MPI}/lib"
-	fi
-	AC_MSG_RESULT([${MPI_LIB}])
-else
-	AC_MSG_RESULT([${MPI_LIB}])
-fi
-LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
-AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
-AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+
+
 
 NLOPT=""
 
