@@ -242,6 +242,9 @@ fi
 CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
 
+
+
+
 AC_MSG_CHECKING([MPI library path])
 if test -z "${MPI_LIB}"; then
 	if test -z "${MPI}"; then
@@ -256,7 +259,6 @@ fi
 LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
 AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
-
 
 
 if  test "x${with_python}" == "xyes"; then
@@ -274,14 +276,14 @@ if  test "x${with_python}" == "xyes"; then
 #    PF=$($python_config --cflags)
     PF=$($python_config --includes)
     CPPFLAGS="${CPPFLAGS} ${PF}"
+
+    PF=$($python_config --prefix)
+
+    LDFLAGS="${LDFLAGS} -L${PF}/lib"
     EMBEDED_PYTHON=1
     AC_MSG_RESULT([${PF}])
 	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
 fi
-
-
-
-
 
 
 
