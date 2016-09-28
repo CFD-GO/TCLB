@@ -10,10 +10,10 @@
 	<Model>
 		<Params ForceX="1e-5"/>
 		<Params nu="0.05"/>
-		<Params SigmaY="0.00001"/> <!-- Extra parameter characterising viscoplastic liquid - its yield stress -->
+		<Params YieldStress="0.00001"/> <!-- Extra parameter characterising viscoplastic liquid - its yield stress -->
 	</Model>
 	<VTK/> 
-	<Failcheck Iterations="100"/> <!-- Checks if the solution failed every 1000 iterations-->
+	<Failcheck Iterations="100"/> <!-- Checks every 1000 iterations if the solution failed -->
 	<Log Iterations="100"/>	
 	<VTK Iterations="50"/> 
 	<Solve Iterations="1000"/>

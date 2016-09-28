@@ -124,11 +124,6 @@ tmp = f110;
 f110 = f120;
 f120 = tmp;
 	
-vector_t u;
-	
-u.x = -f222 + f122 - f212 + f112 - f202 + f102 - f221 + f121 - f211 + f111 - f201 + f101 - f220 + f120 - f210 + f110 - f200 + f100;
-u.y = -f222 - f122 - f022 + f212 + f112 + f012 - f221 - f121 - f021 + f211 + f111 + f011 - f220 - f120 - f020 + f210 + f110 + f010;
-u.z = -f222 - f122 - f022 - f212 - f112 - f012 - f202 - f102 - f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001;
 tmp = f211;
 f211 = f221;
 f221 = tmp;
@@ -177,7 +172,7 @@ f112 = tmp;
 
 }
 
-CudaDeviceFunction void EVelocity()
+CudaDeviceFunction void EVelocity_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho  = ( f022 + f012 + f002 + f021 + f011 + f001 + f020 + f010 + f000 + ( f112 + f121 + f122 + f111 + f102 + f101 + f120 + f110 + f100 )*2. ) / ( 1 + Velocity );
@@ -196,7 +191,7 @@ f222 = f111 + ( -Jz - Jy - Jx )/36.;
 
 }
 
-CudaDeviceFunction void WVelocity()
+CudaDeviceFunction void WVelocity_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho  = ( f022 + f012 + f002 + f021 + f011 + f001 + f020 + f010 + f000 + ( f221 + f212 + f211 + f222 + f201 + f202 + f210 + f220 + f200 )*2. ) / ( 1 - Velocity );
@@ -215,7 +210,7 @@ f122 = f211 + ( -Jz - Jy + Jx )/36.;
 
 }
 
-CudaDeviceFunction void SVelocity()
+CudaDeviceFunction void SVelocity_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho  = ( f202 + f102 + f002 + f201 + f101 + f001 + f200 + f100 + f000 + ( f221 + f121 + f021 + f122 + f222 + f022 + f120 + f220 + f020 )*2. ) / ( 1 - Velocity );
@@ -234,7 +229,7 @@ f212 = f121 + ( -Jz + Jy - Jx )/36.;
 
 }
 
-CudaDeviceFunction void NVelocity()
+CudaDeviceFunction void NVelocity_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho  = ( f202 + f102 + f002 + f201 + f101 + f001 + f200 + f100 + f000 + ( f112 + f212 + f012 + f211 + f111 + f011 + f210 + f110 + f010 )*2. ) / ( 1 + Velocity );
@@ -253,7 +248,26 @@ f222 = f111 + ( -Jz - Jy - Jx )/36.;
 
 }
 
-CudaDeviceFunction void WPressure()
+CudaDeviceFunction void EPressure_ZouHe()
+{
+real_t Jx, Jy, Jz, rho;
+rho = 1 + Pressure*3.;
+Jx  = ( f022 + f012 + f002 + f021 + f011 + f001 + f020 + f010 - rho + f000 + ( f112 + f121 + f122 + f111 + f102 + f101 + f120 + f110 + f100 )*2. ) / ( 1 );
+Jy  = ( -f022 + f012 - f021 + f011 - f020 + f010 ) / ( -1/3. );
+Jz  = ( -f022 - f012 - f002 + f021 + f011 + f001 ) / ( -1/3. );
+f200 = f100 - Jx*4./9.;
+f210 = f120 + ( Jy - Jx )/9.;
+f220 = f110 + ( -Jy - Jx )/9.;
+f201 = f102 + ( Jz - Jx )/9.;
+f211 = f122 + ( Jz + Jy - Jx )/36.;
+f221 = f112 + ( Jz - Jy - Jx )/36.;
+f202 = f101 + ( -Jz - Jx )/9.;
+f212 = f121 + ( -Jz + Jy - Jx )/36.;
+f222 = f111 + ( -Jz - Jy - Jx )/36.;
+
+}
+
+CudaDeviceFunction void WPressure_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho = 1 + Pressure*3.;
@@ -272,7 +286,7 @@ f122 = f211 + ( -Jz - Jy + Jx )/36.;
 
 }
 
-CudaDeviceFunction void SPressure()
+CudaDeviceFunction void SPressure_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho = 1 + Pressure*3.;
@@ -291,7 +305,7 @@ f212 = f121 + ( -Jz + Jy - Jx )/36.;
 
 }
 
-CudaDeviceFunction void NPressure()
+CudaDeviceFunction void NPressure_ZouHe()
 {
 real_t Jx, Jy, Jz, rho;
 rho = 1 + Pressure*3.;
@@ -310,86 +324,32 @@ f222 = f111 + ( -Jz - Jy - Jx )/36.;
 
 }
 
-CudaDeviceFunction void EPressure()
-{
-real_t Jx, Jy, Jz, rho;
-rho = 1 + Pressure*3.;
-Jx  = ( f022 + f012 + f002 + f021 + f011 + f001 + f020 + f010 - rho + f000 + ( f112 + f121 + f122 + f111 + f102 + f101 + f120 + f110 + f100 )*2. ) / ( 1 );
-Jy  = ( -f022 + f012 - f021 + f011 - f020 + f010 ) / ( -1/3. );
-Jz  = ( -f022 - f012 - f002 + f021 + f011 + f001 ) / ( -1/3. );
-f200 = f100 - Jx*4./9.;
-f210 = f120 + ( Jy - Jx )/9.;
-f220 = f110 + ( -Jy - Jx )/9.;
-f201 = f102 + ( Jz - Jx )/9.;
-f211 = f122 + ( Jz + Jy - Jx )/36.;
-f221 = f112 + ( Jz - Jy - Jx )/36.;
-f202 = f101 + ( -Jz - Jx )/9.;
-f212 = f121 + ( -Jz + Jy - Jx )/36.;
-f222 = f111 + ( -Jz - Jy - Jx )/36.;
-
-}
-CudaDeviceFunction void TopSymmetry()
-{
-//Symmetry on the top of the boundary
-
-f222 = f212;
-f122 = f112;
-f022 = f012;
-f221 = f211;
-f121 = f111;
-f021 = f011;
-f220 = f210;
-f120 = f110;
-f020 = f010;
-
-}
-
-CudaDeviceFunction void BottomSymmetry()
-{
-//Symmetry on the bottom of the boundary
-f212=f222;
-f112=f122;
-f012=f022;
-f211=f221;
-f111=f121;
-f011=f021;
-f210=f220;
-f110=f120;
-f010=f020;
-
-}
 
 CudaDeviceFunction void Run() {
     switch (NodeType & NODE_BOUNDARY) {
-	case NODE_TopSymmetry:
-		TopSymmetry();
-		break;
-	case NODE_BottomSymmetry:
-               	BottomSymmetry();
-                break;
-	case NODE_EPressure:
-                EPressure();
+	case NODE_EPressure_ZouHe:
+                EPressure_ZouHe();
                	break;
-	case NODE_WPressure:
-		WPressure();
+	case NODE_WPressure_ZouHe:
+		WPressure_ZouHe();
 		break;
-	case NODE_SPressure:
-                SPressure();
+	case NODE_SPressure_ZouHe:
+                SPressure_ZouHe();
                 break;
-	case NODE_NPressure:
-                NPressure();
+	case NODE_NPressure_ZouHe:
+                NPressure_ZouHe();
                 break;
-	case NODE_WVelocity:
-		WVelocity();
+	case NODE_WVelocity_ZouHe:
+		WVelocity_ZouHe();
 		break;
-	 case NODE_NVelocity:
-                NVelocity();
+	 case NODE_NVelocity_ZouHe:
+                NVelocity_ZouHe();
                 break;
-	 case NODE_SVelocity:
-                SVelocity();
+	 case NODE_SVelocity_ZouHe:
+                SVelocity_ZouHe();
                 break;
-	case NODE_EVelocity:
-		EVelocity();
+	case NODE_EVelocity_ZouHe:
+		EVelocity_ZouHe();
 		break;
 	case NODE_SymmetryY:
 		SymmetryY();
@@ -452,8 +412,7 @@ CudaDeviceFunction void Init(){
 }
 
 CudaDeviceFunction void CollisionMRT()
-{	
-	
+{
 	
 	real_t Rho =  f222 + f122 + f022 + f212 + f112 + f012 + f202 + f102 + f002 + f221 + f121 + f021 + f211 + f111 + f011 + f201 + f101 + f001 + f220 + f120 + f020 + f210 + f110 + f010 + f200 + f100 + f000;
 	real_t RhoInv = 1./Rho;
@@ -515,7 +474,7 @@ CudaDeviceFunction void CollisionMRT()
 	f_eq222 = rho_par * ( 1. + 3.* ( -Ux  -Uy	-Uz) *(1+1.5*(	-Ux	-Uy	-Uz	)) - 1.5*Usq)- 0.5*Phi222;
 	f_eq122 = rho_par * ( 1. + 3.* (+Ux  -Uy	-Uz) *(1+1.5*(	+Ux	-Uy	-Uz	)) - 1.5*Usq)- 0.5*Phi122;
 	
-	/* set S tensor  from non-equilibrium populations in 2 steps*/
+	/* set S tensor  from non-equilibrium populations in 2 steps: first, add standard popsulations, then subtract equilibrium ones */
 	
 	real_t Sxx	=	+f100+f200+f110	+f210+f220+f120+f101+f201		+f102		+f202		+f111	+f211	+f221	+f121	+f112	+f212	+f222	+f122;
 	real_t Sxy	=	+f110-f210+f220-f120+f111-f211+f221-f121+f112	-f212	+f222	-f122;
@@ -544,18 +503,18 @@ CudaDeviceFunction void CollisionMRT()
 	/* contraction of S */
 	real_t Scontr = Sxx*Sxx + Sxy*Sxy + Sxz*Sxz + Syx*Syx + Syy*Syy + Syz*Syz + Szx*Szx + Szy*Szy + Szz*Szz;
 
-	if(Scontr < 2*SigmaY*SigmaY){
+	if(Scontr < 2*YieldStress*YieldStress){
 		yield_stat =  1.0;
 		nu_app    = 0.0;
 	}
-	else{ 
+	else{
 		yield_stat = 0.0;
 		real_t omega= 1.0/(3*nu+0.5);
 		real_t sq2s = sqrt(2./Scontr);
-		real_t c = (6*nu - 1.0)/(6*nu + 1.0)+ sq2s * SigmaY * omega;
-		if( SigmaY < 1e-15 ) c = (6*nu - 1.0)/(6*nu + 1.0); // for security if the viscoplastic model is used with close-to-zero yield stress
+		real_t c = (6*nu - 1.0)/(6*nu + 1.0)+ sq2s * YieldStress * omega;
+		if( YieldStress < 1e-15 ) c = (6*nu - 1.0)/(6*nu + 1.0); // for security if the viscoplastic model is used with close-to-zero yield stress
 		Sxx *=c; Sxy *=c; Sxz *=c; Syx *=c; Syy *=c; Syz *=c; Szx *=c; Szy *=c; Szz *=c;
-		nu_app= nu + SigmaY/sq2s; //apparent viscosity
+		nu_app= nu + YieldStress/sq2s; //apparent viscosity
 	}
 
 	/* update populations with F_eq + Phi + F_sigma */

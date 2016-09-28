@@ -20,33 +20,33 @@ AddQuantity( name="yield_stat")
 
 AddSetting(name="nu", default=0.16666666, comment='Viscosity')
 AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
-AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
+AddSetting(name="Pressure", default="0Pa", comment='Inlet/Outlet pressure', zonal=TRUE) 
+# Zou-He BCs do not distinguish between inlet and outlet
 	
-AddDensity(name="nu_app", dx=0, dy=0, dz=0)
-AddDensity(name="yield_stat", dx=0, dy=0, dz=0)
+#apparent viscosity 
+AddDensity(name="nu_app", dx=0, dy=0, dz=0) 
+# status of the node - 1 if the region is unfielded, 0 if it is yielded (i.e. behaves like a fluid
+AddDensity(name="yield_stat", dx=0, dy=0, dz=0) 
 
-AddSetting(name="GalileanCorrection",default=1.,comment='Galilean correction term')
-AddSetting(name="ForceX",default=0, comment='Force force X')
-AddSetting(name="ForceY",default=0, comment='Force force Y')
-AddSetting(name="ForceZ",default=0, comment='Force force Z')
-AddSetting(name="SigmaY",default=0, comment='Yield stress')
+AddSetting(name="ForceX",default="0m/s2", comment='Force force X')
+AddSetting(name="ForceY",default="0m/s2", comment='Force force Y')
+AddSetting(name="ForceZ",default="0m/s2", comment='Force force Z')
+# yield stress of the fluid - below this value of stress the fluid behaves as practically solid, yield stress is usually denoted as tau_y or sigma_y
+AddSetting(name="YieldStress",default="0Pa", comment='Yield stress') 
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
+# naming convention used (hopefully consistent with other pieces of code) X: East - West; Y: North-South; Z: Inlet-Outlet (terminology from computer games)
 AddNodeType("SymmetryY", "BOUNDARY")
 AddNodeType("SymmetryZ", "BOUNDARY")
-AddNodeType("TopSymmetry","BOUNDARY")
-AddNodeType("BottomSymmetry","BOUNDARY")
-AddNodeType("NVelocity", "BOUNDARY")
-AddNodeType("SVelocity", "BOUNDARY")
-AddNodeType("NPressure", "BOUNDARY")
-AddNodeType("SPressure", "BOUNDARY")
-
-# new boundary conditions
-AddNodeType("CoutVelocity","BOUNDARY")
-AddNodeType("PCoutVelocity","BOUNDARY")
-AddNodeType("WVelocityEq","BOUNDARY")
-AddNodeType("WVelocityBB","BOUNDARY")
+AddNodeType("NVelocity_ZouHe", "BOUNDARY")
+AddNodeType("SVelocity_ZouHe", "BOUNDARY")
+AddNodeType("EVelocity_ZouHe", "BOUNDARY")
+AddNodeType("WVelocity_ZouHe", "BOUNDARY")
+AddNodeType("NPressure_ZouHe", "BOUNDARY")
+AddNodeType("SPressure_ZouHe", "BOUNDARY")
+AddNodeType("EPressure_ZouHe", "BOUNDARY")
+AddNodeType("WPressure_ZouHe", "BOUNDARY")
 
 #reporting fluxes
 AddNodeType("XYslice1",group="ADDITIONALS")
@@ -78,9 +78,3 @@ AddGlobal(name="YZvz", comment='Volume flux', unit="m3/s")
 AddGlobal(name="YZrho1", comment='Volume flux', unit="kg/m")
 AddGlobal(name="YZrho2", comment='Volume flux', unit="kg/m")
 AddGlobal(name="YZarea", comment='Volume flux', unit="m2")
-        
-#Adding terms for supporting time-correlation for synthetic turbulence
-
-
-
-
