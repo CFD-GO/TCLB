@@ -42,13 +42,13 @@
     n = PV(c("n.x","n.y"))
     c_sq = 1/3.
     Bh = PV('Bh')
-    W = PV("W")	
+    W = PV("IntWidth")	
     n = c(PV('n.x'),PV('n.y'))
     
     EQ_h = MRT_eq(U,mat=B)
     EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
     
-    mob = PV("M")
+    mob = PV("Mobility")
     Bh = 3*mob * (1.-4.*pf*pf)*W 
 
     EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
@@ -207,8 +207,8 @@ CudaDeviceFunction vector_t getF() {
     real_t pf = <?R C(sum(h)) ?> ;
     vector_t Force = getInterfaceForce();
     //surface tension
-  //  Force.x = SurfaceTensionRate * Force.x;
-  //  Force.y = SurfaceTensionRate * Force.y;
+    Force.x = SurfaceTensionRate * Force.x;
+    Force.y = SurfaceTensionRate * Force.y;
 	
     //bouncy
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
@@ -220,13 +220,17 @@ CudaDeviceFunction vector_t getF() {
 }
 
 CudaDeviceFunction vector_t getInterfaceForce() {
-	vector_t F = getNormal();
-    real_t curv = 0;// getCurvature();
+	vector_t F;
+    F.x = 0;
+    F.y = 0;
+    F.z = 0;
+    real_t curv = getCurvature();
     real_t phi_l = <?R C(sum(h)) ?> ;
-    if (phi_l * phi_l > 0.245) { 
-        phi_l = 0.5; 
-    }
-    real_t scale =  W * (1-4*phi_l*phi_l);
+    if (phi_l * phi_l < 0.245) { 
+    F = getNormal();
+
+    
+    real_t scale =  IntWidth * (1-4*phi_l*phi_l);
 
     F.z = 0;
     F.x =  SurfaceTensionRate * curv  *  F.x  * scale; // exp(- SurfaceTensionDecay * phi_l*phi_l);
@@ -270,7 +274,7 @@ CudaDeviceFunction vector_t getInterfaceForce() {
     
     }
 
-
+    }
 
 	return F;
 }
@@ -348,7 +352,7 @@ CudaDeviceFunction real_t getCurvature() {
     for (i in 0:2) {
         for (j in 0:2){
             n = c( PV( "nx[",i,"][",j,"]"), PV("ny[",i,"][",j,"]" ) ) 
-            C( n,  PV("phi(",i+U[,1]-1,",",j+U[,2]-1,")") %*%U )
+            C( n,  PV("phi(",i+U[,1]-1,",",j+U[,2]-1,")") %*%(c(wi)*U) )
             C( PV("temp"), n %*% n )
     #normal
             ?>
@@ -366,10 +370,10 @@ CudaDeviceFunction real_t getCurvature() {
     nxs = PV("nx[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
     nys = PV("ny[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
     temp2 = nxs %*% U[,1] + nys %*% U[,2]
-    C(PV("temp"), temp2[1] + temp2[2])
+    C(PV("temp"), 3 * ( temp2[1] + temp2[2] ) )
     
  ?>
-    return temp;
+    return -temp;
 }
 
 CudaDeviceFunction float2 Color() {
@@ -651,7 +655,7 @@ CudaDeviceFunction void CollisionMRT()
     vector_t u;
     u.x = (Jx + 0.5 * F.x) / d;
     u.y = (Jy + 0.5 * F.y) / d;
-    real_t omega_ph =  1/( 3 * M + 0.5); 
+    real_t omega_ph =  1/( 3 * Mobility + 0.5); 
     real_t Bh;
 
 <?R
