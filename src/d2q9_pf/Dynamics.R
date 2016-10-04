@@ -30,15 +30,14 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 AddQuantity(name="Normal",unit="1/m",vector=T)
 AddQuantity(name="PhaseField",unit="1")
 
-AddSetting(name="W", default=0.33333, comment='Anty-diffusivity coeff')
-AddSetting(name="M", default=0.001, RelaxationRate_ph="1/( 3 * M + 0.5)",comment='Mobility')
+AddSetting(name="IntWidth", default=0.33333, comment='Interface width')
+AddSetting(name="Mobility", default=0.001, comment='Mobility')
 AddSetting(name="PhaseField", 
            default=0.5, 
            comment='Phase Field marker scalar', 
            zonal=T
            )
 
-AddSetting(name="RelaxationRate_ph", default=1, comment='Mobility')
 
 
 AddSetting(name="OverwriteVelocityField", default="0")

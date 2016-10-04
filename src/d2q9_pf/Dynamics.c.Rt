@@ -42,13 +42,13 @@
     h  = PV(Density$name[Density$group=='h'])
     pf = PV("pf")
     n = PV(c("n.x","n.y"))
-    W = PV("W")	
+    W = PV("IntWidth")	
     n = c(PV('n.x'),PV('n.y'))
     
     EQ_h = MRT_eq(U,mat=B)
     EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
      
-    mob = PV("M")
+    mob = PV("Mobility")
     Bh = 3*mob * (1.-4.*pf*pf)*W 
 
     EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
@@ -101,7 +101,6 @@ CudaDeviceFunction vector_t getNormal(){
     real_t k01, k10;
     vector_t n;
     vector_t u = getU();
-
     <?R
     ee_x = U[,1] - u[1]
     ee_y = U[,2] - u[2]
@@ -145,7 +144,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t p
 #	feq = EQ$Req %*% solve(EQ$mat)
 	C( f, EQ$feq)
     C(u, PV(c('Jx/rho', 'Jy/rho')))
-    C( h,  EQ_h$feq  )
+    C( h,  pf * wi  )
 
 ?>
 
@@ -376,13 +375,21 @@ CudaDeviceFunction void CollisionMRT()
 //////////////////////////////////////
 ////     part related to h
 /////////////////////////////////////
+//    vector_t n = getNormal();
+
+
+    real_t k01, k10;
     vector_t n = getNormal();
+  
     real_t pf = getPhaseField();
     vector_t u = getU();
+     
 <?R
-    RelaxationRate_ph=PV("RelaxationRate_ph")
+    RelaxationRate_ph= PV('RelaxationRate_ph') 
+	?>
+	real_t RelaxationRate_ph = 1./(3*Mobility + 0.5);
+<?R
     C( h, h - RelaxationRate_ph * ( h - EQ_h$feq ) )
-
 ?>
 }
 
