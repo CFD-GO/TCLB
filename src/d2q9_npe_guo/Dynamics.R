@@ -118,8 +118,8 @@ AddSetting(name="t_to_s", default="1t/s", unit="t/s", comment ="time scale ratio
 
 AddGlobal(name="TotalMomentum");
 
-AddNodeType("BottomSymmetry","BOUNDARY")
-AddNodeType("TopSymmetry","BOUNDARY")
+AddNodeType("SSymmetry","BOUNDARY")
+AddNodeType("NSymmetry","BOUNDARY")
 
 
 #AddNodeType("ForceTemperature","ADDITIONALS")
