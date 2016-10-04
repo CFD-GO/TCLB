@@ -13,19 +13,19 @@
 class lbRegion;
 class LatticeContainer;
 
-#define ITER_STREAM   0x00
-#define ITER_NORM     0x01
-#define ITER_ADJOINT  0x02
-#define ITER_OPT      0x03
-#define ITER_TYPE     0x03
-#define ITER_NO       0x00
-#define ITER_GLOBS    0x10
-#define ITER_OBJ      0x20
-#define ITER_INIT     0x30
-#define ITER_STEADY   0x40
-#define ITER_INTEG    0x70
-#define ITER_LASTGLOB 0x80
-
+#define ITER_STREAM   0x000
+#define ITER_NORM     0x001
+#define ITER_ADJOINT  0x002
+#define ITER_OPT      0x003
+#define ITER_TYPE     0x003
+#define ITER_NO       0x000
+#define ITER_GLOBS    0x010
+#define ITER_OBJ      0x020
+#define ITER_INIT     0x030
+#define ITER_STEADY   0x040
+#define ITER_INTEG    0x070
+#define ITER_LASTGLOB 0x080
+#define ITER_SKIPGRAD 0x100
 const int maxSnaps=33;
 
 /// Class for computations
@@ -87,6 +87,7 @@ public:
   void saveSolution(const char * filename);
   void loadSolution(const char * filename);
   void startRecord();
+  void rewindRecord();
   void stopRecord();
   void clearAdjoint();
   void clearDPar();

@@ -270,6 +270,17 @@ void Lattice::clearDPar()
 /**
         Stops the Adjoint recording process
 */
+void Lattice::rewindRecord()
+{
+	Record_Iter = 0;
+	IterateTill(Record_Iter, ITER_NORM);
+	debug2("Rewind tape\n");
+}
+
+/// Finish unsteady adjoint record
+/**
+        Stops the Adjoint recording process
+*/
 void Lattice::stopRecord()
 {
 	if (Record_Iter != 0) {
