@@ -464,86 +464,44 @@ CudaDeviceFunction vector_t getF(){
     return F;
 }
 
+<?R
+pressureBC = function(n) {
+     ?> { <?R
+        ZouHeRewrite(EQ, f, n, "pressure", c(PV('rho_bc')) ) 
+     ?> } <?R
+
+     ?> { <?R
+        FullBounceBack(group="g") 
+     ?> } <?R
+   
+        u = BC_Velocity 
+        cu = (u[1] * U[,1] + u[2] * U[,2]) 
+        EQ_h = EQ
+        EQ_h$feq =  wi * n1 * (1. - cu * cs2^-1)
+        EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+        
+     ?> { <?R  
+        ZouHeRewrite(EQ_h, h_0, n, "pressure", n_inf_0)
+     ?> } <?R
+      
+     ?> { <?R
+        ZouHeRewrite(EQ_h, h_1, n, "pressure", n_inf_1)
+     ?> } <?R
+
+     ?> { <?R
+        C(phi, wp*phi_bc)
+     ?> } <?R
+}
+
+?>
 CudaDeviceFunction void WPressure()
 {
-	real_t ru, ux0;
-	real_t rho = rho_bc;
-	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / rho;
-	ru = rho * ux0;
-
-	f[1] = f[3] - (2./3.) * ru;
-	f[5] = f[7] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
-	f[8] = f[6] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-
-
-// *******************
-// Bounce back g
-// *******************    
-     real_t uf;
-<?R
-  V = cbind(1:9, bounce+1)
-  sel = V[,1] > V[,2]
-  V = V[sel,]
-  for (i in 1:nrow(V))
-  {
-	C(uf, g[V[i,1]])
-    C(g[V[i,1]], g[V[i,2]])
-    C(g[V[i,2]], uf)
-  }
-?>
-// ********************
-// Dirichlet for others
-// ********************
-
-<?R
-#    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
-    
-    C(h_0, n_inf_0 * wi )
-    C(h_1, n_inf_1 * wi )
-    C(phi, wp*phi_bc)
-?>
-
-
+ <?R pressureBC(c(-1,0)) ?>
 }
 
 CudaDeviceFunction void EPressure()
 {
-	real_t ru, ux0;
-	real_t rho = 1.0;
-	ux0 = -1. + ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / rho;
-	ru = rho * ux0;
-
-	f[3] = f[1] - (2./3.) * ru;
-	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
-	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
-
-// *******************
-// Bounce back g
-// *******************    
-     real_t uf;
-<?R
-  V = cbind(1:9, bounce+1)
-  sel = V[,1] > V[,2]
-  V = V[sel,]
-  for (i in 1:nrow(V))
-  {
-	C(uf, g[V[i,1]])
-    C(g[V[i,1]], g[V[i,2]])
-    C(g[V[i,2]], uf)
-  }
-?>
-// ********************
-// Dirichlet for others
-// ********************
-
-<?R
-#    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
-    
-    C(h_0, n_inf_0 * wi )
-    C(h_1, n_inf_1 * wi )
-    C(phi, wp*phi_bc)
-?>
-
+ <?R pressureBC(c(1,0)) ?>
 }
 
 
