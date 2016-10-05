@@ -54,6 +54,7 @@ AddGlobal(name="Power2", comment='reaction force Y')
 
 AddSetting(name="PDX", default=0, comment='plate diameter X')
 AddSetting(name="PDY", default=0, comment='plate diameter Y')
+AddSetting(name="SM", default=1, comment='smoothing diameter')
 AddSetting(name="PX", default=0, comment='plate position X', zonal=T)
 AddSetting(name="PY", default=0, comment='plate position Y', zonal=T)
 AddSetting(name="PR", default=0, comment='plate angle', zonal=T)
