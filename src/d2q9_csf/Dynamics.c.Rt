@@ -207,8 +207,8 @@ CudaDeviceFunction vector_t getF() {
     real_t pf = <?R C(sum(h)) ?> ;
     vector_t Force = getInterfaceForce();
     //surface tension
-    Force.x = SurfaceTensionRate * Force.x;
-    Force.y = SurfaceTensionRate * Force.y;
+    //Force.x = SurfaceTensionRate * Force.x;
+    //Force.y = SurfaceTensionRate * Force.y;
 	
     //bouncy
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
@@ -227,14 +227,30 @@ CudaDeviceFunction vector_t getInterfaceForce() {
     real_t curv = getCurvature();
     real_t phi_l = <?R C(sum(h)) ?> ;
     if (phi_l * phi_l < 0.245) { 
-    F = getNormal();
+  
+   bool inwall = false;
+   <?R
+    for (j in 1:9) {
+    ?> 
+        if (<?R C(phis[j]) ?>  != -999) {
+            F.x = F.x + <?R C(phis[j]*U[j,1]) ?>;
+            F.y = F.y + <?R C( phis[j]*U[j,2]) ?>;
+        } else {
+            inwall = true;
+        }
+    <?R } ?>
 
-    
-    real_t scale =  IntWidth * (1-4*phi_l*phi_l);
+    if (inwall){
+        real_t scale =  IntWidth * (1-4*phi_l*phi_l);
+
+        F = getNormal();
+        F.x = F.x * scale;
+        F.y = F.y * scale;
+    }
 
     F.z = 0;
-    F.x =  SurfaceTensionRate * curv  *  F.x  * scale; // exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y =  SurfaceTensionRate * curv  *  F.y  * scale;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.x =  SurfaceTensionRate * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  SurfaceTensionRate * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
 
 
     //wetting angle forcing
@@ -269,8 +285,8 @@ CudaDeviceFunction vector_t getInterfaceForce() {
          n.y = -n.y;
        }
         
-       F.x =  WallAdhesion*n.x * scale;
-       F.y =  WallAdhesion*n.y * scale;
+       F.x =  WallAdhesion*n.x ;
+       F.y =  WallAdhesion*n.y ;
     
     }
 
