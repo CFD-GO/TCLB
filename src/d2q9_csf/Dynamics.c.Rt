@@ -226,20 +226,21 @@ CudaDeviceFunction vector_t getInterfaceForce() {
     F.z = 0;
     real_t curv = getCurvature();
     real_t phi_l = <?R C(sum(h)) ?> ;
-    if (phi_l * phi_l < 0.245) { 
+    if (phi_l * phi_l < 0.248) { 
   
    bool inwall = false;
    <?R
     for (j in 1:9) {
     ?> 
         if (<?R C(phis[j]) ?>  != -999) {
-            F.x = F.x + <?R C(phis[j]*U[j,1]) ?>;
-            F.y = F.y + <?R C( phis[j]*U[j,2]) ?>;
+            <?R C( PV('F.x') ,  PV('F.x')  + phis[j]*U[j,1]*wi[j]*3. ) ?>
+            <?R C( PV('F.y') ,  PV('F.y')  + phis[j]*U[j,2]*wi[j]*3. ) ?>
+
         } else {
             inwall = true;
         }
     <?R } ?>
-
+    
     if (inwall){
         real_t scale =  IntWidth * (1-4*phi_l*phi_l);
 
