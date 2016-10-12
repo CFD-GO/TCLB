@@ -425,12 +425,12 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
     return 0;
 }
 
-inline unsigned char smaller(unsigned char a,unsigned char b) {
+inline cut_t smaller(cut_t a,cut_t b) {
 	if (a<b) return a;
 	return b;
 }
 
-unsigned char calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, double dz) {
+cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, double dz) {
 	double mat[16],b[4],r[4];
 	<?R
 		M = PV("mat[",1:16-1,"]")
@@ -528,7 +528,7 @@ if (insideOut == 2) {
 	    for (int z = min[2]; z <= max[2]; z++)
 		for (int y = min[1]; y <= max[1]; y++) if (reg.isIn(x, y, z)) {
 			size_t k = reg.offset(x, y, z);
-			unsigned char nq;
+			cut_t nq;
 			ActivateCuts();
 			for (int d = 0; d<26; d++) {
 				nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);

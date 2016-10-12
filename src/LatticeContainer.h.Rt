@@ -43,7 +43,7 @@ class LatticeContainer {
   FTabs adjin; ///< FTabs used for Adjoint iteration as input
 #endif
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
-  unsigned char* Q; 
+  cut_t* Q; 
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
