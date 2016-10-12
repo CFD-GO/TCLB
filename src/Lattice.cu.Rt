@@ -904,7 +904,7 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 
 }
 
-void Lattice::FlagOverwrite(cut_t * Q, lbRegion over)
+void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
 {
 	if (Q == NULL) return;
 	container->ActivateCuts();
