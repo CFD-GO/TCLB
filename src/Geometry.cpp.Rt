@@ -31,7 +31,7 @@
 				x = c(0,1,-1);
 				U = expand.grid(x,x,x)
 ?>
-const int d3q27[] = { <?%s paste(t(U),collapse=",") ?> };
+const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
 
 /// Main constructor
 /**
@@ -531,7 +531,7 @@ if (insideOut == 2) {
 			unsigned char nq;
 			ActivateCuts();
 			for (int d = 0; d<26; d++) {
-				nq = calcCut(tri[i],x,y,z,d3q27[(d+1)*3],d3q27[(d+1)*3+1],d3q27[(d+1)*3+2]);
+				nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
 				if (nq < Q[regsize*d+k]) {
 					Q[regsize*d+k] = nq;
 					Dot(x, y, z);
@@ -966,7 +966,8 @@ void Geometry::writeVTI(const char *filename)
         size_t regsize = region.size();
         for (int d=0;d<26;d++) {
             char nm[20];
-            sprintf(nm,"Q(%2d,%2d,%2d)",d3q27[(d+1)+3],d3q27[(d+1)*3+1],d3q27[(d+1)*3+2]);
+//            sprintf(nm,"Q(%2d,%2d,%2d)",d3q27_vec[(d+1)+3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+            sprintf(nm,"Q_%d",d);
             vtkFile.WriteField(nm, Q + regsize*d);
         }
     }
