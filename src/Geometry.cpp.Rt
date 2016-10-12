@@ -940,6 +940,9 @@ int Geometry::load(pugi::xml_node & node)
         }
 	E(Draw(n));
     }
+    if (node.attribute("save")) {
+	writeVTI(node.attribute("save").value());
+    }
     return 0;
 }
 
@@ -951,7 +954,7 @@ Geometry::~Geometry()
 }
 
 /// Dumps the Geometry to a vti file
-void Geometry::writeVTI(char *filename)
+void Geometry::writeVTI(const char *filename)
 {
     vtkFileOut vtkFile;
     if (vtkFile.Open(filename)) {

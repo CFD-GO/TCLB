@@ -32,7 +32,7 @@ public:
   Geometry(const lbRegion& r, const UnitEnv& units_);
   ~Geometry();
   int load(pugi::xml_node&);
-  void writeVTI(char * filename);
+  void writeVTI(const char * filename);
   std::map<std::string,int> SettingZones;
 private:
   flag_t fg; ///< Foreground flag used for filling
