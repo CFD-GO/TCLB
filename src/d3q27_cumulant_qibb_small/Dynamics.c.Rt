@@ -278,33 +278,6 @@ CudaDeviceFunction void Init() {
 	
 }
 
-/*
-//this function gets the interploated distance from flag
-CudaDeviceFunction real_t ConvertToFloat(unsigned char c)
-{
-	real_t f = -1.0;
-
-	if( c >=0 && c <=200){
-		f = c * 0.005;
-		//printf("char %d in 0-200 range. Returning %lf\n", c, f );
-		return f;
-	}
-	if( c == 255){
-		//printf(" char %d marks no contact - returning -1.0\n", c);
-		return -1.0;
-	}
-
-	if( c > 200 && c < 255){
-		//printf("Unclassified %d value within 201 - 254 - returning -10.0\n", c);
-		f=-10.0;
-		return f;
-		}
-
-	return f;
-	
-}
-*/
-
 CudaDeviceFunction void CollisionMRT()
 {	
  	real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
@@ -331,7 +304,7 @@ CudaDeviceFunction void CollisionMRT()
 	if( (NodeType & NODE_HO_BOUNDARY) == NODE_QIBB){
 	<?R	C(Q[-1],Qw[-1]);
 		for (i in 2:length(Q)) { ?>
-		if (<?R C(Q[i]) ?> != 255) <?R C(f[bounce[i]],fold[i]) ?>
+		if (<?R C(Q[i]) ?> != NO_CUT) <?R C(f[bounce[i]],fold[i]) ?>
 	<?R
 		} ?>
 	} <?R
@@ -523,7 +496,7 @@ real_t q;
 
 <?R	
 	for (i in 2:length(Q)) { ?>
-	if (<?R C(Q[i]) ?> != 255) { 
+	if (<?R C(Q[i]) ?> != NO_CUT) { 
 		q = <?R C(Q[i]) ?>*0.005;
 		<?R C(f[i]) ?> = ((1-q)*<?R C(fpre[i]) ?> + q*(<?R C(f[i]+f[bounce[i]])?>))/(1+q);
 	}
