@@ -181,9 +181,9 @@ inline int txtWriteElement(FILE * f, double tmp) { return fprintf(f, "%.16lg" , 
 //inline int txtWriteElement(FILE * f, double3 tmp) { return fprintf(f, "%lg,%lg,%lg" , tmp.x, tmp.y, tmp.z); }
 inline int txtWriteElement(FILE * f, vector_t tmp) {
 	txtWriteElement(f, tmp.x);
-	fprintf(f,",");
+	fprintf(f," ");
 	txtWriteElement(f, tmp.y);
-	fprintf(f,",");
+	fprintf(f," ");
 	return txtWriteElement(f, tmp.z);
 }
 
