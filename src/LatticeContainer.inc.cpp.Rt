@@ -217,13 +217,15 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 }
 
 void LatticeContainer::ActivateCuts() {
-    void * tmp;
-    size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
-	ALLOCPRINT1;
-    CudaMalloc( (void**)&tmp, size );
-	ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); 
-    Q = (cut_t*)tmp;
+    if (Q == NULL) {
+            void * tmp;
+            size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
+                ALLOCPRINT1;
+            CudaMalloc( (void**)&tmp, size );
+                ALLOCPRINT2;
+            CudaMemset( tmp, 0, size ); 
+            Q = (cut_t*)tmp;
+    }
 }
 
 /// Destroy Container
