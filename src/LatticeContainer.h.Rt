@@ -107,6 +107,13 @@ class LatticeContainer {
     return & w[ZoneIndex];
   }
 
+  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
+    if (Q == NULL) return NO_CUT;
+    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+    return Q[i];
+  }
+
+
   CudaDeviceFunction inline vector_t getST(const real_t t, int x, int y, int z) {
 	x += px;
 	y += py;
