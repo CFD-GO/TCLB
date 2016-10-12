@@ -58,7 +58,7 @@ vtkFileOut::vtkFileOut ()
 	size = 0;
 };
 
-int vtkFileOut::Open(char* filename) {
+int vtkFileOut::Open(const char* filename) {
 	char * n;
 	f = fopen(filename,"w");
 	if (f == NULL) {fprintf(stderr, "Error: Could not open vtk file %s\n", filename); return -1; } 
