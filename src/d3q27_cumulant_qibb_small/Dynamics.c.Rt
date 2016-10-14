@@ -410,14 +410,14 @@ u.z = c001 + ForceZ/(2.*f000);
 
 //Cumulants relation 
 
- 	c100 = c100 + ForceX;//100 - change only due to force term
+ 	c100 = c100 + ForceX/f000;//100 - change only due to force term
 
         c200 = (a + b + cc)/3.; // 200
         c020 = (cc - 2*a + b)/3.;//020
         c002 = (cc - 2*b + a)/3.; 
 
-        c010 = c010 + ForceY; //010 - change only due to force term
-        c001 = c001 + ForceZ ; //001 - change only due to force term
+        c010 = c010 + ForceY/f000; //010 - change only due to force term
+        c001 = c001 + ForceZ/f000; //001 - change only due to force term
 
 	c110 = c110 * (1-w[0]);
 	c011 = c011 * (1-w[0]);

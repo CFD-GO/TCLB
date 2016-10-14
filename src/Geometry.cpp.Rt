@@ -412,14 +412,15 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] += v;
 	}
     }
+    const double sm_diff[3] = {0.123e-5, 0.231e-5, 0.312e-5};
     for (int i = 0; i < ntri; i++) {
 	for (int j = 0; j < 3; j++) {
-		tri[i].p1[j] += 1e-7 - 0.5;
-		tri[i].p2[j] += 1e-7 - 0.5;
-		tri[i].p3[j] += 1e-7 - 0.5;
 		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
 		tri[i].p2[j] = myround(tri[i].p2[j] * 1e5) * 1e-5;
 		tri[i].p3[j] = myround(tri[i].p3[j] * 1e5) * 1e-5;
+		tri[i].p1[j] += sm_diff[j] - 0.5;
+		tri[i].p2[j] += sm_diff[j] - 0.5;
+		tri[i].p3[j] += sm_diff[j] - 0.5;
 	}
     }
     return 0;
@@ -522,51 +523,52 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	v2[0] = tri[i].p3[0] - tri[i].p1[0];
 	v2[1] = tri[i].p3[2] - tri[i].p1[2];
 	c0 = v1[0] * v2[1] - v1[1] * v2[0];
-if (insideOut == 2) {
-	size_t regsize = reg.size();
-	for (int x = min[0]; x <= max[0]; x++)
-	    for (int z = min[2]; z <= max[2]; z++)
-		for (int y = min[1]; y <= max[1]; y++) if (reg.isIn(x, y, z)) {
-			size_t k = reg.offset(x, y, z);
-			cut_t nq;
-			ActivateCuts();
-			for (int d = 0; d<26; d++) {
-				nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
-				if (nq < Q[regsize*d+k]) {
-					Q[regsize*d+k] = nq;
-					Dot(x, y, z);
-				}
-			}
-		}
-} else {
-	for (int x = min[0]; x <= max[0]; x++)
-	    for (int z = min[2]; z <= max[2]; z++) {
-		v[0] = x - tri[i].p1[0];
-		v[1] = z - tri[i].p1[2];
-		c1 = v1[0] * v[1] - v1[1] * v[0];
-		c2 = v[0] * v2[1] - v[1] * v2[0];
-		c1 /= c0;
-		c2 /= c0;
-		if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
-		    c3 = 1. - c1 - c2;
-		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
-		    for (int y = reg.dy; y <= h; y++) {
-//                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
-			if (reg.isIn(x, y, z))
-			    lev[reg.offset(x, y, z)]++;
-		    }
-		}
-	    }
+	if (insideOut == 2) {
+            size_t regsize = reg.size();
+            for (int x = min[0]; x <= max[0]; x++)
+                for (int z = min[2]; z <= max[2]; z++)
+                    for (int y = min[1]; y <= max[1]; y++) if (reg.isIn(x, y, z)) {
+                            size_t k = reg.offset(x, y, z);
+                            cut_t nq;
+                            ActivateCuts();
+                            for (int d = 0; d<26; d++) {
+                                    nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+                                    if (nq < Q[regsize*d+k]) {
+                                            Q[regsize*d+k] = nq;
+                                            Dot(x, y, z);
+                                    }
+                            }
+                    }
+	} else {
+            for (int x = min[0]; x <= max[0]; x++)
+                for (int z = min[2]; z <= max[2]; z++) {
+                    v[0] = x - tri[i].p1[0];
+                    v[1] = z - tri[i].p1[2];
+                    c1 = v1[0] * v[1] - v1[1] * v[0];
+                    c2 = v[0] * v2[1] - v[1] * v2[0];
+                    c1 /= c0;
+                    c2 /= c0;
+                    if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
+                        c3 = 1. - c1 - c2;
+                        double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
+                        for (int y = reg.dy; y <= h; y++) {
+    //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
+                            if (reg.isIn(x, y, z))
+                                lev[reg.offset(x, y, z)]++;
+                        }
+                    }
+                }
+	}
     }
-    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
-		if (lev[reg.offset(x, y, z)] % 2 == 1) {
-//                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
-		    Dot(x, y, z);
-		}
-	    }
-}
+    if (insideOut != 2)
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+                for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+                    if (lev[reg.offset(x, y, z)] % 2 == 1) {
+    //                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
+                        Dot(x, y, z);
+                    }
+                }
     free(tri);
     free(lev);
     return 0;

@@ -19,6 +19,7 @@ env:
     - CUDA=6.5-14
   matrix: 
     - MODEL=d2q9 
+    - MODEL=d2q9_SRT 
     - MODEL=d2q9_hb 
     - MODEL=d2q9_heat 
     - MODEL=d2q9_kuper 
@@ -27,12 +28,18 @@ env:
     - MODEL=d2q9_new 
     - MODEL=d2q9_npe_guo 
     - MODEL=d2q9_poison_boltzmann 
+    - MODEL=d2q9_pp_LBL 
+    - MODEL=d2q9_pp_MCMP 
     - MODEL=d2q9_solid 
     - MODEL=d3q19 
     - MODEL=d3q19_heat 
     - MODEL=d3q19_les 
     - MODEL=d3q27 
+    - MODEL=d3q27_BGK 
+    - MODEL=d3q27_BGK_galcor 
     - MODEL=d3q27_cumulant 
+    - MODEL=d3q27_cumulant_qibb_small 
+    - MODEL=wave 
 
 
 before_install:
