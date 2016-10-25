@@ -262,6 +262,8 @@ public:
     free(cpuConst);
     CudaFree(gpuConst);
   }
+
+  int dumpToFile(const char*);
   
   inline size_t getLen() { return len; }
 };

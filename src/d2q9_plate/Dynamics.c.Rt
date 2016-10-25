@@ -50,16 +50,12 @@ CudaDeviceFunction vector_t getU(){
 }
 
 CudaDeviceFunction real_t getSolid(){
-        real_t px = X - PX;
-        real_t py = Y - PY;
-        real_t tmp = px*cos(PR) + py*sin(PR);
-        py =-px*sin(PR) + py*cos(PR);
-        px = tmp;
-        if ((fabs(px*2) < PDX) && (fabs(py*2) < PDY)) {
-                return 1;
-        } else {
-                return 0;
-        }
+	real_t px = X - PX;
+	real_t py = Y - PY;
+	real_t dx = px*cos(PR) + py*sin(PR);
+	real_t dy =-px*sin(PR) + py*cos(PR);
+	real_t w = calcW(dx,dy);
+	return w;
 }
 
 
@@ -181,6 +177,21 @@ CudaDeviceFunction void EPressure()
 #define S8 omega
 #define S9 omega
 
+CudaDeviceFunction real_t calcW0(real_t d) {
+	d = d + SM_M;
+	if (d < -1) return 0;
+	if (d > 1) return 1;
+	return ((3-d*d)*d+2)/4;
+}
+
+CudaDeviceFunction real_t calcW(real_t dx, real_t dy) {
+	real_t ret = 1;
+	ret = ret * calcW0((PDX-2*dx)/SM);
+	ret = ret * calcW0((PDX+2*dx)/SM);
+	ret = ret * calcW0((PDY-2*dy)/SM);
+	ret = ret * calcW0((PDY+2*dy)/SM);
+	return ret;
+}
 
 CudaDeviceFunction void CollisionMRT()
 {
@@ -258,26 +269,26 @@ real_t px = X - PX;
 real_t py = Y - PY;
 real_t dx = px*cos(PR) + py*sin(PR);
 real_t dy =-px*sin(PR) + py*cos(PR);
-dx = fabs(dx*2);
-dy = fabs(dy*2);
-if ((dx < PDX) && (dy < PDY)) {
-	real_t r = sqrt(px*px + py*py);
-//	u[0] = 2*(PX_DT - PR_DT*sin(PR)*r) - u[0];
-//	u[1] = 2*(PY_DT + PR_DT*cos(PR)*r) - u[1];
-	real_t Vx = PX_DT - PR_DT*py;
-	real_t Vy = PY_DT + PR_DT*px;
-	real_t Fx = Vx - u[0];
-	real_t Fy = Vy - u[1];
-	AddToForceX(Fx);
-	AddToForceY(Fy);
-	AddToMoment(Fx*py-Fy*px);
-	AddToPowerX(PX_DT*Fx);
-	AddToPowerY(PY_DT*Fy);
-	AddToPowerR(PR_DT*(-Fx*py+Fy*px));
-	AddToPower(Fx*Vx + Fy*Vy);
-	u[0] = u[0] + Fx;
-	u[1] = u[1] + Fy;
-}
+
+real_t w = calcW(dx,dy);
+
+//dx = fabs(dx*2);
+//dy = fabs(dy*2);
+
+real_t Vx = PX_DT - PR_DT*py;
+real_t Vy = PY_DT + PR_DT*px;
+real_t Fx = w*(Vx - u[0]);
+real_t Fy = w*(Vy - u[1]);
+AddToForceX(Fx);
+AddToForceY(Fy);
+AddToMoment(Fx*py-Fy*px);
+AddToPowerX(PX_DT*Fx);
+AddToPowerY(PY_DT*Fy);
+AddToPowerR(PR_DT*(-Fx*py+Fy*px));
+AddToPower(Fx*Vx + Fy*Vy);
+u[0] = u[0] + Fx;
+u[1] = u[1] + Fy;
+
 <?R
 	C(usq , sum(u*u)*dw);
 	C(R[selR] , Req[selR], eq=" += ");

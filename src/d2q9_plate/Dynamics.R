@@ -22,7 +22,7 @@ AddDensity( name="f8", dx= 1, dy=-1, group="f")
 
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
-AddQuantity(name="Solid",unit="kg/m3")
+AddQuantity(name="Solid",unit="1")
 
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
@@ -54,6 +54,8 @@ AddGlobal(name="Power2", comment='reaction force Y')
 
 AddSetting(name="PDX", default=0, comment='plate diameter X')
 AddSetting(name="PDY", default=0, comment='plate diameter Y')
+AddSetting(name="SM",   default=1, comment='smoothing diameter')
+AddSetting(name="SM_M", default=0, comment='smoothing bias')
 AddSetting(name="PX", default=0, comment='plate position X', zonal=T)
 AddSetting(name="PY", default=0, comment='plate position Y', zonal=T)
 AddSetting(name="PR", default=0, comment='plate angle', zonal=T)

@@ -731,9 +731,13 @@ class RepeatControl : public Design {
 	double lower, upper;
 	FILE * f;
 	Handler * hand;
+	bool flip;
+	double flip_level;
 public:
 	int Init() {
 		Pars = -1;
+		flip_level = 0.0;
+		flip = false;
 		pugi::xml_attribute attr;
                 pugi::xml_node par = node.first_child();
 		if (! par) {
@@ -777,6 +781,13 @@ public:
 			notice("upper bound not set in %s - setting to 1\n",node.name());
 			upper = 1;
 		}
+		attr = node.attribute("flip");
+		if (attr) {
+			flip = true;
+			flip_level = solver->units.alt(attr.value());
+		} else {
+			flip = false;
+		}
 		return Design::Init();
 	};
 	int Finish() {
@@ -786,25 +797,32 @@ public:
 	int NumberOfParameters() {
 		return Pars;
 	};
+	double Flip(double v, double l, int j) {
+		if (!flip) return v;
+		j -= j % Pars;
+		j /= Pars;
+		if (j % 2 == 0) return v;
+		return l-v;
+	};
 	int Parameters(int type, double * tab) {
 		switch(type) {
 		case PAR_GET:
 			output("Getting the params and making pariodic means\n");
 			(*hand)->Parameters(type, tab2);
 			for (int i=0; i<Pars;i++) tab[i] = 0;
-			for (int j=0; j<Pars2; j++) tab[j % Pars] += tab2[j];
+			for (int j=0; j<Pars2; j++) tab[j % Pars] += Flip(tab2[j],flip_level,j);
 			for (int i=0; i<Pars;i++) tab[i] = tab[i] / floor((Pars2 - i - 1.0)/Pars+1);
 			return 0;
 		case PAR_SET:
 			output("Setting the params with a reapet control\n");
-			for (int j=0; j<Pars2; j++) tab2[j] = tab[j % Pars];
+			for (int j=0; j<Pars2; j++) tab2[j] = Flip(tab[j % Pars],flip_level,j);
 			(*hand)->Parameters(type, tab2);
 			return 0;
 		case PAR_GRAD:
 			output("Getting gradient and making fourier decomposition\n");
 			(*hand)->Parameters(type, tab2);
 			for (int i=0; i<Pars;i++) tab[i] = 0;
-			for (int j=0; j<Pars2; j++) tab[j % Pars] += tab2[j];
+			for (int j=0; j<Pars2; j++) tab[j % Pars] += Flip(tab2[j],0.0,j);
 			return 0;
 		case PAR_UPPER:
 			for (int i=0;i<Pars;i++) tab[i] = upper;
@@ -1031,6 +1049,29 @@ class cbLog: public Callback {
 	}
 	int Finish() {
 		solver->iter_type = old_iter_type;
+		return Callback::Finish();
+	}
+};
+
+class cbDumpSettings: public Callback {
+	std::string filename;
+	int old_iter_type;
+	public:
+	int Init() {
+		Callback::Init();
+		pugi::xml_attribute attr = node.attribute("name");
+		filename = "ZonalSettings";
+		if (attr) filename = attr.value();
+		return 0;
+	}
+	int DoIt() {
+		Callback::DoIt();
+		char fn[STRING_LEN];
+		solver->outIterFile(filename.c_str(), ".csv", fn);
+		solver->lattice->zSet.dumpToFile(fn);
+		return 0;
+	}
+	int Finish() {
 		return Callback::Finish();
 	}
 };
@@ -1576,6 +1617,7 @@ class acUSAdjoint: public GenericAction {
 	int Init() {
 		GenericAction::Init();
 		old_iter_type = solver->iter_type;
+		int skip_grad = solver->iter_type & ITER_SKIPGRAD;
 		solver->iter_type = ITER_NORM | ITER_GLOBS;
 		solver->lattice->startRecord();
 		GenericAction::ExecuteInternal();
@@ -1584,25 +1626,31 @@ class acUSAdjoint: public GenericAction {
 			ERROR("No iterations done inside of Usteady Adjoint! Nothing to do\n");
 			return -1;
 		}
-		solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
-		do {
-			int next_it = Prev(solver->iter);
-			for (size_t i=0; i<solver->hands.size(); i++) {
-				int it  = solver->hands[i].Prev(solver->iter);
-				if ((it > 0) && (it < next_it)) next_it = it;
-			}
-			solver->steps = next_it;
-			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
-			solver->iter -= solver->steps;
-			solver->lattice->Iterate(solver->steps, solver->iter_type);
-			CudaThreadSynchronize();
-			MPI_Barrier(MPI_COMM_WORLD);
-			for (size_t i=0; i<solver->hands.size(); i++) {
-				if (solver->hands[i].Now(solver->iter)) {
-					solver->hands[i].DoIt();
-				}
-			}
-		} while (!Now(solver->iter));
+		if (skip_grad) {
+			output("Skipping adjoint, as gradient is not needed");
+			solver->lattice->rewindRecord();
+			solver->iter -= everyIter;
+		} else {
+                    solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
+                    do {
+                            int next_it = Prev(solver->iter);
+                            for (size_t i=0; i<solver->hands.size(); i++) {
+                                    int it  = solver->hands[i].Prev(solver->iter);
+                                    if ((it > 0) && (it < next_it)) next_it = it;
+                            }
+                            solver->steps = next_it;
+                            MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+                            solver->iter -= solver->steps;
+                            solver->lattice->Iterate(solver->steps, solver->iter_type);
+                            CudaThreadSynchronize();
+                            MPI_Barrier(MPI_COMM_WORLD);
+                            for (size_t i=0; i<solver->hands.size(); i++) {
+                                    if (solver->hands[i].Now(solver->iter)) {
+                                            solver->hands[i].DoIt();
+                                    }
+                            }
+                    } while (!Now(solver->iter));
+		}
 		solver->lattice->stopRecord();
 		solver->iter += everyIter*2;
 		CudaThreadSynchronize();
@@ -1653,95 +1701,189 @@ class acSAdjoint: public GenericAction {
 	}
 };
 
-#ifdef WITH_NLOPT
 double FOptimize(unsigned int n, const double * x, double * grad, void * data);
 double FMaterialMore(unsigned int n, const double * x, double * grad, void * data);
 double FMaterialLess(unsigned int n, const double * x, double * grad, void * data);
 
-class acOptimize: public GenericAction {
-	int par;
-	nlopt_opt opt;
-	double material;
-	std::string method;
+class GenericOptimizer: public GenericAction {
 	public:
+	int Pars;
+	double material;
+	virtual int OptimizerInit() { ERROR("Called Generic Optimizer virtual Init function"); return -1; }
+	virtual int OptimizerRun() { ERROR("Called Generic Optimizer virtual Run function"); return -1; }
+	virtual int OptimizerExit() { ERROR("Called Generic Optimizer virtual Exit function"); return -1; }
 	int Init() {
-		double val;
-		double * start = NULL;
+		GenericAction::Init();
+		Pars = NumberOfParameters();
+		int ret;
+		if (solver->mpi_rank == 0) {
+			DEBUG_M;
+			ret = OptimizerInit();
+		}
+		MPI_Bcast( &ret, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		if (ret) {
+			ERROR("Failed to initialize Optimizer");
+			return -1;
+		}
+		if (solver->mpi_rank == 0) {
+			ret = OptimizerRun();
+                        int msg = -1;
+                        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		} else {
+			int msg=0;
+		        while (msg == 0) {
+        		        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+        		        if (msg != 0) break;
+        		        Execute(NULL,NULL,NULL);
+                        }
+		}
+		MPI_Bcast( &ret, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		if (ret) {
+			ERROR("Failed to run Optimizer");
+			return -1;
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
+		return 0;
+	}
+	int Execute(const double * x, double * grad, double * f) {
+		DEBUG_M;
+		solver->opt_iter++;
+		SetParameters(x);
+		int needgrad = -1;
+		if (grad == NULL) needgrad = 0;
+		MPI_Bcast( &needgrad, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		int old_iter = solver->iter_type;
+		if (! needgrad)	{
+			output("No need for the gradient\n");
+			solver->iter_type |= ITER_SKIPGRAD;
+		}
+		if (GenericAction::ExecuteInternal()) return -1;
+		solver->iter_type = old_iter;
+		everyIter = solver->iter - startIter;
+		if (needgrad) GetGradient(grad);
+		double obj = solver->lattice->getObjective();
+		if (f != NULL) {
+			*f = obj;
+			output("Evaluated objective: %lg\n", *f);
+		}
+		return 0;
+	}
+	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);
+	friend double FMaterialMore(unsigned int n, const double * x, double * grad, void * data);
+	friend double FMaterialLess(unsigned int n, const double * x, double * grad, void * data);
+};
+
+double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
+	GenericOptimizer * obj = (GenericOptimizer *) data;
+	assert(n == (unsigned int)obj->Pars);
+	double val = NAN;
+        int msg = 0;
+        output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
+        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+	int ret = obj->Execute(x, grad, &val);
+	if (ret) {
+		ERROR("Error while executing calculations in optimize. exiting loop.\n");
+		obj->OptimizerExit();
+	}
+	return val;
+}
+double FMaterialMore(unsigned int n, const double * x, double * grad, void * data) {
+	GenericOptimizer * obj = (GenericOptimizer *) data;
+	double material = 0.0;
+	for (size_t i=0;i<n; i++) material += x[i];
+	if (grad) {
+        	for (size_t i=0;i<n; i++) grad[i] = 1;
+        }
+        output("Material %le (%le at start)\n", material, obj->material);
+	return material - obj->material;
+}
+double FMaterialLess(unsigned int n, const double * x, double * grad, void * data) {
+	GenericOptimizer * obj = (GenericOptimizer *) data;
+	double material = 0.0;
+	for (size_t i=0;i<n; i++) material += x[i];
+	if (grad) {
+        	for (size_t i=0;i<n; i++) grad[i] = -1;
+        }
+        output("Material %le (%le at start)\n", material, obj->material);
+	return obj->material - material;
+}
+
+
+
+#ifdef WITH_NLOPT
+
+class acOptimize: public GenericOptimizer {
+	nlopt_opt opt;
+	std::string method;
+	double * start;
+	public:
+	int OptimizerInit() {
+		start = NULL;
 		nlopt_result res;
 		material=0.0;
-		GenericAction::Init();
+       		if (Pars == 0) {
+       			ERROR("Error: No parameters defined!\n");
+       			return -1;
+       		}			
+		notice("Parameters in optimization: %d\n", Pars);
+		start = new double[Pars];
 		DEBUG_M;
-//		par = solver->getPars();
-		par = NumberOfParameters();
-		DEBUG_M;
-		if (solver->mpi_rank == 0) {
-        		if (par == 0) {
-        			ERROR("Error: No parameters defined!\n");
-        			return -1;
-        		}			
-			notice("Parameters in optimization: %d\n", par);
-			start = new double[par];
-		}
-		DEBUG_M;
-//		solver->getPar(start);
 		GetParameters(start);
 		DEBUG_M;
-		int msg=0;
-		if (solver->mpi_rank == 0) {
-		DEBUG_M;
-		        method="MMA";
-        		pugi::xml_attribute attr = node.attribute("method");
-        		if (attr) {
-        		        method = attr.value();
+
+                method="MMA";
+                pugi::xml_attribute attr = node.attribute("method");
+                if (attr) {
+                        method = attr.value();
+                }
+                <?R 
+                        methods = data.frame(
+                                name=c("LBFGS","MMA","COBYLA","NELDERMEAD", "DIRECT_L","ESCH"),
+                                type=c("LD","LD","LN","LN","GN","GN")
+                        )
+                        methods$index = paste("NLOPT",methods$type,methods$name,sep="_")
+                        for (method in rows(methods)) {
+                ?> if (method == "<?%s method$name ?>") {
+                        output("Setting the algorithm to <?%s method$name ?>(<?%s method$index ?>)\n");
+                        opt = nlopt_create(<?%s method$index ?>,Pars);
+                } else <?R } ?> {
+                        error("Unknown Method in Optimize: %s\n", method.c_str());
+                        return -1;
+                }
+                {
+                        double * bound = new double[Pars];
+                        Parameters(PAR_LOWER, bound);
+                        output("lower set to %lf\n", bound[0]);
+                        nlopt_set_lower_bounds(opt, bound);
+                        for (int i=0;i<Pars;i++) if (start[i] < bound[i]) start[i] = bound[i];
+                        Parameters(PAR_UPPER, bound);
+                        output("upper set to %lf\n", bound[0]);
+                        nlopt_set_upper_bounds(opt, bound);
+                        for (int i=0;i<Pars;i++) if (start[i] > bound[i]) start[i] = bound[i];
+                        delete[] bound;
+                }
+                res = nlopt_set_max_objective(opt, FOptimize, this);
+                if (res < 0) {
+                        ERROR("Error while appling objective in Optimize: nlopt_set_max_objective = %d\n", res);
+                        exit(-1);
+                }
+                attr = node.attribute("Material");
+                if (attr) {
+                        std::string matdir(attr.value());
+                        for (int i=0;i<Pars; i++) material += start[i];
+                        if (matdir == "more") {
+                                res = nlopt_add_inequality_constraint(opt, FMaterialMore, this, 1e-3);
+                        } else if (matdir == "less") {
+                                res = nlopt_add_inequality_constraint(opt, FMaterialLess, this, 1e-3);
+                        } else {
+                                error("Material attribute in Optimize should be \"more\" or \"less\"\n");
+                                exit(-1);
                         }
-			<?R 
-				methods = data.frame(
-					name=c("LBFGS","MMA","COBYLA","NELDERMEAD", "DIRECT_L","ESCH"),
-					type=c("LD","LD","LN","LN","GN","GN")
-				)
-				methods$index = paste("NLOPT",methods$type,methods$name,sep="_")
-				for (method in rows(methods)) {
-			?> if (method == "<?%s method$name ?>") {
-				output("Setting the algorithm to <?%s method$name ?>(<?%s method$index ?>)\n");
-        			opt = nlopt_create(<?%s method$index ?>,par);
-                        } else <?R } ?> {
-       			        error("Unknown Method in Optimize: %s\n", method.c_str());
-       			        exit(-1);
-                        }
-			{
-				double * bound = new double[par];
-				Parameters(PAR_LOWER, bound);
-				output("lower set to %lf\n", bound[0]);
-				nlopt_set_lower_bounds(opt, bound);
-				for (int i=0;i<par;i++) if (start[i] < bound[i]) start[i] = bound[i];
-				Parameters(PAR_UPPER, bound);
-				output("upper set to %lf\n", bound[0]);
-				nlopt_set_upper_bounds(opt, bound);
-				for (int i=0;i<par;i++) if (start[i] > bound[i]) start[i] = bound[i];
-				delete[] bound;
-			}
-                        res = nlopt_set_max_objective(opt, FOptimize, this);
                         if (res < 0) {
-       			        ERROR("Error while appling objective in Optimize: nlopt_set_max_objective = %d\n", res);
-       			        exit(-1);
+                                error("Error while appling Material constraint in Optimize: nlopt_add_inequality_constraint = %d\n", res);
+                                exit(-1);
                         }
-        		attr = node.attribute("Material");
-        		if (attr) {
-        		        std::string matdir(attr.value());
-        		        for (int i=0;i<par; i++) material += start[i];
-        		        if (matdir == "more") {
-        			        res = nlopt_add_inequality_constraint(opt, FMaterialMore, this, 1e-3);
-        		        } else if (matdir == "less") {
-        			        res = nlopt_add_inequality_constraint(opt, FMaterialLess, this, 1e-3);
-        		        } else {
-        			        error("Material attribute in Optimize should be \"more\" or \"less\"\n");
-        			        exit(-1);
-                                }
-                                if (res < 0) {
-        			        error("Error while appling Material constraint in Optimize: nlopt_add_inequality_constraint = %d\n", res);
-        			        exit(-1);
-                                }
-                        }
+                }
 <?R
         tab=data.frame(
                 attr=c("XAbsTolerance","RelTolerance","AbsTolerance","StopAtValue","MaxEvaluations"),
@@ -1767,96 +1909,193 @@ class acOptimize: public GenericAction {
                         } <?R
         }
 ?>
-		DEBUG_M;
-			nlopt_result res = nlopt_optimize(opt, start, &val);
-                        msg = -1;
-		DEBUG_M;
-                        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
-			notice("NLOpt result: %d\n", res);
-			switch(res) {
-                                case NLOPT_SUCCESS: notice("Optimization generic success!\n"); break;
-                                case NLOPT_STOPVAL_REACHED: notice("Optimization reached desired value (StopAtValue) !\n"); break;
-                                case NLOPT_FTOL_REACHED: notice("Optimization stoped with change of objective below tolerance (RelTolerance/AbsTolerance) !\n"); break;
-                                case NLOPT_XTOL_REACHED: notice("Optimization stoped with change of parameters below tolerance (XAbsTolerance) !\n"); break;
-                                case NLOPT_MAXEVAL_REACHED: notice("Optimization stoped, because maximal number of iterations was made (MaxIterations) !\n"); break;
-                                case NLOPT_FAILURE: notice("Optimization failed, I don't know why!\n"); break;
-                                case NLOPT_INVALID_ARGS: notice("Optimization call failed. Some wrong arguments!\n"); break;
-                                case NLOPT_OUT_OF_MEMORY: notice("Optimization call failed. Out of memory!\n"); break;
-                                case NLOPT_ROUNDOFF_LIMITED: notice("Optimization failed. Changes were below numeric tolerance (good?)\n"); break;
-                                case NLOPT_FORCED_STOP: notice("Optimization failed. It was stoped from within the objective function (why?)\n"); break;
-                                default: notice("NLOpt result: %d\n", res); break;
-                        }
-			notice("Final Objective value: %lf\n",val);
-			nlopt_destroy(opt);
+		return 0;
+	}
+	int OptimizerRun() {
+		double val;
+        DEBUG_M;
+                nlopt_result res = nlopt_optimize(opt, start, &val);
+        DEBUG_M;
+                notice("NLOpt result: %d\n", res);
+                switch(res) {
+                        case NLOPT_SUCCESS: notice("Optimization generic success!\n"); break;
+                        case NLOPT_STOPVAL_REACHED: notice("Optimization reached desired value (StopAtValue) !\n"); break;
+                        case NLOPT_FTOL_REACHED: notice("Optimization stoped with change of objective below tolerance (RelTolerance/AbsTolerance) !\n"); break;
+                        case NLOPT_XTOL_REACHED: notice("Optimization stoped with change of parameters below tolerance (XAbsTolerance) !\n"); break;
+                        case NLOPT_MAXEVAL_REACHED: notice("Optimization stoped, because maximal number of iterations was made (MaxIterations) !\n"); break;
+                        case NLOPT_FAILURE: notice("Optimization failed, I don't know why!\n"); break;
+                        case NLOPT_INVALID_ARGS: notice("Optimization call failed. Some wrong arguments!\n"); break;
+                        case NLOPT_OUT_OF_MEMORY: notice("Optimization call failed. Out of memory!\n"); break;
+                        case NLOPT_ROUNDOFF_LIMITED: notice("Optimization failed. Changes were below numeric tolerance (good?)\n"); break;
+                        case NLOPT_FORCED_STOP: notice("Optimization failed. It was stoped from within the objective function (why?)\n"); break;
+                        default: notice("NLOpt result: %d\n", res); break;
+                }
+                notice("Final Objective value: %lf\n",val);
+                nlopt_destroy(opt);
+		return 0;
+	}
+	int OptimizerExit() {
+		nlopt_force_stop(opt);
+		return 0;
+	}
+};
+#endif
+
+class acFDTest: public GenericOptimizer {
+	double * start;
+	double * dx, *x;
+	double * grad;
+	double * lower, * upper;
+	int order;
+	int par_start, par_num;
+	double h_min,h_max;
+	int h_n;
+	public:
+	int OptimizerInit() {
+		start = NULL;
+       		if (Pars == 0) {
+       			ERROR("Error: No parameters defined!\n");
+       			return -1;
+       		}			
+		notice("Parameters in test: %d\n", Pars);
+		pugi::xml_attribute attr = node.attribute("order");
+		if (attr) {
+			order = attr.as_int();
 		} else {
-		DEBUG_M;
-		        double f;
-		        while (msg == 0) {
-		DEBUG_M;
-        		        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
-        		        if (msg != 0) break;
-        		        Execute(NULL,NULL,&f);
-                        }
-                        
+			order = 2;
 		}
-		MPI_Barrier(MPI_COMM_WORLD);
-		return 0;
-	}
-	int Execute(const double * x, double * grad, double * f) {
+		if (order > 6) {
+			ERROR("Too high order in FDTest");
+			order = 6;
+		}
+		if (order < 2) {
+			ERROR("Negative order in FDTest");
+			order = 2;
+		}
+		order = order + (order % 2);
+		order = order / 2;
+		
+		attr = node.attribute("parameters");
+		par_start = 0;
+		par_num = Pars;
+		if (attr) {
+			std::string par = attr.value();
+                        unsigned int i = par.find_first_of(':');
+                        if (i == string::npos) {
+				par_start = attr.as_int();
+                        } else {
+				if (i == 0) {
+					par_num = atoi(par.substr(i+1).c_str())+1;
+				} else if (i == par.size()-1) {
+					par_start = atoi(par.substr(0,i).c_str());
+					par_num = Pars - par_start;
+				} else {
+					par_start = atoi(par.substr(0,i).c_str());
+					par_num = atoi(par.substr(i+1).c_str()) - par_start + 1;
+				}
+			}			
+		}
+		output("Parameters in test: %d:%d (%d) from %d\n",par_start,par_start+par_num-1,par_num,Pars);
+		if (par_num < 1) { ERROR("You need at least one parameter in FDTest"); return -1; }
+		if (par_start < 0) { ERROR("You need at least one parameter in FDTest"); return -1; }
+		if ((par_start < 0) || (par_start >= Pars) || (par_start+par_num > Pars)) {
+			ERROR("Parameter out of bounds in FDTest");
+			return -1;
+		}
+
+		h_min = log(1e-11);
+		attr = node.attribute("hmin");
+		if (attr) {
+			double h = attr.as_double();
+			if (h <= 0) { ERROR("You need to provide a H > 0 in FDTest"); return -1; }
+			h_min = log(h);
+		}
+		h_max = log(1);
+		attr = node.attribute("hmax");
+		if (attr) {
+			double h = attr.as_double();
+			if (h <= 0) { ERROR("You need to provide a H > 0 in FDTest"); return -1; }
+			h_max = log(h);
+		}
+		h_n = 24;
+		attr = node.attribute("levels");
+		if (attr) {
+			h_n = attr.as_int();
+			if (h_n < 2) { ERROR("You need to provide a levels >= 2 in FDTest"); return -1; }
+		}
+		output("Levels is test: %le .. %le (%d)\n",exp(h_min), exp(h_max), h_n);
+		for (int ih=0; ih<h_n; ih++) {
+			double h = exp(h_min + ((h_max - h_min)*ih)/(h_n-1));
+			notice("H Level: %le\n", h);
+		}
+
+
+		start = new double[Pars];
+		grad = new double[Pars];
+		lower = new double[Pars];
+		upper = new double[Pars];
+		dx = new double[Pars];
+		x = new double[Pars];
 		DEBUG_M;
-		solver->opt_iter++;
-//		solver->setPar(x);
-		SetParameters(x);
-		if (GenericAction::ExecuteInternal()) return -1;
-		everyIter = solver->iter - startIter;
-//		solver->getDPar(grad);
-		if (grad == NULL) {
-			output("No need for gradient\n");
-		} else GetGradient(grad);
-		*f = solver->lattice->getObjective();
-		output("Evaluated objective: %lg\n", *f);
+		GetParameters(start);
+		Parameters(PAR_LOWER, lower);
+		Parameters(PAR_UPPER, upper);
+		for (int i=0;i<Pars; i++) dx[i] = (upper[i]-lower[i])/2.0;
+		DEBUG_M;
 		return 0;
 	}
-	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);
-	friend double FMaterialMore(unsigned int n, const double * x, double * grad, void * data);
-	friend double FMaterialLess(unsigned int n, const double * x, double * grad, void * data);
+	int OptimizerRun() {
+		double val0;
+		output("Evalulation for testing point");
+		for (int i=0;i<Pars; i++) x[i] = start[i];
+		val0 = FOptimize(Pars, x, grad, this);
+		FILE * f;
+		f = fopen((std::string(solver->info.outpath) + "_FD_test.csv").c_str(),"w");
+		fprintf(f, "Parameter, Value, Gradient, H");
+		for (int o=order; o > 0; o--) fprintf(f,", RightObj%d",o);
+		fprintf(f, ", Objective");
+		for (int o=0; o < order; o++) fprintf(f,", LeftObj%d",o+1);
+		for (int o=order; o >0; o--) fprintf(f,", CentralDiff%d",o);
+		fprintf(f,"\n");
+		for (int k=par_start; k<par_start+par_num; k++) {
+			output("Testing parameter %d",k);
+			for (int ih=0; ih<h_n; ih++) {
+				double h = dx[k] * exp(h_min + ((h_max - h_min)*ih)/(h_n-1));
+				output("Running h=%le\n",h);
+				for (int i=0;i<Pars; i++) x[i] = start[i];
+				double val[9]; const int p=4;
+				for (int m=-order; m<=order;m++) if(m != 0) {
+					x[k] = start[k] + m*h;
+					val[p+m] = FOptimize(Pars, x, NULL, this);
+				} else {
+					val[p+m] = val0;
+				}
+				fprintf(f,"%d, %.16lg, %.16lg, %.16lg", k, start[k], grad[k], h);
+				for (int m=-order; m<=order;m++) fprintf(f,", %.16lg", val[p+m]);
+				double diff;
+				switch(order) {
+				case 3:
+					diff = (val[p+3] + 9*(-val[p+2] + 5*(val[p+1] - val[p-1]) + val[p-2]) - val[p-3])/60;
+					fprintf(f,", %.16lg", diff/h);
+				case 2:
+					diff = (-val[p+2] + 8*(val[p+1] - val[p-1]) + val[p-2])/12;
+					fprintf(f,", %.16lg", diff/h);
+				case 1:
+					diff = (val[p+1] - val[p-1])/2;
+					fprintf(f,", %.16lg", diff/h);
+				}
+				fprintf(f,"\n");
+				fflush(f);
+			}
+		}
+		fclose(f);
+		return 0;
+	}
+	int OptimizerExit() {
+		return 0;
+	}
 };
 
-double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
-	acOptimize * obj = (acOptimize *) data;
-	assert(n == (unsigned int)obj->par);
-	double val = NAN;
-        int msg = 0; 
-        output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
-        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
-	int ret = obj->Execute(x, grad, &val);
-	if (ret) {
-		ERROR("Error while executing calculations in optimize. exiting loop.\n");
-		nlopt_force_stop(obj->opt);
-	}
-	return val;
-}
-double FMaterialMore(unsigned int n, const double * x, double * grad, void * data) {
-	acOptimize * obj = (acOptimize *) data;
-	double material = 0.0;
-	for (size_t i=0;i<n; i++) material += x[i];
-	if (grad) {
-        	for (size_t i=0;i<n; i++) grad[i] = 1;
-        }
-        output("Material %le (%le at start)\n", material, obj->material);
-	return material - obj->material;
-}
-double FMaterialLess(unsigned int n, const double * x, double * grad, void * data) {
-	acOptimize * obj = (acOptimize *) data;
-	double material = 0.0;
-	for (size_t i=0;i<n; i++) material += x[i];
-	if (grad) {
-        	for (size_t i=0;i<n; i++) grad[i] = -1;
-        }
-        output("Material %le (%le at start)\n", material, obj->material);
-	return obj->material - material;
-}
-#endif
 
 class acThreshold: public GenericAction {
 	int par;
@@ -2182,7 +2421,7 @@ class conControl: public Action {
         }
 	int Init() {
 		Action::Init();
-		iter = -floor(-everyIter);
+		iter = myround(everyIter);
 		if (iter <= 0) {
 		        error("Zero (or less) iterations in Control element in config\n");
 		        return -1;
@@ -2852,6 +3091,10 @@ vHandler * getHandler(pugi::xml_node node) {
                 ERROR("No Catalyst support. configure with --with-catalyst\n");
                 exit(-1);
 #endif
+    } else if (name=="FDTest") {
+		ret = new acFDTest;
+    } else if (name=="DumpSettings") {
+		ret = new cbDumpSettings;
     } else if (name=="Init") {
 		ret = new acInit;
     } else if (name=="Control") {
