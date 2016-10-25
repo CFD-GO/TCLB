@@ -135,6 +135,8 @@ then
 
 	AC_CHECK_FILE([${CUDA_HOME}/bin/nvcc], [NVCC="${CUDA_HOME}/bin/nvcc"],[AC_MSG_ERROR([Cannot find nvcc; Check CUDA install])])
 
+	NVCC=${CUDA_HOME}/bin/nvcc
+	
 	CUDA_LIB_DIR=""
 	AC_CHECK_FILE([${CUDA_HOME}/lib64/libcudart.so], [CUDA_LIB_DIR="${CUDA_HOME}/lib64"])
 
@@ -490,6 +492,7 @@ AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
 AC_SUBST(EMBEDED_PYTHON)
+AC_SUBST(NVCC)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
