@@ -90,10 +90,16 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 
 CudaDeviceFunction void Init() {
 	real_t rho, ux, uy;
-	rho = (1+Pressure*3);
+   	rho = (1+Pressure*3);
 	ux = VelocityX;
     uy = VelocityY;
-
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (IamWall){
+        rho = 1;
+        ux = 0;
+        uy = 0;
+    }
+<?R } ?>
 	SetEquilibrum(
 		rho,
 		ux*rho,
@@ -140,7 +146,22 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void BounceBack()
 {
-<?R FullBounceBack() ?>
+    <?R C(PV('real_t temp'), sum(f)) ?>
+
+    if ( temp !=  1+Pressure*3 ) {
+
+        <?R if ( any( DensityAll$group=="BC" ) ) {
+            C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U);
+        } ?>
+
+    } else {
+
+        <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
+
+    }
+
+    <?R FullBounceBack() ?>
+
 }
 
 CudaDeviceFunction void EVelocity()

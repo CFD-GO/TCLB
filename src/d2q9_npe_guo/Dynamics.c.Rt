@@ -123,6 +123,18 @@ CudaDeviceFunction real_t getrho_e(){
 
 CudaDeviceFunction void BounceBack()
 {
+
+  <?R C(PV('real_t temp'), sum(f)) ?>
+
+  if ( temp !=  1 ) {
+   <?R if ( any( DensityAll$group=="BC" ) ) {
+    C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U);
+   } ?>
+  } else {
+   <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
+  }
+
+
 // *******************
 // Bounce back f and phi
 // *******************    
@@ -287,7 +299,7 @@ CudaDeviceFunction void Init() {
 ?>
 
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-   if ( IamBOUNDARY ) {
+   if ( IamBOUNDARY && !IamWall ) {
        BC[0] = u.x;
        BC[1] = u.y;
    } else {
