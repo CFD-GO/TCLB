@@ -36,7 +36,7 @@ pprint( simplify(expand(( lap - diff(phi,n,2))/grad)) )
 
 
 half = 64
-
+Wnum = 0.125
 
 
 array2mat = [{'ImmutableMatrix': np.matrix}, 'numpy']
@@ -62,11 +62,13 @@ gradient = lambdify([n,n0, W], grad, modules=array2mat)
 
 for c, fvti in [
     #('k','/home/mdzik/projekty/TCLB/output/test1_2_VTK_P00_00001000.pvti'),
-    ('r','/home/mdzik/projekty/TCLB/output/test1_VTK_P00_00002000.pvti')    
+    #('r','/home/mdzik/projekty/TCLB/output/test1_omega1_VTK_P00_00006000.pvti'), 
+    #('r','/home/mdzik/projekty/TCLB/output/test1_VTK_P00_00002000.pvti')    ,
+    ('r','/home/mdzik/projekty/TCLB/output/test1_by_pf_VTK_P00_00006000.pvti')    
 ]:
     vti = VTIFile.VTIFile(fvti, True)
     PhaseField = vti.get('PhaseField', vector=False)
-    Curvature = vti.get('Curvature', vector=False)
+    #Curvature = vti.get('Curvature', vector=False)
     X,Y = vti.getMeshGrid()
     
     
@@ -85,18 +87,24 @@ for c, fvti in [
     #ww = 0.025
     #ww = 0.01
     #plt.imshow( phase(R, n00, ww) - PhaseField )
-   # PhaseField = phase(R, n00, ww)
+    
     #plt.colorbar()
+    #plt.show()
+
+    #plt.plot(phase(R, n00, ww)[half,:])
+    #plt.plot(PhaseField[half,:])
     #plt.show()
     
     #plt.plot( phase(R,n00, ww)[half,:] , 'o')
     #plt.plot(PhaseField[half,:])
     #plt.plot(R[half,:] - n00)
-    r_r0 = np.arctanh(-PhaseField * 2) /2 / ww
+    r_r0 = np.arctanh(-PhaseField * 2) /2 / Wnum
     
     r_r0 = np.where(np.isnan(r_r0), 0, r_r0)
-    
-    
+    r_r0 = np.where(np.isinf(r_r0), 0, r_r0)
+    r_r0 = np.where(np.isneginf(r_r0), 0, r_r0)
+    #plt.plot(R[half,:] - n00)
+    #plt.plot(r_r0[half,:])
     #plt.show()
     
     
@@ -116,15 +124,19 @@ for c, fvti in [
         grad2_Y = grad2_Y + lbm.W[i] * lbm.e[i,1] * np.roll(np.roll(PhaseField,shift=-lbm.e[i,0],axis=0),shift=-lbm.e[i,1],axis=1) * 3.
     
     grad2 = np.sqrt(grad2_X**2 + grad2_Y**2)
+
+    grad2_inv = np.where( grad2 > 0, grad2 , 1)
+    grad2_inv = np.where( grad2 > 0, 1./grad2_inv , 0)
     
-    normal_X = grad2_X / grad2
-    normal_Y = grad2_Y / grad2
+    normal_X = np.where( grad2 > 0, grad2_X * grad2_inv, 0)
+
+    normal_Y = np.where( grad2 > 0, grad2_Y * grad2_inv, 0)
     
     #plt.quiver(X.T,Y.T,normal_X, normal_Y, units='xy', scale=0.5, angles=  'xy')
     #plt.imshow(PhaseField)
-    #plt.show()
-    dr = 0.01    
-    rr0 = np.ones_like(R)
+    #lt.show()
+    dr = 0.001    
+    rr0 = np.ones_like(R) * 25
     
     xx = -X
     yy = -Y  
@@ -133,8 +145,10 @@ for c, fvti in [
     #ny = yy / rt    
     nx = normal_X
     ny = normal_Y
+
     
-    for it in range(1):
+    rr0 = np.ones_like(R)
+    for it in range(16):
         #xx = nx * (r_r0+rr0)
         #yy = ny * (r_r0+rr0)  
         xx = nx * (r_r0+rr0)
@@ -162,47 +176,58 @@ for c, fvti in [
             ri = np.sqrt( (lbm.e[i,0] - xx)**2 + (lbm.e[i,1] - yy)**2  )
             f2 = f2 + ( r_r0i - ( ri - rr0 ) )
             
-        A = (f2 - f1) / dr
+        A = (f2 - f1) / dr       
         B = f2 - A * (rr0)
-
-        rr0 = - B / A
+        temp = - B / A 
+        rr0 =  temp#np.where( temp < 0, rr0 * 0.5, temp)
         
+        pme = rr0
+    
+    
+    
+    pme = np.where(-(4 * PhaseField**2 - 1) < 0.1, 0, pme)
+    plt.plot(pme[half,:], 'wo')
+    plt.plot(pme[half,:], 'k-', lw=1)
+    #plt.plot(Curvature[half,:], 'k+')
+    plt.show()
+
+
+
         #plt.imshow(np.where(np.absolute(R - n00) < 4, rr0, 0), interpolation='nearest')
        # plt.colorbar()
        # plt.show()  
         
         
-        rr0 = np.where(np.absolute(R - n00) < 6, rr0, 0)        
-        plt.plot( np.where(np.absolute(R - n00) < 3, f1, 0)[half,:] , 'o')
-        plt.plot( np.where(np.absolute(R - n00) < 3, Curvature, 0)[half,:] , 'x')
-    #plt.plot( np.where(np.absolute(R - n00) < 8, R-n00, 0)[half,:] , '-')
-#plt.twinx()
-#plt.plot(PhaseField[half,:])
-#plt.plot(R[half,:] - n00)
-        plt.show()
-        
+
+            
+    
+#    
+#    laplace2 = PhaseField * (1./9 - 1.)
+#    for i in range(1,9):
+#        laplace2 = laplace2 +  np.roll(np.roll(PhaseField,shift=-lbm.e[i,0],axis=0),shift=-lbm.e[i,1],axis=1) / 9.
+#    
+#    
+#    
+#    grad2 = np.sqrt(grad2_X**2 + grad2_Y**2)[half, :]
+#    
+#    p2 = PhaseField[half, :]**2
+#    grad_lengt = (1. - 4 * p2  ) * ww
+#    curvature =   ( laplace2[half, :] - 2 * PhaseField[half, :] * (16 * p2 - 4. ) * ww**2 ) / grad_lengt
+#    
+#    
+#    rrA = np.where(np.absolute(R - n00) < 6, rr0, 0)        
+#    plt.plot( rrA[half,:] , 'o', label="Circ")
+#    
+#    rr1 = np.where(np.absolute(R - n00) < 6, 1./curvature, 0)        
+#    plt.plot( rr1[half,:] , 'o', label="Lap")
+#    plt.legend()
+#    plt.show()    
+#    
+#    
     
     
-    laplace2 = PhaseField * (1./9 - 1.)
-    for i in range(1,9):
-        laplace2 = laplace2 +  np.roll(np.roll(PhaseField,shift=-lbm.e[i,0],axis=0),shift=-lbm.e[i,1],axis=1) / 9.
-    
-    
-    
-    grad2 = np.sqrt(grad2_X**2 + grad2_Y**2)[half, :]
-    
-    p2 = PhaseField[half, :]**2
-    grad_lengt = (1. - 4 * p2  ) * ww
-    curvature =   ( laplace2[half, :] - 2 * PhaseField[half, :] * (16 * p2 - 4. ) * ww**2 ) / grad_lengt
-    
-    
-    
-    
-    
-    
-    
-    plt.plot(laplace2[half, n00-dn:n00+dn] , c+'o')
-    plt.plot(laplace(R,n00, ww)[half, n00-dn:n00+dn], c+'-')
+    #plt.plot(laplace2[half, n00-dn:n00+dn] , c+'o')
+    #plt.plot(laplace(R,n00, ww)[half, n00-dn:n00+dn], c+'-')
     #plt.plot(laplace(R,n00, ww)[half, n00-dn:n00+dn] - laplace2[half, n00-dn:n00+dn] , c+'-')
     #plt.plot(laplace2[half, n00-dn:n00+dn], c+'o')
     #plt.plot( R[half, n00-dn:n00+dn], Curvature[half, n00-dn:n00+dn], c+'o')
