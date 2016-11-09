@@ -54,10 +54,6 @@
     EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
     EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
 
-#	Heq = function( pf, n, u ) {
-#          wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*pf + Bh * wi *n %*% t(U)
-#        }
- 
     
     k01 = PV("k01")
     k10 = PV("k10")
@@ -72,63 +68,16 @@
 
 #define pi 3.141592653589793116
 
-CudaDeviceFunction real_t getRho(){
-    if (NodeType & NODE_BOUNDARY) {
-        return 1+Pressure*3;
-    } else {
-    	return <?R C(sum(f)) ?> ;
-    }
-}
-    
-CudaDeviceFunction real_t getPhaseField(){
-        CalcPhi();
-    	return phi ;
-}
-    
-CudaDeviceFunction vector_t getU(){
-	real_t d = getRho();
-	vector_t u;
-<?R 
-    C(PV(c("u.x","u.y")) , f %*% U)
-?>
-	vector_t F;
-	F = getF();
-    u.x = u.x+F.x*0.5;
-    u.y = u.y+F.y*0.5;
-	u.x /= d;
-	u.y /= d;
-	u.z = 0;
-	return u;
-}
-
-CudaDeviceFunction vector_t getGradientPhi(){
-    vector_t n;
-   /**
-     vector_t u = getU();
-
-    <?R
-    
-    ee_x = U[,1] - u[1]
-    ee_y = U[,2] - u[2]
+vector_t normal;
+real_t curvature;
+vector_t gradient;
+bool near_wall;
+CudaDeviceFunction void  InitPhisStencil(){
+    //calculate phi
+    CalcPhi();
 
 
-    C(k10, sum(h%*%ee_x) )
-    C(k01, sum(h%*%ee_y) )
-     
-    ?>
-
-    */
-    InitPhisStencil();
-    <?R
-        C(PV(c("n.x", "n.y")), PV(paste("rphis[",0:8,"]"))%*%U)
-#        C(k10, (phis)%*%U[,2]) 
-
-    ?>
-    
-    return n;
-
-}
-CudaDeviceFunction vector_t getNormal(){
+    //calculate gradient and normal
     vector_t n, nw;// = getGradientPhi();
     n.x = 0;
     n.y = 0;
@@ -181,190 +130,18 @@ CudaDeviceFunction vector_t getNormal(){
             n.y /= ln;
         }
     }
-    return n;
 
-}
-CudaDeviceFunction vector_t getWallDirection(){
-    vector_t n;
+    normal = n;
+    gradient.x = normal.x * ln;
+    gradient.y = normal.y * ln;
+    near_wall = inwall;
+
+    //calculate curvature
+    
+    real_t nx[3][3];
+     real_t ny[3][3];
+     real_t temp = 0;
     <?R
-#        n = PV(c('n.x', 'n.y'));
-#wallMasks = PV(paste('wallMask(',UN[1,],',',UN[2,],')')) 
-#        C(n, d%*%U)
-    ?>
-/*    real_t l = sqrt(n.x*n.x + n.y+n.y);
-    if (l == 0){
-        l = 1.;
-    } else {
-        l = 1 / l;
-    }
-//    n.x = n.x * l;
-  //  n.y = n.y * l;
-*/
-    return n ;
-}
-CudaDeviceFunction vector_t getF() {
-    real_t rho = getRho();
-    real_t pf = <?R C(sum(h)) ?> ;
-    vector_t Force = getInterfaceForce();
-    //surface tension
-    //Force.x = SurfaceTensionRate * Force.x;
-    //Force.y = SurfaceTensionRate * Force.y;
-	
-    //bouncy
-    Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
-    Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
-
-
-    return Force;
-
-}
-
-CudaDeviceFunction vector_t getInterfaceForce() {
-	vector_t F;
-    F.x = 0;
-    F.y = 0;
-    F.z = 0;
-    real_t curv = getCurvature();
-    real_t phi_l = <?R C(sum(h)) ?> ;
-    if (phi_l * phi_l < 0.248) { 
-  
-   bool inwall = false;
-   <?R
-    for (j in 1:9) {
-    ?> 
-        if (<?R C(phis[j]) ?>  != -999) {
-            <?R C( PV('F.x') ,  PV('F.x')  + phis[j]*U[j,1]*wi[j]*3. ) ?>
-            <?R C( PV('F.y') ,  PV('F.y')  + phis[j]*U[j,2]*wi[j]*3. ) ?>
-
-        } else {
-            inwall = true;
-        }
-    <?R } ?>
-    
-    if (inwall){
-        real_t scale =  IntWidth * (1-4*phi_l*phi_l);
-
-        F = getNormal();
-        F.x = F.x * scale;
-        F.y = F.y * scale;
-    }
-
-    F.z = 0;
-    F.x =  SurfaceTensionRate * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y =  SurfaceTensionRate * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
-
-
-    //wetting angle forcing
-    <?R cat('real_t '); C(PV('temp'), sum(phis)) ?>;
-    
-    if (temp < - 100) {
-        vector_t n;
-
-        n.x = 0;
-        n.y = 0;
-        n.z = 0;
-       <?R for (j in 1:9) { ?> 
-            n.x += <?R C(phis[j]) ?> == -999 ? 0 : <?%s U[j,1]?>;
-            n.y += <?R C(phis[j]) ?> == -999 ? 0 : <?%s U[j,2]?>;
-       <?R } ?>
-       real_t l = sqrt(n.x*n.x + n.y*n.y);
-       if (l == 0){
-           l = 1.;
-       } else {
-            l = 1. / l;
-       }
-       //convert to tangent versor
-       temp = n.x;
-       n.x = -n.y * l ;
-       n.y = temp * l ;
-
-       vector_t p_n = getNormal();
-       real_t sign = n.x*p_n.x + n.y*p_n.y;
-    
-       if (sign < 0){
-         n.x = -n.x;
-         n.y = -n.y;
-       }
-        
-       F.x =  WallAdhesion*n.x ;
-       F.y =  WallAdhesion*n.y ;
-    
-    }
-
-    }
-
-	return F;
-}
-
-real_t rphis[9];
-bool rphis_set ;
-CudaDeviceFunction void  InitPhisStencil(){
-
-    //TODO Use caching :/
-    rphis_set = false; 
-/*
-    if ( (NodeType & NODE_BOUNDARY) == NODE_SSymmetry ){
-       <?R 
-        for (j in (1:9)[ U[,2] > 0 ]) {
-            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
-            C(PV(paste("rphis[",j-1,"]")) , phis[op_i])                 
-        }
-        sel = (1:9)[U[,2]<=0]
-        C(PV(paste("rphis[",sel-1,"]")) , phis[sel])            
-       ?>
-
-        rphis_set = true;
-    }
-
-    if ( (NodeType & NODE_BOUNDARY) == NODE_NSymmetry ){
-       <?R 
-        for (j in (1:9)[ U[,2] < 0 ]) {
-            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
-            C(PV(paste("rphis[",j-1,"]")) , phis[op_i])                 
-        }
-        sel = (1:9)[U[,2]>=0]
-        C(PV(paste("rphis[",sel-1,"]")) , phis[sel])            
-       ?>
-
-        rphis_set = true;
-    }
-*/
-
-
-    if (rphis_set == false) {
-    real_t temp;
-    temp = 0;
-    <?R for (j in 1:9) { ?>
-        temp =  ( <?%s j-1 ?> * temp + ( <?R  C(phis[j]) ?> > -999 ?  <?R C(phis[j]) ?> : temp    ) ) * <?%s 1./j ?>;
-    <?R } ?>
-
-    <?R
-    for (j in 1:9) {
-    ?> 
-        if (<?R C(phis[j]) ?>  == -999) 
-        {
-            <?R op_i = (1:9)[U[,1]+U[j,1] == 0 & U[,2]+U[j,2] == 0] ?>
-            if (<?R C(phis[op_i]) ?>  == -999) {
-             <?R C(PV(paste("rphis[",j-1,"]")) , PV("temp")) ?> 
-            } else {
-             <?R C(PV(paste("rphis[",j-1,"]")) , phis[op_i]) ?> 
-            }
-                 
-        } else {
-            <?R C(PV(paste("rphis[",j-1,"]")) , phis[j]) ?> 
-        } 
-    <?R } ?>
-        rphis_set = true;
-    } 
-
-
-}
-
-CudaDeviceFunction real_t getCurvature() {
- real_t nx[3][3];
- real_t ny[3][3];
- real_t temp = 0;
- <?R
     #gradient
     for (i in 0:2) {
         for (j in 0:2){
@@ -384,14 +161,101 @@ CudaDeviceFunction real_t getCurvature() {
 
     #div
     
-    nxs = PV("nx[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
-    nys = PV("ny[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
-    temp2 = nxs %*% U[,1] + nys %*% U[,2]
-    C(PV("temp"), 3 * ( temp2[1] + temp2[2] ) )
+        nxs = PV("nx[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
+        nys = PV("ny[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
+        temp2 = nxs %*% U[,1] + nys %*% U[,2]
+        C(PV("temp"), 3 * ( temp2[1] + temp2[2] ) )
     
- ?>
-    return -temp;
+    ?>
+    curvature =  -temp;
+
 }
+
+
+
+CudaDeviceFunction real_t getRho(){
+    if (NodeType & NODE_BOUNDARY) {
+        return 1+Pressure*3;
+    } else {
+    	return <?R C(sum(f)) ?> ;
+    }
+}
+
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+<?R 
+    C(PV(c("u.x","u.y")) , f %*% U)
+?>
+	vector_t F;
+	F = getF();
+    u.x = u.x+F.x*0.5;
+    u.y = u.y+F.y*0.5;
+	u.x /= d;
+	u.y /= d;
+	u.z = 0;
+	return u;
+}
+
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction real_t getPhaseField(){
+        InitPhisStencil();
+    	return phi ;
+}
+    
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getNormal(){
+    InitPhisStencil();
+    return normal;
+
+}
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction real_t getCurvature(){
+    InitPhisStencil();
+    return curvature;
+
+}
+CudaDeviceFunction vector_t getF() {
+    real_t rho = getRho();
+    real_t pf = <?R C(sum(h)) ?> ;
+    vector_t Force = getInterfaceForce();
+
+    //bouncy
+    Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
+    Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
+
+
+    return Force;
+
+}
+
+CudaDeviceFunction vector_t getInterfaceForce() {
+	vector_t F = gradient;
+    real_t curv = curvature;
+    real_t phi_l = phi ;
+    if (phi_l * phi_l < 0.248) { 
+  
+       
+    if (near_wall){
+        real_t scale =  IntWidth * (1-4*phi_l*phi_l);
+
+        F = getNormal();
+        F.x = F.x * scale;
+        F.y = F.y * scale;
+    }
+
+    F.z = 0;
+    F.x =  SurfaceTensionRate * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  SurfaceTensionRate * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    } else {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;
+    }
+	return F;
+}
+
+
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
@@ -476,6 +340,8 @@ CudaDeviceFunction void CalcPhi() {
 }
 
 CudaDeviceFunction void Run() {
+    InitPhisStencil();
+
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
@@ -571,62 +437,11 @@ CudaDeviceFunction void WVelocity()
 }
 
 
-/*CudaDeviceFunction vector_t getBoundaryForcing(){
-    vector_t n = getNormal();
-    real_t pf = getPhaseField();
-    vector_t wd = getWallDirection();
-    real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
-    real_t omega_ph =  1/( 3 * M + 0.5); 
-    real_t Bh;
 
-    vector_t Fa,Fb,gradPhi,du;
-    du.x = 0;
-    du.y = 0;
-    du.z = 0;
-    if ( lwd > 0 ) {
-       lwd = 1. / lwd;
-       real_t L =  (4 * pf*pf - 1.) * W;
-       real_t b = 0;
-
-<?R
-  
-    wd = PV(c("wd.x","wd.y"))
-    C(wd, wd*PV("lwd"))
-?>
-        gradPhi = getGradientPhi();
-   
-        real_t Ls = L * sin(WettingAngle+ pi  / 2.);
-        real_t Lc = L * cos(WettingAngle+ pi / 2.);
-
-        Fa.x = (gradPhi.x - (Lc*wd.x - Ls*wd.y) ) * exp(b*pf*pf);
-        Fa.y = (gradPhi.y - (Lc*wd.y + Ls*wd.x) ) * exp(b*pf*pf);
-
-        Ls = L * sin(3./2.*pi - WettingAngle);
-        Lc = L * cos(3./2.*pi - WettingAngle);
-
-        Fb.x = (gradPhi.x - (Lc*wd.x - Ls*wd.y) ) * exp(b*pf*pf);
-        Fb.y = (gradPhi.y - (Lc*wd.y + Ls*wd.x) ) * exp(b*pf*pf);
-
-        if ((Fa.x*Fa.x + Fa.y*Fa.y) > (Fb.x*Fb.x + Fb.y*Fb.y) )
-        {
-            Ls = L * sin(3./2.*pi - WettingAngle);
-            Lc = L * cos(3./2.*pi - WettingAngle);
-        } else {
-            Ls =  L * sin(WettingAngle + pi / 2.);
-            Lc =  L * cos(WettingAngle + pi / 2.);
-        }
-
-        du.x = ( (Lc*wd.x - Ls*wd.y) ) ;
-        du.y = ( (Lc*wd.y + Ls*wd.x) ) ;
-
-    }
-    return wd;
-}
-*/
 
 CudaDeviceFunction void CollisionMRT()
 {
-    vector_t n = getNormal();
+    vector_t n = normal;
     real_t pf = <?R C(sum(h)) ?> ;
 <?R
 	MI = solve(EQ$mat)
