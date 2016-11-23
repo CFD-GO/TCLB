@@ -67,15 +67,39 @@
 ?>
 
 #define pi 3.141592653589793116
+#define w0 0x0
+#define w1 0x01 // hex for 0000 0001
+#define w2 0x02 // hex for 0000 0010
+#define w3 0x04 // hex for 0000 0100
+#define w4 0x08 // hex for 0000 1000
+#define w5 0x10 // hex for 0001 0000
+#define w6 0x20 // hex for 0010 0000
+#define w7 0x40 // hex for 0100 0000
+#define w8 0x80 // hex for 1000 0000
+ 
+
+#define s0 0
+#define s1 0
+#define s2 1
+#define s3 2
+#define s4 3
+#define s5 4
+#define s6 5
+#define s7 6
+#define s8 7
 
 vector_t normal;
 real_t curvature;
 vector_t gradient;
+vector_t debug;
 bool near_wall;
 CudaDeviceFunction void  InitPhisStencil(){
+    debug.x = 0;
+    debug.y = 0;
+    debug.z = 0;
     //calculate phi
     CalcPhi();
-
+    
 
     //calculate gradient and normal
     vector_t n, nw;// = getGradientPhi();
@@ -83,20 +107,30 @@ CudaDeviceFunction void  InitPhisStencil(){
     n.y = 0;
     nw.x = 0;
     nw.y = 0;
-    bool inwall = false;
+    int inwall = 0;
+
+
+    unsigned int wall_pattern = 0x0;
+
+
+
    <?R
     for (j in 1:9) {
     ?> 
         if (<?R C(phis[j]) ?>  != -999) {
-            n.x = n.x + <?R C(phis[j]*U[j,1]) ?>;
-            n.y = n.y + <?R C( phis[j]*U[j,2]) ?>;
+            n.x = n.x + <?R C(phis[j]*U[j,1]*wi[j]) ?>;
+            n.y = n.y + <?R C( phis[j]*U[j,2]*wi[j]) ?>;
         } else {
+            wall_pattern = wall_pattern + w<?%s j-1 ?>;
             nw.x = nw.x + <?R C(U[j,1]) ?>;
             nw.y = nw.y + <?R C(U[j,2]) ?>;
-            inwall = true;
         }
     <?R } ?>
-  
+ 
+    gradient.x = n.x*3.;
+    gradient.y = n.y*3.;
+    gradient.z = 0;
+
     real_t ln = sqrt(n.x*n.x + n.y*n.y);    
     if(ln == 0.){
         n.x = 0.;
@@ -106,41 +140,201 @@ CudaDeviceFunction void  InitPhisStencil(){
         n.y /= ln;
     }
 
-    if (inwall){
-        ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
+    normal = n;
+    near_wall = !(wall_pattern == 0);
+
+    real_t t1,t2;
+    real_t my = 0;
+    real_t mx = 0;
+    real_t mxy = 0;
+    
+    if (near_wall){
+
+        real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
         if(ln == 0.){
             nw.x = 0.;
             nw.y = 0.;
         } else {
-            nw.x /= ln;
-            nw.y /= ln;
+            nw.x /= -ln;
+            nw.y /= -ln;
         }
-   
-        ln = n.x*nw.x + n.y*nw.y;
 
-        n.x = n.x - nw.x * ln;
-        n.y = n.y - nw.y * ln;
+        vector_t temp, temp1;
+        real_t ca = cos(WettingAngle);
+        real_t sa = sin(WettingAngle);
+        temp.x = ca * nw.x + sa * nw.y - n.x;
+        temp.y = -sa * nw.x + ca * nw.y - n.y;
+        real_t l1 = sqrt(temp.x * temp.x + temp.y * temp.y);
+
         
-        ln = sqrt(n.x*n.x + n.y*n.y);    
+        sa = -sa; //oposite rotation
+        temp1.x = ca * nw.x + sa * nw.y - n.x;
+        temp1.y = -sa * nw.x + ca * nw.y - n.y;
+        real_t l2 = sqrt(temp1.x * temp1.x + temp1.y * temp1.y);
+    
+        real_t wa = 0;
+        if ( l2 < l1 ) {
+            wa = -WettingAngle;
+        } else {
+            wa = WettingAngle;
+        }
+          
+        debug.z = wa;
+
+        const real_t ctg_alpha = tan(wa+pi/2.);
+        unsigned btype = 0x0;
+        vector_t grad;
+        grad.x = 0;
+        grad.y = 0;
+        grad.z = 0;
+        curvature = 0;
+
+        real_t my = 0;
+        <?R 
+                boxes = array(c(
+                        c(0,1,5,2),
+                        c(3,0,2,6),
+                        c(7,4,0,3),
+                        c(4,8,1,0)
+                    ), dim=c(4,4))    
+                signs = array(c(
+                    c(1,1),
+                    c(1,-1),
+                    c(-1,-1),
+                    c(-1,1)
+                    ), dim=c(2,4))
+
+        for (box_i in c(1:4)){
+#                box_i = 3
+                box = boxes[,box_i]
+                ?> 
+                btype = 0x0 <?R 
+                    for (box_j in c(1:4)) {
+                        if (box[box_j] != 0) {
+                        ?>
+                            + ((wall_pattern >> s<?%s box[box_j]?> & 0x1 ) << <?%s box_j - 1 ?> )
+                        <?R
+                        }
+                    }                
+                ?>;
+                <?R 
+                    box_phis = phis[box+1]     
+                ?>
+       
+                switch (btype) {
+                    case 0x0: //all present
+                        mx  = (<?R C( box_phis[2] - box_phis[1] + box_phis[3] - box_phis[4] ) ?>)/2.;
+                        my = (<?R C( box_phis[3] - box_phis[2] - box_phis[1] + box_phis[4] ) ?>)/2.;
+               
+                    break;
+                
+                    case w1 + w2: //missing WS + ES
+                         mx =  (<?R C( box_phis[3] - box_phis[4]  ) ?>) ;
+                         my = mx*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + nw.y);
+                    break;
+                
+                    case w2 + w3: //missing EN + ES 
+                         my =  (<?R C( box_phis[4] - box_phis[1]  ) ?>);
+                         mx = my*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.y - nw.x);
+ 
+                    break;
+                    case w3 + w4: //missing WN + EN 
+                         mx = (<?R C( box_phis[2] - box_phis[1]  ) ?>);
+                         my = mx*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + nw.y);
+                    break;
+                
+                    case w4 + w1: //missing WS + WN 
+                         my =  (<?R C( box_phis[3] - box_phis[2]  ) ?>) ;
+                         mx = my*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.y - nw.x);
+ 
+                    break;
+             
+                }
+                grad.x = grad.x + mx;
+                grad.y = grad.y + my;
+                t1 = sqrt(mx*mx + my*my) + 1E-18;
+                curvature = curvature + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+           
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////               
+        <?R
+         }
+        ?>
+        gradient.x = grad.x / 4. ;
+        gradient.y = grad.y / 4. ;
+
+
+ 
+        ln = sqrt(grad.x*grad.x + grad.y*grad.y);    
         if(ln == 0.){
             n.x = 0.;
             n.y = 0.;
         } else {
-            n.x /= ln;
-            n.y /= ln;
+            n.x = grad.x / ln;
+            n.y = grad.y / ln;
+        }
+     
+        normal = n;
+     
+        debug.x = n.x;
+        debug.y = n.y;
+
+        curvature = - 0.5*  curvature;
+    } else {
+   
+    
+    //calculate curvature
+
+    curvature = 0;
+    <?R    
+        boxes = array(c(
+                  c(0,1,5,2),
+                  c(3,0,2,6),
+                  c(7,4,0,3),
+                  c(4,8,1,0)
+               ), dim=c(4,4))    
+        signs = array(c(
+                    c(1,1),
+                    c(1,-1),
+                    c(-1,-1),
+                    c(-1,1)
+                    ), dim=c(2,4))
+        for (box_i in c(1:4)){
+#                box_i = 3
+                 box = boxes[,box_i]
+                 box_phis = phis[box+1]     
+                ?>
+       
+                 mx = <?R C( box_phis[2] - box_phis[1] + box_phis[3] - box_phis[4] ) ?>;
+                 my  = <?R C( box_phis[3] - box_phis[2] - box_phis[1] + box_phis[4] ) ?>;
+                 t1 = sqrt(mx*mx + my*my) + 1E-18;
+                 curvature = curvature + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+
+    <?R } ?>
+    
+        curvature = - 0.5 * curvature;
+    }
+
+/**
+    real_t nx[3][3];
+    real_t ny[3][3];
+    real_t temp = 1;
+    <?R
+
+    for (i in -2:2) {
+        for (j in -2:2){
+            ?> 
+                temp = temp * ( <?R C( PV( "phi(",i,",",j,")" ) ) ?> == -999 ? 0 : 1  ); 
+            <?R
         }
     }
 
-    normal = n;
-    gradient.x = normal.x * ln;
-    gradient.y = normal.y * ln;
-    near_wall = inwall;
+    ?>
+    if (temp == 1) {
+    temp = 0;
 
-    //calculate curvature
-    
-    real_t nx[3][3];
-     real_t ny[3][3];
-     real_t temp = 0;
     <?R
     #gradient
     for (i in 0:2) {
@@ -168,6 +362,16 @@ CudaDeviceFunction void  InitPhisStencil(){
     
     ?>
     curvature =  -temp;
+    } else {
+        curvature = 0;
+    }
+
+   **/   
+
+debug.x = gradient.x;
+debug.y = gradient.y;
+
+        ///////////////////
 
 }
 
@@ -200,6 +404,9 @@ CudaDeviceFunction vector_t getU(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction real_t getPhaseField(){
         InitPhisStencil();
+        if (IamWall){
+            return 0;
+        }
     	return phi ;
 }
     
@@ -215,10 +422,17 @@ CudaDeviceFunction real_t getCurvature(){
     return curvature;
 
 }
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getDEBUG(){
+    InitPhisStencil();
+    return debug;
+
+}
+
 CudaDeviceFunction vector_t getF() {
     real_t rho = getRho();
     real_t pf = <?R C(sum(h)) ?> ;
-    vector_t Force = getInterfaceForce();
+    vector_t Force = real_getInterfaceForce(SurfaceTensionRate);
 
     //bouncy
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
@@ -229,24 +443,29 @@ CudaDeviceFunction vector_t getF() {
 
 }
 
-CudaDeviceFunction vector_t getInterfaceForce() {
+CudaDeviceFunction vector_t getInterfaceForce(){
+    InitPhisStencil();
+    return real_getInterfaceForce(1);
+}
+
+CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
 	vector_t F = gradient;
     real_t curv = curvature;
     real_t phi_l = phi ;
-    if (phi_l * phi_l < 0.248) { 
+    if (phi_l * phi_l < SurfaceTensionDecay){
   
        
-    if (near_wall){
+  /**  if (near_wall){
         real_t scale =  IntWidth * (1-4*phi_l*phi_l);
 
         F = getNormal();
         F.x = F.x * scale;
         F.y = F.y * scale;
     }
-
+**/
     F.z = 0;
-    F.x =  SurfaceTensionRate * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y =  SurfaceTensionRate * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.x =  ST * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  ST * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
     } else {
         F.x = 0;
         F.y = 0;
