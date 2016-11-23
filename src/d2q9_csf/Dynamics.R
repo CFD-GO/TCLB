@@ -26,7 +26,7 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
 
 
-AddField("phi"       ,stencil2d=2 );
+AddField("phi"       ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
          load=DensityAll$group == "f" | DensityAll$group == "h",# | DensityAll$group == "d",  

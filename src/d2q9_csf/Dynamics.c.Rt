@@ -248,7 +248,27 @@ CudaDeviceFunction void  InitPhisStencil(){
                          mx = my*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.y - nw.x);
  
                     break;
-             
+
+                    case w1:
+                        mx = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.x - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.x + (<?R C(box_phis[2]) ?>)*nw.y - (<?R C(box_phis[4]) ?>)*nw.y)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                        my = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.y - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.y - (<?R C(box_phis[2]) ?>)*nw.x + (<?R C(box_phis[4]) ?>)*nw.x)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                    break;
+
+                    case w2:
+                        mx = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);
+                        my = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);
+                    break;
+
+                    case w3:
+                        mx = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.x - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.x + (<?R C(box_phis[2]) ?>)*nw.y - (<?R C(box_phis[4]) ?>)*nw.y)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                        my = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.y - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.y - (<?R C(box_phis[2]) ?>)*nw.x + (<?R C(box_phis[4]) ?>)*nw.x)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                    break;
+
+                    case w4:
+                        mx = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);
+                        my = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);                   
+                    break;
+
                 }
                 grad.x = grad.x + mx;
                 grad.y = grad.y + my;
