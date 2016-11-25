@@ -24,13 +24,18 @@ AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
+AddField( name="nw_x", stencil2d=1, group="nw")
+AddField( name="nw_y", stencil2d=1, group="nw")
+
+
+
 
 
 AddField("phi"       ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
          load=DensityAll$group == "f" | DensityAll$group == "h",# | DensityAll$group == "d",  
-         save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
+         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw"
          ) 
 AddStage("CalcPhi", 
          save=Fields$name=="phi" ,  
@@ -38,10 +43,13 @@ AddStage("CalcPhi",
          )
 AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
 ) 
-
+AddStage("CalcWallNormall", "CalcNormal",   
+         save=Fields$group=="nw",
+         fixedPoint=TRUE
+         ) 
 
 AddAction("Iteration", c("BaseIteration","CalcPhi"))
-AddAction("Init", c("BaseInit","CalcPhi"))
+AddAction("Init", c("BaseInit","CalcPhi", "CalcWallNormall"))
 
 
 

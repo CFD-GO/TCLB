@@ -122,8 +122,6 @@ CudaDeviceFunction void  InitPhisStencil(){
             n.y = n.y + <?R C( phis[j]*U[j,2]*wi[j]) ?>;
         } else {
             wall_pattern = wall_pattern + w<?%s j-1 ?>;
-            nw.x = nw.x + <?R C(U[j,1]) ?>;
-            nw.y = nw.y + <?R C(U[j,2]) ?>;
         }
     <?R } ?>
  
@@ -150,6 +148,8 @@ CudaDeviceFunction void  InitPhisStencil(){
     
     if (near_wall){
 
+        nw.x = nw_x(0,0);
+        nw.y = nw_y(0,0);
         real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
         if(ln == 0.){
             nw.x = 0.;
@@ -297,8 +297,8 @@ CudaDeviceFunction void  InitPhisStencil(){
      
         normal = n;
      
-        debug.x = n.x;
-        debug.y = n.y;
+        debug.x = nw.x;
+        debug.y = nw.y;
 
         curvature = - 0.5*  curvature;
     } else {
@@ -388,8 +388,8 @@ CudaDeviceFunction void  InitPhisStencil(){
 
    **/   
 
-debug.x = gradient.x;
-debug.y = gradient.y;
+//debug.x = gradient.x;
+//debug.y = gradient.y;
 
         ///////////////////
 
@@ -446,6 +446,43 @@ CudaDeviceFunction real_t getCurvature(){
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
     return debug;
+
+}
+
+
+CudaDeviceFunction void CalcNormal(){
+
+    CalcPhi();
+    
+
+    //calculate gradient and normal
+    vector_t nw;
+    nw.x = 0;
+    nw.y = 0;
+
+
+    real_t magic = 0.1;
+   <?R
+    for (j in 1:9) {
+    ?> 
+        if (<?R C(phis[j]) ?>  == -999) {
+            nw.x = nw.x + (1-magic) * <?R C(U[j,1]) ?>;
+            nw.y = nw.y + (1-magic) * <?R C(U[j,2]) ?>;
+        }
+
+        nw.x = nw.x + magic * nw_x(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
+        nw.y = nw.y + magic * nw_y(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
+    <?R } ?>
+ 
+   // real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;    
+   // nw.x /= ln;
+   // nw.y /= ln;
+
+
+    nw_x = nw.x;
+    nw_y = nw.y;
+    
+
 
 }
 
