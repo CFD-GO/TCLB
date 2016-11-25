@@ -150,6 +150,8 @@ CudaDeviceFunction void  InitPhisStencil(){
 
         nw.x = nw_x(0,0);
         nw.y = nw_y(0,0);
+
+        
         real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
         if(ln == 0.){
             nw.x = 0.;
@@ -158,6 +160,9 @@ CudaDeviceFunction void  InitPhisStencil(){
             nw.x /= -ln;
             nw.y /= -ln;
         }
+
+        nw_x = nw.x;
+        nw_y = nw.y;
 
         vector_t temp, temp1;
         real_t ca = cos(WettingAngle);
