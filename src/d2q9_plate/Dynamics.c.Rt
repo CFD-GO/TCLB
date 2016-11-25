@@ -178,6 +178,7 @@ CudaDeviceFunction void EPressure()
 #define S9 omega
 
 CudaDeviceFunction real_t calcW0(real_t d) {
+	d = d + SM_M;
 	if (SM == 0) {
 		if (d < 0) return 0;
 		return 1;
