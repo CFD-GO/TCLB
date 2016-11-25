@@ -904,6 +904,23 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 
 }
 
+void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
+{
+	if (Q == NULL) return;
+	container->ActivateCuts();
+	lbRegion inter = region.intersect(over);
+        int x = inter.dx;
+	size_t regsize = region.size();
+	size_t oversize = over.size();
+        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+        for (int d = 0; d<26; d++)
+        {
+                CudaMemcpy2D(&container->Q[region.offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, cudaMemcpyHostToDevice);
+        }
+
+}
+
 /// Get NodeType's from a region
 void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {

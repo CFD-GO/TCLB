@@ -4,6 +4,10 @@
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #endif
 
+<?R
+ library(gvector,quiet=TRUE,warn.conflicts=FALSE)
+ library(polyAlgebra,quiet=TRUE,warn.conflicts=FALSE)
+?>
 
 
 #include <stdlib.h>
@@ -22,6 +26,13 @@
 #include "spline.h"
 #include <assert.h>
 
+
+<?R
+				x = c(0,1,-1);
+				U = expand.grid(x,x,x)
+?>
+const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
+
 /// Main constructor
 /**
         Constructs the Geometry object based on size
@@ -31,11 +42,21 @@
 Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(units_)
 {
     geom = new flag_t[region.sizeL()];
+    Q = NULL;
     for (size_t i = 0; i < region.sizeL(); i++) {
 	geom[i] = 0;
     }
     output("Creating geom size:%ld\n", region.sizeL());
     SettingZones["DefaultZone"] = 0;
+}
+
+inline void Geometry::ActivateCuts() {
+	if (Q == NULL) {
+		Q = new cut_t[region.sizeL()*26];
+		for (size_t i = 0; i < region.sizeL()*26; i++) {
+			Q[i] = NO_CUT;
+		}
+	}
 }
 
 #define E(x) if (x) { return -1; }
@@ -391,18 +412,51 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] += v;
 	}
     }
+    const double sm_diff[3] = {0.123e-5, 0.231e-5, 0.312e-5};
     for (int i = 0; i < ntri; i++) {
 	for (int j = 0; j < 3; j++) {
-		tri[i].p1[j] += 1e-7 - 0.5;
-		tri[i].p2[j] += 1e-7 - 0.5;
-		tri[i].p3[j] += 1e-7 - 0.5;
 		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
 		tri[i].p2[j] = myround(tri[i].p2[j] * 1e5) * 1e-5;
 		tri[i].p3[j] = myround(tri[i].p3[j] * 1e5) * 1e-5;
+		tri[i].p1[j] += sm_diff[j] - 0.5;
+		tri[i].p2[j] += sm_diff[j] - 0.5;
+		tri[i].p3[j] += sm_diff[j] - 0.5;
 	}
     }
     return 0;
 }
+
+inline cut_t smaller(cut_t a,cut_t b) {
+	if (a<b) return a;
+	return b;
+}
+
+cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, double dz) {
+	double mat[16],b[4],r[4];
+	<?R
+		M = PV("mat[",1:16-1,"]")
+		dim(M) = c(4,4)
+		W = M
+		xyz = c("x","y","z");
+		W[1:3,1] = PV(xyz) - PV("tri.p1[",1:3-1,"]")
+		W[1:3,2] = PV(xyz) - PV("tri.p2[",1:3-1,"]")
+		W[1:3,3] = PV(xyz) - PV("tri.p3[",1:3-1,"]")
+		W[1:3,4] = PV("d",xyz)
+		W[4,1:4] = c(1,1,1,0)
+		b = c(0,0,0,1)
+		C(M,W)
+		C(PV("b[",1:4-1,"]"),c(0,0,0,1))
+	?>
+//	return 0;
+	GaussSolve(mat,b,r,4);
+	if (r[0] < 0) return 255;
+	if (r[1] < 0) return 255;
+	if (r[2] < 0) return 255;
+	if (r[3] < 0) return 255;
+	if (r[3] > 1) return 255;
+	return r[3]*200;
+}
+
 
 /// Load STL file
 inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
@@ -422,8 +476,10 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	    insideOut=0;
         } else if (side == "out") {
             insideOut=1;
+        } else if (side == "surface") {
+            insideOut=2;
         } else {
-	    error("'side' in 'STL' element have to be 'in' or 'out'\n");
+	    error("'side' in 'STL' element have to be 'in', 'out' or 'surface'\n");
 	    return -1;
 	}
     }
@@ -446,60 +502,73 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     debug1("Number of triangles: %d\n", ntri);
     transformSTL(ntri, tri, n);
     for (int i = 0; i < ntri; i++) {
-	int minx, maxx, minz, maxz;
-	minx = ceil(tri[i].p1[0]);
-	if (tri[i].p2[0] < minx)
-	    minx = ceil(tri[i].p2[0]);
-	if (tri[i].p3[0] < minx)
-	    minx = ceil(tri[i].p3[0]);
-	maxx = floor(tri[i].p1[0]);
-	if (tri[i].p2[0] > maxx)
-	    maxx = floor(tri[i].p2[0]);
-	if (tri[i].p3[0] > maxx)
-	    maxx = floor(tri[i].p3[0]);
-	minz = ceil(tri[i].p1[2]);
-	if (tri[i].p2[2] < minz)
-	    minz = ceil(tri[i].p2[2]);
-	if (tri[i].p3[2] < minz)
-	    minz = ceil(tri[i].p3[2]);
-	maxz = floor(tri[i].p1[2]);
-	if (tri[i].p2[2] > maxz)
-	    maxz = floor(tri[i].p2[2]);
-	if (tri[i].p3[2] > maxz)
-	    maxz = floor(tri[i].p3[2]);
+	int min[3], max[3];
+	for (int j=0; j<3;j++) {
+		min[j] = ceil(tri[i].p1[j]);
+		if (tri[i].p2[j] < min[j])
+		    min[j] = ceil(tri[i].p2[j]);
+		if (tri[i].p3[j] < min[j])
+		    min[j] = ceil(tri[i].p3[j]);
+		max[j] = floor(tri[i].p1[j]);
+		if (tri[i].p2[j] > max[j])
+		    max[j] = floor(tri[i].p2[j]);
+		if (tri[i].p3[j] > max[j])
+		    max[j] = floor(tri[i].p3[j]);
+		min[j] -= 1;
+		max[j] += 1;
+	}
 	double v[2], v1[2], v2[2], c0, c1, c2, c3;
 	v1[0] = tri[i].p2[0] - tri[i].p1[0];
 	v1[1] = tri[i].p2[2] - tri[i].p1[2];
 	v2[0] = tri[i].p3[0] - tri[i].p1[0];
 	v2[1] = tri[i].p3[2] - tri[i].p1[2];
 	c0 = v1[0] * v2[1] - v1[1] * v2[0];
-	for (int x = minx; x <= maxx; x++)
-	    for (int z = minz; z <= maxz; z++) {
-		v[0] = x - tri[i].p1[0];
-		v[1] = z - tri[i].p1[2];
-		c1 = v1[0] * v[1] - v1[1] * v[0];
-		c2 = v[0] * v2[1] - v[1] * v2[0];
-		c1 /= c0;
-		c2 /= c0;
-		if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
-		    c3 = 1. - c1 - c2;
-		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
-		    for (int y = reg.dy; y <= h; y++) {
-//                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
-			if (reg.isIn(x, y, z))
-			    lev[reg.offset(x, y, z)]++;
-		    }
-		}
-	    }
+	if (insideOut == 2) {
+            size_t regsize = reg.size();
+            for (int x = min[0]; x <= max[0]; x++)
+                for (int z = min[2]; z <= max[2]; z++)
+                    for (int y = min[1]; y <= max[1]; y++) if (reg.isIn(x, y, z)) {
+                            size_t k = reg.offset(x, y, z);
+                            cut_t nq;
+                            ActivateCuts();
+                            for (int d = 0; d<26; d++) {
+                                    nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+                                    if (nq < Q[regsize*d+k]) {
+                                            Q[regsize*d+k] = nq;
+                                            Dot(x, y, z);
+                                    }
+                            }
+                    }
+	} else {
+            for (int x = min[0]; x <= max[0]; x++)
+                for (int z = min[2]; z <= max[2]; z++) {
+                    v[0] = x - tri[i].p1[0];
+                    v[1] = z - tri[i].p1[2];
+                    c1 = v1[0] * v[1] - v1[1] * v[0];
+                    c2 = v[0] * v2[1] - v[1] * v2[0];
+                    c1 /= c0;
+                    c2 /= c0;
+                    if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
+                        c3 = 1. - c1 - c2;
+                        double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
+                        for (int y = reg.dy; y <= h; y++) {
+    //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
+                            if (reg.isIn(x, y, z))
+                                lev[reg.offset(x, y, z)]++;
+                        }
+                    }
+                }
+	}
     }
-    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
-		if (lev[reg.offset(x, y, z)] % 2 == 1) {
-//                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
-		    Dot(x, y, z);
-		}
-	    }
+    if (insideOut != 2)
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+                for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+                    if (lev[reg.offset(x, y, z)] % 2 == 1) {
+    //                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
+                        Dot(x, y, z);
+                    }
+                }
     free(tri);
     free(lev);
     return 0;
@@ -873,6 +942,9 @@ int Geometry::load(pugi::xml_node & node)
         }
 	E(Draw(n));
     }
+    if (node.attribute("save")) {
+	writeVTI(node.attribute("save").value());
+    }
     return 0;
 }
 
@@ -880,10 +952,11 @@ Geometry::~Geometry()
 {
     debug1("[%d] Destroy geom\n", D_MPI_RANK);
     delete[]geom;
+    if (Q != NULL) delete[] Q;
 }
 
 /// Dumps the Geometry to a vti file
-void Geometry::writeVTI(char *filename)
+void Geometry::writeVTI(const char *filename)
 {
     vtkFileOut vtkFile;
     if (vtkFile.Open(filename)) {
@@ -891,6 +964,15 @@ void Geometry::writeVTI(char *filename)
     }
     vtkFile.Init(region, "");
     vtkFile.WriteField("geom", geom);
+    if (Q != NULL) {
+        size_t regsize = region.size();
+        for (int d=0;d<26;d++) {
+            char nm[20];
+//            sprintf(nm,"Q(%2d,%2d,%2d)",d3q27_vec[(d+1)+3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+            sprintf(nm,"Q_%d",d);
+            vtkFile.WriteField(nm, Q + regsize*d);
+        }
+    }
     vtkFile.Finish();
     vtkFile.Close();
 }

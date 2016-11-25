@@ -43,6 +43,7 @@ class LatticeContainer {
   FTabs adjin; ///< FTabs used for Adjoint iteration as input
 #endif
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
+  cut_t* Q; 
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
@@ -58,6 +59,7 @@ class LatticeContainer {
   STWaveSet ST;
   void Alloc (int,int,int);
   void Free();
+  void ActivateCuts();
   CudaDeviceFunction void fill();
 <?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
   ?>
@@ -104,6 +106,13 @@ class LatticeContainer {
     if (w == NULL) return & ConstZoneSettings[i + GRAD_OFFSET];
     return & w[ZoneIndex];
   }
+
+  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
+    if (Q == NULL) return NO_CUT;
+    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+    return Q[i];
+  }
+
 
   CudaDeviceFunction inline vector_t getST(const real_t t, int x, int y, int z) {
 	x += px;

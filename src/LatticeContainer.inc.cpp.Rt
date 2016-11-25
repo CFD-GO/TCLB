@@ -205,6 +205,8 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     CudaMemset( tmp, 0, size ); 
     NodeType = (flag_t*)tmp;
 
+    Q = NULL;
+
     size = (size_t) GLOBALS * sizeof(real_t);
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
@@ -214,6 +216,18 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	ST.setsize(0, ST_GPU);
 }
 
+void LatticeContainer::ActivateCuts() {
+    if (Q == NULL) {
+            void * tmp;
+            size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
+                ALLOCPRINT1;
+            CudaMalloc( (void**)&tmp, size );
+                ALLOCPRINT2;
+            CudaMemset( tmp, 0, size ); 
+            Q = (cut_t*)tmp;
+    }
+}
+
 /// Destroy Container
 /**
   cannot do a constructor and destructor - because this class lives on GPU
@@ -221,6 +235,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 void LatticeContainer::Free()
 {
     CudaFree( NodeType );
+    if (Q != NULL) CudaFree( Q ); 
 }
 
 
