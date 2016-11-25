@@ -178,17 +178,23 @@ CudaDeviceFunction void EPressure()
 #define S9 omega
 
 CudaDeviceFunction real_t calcW0(real_t d) {
-	if (d < -1) return 0;
-	if (d > 1) return 1;
-	return ((3-d*d)*d+2)/4;
+	if (SM == 0) {
+		if (d < 0) return 0;
+		return 1;
+	} else {
+		d = d / SM;
+		if (d < -1) return 0;
+		if (d > 1) return 1;
+		return ((3-d*d)*d+2)/4;
+	}
 }
 
 CudaDeviceFunction real_t calcW(real_t dx, real_t dy) {
 	real_t ret = 1;
-	ret = ret * calcW0((PDX-2*dx)/SM);
-	ret = ret * calcW0((PDX+2*dx)/SM);
-	ret = ret * calcW0((PDY-2*dy)/SM);
-	ret = ret * calcW0((PDY+2*dy)/SM);
+	ret = ret * calcW0(PDX-2*dx);
+	ret = ret * calcW0(PDX+2*dx);
+	ret = ret * calcW0(PDY-2*dy);
+	ret = ret * calcW0(PDY+2*dy);
 	return ret;
 }
 
