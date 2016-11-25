@@ -146,7 +146,7 @@ CudaDeviceFunction void  InitPhisStencil(){
     real_t mx = 0;
     real_t mxy = 0;
     
-    if (near_wall){
+    if (near_wall && (wall_pattern != 255)){
 
         nw.x = nw_x(0,0);
         nw.y = nw_y(0,0);
@@ -448,6 +448,9 @@ CudaDeviceFunction real_t getCurvature(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
+//    vector_t temp;
+//    temp.x = nw_x(0,0);
+//    temp.y = nw_y(0,0);
     return debug;
 
 }
@@ -455,8 +458,9 @@ CudaDeviceFunction vector_t getDEBUG(){
 
 CudaDeviceFunction void CalcNormal(){
 
+
     CalcPhi();
-    
+
 
     //calculate gradient and normal
     vector_t nw;
@@ -464,10 +468,10 @@ CudaDeviceFunction void CalcNormal(){
     nw.y = 0;
 
 
-    real_t magic = 0.1;
+    real_t magic = 0.12;
    <?R
     for (j in 1:9) {
-    ?> 
+    ?>
         if (<?R C(phis[j]) ?>  == -999) {
             nw.x = nw.x + (1-magic) * <?R C(U[j,1]) ?>;
             nw.y = nw.y + (1-magic) * <?R C(U[j,2]) ?>;
@@ -476,15 +480,18 @@ CudaDeviceFunction void CalcNormal(){
         nw.x = nw.x + magic * nw_x(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
         nw.y = nw.y + magic * nw_y(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
     <?R } ?>
- 
-   // real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;    
+
+   // real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;
    // nw.x /= ln;
    // nw.y /= ln;
 
-
+    if (IamWall){
+        nw.x = 0;
+        nw.y = 0;
+    }
     nw_x = nw.x;
     nw_y = nw.y;
-    
+
 
 
 }
