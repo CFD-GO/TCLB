@@ -1,7 +1,7 @@
 <?R 
 	source("models.R")
 	Models = get.models();
-	destinations=c("CLB");
+	destinations=c("$(BUILDROOT)/$(DEST)");
 ?>
 # MODELS: 
 #	<?%s paste(Models$name,collapse=", ") ?>
@@ -143,11 +143,11 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/tapenade.run : tools/makeAD <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh <?%s d ?>/<?%s m ?>/ADpost.sed
 	@echo "  TAPENADE   $<"
-	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD)
+	@(cd <?%s d ?>/<?%s m ?>; $(BUILDROOT)/tools/makeAD)
 
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
-	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
+	@cd <?%s d ?>/<?%s m ?>; $(RS) $(BUILDROOT)/$<
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
@@ -161,7 +161,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  CP         $@"
-	@$(CP) $< $@
+	@$(CP)  $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
@@ -175,11 +175,11 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
-	@$(CP) $< $@
+	@$(CP)  $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%
 	@echo "  CP         $@"
-	@$(CP) $< $@
+	@$(CP)   $< $@
 
 <?R } ?>
 
