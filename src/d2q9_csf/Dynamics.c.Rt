@@ -1,0 +1,807 @@
+<?R
+# #############
+# Phase field advection based on "Conservative phase-field lattice Boltzmann model for interface tracking equation"
+# CSF multiphase model implemented and authored by M. Dzikowski 2016
+# Maintainer: Michal Dzikowski @mdzik
+# #############
+
+	source("conf.R") 
+	c_header();
+	
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+    U = t(as.matrix(   rbind( Density$dx[Density$group=='f'], Density$dy[Density$group=='f'] ) ))
+	EQ = MRT_eq(U, ortogonal=FALSE)
+        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+        wi = subst(wi, rho=1)
+        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+        wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W0 = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W0))
+	H = chol(W0[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+	EQ = MRT_eq(U, mat=B)
+
+	
+
+	f = PV(Density$name[Density$group=='f'])
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+    u = PV(c("u.x","u.y"))
+
+
+# things related to h
+    h = PV(Density$name[Density$group=='h'])
+    pf = PV("pf")
+    phi = PV(paste("phi(",-U[,1],",",-U[,2],")"))
+    n = PV(c("n.x","n.y"))
+    c_sq = 1/3.
+    Bh = PV('Bh')
+    W = PV("IntWidth")	
+    n = c(PV('n.x'),PV('n.y'))
+    
+    EQ_h = MRT_eq(U,mat=B)
+    EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
+    
+    mob = PV("Mobility")
+    Bh = 3*mob * (1.-4.*pf*pf)*W 
+
+    EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
+    EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+
+    
+    k01 = PV("k01")
+    k10 = PV("k10")
+    UN = t(U[1:9,])
+    wis = rep(1./9., 9)
+    wis[1] = wis[1] - 1
+    phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
+    
+#	d = PV(Density$name[Density$group=='d'])
+
+?>
+
+#define pi 3.141592653589793116
+#define w0 0x0
+#define w1 0x01 // hex for 0000 0001
+#define w2 0x02 // hex for 0000 0010
+#define w3 0x04 // hex for 0000 0100
+#define w4 0x08 // hex for 0000 1000
+#define w5 0x10 // hex for 0001 0000
+#define w6 0x20 // hex for 0010 0000
+#define w7 0x40 // hex for 0100 0000
+#define w8 0x80 // hex for 1000 0000
+ 
+
+#define s0 0
+#define s1 0
+#define s2 1
+#define s3 2
+#define s4 3
+#define s5 4
+#define s6 5
+#define s7 6
+#define s8 7
+
+vector_t normal;
+real_t curvature;
+vector_t gradient;
+vector_t debug;
+bool near_wall;
+CudaDeviceFunction void  InitPhisStencil(){
+    debug.x = 0;
+    debug.y = 0;
+    debug.z = 0;
+    //calculate phi
+    CalcPhi();
+    
+
+    //calculate gradient and normal
+    vector_t n, nw;// = getGradientPhi();
+    n.x = 0;
+    n.y = 0;
+    nw.x = 0;
+    nw.y = 0;
+    int inwall = 0;
+
+
+    unsigned int wall_pattern = 0x0;
+
+
+
+   <?R
+    for (j in 1:9) {
+    ?> 
+        if (<?R C(phis[j]) ?>  != -999) {
+            n.x = n.x + <?R C(phis[j]*U[j,1]*wi[j]) ?>;
+            n.y = n.y + <?R C( phis[j]*U[j,2]*wi[j]) ?>;
+        } else {
+            wall_pattern = wall_pattern + w<?%s j-1 ?>;
+        }
+    <?R } ?>
+ 
+    gradient.x = n.x*3.;
+    gradient.y = n.y*3.;
+    gradient.z = 0;
+
+    real_t ln = sqrt(n.x*n.x + n.y*n.y);    
+    if(ln == 0.){
+        n.x = 0.;
+        n.y = 0.;
+    } else {
+        n.x /= ln;
+        n.y /= ln;
+    }
+
+    normal = n;
+    near_wall = !(wall_pattern == 0);
+
+    real_t t1,t2;
+    real_t my = 0;
+    real_t mx = 0;
+    real_t mxy = 0;
+    
+    if (near_wall && (wall_pattern != 255)){
+
+        nw.x = nw_x(0,0);
+        nw.y = nw_y(0,0);
+        nw_x = nw_x(0,0);
+        nw_y = nw_y(0,0);
+        
+        real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
+        if(ln == 0.){
+            nw.x = 0.;
+            nw.y = 0.;
+        } else {
+            nw.x /= -ln;
+            nw.y /= -ln;
+        }
+
+        vector_t temp, temp1;
+        real_t ca = cos(WettingAngle);
+        real_t sa = sin(WettingAngle);
+        temp.x = ca * nw.x + sa * nw.y - n.x;
+        temp.y = -sa * nw.x + ca * nw.y - n.y;
+        real_t l1 = sqrt(temp.x * temp.x + temp.y * temp.y);
+
+        
+        sa = -sa; //oposite rotation
+        temp1.x = ca * nw.x + sa * nw.y - n.x;
+        temp1.y = -sa * nw.x + ca * nw.y - n.y;
+        real_t l2 = sqrt(temp1.x * temp1.x + temp1.y * temp1.y);
+    
+        real_t wa = 0;
+        if ( l2 < l1 ) {
+            wa = -WettingAngle;
+        } else {
+            wa = WettingAngle;
+        }
+          
+        debug.z = wa;
+
+        const real_t ctg_alpha = tan(wa+pi/2.);
+        unsigned btype = 0x0;
+        vector_t grad;
+        grad.x = 0;
+        grad.y = 0;
+        grad.z = 0;
+        curvature = 0;
+
+        real_t my = 0;
+        <?R 
+                boxes = array(c(
+                        c(0,1,5,2),
+                        c(3,0,2,6),
+                        c(7,4,0,3),
+                        c(4,8,1,0)
+                    ), dim=c(4,4))    
+                signs = array(c(
+                    c(1,1),
+                    c(1,-1),
+                    c(-1,-1),
+                    c(-1,1)
+                    ), dim=c(2,4))
+
+        for (box_i in c(1:4)){
+#                box_i = 3
+                box = boxes[,box_i]
+                ?> 
+                btype = 0x0 <?R 
+                    for (box_j in c(1:4)) {
+                        if (box[box_j] != 0) {
+                        ?>
+                            + ((wall_pattern >> s<?%s box[box_j]?> & 0x1 ) << <?%s box_j - 1 ?> )
+                        <?R
+                        }
+                    }                
+                ?>;
+                <?R 
+                    box_phis = phis[box+1]     
+                ?>
+       
+                switch (btype) {
+                    case 0x0: //all present
+                        mx  = (<?R C( box_phis[2] - box_phis[1] + box_phis[3] - box_phis[4] ) ?>)/2.;
+                        my = (<?R C( box_phis[3] - box_phis[2] - box_phis[1] + box_phis[4] ) ?>)/2.;
+               
+                    break;
+                
+                    case w1 + w2: //missing WS + ES
+                         mx =  (<?R C( box_phis[3] - box_phis[4]  ) ?>) ;
+                         my = mx*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + nw.y);
+                    break;
+                
+                    case w2 + w3: //missing EN + ES 
+                         my =  (<?R C( box_phis[4] - box_phis[1]  ) ?>);
+                         mx = my*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.y - nw.x);
+ 
+                    break;
+                    case w3 + w4: //missing WN + EN 
+                         mx = (<?R C( box_phis[2] - box_phis[1]  ) ?>);
+                         my = mx*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + nw.y);
+                    break;
+                
+                    case w4 + w1: //missing WS + WN 
+                         my =  (<?R C( box_phis[3] - box_phis[2]  ) ?>) ;
+                         mx = my*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.y - nw.x);
+ 
+                    break;
+
+                    case w1:
+                        mx = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.x - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.x + (<?R C(box_phis[2]) ?>)*nw.y - (<?R C(box_phis[4]) ?>)*nw.y)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                        my = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.y - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.y - (<?R C(box_phis[2]) ?>)*nw.x + (<?R C(box_phis[4]) ?>)*nw.x)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                    break;
+
+                    case w2:
+                        mx = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);
+                        my = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);
+                    break;
+
+                    case w3:
+                        mx = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.x - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.x + (<?R C(box_phis[2]) ?>)*nw.y - (<?R C(box_phis[4]) ?>)*nw.y)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                        my = (ctg_alpha*(<?R C(box_phis[2]) ?>)*nw.y - ctg_alpha*(<?R C(box_phis[4]) ?>)*nw.y - (<?R C(box_phis[2]) ?>)*nw.x + (<?R C(box_phis[4]) ?>)*nw.x)/(ctg_alpha*nw.x - ctg_alpha*nw.y + nw.x + nw.y);
+                    break;
+
+                    case w4:
+                        mx = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.x + nw.y)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);
+                        my = (-(<?R C(box_phis[1]) ?>) + (<?R C(box_phis[3]) ?>))*(ctg_alpha*nw.y - nw.x)/(ctg_alpha*nw.x + ctg_alpha*nw.y - nw.x + nw.y);                   
+                    break;
+
+                }
+                grad.x = grad.x + mx;
+                grad.y = grad.y + my;
+                t1 = sqrt(mx*mx + my*my) + 1E-18;
+                curvature = curvature + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+           
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////               
+        <?R
+         }
+        ?>
+        gradient.x = grad.x / 4. ;
+        gradient.y = grad.y / 4. ;
+
+
+ 
+        ln = sqrt(grad.x*grad.x + grad.y*grad.y);    
+        if(ln == 0.){
+            n.x = 0.;
+            n.y = 0.;
+        } else {
+            n.x = grad.x / ln;
+            n.y = grad.y / ln;
+        }
+     
+        normal = n;
+     
+        debug.x = nw.x;
+        debug.y = nw.y;
+
+        curvature = - 0.5*  curvature;
+    } else {
+   
+    
+    //calculate curvature
+
+    curvature = 0;
+    <?R    
+        boxes = array(c(
+                  c(0,1,5,2),
+                  c(3,0,2,6),
+                  c(7,4,0,3),
+                  c(4,8,1,0)
+               ), dim=c(4,4))    
+        signs = array(c(
+                    c(1,1),
+                    c(1,-1),
+                    c(-1,-1),
+                    c(-1,1)
+                    ), dim=c(2,4))
+        for (box_i in c(1:4)){
+#                box_i = 3
+                 box = boxes[,box_i]
+                 box_phis = phis[box+1]     
+                ?>
+       
+                 mx = <?R C( box_phis[2] - box_phis[1] + box_phis[3] - box_phis[4] ) ?>;
+                 my  = <?R C( box_phis[3] - box_phis[2] - box_phis[1] + box_phis[4] ) ?>;
+                 t1 = sqrt(mx*mx + my*my) + 1E-18;
+                 curvature = curvature + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+
+    <?R } ?>
+    
+        curvature = - 0.5 * curvature;
+    }
+
+/**
+    real_t nx[3][3];
+    real_t ny[3][3];
+    real_t temp = 1;
+    <?R
+
+    for (i in -2:2) {
+        for (j in -2:2){
+            ?> 
+                temp = temp * ( <?R C( PV( "phi(",i,",",j,")" ) ) ?> == -999 ? 0 : 1  ); 
+            <?R
+        }
+    }
+
+    ?>
+    if (temp == 1) {
+    temp = 0;
+
+    <?R
+    #gradient
+    for (i in 0:2) {
+        for (j in 0:2){
+            n = c( PV( "nx[",i,"][",j,"]"), PV("ny[",i,"][",j,"]" ) ) 
+            C( n,  PV("phi(",i+U[,1]-1,",",j+U[,2]-1,")") %*%(c(wi)*U) )
+            C( PV("temp"), n %*% n )
+    #normal
+            ?>
+            temp = 1./ sqrt(temp);
+            nx[ <?%s i ?>  ][ <?%s j ?>] *= temp;
+            ny[ <?%s i ?>  ][ <?%s j ?>] *= temp;
+            <?R
+
+        }
+    }
+
+
+    #div
+    
+        nxs = PV("nx[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
+        nys = PV("ny[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
+        temp2 = nxs %*% U[,1] + nys %*% U[,2]
+        C(PV("temp"), 3 * ( temp2[1] + temp2[2] ) )
+    
+    ?>
+    curvature =  -temp;
+    } else {
+        curvature = 0;
+    }
+
+   **/   
+
+//debug.x = gradient.x;
+//debug.y = gradient.y;
+
+        ///////////////////
+
+}
+
+
+
+CudaDeviceFunction real_t getRho(){
+    if (NodeType & NODE_BOUNDARY) {
+        return 1+Pressure*3;
+    } else {
+    	return <?R C(sum(f)) ?> ;
+    }
+}
+
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+<?R 
+    C(PV(c("u.x","u.y")) , f %*% U)
+?>
+	vector_t F;
+	F = getF();
+    u.x = u.x+F.x*0.5;
+    u.y = u.y+F.y*0.5;
+	u.x /= d;
+	u.y /= d;
+	u.z = 0;
+	return u;
+}
+
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction real_t getPhaseField(){
+        InitPhisStencil();
+        if (IamWall){
+            return 0;
+        }
+    	return phi ;
+}
+    
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getNormal(){
+    InitPhisStencil();
+    return normal;
+
+}
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction real_t getCurvature(){
+    InitPhisStencil();
+    return curvature;
+
+}
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getDEBUG(){
+    InitPhisStencil();
+//    vector_t temp;
+//    temp.x = nw_x(0,0);
+//    temp.y = nw_y(0,0);
+    return debug;
+
+}
+
+
+CudaDeviceFunction void CalcNormal(){
+
+
+    CalcPhi();
+
+
+    //calculate gradient and normal
+    vector_t nw;
+    nw.x = 0;
+    nw.y = 0;
+
+
+    real_t magic = 0.12;
+   <?R
+    for (j in 1:9) {
+    ?>
+        if (<?R C(phis[j]) ?>  == -999) {
+            nw.x = nw.x + (1-magic) * <?R C(U[j,1]) ?>;
+            nw.y = nw.y + (1-magic) * <?R C(U[j,2]) ?>;
+        }
+
+        nw.x = nw.x + magic * nw_x(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
+        nw.y = nw.y + magic * nw_y(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
+    <?R } ?>
+
+   // real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;
+   // nw.x /= ln;
+   // nw.y /= ln;
+
+    if (IamWall){
+        nw.x = 0;
+        nw.y = 0;
+    }
+    nw_x = nw.x;
+    nw_y = nw.y;
+
+
+
+}
+
+CudaDeviceFunction vector_t getF() {
+    real_t rho = getRho();
+    real_t pf = <?R C(sum(h)) ?> ;
+    vector_t Force = real_getInterfaceForce(SurfaceTensionRate);
+
+    //bouncy
+    Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
+    Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
+
+
+    return Force;
+
+}
+
+CudaDeviceFunction vector_t getInterfaceForce(){
+    InitPhisStencil();
+    return real_getInterfaceForce(1);
+}
+
+CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
+	vector_t F = gradient;
+    real_t curv = curvature;
+    real_t phi_l = phi ;
+    if (phi_l * phi_l < SurfaceTensionDecay){
+  
+       
+  /**  if (near_wall){
+        real_t scale =  IntWidth * (1-4*phi_l*phi_l);
+
+        F = getNormal();
+        F.x = F.x * scale;
+        F.y = F.y * scale;
+    }
+**/
+    F.z = 0;
+    F.x =  ST * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  ST * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    } else {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;
+    }
+	return F;
+}
+
+
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t pf)
+{
+<?R
+	feq = EQ$Req %*% solve(EQ$mat)
+	C( f, feq)
+    u = PV(c('Jx/rho', 'Jy/rho'))
+    C( h,  wi*((u %*% t(U))*( 1/ c_sq) + ((u %*% t(U)) * (u %*% t(U)))*(1/(c_sq*c_sq*2)) - sum(u*u)*(1/(c_sq*2)) + 1)*pf  )
+?>
+}
+
+CudaDeviceFunction void Init() {
+	real_t rho, ux, uy, C;
+	rho = (1+Pressure*3);
+	ux=0;
+	uy=0;
+	ux = Velocity+ux;
+    C = PhaseField; 
+	SetEquilibrum(
+		rho,
+		ux*rho,
+		uy*rho,
+        C
+	);
+    <?R
+#       C(d,1)
+    ?>
+}
+
+CudaDeviceFunction void CalcPhi() {
+    if ( (NodeType & NODE_BOUNDARY) == NODE_SSymmetry ){
+       real_t ret = 0;
+       <?R 
+        ret = PV("ret")
+        for (j in (1:9)[ U[,2] > 0 ]) {
+            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
+            C( ret , ret + h[op_i])                 
+        }
+        sel = (1:9)[U[,2]<=0]
+        C(ret , ret + h[sel])            
+       ?>
+       phi =  ret;
+
+   }
+
+   if ( (NodeType & NODE_BOUNDARY) == NODE_NSymmetry ){
+        real_t ret = 0;
+        <?R 
+        ret = PV("ret")
+
+        for (j in (1:9)[ U[,2] < 0 ]) {
+            op_i = (1:9)[U[,2]+U[j,2] == 0 & U[,1]-U[j,1] == 0] 
+            C( ret , ret + h[op_i])                
+        }
+        sel = (1:9)[U[,2]>=0]
+        C(ret , ret + h[sel])     
+        ?>
+        phi =  ret;
+
+   }
+
+
+   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+        phi =  -999;
+   } else {
+    	phi =  <?R C(sum(h)) ?> ;
+   }  
+    
+    
+}
+
+CudaDeviceFunction void Run() {
+    InitPhisStencil();
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    case NODE_NSymmetry:
+       <?R Symmetry(2,-1) ?>
+        break;
+    case NODE_SSymmetry:
+       <?R Symmetry(2,1) ?>
+        break;
+
+    }
+    if (NodeType & NODE_MRT)
+    {
+		CollisionMRT();
+    }
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+
+CudaDeviceFunction void EVelocity()
+{
+    {
+<?R 
+    ZouHeRewrite(EQ,   f, c(1,0), type="velocity")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+CudaDeviceFunction void EPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(1,0), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+
+CudaDeviceFunction void WPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(-1,0), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(-1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+CudaDeviceFunction void WVelocity()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(-1,0), type="velocity")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(-1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+
+
+CudaDeviceFunction void CollisionMRT()
+{
+    vector_t n = normal;
+    real_t pf = <?R C(sum(h)) ?> ;
+<?R
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+	real_t <?R C(R,sep=",") ?>;
+	real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
+    real_t gamma2 = gamma;
+<?R
+	S = PV("S",1:nrow(U)-1);
+	
+    S[EQ$order <= 2] = PV("gamma")
+	S[EQ$order >  2] = PV("gamma2")
+
+
+	C( R, f %*% EQ$mat );
+	C( R[selR], (R - EQ$Req)[selR]);
+
+
+	C( R[selR], (R * S)[selR]);
+
+?>
+    //Jx = Jx + rho*GravitationX ;
+    //Jy = Jy + rho*GravitationY ; 
+    vector_t F = getF();
+    Jx = Jx + F.x ;
+    Jy = Jy + F.y ; 
+<?R
+
+
+	C( R[selR], (R + EQ$Req)[selR]);
+
+	C( f, R %*% solve(EQ$mat), float=F);
+
+
+    # part related to h
+?> 
+    real_t d = <?R C(sum(f)) ?>;
+    vector_t u;
+    u.x = (Jx + 0.5 * F.x) / d;
+    u.y = (Jy + 0.5 * F.y) / d;
+    real_t omega_ph =  1/( 3 * Mobility + 0.5); 
+    real_t Bh;
+
+<?R
+#u = PV(c('u.x', 'u.y'))
+#   n = PV(c('n.x', 'n.y'))
+#    mob = PV("M")
+    omega_ph=PV("omega_ph")
+#    C( Bh, 3*mob * (1.-4.*pf*pf)*(W) )
+    C( h, (1-omega_ph )*h + omega_ph * EQ_h$feq )
+
+?>
+//    vector_t du = getBoundaryForcing();
+//    du.x *= 0.3;
+//    du.y *= 0.3;
+ //   vector_t wd = getWallDirection();
+ //   real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
+ //   vector_t zero;
+ //   zero.x = 0;
+ //   zero.y = 0;
+ /*   real_t sd;
+    sd = d[0];
+    for (int i = 1; i <9; i++ ){
+        sd = d[i] > sd ? d[i] : sd;
+    }*/
+    <?R
+#    sd =  PV('sd')
+#    C( d, sd* PV('WallDistanceRatio') )
+    ?>
+
+    
+}

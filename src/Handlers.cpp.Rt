@@ -2849,8 +2849,8 @@ class cbPythonCall: public Callback {
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
                
-                
-                pArgs = PyTuple_New(components.size()+quantities.size()+1);
+                const int extra_args = 2; 
+                pArgs = PyTuple_New(components.size()+quantities.size()+extra_args);
                 buffers.resize( components.size()+quantities.size() );
                 long int offsets[3] = {-1,-1,-1};
 
@@ -2872,7 +2872,7 @@ class cbPythonCall: public Callback {
                     buffers[buff_id] = buffer;
 
                     //pInputData reference is stolen here
-                    PyTuple_SetItem(pArgs, buff_id+1, pInputData);
+                    PyTuple_SetItem(pArgs, buff_id+extra_args, pInputData);
                     
                     buff_id ++;
                 }
@@ -2896,7 +2896,7 @@ class cbPythonCall: public Callback {
                     buffers[buff_id] = buffer;
 
                     //pInputData reference is stolen here
-                    PyTuple_SetItem(pArgs, buff_id+1, pInputData);
+                    PyTuple_SetItem(pArgs, buff_id+extra_args, pInputData);
                     buff_id++;
                 }
 
@@ -2910,6 +2910,7 @@ class cbPythonCall: public Callback {
                 }
     
                 PyTuple_SetItem(pArgs, 0, pOffsets);
+				PyTuple_SetItem(pArgs, 1, PyInt_FromLong( solver->iter  ));
  
 		        pValue = PyObject_CallObject(pFunc, pArgs);
                 Py_DECREF(pArgs);

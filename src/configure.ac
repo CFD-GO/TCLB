@@ -243,27 +243,6 @@ CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
 
 
-if  test "x${with_python}" == "xyes"; then
-   
-    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
-    
-    AC_MSG_NOTICE([python config: ${python_config}])
-
-    AC_MSG_CHECKING([python embandinng: linker flags])
-    PF=$(${python_config} --ldflags)
-    LDFLAGS="${LDFLAGS} ${PF}"
-    AC_MSG_RESULT([${PF}])
-    
-    AC_MSG_CHECKING([Python Embandinng: compiler flags])
-#    PF=$($python_config --cflags)
-    PF=$($python_config --includes)
-    CPP_OPT="${CPPFLAGS} ${PF}"
-    EMBEDED_PYTHON=1
-    AC_MSG_RESULT([${PF}])
-	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
-fi
-
-
 
 
 AC_MSG_CHECKING([MPI library path])
@@ -280,6 +259,33 @@ fi
 LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
 AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+
+
+if  test "x${with_python}" == "xyes"; then
+   
+    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
+    
+    AC_MSG_NOTICE([python config: ${python_config}])
+
+    AC_MSG_CHECKING([python embandinng: linker flags])
+    PF=$(${python_config} --ldflags)
+    LDFLAGS="${LDFLAGS} ${PF}"
+    AC_MSG_RESULT([${PF}])
+    
+    AC_MSG_CHECKING([Python Embandinng: compiler flags])
+#    PF=$($python_config --cflags)
+    PF=$($python_config --includes)
+    CPPFLAGS="${CPPFLAGS} ${PF}"
+
+    PF=$($python_config --prefix)
+
+    LDFLAGS="${LDFLAGS} -L${PF}/lib"
+    EMBEDED_PYTHON=1
+    AC_MSG_RESULT([${PF}])
+	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
+fi
+
+
 
 NLOPT=""
 
