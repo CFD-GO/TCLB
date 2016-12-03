@@ -96,3 +96,6 @@ double FMaterialLess(unsigned int n, const double * x, double * grad, void * dat
 	return obj->material - material;
 }
 
+int GenericOptimizer::OptimizerInit() { ERROR("Called Generic Optimizer virtual Init function"); return -1; }
+int GenericOptimizer::OptimizerRun() { ERROR("Called Generic Optimizer virtual Run function"); return -1; }
+int GenericOptimizer::OptimizerExit() { ERROR("Called Generic Optimizer virtual Exit function"); return -1; }

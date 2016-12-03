@@ -11,6 +11,7 @@ int Init ();
 int Finish ();
 int NumberOfParameters ();
 int Parameters (int type, double * tab);
+int Type();
 };
 
 #endif // ACTION_H

@@ -23,5 +23,6 @@ int Callback::Init () {
 int Callback::Finish () {
 		return 0;
 	}
-	int Type() { return HANDLER_CALLBACK; }
+	
+int Callback::Type() { return HANDLER_CALLBACK; }
 

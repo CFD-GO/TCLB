@@ -15,9 +15,9 @@ class  GenericOptimizer  : public  GenericAction  {
 	public:
 	int Pars;
 	double material;
-	virtual int OptimizerInit() { ERROR("Called Generic Optimizer virtual Init function"); return -1; }
-	virtual int OptimizerRun() { ERROR("Called Generic Optimizer virtual Run function"); return -1; }
-	virtual int OptimizerExit() { ERROR("Called Generic Optimizer virtual Exit function"); return -1; }
+	virtual int OptimizerInit();
+	virtual int OptimizerRun();
+	virtual int OptimizerExit();
 int Init ();
 int Execute (const double * x, double * grad, double * f);
 	friend double FOptimize(unsigned int n, const double * x, double * grad, void * data);

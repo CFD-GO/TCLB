@@ -10,6 +10,7 @@ public:
 int DoIt ();
 int Init ();
 int Finish ();
+int Type();
 };
 
 #endif // CALLBACK_H

@@ -28,7 +28,7 @@ int Action::Init () {
 int Action::Finish () {
 		return 0;
 	}
-	int Type() { return HANDLER_ACTION; }
+	int Action::Type() { return HANDLER_ACTION; }
 
 
 int Action::NumberOfParameters () {

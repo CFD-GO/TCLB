@@ -1,6 +1,5 @@
 #include "vHandler.h"
 #include "../CommonHandler.h"
-#include <math.h>
 
 #include "acFDTest.h"
 #include "acGeometry.h"

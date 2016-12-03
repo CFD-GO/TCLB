@@ -11,7 +11,7 @@ public:
 int DoIt ();
 int Init ();
 int Finish ();
-virtual int Type();
+int Type();
 };
 
 #endif // DESIGN_H
