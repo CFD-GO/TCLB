@@ -47,7 +47,6 @@ int GenericAction::Finish () {
 		}
 		return 0;
 	}
-	int parSize;
 
 
 int GenericAction::NumberOfParameters () {

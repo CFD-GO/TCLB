@@ -9,6 +9,8 @@
 class  GenericAction  : public  Action  {
 	int stack;
 	public:
+int parSize;
+
 int Init ();
 int ExecuteInternal ();
 int Unstack ();
