@@ -100,7 +100,7 @@ int acOptimize::OptimizerInit () {
 ?>
 		return 0;
 #else
-		ERROR("No nlopt support at configure\n")
+		ERROR("No nlopt support at configure\n");
 		return -1;
 #endif
 	}
@@ -131,7 +131,7 @@ int acOptimize::OptimizerRun () {
                 nlopt_destroy(opt);
 		return 0;
 #else
-		ERROR("No nlopt support at configure\n")
+		ERROR("No nlopt support at configure\n");
 		return -1;
 #endif
 	
@@ -143,7 +143,7 @@ int acOptimize::OptimizerExit () {
 		nlopt_force_stop(opt);
 		return 0;
 #else
-		ERROR("No nlopt support at configure\n")
+		ERROR("No nlopt support at configure\n");
 		return -1;
 #endif
 	}
