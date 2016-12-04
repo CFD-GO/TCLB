@@ -4,9 +4,6 @@ source("conf.R")
 ?>
 
 #include "acOptimize.h"
-#ifdef WITH_NLOPT
-        #include  <nlopt.h>
-#endif
 
 int acOptimize::OptimizerInit () {
 #ifdef WITH_NLOPT

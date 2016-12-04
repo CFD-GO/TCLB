@@ -7,9 +7,14 @@
 #include "Action.h"
 #include "GenericAction.h"
 #include "GenericOptimizer.h"
+#ifdef WITH_NLOPT
+        #include  <nlopt.h>
+#endif
 
 class  acOptimize  : public  GenericOptimizer  {
+#ifdef WITH_NLOPT
 	nlopt_opt opt;
+#endif
 	std::string method;
 	double * start;
 	public:
