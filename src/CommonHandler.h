@@ -26,14 +26,6 @@
 
 #include "Solver.h"
 
-#ifdef WITH_NLOPT
-        #include  <nlopt.h>
-#endif
-
-#ifdef WITH_CATALYST
-        #include "Catalyst.h"
-#endif
-
 #define ITERATION_STOP 1
 
 #endif //COMMONHANDLER_H

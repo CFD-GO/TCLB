@@ -4,8 +4,12 @@ source("conf.R")
 ?>
 
 #include "acOptimize.h"
+#ifdef WITH_NLOPT
+        #include  <nlopt.h>
+#endif
 
 int acOptimize::OptimizerInit () {
+#ifdef WITH_NLOPT
 		start = NULL;
 		nlopt_result res;
 		material=0.0;
@@ -98,10 +102,16 @@ int acOptimize::OptimizerInit () {
         }
 ?>
 		return 0;
+#else
+		ERROR("No nlopt support at configure\n")
+		return -1;
+#endif
 	}
 
 
 int acOptimize::OptimizerRun () {
+#ifdef WITH_NLOPT
+
 		double val;
         DEBUG_M;
                 nlopt_result res = nlopt_optimize(opt, start, &val);
@@ -123,11 +133,21 @@ int acOptimize::OptimizerRun () {
                 notice("Final Objective value: %lf\n",val);
                 nlopt_destroy(opt);
 		return 0;
+#else
+		ERROR("No nlopt support at configure\n")
+		return -1;
+#endif
+	
 	}
 
 
 int acOptimize::OptimizerExit () {
+#ifdef WITH_NLOPT
 		nlopt_force_stop(opt);
 		return 0;
+#else
+		ERROR("No nlopt support at configure\n")
+		return -1;
+#endif
 	}
 

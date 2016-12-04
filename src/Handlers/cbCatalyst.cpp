@@ -2,6 +2,8 @@
 
 #ifdef WITH_CATALYST
 
+        #include "Catalyst.h"
+
 
 int cbCatalyst::Init () {
 		Callback::Init();
