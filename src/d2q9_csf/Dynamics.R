@@ -24,15 +24,8 @@ AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
-#AddDensity( name="d[0]", dx= 0, dy= 0, group="d")
-#AddDensity( name="d[1]", dx= 1, dy= 0, group="d")
-#AddDensity( name="d[2]", dx= 0, dy= 1, group="d")
-#AddDensity( name="d[3]", dx=-1, dy= 0, group="d")
-#AddDensity( name="d[4]", dx= 0, dy=-1, group="d")
-#AddDensity( name="d[5]", dx= 1, dy= 1, group="d")
-#AddDensity( name="d[6]", dx=-1, dy= 1, group="d")
-#AddDensity( name="d[7]", dx=-1, dy=-1, group="d")
-#AddDensity( name="d[8]", dx= 1, dy=-1, group="d")
+AddField( name="nw_x", stencil2d=1, group="nw")
+AddField( name="nw_y", stencil2d=1, group="nw")
 
 
 
@@ -42,7 +35,7 @@ AddField("phi"       ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
          load=DensityAll$group == "f" | DensityAll$group == "h",# | DensityAll$group == "d",  
-         save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
+         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw"
          ) 
 AddStage("CalcPhi", 
          save=Fields$name=="phi" ,  
@@ -50,10 +43,13 @@ AddStage("CalcPhi",
          )
 AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
 ) 
-
+AddStage("CalcWallNormall", "CalcNormal",   
+         save=Fields$group=="nw",
+         fixedPoint=TRUE
+         ) 
 
 AddAction("Iteration", c("BaseIteration","CalcPhi"))
-AddAction("Init", c("BaseInit","CalcPhi"))
+AddAction("Init", c("BaseInit","CalcPhi", "CalcWallNormall"))
 
 
 
@@ -73,6 +69,8 @@ AddQuantity(name="PhaseField",unit="1")
 AddQuantity(name="Curvature",unit="1")
 
 AddQuantity(name="InterfaceForce", unit="1", vector=T)
+
+AddQuantity(name="DEBUG", vector=T)
 #AddQuantity(name="BoundaryForcing", unit="1", vector=T)
 #
 # Settings - table of settings (constants) that are taken from a .xml file
@@ -86,9 +84,9 @@ AddSetting(name="omega_l", comment='one over relaxation time, light phase')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="W", default=1, comment='Anty-diffusivity coeff')
-AddSetting(name="M", default=1, comment='Mobility')
-AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
+AddSetting(name="IntWidth", default=0.1, comment='Anty-diffusivity coeff')
+AddSetting(name="Mobility", default=0.05, comment='Mobility')
+AddSetting(name="PhaseField", default=0.5, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
 
@@ -98,11 +96,23 @@ AddSetting(name="GravitationY_l", default=0)
 AddSetting(name="SurfaceTensionDecay", default=100)
 AddSetting(name="SurfaceTensionRate", default=0.1)
 AddSetting(name="WettingAngle", default=0, zonal=T)
+AddSetting(name="WallAdhesionDecay", default=0, zonal=T)
 #AddSetting(name="WallDistanceRatio", default=0.5, zonal=T)
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+
 AddNodeType(name="NSymmetry",group="BOUNDARY")
 AddNodeType(name="SSymmetry",group="BOUNDARY")
+
+AddNodeType(name="EPressure",group="BOUNDARY")
+AddNodeType(name="WPressure",group="BOUNDARY")
+
+AddNodeType(name="EVelocity",group="BOUNDARY")
+AddNodeType(name="WVelocity",group="BOUNDARY")
+
+
+
+ 

@@ -14,6 +14,9 @@ AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
 
+
+##########################################################
+### Phase field related
 AddDensity( name="h[0]", dx= 0, dy= 0, group="h")
 AddDensity( name="h[1]", dx= 1, dy= 0, group="h")
 AddDensity( name="h[2]", dx= 0, dy= 1, group="h")
@@ -23,6 +26,33 @@ AddDensity( name="h[5]", dx= 1, dy= 1, group="h")
 AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
+
+AddQuantity(name="Normal",unit="1/m",vector=T)
+AddQuantity(name="PhaseField",unit="1")
+
+AddSetting(name="IntWidth", default=0.33333, comment='Interface width')
+AddSetting(name="Mobility", default=0.001, comment='Mobility')
+AddSetting(name="PhaseField", 
+           default=0.5, 
+           comment='Phase Field marker scalar', 
+           zonal=T
+           )
+
+
+
+AddSetting(name="OverwriteVelocityField", default="0")
+#########################################################
+
+
+# THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
+# COMMENT OUT FOR PERFORMANCE
+# If present thei are used:
+# As VelocityX/Y for Boundary conditions
+# As mass force (+ GravitationX/Y) in fluid
+# If OverwriteVelocityField==1, this will be used to overwrite velocity
+AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
+AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+
 
 
 
@@ -37,24 +67,31 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
 
-AddQuantity(name="Normal",unit="1/m",vector=T)
-AddQuantity(name="PhaseField",unit="1")
 
 
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
 #  comment - additional comment
-# You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
+# You can state that another setting is 'derived' from this one stating for example: RelaxationRate='1.0/(3*nu + 0.5)'
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
-AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(
+           name="RelaxationRate", 
+           S2='1-RelaxationRate',       
+           comment='one over relaxation time'
+            )
+AddSetting(name="Viscosity", RelaxationRate='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="W", default=1, comment='Anty-diffusivity coeff')
-AddSetting(name="M", default=1, comment='Mobility')
-AddSetting(name="PhaseField", default=1, comment='Phase Field marker scalar', zonal=T)
+
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
+
+
+AddSetting(name="S2", default="0", comment='MRT Sx')
+AddSetting(name="S3", default="0", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
+
 
 # Globals - table of global integrals that can be monitored and optimized
 
@@ -62,3 +99,12 @@ AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
+
+AddNodeType(name="NPressure",group="BOUNDARY")
+AddNodeType(name="SPressure",group="BOUNDARY")
+AddNodeType(name="WPressure",group="BOUNDARY")
+AddNodeType(name="EPressure",group="BOUNDARY")
+
+
+AddNodeType(name="WVelocity",group="BOUNDARY")
+AddNodeType(name="EVelocity",group="BOUNDARY")

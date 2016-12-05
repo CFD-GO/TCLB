@@ -25,7 +25,7 @@ AddQuantity(name="F", unit="N", vector=T);
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
-AddSetting(name="InletVelocity", default="0m/s", comment='inlet velocity')
+AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')
 
