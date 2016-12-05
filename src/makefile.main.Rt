@@ -14,12 +14,19 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 
 SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
-SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp Handlers.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
+SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
 SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h
-SOURCE_PLAN+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h Handlers.h pugixml.hpp pugiconfig.hpp
+SOURCE_PLAN+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
 SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h
+<?R
+	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")
+	h = sub(".Rt","",h)
+	h = paste("Handlers",h,sep="/");
+?>
+SOURCE_PLAN+=<?R cat(h,sep=" ") ?>
+SOURCE_PLAN+=CommonHandler.h Handlers.h
 SOURCE_PLAN+=SUMMARY
 SOURCE_PLAN+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
@@ -52,11 +59,13 @@ $(MAKEHEADERS):tools/makeheaders.c
 
 wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", sep="", collapse=" ") ?>
 	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 	@$(INDENT) $@
 
 wiki/% : src/%.Rt
 	@echo "  RT         $@"
+	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) || rm $@
 	@$(INDENT) $@
 
@@ -65,6 +74,7 @@ travis : .travis.yml
 
 .travis.yml : src/travis.yml.Rt src/*/conf.mk
 	@echo "  RT         $@"
+	@$(MKPATH) $@
 	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
 
 
@@ -129,10 +139,11 @@ for (d in destinations) {
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
 
 <?%s d ?>/<?%s m ?> :
-	mkdir -p $@
+	$(MKPATH) $@/
 
 wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
 	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w wiki/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 
 # for model <?%s m ?> and destination <?%s d ?>
@@ -151,34 +162,41 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
+	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
+	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  CP         $@"
+	@$(MKPATH) $@
 	@$(CP) $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
 	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.code:$(SRC)/<?%s m ?>/%.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
 	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),$(SRC)/<?%s m ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/<?%s m ?>/%
 	@echo "  CP         $@ (model)"
+	@$(MKPATH) $@
 	@$(CP) $< $@
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%
 	@echo "  CP         $@"
+	@$(MKPATH) $@
 	@$(CP) $< $@
 
 <?R } ?>
@@ -193,6 +211,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 <?%s d ?>/%:$(SRC)/%.Rt
 	@echo "  RT         $@"
+	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS) -w $(SRC)/ -o $@ $(RTOPT) || rm $@
 	@$(INDENT) $@
 
@@ -202,16 +221,19 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt $(SRC)/<?%s m ?>/Dynamics.R $(SRC)/conf.R
 
 %.hp:%.c $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"
+	@$(MKPATH) $@
 	@$(CP) $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
 
 %.hp:%.cpp $(MAKEHEADERS)
 	@echo "  MKHEADERS  $<"
+	@$(MKPATH) $@
 	@$(CP) $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
 	@rm $<.cpp $<.hpp
 
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
+	@$(MKPATH) $@
 	@cat $< | sed -r 's/[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?/&f/g' > $@
 
 
