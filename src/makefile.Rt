@@ -15,6 +15,14 @@ all:main
 include ../config.mk
 include dep.mk
 
+<?R
+	h = dir("../../src/Handlers","[.](cpp)(|.Rt)$")
+	h = sub("[.]cpp(|.Rt)",".o",h)
+	h = paste("Handlers",h,sep="/");
+?>
+OBJ+=<?R cat(h,sep=" ") ?>
+
+
 #../config.mk:../config.mk.in ../configure
 #	cd ..; ./configure
 
@@ -60,4 +68,4 @@ endif
 
 clean:
 	@echo "  RM         ALL"
-	@rm *.o main 2>/dev/null; true
+	@rm `find -name '*.o'` main 2>/dev/null; true

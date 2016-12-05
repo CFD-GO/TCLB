@@ -1,0 +1,16 @@
+#ifndef CBSAVEMEMORYDUMP_H
+#define CBSAVEMEMORYDUMP_H
+
+#include "../CommonHandler.h"
+
+#include "vHandler.h"
+#include "Callback.h"
+
+class  cbSaveMemoryDump  : public  Callback  {
+	std::string fn;
+	public:
+int Init ();
+int DoIt ();
+};
+
+#endif // CBSAVEMEMORYDUMP_H
