@@ -1,0 +1,20 @@
+<!-- This is of model of a square-pipe flow  d3q27_viscoplastic model - you should observe a non-yielded zone in the liquid -->
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="128" ny="32" nz ="32">
+		<MRT><Box/></MRT>
+		<Wall mask="ALL">
+			<Tunnel/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Params ForceX="1e-5"/>
+		<Params nu="0.05"/>
+		<Params YieldStress="0.00002"/> <!-- Extra parameter characterising viscoplastic liquid - its yield stress -->
+	</Model>
+	<VTK/> 
+	<Failcheck Iterations="100"/> 
+	<Log Iterations="50"/>	
+	<VTK Iterations="100"/> 
+	<Solve Iterations="1000"/>
+</CLBConfig>

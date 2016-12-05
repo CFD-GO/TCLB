@@ -1,0 +1,20 @@
+<!-- This script sets up a single sphere with periodic BC and flow of a viscoplastic liquid (d3q27_viscoplastic model) around it -->
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="64" ny="64" nz ="64">
+		<MRT><Box/></MRT>
+		<Wall mask="ALL">
+			<Sphere  dx="20" nx="24" dy="20" ny="24" dz="20" nz="24"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Params ForceX="1e-5"/>
+		<Params nu="0.05"/>
+		<Params YieldStress="0.00001"/> <!-- Extra parameter characterising viscoplastic liquid - its yield stress -->
+	</Model>
+	<VTK/> 
+	<Failcheck Iterations="100"/> <!-- Checks every 1000 iterations if the solution failed -->
+	<Log Iterations="100"/>	
+	<VTK Iterations="50"/> 
+	<Solve Iterations="1000"/>
+</CLBConfig>

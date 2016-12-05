@@ -78,6 +78,7 @@ public:
   void Color(uchar4 *);
   int Offset(int,int,int);
   void FlagOverwrite(flag_t *, lbRegion);
+  void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();
   void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
   int save(FTabs&, const char * filename);

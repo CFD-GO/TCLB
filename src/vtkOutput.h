@@ -13,7 +13,7 @@ class vtkFileOut {
 	int size;
 public:
 	vtkFileOut ();
-	int Open(char* filename);
+	int Open(const char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, char* selection);
 	void Init(lbRegion, lbRegion region, char* selection, double spacing);
