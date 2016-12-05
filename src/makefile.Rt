@@ -68,4 +68,4 @@ endif
 
 clean:
 	@echo "  RM         ALL"
-	@rm *.o main 2>/dev/null; true
+	@rm `find -name '*.o'` main 2>/dev/null; true
