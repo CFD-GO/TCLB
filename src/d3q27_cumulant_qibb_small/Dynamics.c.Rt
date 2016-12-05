@@ -1,0 +1,559 @@
+<?R
+	source("conf.R")
+	c_header();
+
+
+# Creating variables for symbolic computations
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	rho =  PV("rho")
+	J = PV("J",c("x","y","z"))
+	tmp = PV("tmp")
+
+# Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+#	EQ = MRT_eq(U, rho, J);
+?>
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction real_t getP(){
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+	u.x = (u.x + ForceX/2.)/d;
+	u.y = (u.y + ForceY/2.)/d;
+	u.z = (u.z + ForceZ/2.)/d;
+	return u;
+}
+
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void SymmetryY()
+{
+real_t tmp;
+tmp = f010;
+f010 = f020;
+f020 = tmp;
+tmp = f011;
+f011 = f021;
+f021 = tmp;
+tmp = f012;
+f012 = f022;
+f022 = tmp;
+tmp = f210;
+f210 = f220;
+f220 = tmp;
+tmp = f110;
+f110 = f120;
+f120 = tmp;
+tmp = f211;
+f211 = f221;
+f221 = tmp;
+tmp = f212;
+f212 = f222;
+f222 = tmp;
+tmp = f111;
+f111 = f121;
+f121 = tmp;
+tmp = f112;
+f112 = f122;
+f122 = tmp;
+}
+
+CudaDeviceFunction void SymmetryZ()
+{
+real_t tmp;
+tmp = f001;
+f001 = f002;
+f002 = tmp;
+tmp = f021;
+f021 = f022;
+f022 = tmp;
+tmp = f011;
+f011 = f012;
+f012 = tmp;
+tmp = f201;
+f201 = f202;
+f202 = tmp;
+tmp = f101;
+f101 = f102;
+f102 = tmp;
+tmp = f221;
+f221 = f222;
+f222 = tmp;
+tmp = f211;
+f211 = f212;
+f212 = tmp;
+tmp = f121;
+f121 = f122;
+f122 = tmp;
+tmp = f111;
+f111 = f112;
+f112 = tmp;
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHe(EQ, 1, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHe(EQ, 1, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void WVelocityEq()
+{
+	/* equilibrium version with inlet rho = 1.0 as M. geier recommended */
+	
+	real_t Ux = Velocity;
+	real_t Uy = 0.0;
+	real_t Uz = 0.0;
+	
+	real_t Usq = Ux*Ux+Uy*Uy+Uz*Uz;
+	
+	f100 = 2./27.* ( 1. + 3. * Ux*(1+1.5*(+Ux)) - 1.5*Usq); //1
+	f110 = 1./54.* ( 1. + 3.* ( Ux + Uy) * (1+1.5*(	+Ux	+Uy	)) - 1.5*Usq); //7
+	f120 = 1./54.* ( 1. + 3.* ( Ux  - Uy) *(1+1.5*(	+Ux	-Uy		)) - 1.5*Usq); //10
+	f101 = 1./54.* ( 1. + 3.* ( Ux + Uz) *(1+1.5*(	+Ux		+Uz	)) - 1.5*Usq); //11
+	f102 = 1./54.* ( 1. + 3.* ( Ux  - Uz) *(1+1.5*(	+Ux		-Uz	)) - 1.5*Usq);
+	f111 = 1./216.* ( 1. + 3.* (+Ux +Uy  +Uz) *(1+1.5*(	+Ux	+Uy	+Uz	)) - 1.5*Usq);
+	f121 = 1./216.* ( 1. + 3.* (+Ux  -Uy  +Uz) *(1+1.5*(	+Ux	-Uy	+Uz	)) - 1.5*Usq);
+	f112 = 1./216.* ( 1. + 3.* (+Ux +Uy   -Uz) *(1+1.5*(	+Ux	+Uy	-Uz	)) - 1.5*Usq);
+	f122 = 1./216.* ( 1. + 3.* (+Ux  -Uy	-Uz) *(1+1.5*(	+Ux	-Uy	-Uz	)) - 1.5*Usq); // 26 
+
+}
+
+CudaDeviceFunction void WVelocityBB()
+{
+	/* fast version - bounce back stuff */
+
+	real_t Jx = Velocity;
+	real_t Jy = 0.0;
+	real_t Jz = 0.0;
+	
+	f100 = f200 + Jx*4./9.;
+	f110 = f220 + ( Jx + Jy )/9.;
+	f120 = f210 + ( -Jy + Jx )/9.;
+	f101 = f202 + ( Jz + Jx )/9.;
+	f111 = f222 + ( Jz + Jy + Jx )/36.;
+	f121 = f212 + ( Jz - Jy + Jx )/36.;
+	f102 = f201 + ( -Jz + Jx )/9.;
+	f112 = f221 + ( -Jz + Jy + Jx )/36.;
+	f122 = f211 + ( -Jz - Jy + Jx )/36.;	
+	
+}
+
+
+CudaDeviceFunction void EOutlet()
+{
+	<?R
+		attach(DensityAll[DensityAll$group=="f",])
+		f = PV(name)
+		f_neigh = PV(name,"(-1,0,0)")
+		C(f[dx<0], f_neigh[dx<0])
+		detach()
+	?>
+}
+
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHe(EQ, 1, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void TopSymmetry()
+{
+//Symmetry on the top of the boundary
+
+f222 = f212;
+f122 = f112;
+f022 = f012;
+f221 = f211;
+f121 = f111;
+f021 = f011;
+f220 = f210;
+f120 = f110;
+f020 = f010;
+
+}
+
+CudaDeviceFunction void BottomSymmetry()
+{
+//Symmetry on the bottom of the boundary
+f212=f222;
+f112=f122;
+f012=f022;
+f211=f221;
+f111=f121;
+f011=f021;
+f210=f220;
+f110=f120;
+f010=f020;
+
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_TopSymmetry:
+		TopSymmetry();
+		break;
+	case NODE_BottomSymmetry:
+               	BottomSymmetry();
+                break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+        case NODE_EOutlet:
+                EOutlet();
+                break;
+	case NODE_SymmetryY:
+		SymmetryY();
+		break;
+	case NODE_SymmetryZ:
+		SymmetryZ();
+		break;
+	case NODE_Wall:
+		BounceBack();
+                break;
+    }
+    switch (NodeType & NODE_COLLISION) {
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+{
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+}
+
+CudaDeviceFunction void Init() {
+	
+	SetEquilibrum(1.0 + Pressure * 3.0, 0.0, 0.0, 0.0);
+	
+}
+
+CudaDeviceFunction void CollisionMRT()
+{	
+ 	real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
+ 	if ((NodeType & NODE_BOUNDARY) != 0){
+		w[0] = 1.0/(3*nubuffer+0.5);
+	}
+	w[1] = 8.*(2. - w[0])/(8. - w[0]);
+	
+
+	
+
+	<?R
+		bounce = Bounce(U);
+		sel = DensityAll$group=="f"
+		attach(DensityAll[sel,])
+		f = PV(name)
+		fold = PV(name,"(0,0,0)")
+		fpre = PV(name,"(",-dx,",",-dy,",",-dz,")")
+		detach()
+		Qw = PV( paste("Q",P$x,P$y,P$z,sep=""))
+		Q = PV( paste("q",P$x,P$y,P$z,sep=""))
+	?>
+	real_t <?R C(Q,sep=",") ?>;
+	if( (NodeType & NODE_HO_BOUNDARY) == NODE_QIBB){
+	<?R	C(Q[-1],Qw[-1]);
+		for (i in 2:length(Q)) { ?>
+		if (<?R C(Q[i]) ?> != NO_CUT) <?R C(f[bounce[i]],fold[i]) ?>
+	<?R
+		} ?>
+	} <?R
+		
+		fpre = PV(DensityAll$name[sel],"_pre")
+	?>
+		real_t <?R C(fpre,sep=",") ?>;
+	<?R
+		 C(fpre, f)
+	?>
+	
+	<?R
+	cumulants = paste("c",P$x,P$y,P$z,sep="");
+	for (i in cumulants) { ?>
+	real_t <?%s i ?>;
+	<?R } ?>	
+	
+
+	f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
+f010 = f210 + f110 + f010; f110 = -f210 + f110; f210 = f110 + f210*2.; 
+f020 = f220 + f120 + f020; f120 = -f220 + f120; f220 = f120 + f220*2.; 
+f001 = f201 + f101 + f001; f101 = -f201 + f101; f201 = f101 + f201*2.; 
+f011 = f211 + f111 + f011; f111 = -f211 + f111; f211 = f111 + f211*2.; 
+f021 = f221 + f121 + f021; f121 = -f221 + f121; f221 = f121 + f221*2.; 
+f002 = f202 + f102 + f002; f102 = -f202 + f102; f202 = f102 + f202*2.; 
+f012 = f212 + f112 + f012; f112 = -f212 + f112; f212 = f112 + f212*2.; 
+f022 = f222 + f122 + f022; f122 = -f222 + f122; f222 = f122 + f222*2.; 
+f000 = f020 + f010 + f000; f010 = -f020 + f010; f020 = f010 + f020*2.; 
+f100 = f120 + f110 + f100; f110 = -f120 + f110; f120 = f110 + f120*2.; 
+f200 = f220 + f210 + f200; f210 = -f220 + f210; f220 = f210 + f220*2.; 
+f001 = f021 + f011 + f001; f011 = -f021 + f011; f021 = f011 + f021*2.; 
+f101 = f121 + f111 + f101; f111 = -f121 + f111; f121 = f111 + f121*2.; 
+f201 = f221 + f211 + f201; f211 = -f221 + f211; f221 = f211 + f221*2.; 
+f002 = f022 + f012 + f002; f012 = -f022 + f012; f022 = f012 + f022*2.; 
+f102 = f122 + f112 + f102; f112 = -f122 + f112; f122 = f112 + f122*2.; 
+f202 = f222 + f212 + f202; f212 = -f222 + f212; f222 = f212 + f222*2.; 
+f000 = f002 + f001 + f000; f001 = -f002 + f001; f002 = f001 + f002*2.; 
+f100 = f102 + f101 + f100; f101 = -f102 + f101; f102 = f101 + f102*2.; 
+f200 = f202 + f201 + f200; f201 = -f202 + f201; f202 = f201 + f202*2.; 
+f010 = f012 + f011 + f010; f011 = -f012 + f011; f012 = f011 + f012*2.; 
+f110 = f112 + f111 + f110; f111 = -f112 + f111; f112 = f111 + f112*2.; 
+f210 = f212 + f211 + f210; f211 = -f212 + f211; f212 = f211 + f212*2.; 
+f020 = f022 + f021 + f020; f021 = -f022 + f021; f022 = f021 + f022*2.; 
+f120 = f122 + f121 + f120; f121 = -f122 + f121; f122 = f121 + f122*2.; 
+f220 = f222 + f221 + f220; f221 = -f222 + f221; f222 = f221 + f222*2.; 
+
+
+c100 = f100/f000;
+c200 = ( -c100*f100 + f200 )/f000;
+c010 = f010/f000;
+c110 = ( -c100*f010 + f110 )/f000;
+c210 = ( -c110*f100 - c200*f010 - c100*f110 + f210 )/f000;
+c020 = ( -c010*f010 + f020 )/f000;
+c120 = ( -c100*f020 + f120 - c110*f010*2. )/f000;
+c220 = ( -c120*f100 - c200*f020 - c100*f120 + f220 + ( -c210*f010 - c110*f110 )*2. )/f000;
+c001 = f001/f000;
+c101 = ( -c100*f001 + f101 )/f000;
+c201 = ( -c101*f100 - c200*f001 - c100*f101 + f201 )/f000;
+c011 = ( -c010*f001 + f011 )/f000;
+c111 = ( -c101*f010 - c110*f001 - c100*f011 + f111 )/f000;
+c211 = ( -c011*f200 - c210*f001 - c010*f201 + f211 + ( -c111*f100 - c110*f101 )*2. )/f000;
+c021 = ( -c011*f010 - c020*f001 - c010*f011 + f021 )/f000;
+c121 = ( -c101*f020 - c120*f001 - c100*f021 + f121 + ( -c111*f010 - c110*f011 )*2. )/f000;
+c221 = ( -c021*f200 - c201*f020 - c001*f220 + f221 + ( -c121*f100 - c211*f010 - c011*f210 - c101*f120 - c111*f110*2. )*2. )/f000;
+c002 = ( -c001*f001 + f002 )/f000;
+c102 = ( -c100*f002 + f102 - c101*f001*2. )/f000;
+c202 = ( -c102*f100 - c200*f002 - c100*f102 + f202 + ( -c201*f001 - c101*f101 )*2. )/f000;
+c012 = ( -c010*f002 + f012 - c011*f001*2. )/f000;
+c112 = ( -c102*f010 - c110*f002 - c100*f012 + f112 + ( -c111*f001 - c101*f011 )*2. )/f000;
+c212 = ( -c012*f200 - c210*f002 - c010*f202 + f212 + ( -c112*f100 - c211*f001 - c011*f201 - c110*f102 - c111*f101*2. )*2. )/f000;
+c022 = ( -c012*f010 - c020*f002 - c010*f012 + f022 + ( -c021*f001 - c011*f011 )*2. )/f000;
+c122 = ( -c102*f020 - c120*f002 - c100*f022 + f122 + ( -c112*f010 - c121*f001 - c101*f021 - c110*f012 - c111*f011*2. )*2. )/f000;
+c222 = ( -c122*f100 - c202*f020 - c102*f120 - c220*f002 - c120*f102 - c200*f022 - c100*f122 + f222 + ( -c212*f010 - c112*f110 - c221*f001 - c121*f101 - c201*f021 - c101*f121 - c210*f012 - c110*f112 + ( -c211*f011 - c111*f111 )*2. )*2. )/f000;
+
+//Getting the velocity from the cummulants and force term
+
+vector_t u;
+u.x = c100 + ForceX/(2.*f000);
+u.y = c010 + ForceY/(2.*f000);
+u.z = c001 + ForceZ/(2.*f000);
+
+///////
+       real_t dxu,dyv,dzw;
+      // vector_t u = getU();
+       dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
+       dyv = dxu + 3.*w[0]/2.*(c200 - c020);
+       dzw = dxu + 3.*w[0]/2.*(c200 - c002);
+       #ifdef avgUX
+       avgdxu2 = avgdxu2 + dxu*dxu;
+       avgdyv2 = avgdyv2 + dyv*dyv;
+       avgdzw2 = avgdzw2 + dzw*dzw;
+       #endif
+       real_t gcor1 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.y*u.y*dyv);
+       real_t gcor2 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.z*u.z*dzw);
+       real_t gcor3 = 3.*(1 - w[1]/2.)*(u.x*u.x*dxu + u.y*u.y*dyv + u.z*u.z*dzw);
+       real_t a,b,cc;
+       a = (1 - w[0])*(c200 - c020);
+       b = (1 - w[0])*(c200 - c002);
+       cc = w[1] + (1 - w[1])*(c200 + c020 + c002);
+       a = a - gcor1 * GalileanCorrection;
+       b = b - gcor2 * GalileanCorrection;
+       cc = cc - gcor3 * GalileanCorrection;
+
+//Cumulants relation 
+
+ 	c100 = c100 + ForceX/f000;//100 - change only due to force term
+
+        c200 = (a + b + cc)/3.; // 200
+        c020 = (cc - 2*a + b)/3.;//020
+        c002 = (cc - 2*b + a)/3.; 
+
+        c010 = c010 + ForceY/f000; //010 - change only due to force term
+        c001 = c001 + ForceZ/f000; //001 - change only due to force term
+
+	c110 = c110 * (1-w[0]);
+	c011 = c011 * (1-w[0]);
+	c101 = c101 * (1-w[0]);
+	
+	// new MAGIC stuff begins here
+        <?R     sel = (rowSums(P) == 3)
+                for (i in cumulants[sel]) if (i != 'c111') { ?>
+               	<?%s i ?> = (1 - w[1])*<?%s i ?>;
+        <?R } ?>
+        c111 = 0;
+        <?R     sel = rowSums(P) > 3
+		for (i in cumulants[sel]) { ?>
+		<?%s i ?> = 0.0;
+	<?R } ?>
+	
+/////////
+f000 = f000;
+f100 = c100*f000;
+f200 = c200*f000 + c100*f100;
+f010 = c010*f000;
+f110 = c110*f000 + c100*f010;
+f210 = c210*f000 + c110*f100 + c200*f010 + c100*f110;
+f020 = c020*f000 + c010*f010;
+f120 = c120*f000 + c100*f020 + c110*f010*2.;
+f220 = c220*f000 + c120*f100 + c200*f020 + c100*f120 + ( c210*f010 + c110*f110 )*2.;
+f001 = c001*f000;
+f101 = c101*f000 + c100*f001;
+f201 = c201*f000 + c101*f100 + c200*f001 + c100*f101;
+f011 = c011*f000 + c010*f001;
+f111 = c111*f000 + c101*f010 + c110*f001 + c100*f011;
+f211 = c211*f000 + c011*f200 + c210*f001 + c010*f201 + ( c111*f100 + c110*f101 )*2.;
+f021 = c021*f000 + c011*f010 + c020*f001 + c010*f011;
+f121 = c121*f000 + c101*f020 + c120*f001 + c100*f021 + ( c111*f010 + c110*f011 )*2.;
+f221 = c221*f000 + c021*f200 + c201*f020 + c001*f220 + ( c121*f100 + c211*f010 + c011*f210 + c101*f120 + c111*f110*2. )*2.;
+f002 = c002*f000 + c001*f001;
+f102 = c102*f000 + c100*f002 + c101*f001*2.;
+f202 = c202*f000 + c102*f100 + c200*f002 + c100*f102 + ( c201*f001 + c101*f101 )*2.;
+f012 = c012*f000 + c010*f002 + c011*f001*2.;
+f112 = c112*f000 + c102*f010 + c110*f002 + c100*f012 + ( c111*f001 + c101*f011 )*2.;
+f212 = c212*f000 + c012*f200 + c210*f002 + c010*f202 + ( c112*f100 + c211*f001 + c011*f201 + c110*f102 + c111*f101*2. )*2.;
+f022 = c022*f000 + c012*f010 + c020*f002 + c010*f012 + ( c021*f001 + c011*f011 )*2.;
+f122 = c122*f000 + c102*f020 + c120*f002 + c100*f022 + ( c112*f010 + c121*f001 + c101*f021 + c110*f012 + c111*f011*2. )*2.;
+f222 = c222*f000 + c122*f100 + c202*f020 + c102*f120 + c220*f002 + c120*f102 + c200*f022 + c100*f122 + ( c212*f010 + c112*f110 + c221*f001 + c121*f101 + c201*f021 + c101*f121 + c210*f012 + c110*f112 + ( c211*f011 + c111*f111 )*2. )*2.;
+
+f000 = -f200 + f000; f100 = ( f200 + f100 )/2.; f200 = f200 - f100; 
+f010 = -f210 + f010; f110 = ( f210 + f110 )/2.; f210 = f210 - f110; 
+f020 = -f220 + f020; f120 = ( f220 + f120 )/2.; f220 = f220 - f120; 
+f001 = -f201 + f001; f101 = ( f201 + f101 )/2.; f201 = f201 - f101; 
+f011 = -f211 + f011; f111 = ( f211 + f111 )/2.; f211 = f211 - f111; 
+f021 = -f221 + f021; f121 = ( f221 + f121 )/2.; f221 = f221 - f121; 
+f002 = -f202 + f002; f102 = ( f202 + f102 )/2.; f202 = f202 - f102; 
+f012 = -f212 + f012; f112 = ( f212 + f112 )/2.; f212 = f212 - f112; 
+f022 = -f222 + f022; f122 = ( f222 + f122 )/2.; f222 = f222 - f122; 
+f000 = -f020 + f000; f010 = ( f020 + f010 )/2.; f020 = f020 - f010; 
+f100 = -f120 + f100; f110 = ( f120 + f110 )/2.; f120 = f120 - f110; 
+f200 = -f220 + f200; f210 = ( f220 + f210 )/2.; f220 = f220 - f210; 
+f001 = -f021 + f001; f011 = ( f021 + f011 )/2.; f021 = f021 - f011; 
+f101 = -f121 + f101; f111 = ( f121 + f111 )/2.; f121 = f121 - f111; 
+f201 = -f221 + f201; f211 = ( f221 + f211 )/2.; f221 = f221 - f211; 
+f002 = -f022 + f002; f012 = ( f022 + f012 )/2.; f022 = f022 - f012; 
+f102 = -f122 + f102; f112 = ( f122 + f112 )/2.; f122 = f122 - f112; 
+f202 = -f222 + f202; f212 = ( f222 + f212 )/2.; f222 = f222 - f212; 
+f000 = -f002 + f000; f001 = ( f002 + f001 )/2.; f002 = f002 - f001; 
+f100 = -f102 + f100; f101 = ( f102 + f101 )/2.; f102 = f102 - f101; 
+f200 = -f202 + f200; f201 = ( f202 + f201 )/2.; f202 = f202 - f201; 
+f010 = -f012 + f010; f011 = ( f012 + f011 )/2.; f012 = f012 - f011; 
+f110 = -f112 + f110; f111 = ( f112 + f111 )/2.; f112 = f112 - f111; 
+f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211; 
+f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
+f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
+f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
+
+real_t q;
+	if( (NodeType & NODE_HO_BOUNDARY) == NODE_QIBB){
+
+<?R	
+	for (i in 2:length(Q)) { ?>
+	if (<?R C(Q[i]) ?> != NO_CUT) { 
+		q = <?R C(Q[i]) ?>*0.005;
+		<?R C(f[i]) ?> = ((1-q)*<?R C(fpre[i]) ?> + q*(<?R C(f[i]+f[bounce[i]])?>))/(1+q);
+	}
+	<?R } ?>
+}
+#ifdef avgUX
+avgP =  avgP + getP();
+avgUX = avgUX(0,0,0) + getU().x;
+avgUY = avgUY(0,0,0) + getU().y;
+avgUZ = avgUZ(0,0,0) + getU().z;
+varUX = varUX + getU().x*getU().x;
+varUY = varUY + getU().y*getU().y;
+varUZ = varUZ + getU().z*getU().z;
+varUXUY = varUXUY + getU().x*getU().y;
+varUXUZ = varUXUZ + getU().x*getU().z;
+varUYUZ = varUYUZ + getU().y*getU().z;
+#endif
+/*
+switch (NodeType & NODE_ADDITIONALS){
+		//printf(" workin' on adds")
+                
+                case NODE_XYslice1:
+                AddToXYvx(u.x);
+                AddToXYvy(u.y);
+                AddToXYvz(u.z);
+                AddToXYrho1(rho);
+                AddToXYarea(1);
+                break;
+                
+                case NODE_XYslice2:
+                AddToXYrho2(rho);
+                break;
+                
+                case NODE_XZslice1:
+                AddToXZvx(u.x);
+                AddToXZvy(u.y);
+                AddToXZvz(u.z);
+                AddToXZrho1(rho);
+                AddToXZarea(1);
+                break;
+                
+                case NODE_XZslice2:
+                AddToXZrho2(rho);
+                break;
+                
+                case NODE_YZslice1:
+                AddToYZvx(u.x);
+                AddToYZvy(u.y);
+                AddToYZvz(u.z);
+                AddToYZrho1(rho);
+                AddToYZarea(1);
+                break;
+                
+                case NODE_YZslice2:
+                AddToYZrho2(rho);
+                break;
+        }
+*/
+}
+

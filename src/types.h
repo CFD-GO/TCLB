@@ -13,6 +13,12 @@
 //  typedef char flag_t;
   typedef unsigned short int flag_t;
 
+  typedef unsigned char cut_t;
+  
+  #define NO_CUT 255
+  #define CUT_MAX 200
+  #define CUT_LEN(x__) (0.005f * (x__))
+  
 /*
   struct vector_t {
     real_t x,y,z;

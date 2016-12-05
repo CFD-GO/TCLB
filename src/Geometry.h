@@ -26,12 +26,13 @@ enum draw_mode {
 class Geometry {
 public:
   flag_t * geom; ///< Main table of flags/NodeType's
+  cut_t * Q;
   lbRegion region; ///< Global Lattive region
   UnitEnv units; ///< Units object for unit calculations
   Geometry(const lbRegion& r, const UnitEnv& units_);
   ~Geometry();
   int load(pugi::xml_node&);
-  void writeVTI(char * filename);
+  void writeVTI(const char * filename);
   std::map<std::string,int> SettingZones;
 private:
   flag_t fg; ///< Foreground flag used for filling
@@ -54,6 +55,7 @@ private:
   int val_p(pugi::xml_attribute attr, char* prefix);
   double val_d(pugi::xml_attribute attr);
   flag_t Dot(int x, int y, int z);
+  void ActivateCuts();
 };
 
 #endif
