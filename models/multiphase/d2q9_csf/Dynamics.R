@@ -28,6 +28,8 @@ AddField( name="nw_x", stencil2d=1, group="nw")
 AddField( name="nw_y", stencil2d=1, group="nw")
 
 
+AddDensity( name="h_Z", dx=0, dy=0, group="H")
+AddQuantity(name="H_Z")
 
 
 

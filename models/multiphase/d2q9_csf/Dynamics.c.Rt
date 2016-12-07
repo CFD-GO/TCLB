@@ -399,6 +399,10 @@ CudaDeviceFunction void  InitPhisStencil(){
 }
 
 
+CudaDeviceFunction real_t getH_Z(){
+	return h_Z ;
+}   
+
 
 CudaDeviceFunction real_t getRho(){
     if (NodeType & NODE_BOUNDARY) {
@@ -505,7 +509,7 @@ CudaDeviceFunction vector_t getF() {
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
     Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
 
-
+    
     return Force;
 
 }
@@ -531,8 +535,8 @@ CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
     }
 **/
     F.z = 0;
-    F.x =  ST * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y =  ST * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.x =  ST * (curv + 2*h_Z)  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  ST * (curv + 2*h_Z)  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
     } else {
         F.x = 0;
         F.y = 0;
@@ -757,8 +761,8 @@ CudaDeviceFunction void CollisionMRT()
     //Jx = Jx + rho*GravitationX ;
     //Jy = Jy + rho*GravitationY ; 
     vector_t F = getF();
-    Jx = Jx + F.x ;
-    Jy = Jy + F.y ; 
+    Jx = Jx + F.x - h_Z * Jx ;
+    Jy = Jy + F.y - h_Z * Jy; 
 <?R
 
 
