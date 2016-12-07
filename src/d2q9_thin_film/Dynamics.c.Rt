@@ -1,0 +1,274 @@
+<?R
+	source("conf.R") 
+	c_header();
+	
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+	U = as.matrix(Density[Density$group=='f',c("dx","dy")])
+
+	EQ = MRT_eq(U, ortogonal=FALSE)
+        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+        wi = subst(wi, rho=1)
+        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+        wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W))
+	H = chol(W[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+	EQ = MRT_eq(U, mat=B)
+
+	
+
+	f = PV(Density[Density$group=='f',"name"])
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+    if ( any( DensityAll$group=="BC" ) ) {
+        BC_Velocity=PV(c('BC[0]', 'BC[1]'))
+    } else {
+        BC_Velocity=PV(c('VelocityX', 'VelocityY'))
+    }
+?>
+
+#define pi 3.141592653589793116
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?> ;
+}
+    
+CudaDeviceFunction vector_t getU(){
+	real_t d = <?R C(sum(f)) ?>;
+	vector_t u;
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
+    u.x /= d;
+	u.y /= d;
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (!IamBOUNDARY) {   
+        u.x += BC[0]*0.5;
+        u.y += BC[1]*0.5;
+    }
+<?R } ?>
+    u.x += GravitationX*0.5;
+    u.y += GravitationY*0.5;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
+{
+<?R
+	feq = EQ$Req %*% solve(EQ$mat)
+	C( f, feq)
+?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+   if ( IamBOUNDARY ) {
+       BC[0] = Jx / rho;
+       BC[1] = Jy / rho;
+   } else {
+       BC[0] = 0;
+       BC[1] = 0;
+   }
+<?R } ?>
+}
+
+CudaDeviceFunction void Init() {
+	real_t rho, ux, uy;
+   	rho = (1+Pressure*3);
+	ux = VelocityX;
+    uy = VelocityY;
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (IamWall){
+        rho = 1;
+        ux = 0;
+        uy = 0;
+    }
+<?R } ?>
+	SetEquilibrum(
+		rho,
+		ux*rho,
+		uy*rho
+	);
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_NVelocity:
+		NVelocity();
+		break;
+	case NODE_SVelocity:
+		SVelocity();
+		break;
+    case NODE_NSymmetry:
+        NSymmetry();
+        break;
+    case NODE_SSymmetry:
+        SSymmetry();
+        break;
+    }
+    if (NodeType & NODE_MRT)
+    {
+		CollisionMRT();
+    }
+}
+
+CudaDeviceFunction void BounceBack()
+{
+    <?R C(PV('real_t temp'), sum(f)) ?>
+
+    if ( temp !=  1+Pressure*3 ) {
+
+        <?R if ( any( DensityAll$group=="BC" ) ) {
+            C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U);
+        } ?>
+
+    } else {
+
+        <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
+
+    }
+
+    <?R FullBounceBack() ?>
+
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHeRewrite(EQ, f, c(1, 0), "velocity", BC_Velocity) ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "pressure") ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "velocity", BC_Velocity) ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
+}
+
+CudaDeviceFunction void NVelocity()
+{
+<?R ZouHeRewrite(EQ, f, c(0,1), "velocity", BC_Velocity) ?>
+}
+
+CudaDeviceFunction void SVelocity()
+{
+<?R ZouHeRewrite(EQ, f, c(0, -1), "velocity", BC_Velocity) ?>
+}
+
+CudaDeviceFunction void NSymmetry()
+{
+<?R Symmetry(2,-1,'f') ?>
+}
+
+CudaDeviceFunction void SSymmetry()
+{
+<?R Symmetry(2,1,'f') ?>
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+
+<?R
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+
+
+ 
+	real_t <?R C(R,sep=",") ?>;
+    real_t Usq=0;
+
+<?R
+    S=PV("S",1:nrow(U)-1);
+	S[EQ$order == 2] = PV("S2")
+	S[EQ$order == 3] = PV("S3")
+ 	S[EQ$order == 4] = PV("S4")   
+	C( R, f %*% EQ$mat );
+
+?>
+
+    switch (NodeType & NODE_OBJECTIVE) {
+        case NODE_Outlet:
+<?R 
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+
+?>
+            AddToOutletFlux(Jx/rho/rho);
+            AddToPressureLoss(-(Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+        break;
+        case NODE_Inlet:
+<?R
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+?>
+           AddToInletFlux(Jx/rho/rho);
+           AddToPressureLoss((Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+       break;
+    }
+
+<?R
+	C( R[selR], (R - EQ$Req)[selR]);
+	C( R[selR], (R * S)[selR]);
+
+?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (!IamBOUNDARY) {
+        Jx = Jx + (GravitationX +  BC[0])*rho ;
+        Jy = Jy + (GravitationY +  BC[1])*rho ; 
+    }
+<?R } else { ?>
+    Jx = Jx + GravitationX*rho;
+    Jy = Jy + GravitationY*rho; 
+<?R } ?>
+
+<?R
+    C( R[selR], (R + EQ$Req)[selR]);
+	C( f, R %*% solve(EQ$mat), float=F);
+?>
+}
+
