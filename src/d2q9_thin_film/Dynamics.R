@@ -13,15 +13,17 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
-#AddField(name="f[1]", dx=1);
 
 # THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
 # COMMENT OUT FOR PERFORMANCE
 # If present thei are used:
 # As VelocityX/Y for Boundary conditions
 # As mass force (+ GravitationX/Y) in fluid
-AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
-AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+#AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
+#AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+
+AddDensity( name="h_Z", dx=0, dy=0, group="H")
+
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
@@ -34,7 +36,7 @@ AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
 
-
+AddQuantity(name="H_Z")
 
 # Settings - table of settings (constants) that are taken from a .xml file
 #  name - name of the constant variable
@@ -50,6 +52,8 @@ AddSetting(name="Viscosity", RelaxationRate='1.0/(3*Viscosity + 0.5)', default=0
 AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
+
+AddSetting(name="Height", default=1, comment='iinitial height in Z direction', zonal=T)
 
 AddSetting(name="GravitationX")
 AddSetting(name="GravitationY")

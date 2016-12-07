@@ -39,7 +39,11 @@
 CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
 }
-    
+
+CudaDeviceFunction real_t getH_Z(){
+	return h_Z ;
+}   
+
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
@@ -146,19 +150,17 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void BounceBack()
 {
+
+    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+
     <?R C(PV('real_t temp'), sum(f)) ?>
 
     if ( temp !=  1+Pressure*3 ) {
-
-        <?R if ( any( DensityAll$group=="BC" ) ) {
-            C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U);
-        } ?>
-
+        <?R C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U); ?>
     } else {
-
         <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
-
     }
+    <?R } ?>
 
     <?R FullBounceBack() ?>
 
@@ -262,8 +264,8 @@ CudaDeviceFunction void CollisionMRT()
         Jy = Jy + (GravitationY +  BC[1])*rho ; 
     }
 <?R } else { ?>
-    Jx = Jx + GravitationX*rho;
-    Jy = Jy + GravitationY*rho; 
+    Jx = Jx + GravitationX*rho - h_Z * Jx;
+    Jy = Jy + GravitationY*rho - h_Z * Jy; 
 <?R } ?>
 
 <?R
