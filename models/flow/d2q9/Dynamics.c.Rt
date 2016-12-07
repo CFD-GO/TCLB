@@ -146,19 +146,17 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void BounceBack()
 {
+
+    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+
     <?R C(PV('real_t temp'), sum(f)) ?>
 
     if ( temp !=  1+Pressure*3 ) {
-
-        <?R if ( any( DensityAll$group=="BC" ) ) {
-            C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U);
-        } ?>
-
+        <?R C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U); ?>
     } else {
-
         <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
-
     }
+    <?R } ?>
 
     <?R FullBounceBack() ?>
 
