@@ -39,6 +39,6 @@ get.models = function() {
 	Models$test = factor(Models$test, levels=c("test","no test","compile only","can fail"))
 	Models$experimental = Models$present & (! Models$git)
 	if (any(is.na(Models$test))) stop("Wrong value of TEST in some conf.mk")
-	if (any(! Models$present)) stop("Some model that is in git is not present in dir")
+#	if (any(! Models$present)) stop("Some model that is in git is not present in dir")
 	Models
 }
