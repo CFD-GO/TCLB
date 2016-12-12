@@ -13,6 +13,10 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
+#AddField(name='MyBad', stencil2d=1, group='BadGroup')
+
+AddDensity( name="h_Z", dx=0, dy=0, group="HZ")
+
 
 # THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
 # COMMENT OUT FOR PERFORMANCE
@@ -22,8 +26,16 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 #AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
 #AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 
-AddDensity( name="h_Z", dx=0, dy=0, group="H")
+#AddDensity( name="h_Z", dx=0, dy=0, group="H")
 
+AddStage("BaseIteration", "Run", 
+         load=DensityAll$group == "f" | DensityAll$group == "HZ",  
+         save=Fields$group=="f" | Fields$group=="HZ"
+         ) 
+AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group == "HZ") 
+
+AddAction("Iteration", c("BaseIteration"))
+AddAction("Init", c("BaseInit"))
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
@@ -35,7 +47,6 @@ AddDensity( name="h_Z", dx=0, dy=0, group="H")
 
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
-
 AddQuantity(name="H_Z")
 
 # Settings - table of settings (constants) that are taken from a .xml file
@@ -54,6 +65,8 @@ AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zo
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 
 AddSetting(name="Height", default=1, comment='iinitial height in Z direction', zonal=T)
+
+AddSetting(name="BrinkmanHeightInv", default=0, zonal=T)
 
 AddSetting(name="GravitationX")
 AddSetting(name="GravitationY")

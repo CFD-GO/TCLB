@@ -414,17 +414,31 @@ CudaDeviceFunction real_t getRho(){
 
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
-	vector_t u;
+    vector_t u;
 <?R 
     C(PV(c("u.x","u.y")) , f %*% U)
+
 ?>
 	vector_t F;
 	F = getF();
-    u.x = u.x+F.x*0.5;
-    u.y = u.y+F.y*0.5;
-	u.x /= d;
-	u.y /= d;
-	u.z = 0;
+
+    real_t pf = <?R C(sum(h)) ?> ;
+
+ 	
+    real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
+    
+    u.x += 0.5*F.x;
+    u.y += 0.5*F.y;
+
+
+    real_t nu = (gamma + 0.5) / 3.;
+    
+    real_t K = d * 12. * nu * h_Z * h_Z;
+    
+    u.x = (u.x)/(1. + 0.5 * K) / d;
+    u.y = (u.y)/(1. + 0.5 * K) / d;   
+
+	u.z = 0.0;
 	return u;
 }
 
@@ -453,8 +467,8 @@ CudaDeviceFunction real_t getCurvature(){
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
 //    vector_t temp;
-//    temp.x = nw_x(0,0);
-//    temp.y = nw_y(0,0);
+//   temp.x = nw_x(0,0);
+//    temp.y = h_Z;
     return debug;
 
 }
@@ -582,6 +596,8 @@ CudaDeviceFunction void Init() {
 		uy*rho,
         C
 	);
+
+    h_Z = BrinkmanHeightInv;
     <?R
 #       C(d,1)
     ?>
@@ -761,8 +777,14 @@ CudaDeviceFunction void CollisionMRT()
     //Jx = Jx + rho*GravitationX ;
     //Jy = Jy + rho*GravitationY ; 
     vector_t F = getF();
-    Jx = Jx + F.x - h_Z * Jx ;
-    Jy = Jy + F.y - h_Z * Jy; 
+ 
+    
+    real_t nu = (gamma + 0.5) / 3.;
+    real_t K = rho * 12. * nu * h_Z * h_Z;
+    
+    Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
+    Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;   
+  
 <?R
 
 
@@ -775,8 +797,8 @@ CudaDeviceFunction void CollisionMRT()
 ?> 
     real_t d = <?R C(sum(f)) ?>;
     vector_t u;
-    u.x = (Jx + 0.5 * F.x) / d;
-    u.y = (Jy + 0.5 * F.y) / d;
+    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / d;
+    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / d;
     real_t omega_ph =  1/( 3 * Mobility + 0.5); 
     real_t Bh;
 

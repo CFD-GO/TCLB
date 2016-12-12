@@ -47,17 +47,25 @@ CudaDeviceFunction real_t getH_Z(){
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
+
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
-    u.x /= d;
-	u.y /= d;
+
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
     if (!IamBOUNDARY) {   
-        u.x += BC[0]*0.5;
-        u.y += BC[1]*0.5;
+        u.x += d*BC[0]*0.5;
+        u.y += d*BC[1]*0.5;
     }
 <?R } ?>
-    u.x += GravitationX*0.5;
-    u.y += GravitationY*0.5;
+    u.x += d*GravitationX*0.5;
+    u.y += d*GravitationY*0.5;
+
+    real_t nu = (S2 + 0.5) / 3.;
+    
+    real_t K = d * 12. * nu * h_Z * h_Z;
+    
+    u.x = (u.x)/(1. + 0.5 * K) / d;
+    u.y = (u.y)/(1. + 0.5 * K) / d;   
+
 	u.z = 0.0;
 	return u;
 }
@@ -109,6 +117,9 @@ CudaDeviceFunction void Init() {
 		ux*rho,
 		uy*rho
 	);
+    
+    h_Z = BrinkmanHeightInv;
+
 }
 
 CudaDeviceFunction void Run() {
@@ -161,7 +172,6 @@ CudaDeviceFunction void BounceBack()
         <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
     }
     <?R } ?>
-
     <?R FullBounceBack() ?>
 
 }
@@ -258,15 +268,23 @@ CudaDeviceFunction void CollisionMRT()
 
 ?>
 
+
+
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>
     if (!IamBOUNDARY) {
-        Jx = Jx + (GravitationX +  BC[0])*rho ;
-        Jy = Jy + (GravitationY +  BC[1])*rho ; 
+        real_t dJx = (GravitationX +  BC[0])*rho ;
+        real_t dJy = (GravitationY +  BC[1])*rho ; 
     }
 <?R } else { ?>
-    Jx = Jx + GravitationX*rho - h_Z * Jx;
-    Jy = Jy + GravitationY*rho - h_Z * Jy; 
+        real_t dJx =  GravitationX*rho ;
+        real_t dJy =  GravitationY*rho ; 
 <?R } ?>
+
+    real_t nu = (S2 + 0.5) / 3.;
+    real_t K = rho * 12. * nu * h_Z * h_Z;
+    
+    Jx = Jx + dJx - K*(Jx+dJx*0.5)/(1. + 0.5 * K) / rho;
+    Jy = Jy + dJy - K*(Jy+dJy*0.5)/(1. + 0.5 * K) / rho;   
 
 <?R
     C( R[selR], (R + EQ$Req)[selR]);
