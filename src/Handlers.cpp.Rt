@@ -2885,7 +2885,7 @@ class cbPythonCall: public Callback {
                     real_t * buffer;
                     long int dims[4];
 
-					long int size = solver->getQuantityIntoBuffer(quantitie, buffer, dims, offsets );
+		     long int size = solver->getQuantityIntoBuffer(quantity, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
                         pInputData = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT, buffer);
