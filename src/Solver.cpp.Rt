@@ -537,7 +537,7 @@ int Solver::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  di
     if (!somethingWritten){
         output("Possible densities:\n");
     <?R
-        for (d in rows(DensityAll)) { 
+        for (d in rows(DensityAll)) if (d$parameter){ 
             ?> output("-> <?%s d$name ?>\n") ; <?R
         }
     ?>
