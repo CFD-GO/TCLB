@@ -551,7 +551,7 @@ int Solver::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  di
 //    int sizes[7] = { n, region.dx, region.dy, region.dz, region.nx, region.ny, region.nz };
 	return n;
 } 
-int Solver::getQuantitieIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
+int Solver::getQuantityIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
 	int n = region.size();
 
 	dim[0] = region.nx;
