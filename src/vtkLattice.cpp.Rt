@@ -57,17 +57,6 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	}
 	<?R }; ifdef(); ?>
 
-// ------------------------------ DUMP ALL DENSITIES ----------------------------
-/* 
-	real_t* tmp = new real_t[size];
-	<?R for (d in rows(DensityAll)) { ?>
-	{
-		lattice->Get_<?%s d$nicename ?>(reg, tmp);
-		vtkFile.WriteField("<?%s d$nicename ?>",tmp);
-	}
-	<?R } ?>
-	delete[] tmp;
-*/
 	
 	vtkFile.Finish();
 	vtkFile.Close();
