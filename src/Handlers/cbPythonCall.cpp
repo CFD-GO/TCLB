@@ -112,13 +112,13 @@ int cbPythonCall::DoIt () {
 
 
                 for (name_set::iterator it = quantities.begin(); it!=quantities.end(); ++it){
-                    const char * quantitie = it->c_str();
+                    const char * quantity = it->c_str();
     
                     PyObject* pInputData;
                     real_t * buffer;
                     long int dims[4];
 
-                    long int size = solver->getQuantitieIntoBuffer(quantitie, buffer, dims, offsets );
+                    long int size = solver->getQuantityIntoBuffer(quantity, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
                         pInputData = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT, buffer);
