@@ -469,7 +469,7 @@ CudaDeviceFunction vector_t getDEBUG(){
 //    vector_t temp;
 //   temp.x = nw_x(0,0);
 //    temp.y = h_Z;
-    return debug;
+    return gradient;
 
 }
 
@@ -549,8 +549,9 @@ CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
     }
 **/
     F.z = 0;
-    F.x =  ST * (curv + 2*h_Z)  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y =  ST * (curv + 2*h_Z)  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    const real_t s = sin(0.5*pi - WettingAngle);
+    F.x =  ST * (curv + 2*h_Z*s)  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  ST * (curv + 2*h_Z*s)  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
     } else {
         F.x = 0;
         F.y = 0;
@@ -747,7 +748,6 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void CollisionMRT()
 {
-    vector_t n = normal;
     real_t pf = <?R C(sum(h)) ?> ;
 <?R
 	MI = solve(EQ$mat)
@@ -780,8 +780,13 @@ CudaDeviceFunction void CollisionMRT()
  
     
     real_t nu = (gamma + 0.5) / 3.;
-    real_t K = rho * 12. * nu * h_Z * h_Z;
-    
+    real_t K = 12. * nu * h_Z * h_Z;
+   
+    //for C-H
+    vector_t u;
+    u.x = Jx;
+    u.y = Jy;
+
     Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
     Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;   
   
@@ -794,13 +799,33 @@ CudaDeviceFunction void CollisionMRT()
 
 
     # part related to h
-?> 
-    real_t d = <?R C(sum(f)) ?>;
-    vector_t u;
-    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / d;
-    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / d;
+?>
+
+
+//    vector_t n = normal;
+
+
+
+//    real_t d = <?R C(sum(f)) ?>;
+//    vector_t u = getU();
+    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / rho;
+    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / rho;
     real_t omega_ph =  1/( 3 * Mobility + 0.5); 
     real_t Bh;
+
+    vector_t n = gradient;
+    real_t l = sqrt(n.x*n.x + n.y*n.y);
+    if (pf * pf < SurfaceTensionDecay){
+        n.x -= u.x * pf;
+        n.y -= u.y * pf;
+
+        l = sqrt(n.x*n.x + n.y*n.y);
+        n.x = n.x / (l + 1E-10);
+        n.y = n.y / (l + 1E-10);
+    } else {
+        n.x = 0;
+        n.y = 0;
+    }
 
 <?R
 #u = PV(c('u.x', 'u.y'))
