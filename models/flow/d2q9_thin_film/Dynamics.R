@@ -13,9 +13,8 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
-#AddField(name='MyBad', stencil2d=1, group='BadGroup')
 
-AddDensity( name="h_Z", dx=0, dy=0, group="HZ")
+AddDensity( name="h_Z", dx=0, dy=0, group="HZ", parameter=T)
 
 
 # THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
@@ -26,7 +25,6 @@ AddDensity( name="h_Z", dx=0, dy=0, group="HZ")
 #AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
 #AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 
-#AddDensity( name="h_Z", dx=0, dy=0, group="H")
 
 AddStage("BaseIteration", "Run", 
          load=DensityAll$group == "f" | DensityAll$group == "HZ",  
