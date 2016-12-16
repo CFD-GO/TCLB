@@ -1,0 +1,66 @@
+
+<CLBConfig output="output/" version="2.0">
+	<!--Created using CLBConfigWriter-->
+<Geometry model="MRT" nx="256" ny="256" predef="none">
+	<MRT>
+	    <Box />
+	</MRT>
+	<None name="drop">
+	    <Sphere dx="64" dy="64" nx="128" ny="128" />
+    </None>
+   
+
+		<WPressure name="inlet"><Inlet/></WPressure>
+		<EPressure name="inlet"><Outlet/></EPressure>
+</Geometry>
+
+<Model>
+	<Params MagicA="100" />
+	<Params Pressure-drop=".0" />
+	<Params M="0.1" />
+	<Params PhaseField="-0.5" />
+	<Params PhaseField-inlet="-0.5" />
+	<Params W=".05" />
+	<Params Velocity="0." />
+	<Params GravitationX="0.0" />
+	<Params PhaseField-drop="0.5" />
+	<Params GravitationX="0.0" />
+    
+    <Params omega="1" />
+	<Params MagicA="100" />
+	<Params Fscale="0.001" />
+	<Params omega_l="1" />
+   
+    </Model>	
+    <Control Iterations="6000">
+        <CSV file="example/sin.csv" Time="x*1500">
+            <Params Pressure-inlet="Sin*0.00"/>
+         </CSV>
+    </Control>
+
+	<Solve Iterations="6000">
+        <VTK Iterations="500" />
+    </Solve>
+
+
+    <Control Iterations="1500">
+        <CSV file="example/sin.csv" Time="x*1500">
+            <Params Pressure-inlet="Sin*0.001"/>
+         </CSV>
+    </Control>
+ 
+    <Solve Iterations="1500">
+        <VTK Iterations="25" />
+    </Solve>
+
+    <Control Iterations="1500">
+        <CSV file="example/sin.csv" Time="x*1500">
+            <Params Pressure-inlet="Sin*0.00"/>
+         </CSV>
+    </Control>
+ 
+    <Solve Iterations="80000">
+        <VTK Iterations="50" />
+    </Solve>
+
+</CLBConfig>

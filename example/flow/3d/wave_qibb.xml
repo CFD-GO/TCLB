@@ -3,12 +3,12 @@
         <Geometry nx="64" ny="25" nz="64">
 		<MRT><Box/></MRT>
 		<QIBB>
-			<STL file="example/wave.stl" y="20" Xrot="90d" side="surface"/>
-			<STL file="example/wave.stl" y="5"  z="64" Xrot="-90d" side="surface"/>
+			<STL file="example/data/wave.stl" y="20" Xrot="90d" side="surface"/>
+			<STL file="example/data/wave.stl" y="5"  z="64" Xrot="-90d" side="surface"/>
 		</QIBB>
 		<Wall mask="ALL">
-			<STL file="example/wave.stl" y="20" Xrot="90d" side="out"/>
-			<STL file="example/wave.stl" y="5"  z="64" Xrot="-90d" side="in"/>
+			<STL file="example/data/wave.stl" y="20" Xrot="90d" side="out"/>
+			<STL file="example/data/wave.stl" y="5"  z="64" Xrot="-90d" side="in"/>
 		</Wall>
 	</Geometry>
 	<Model>
