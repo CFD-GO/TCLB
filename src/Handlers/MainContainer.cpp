@@ -3,6 +3,9 @@
 int MainContainer::Init () {
 		GenericAction::Init();
 		char filename[STRING_LEN];
+
+        const int ret =  GenericAction::ExecuteInternal();
+
 		solver->outIterFile("config", ".xml", filename);
 		pugi::xml_node n = solver->configfile.child("CLBConfig").append_child("Run");
 		n.append_attribute("model").set_value(MODEL);
@@ -19,7 +22,8 @@ int MainContainer::Init () {
 			c.append_attribute("cross").set_value("GPU");
 		#endif
 		solver->configfile.save_file(filename);
-		return GenericAction::ExecuteInternal();
+
+		return ret;
 	}
 
 

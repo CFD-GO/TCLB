@@ -204,16 +204,17 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new acSyntheticTurbulence;
     } else if (name=="Run") {
 		output("Skipping 'Run' element");
-    }else {
+        ret = new Callback();
+    } else {
 		ERROR("Unknown element '%s'\n", node.name());
-		return NULL;
+		ret = new Callback();
 	}
     // end else-if
     // SERIOUSLY!!!!
     // CONSIDER switch-case maybe:)
     // some observator pattern may be in hand
 
-	if (ret != NULL) ret->node = node;
+	if (ret != NULL) {ret->node = node;}
 	return ret;
 }
 
