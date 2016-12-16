@@ -202,7 +202,9 @@ vHandler * getHandler(pugi::xml_node node) {
 		ret = new conControlParameter;
 	} else if (name=="SyntheticTurbulence") {
 		ret = new acSyntheticTurbulence;
-    } else {
+    } else if (name=="Run") {
+		output("Skipping 'Run' element");
+    }else {
 		ERROR("Unknown element '%s'\n", node.name());
 		return NULL;
 	}
