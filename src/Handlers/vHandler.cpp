@@ -96,11 +96,9 @@ vHandler * getHandler(pugi::xml_node node) {
     } else if (name=="Log") {
 		ret = new cbLog;
     } else if (name=="Save") {
-	//	ret = new cbSave;
         error("Depreceted API call, use SaveMemoryDump or SaveBinary");
     } else if (name=="Load") {
         error("Depreceted API call, use LoadMemoryDump or LoadBinary");
-//		ret = new acLoad;
     } else if (name=="SaveMemoryDump") {
 		ret = new cbSaveMemoryDump;
     } else if (name=="LoadMemoryDump") {
