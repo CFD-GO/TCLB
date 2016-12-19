@@ -4,8 +4,6 @@ int MainContainer::Init () {
 		GenericAction::Init();
 		char filename[STRING_LEN];
 
-        const int ret =  GenericAction::ExecuteInternal();
-
 		solver->outIterFile("config", ".xml", filename);
 		pugi::xml_node n = solver->configfile.child("CLBConfig").append_child("Run");
 		n.append_attribute("model").set_value(MODEL);
@@ -23,8 +21,8 @@ int MainContainer::Init () {
 		#endif
 		solver->configfile.save_file(filename);
 
-		return ret;
-	}
+		return  GenericAction::ExecuteInternal();
+}
 
 
 int MainContainer::Finish () {

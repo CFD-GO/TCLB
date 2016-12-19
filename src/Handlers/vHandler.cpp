@@ -48,7 +48,7 @@
 #include "OptimalControlSecond.h"
 #include "RepeatControl.h"
 #include "vHandler.h"
-
+#include "NullHandler.h"
 
 int vHandler::DoIt() {
 	ERROR("Called virtual function (DoIt)!\n");
@@ -203,11 +203,11 @@ vHandler * getHandler(pugi::xml_node node) {
 	} else if (name=="SyntheticTurbulence") {
 		ret = new acSyntheticTurbulence;
     } else if (name=="Run") {
-		output("Skipping 'Run' element");
-        ret = new Callback();
+		debug1("Skipping 'Run' element");
+        ret = new NullHandler();
     } else {
 		ERROR("Unknown element '%s'\n", node.name());
-		ret = new Callback();
+		ret = new NullHandler();
 	}
     // end else-if
     // SERIOUSLY!!!!
