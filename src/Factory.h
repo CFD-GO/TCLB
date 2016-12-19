@@ -1,4 +1,6 @@
-#pragma once
+#ifndef FACTORY_H
+#define FACTORY_H
+
 #include <vector>
 
 // Uncomment this if you want to see what it registered
@@ -69,3 +71,5 @@ template <Product* (*T)(const Input&)>
 typename Factory<Product, Input>::template Register< T >::Idiot
          Factory<Product, Input>::Register< T >::Dummy;
 
+
+#endif
