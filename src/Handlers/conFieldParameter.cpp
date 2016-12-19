@@ -1,4 +1,5 @@
 #include "conFieldParameter.h"
+#include "../HandlerFactory.h"
 
 int conFieldParameter::Init () {
 		Action::Init();
@@ -12,4 +13,17 @@ int conFieldParameter::Init () {
 
 		return 0;
 	}
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_conFieldParameter(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "FieldParameter") {
+		return new conFieldParameter;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_conFieldParameter >;
 

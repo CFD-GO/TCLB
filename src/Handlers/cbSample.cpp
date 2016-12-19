@@ -1,4 +1,5 @@
 #include "cbSample.h"
+#include "../HandlerFactory.h"
 
 int cbSample::Init () {
 		std::string nm="Sampler";
@@ -59,4 +60,17 @@ int cbSample::Finish () {
 	   solver->lattice->sample->Finish();
 	   return Callback::Finish();
 	 }	 
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_cbSample(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "Sample") {
+		return new cbSample;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_cbSample >;
 

@@ -1,4 +1,5 @@
 #include "conControlParameter.h"
+#include "../HandlerFactory.h"
 
 int conControlParameter::Init () {
 		Action::Init();
@@ -12,4 +13,17 @@ int conControlParameter::Init () {
 
 		return 0;
 	}
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_conControlParameter(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "ControlParameter") {
+		return new conControlParameter;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_conControlParameter >;
 

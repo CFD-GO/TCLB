@@ -1,4 +1,5 @@
 #include "cbKeep.h"
+#include "../HandlerFactory.h"
 
 int cbKeep::Init () {
 		Callback::Init();
@@ -67,4 +68,17 @@ int cbKeep::Finish () {
 		solver->iter_type = old_iter_type;
 		return Callback::Finish();
 	}
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_cbKeep(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "Keep") {
+		return new cbKeep;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_cbKeep >;
 

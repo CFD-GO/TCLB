@@ -1,4 +1,5 @@
 #include "RepeatControl.h"
+#include "../HandlerFactory.h"
 
 int RepeatControl::Init () {
 		Pars = -1;
@@ -109,4 +110,17 @@ int RepeatControl::Parameters (int type, double * tab) {
 			exit(-1);
 		}
 	};
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_RepeatControl(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "RepeatControl") {
+		return new RepeatControl;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_RepeatControl >;
 

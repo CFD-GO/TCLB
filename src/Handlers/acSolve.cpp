@@ -1,4 +1,5 @@
 #include "acSolve.h"
+#include "../HandlerFactory.h"
 
 int acSolve::Init () {
 		GenericAction::Init();
@@ -36,4 +37,17 @@ int acSolve::Init () {
 		GenericAction::Unstack();
 		return 0;
 	}
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_acSolve(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "Solve") {
+		return new acSolve;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_acSolve >;
 

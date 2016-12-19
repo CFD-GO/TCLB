@@ -5,6 +5,7 @@
     #include <numpy/arrayobject.h>
 #endif
 #include "cbPythonCall.h"
+#include "../HandlerFactory.h"
 
 int cbPythonCall::Init () {
 		Callback::Init();
@@ -201,4 +202,17 @@ int cbPythonCall::DoIt () {
 
 		return 0;
 	};
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_cbPythonCall(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "CallPython") {
+        return new cbPythonCall;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_cbPythonCall >;
 

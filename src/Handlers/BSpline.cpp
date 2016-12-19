@@ -1,4 +1,5 @@
 #include "BSpline.h"
+#include "../HandlerFactory.h"
 
 int BSpline::Init () {
 		Pars = -1;
@@ -148,4 +149,17 @@ int BSpline::Parameters (int type, double * tab) {
 			exit(-1);
 		}
 	};
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_BSpline(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "BSpline") {
+		return new BSpline;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_BSpline >;
 
