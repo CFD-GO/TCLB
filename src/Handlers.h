@@ -16,7 +16,6 @@ public:
 	int *ref; ///< Number of references of the shared pointer
 /// Constructs a Handler based on a XML element
 	inline Handler(pugi::xml_node node, Solver * solver_) {
-//		hand = getHandler(node);
 		hand = HandlerFactory::Produce(node);
 		if (hand == NULL) {
 			hand = new NullHandler();
