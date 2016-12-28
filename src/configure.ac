@@ -401,6 +401,18 @@ then
 	
 fi
 
+R_HOME=$(R RHOME)
+R_BIN="${R_HOME}/bin/R"
+CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
+CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
+CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
+LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
+LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
+LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
+LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
+LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
+
+
 
 if test "x${enable_debug}" == "xyes"
 then
