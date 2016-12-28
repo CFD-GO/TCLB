@@ -1,0 +1,160 @@
+<?R
+	source("conf.R");
+	c_header();
+?>
+#include "RunR.h"
+
+RInside RunR::R;
+
+//--------- R Wraps
+template<> SEXP Rcpp::wrap(const PSolver &f) {
+  Rcpp::XPtr< Solver > Rf(f.solver);
+  Rf.attr("class") = f.myclass;
+  return Rf;
+}
+
+template<> PSolver Rcpp::as(SEXP sexp) {
+  Rcpp::XPtr< Solver > s = Rcpp::as< Rcpp::XPtr< Solver > >(sexp);
+  return PSolver(s,s.attr("class"));
+}
+
+
+//--------- $.Solver
+PSolver DollarSolver(PSolver P, std::string name) {
+  if (name == "Settings") {  
+    return PSolver(P.solver,"CLBSettings");
+  } else if (name == "Parameters") {  
+    return PSolver(P.solver,"CLBParameters");
+  } else if (name == "Actions") {  
+    return PSolver(P.solver,"CLBActions");
+  } else {
+    return PSolver(P.solver,"CLBNone");
+  }
+}
+
+PSolver DollarAssignSolver(PSolver P, std::string name, PSolver C) {
+  return P;
+}
+
+Rcpp::NumericVector DollarSettings(PSolver P, std::string name) {
+  output("[R] Getting setting: %s\n",name.c_str());
+  return 0;
+}
+
+PSolver DollarAssignSettings(PSolver P, std::string name, Rcpp::NumericVector v) {
+  output("[R] Setting setting: %s to %lf\n",name.c_str(),(double)v[0]);
+  <?R for (v in rows(Settings)) { ?>
+          if (name == "<?%s v$name?>") {
+                P.solver->lattice-><?%s v$FunName ?>(v[0]);
+		return P;
+          }
+  <?R } ?>
+	ERROR("[R] Unknown setting");
+  return P;
+}
+
+Rcpp::NumericVector DollarParameters(PSolver P, std::string name) {
+	output("[R] Getting parameter: %s\n",name.c_str());
+	Rcpp::NumericVector ret(P.solver->region.size());
+	Rcpp::NumericVector retdim(3);
+	retdim[0] = P.solver->region.nx;
+	retdim[1] = P.solver->region.ny;
+	retdim[2] = P.solver->region.nz;
+	ret.attr("dim") = retdim;
+<?R 
+    for (d in rows(DensityAll)) if (d$parameter){ 
+?>
+    if (name == "<?%s d$nicename ?>") {
+        P.solver->lattice->Get_<?%s d$nicename ?>(&ret[0]); 
+	return ret;
+    }
+<?R
+} 
+?>
+	ERROR("[R] Unknown parameter");
+	return NULL;
+}
+
+PSolver DollarAssignParameters(PSolver P, std::string name, Rcpp::NumericVector v) {
+	output("[R] Setting parameter: %s (size:%ld)\n",name.c_str(),v.size());
+	if (v.size() != P.solver->region.size()) {
+		ERROR("Wrong size of the parameter field!");
+		return P;
+	}
+<?R 
+    for (d in rows(DensityAll)) if (d$parameter){ 
+?>
+    if (name == "<?%s d$nicename ?>") {
+        P.solver->lattice->Set_<?%s d$nicename ?>(&v[0]); 
+	return P;
+    }
+<?R
+} 
+?>
+	ERROR("[R] Unknown parameter");
+	return P;
+}
+
+
+
+void DollarActions(PSolver P, std::string name) {
+	output("[R] Running action: %s\n",name.c_str());
+	int Snap = P.solver->lattice->Snap;
+	<?R for (n in names(Actions)) {
+        a = Actions[[n]]
+        if (n == "Iteration") {
+                FunName = "Iteration"
+        } else {
+                FunName = paste("Action",n,sep="_")
+        } ?>
+	if (name == "<?%s n ?>") {
+		P.solver->lattice-><?%s FunName ?>(Snap, (Snap+1) % 2, P.solver->iter_type);
+		return;
+	}
+	<?R } ?>
+	ERROR("[R] Unknown Action");
+	return;
+}
+
+
+
+Rcpp::NumericMatrix DollarQuantity(PSolver P, std::string name) {
+  output("[R] Getting setting: %s\n",name.c_str());
+  return 0;
+}
+
+
+int RunR::Init() {
+    Callback::Init();
+    R["Solver"] = PSolver(solver);
+    R["$.CLBSolver"] = Rcpp::InternalFunction( &DollarSolver );
+    R["$<-.CLBSolver"] = Rcpp::InternalFunction( &DollarAssignSolver );
+    R["$.CLBSettings"] = Rcpp::InternalFunction( &DollarSettings );
+    R["$<-.CLBSettings"] = Rcpp::InternalFunction( &DollarAssignSettings );
+    R["$.CLBParameters"] = Rcpp::InternalFunction( &DollarParameters );
+    R["$<-.CLBParameters"] = Rcpp::InternalFunction( &DollarAssignParameters );
+    R["CLBActionsFun"] = Rcpp::InternalFunction( &DollarActions );
+    R.parseEval("'$.CLBActions' <- function(obj, name) { function() CLBActionsFun(obj, name); }");
+    return 0;
+}
+
+
+int RunR::DoIt() {
+    R.parseEval(node.child_value());
+    return 0;
+}
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_RunR(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "RunR") {
+		return new RunR;
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_RunR >;
+
+
