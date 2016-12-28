@@ -1,4 +1,5 @@
 #include "cbSaveMemoryDump.h"
+std::string cbSaveMemoryDump::xmlname = "SaveMemoryDump";
 #include "../HandlerFactory.h"
 
 int cbSaveMemoryDump::Init () {
@@ -31,15 +32,5 @@ int cbSaveMemoryDump::DoIt () {
 	};
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbSaveMemoryDump(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "SaveMemoryDump") {
-		return new cbSaveMemoryDump;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbSaveMemoryDump >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbSaveMemoryDump > >;

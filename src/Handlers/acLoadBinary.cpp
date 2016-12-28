@@ -1,4 +1,5 @@
 #include "acLoadBinary.h"
+std::string acLoadBinary::xmlname = "LoadBinary";
 #include "../HandlerFactory.h"
 
 int acLoadBinary::Init () {
@@ -22,15 +23,5 @@ int acLoadBinary::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acLoadBinary(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "LoadBinary") {
-		return new acLoadBinary;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acLoadBinary >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acLoadBinary > >;

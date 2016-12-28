@@ -1,4 +1,5 @@
 #include "Fourier.h"
+std::string Fourier::xmlname = "Fourier";
 #include "../HandlerFactory.h"
 
 int Fourier::Init () {
@@ -142,15 +143,5 @@ int Fourier::Parameters (int type, double * tab) {
 	};
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_Fourier(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Fourier") {
-		return new Fourier;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_Fourier >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< Fourier > >;

@@ -1,4 +1,5 @@
 #include "acInit.h"
+std::string acInit::xmlname = "Init";
 #include "../HandlerFactory.h"
 
 int acInit::Init () {
@@ -9,15 +10,5 @@ int acInit::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acInit(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Init") {
-		return new acInit;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acInit >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acInit > >;

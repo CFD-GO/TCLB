@@ -9,6 +9,7 @@
 
 class  GenericContainer  : public  GenericAction  {
 	public:
+	static std::string xmlname;
 int Init ();
 int Finish ();
 };

@@ -5,6 +5,7 @@ source("conf.R")
 ?>
 
 #include "OptimalControlSecond.h"
+std::string OptimalControlSecond::xmlname = "OptimalControlSecond";
 
 int OptimalControlSecond::Init () {
 		std::string par;
@@ -128,15 +129,5 @@ int OptimalControlSecond::Parameters (int type, double * tab) {
 	};
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_OptimalControlSecond(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "OptimalControlSecond") {
-		return new OptimalControlSecond;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_OptimalControlSecond >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< OptimalControlSecond > >;

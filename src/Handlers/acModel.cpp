@@ -1,4 +1,5 @@
 #include "acModel.h"
+std::string acModel::xmlname = "Model";
 #include "../HandlerFactory.h"
 
 int acModel::Init () {
@@ -9,15 +10,5 @@ int acModel::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acModel(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Model") {
-		return new acModel;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acModel >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acModel > >;

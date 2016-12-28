@@ -1,4 +1,5 @@
 #include "acGeometry.h"
+std::string acGeometry::xmlname = "Geometry";
 #include "../HandlerFactory.h"
 
 int acGeometry::Init () {
@@ -13,15 +14,5 @@ int acGeometry::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acGeometry(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Geometry") {
-		return new acGeometry;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acGeometry >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acGeometry > >;

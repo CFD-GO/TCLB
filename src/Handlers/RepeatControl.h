@@ -17,6 +17,7 @@ class  RepeatControl  : public  Design  {
 	bool flip;
 	double flip_level;
 public:
+	static std::string xmlname;
 int Init ();
 int Finish ();
 int NumberOfParameters ();

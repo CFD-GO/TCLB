@@ -5,6 +5,7 @@ source("conf.R")
 ?>
 
 #include "acThresholdNow.h"
+std::string acThresholdNow::xmlname = "ThresholdNow";
 
 int acThresholdNow::Init () {
 		double val;
@@ -43,15 +44,5 @@ int acThresholdNow::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acThresholdNow(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "ThresholdNow") {
-		return new acThresholdNow;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acThresholdNow >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acThresholdNow > >;

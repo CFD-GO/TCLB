@@ -1,4 +1,5 @@
 #include "MainContainer.h"
+std::string MainContainer::xmlname = "CLBConfig";
 #include "../HandlerFactory.h"
 
 int MainContainer::Init () {
@@ -32,15 +33,5 @@ int MainContainer::Finish () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_MainContainer(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "CLBConfig") {
-		return new MainContainer;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_MainContainer >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< MainContainer > >;

@@ -17,6 +17,7 @@ class  BSpline  : public  Design  {
 	bool per;
 	int order;
 public:
+	static std::string xmlname;
 int Init ();
 int Finish ();
 int NumberOfParameters ();

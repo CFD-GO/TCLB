@@ -13,6 +13,7 @@ class  cbStop  : public  Callback  {
 	int times, score;
 	int old_iter_type;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 int Finish ();

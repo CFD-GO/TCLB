@@ -5,6 +5,7 @@ source("conf.R")
 ?>
 
 #include "acParams.h"
+std::string acParams::xmlname = "Params";
 
 int acParams::Init () {
 	        std::string par, zone;
@@ -49,15 +50,5 @@ int acParams::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acParams(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Params") {
-	    return new acParams;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acParams >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acParams > >;

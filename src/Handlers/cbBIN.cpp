@@ -1,4 +1,5 @@
 #include "cbBIN.h"
+std::string cbBIN::xmlname = "BIN";
 #include "../HandlerFactory.h"
 
 int cbBIN::Init () {
@@ -16,15 +17,5 @@ int cbBIN::DoIt () {
 	};
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbBIN(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "BIN") {
-		return new cbBIN;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbBIN >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbBIN > >;

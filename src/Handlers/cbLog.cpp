@@ -1,4 +1,5 @@
 #include "cbLog.h"
+std::string cbLog::xmlname = "Log";
 #include "../HandlerFactory.h"
 
 int cbLog::Init () {
@@ -29,15 +30,5 @@ int cbLog::Finish () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbLog(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Log") {
-		return new cbLog;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbLog >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbLog > >;

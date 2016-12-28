@@ -1,4 +1,5 @@
 #include "cbSaveBinary.h"
+std::string cbSaveBinary::xmlname = "SaveBinary";
 #include "../HandlerFactory.h"
 
 int cbSaveBinary::Init () {
@@ -33,15 +34,5 @@ int cbSaveBinary::DoIt () {
 	};
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbSaveBinary(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "SaveBinary") {
-		return new cbSaveBinary;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbSaveBinary >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbSaveBinary > >;

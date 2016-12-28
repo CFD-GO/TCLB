@@ -9,6 +9,7 @@
 class  cbBIN  : public  Callback  {
 	std::string nm;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 };

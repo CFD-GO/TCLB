@@ -1,4 +1,5 @@
 #include "cbAveraging.h"
+std::string cbAveraging::xmlname = "Average";
 #include "../HandlerFactory.h"
 
 int cbAveraging::Init () {
@@ -20,15 +21,5 @@ int cbAveraging::Finish () {
         }
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbAveraging(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Average") {
-		return new cbAveraging;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbAveraging >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbAveraging > >;

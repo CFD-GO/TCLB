@@ -1,4 +1,5 @@
 #include "cbVTK.h"
+std::string cbVTK::xmlname = "VTK";
 #include "../HandlerFactory.h"
 
 int cbVTK::Init () {
@@ -22,15 +23,5 @@ int cbVTK::DoIt () {
 	};
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbVTK(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "VTK") {
-		return new cbVTK;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbVTK >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbVTK > >;

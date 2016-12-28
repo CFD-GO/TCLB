@@ -1,4 +1,5 @@
 #include "acOptSolve.h"
+std::string acOptSolve::xmlname = "OptSolve";
 #include "../HandlerFactory.h"
 
 int acOptSolve::Init () {
@@ -42,15 +43,5 @@ int acOptSolve::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acOptSolve(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "OptSolve") {
-		return new acOptSolve;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acOptSolve >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acOptSolve > >;

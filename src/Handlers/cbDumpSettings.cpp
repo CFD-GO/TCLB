@@ -1,4 +1,5 @@
 #include "cbDumpSettings.h"
+std::string cbDumpSettings::xmlname = "DumpSettings";
 #include "../HandlerFactory.h"
 
 int cbDumpSettings::Init () {
@@ -24,15 +25,5 @@ int cbDumpSettings::Finish () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbDumpSettings(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "DumpSettings") {
-		return new cbDumpSettings;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbDumpSettings >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbDumpSettings > >;

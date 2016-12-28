@@ -1,4 +1,5 @@
 #include "acRepeat.h"
+std::string acRepeat::xmlname = "Repeat";
 #include "../HandlerFactory.h"
 
 int acRepeat::Init () {
@@ -17,15 +18,5 @@ int acRepeat::Init () {
 	}
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_acRepeat(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Repeat") {
-		return new acRepeat;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_acRepeat >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acRepeat > >;

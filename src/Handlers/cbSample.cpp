@@ -1,4 +1,5 @@
 #include "cbSample.h"
+std::string cbSample::xmlname = "Sample";
 #include "../HandlerFactory.h"
 
 int cbSample::Init () {
@@ -62,15 +63,5 @@ int cbSample::Finish () {
 	 }	 
 
 
-// Function created only to check to create Handler for specific conditions
-vHandler * Ask_For_cbSample(const pugi::xml_node& node) {
-  std::string name = node.name();
-  if (name == "Sample") {
-		return new cbSample;
-  }
-  return NULL;
-}
-
-// Register this function in the Handler Factory
-template class HandlerFactory::Register< Ask_For_cbSample >;
-
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbSample > >;

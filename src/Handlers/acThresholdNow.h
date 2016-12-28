@@ -11,6 +11,7 @@ class  acThresholdNow  : public  GenericAction  {
 	int par;
 	double level;
 	public:
+	static std::string xmlname;
 int Init ();
 };
 
