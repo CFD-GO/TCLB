@@ -10,8 +10,8 @@ class Solver;
 //typedef Solver* PSolver;
 class PSolver {
 public:
-    std::string myclass;
     Solver * solver;
+    std::string myclass;
     inline PSolver(Solver * solver_, std::string myclass_): solver(solver_),myclass(myclass_) {};
     inline PSolver(Solver * solver_): solver(solver_),myclass("CLBSolver") {};
     
