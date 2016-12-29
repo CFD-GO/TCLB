@@ -77,7 +77,7 @@ Rcpp::NumericVector DollarParameters(PSolver P, std::string name) {
 } 
 ?>
 	ERROR("[R] Unknown parameter");
-	return NULL;
+	return Rcpp::NumericVector(0);
 }
 
 PSolver DollarAssignParameters(PSolver P, std::string name, Rcpp::NumericVector v) {
