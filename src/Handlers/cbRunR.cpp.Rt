@@ -29,6 +29,8 @@ PSolver DollarSolver(PSolver P, std::string name) {
     return PSolver(P.solver,"CLBParameters");
   } else if (name == "Actions") {  
     return PSolver(P.solver,"CLBActions");
+  } else if (name == "Geometry") {  
+    return PSolver(P.solver,"CLBGeometry");
   } else {
     return PSolver(P.solver,"CLBNone");
   }
@@ -51,17 +53,18 @@ PSolver DollarAssignSettings(PSolver P, std::string name, Rcpp::NumericVector v)
 		return P;
           }
   <?R } ?>
-	ERROR("[R] Unknown setting");
+  ERROR("[R] Unknown setting");
   return P;
 }
 
 Rcpp::NumericVector DollarParameters(PSolver P, std::string name) {
 	output("[R] Getting parameter: %s\n",name.c_str());
-	Rcpp::NumericVector ret(P.solver->region.size());
-	Rcpp::NumericVector retdim(3);
-	retdim[0] = P.solver->region.nx;
-	retdim[1] = P.solver->region.ny;
-	retdim[2] = P.solver->region.nz;
+	lbRegion reg = P.solver->lattice->region;
+	Rcpp::NumericVector ret(reg.size());
+	Rcpp::IntegerVector retdim(3);
+	retdim[0] = reg.nx;
+	retdim[1] = reg.ny;
+	retdim[2] = reg.nz;
 	ret.attr("dim") = retdim;
 <?R 
     for (d in rows(DensityAll)) if (d$parameter){ 
@@ -118,6 +121,65 @@ void DollarActions(PSolver P, std::string name) {
 	return;
 }
 
+PSolver DollarAssignGeometry(PSolver P, std::string name, Rcpp::IntegerVector v) {
+	lbRegion reg = P.solver->lattice->region;
+	size_t size = reg.size();
+	{
+		flag_t * NodeType = new flag_t[size];
+		P.solver->lattice->GetFlags(reg, NodeType);
+		<?R
+		i = !duplicated(NodeTypes$group)
+		for (n in rows(NodeTypes[i,])) {
+		?>
+		if (name == "<?%s n$group ?>") {
+			output("[R] Setting <?%s n$group ?>");
+			for (size_t i=0;i<size;i++) {
+				NodeType[i] = (NodeType[i] - (NodeType[i] & NODE_<?%s n$group ?>)) + ((v[i] - 1) << <?%d n$shift ?>);
+			}
+		}
+		<?R } ?>
+		P.solver->lattice->FlagOverwrite(NodeType, reg);
+		delete[] NodeType;
+	}
+	return P;
+}
+
+Rcpp::IntegerVector DollarGeometry(PSolver P, std::string name) {
+	lbRegion reg = P.solver->lattice->region;
+	size_t size = reg.size();
+	{
+		flag_t * NodeType = new flag_t[size];
+		P.solver->lattice->GetFlags(reg, NodeType);
+		Rcpp::IntegerVector small(size);
+		Rcpp::IntegerVector retdim(3);
+		retdim[0] = reg.nx;
+		retdim[1] = reg.ny;
+		retdim[2] = reg.nz;
+		small.attr("dim") = retdim;
+		<?R
+		i = !duplicated(NodeTypes$group)
+		for (n in rows(NodeTypes[i,])) {
+		?>
+		if (name == "<?%s n$group ?>") {
+			output("[R] Getting <?%s n$group ?>");
+			for (size_t i=0;i<size;i++) {
+				small[i] = 1 + ((NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>);
+			}
+			Rcpp::CharacterVector levels;
+			levels.push_back("NONE"); <?R
+			for (m in rows(NodeTypes[NodeTypes$group == n$group,])) { ?>
+				levels.push_back("<?%s m$name ?>"); <?R
+			} ?>
+			small.attr("levels") = levels;
+			small.attr("class") = "factor";
+			return small;
+		}
+		<?R } ?>
+		delete[] NodeType;
+	}
+	ERROR("[R] Unknown component of Geometry");
+	return Rcpp::IntegerVector(0);
+}
 
 
 Rcpp::NumericMatrix DollarQuantity(PSolver P, std::string name) {
@@ -129,13 +191,15 @@ Rcpp::NumericMatrix DollarQuantity(PSolver P, std::string name) {
 int RunR::Init() {
     Callback::Init();
     R["Solver"] = PSolver(solver);
-    R["$.CLBSolver"] = Rcpp::InternalFunction( &DollarSolver );
-    R["$<-.CLBSolver"] = Rcpp::InternalFunction( &DollarAssignSolver );
-    R["$.CLBSettings"] = Rcpp::InternalFunction( &DollarSettings );
-    R["$<-.CLBSettings"] = Rcpp::InternalFunction( &DollarAssignSettings );
-    R["$.CLBParameters"] = Rcpp::InternalFunction( &DollarParameters );
+    R["$.CLBSolver"]       = Rcpp::InternalFunction( &DollarSolver );
+    R["$<-.CLBSolver"]     = Rcpp::InternalFunction( &DollarAssignSolver );
+    R["$.CLBSettings"]     = Rcpp::InternalFunction( &DollarSettings );
+    R["$<-.CLBSettings"]   = Rcpp::InternalFunction( &DollarAssignSettings );
+    R["$.CLBParameters"]   = Rcpp::InternalFunction( &DollarParameters );
     R["$<-.CLBParameters"] = Rcpp::InternalFunction( &DollarAssignParameters );
-    R["CLBActionsFun"] = Rcpp::InternalFunction( &DollarActions );
+    R["$.CLBGeometry"]     = Rcpp::InternalFunction( &DollarGeometry );
+    R["$<-.CLBGeometry"]   = Rcpp::InternalFunction( &DollarAssignGeometry );
+    R["CLBActionsFun"]     = Rcpp::InternalFunction( &DollarActions );
     R.parseEval("'$.CLBActions' <- function(obj, name) { function() CLBActionsFun(obj, name); }");
     return 0;
 }
