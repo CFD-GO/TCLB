@@ -446,7 +446,7 @@ if test "x${enable_rinside}" != "xno"
 then
 	AC_MSG_CHECKING([R package: RInside])
 	RINSIDE=yes
-	AS_IF([$R_BIN --vanilla --slave -e 'if (!require("polyAlgebra")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),[{AC_MSG_ERROR([no]); RINSIDE=no}])
+	AS_IF([$R_BIN --vanilla --slave -e 'if (!require("RInside")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),[{AC_MSG_ERROR([no]); RINSIDE=no}])
 	if test "x${RINSIDE}" == "xno"
 	then
 		AC_MSG_CHECKING([if RInside required])
