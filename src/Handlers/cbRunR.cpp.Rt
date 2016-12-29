@@ -156,7 +156,7 @@ vHandler * Ask_For_RunR(const pugi::xml_node& node) {
 #ifdef WITH_R
     return new RunR;
 #else
-    ERROR("No R support. configure with --with-r\n");
+    ERROR("No R support. configure with --enable-rinside\n");
     exit(-1);  
 #endif
   }
