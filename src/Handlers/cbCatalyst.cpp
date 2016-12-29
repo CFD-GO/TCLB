@@ -132,5 +132,19 @@ int cbCatalyst::Finish () {
 
 #endif
 
-// Register the handler (basing on xmlname) in the Handler Factory
-template class HandlerFactory::Register< GenericAsk< cbCatalyst > >;
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_cbCatalyst(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "Catalyst") {
+#ifdef WITH_CATALYST
+		return new cbCatalyst;
+#else
+                ERROR("No Catalyst support. configure with --with-catalyst\n");
+                exit(-1);
+#endif
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_cbCatalyst >;
