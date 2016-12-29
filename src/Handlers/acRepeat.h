@@ -10,6 +10,7 @@
 class  acRepeat  : public  GenericAction  {
 	int times;
 	public:
+	static std::string xmlname;
 int Init ();
 };
 

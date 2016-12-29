@@ -1,4 +1,6 @@
 #include "cbSample.h"
+std::string cbSample::xmlname = "Sample";
+#include "../HandlerFactory.h"
 
 int cbSample::Init () {
 		std::string nm="Sampler";
@@ -60,3 +62,6 @@ int cbSample::Finish () {
 	   return Callback::Finish();
 	 }	 
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbSample > >;

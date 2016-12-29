@@ -1,9 +1,11 @@
 <?R
+#include "../HandlerFactory.h"
 source("conf.R")
 	c_header()
 ?>
 
 #include "acThreshold.h"
+std::string acThreshold::xmlname = "Threshold";
 
 int acThreshold::Init () {
 		double val;
@@ -49,3 +51,6 @@ int acThreshold::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acThreshold > >;

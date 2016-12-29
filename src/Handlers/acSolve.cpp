@@ -1,4 +1,6 @@
 #include "acSolve.h"
+std::string acSolve::xmlname = "Solve";
+#include "../HandlerFactory.h"
 
 int acSolve::Init () {
 		GenericAction::Init();
@@ -37,3 +39,6 @@ int acSolve::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acSolve > >;

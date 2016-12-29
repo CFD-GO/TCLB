@@ -8,6 +8,7 @@
 
 class  acLoadBinary  : public  Action  {
 	public:
+	static std::string xmlname;
 int Init ();
 };
 

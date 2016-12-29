@@ -9,6 +9,7 @@
 
 class  acOptSolve  : public  GenericAction  {
 	public:
+	static std::string xmlname;
 int Init ();
 };
 

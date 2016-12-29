@@ -9,6 +9,7 @@
 class  cbSaveMemoryDump  : public  Callback  {
 	std::string fn;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 };

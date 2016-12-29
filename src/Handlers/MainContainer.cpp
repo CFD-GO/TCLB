@@ -1,4 +1,6 @@
 #include "MainContainer.h"
+std::string MainContainer::xmlname = "CLBConfig";
+#include "../HandlerFactory.h"
 
 int MainContainer::Init () {
 		GenericAction::Init();
@@ -30,3 +32,6 @@ int MainContainer::Finish () {
 		return GenericAction::Finish();
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< MainContainer > >;

@@ -12,6 +12,7 @@ class  cbCatalyst  : public  Callback  {
 	static bool cellData;
 //	name_set s;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 int Finish ();

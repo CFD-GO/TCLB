@@ -1,4 +1,6 @@
 #include "cbSaveBinary.h"
+std::string cbSaveBinary::xmlname = "SaveBinary";
+#include "../HandlerFactory.h"
 
 int cbSaveBinary::Init () {
 		Callback::Init();
@@ -31,3 +33,6 @@ int cbSaveBinary::DoIt () {
 		return 0;
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbSaveBinary > >;

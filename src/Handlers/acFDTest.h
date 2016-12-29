@@ -18,6 +18,7 @@ class  acFDTest  : public  GenericOptimizer  {
 	double h_min,h_max;
 	int h_n;
 	public:
+	static std::string xmlname;
 int OptimizerInit ();
 int OptimizerRun ();
 int OptimizerExit ();

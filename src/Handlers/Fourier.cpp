@@ -1,4 +1,6 @@
 #include "Fourier.h"
+std::string Fourier::xmlname = "Fourier";
+#include "../HandlerFactory.h"
 
 int Fourier::Init () {
 		Pars = -1;
@@ -140,3 +142,6 @@ int Fourier::Parameters (int type, double * tab) {
 		}
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< Fourier > >;

@@ -11,6 +11,7 @@ class  acThreshold  : public  GenericAction  {
 	int par;
 	int levels;
 	public:
+	static std::string xmlname;
 int Init ();
 };
 

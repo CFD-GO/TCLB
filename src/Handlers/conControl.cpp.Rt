@@ -1,9 +1,11 @@
 <?R
+#include "../HandlerFactory.h"
 source("conf.R")
 	c_header()
 ?>
 
 #include "conControl.h"
+std::string conControl::xmlname = "Control";
 
 int conControl::Params (pugi::xml_node n) {
 	        std::string par, zone;
@@ -246,3 +248,6 @@ int conControl::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< conControl > >;

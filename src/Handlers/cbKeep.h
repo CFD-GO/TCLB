@@ -12,6 +12,7 @@ class  cbKeep  : public  Callback  {
 	int what, whatInObj;
 	double thr,force;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 int Finish ();
