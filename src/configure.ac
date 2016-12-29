@@ -401,6 +401,7 @@ then
 	
 fi
 
+
 R_HOME=$(R RHOME)
 R_BIN="${R_HOME}/bin/R"
 CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
@@ -411,7 +412,7 @@ LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
 LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
 LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
 LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
-
+AC_DEFINE([WITH_R], [1], [Using R])
 
 
 if test "x${enable_debug}" == "xyes"
@@ -504,6 +505,7 @@ AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
+AC_SUBST(WITH_R)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)

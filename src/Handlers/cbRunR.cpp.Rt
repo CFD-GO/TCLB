@@ -2,7 +2,9 @@
 	source("conf.R");
 	c_header();
 ?>
-#include "RunR.h"
+#include "cbRunR.h"
+
+#ifdef WITH_R
 
 RInside RunR::R;
 
@@ -145,11 +147,18 @@ int RunR::DoIt() {
 }
 
 
+#endif // WITH_R
+
 // Function created only to check to create Handler for specific conditions
 vHandler * Ask_For_RunR(const pugi::xml_node& node) {
   std::string name = node.name();
   if (name == "RunR") {
-		return new RunR;
+#ifdef WITH_R
+    return new RunR;
+#else
+    ERROR("No R support. configure with --with-r\n");
+    exit(-1);  
+#endif
   }
   return NULL;
 }

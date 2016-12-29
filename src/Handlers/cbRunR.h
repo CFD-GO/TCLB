@@ -1,6 +1,10 @@
 #ifndef RUNR_H
 #define RUNR_H
 
+#include "../Consts.h"
+
+#ifdef WITH_R
+
 class Solver;
 #include <RcppCommon.h>
 //typedef Solver* PSolver;
@@ -21,10 +25,15 @@ namespace Rcpp {
 #undef Free
 #undef WARNING
 #undef ERROR
+
+#endif
+
 #include "../CommonHandler.h"
 
 #include "vHandler.h"
 #include "Callback.h"
+
+#ifdef WITH_R
 
 class  RunR  : public  Callback  {
 	public:
@@ -32,5 +41,7 @@ class  RunR  : public  Callback  {
     int Init ();
     int DoIt ();
 };
+
+#endif // WITH_R
 
 #endif // RUNR_H
