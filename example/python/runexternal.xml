@@ -28,8 +28,10 @@
      module.py must be in pythonpath
      the "." is added to pythonpath automaticly
      PYTHONPATH=$PYTHONPATH:./example mpirun -np 2 ./CLB/d2q9/main example/runexternal.xml 
+     densities need to be definied as 
+     AddDensity(....,dx=0,dy=0,dz=0,parameter=TRUE) in dynamics.R
     -->
-    <CallPython module="runexternal" function="test" pass_component="f[0],f[1],f[2]"/>
+    <CallPython module="runexternal" function="test" densities="BC[0],BC[1]"/>
 	<Solve Iterations="10000" output="output/">
         <VTK Iterations="1000"/>
     </Solve>

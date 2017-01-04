@@ -41,7 +41,7 @@ int cbPythonCall::DoIt () {
         
         pugi::xml_attribute module = node.attribute("module");
 		pugi::xml_attribute function = node.attribute("function");			
-        pugi::xml_attribute comp = node.attribute("pass_component");
+        pugi::xml_attribute comp = node.attribute("densities");
         pugi::xml_attribute quan = node.attribute("quantities");
 
 
@@ -147,11 +147,15 @@ int cbPythonCall::DoIt () {
  
 		        pValue = PyObject_CallObject(pFunc, pArgs);
                 Py_DECREF(pArgs);
+                long ret_value = 999;
 	            if (pValue != NULL) {
-	                output("Result of Python call: %ld\n", PyInt_AsLong(pValue));
+                    ret_value = PyInt_AsLong(pValue)
 	                Py_DECREF(pValue);
-	            }
-	            else {
+                } 
+
+                
+	            output("Result of Python call: %ld\n",ret_value);
+                if (ret_value != 0) {
 	                Py_DECREF(pFunc);
 	                Py_DECREF(pModule);
 	                PyErr_Print();
