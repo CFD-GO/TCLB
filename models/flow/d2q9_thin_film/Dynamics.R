@@ -78,6 +78,7 @@ AddSetting(name="S2", default="0", comment='MRT Sx')
 AddSetting(name="S3", default="0", comment='MRT Sx')
 AddSetting(name="S4", default="0", comment='MRT Sx')
 
+AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer (cumulant)')
 
 #Node types for boundaries
 AddNodeType(name="EPressure", group="BOUNDARY")
@@ -90,3 +91,6 @@ AddNodeType(name="EVelocity", group="BOUNDARY")
 
 AddNodeType(name="NSymmetry", group="BOUNDARY")
 AddNodeType(name="SSymmetry", group="BOUNDARY")
+
+
+AddNodeType(name="Cumulant", group="COLLISION")
