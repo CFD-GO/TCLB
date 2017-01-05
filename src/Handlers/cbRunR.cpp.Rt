@@ -144,17 +144,25 @@ PSolver DollarAssignGeometry(PSolver P, std::string name, Rcpp::IntegerVector v)
 	return P;
 }
 
+template <typename T>
+Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
+
 Rcpp::IntegerVector DollarGeometry(PSolver P, std::string name) {
 	lbRegion reg = P.solver->lattice->region;
 	size_t size = reg.size();
-	{
+	if (name == "dx") return SingleInteger(reg.dx);
+	if (name == "dy") return SingleInteger(reg.dy);
+	if (name == "dz") return SingleInteger(reg.dz);
+	if (name == "size") return SingleInteger(reg.size());
+	Rcpp::IntegerVector retdim(3);
+	retdim[0] = reg.nx;
+	retdim[1] = reg.ny;
+	retdim[2] = reg.nz;
+	if (name == "dim") return retdim;
+	{ // Geometry components
 		flag_t * NodeType = new flag_t[size];
 		P.solver->lattice->GetFlags(reg, NodeType);
 		Rcpp::IntegerVector small(size);
-		Rcpp::IntegerVector retdim(3);
-		retdim[0] = reg.nx;
-		retdim[1] = reg.ny;
-		retdim[2] = reg.nz;
 		small.attr("dim") = retdim;
 		<?R
 		i = !duplicated(NodeTypes$group)
@@ -206,8 +214,12 @@ int RunR::Init() {
 
 
 int RunR::DoIt() {
-    R.parseEval(node.child_value());
-    return 0;
+	try {
+		R.parseEval(node.child_value());
+	} catch (...) {
+		return -1;
+	}
+	return 0;
 }
 
 
