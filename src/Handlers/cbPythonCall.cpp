@@ -149,7 +149,7 @@ int cbPythonCall::DoIt () {
                 Py_DECREF(pArgs);
                 long ret_value = 999;
 	            if (pValue != NULL) {
-                    ret_value = PyInt_AsLong(pValue)
+                    ret_value = PyInt_AsLong(pValue);
 	                Py_DECREF(pValue);
                 } 
 
