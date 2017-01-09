@@ -1,4 +1,6 @@
 #include "cbLog.h"
+std::string cbLog::xmlname = "Log";
+#include "../HandlerFactory.h"
 
 int cbLog::Init () {
 		char fn[STRING_LEN];
@@ -27,3 +29,6 @@ int cbLog::Finish () {
 		return Callback::Finish();
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbLog > >;

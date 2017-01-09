@@ -1,4 +1,6 @@
 #include "InternalTopology.h"
+std::string InternalTopology::xmlname = "InternalTopology";
+#include "../HandlerFactory.h"
 
 int InternalTopology::Init () {
 		Pars = -1;
@@ -35,3 +37,6 @@ int InternalTopology::Parameters (int type, double * tab) {
 		return -1;	
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< InternalTopology > >;

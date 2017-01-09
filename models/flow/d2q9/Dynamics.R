@@ -20,8 +20,8 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 # If present thei are used:
 # As VelocityX/Y for Boundary conditions
 # As mass force (+ GravitationX/Y) in fluid
-AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
-AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+AddDensity( name="BC[1]", group="BC", parameter=TRUE)
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)

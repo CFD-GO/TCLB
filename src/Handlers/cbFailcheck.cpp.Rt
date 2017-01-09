@@ -1,9 +1,11 @@
 <?R
+#include "../HandlerFactory.h"
 source("conf.R")
 	c_header()
 ?>
 
 #include "cbFailcheck.h"
+std::string cbFailcheck::xmlname = "Failcheck";
 
 int cbFailcheck::Init () {
 		Callback::Init();
@@ -108,3 +110,6 @@ int cbFailcheck::Finish () {
 		return Callback::Finish();
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbFailcheck > >;

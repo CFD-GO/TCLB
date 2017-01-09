@@ -1,4 +1,6 @@
 #include "acSyntheticTurbulence.h"
+std::string acSyntheticTurbulence::xmlname = "SyntheticTurbulence";
+#include "../HandlerFactory.h"
 
 int acSyntheticTurbulence::ReadWaveNumer (std::string name, double * var) {
 		int set = 0;
@@ -109,3 +111,6 @@ int acSyntheticTurbulence::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acSyntheticTurbulence > >;

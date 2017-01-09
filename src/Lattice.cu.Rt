@@ -940,7 +940,8 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 }
 
 <?R
-	for (d in rows(rbind(Density,DensityAD))) { 
+	for (f in Fields[Fields$parameter]) { 
+
 	for (adjoint in c(TRUE,FALSE)) {
 	if (adjoint) {
 		from="aSnaps[aSnap]";
@@ -952,47 +953,47 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 	ifdef(adjoint)
 ?>
 
-/// Get [<?%s d$comment ?>]
+/// Get [<?%s f$comment ?>]
 /**
-        Retrive the values of the density <?%s d$nicename ?> (<?%s d$comment ?>)
+        Retrive the values of the density <?%s f$nicename ?> (<?%s f$comment ?>)
         from the GPU memory
 */
-void Lattice::Get_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
+void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 {
-	debug2("Pulling all <?%s d$nicename ?>\n");
+	debug2("Pulling all <?%s f$nicename ?>\n");
 	CudaMemcpy(
 		tab,
-		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
 		region.sizeL()*sizeof(real_t),
 		cudaMemcpyDeviceToHost);
 }
 
-/// Clear [<?%s d$comment ?>]
+/// Clear [<?%s f$comment ?>]
 /**
         Clear (set to zero) the values of
-        the density <?%s d$nicename ?> (<?%s d$comment ?>)
+        the density <?%s f$nicename ?> (<?%s f$comment ?>)
         in the GPU memory
 */
-void Lattice::Clear_<?%s d$nicename ?><?%s suff ?>()
+void Lattice::Clear_<?%s f$nicename ?><?%s suff ?>()
 {
-	debug2("Clearing all <?%s d$nicename ?>\n");
+	debug2("Clearing all <?%s f$nicename ?>\n");
 	CudaMemset(
-		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
 		0,
 		region.sizeL()*sizeof(real_t));
 }
 
-/// Set [<?%s d$comment ?>]
+/// Set [<?%s f$comment ?>]
 /**
         Set the values of
-        the density <?%s d$nicename ?> (<?%s d$comment ?>)
+        the density <?%s f$nicename ?> (<?%s f$comment ?>)
         in the GPU memory
 */
-void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
+void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 {
-	debug2("Setting all <?%s d$nicename ?>\n");
+	debug2("Setting all <?%s f$nicename ?>\n");
 	CudaMemcpy(
-		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()], 
 		tab,
 		region.sizeL()*sizeof(real_t),
 		cudaMemcpyHostToDevice);

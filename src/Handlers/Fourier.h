@@ -16,6 +16,7 @@ class  Fourier  : public  Design  {
 	Handler * hand;
 	double pi;
 public:
+	static std::string xmlname;
 int Init ();
 int Finish ();
 int NumberOfParameters ();

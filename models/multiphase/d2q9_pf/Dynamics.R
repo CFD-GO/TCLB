@@ -50,8 +50,8 @@ AddSetting(name="OverwriteVelocityField", default="0")
 # As VelocityX/Y for Boundary conditions
 # As mass force (+ GravitationX/Y) in fluid
 # If OverwriteVelocityField==1, this will be used to overwrite velocity
-AddDensity( name="BC[0]", dx=0, dy=0, group="BC")
-AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
+AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+AddDensity( name="BC[1]", group="BC", parameter=TRUE)
 
 
 

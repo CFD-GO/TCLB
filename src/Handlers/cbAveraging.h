@@ -8,6 +8,7 @@
 
 class  cbAveraging  : public  Callback  {
         public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 int Finish ();

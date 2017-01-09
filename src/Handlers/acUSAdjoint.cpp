@@ -1,4 +1,5 @@
 #include "acUSAdjoint.h"
+#include "../HandlerFactory.h"
 
 int acUSAdjoint::Init () {
 		GenericAction::Init();
@@ -45,4 +46,38 @@ int acUSAdjoint::Init () {
 		solver->iter_type = old_iter_type;
 		return 0;
 	}
+
+
+#include "acSAdjoint.h"
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_acUSAdjoint(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "Adjoint") {
+		pugi::xml_attribute attr = node.attribute("type");
+		if (attr) {
+			std::string type(attr.value());
+			if (type == "unsteady") {
+				return new acUSAdjoint;
+			} else if (type == "steady") {
+				return new acSAdjoint;
+			} else {
+				error("Unknown type of adjoint in xml: %s", type.c_str());
+			}
+		} else {
+			pugi::xml_attribute attr = node.attribute("Iterations");
+                	if (attr) {
+				return new acSAdjoint;
+				WARNING("Making a steady adjoint, because you gave me Iterations - better to state type explicitly.\n");
+			} else {
+				WARNING("Default adjoint is unsteady - better state type explicitly next time.\n");
+				return new acUSAdjoint;
+			}
+		}
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_acUSAdjoint >;
 

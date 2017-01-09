@@ -1,4 +1,6 @@
 #include "acOptSolve.h"
+std::string acOptSolve::xmlname = "OptSolve";
+#include "../HandlerFactory.h"
 
 int acOptSolve::Init () {
 		int old_iter_type = solver->iter_type;
@@ -40,3 +42,6 @@ int acOptSolve::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acOptSolve > >;

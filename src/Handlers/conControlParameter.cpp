@@ -1,4 +1,6 @@
 #include "conControlParameter.h"
+std::string conControlParameter::xmlname = "ControlParameter";
+#include "../HandlerFactory.h"
 
 int conControlParameter::Init () {
 		Action::Init();
@@ -13,3 +15,6 @@ int conControlParameter::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< conControlParameter > >;

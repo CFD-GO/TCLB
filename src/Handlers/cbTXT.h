@@ -11,6 +11,7 @@ class  cbTXT  : public  Callback  {
 	name_set s;
 	int txt_type;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 };

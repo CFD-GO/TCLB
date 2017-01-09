@@ -1,4 +1,6 @@
 #include "cbAveraging.h"
+std::string cbAveraging::xmlname = "Average";
+#include "../HandlerFactory.h"
 
 int cbAveraging::Init () {
 		Callback::Init();
@@ -18,3 +20,6 @@ int cbAveraging::Finish () {
                 return Callback::Finish();
         }
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbAveraging > >;

@@ -1,4 +1,6 @@
 #include "acLoadBinary.h"
+std::string acLoadBinary::xmlname = "LoadBinary";
+#include "../HandlerFactory.h"
 
 int acLoadBinary::Init () {
 		Action::Init();
@@ -20,3 +22,6 @@ int acLoadBinary::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acLoadBinary > >;

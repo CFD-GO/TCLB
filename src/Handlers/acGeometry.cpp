@@ -1,4 +1,6 @@
 #include "acGeometry.h"
+std::string acGeometry::xmlname = "Geometry";
+#include "../HandlerFactory.h"
 
 int acGeometry::Init () {
 			if (solver->geometry->load(node)) {
@@ -11,3 +13,6 @@ int acGeometry::Init () {
 			return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acGeometry > >;

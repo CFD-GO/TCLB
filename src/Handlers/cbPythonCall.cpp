@@ -5,6 +5,8 @@
     #include <numpy/arrayobject.h>
 #endif
 #include "cbPythonCall.h"
+std::string cbPythonCall::xmlname = "CallPython";
+#include "../HandlerFactory.h"
 
 int cbPythonCall::Init () {
 		Callback::Init();
@@ -202,3 +204,6 @@ int cbPythonCall::DoIt () {
 		return 0;
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbPythonCall > >;
