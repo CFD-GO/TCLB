@@ -45,7 +45,7 @@ Symmetry  = function(direction,sign,group='') {
                     D3$name.x < D3$name.y
                     D3 = D3[D3$name.x < D3$name.y,]
                     for ( i in seq_len(nrow(D3))) {
-                            if (sign > 0) C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
+                            if (sign*D3[,direction][i] > 0) C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
                             else C( PV(D3$name.y[i]), PV(D3$name.x[i]) )
                     }
                 }
