@@ -112,8 +112,15 @@ r)
 	try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
 	;;
 rdep)
-	normal_install optparse
-	normal_install numbers
+        if test "x$1" == "xgithub"
+        then
+                github_install cran/getopt
+                github_install cran/optparse
+                github_install cran/numbers
+        else
+                normal_install optparse
+                normal_install numbers
+        fi
 	github_install llaniewski/rtemplate
 	github_install llaniewski/gvector
 	github_install llaniewski/polyAlgebra
