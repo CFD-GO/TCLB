@@ -6,6 +6,8 @@
 
 #ifdef WITH_R
 
+#define rNull Rcpp::NumericVector(0)
+
 RInside RunR::R;
 
 //--------- R Wraps
@@ -20,46 +22,103 @@ template<> PSolver Rcpp::as(SEXP sexp) {
   return PSolver(s,s.attr("class"));
 }
 
+class rSolver {
+public:
+	Solver * solver;
+//	rSolver(Solver * solver_): solver(solver_){};
+	virtual SEXP Dollar(std::string name);
+	virtual void DollarAssign(std::string name, SEXP v);
+	virtual void print() { output("[R] rSolver: %p\n",solver); }
+	virtual ~rSolver() {};
+	template <typename T, typename... Args>
+	SEXP rWrap(Args... args...) {
+	         Rcpp::XPtr< rSolver > a(new T(args...));
+		 a->solver = solver;
+	         a.attr("class") = "CLB";
+	         return a;    
+	}
+};
 
-//--------- $.Solver
-PSolver DollarSolver(PSolver P, std::string name) {
+class rSettings : public rSolver {
+public:
+	virtual SEXP Dollar(std::string name);
+	virtual void DollarAssign(std::string name, SEXP v);
+};
+
+class rParameters : public rSolver {
+public:
+	virtual SEXP Dollar(std::string name);
+	virtual void DollarAssign(std::string name, SEXP v);
+};
+
+class rGeometry : public rSolver {
+public:
+	virtual SEXP Dollar(std::string name);
+	virtual void DollarAssign(std::string name, SEXP v);
+};
+
+//template <typename T, typename... Args>
+//SEXP rWrap(Args... args...) {
+//         Rcpp::XPtr< rSolver > a(new T(args...));    
+//         a.attr("class") = "CLB";
+//         return a;    
+//}
+
+void rSolver::DollarAssign(std::string name, SEXP v) {
+
+}
+
+
+SEXP rSolver::Dollar(std::string name) {
+	output("[R] Getting component of Solver %s",name.c_str());
   if (name == "Settings") {  
-    return PSolver(P.solver,"CLBSettings");
+    return rWrap<rSettings>();
   } else if (name == "Parameters") {  
-    return PSolver(P.solver,"CLBParameters");
+    return rWrap<rParameters>();
   } else if (name == "Actions") {  
-    return PSolver(P.solver,"CLBActions");
+    return rNull;
   } else if (name == "Geometry") {  
-    return PSolver(P.solver,"CLBGeometry");
+    return rWrap<rGeometry>();
   } else {
-    return PSolver(P.solver,"CLBNone");
+    return rNull;
   }
 }
 
-PSolver DollarAssignSolver(PSolver P, std::string name, PSolver C) {
-  return P;
+
+SEXP CLBDollar(Rcpp::XPtr< rSolver > obj, std::string name) {
+	return obj->Dollar(name);
 }
 
-Rcpp::NumericVector DollarSettings(PSolver P, std::string name) {
+SEXP CLBPrint(Rcpp::XPtr< rSolver > obj) {
+	obj->print();
+	return rNull;
+}
+
+SEXP CLBDollarAssign(Rcpp::XPtr< rSolver > obj, std::string name, SEXP v) {
+	obj->DollarAssign(name,v);
+	return obj;
+}
+
+SEXP rSettings::Dollar(std::string name) {
   output("[R] Getting setting: %s\n",name.c_str());
   return 0;
 }
 
-PSolver DollarAssignSettings(PSolver P, std::string name, Rcpp::NumericVector v) {
+void rSettings::DollarAssign(std::string name, SEXP v_) {
+  Rcpp::NumericVector v(v_);
   output("[R] Setting setting: %s to %lf\n",name.c_str(),(double)v[0]);
   <?R for (v in rows(Settings)) { ?>
           if (name == "<?%s v$name?>") {
-                P.solver->lattice-><?%s v$FunName ?>(v[0]);
-		return P;
+                solver->lattice-><?%s v$FunName ?>(v[0]);
+		return;
           }
   <?R } ?>
   ERROR("[R] Unknown setting");
-  return P;
 }
 
-Rcpp::NumericVector DollarParameters(PSolver P, std::string name) {
+SEXP rParameters::Dollar(std::string name) {
 	output("[R] Getting parameter: %s\n",name.c_str());
-	lbRegion reg = P.solver->lattice->region;
+	lbRegion reg = solver->lattice->region;
 	Rcpp::NumericVector ret(reg.size());
 	Rcpp::IntegerVector retdim(3);
 	retdim[0] = reg.nx;
@@ -70,7 +129,7 @@ Rcpp::NumericVector DollarParameters(PSolver P, std::string name) {
     for (d in rows(DensityAll)) if (d$parameter){ 
 ?>
     if (name == "<?%s d$nicename ?>") {
-        P.solver->lattice->Get_<?%s d$nicename ?>(&ret[0]); 
+        solver->lattice->Get_<?%s d$nicename ?>(&ret[0]); 
 	return ret;
     }
 <?R
@@ -80,28 +139,27 @@ Rcpp::NumericVector DollarParameters(PSolver P, std::string name) {
 	return Rcpp::NumericVector(0);
 }
 
-PSolver DollarAssignParameters(PSolver P, std::string name, Rcpp::NumericVector v) {
+void rParameters::DollarAssign(std::string name, SEXP v_) {
+	Rcpp::NumericVector v(v_);
 	output("[R] Setting parameter: %s (size:%ld)\n",name.c_str(),v.size());
-	if (v.size() != P.solver->region.size()) {
+	if (v.size() != solver->region.size()) {
 		ERROR("Wrong size of the parameter field!");
-		return P;
+		return;
 	}
 <?R 
     for (d in rows(DensityAll)) if (d$parameter){ 
 ?>
     if (name == "<?%s d$nicename ?>") {
-        P.solver->lattice->Set_<?%s d$nicename ?>(&v[0]); 
-	return P;
+        solver->lattice->Set_<?%s d$nicename ?>(&v[0]); 
+	return;
     }
 <?R
 } 
 ?>
 	ERROR("[R] Unknown parameter");
-	return P;
 }
 
-
-
+/*
 void DollarActions(PSolver P, std::string name) {
 	output("[R] Running action: %s\n",name.c_str());
 	int Snap = P.solver->lattice->Snap;
@@ -120,13 +178,15 @@ void DollarActions(PSolver P, std::string name) {
 	ERROR("[R] Unknown Action");
 	return;
 }
+*/
 
-PSolver DollarAssignGeometry(PSolver P, std::string name, Rcpp::IntegerVector v) {
-	lbRegion reg = P.solver->lattice->region;
+void rGeometry::DollarAssign(std::string name, SEXP v_) {
+	Rcpp::IntegerVector v(v_);
+	lbRegion reg = solver->lattice->region;
 	size_t size = reg.size();
 	{
 		flag_t * NodeType = new flag_t[size];
-		P.solver->lattice->GetFlags(reg, NodeType);
+		solver->lattice->GetFlags(reg, NodeType);
 		<?R
 		i = !duplicated(NodeTypes$group)
 		for (n in rows(NodeTypes[i,])) {
@@ -138,17 +198,17 @@ PSolver DollarAssignGeometry(PSolver P, std::string name, Rcpp::IntegerVector v)
 			}
 		}
 		<?R } ?>
-		P.solver->lattice->FlagOverwrite(NodeType, reg);
+		solver->lattice->FlagOverwrite(NodeType, reg);
 		delete[] NodeType;
 	}
-	return P;
+	return;
 }
 
 template <typename T>
 Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
 
-Rcpp::IntegerVector DollarGeometry(PSolver P, std::string name) {
-	lbRegion reg = P.solver->lattice->region;
+SEXP rGeometry::Dollar(std::string name) {
+	lbRegion reg = solver->lattice->region;
 	size_t size = reg.size();
 	if (name == "dx") return SingleInteger(reg.dx);
 	if (name == "dy") return SingleInteger(reg.dy);
@@ -161,7 +221,7 @@ Rcpp::IntegerVector DollarGeometry(PSolver P, std::string name) {
 	if (name == "dim") return retdim;
 	{ // Geometry components
 		flag_t * NodeType = new flag_t[size];
-		P.solver->lattice->GetFlags(reg, NodeType);
+		solver->lattice->GetFlags(reg, NodeType);
 		Rcpp::IntegerVector small(size);
 		small.attr("dim") = retdim;
 		<?R
@@ -189,26 +249,42 @@ Rcpp::IntegerVector DollarGeometry(PSolver P, std::string name) {
 	return Rcpp::IntegerVector(0);
 }
 
-
-Rcpp::NumericMatrix DollarQuantity(PSolver P, std::string name) {
-  output("[R] Getting setting: %s\n",name.c_str());
-  return 0;
+SEXP CLBFunctionCall(Rcpp::XPtr< rSolver > obj, Rcpp::List args) {
+//	return obj->Dollar(name);
+	return args;
 }
 
 
 int RunR::Init() {
     Callback::Init();
-    R["Solver"] = PSolver(solver);
-    R["$.CLBSolver"]       = Rcpp::InternalFunction( &DollarSolver );
-    R["$<-.CLBSolver"]     = Rcpp::InternalFunction( &DollarAssignSolver );
-    R["$.CLBSettings"]     = Rcpp::InternalFunction( &DollarSettings );
-    R["$<-.CLBSettings"]   = Rcpp::InternalFunction( &DollarAssignSettings );
-    R["$.CLBParameters"]   = Rcpp::InternalFunction( &DollarParameters );
-    R["$<-.CLBParameters"] = Rcpp::InternalFunction( &DollarAssignParameters );
-    R["$.CLBGeometry"]     = Rcpp::InternalFunction( &DollarGeometry );
-    R["$<-.CLBGeometry"]   = Rcpp::InternalFunction( &DollarAssignGeometry );
-    R["CLBActionsFun"]     = Rcpp::InternalFunction( &DollarActions );
-    R.parseEval("'$.CLBActions' <- function(obj, name) { function() CLBActionsFun(obj, name); }");
+	output("Initializing R env ...");
+//    R["Solver"] = PSolver(solver);
+//    R["Solver"]      = rWrap<rSolver>(solver);
+    R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
+    R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
+
+
+	         Rcpp::XPtr< rSolver > a(new rSolver());
+		 a->solver = solver;
+	         a.attr("class") = "CLB";
+    R["Solver"]      = a;
+
+	R["SolverFun"] = Rcpp::Function("CLBFunctionWrap")(a);
+
+    R["$.CLB"]       = Rcpp::InternalFunction( &CLBDollar );
+    R["$<-.CLB"]     = Rcpp::InternalFunction( &CLBDollarAssign );
+    R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
+	
+//    R["$.CLBSolver"]       = Rcpp::InternalFunction( &DollarSolver );
+//    R["$<-.CLBSolver"]     = Rcpp::InternalFunction( &DollarAssignSolver );
+//    R["$.CLBSettings"]     = Rcpp::InternalFunction( &DollarSettings );
+//    R["$<-.CLBSettings"]   = Rcpp::InternalFunction( &DollarAssignSettings );
+//    R["$.CLBParameters"]   = Rcpp::InternalFunction( &DollarParameters );
+//    R["$<-.CLBParameters"] = Rcpp::InternalFunction( &DollarAssignParameters );
+//    R["$.CLBGeometry"]     = Rcpp::InternalFunction( &DollarGeometry );
+//    R["$<-.CLBGeometry"]   = Rcpp::InternalFunction( &DollarAssignGeometry );
+//    R["CLBActionsFun"]     = Rcpp::InternalFunction( &DollarActions );
+//    R.parseEval("'$.CLBActions' <- function(obj, name) { function() CLBActionsFun(obj, name); }");
     return 0;
 }
 
