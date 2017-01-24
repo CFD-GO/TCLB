@@ -7,33 +7,26 @@
 #ifdef WITH_R
 
 #define rNull Rcpp::NumericVector(0)
+template <typename T>
+Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
 
 RInside RunR::R;
 
-//--------- R Wraps
-template<> SEXP Rcpp::wrap(const PSolver &f) {
-  Rcpp::XPtr< Solver > Rf(f.solver);
-  Rf.attr("class") = f.myclass;
-  return Rf;
-}
-
-template<> PSolver Rcpp::as(SEXP sexp) {
-  Rcpp::XPtr< Solver > s = Rcpp::as< Rcpp::XPtr< Solver > >(sexp);
-  return PSolver(s,s.attr("class"));
-}
-
-class rSolver {
+class rWrapper {
 public:
 	Solver * solver;
-//	rSolver(Solver * solver_): solver(solver_){};
-	virtual SEXP Dollar(std::string name);
-	virtual void DollarAssign(std::string name, SEXP v);
-	virtual void print() { output("[R] rSolver: %p\n",solver); }
+	virtual SEXP Dollar(std::string name) {};
+	virtual void DollarAssign(std::string name, SEXP v) {};
+	virtual std::string print() {
+		char str[2048];
+		sprintf(str,"rWrapper(%p)\n",solver);
+		return std::string(str);
+	}
 	virtual SEXP Call(Rcpp::List) { ERROR("[R] Called a non-callable rSolver"); }
-	virtual ~rSolver() {};
-	template <typename T, typename... Args>
-	SEXP rWrap(Args... args...) {
-	        Rcpp::XPtr< rSolver > a(new T(args...));
+	virtual ~rWrapper() { output("[R] Destroying wrapper");};
+	template <class T>
+	SEXP rWrap(T * ptr) {
+	        Rcpp::XPtr< rWrapper > a(ptr);
 		a->solver = solver;
 		Rcpp::Function wraper("CLBFunctionWrap");
 		Rcpp::Function ra = wraper(a);
@@ -43,71 +36,36 @@ public:
 	}
 };
 
-class rSettings : public rSolver {
+class rSolver;
+class rSettings;
+class rParameters;
+class rActions;
+class rAction;
+class rGeometry;
+
+class rSettings : public rWrapper {
 public:
-	virtual SEXP Dollar(std::string name);
-	virtual void DollarAssign(std::string name, SEXP v);
+	std::string print() { return "Settings"; }
+	SEXP Dollar(std::string name) {
+	  return 0;
+	}
+
+	void DollarAssign(std::string name, SEXP v_) {
+	  Rcpp::NumericVector v(v_);
+	  <?R for (v in rows(Settings)) { ?>
+	          if (name == "<?%s v$name?>") {
+	                solver->lattice-><?%s v$FunName ?>(v[0]);
+			return;
+	          }
+	  <?R } ?>
+	  ERROR("[R] Unknown setting");
+	}
 };
 
-class rParameters : public rSolver {
+class rParameters : public rWrapper {
 public:
-	virtual SEXP Dollar(std::string name);
-	virtual void DollarAssign(std::string name, SEXP v);
-};
-
-class rGeometry : public rSolver {
-public:
-	virtual SEXP Dollar(std::string name);
-	virtual void DollarAssign(std::string name, SEXP v);
-};
-
-//template <typename T, typename... Args>
-//SEXP rWrap(Args... args...) {
-//         Rcpp::XPtr< rSolver > a(new T(args...));    
-//         a.attr("class") = "CLB";
-//         return a;    
-//}
-
-void rSolver::DollarAssign(std::string name, SEXP v) {
-
-}
-
-
-SEXP rSolver::Dollar(std::string name) {
-	output("[R] Getting component of Solver %s",name.c_str());
-  if (name == "Settings") {  
-    return rWrap<rSettings>();
-  } else if (name == "Parameters") {  
-    return rWrap<rParameters>();
-  } else if (name == "Actions") {  
-    return rWrap<rActions>();
-  } else if (name == "Geometry") {  
-    return rWrap<rGeometry>();
-  } else {
-    return rNull;
-  }
-}
-
-
-SEXP rSettings::Dollar(std::string name) {
-  output("[R] Getting setting: %s\n",name.c_str());
-  return 0;
-}
-
-void rSettings::DollarAssign(std::string name, SEXP v_) {
-  Rcpp::NumericVector v(v_);
-  output("[R] Setting setting: %s to %lf\n",name.c_str(),(double)v[0]);
-  <?R for (v in rows(Settings)) { ?>
-          if (name == "<?%s v$name?>") {
-                solver->lattice-><?%s v$FunName ?>(v[0]);
-		return;
-          }
-  <?R } ?>
-  ERROR("[R] Unknown setting");
-}
-
-SEXP rParameters::Dollar(std::string name) {
-	output("[R] Getting parameter: %s\n",name.c_str());
+	std::string print() { return "Parameters"; }
+SEXP Dollar(std::string name) {
 	lbRegion reg = solver->lattice->region;
 	Rcpp::NumericVector ret(reg.size());
 	Rcpp::IntegerVector retdim(3);
@@ -129,9 +87,8 @@ SEXP rParameters::Dollar(std::string name) {
 	return Rcpp::NumericVector(0);
 }
 
-void rParameters::DollarAssign(std::string name, SEXP v_) {
+void DollarAssign(std::string name, SEXP v_) {
 	Rcpp::NumericVector v(v_);
-	output("[R] Setting parameter: %s (size:%ld)\n",name.c_str(),v.size());
 	if (v.size() != solver->region.size()) {
 		ERROR("Wrong size of the parameter field!");
 		return;
@@ -148,56 +105,77 @@ void rParameters::DollarAssign(std::string name, SEXP v_) {
 ?>
 	ERROR("[R] Unknown parameter");
 }
+};
 
-/*
-void DollarActions(PSolver P, std::string name) {
-	output("[R] Running action: %s\n",name.c_str());
-	int Snap = P.solver->lattice->Snap;
-	<?R for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
-	if (name == "<?%s n ?>") {
-		P.solver->lattice-><?%s FunName ?>(Snap, (Snap+1) % 2, P.solver->iter_type);
-		return;
-	}
-	<?R } ?>
-	ERROR("[R] Unknown Action");
-	return;
-}
-*/
+class rAction : public rWrapper {
+	std::string name;
+public:
+	std::string print() { return name + " (Action)"; }
 
-void rGeometry::DollarAssign(std::string name, SEXP v_) {
-	Rcpp::IntegerVector v(v_);
-	lbRegion reg = solver->lattice->region;
-	size_t size = reg.size();
-	{
-		flag_t * NodeType = new flag_t[size];
-		solver->lattice->GetFlags(reg, NodeType);
-		<?R
-		i = !duplicated(NodeTypes$group)
-		for (n in rows(NodeTypes[i,])) {
-		?>
-		if (name == "<?%s n$group ?>") {
-			output("[R] Setting <?%s n$group ?>");
-			for (size_t i=0;i<size;i++) {
-				NodeType[i] = (NodeType[i] - (NodeType[i] & NODE_<?%s n$group ?>)) + ((v[i] - 1) << <?%d n$shift ?>);
-			}
+	rAction(const char* name_): name(name_) {};
+	SEXP Call(Rcpp::List args) {
+		int Snap = solver->lattice->Snap;
+		<?R for (n in names(Actions)) {
+	        a = Actions[[n]]
+	        if (n == "Iteration") {
+	                FunName = "Iteration"
+	        } else {
+	                FunName = paste("Action",n,sep="_")
+	        } ?>
+		if (name == "<?%s n ?>") {
+			solver->lattice-><?%s FunName ?>(Snap, (Snap+1) % 2, solver->iter_type);
+			return rNull;
 		}
 		<?R } ?>
-		solver->lattice->FlagOverwrite(NodeType, reg);
-		delete[] NodeType;
+		ERROR("[R] Unknown Action");
+		return rNull;
 	}
-	return;
-}
+};
 
-template <typename T>
-Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
+class rActions : public rWrapper {
+	std::string print() { return "Actions"; }
+public:
+	SEXP Dollar(std::string name) {
+		return rWrap(new rAction(name.c_str()));
+	}
+};
 
-SEXP rGeometry::Dollar(std::string name) {
+class rGeometry : public rWrapper {
+public:
+	std::string print() { return "Geometry"; }
+
+	void DollarAssign(std::string name, SEXP v_) {
+		Rcpp::IntegerVector v(v_);
+		lbRegion reg = solver->lattice->region;
+		size_t size = reg.size();
+		{
+			flag_t * NodeType = new flag_t[size];
+			solver->lattice->GetFlags(reg, NodeType);
+			<?R
+			i = !duplicated(NodeTypes$group)
+			for (n in rows(NodeTypes[i,])) {
+			?>
+			if (name == "<?%s n$group ?>") {
+				bool some_na = false;
+				for (size_t i=0;i<size;i++) {
+					if (Rcpp::IntegerVector::is_na(v[i])) {
+						some_na = true;
+					} else {
+						NodeType[i] = (NodeType[i] - (NodeType[i] & NODE_<?%s n$group ?>)) + ((v[i] - 1) << <?%d n$shift ?>);
+					}
+				}
+				if (some_na) {
+					ERROR("Some NA in Geometry (<?%s n$group ?>) assignment");
+				}
+			}
+			<?R } ?>
+			solver->lattice->FlagOverwrite(NodeType, reg);
+			delete[] NodeType;
+		}
+		return;
+	}
+
+SEXP Dollar(std::string name) {
 	lbRegion reg = solver->lattice->region;
 	size_t size = reg.size();
 	if (name == "dx") return SingleInteger(reg.dx);
@@ -219,12 +197,11 @@ SEXP rGeometry::Dollar(std::string name) {
 		for (n in rows(NodeTypes[i,])) {
 		?>
 		if (name == "<?%s n$group ?>") {
-			output("[R] Getting <?%s n$group ?>");
 			for (size_t i=0;i<size;i++) {
 				small[i] = 1 + ((NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>);
 			}
 			Rcpp::CharacterVector levels;
-			levels.push_back("NONE"); <?R
+			levels.push_back("None"); <?R
 			for (m in rows(NodeTypes[NodeTypes$group == n$group,])) { ?>
 				levels.push_back("<?%s m$name ?>"); <?R
 			} ?>
@@ -239,69 +216,77 @@ SEXP rGeometry::Dollar(std::string name) {
 	return Rcpp::IntegerVector(0);
 }
 
-SEXP CLBFunctionCall(Rcpp::XPtr< rSolver > obj, Rcpp::List args) {
+};
+
+
+class rSolver : public rWrapper {
+public:
+	std::string print() { return "Solver"; }
+
+	SEXP Dollar(std::string name) {
+	  if (name == "Settings") {  
+	    return rWrap(new rSettings());
+	  } else if (name == "Parameters") {  
+	    return rWrap(new rParameters());
+	  } else if (name == "Actions") {  
+	    return rWrap(new rActions());
+	  } else if (name == "Geometry") {  
+	    return rWrap(new rGeometry());
+	  }
+	  return rNull;
+	}
+};
+
+
+SEXP CLBFunctionCall(Rcpp::XPtr< rWrapper > obj, Rcpp::List args) {
+	notice("[R] Calling %s",obj->print().c_str());
 	return obj->Call(args);
 }
 
 
 SEXP CLBDollar(SEXP fobj_, std::string name) {
 	Rcpp::Function fobj = fobj_;
-	Rcpp::XPtr< rSolver > obj = fobj.attr("xptr");
+	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
+	notice("[R] Getting %s from %s",name.c_str(),obj->print().c_str());
 	return obj->Dollar(name);
 }
 
 SEXP CLBPrint(SEXP fobj_) {
 	Rcpp::Function fobj = fobj_;
-	Rcpp::XPtr< rSolver > obj = fobj.attr("xptr");
-	obj->print();
-	return fobj_;
+	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
+	std::string s = obj->print();
+	notice("[R] Printing %s",s.c_str());
+	return Rcpp::CharacterVector(s);
 }
 
 SEXP CLBDollarAssign(SEXP fobj_, std::string name, SEXP v) {
 	Rcpp::Function fobj = fobj_;
-	Rcpp::XPtr< rSolver > obj = fobj.attr("xptr");
+	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
+	notice("[R] Setting %s from %s",name.c_str(),obj->print().c_str());
 	obj->DollarAssign(name,v);
 	return fobj_;
 }
 
 
 int RunR::Init() {
-    Callback::Init();
-	output("Initializing R env ...");
-//    R["Solver"] = PSolver(solver);
-//    R["Solver"]      = rWrap<rSolver>(solver);
-    R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
-    R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
+	Callback::Init();
+	notice("[R] Initializing R environment ...");
+	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
+	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
+	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
+	R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
+	R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
 
-
-//	         Rcpp::XPtr< rSolver > a(new rSolver());
-//		 a->solver = solver;
-//	         a.attr("class") = "CLB";
-//    R["Solver"]      = a;
-	rSolver base;
+	rWrapper base;
 	base.solver = solver;
+	R["Solver"]          = base.rWrap(new  rSolver ());
 	
-    R["Solver"] = base.rWrap< rSolver >();
-
-    R["$.CLB"]       = Rcpp::InternalFunction( &CLBDollar );
-    R["$<-.CLB"]     = Rcpp::InternalFunction( &CLBDollarAssign );
-    R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
-	
-//    R["$.CLBSolver"]       = Rcpp::InternalFunction( &DollarSolver );
-//    R["$<-.CLBSolver"]     = Rcpp::InternalFunction( &DollarAssignSolver );
-//    R["$.CLBSettings"]     = Rcpp::InternalFunction( &DollarSettings );
-//    R["$<-.CLBSettings"]   = Rcpp::InternalFunction( &DollarAssignSettings );
-//    R["$.CLBParameters"]   = Rcpp::InternalFunction( &DollarParameters );
-//    R["$<-.CLBParameters"] = Rcpp::InternalFunction( &DollarAssignParameters );
-//    R["$.CLBGeometry"]     = Rcpp::InternalFunction( &DollarGeometry );
-//    R["$<-.CLBGeometry"]   = Rcpp::InternalFunction( &DollarAssignGeometry );
-//    R["CLBActionsFun"]     = Rcpp::InternalFunction( &DollarActions );
-//    R.parseEval("'$.CLBActions' <- function(obj, name) { function() CLBActionsFun(obj, name); }");
-    return 0;
+	return 0;
 }
 
 
 int RunR::DoIt() {
+	output("[R] Running R ...");
 	try {
 		R.parseEval(node.child_value());
 	} catch (...) {
