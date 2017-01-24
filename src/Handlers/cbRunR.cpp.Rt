@@ -7,12 +7,11 @@
 #ifdef WITH_R
 
 #define rNull Rcpp::NumericVector(0)
-template <typename T>
-Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
+template <typename T> Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
 
 RInside RunR::R;
 
-class rWrapper {
+class rWrapper { // Wrapper for all my R objects
 public:
 	Solver * solver;
 	virtual SEXP Dollar(std::string name) { return rNull; };
@@ -36,13 +35,6 @@ public:
 	}
 };
 
-class rSolver;
-class rSettings;
-class rParameters;
-class rActions;
-class rAction;
-class rGeometry;
-
 class rSettings : public rWrapper {
 public:
 	std::string print() { return "Settings"; }
@@ -65,46 +57,46 @@ public:
 class rParameters : public rWrapper {
 public:
 	std::string print() { return "Parameters"; }
-SEXP Dollar(std::string name) {
-	lbRegion reg = solver->lattice->region;
-	Rcpp::NumericVector ret(reg.size());
-	Rcpp::IntegerVector retdim(3);
-	retdim[0] = reg.nx;
-	retdim[1] = reg.ny;
-	retdim[2] = reg.nz;
-	ret.attr("dim") = retdim;
-<?R 
-    for (d in rows(DensityAll)) if (d$parameter){ 
-?>
-    if (name == "<?%s d$nicename ?>") {
-        solver->lattice->Get_<?%s d$nicename ?>(&ret[0]); 
-	return ret;
-    }
-<?R
-} 
-?>
-	ERROR("[R] Unknown parameter");
-	return Rcpp::NumericVector(0);
-}
-
-void DollarAssign(std::string name, SEXP v_) {
-	Rcpp::NumericVector v(v_);
-	if (v.size() != solver->region.size()) {
-		ERROR("Wrong size of the parameter field!");
-		return;
+	SEXP Dollar(std::string name) {
+		lbRegion reg = solver->lattice->region;
+		Rcpp::NumericVector ret(reg.size());
+		Rcpp::IntegerVector retdim(3);
+		retdim[0] = reg.nx;
+		retdim[1] = reg.ny;
+		retdim[2] = reg.nz;
+		ret.attr("dim") = retdim;
+	<?R 
+	    for (d in rows(DensityAll)) if (d$parameter){ 
+	?>
+	    if (name == "<?%s d$nicename ?>") {
+	        solver->lattice->Get_<?%s d$nicename ?>(&ret[0]); 
+		return ret;
+	    }
+	<?R
+	} 
+	?>
+		ERROR("[R] Unknown parameter");
+		return Rcpp::NumericVector(0);
 	}
-<?R 
-    for (d in rows(DensityAll)) if (d$parameter){ 
-?>
-    if (name == "<?%s d$nicename ?>") {
-        solver->lattice->Set_<?%s d$nicename ?>(&v[0]); 
-	return;
-    }
-<?R
-} 
-?>
-	ERROR("[R] Unknown parameter");
-}
+
+	void DollarAssign(std::string name, SEXP v_) {
+		Rcpp::NumericVector v(v_);
+		if (v.size() != solver->region.size()) {
+			ERROR("Wrong size of the parameter field!");
+			return;
+		}
+	<?R 
+	    for (d in rows(DensityAll)) if (d$parameter){ 
+	?>
+	    if (name == "<?%s d$nicename ?>") {
+	        solver->lattice->Set_<?%s d$nicename ?>(&v[0]); 
+		return;
+	    }
+	<?R
+	} 
+	?>
+		ERROR("[R] Unknown parameter");
+	}
 };
 
 class rAction : public rWrapper {
