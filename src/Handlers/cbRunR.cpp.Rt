@@ -15,14 +15,14 @@ RInside RunR::R;
 class rWrapper {
 public:
 	Solver * solver;
-	virtual SEXP Dollar(std::string name) {};
+	virtual SEXP Dollar(std::string name) { return rNull; };
 	virtual void DollarAssign(std::string name, SEXP v) {};
 	virtual std::string print() {
 		char str[2048];
 		sprintf(str,"rWrapper(%p)\n",solver);
 		return std::string(str);
 	}
-	virtual SEXP Call(Rcpp::List) { ERROR("[R] Called a non-callable rSolver"); }
+	virtual SEXP Call(Rcpp::List) { ERROR("[R] Called a non-callable rSolver"); return rNull; }
 	virtual ~rWrapper() { output("[R] Destroying wrapper");};
 	template <class T>
 	SEXP rWrap(T * ptr) {
