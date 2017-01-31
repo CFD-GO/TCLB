@@ -9,7 +9,8 @@
 #define rNull Rcpp::NumericVector(0)
 template <typename T> Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
 
-RInside RunR::R;
+//RInside RunR::R(0,0,true,false,true);
+RInside RunR::R(0,0,true,false,true);
 
 class rWrapper { // Wrapper for all my R objects
 public:
@@ -21,8 +22,8 @@ public:
 		sprintf(str,"rWrapper(%p)\n",solver);
 		return std::string(str);
 	}
-	virtual SEXP Call(Rcpp::List) { ERROR("[R] Called a non-callable rSolver"); return rNull; }
-	virtual ~rWrapper() { output("[R] Destroying wrapper");};
+	virtual SEXP Call(Rcpp::List) { ERROR("R: Called a non-callable rWrapper"); return rNull; }
+	virtual ~rWrapper() { debug0("R: Destroying wrapper");};
 	template <class T>
 	SEXP rWrap(T * ptr) {
 	        Rcpp::XPtr< rWrapper > a(ptr);
@@ -50,7 +51,7 @@ public:
 			return;
 	          }
 	  <?R } ?>
-	  ERROR("[R] Unknown setting");
+	  ERROR("R: Unknown setting");
 	}
 };
 
@@ -75,7 +76,7 @@ public:
 	<?R
 	} 
 	?>
-		ERROR("[R] Unknown parameter");
+		ERROR("R: Unknown parameter");
 		return Rcpp::NumericVector(0);
 	}
 
@@ -95,7 +96,7 @@ public:
 	<?R
 	} 
 	?>
-		ERROR("[R] Unknown parameter");
+		ERROR("R: Unknown parameter");
 	}
 };
 
@@ -119,7 +120,7 @@ public:
 			return rNull;
 		}
 		<?R } ?>
-		ERROR("[R] Unknown Action");
+		ERROR("R: Unknown Action");
 		return rNull;
 	}
 };
@@ -204,7 +205,7 @@ SEXP Dollar(std::string name) {
 		<?R } ?>
 		delete[] NodeType;
 	}
-	ERROR("[R] Unknown component of Geometry");
+	ERROR("R: Unknown component of Geometry");
 	return Rcpp::IntegerVector(0);
 }
 
@@ -231,7 +232,7 @@ public:
 
 
 SEXP CLBFunctionCall(Rcpp::XPtr< rWrapper > obj, Rcpp::List args) {
-	notice("[R] Calling %s",obj->print().c_str());
+	debug2("R: Calling %s",obj->print().c_str());
 	return obj->Call(args);
 }
 
@@ -239,7 +240,7 @@ SEXP CLBFunctionCall(Rcpp::XPtr< rWrapper > obj, Rcpp::List args) {
 SEXP CLBDollar(SEXP fobj_, std::string name) {
 	Rcpp::Function fobj = fobj_;
 	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
-	notice("[R] Getting %s from %s",name.c_str(),obj->print().c_str());
+	debug2("R: Getting %s from %s",name.c_str(),obj->print().c_str());
 	return obj->Dollar(name);
 }
 
@@ -247,22 +248,69 @@ SEXP CLBPrint(SEXP fobj_) {
 	Rcpp::Function fobj = fobj_;
 	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
 	std::string s = obj->print();
-	notice("[R] Printing %s",s.c_str());
+	notice("R: Printing %s",s.c_str());
 	return Rcpp::CharacterVector(s);
 }
 
 SEXP CLBDollarAssign(SEXP fobj_, std::string name, SEXP v) {
 	Rcpp::Function fobj = fobj_;
 	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
-	notice("[R] Setting %s from %s",name.c_str(),obj->print().c_str());
+	debug2("R: Setting %s from %s",name.c_str(),obj->print().c_str());
 	obj->DollarAssign(name,v);
 	return fobj_;
 }
 
+extern "C" {
+
+void CLB_WriteConsoleLine( const char* message, int oType) {
+	if (oType == 0) {
+		output("R: %s",message);
+	} else if (oType == 1) {
+		error("R: %s", message);
+	} else {
+		notice("R: (%d) %s",oType,message);
+	}
+}
+
+void CLB_WriteConsoleEx( const char* message, int len, int oType ){
+	const int buf_size = 4000;
+	static char buf[buf_size];
+	static int pos = 0;
+	static int oldType = 0;
+	if (oldType != oType) {
+		if (pos > 0) {
+			buf[pos] = '\0';
+			CLB_WriteConsoleLine(buf,oType);
+			pos = 0;
+		}
+	}
+	oldType = oType;
+	while (*message) {
+		buf[pos] = *message;
+		message++;
+		if (buf[pos] == '\n') {
+			buf[pos] = '\0';
+			CLB_WriteConsoleLine(buf,oType);
+			pos = 0;
+		} else {
+			pos++;
+			if (pos == buf_size - 1) {
+				buf[pos] = '\0';
+                        	CLB_WriteConsoleLine(buf,oType);
+                        	pos = 0;
+			}
+		}		
+	}
+}
+}
+
+  #define R_INTERFACE_PTRS
+  #include <Rinterface.h>
 
 int RunR::Init() {
 	Callback::Init();
-	notice("[R] Initializing R environment ...");
+	notice("R: Initializing R environment ...");
+
 	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
 	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
 	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
@@ -272,15 +320,26 @@ int RunR::Init() {
 	rWrapper base;
 	base.solver = solver;
 	R["Solver"]          = base.rWrap(new  rSolver ());
+
+        ptr_R_WriteConsoleEx = CLB_WriteConsoleEx ;
+        ptr_R_WriteConsole = NULL;
+	R_Outputfile = NULL;
+	R_Consolefile = NULL;
+
+	R.parseEval("options(prompt='[  ] R:> ');");
 	
 	return 0;
 }
 
 
 int RunR::DoIt() {
-	output("[R] Running R ...");
+	output("Running R ...");
 	try {
 		R.parseEval(node.child_value());
+		if (node.attribute("interactive")) {
+			R_ReplDLLinit();
+			while( R_ReplDLLdo1() > 0 ) {}
+		}
 	} catch (...) {
 		return -1;
 	}
