@@ -102,8 +102,12 @@ for (d in destinations) {
 		ropt = "$(RTOPT)"
 		if (adjoint) ropt = c(ropt, "$(RTOPT_ADJ)")
 		ropt = c(ropt, paste0("MODEL=\\\"",m,"\\\""))
-		opts = ifelse(opts==0,"FALSE","TRUE")
-		opts = paste0(names(opts),"=",opts,collapse=",")
+		if (length(opts) > 0) {
+			opts = ifelse(opts==0,"FALSE","TRUE")
+			opts = paste0(names(opts),"=",opts,collapse=",")
+		} else {
+			opts = ""
+		}
 		opts = paste0("\"Options=list(",opts,")\"")
 		ropt = c(ropt,opts)
 		#paste0(names(opts),"=",a,collapse=",")
