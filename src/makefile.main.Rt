@@ -89,6 +89,7 @@ for (d in destinations) {
 		m = Models$name[i];
 		model_path = Models$path[i];
 		adjoint = Models$adjoint[i]
+		opts = Models$opts[[i]]
 		dest = paste(d,"/",m,"/",sep="")
 		src = "$(SOURCE_ALL)"
 		if (adjoint) src = paste(src, "$(SOURCE_ADJ)")
@@ -98,6 +99,14 @@ for (d in destinations) {
 		src_all = paste(dest,src_all)
 		add = paste("$(addprefix ",dest,"/,$(ADDITIONALS))",sep="")
 		src_all = paste(src_all,add)
+		ropt = "$(RTOPT)"
+		if (adjoint) ropt = c(ropt, "$(RTOPT_ADJ)")
+		ropt = c(ropt, paste0("MODEL=\\\"",m,"\\\""))
+		opts = ifelse(opts==0,"FALSE","TRUE")
+		opts = paste0(names(opts),"=",opts,collapse=",")
+		opts = paste0("\"Options=list(",opts,")\"")
+		ropt = c(ropt,opts)
+		#paste0(names(opts),"=",a,collapse=",")
 ?>
 <?%s m ?>:  | <?%s d ?>/<?%s m ?>
 
@@ -165,13 +174,13 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || mv $@ $@~
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || mv $@ $@~
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || mv $@ $@~
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
@@ -182,13 +191,13 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 <?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%
