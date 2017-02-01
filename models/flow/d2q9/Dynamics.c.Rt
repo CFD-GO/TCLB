@@ -93,13 +93,11 @@ CudaDeviceFunction void Init() {
    	rho = (1+Pressure*3);
 	ux = VelocityX;
     uy = VelocityY;
-<?R if ( Options$BC ) { ?>
     if (IamWall){
         rho = 1;
         ux = 0;
         uy = 0;
     }
-<?R } ?>
 	SetEquilibrum(
 		rho,
 		ux*rho,
