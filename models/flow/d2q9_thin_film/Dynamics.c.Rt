@@ -357,14 +357,14 @@ CudaDeviceFunction void CollisionCumulant()
 
  real_t K = d * 12. * nu * h_Z * h_Z;
  
- real_t Jx = c[1];
- real_t Jy = c[2];
+ real_t Jx = c[1] * d;
+ real_t Jy = c[2] * d;
 
  Jx = Jx + dJx - K*(Jx+dJx*0.5)/(1. + 0.5 * K) / d;
  Jy = Jy + dJy - K*(Jy+dJy*0.5)/(1. + 0.5 * K) / d;   
  
- c[1] = Jx;
- c[2] = Jy;
+ c[1] = Jx / d;
+ c[2] = Jy / d;
   
   //END Forcing
  
