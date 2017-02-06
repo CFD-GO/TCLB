@@ -10,6 +10,7 @@
 
 class  acModel  : public  GenericContainer  {
 	public:
+	static std::string xmlname;
 int Init ();
 };
 

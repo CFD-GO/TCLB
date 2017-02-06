@@ -1,4 +1,5 @@
 #include "acSAdjoint.h"
+#include "../HandlerFactory.h"
 
 int acSAdjoint::Init () {
 		GenericAction::Init();
@@ -35,4 +36,7 @@ int acSAdjoint::Init () {
 		solver->iter_type = old_iter_type;
 		return 0;
 	}
+
+
+// Already registered by acUSAdjoint
 

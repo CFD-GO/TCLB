@@ -81,7 +81,4 @@ class vHandler {
 	}
 };
 
-/// Generate a Handler based on a XML element
-vHandler * getHandler(pugi::xml_node);
-
 #endif // VHANDLER_H

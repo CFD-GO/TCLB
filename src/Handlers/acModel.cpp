@@ -1,4 +1,6 @@
 #include "acModel.h"
+std::string acModel::xmlname = "Model";
+#include "../HandlerFactory.h"
 
 int acModel::Init () {
 		GenericContainer::Init();
@@ -7,3 +9,6 @@ int acModel::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acModel > >;

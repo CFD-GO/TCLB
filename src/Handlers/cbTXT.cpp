@@ -1,4 +1,6 @@
 #include "cbTXT.h"
+std::string cbTXT::xmlname = "TXT";
+#include "../HandlerFactory.h"
 
 int cbTXT::Init () {
 		Callback::Init();
@@ -26,3 +28,6 @@ int cbTXT::DoIt () {
 		return solver->writeTXT(nm.c_str(), &s, txt_type);
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbTXT > >;

@@ -11,6 +11,7 @@ class  conControl  : public  Action  {
         typedef std::map< std::string , std::vector<double> > Context;
         Context context;
 	public:
+	static std::string xmlname;
 int Params (pugi::xml_node n);
 int get (Context& cont, const char * svar, double scale, std::vector<double>& fill);
 int Internal (pugi::xml_node n);

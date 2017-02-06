@@ -1,4 +1,6 @@
 #include "conFieldParameter.h"
+std::string conFieldParameter::xmlname = "FieldParameter";
+#include "../HandlerFactory.h"
 
 int conFieldParameter::Init () {
 		Action::Init();
@@ -13,3 +15,6 @@ int conFieldParameter::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< conFieldParameter > >;

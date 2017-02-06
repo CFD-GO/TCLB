@@ -10,6 +10,7 @@ class  cbFailcheck  : public  Callback  {
 	lbRegion reg;
 	int rkept;
 	public:
+	static std::string xmlname;
 int Init ();
 int DoIt ();
 int Finish ();

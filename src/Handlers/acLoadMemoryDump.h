@@ -8,6 +8,7 @@
 
 class  acLoadMemoryDump  : public  Action  {
 	public:
+	static std::string xmlname;
 int Init ();
 };
 

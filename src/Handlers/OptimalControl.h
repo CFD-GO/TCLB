@@ -14,6 +14,7 @@ class  OptimalControl  : public  Design  {
 	FILE * f;
 	double lower, upper;
 public:
+	static std::string xmlname;
 int Init ();
 int NumberOfParameters ();
 int Parameters (int type, double * tab);
