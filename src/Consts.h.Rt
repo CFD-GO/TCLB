@@ -41,6 +41,11 @@
 enum <?%s e ?> { <?%s paste(Enums[[e]],collapse=",") ?> }; <?R
 } ?>
 
-
+<?R for (n in names(Options)) {
+	if (Options[[n]]) { ?>
+#define OPTIONS_<?%s n ?> 1
+<?R } else { ?>
+#undef OPTIONS_<?%s n ?>
+<?R }} ?>
 
 #endif
