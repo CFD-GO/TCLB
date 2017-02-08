@@ -114,10 +114,7 @@ class LatticeContainer {
   }
 
 
-  CudaDeviceFunction inline vector_t getST(const real_t t, int x, int y, int z) {
-	x += px;
-	y += py;
-	z += pz;
+  CudaDeviceFunction inline vector_t getST(real_t x, real_t y, real_t z) {
 	return calc(ST, x,y,z);
   }
 
