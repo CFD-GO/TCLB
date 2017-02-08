@@ -126,7 +126,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t J
 }
 
 CudaDeviceFunction void Init() {
-	vector_t ST = SyntheticTurbulence(0);
+	vector_t ST = SyntheticTurbulence(X,Y,Z);
 	ST.x = Velocity + Turbulence*ST.x;
 	ST.y = Turbulence*ST.y;
 	ST.z = Turbulence*ST.z;
