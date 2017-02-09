@@ -165,6 +165,7 @@ public:
 <?R for (v in rows(Settings)) { ?>
 	void <?%s v$FunName ?>(real_t);<?R
     } ?>
+  void GenerateST();
 };
 
 #define LATTICE_H 1
