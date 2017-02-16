@@ -145,7 +145,7 @@ public:
 		retdim[2] = reg.nz;
 		ret.attr("dim") = retdim;
 	<?R	} ?>
-		for (size_t i=0; i<reg.size(); i++) {
+		for (size_t i=0; i<reg.sizeL(); i++) {
 	<?R 	if (q$vector) { ?>
 			ret[i*3+0]=tmp[i].x;
 			ret[i*3+1]=tmp[i].y;
@@ -222,7 +222,7 @@ public:
 	void DollarAssign(std::string name, SEXP v_) {
 		Rcpp::IntegerVector v(v_);
 		lbRegion reg = solver->lattice->region;
-		size_t size = reg.size();
+		size_t size = reg.sizeL();
 		{
 			flag_t * NodeType = new flag_t[size];
 			solver->lattice->GetFlags(reg, NodeType);
@@ -252,7 +252,7 @@ public:
 
 SEXP Dollar(std::string name) {
 	lbRegion reg = solver->lattice->region;
-	size_t size = reg.size();
+	size_t size = reg.sizeL();
 	if (name == "dx") return SingleInteger(reg.dx);
 	if (name == "dy") return SingleInteger(reg.dy);
 	if (name == "dz") return SingleInteger(reg.dz);
@@ -449,10 +449,24 @@ int RunR::Init() {
 
 
 int RunR::DoIt() {
-	output("Running R ...");
 	try {
-		R.parseEval(node.child_value());
-		if (node.attribute("interactive")) {
+		if (strlen(node.child_value()) != 0) {
+			output("Running R ...");
+			R.parseEval(node.child_value());
+		}
+		bool interactive = false;
+		interactive = node.attribute("interactive");
+		if (!interactive) {
+			NOTICE("You can go interactive with Ctrl+X");
+			int c = kbhit();
+			if (c == 24) {
+				int a = getchar();
+				if (a == c) {
+					interactive = true;
+				}
+			}
+		}
+		if (interactive) {
 			R_ReplDLLinit();
 			while( R_ReplDLLdo1() > 0 ) {}
 		}
