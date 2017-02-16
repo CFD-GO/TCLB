@@ -18,6 +18,7 @@ public:
 	inline Handler(pugi::xml_node node, Solver * solver_) {
 		hand = HandlerFactory::Produce(node);
 		if (hand == NULL) {
+			ERROR("Unknown Handler: %s",node.name());
 			hand = new NullHandler();
 		}
 		hand->solver = solver_;
