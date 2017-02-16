@@ -17,6 +17,7 @@ public:
 	Solver * solver;
 	virtual SEXP Dollar(std::string name) { return rNull; };
 	virtual void DollarAssign(std::string name, SEXP v) {};
+	virtual Rcpp::CharacterVector Names() { return Rcpp::CharacterVector(0); };
 	virtual std::string print() {
 		char str[2048];
 		sprintf(str,"rWrapper(%p)\n",solver);
@@ -52,6 +53,13 @@ public:
 	          }
 	  <?R } ?>
 	  ERROR("R: Unknown setting");
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		<?R for (v in rows(Settings)) { ?>
+		ret.push_back("<?%s v$name ?>");
+		<?R } ?>
+		return ret;
 	}
 };
 
@@ -98,6 +106,73 @@ public:
 	?>
 		ERROR("R: Unknown parameter");
 	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		<?R for (d in rows(DensityAll)) if (d$parameter){ ?>
+		ret.push_back("<?%s d$nicename ?>");
+		<?R } ?>
+		return ret;
+	}
+};
+
+class rQuantities : public rWrapper {
+public:
+	std::string print() { return "Quantities"; }
+	SEXP Dollar(std::string name) {
+		lbRegion reg = solver->lattice->region;
+		Rcpp::NumericVector ret;
+	<?R 
+		for (q in rows(Quantities)) { ifdef(q$adjoint);
+	?>
+	    if (name == "<?%s q$name ?>" || name == "<?%s q$name ?>.si") {
+		double v = 1;
+		if (name == "<?%s q$name ?>.si") v = solver->units.alt("<?%s q$unit ?>");
+		<?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
+                solver->lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+	<?R 	if (q$vector) { ?>
+		ret = Rcpp::NumericVector(reg.size()*3);
+		Rcpp::IntegerVector retdim(4);
+		retdim[0] = 3;
+		retdim[1] = reg.nx;
+		retdim[2] = reg.ny;
+		retdim[3] = reg.nz;
+		ret.attr("dim") = retdim;
+	<?R	} else { ?>
+		ret = Rcpp::NumericVector(reg.size());
+		Rcpp::IntegerVector retdim(3);
+		retdim[0] = reg.nx;
+		retdim[1] = reg.ny;
+		retdim[2] = reg.nz;
+		ret.attr("dim") = retdim;
+	<?R	} ?>
+		for (size_t i=0; i<reg.size(); i++) {
+	<?R 	if (q$vector) { ?>
+			ret[i*3+0]=tmp[i].x;
+			ret[i*3+1]=tmp[i].y;
+			ret[i*3+2]=tmp[i].z;
+	<?R	} else { ?>
+			ret[i]=tmp[i];
+	<?R	}?>
+		}
+		delete[] tmp;
+		return ret;
+	    }
+	<?R
+	}
+	ifdef();
+	?>
+		ERROR("R: Unknown quantity");
+		return Rcpp::NumericVector(0);
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		ret.push_back("<?%s q$name ?>");
+		ret.push_back("<?%s q$name ?>.si");
+		<?R }
+		ifdef(); ?>
+		return ret;
+	}
 };
 
 class rAction : public rWrapper {
@@ -130,6 +205,13 @@ class rActions : public rWrapper {
 public:
 	SEXP Dollar(std::string name) {
 		return rWrap(new rAction(name.c_str()));
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		<?R for (n in names(Actions)) { ?>
+		ret.push_back("<?%s n ?>");
+		<?R } ?>
+		return ret;
 	}
 };
 
@@ -208,6 +290,21 @@ SEXP Dollar(std::string name) {
 	ERROR("R: Unknown component of Geometry");
 	return Rcpp::IntegerVector(0);
 }
+	virtual Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		ret.push_back("dx");
+		ret.push_back("dy");
+		ret.push_back("dz");
+		ret.push_back("size");
+		ret.push_back("dim");
+		<?R
+		i = !duplicated(NodeTypes$group)
+		for (n in rows(NodeTypes[i,])) {
+		?>
+		ret.push_back("<?%s n$group ?>");
+		<?R } ?>
+		return ret;
+	}
 
 };
 
@@ -221,12 +318,23 @@ public:
 	    return rWrap(new rSettings());
 	  } else if (name == "Parameters") {  
 	    return rWrap(new rParameters());
+	  } else if (name == "Quantities") {  
+	    return rWrap(new rQuantities());
 	  } else if (name == "Actions") {  
 	    return rWrap(new rActions());
 	  } else if (name == "Geometry") {  
 	    return rWrap(new rGeometry());
 	  }
 	  return rNull;
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		ret.push_back("Settings");
+		ret.push_back("Parameters");
+		ret.push_back("Quantities");
+		ret.push_back("Actions");
+		ret.push_back("Geometry");
+		return ret;
 	}
 };
 
@@ -251,6 +359,13 @@ SEXP CLBPrint(SEXP fobj_) {
 	notice("R: Printing %s",s.c_str());
 	return Rcpp::CharacterVector(s);
 }
+
+SEXP CLBNames(SEXP fobj_) {
+	Rcpp::Function fobj = fobj_;
+	Rcpp::XPtr< rWrapper > obj = fobj.attr("xptr");
+	return obj->Names();
+}
+
 
 SEXP CLBDollarAssign(SEXP fobj_, std::string name, SEXP v) {
 	Rcpp::Function fobj = fobj_;
@@ -315,6 +430,7 @@ int RunR::Init() {
 	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
 	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
 	R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
+	R["names.CLB"]       = Rcpp::InternalFunction( &CLBNames );
 	R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
 
 	rWrapper base;
