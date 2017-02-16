@@ -451,13 +451,13 @@ int RunR::Init() {
 int RunR::DoIt() {
 	try {
 		if (strlen(node.child_value()) != 0) {
-			output("Running R ...");
+			solver->print("Running R ...");
 			R.parseEval(node.child_value());
 		}
 		bool interactive = false;
 		interactive = node.attribute("interactive");
 		if (!interactive) {
-			NOTICE("You can go interactive with Ctrl+X");
+			NOTICE("You can run interactive R session with Ctrl+X");
 			int c = kbhit();
 			if (c == 24) {
 				int a = getchar();
