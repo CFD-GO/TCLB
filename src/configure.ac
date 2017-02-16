@@ -6,6 +6,7 @@ AC_PREREQ([2.63])
 AC_INIT([CLB], 0.01)
 AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
+AC_LANG([C++])
 
 AC_ARG_WITH([gcc],
 	AC_HELP_STRING([--with-gcc=compiler_bindir],
@@ -41,6 +42,14 @@ AC_ARG_WITH([cuda-arch],
 AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
 		[specify the full path to your nlopt library]))
+
+AC_ARG_WITH([r],
+	AC_HELP_STRING([--with-r=r],
+		[specify the full path to your r]))
+
+AC_ARG_ENABLE([rinside],
+	AC_HELP_STRING([--enable-rinside],
+		[specify the full path to your r]))
 
 AC_ARG_WITH([catalyst],
 	AC_HELP_STRING([--with-catalyst=path],
@@ -402,6 +411,66 @@ then
 fi
 
 
+if test "x${with_r}" == "x"
+then
+	AC_PATH_PROG(with_r,[R],[no])
+fi
+
+if test "x${with_r}" == "xno"
+then
+	AC_MSG_ERROR([Cannot run without R (--without-r not allowed)])
+else
+	R_BIN=${with_r}
+fi
+
+AC_MSG_CHECKING($R_BIN)
+if ! test -f "$R_BIN"
+then
+	AC_MSG_ERROR([not found])
+else
+	AC_MSG_RESULT([exists])
+fi
+
+AC_MSG_CHECKING([R package: optparse])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("optparse")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: numbers])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("numbers")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: rtemplate])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("rtemplate")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: gvector])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("gvector")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: polyAlgebra])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("polyAlgebra")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+
+if test "x${enable_rinside}" != "xno"
+then
+	AC_MSG_CHECKING([R package: RInside])
+	RINSIDE=yes
+	AS_IF([$R_BIN --vanilla --slave -e 'if (!require("RInside")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),[AC_MSG_RESULT([no]); RINSIDE=no])
+	if test "x${RINSIDE}" == "xno"
+	then
+		AC_MSG_CHECKING([if RInside required])
+		if test "x${enable_rinside}" == "xyes"
+		then
+			AC_MSG_ERROR([yes])
+		else
+			AC_MSG_RESULT([no])
+		fi
+	else
+		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
+		CPP_OPT=${CPPFLAGS}
+		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --without-rinside]))
+		AC_DEFINE([WITH_R], [1], [Using R])
+	fi
+fi
+
 if test "x${enable_debug}" == "xyes"
 then
 	if test "x${with_verbosity_level}" == "x"
@@ -492,6 +561,7 @@ AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
+AC_SUBST(WITH_R)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
