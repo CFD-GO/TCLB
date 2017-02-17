@@ -249,7 +249,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
 	@$(MKPATH) $@
-	@cat $< | sed -r 's/[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?/&f/g' > $@
+	@cat $< | sed -r 's/([^a-zA-Z0-9][0-9]+\.[0-9]*([eE][-+]?[0-9]+)?)[fL]+/\1f/g' > $@
 
 
 
