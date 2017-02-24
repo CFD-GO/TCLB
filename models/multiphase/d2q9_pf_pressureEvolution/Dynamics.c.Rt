@@ -4,16 +4,6 @@
 // 
 // Maintainer: Travis-Mitchell @TravisMitchell
 //		Phase Field Implementation manipulated from: d2q9_pf - @mzdik
-
-// Code updates:
-//		19/07/16 - No dynamic grid refinement used, possibly discuss with Lukasz/Michal.
-//		05/08/16 - Typo error found in getMu - fixed
-//				 - MRT relaxation - new variables defined so that matrix multiplication not computed while updating R[0], R[1] etc.
-//      07/10/16 - Verification testing indicated an issue with the model (consistent factor of 2 over prediction)
-//				 - It was found that an error was made in the referenced paper in the given formula for the calculation
-//   			 - of macroscopic velocity. An additional c_s^2 was required on the forcing term.
-  
-   
 <?R
 #region R-preamble
 	source("conf.R") 
@@ -69,7 +59,7 @@ rho_l = var('Density_l')
 Force = var(['F.x','F.y'])
 GPhi  = var(['grad.x','grad.y'])
 GCPhi = var(['Rc[0]','Rc[1]','Rc[2]','Rc[3]','Rc[4]','Rc[5]','Rc[6]','Rc[7]','Rc[8]'])
-#GMPhi = var(['Rm[0]','Rm[1]','Rm[2]','Rm[3]','Rm[4]','Rm[5]','Rm[6]','Rm[7]','Rm[8]'])
+GMPhi = var(['Rm[0]','Rm[1]','Rm[2]','Rm[3]','Rm[4]','Rm[5]','Rm[6]','Rm[7]','Rm[8]'])
 G = var(['Gamma[0]','Gamma[1]','Gamma[2]','Gamma[3]','Gamma[4]','Gamma[5]','Gamma[6]','Gamma[7]','Gamma[8]'])
 R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
 F_b = var(['Fb_x','Fb_y'])
@@ -258,7 +248,7 @@ CudaDeviceFunction void CollisionMRT(){
 	
 	real_t   p = <?R C(sum(f)) ?> + (Density_h-Density_l)*(grad.x*u.x + grad.y*u.y)/6.0;
 
-	real_t Rc[9];//,Rm[9];
+	real_t Rc[9],Rm[9];
 	real_t R[9] ,Gamma[9], S[9];	
 	
 	Rc[0] = 0.0;
@@ -270,7 +260,7 @@ CudaDeviceFunction void CollisionMRT(){
 	Rc[6] = 0.5*(PhaseF(-1,1) -PhaseF(1,-1)) ;
 	Rc[7] = 0.5*(PhaseF(-1,-1)-PhaseF(1,1))  ;
 	Rc[8] = 0.5*(PhaseF(1,-1) -PhaseF(-1,1)) ;
-/*	Rm[0] = 0.0;
+	Rm[0] = 0.0;
 	Rm[1] = 0.25*(-PhaseF(2,0)  +5.0*PhaseF(1,0)  -3.0*PhaseF(0,0)-PhaseF(-1,0)) ;
 	Rm[2] = 0.25*(-PhaseF(0,2)  +5.0*PhaseF(0,1)  -3.0*PhaseF(0,0)-PhaseF(0,-1)) ;
 	Rm[3] = 0.25*(-PhaseF(-2,0) +5.0*PhaseF(-1,0) -3.0*PhaseF(0,0)-PhaseF(1,0))  ;
@@ -278,7 +268,7 @@ CudaDeviceFunction void CollisionMRT(){
 	Rm[5] = 0.25*(-PhaseF(2,2)  +5.0*PhaseF(1,1)  -3.0*PhaseF(0,0)-PhaseF(-1,-1)); 
 	Rm[6] = 0.25*(-PhaseF(-2,2) +5.0*PhaseF(-1,1) -3.0*PhaseF(0,0)-PhaseF(1,-1)) ;
 	Rm[7] = 0.25*(-PhaseF(-2,-2)+5.0*PhaseF(-1,-1)-3.0*PhaseF(0,0)-PhaseF(1,1))  ;
-	Rm[8] = 0.25*(-PhaseF(2,-2) +5.0*PhaseF(1,-1) -3.0*PhaseF(0,0)-PhaseF(-1,1)) ;*/
+	Rm[8] = 0.25*(-PhaseF(2,-2) +5.0*PhaseF(1,-1) -3.0*PhaseF(0,0)-PhaseF(-1,1)) ;
 	
 //	1b. Perform the collision:
 // 	1b. i)Determine Gamma_i, feq^bar_i --> R_i = f_i-feq^bar_i	
@@ -328,7 +318,7 @@ for i in range(9):
 //	1b.v) Add in additional terms i.e. surface tension, buoyancy/gravitational
 <?python
 for i in range(9):
-	interfaceterms =  ((G[i]-w[i])*(rho_h-rho_l)/3.0 + mu*G[i]) * (GCPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )
+	interfaceterms =  ((G[i]-w[i])*(rho_h-rho_l)/3.0 + mu*G[i]) * (GMPhi[i] - (u[0]*GPhi[0] + u[1]*GPhi[1]) )
 	bodyforceterms =  G[i]*( (ex[i]-u[0])*F_b[0] + (ey[i]-u[1])*F_b[1] )					
 	
 	print_ccode( f[i] - R[i] + interfaceterms + bodyforceterms, assign_to=f[i]) 																	
