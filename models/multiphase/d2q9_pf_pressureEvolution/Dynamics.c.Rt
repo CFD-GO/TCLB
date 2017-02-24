@@ -4,6 +4,18 @@
 // 
 // Maintainer: Travis-Mitchell @TravisMitchell
 //		Phase Field Implementation manipulated from: d2q9_pf - @mzdik
+
+// Code updates:
+//	07/10/16 - Verification testing indicated an issue with the model (consistent factor of 2 over prediction)
+//			- It was found that an error was made in the referenced paper in the given formula for the calculation
+//			  of macroscopic velocity. An additional c_s^2 was required on the forcing term
+//	07/10/16 - Commit with an isotropic centered difference as per new paper released by A. Fakhari, D. Bolster
+//	24/02/17 - Commit with return to mixed (upwind) stencil for directional derivatives. It was found in verification 
+//		   testing that the isotropic difference was insufficient to recover the momentum equation at an interface.
+//		   The mixed difference stencil is able to successfully recover this and has been tested with base cases:
+//			- Layered Poiseuille, Rayleigh Taylor instability*, planar bubble rise, elongated planar bubble rise
+//			  At density ratios up to 1000, and viscosity ratios up to 100. RT cases based off Ren, Song, Sukop, Hu (2016)
+
 <?R
 #region R-preamble
 	source("conf.R") 
@@ -301,13 +313,13 @@ for i in range(9):
 ?>
 //	1b.iii) Relax in Momentum space:
 	real_t tau = 1.0/( omega_l + (omega_h - omega_l)*(pf-PhaseField_l)/(PhaseField_h-PhaseField_l) );
-	S[0] *= S0;
-	S[1] *= S1;
-	S[2] *= S2;
-	S[3] *= S3;
-	S[4] *= S4;
-	S[5] *= S5;
-	S[6] *= S6;
+//	S[0] *= S0;
+//	S[1] *= S1;
+//	S[2] *= S2;
+//	S[3] *= S3;
+//	S[4] *= S4;
+//	S[5] *= S5;
+//	S[6] *= S6;
 	S[7] *= 1.0/(tau+0.5);
 	S[8] *= 1.0/(tau+0.5);	
 //	1b.iv) Transform to back to shifted-Pressure space:
