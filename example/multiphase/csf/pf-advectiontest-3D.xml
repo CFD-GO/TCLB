@@ -2,14 +2,24 @@
 	<Units>
 		<Params x="1m" gauge="128"/>
 	</Units>	
-    <Geometry nx="1m" ny="1m" nz="4">
+    <Geometry nx="1m" ny="0.5m" nz="0.5m">
         
 	<MRT>
 	    <Box />
 	</MRT>
 	<None name="drop">
-	    <Sphere dx="0.25m" dy="0.25m"  nx="0.5m" ny="0.5m" />
+        
+        <Sphere x="0.25m" y="0.5m"  R="0.25m" />
+        <!--        <Box dx="0.25m" dy="0.25m" nx="0.5m" ny="0.5m"  /> -->
     </None>
+	<None name="drop2">
+        
+        <Sphere x="0.75m" y="0.5m"  R="0.25m" />
+        <!--        <Box dx="0.25m" dy="0.25m" nx="0.5m" ny="0.5m"  /> -->
+    </None>
+
+
+
     <!--  <None name="clean">
 	    <Box dx="0.375m"  nx="0.25m" ny="0.5m" />
     
@@ -19,17 +29,31 @@
 </Geometry>
 
 <Model>
-	<Params Mobility="0.0001" />
+	<Params Mobility="0.01" />
 	<Params PhaseField="-0.5" />
 	<Params IntWidth="0.125" />
 	<Params PhaseField-drop="0.5" />
-    <Params Velocity="0.001" /> 
+   	<Params PhaseField-drop2="0.5" />
+    <Params Velocity="0.00" /> 
+
+    <Params Velocity-drop2="-0.0001" />
+
+    <Params SurfaceTensionRate="0.00"/>
+    <Params SurfaceTensionDecay="0.24"/>
+
    
+    <Params omega_l="1"/>
+    <Params omega_h="1"/>
 </Model>
 <!--    <VTK/> -->
+    <Solve Iterations="8000">
+        <VTK Iterations="2000" />
+    </Solve>
+    <Params SurfaceTensionRate="0.0001"/>
 
-    <Solve Iterations="12800">
-        <VTK Iterations="100" />
+
+    <Solve Iterations="200000">
+        <VTK Iterations="2500" />
     </Solve>
 
 </CLBConfig>

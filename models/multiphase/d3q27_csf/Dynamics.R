@@ -16,13 +16,14 @@ U_h = rbind(
      c(0,-1,0),      
 
      c(0,0, 1),      
-     c(0,0,-1),      
+     c(0,0,-1)      
 
-     expand.grid(c(-1,1),c(-1,1),c(-1,1))
+#     expand.grid(c(-1,1),c(-1,1),c(-1,1))
 )
 
 
-
+c_sq_h = 0.25
+f_eq_order_h = 1
 
 
 AddDensity(
@@ -70,7 +71,7 @@ AddStage("CalcWallNormall", "CalcNormal",
          ) 
 
 AddAction("Iteration", c("BaseIteration","CalcPhi"))
-AddAction("Init", c("BaseInit","CalcPhi", "CalcWallNormall"))
+AddAction("Init", c("BaseInit","CalcPhi"))
 
 ########################################################################
 
