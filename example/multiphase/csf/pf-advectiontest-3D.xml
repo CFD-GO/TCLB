@@ -9,12 +9,12 @@
 	</MRT>
 	<None name="drop">
         
-        <Sphere x="0.25m" y="0.5m"  R="0.25m" />
+        <OffgridSphere x="0.25m" y="0.25m" z="0.25m"  R="0.125m" />
         <!--        <Box dx="0.25m" dy="0.25m" nx="0.5m" ny="0.5m"  /> -->
     </None>
 	<None name="drop2">
         
-        <Sphere x="0.75m" y="0.5m"  R="0.25m" />
+        <OffgridSphere x="0.75m" y="0.25m"  z="0.25m" R="0.100m" />
         <!--        <Box dx="0.25m" dy="0.25m" nx="0.5m" ny="0.5m"  /> -->
     </None>
 
@@ -36,7 +36,7 @@
    	<Params PhaseField-drop2="0.5" />
     <Params Velocity="0.00" /> 
 
-    <Params Velocity-drop2="-0.0001" />
+    <Params Velocity-drop2="-0.005" />
 
     <Params SurfaceTensionRate="0.00"/>
     <Params SurfaceTensionDecay="0.24"/>
@@ -45,7 +45,7 @@
     <Params omega_l="1"/>
     <Params omega_h="1"/>
 </Model>
-<!--    <VTK/> -->
+    <VTK/> 
     <Solve Iterations="8000">
         <VTK Iterations="2000" />
     </Solve>
