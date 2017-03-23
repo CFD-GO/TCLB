@@ -129,6 +129,9 @@ rpython)
 	normal_install rjson
 	normal_install rPython
 	;;
+rinside)
+	normal_install RInside
+	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
 	CUDA=$1
