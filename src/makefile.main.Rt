@@ -112,23 +112,17 @@ for (d in destinations) {
 		ropt = c(ropt,opts)
 		#paste0(names(opts),"=",a,collapse=",")
 ?>
-<?%s m ?>:  | <?%s d ?>/<?%s m ?>
 
-<?%s m ?>: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/main
+<?%s m ?>: <?%s d ?>/<?%s m ?>/main
 	@echo "  DONE       $@"
-
-<?%s m ?>/source:  | <?%s d ?>/<?%s m ?>
-
 
 <?%s m ?>/kernel_stats_20:
 	ptxas -v --gpu-name=sm_20 <?%s d ?>/<?%s m ?>/cuda.ptx 
 
-<?%s m ?>/source: <?%s d ?>/<?%s m ?> <?%s src_all ?>
+<?%s m ?>/source: <?%s src_all ?>
 	@echo "  DONE       $@"
 
-<?%s m ?>/clean:  | <?%s d ?>/<?%s m ?>
-
-<?%s m ?>/clean: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/makefile
+<?%s m ?>/clean: <?%s d ?>/<?%s m ?>/makefile
 	@echo "  CLEAN      $@"
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE) clean
 
@@ -138,7 +132,7 @@ for (d in destinations) {
 <?%s m ?>/vc: <?%s m ?>/source <?%s d ?>/<?%s m ?>/solver.vcproj
 	@echo "  DONE       $@"
 
-<?%s m ?>/summary: <?%s d ?>/<?%s m ?> <?%s d ?>/<?%s m ?>/SUMMARY
+<?%s m ?>/summary: <?%s d ?>/<?%s m ?>/SUMMARY
 	@echo ""
 	@echo "----------------------------------------"
 	@echo "    Summary of model <?%s m ?>"
@@ -153,8 +147,8 @@ for (d in destinations) {
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
 
-<?%s d ?>/<?%s m ?> :
-	$(MKPATH) $@/
+<?%s d ?>/<?%s m ?>/ :
+	@$(MKPATH) $@
 
 wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
