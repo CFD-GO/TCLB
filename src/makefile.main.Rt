@@ -169,6 +169,12 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  AUTO-DEP   $@"
 	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
+<?%s d ?>/<?%s m ?>/makefile:$(SRC)/makefile.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R <?%s src_all ?>
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || mv $@ $@~
+
+
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
