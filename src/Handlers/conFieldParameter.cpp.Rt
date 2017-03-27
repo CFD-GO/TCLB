@@ -72,7 +72,7 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 		if ( type == PAR_GRAD ) solver->lattice->Get_<?%s d$nicename ?>_Adj(buf);
 	}
 <?R } ?>
-	size_t j=0;
+	int j=0;
 	double sum=0;
 	switch(type) {
 	case PAR_GET:
@@ -112,7 +112,6 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 
 int conFieldParameter::Parameters (int type, double * tab) {
 	double * ptab = new double[Par_size];
-	int j=0;
 	switch(type) {
 	case PAR_GET:
 		LocalParameters(type, ptab);
@@ -127,10 +126,10 @@ int conFieldParameter::Parameters (int type, double * tab) {
 		MPI_Gatherv(ptab, Par_size, MPI_DOUBLE, tab, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		break;
 	case PAR_UPPER:
-		for (int i=0;i<Pars;i++) tab[i]=1;
+		for (size_t i=0;i<Pars;i++) tab[i]=1;
 		break;
 	case PAR_LOWER:
-		for (int i=0;i<Pars;i++) tab[i]=0;
+		for (size_t i=0;i<Pars;i++) tab[i]=0;
 		break;
 	default:
 		ERROR("Unknown type %d in call to Parameters in %s\n",type,node.name());

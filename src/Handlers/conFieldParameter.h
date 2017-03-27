@@ -9,7 +9,7 @@
 
 class  conFieldParameter  : public Design  {
 	std::string field;
-	int Pars;
+	size_t Pars;
 	int Par_size; ///< Parameter space dimension
 	int *Par_sizes; ///< Parameter space dimensions on all the processors
 	int *Par_disp; ///< Offsets in the Parameter vector for all the processors
