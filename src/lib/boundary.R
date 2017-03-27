@@ -9,41 +9,45 @@ Bounce = function(U, FUN=function(U) {-U} ) {
 }
 
 
-FullBounceOp = function(op) {
+FullBounceOp = function(op, group) {
 	cat("real_t tmp;\n")
 	tmp=PV("tmp")
         by(Density, Density$group, function(D) {
-                i = c("dx","dy","dz")
-                D1 = D[,c("name",i)]
-                D2 = D1
-                D2[,i] = op(D2[,i])
-                D3 = merge(D1,D2,by=i)
-                D3$name.x < D3$name.y
-                D3 = D3[D3$name.x < D3$name.y,]
-                for ( i in seq_len(nrow(D3))) {
+                 if (  group == '' || D[1,'group'] %in% group ) {  
+                    i = c("dx","dy","dz")
+                    D1 = D[,c("name",i)]
+                    D2 = D1
+                    D2[,i] = op(D2[,i])
+                    D3 = merge(D1,D2,by=i)
+                    D3$name.x < D3$name.y
+                    D3 = D3[D3$name.x < D3$name.y,]
+                    for ( i in seq_len(nrow(D3))) {
                         C( tmp, PV(D3$name.x[i]) )
                         C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
                         C( PV(D3$name.y[i]), tmp )
+                    }
                 }
         })
 }
 
-FullBounceBack = function() {
-	FullBounceOp(function(X) -X);
+FullBounceBack = function(group='') {
+	FullBounceOp(function(X) -X, group);
 }
 
-Symmetry  = function(direction,sign) {
+Symmetry  = function(direction,sign,group='') {
         by(Density, Density$group, function(D) {
-                i = c("dx","dy","dz")
-                D1 = D[,c("name",i)]
-                D2 = D1
-                D2[,direction + 1] = -D2[,direction + 1]
-                D3 = merge(D1,D2,by=i)
-                D3$name.x < D3$name.y
-                D3 = D3[D3$name.x < D3$name.y,]
-                for ( i in seq_len(nrow(D3))) {
-                        if (sign > 0) C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
-                        else C( PV(D3$name.y[i]), PV(D3$name.x[i]) )
+                if (  group == '' || D[1,'group'] %in% group ) {
+                    i = c("dx","dy","dz")
+                    D1 = D[,c("name",i)]
+                    D2 = D1
+                    D2[,direction + 1] = -D2[,direction + 1]
+                    D3 = merge(D1,D2,by=i)
+                    D3$name.x < D3$name.y
+                    D3 = D3[D3$name.x < D3$name.y,]
+                    for ( i in seq_len(nrow(D3))) {
+                            if (sign*D3[,direction][i] > 0) C( PV(D3$name.x[i]), PV(D3$name.y[i]) )
+                            else C( PV(D3$name.y[i]), PV(D3$name.x[i]) )
+                    }
                 }
         })
 }
@@ -139,14 +143,17 @@ ZouHeNew = function(EQ, f, direction, sign, order, group=f, known="rho",mom) {
 ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rhs) {
   # --- Prepare arguments
 	type=match.arg(type)
+
+    d = length(n)
+	if (sum(n == 0) != d-1) stop("Normal have to be cartesian")
+	if (sum(abs(n)) != 1)   stop("Normal have to be cartesian versor")
+
 	if (missing(rhs)) rhs = switch(type,
-		velocity=PV("Velocity"),
+		velocity=PV("Velocity")*abs(n),
 		pressure=PV("Pressure")*3+1,
 		'do nothing'=PV("Pressure")+1./3.
 	)
-	d = length(n)
-	if (sum(n == 0) != d-1) stop("Normal have to be cartesian")
-	if (sum(abs(n)) != 1)   stop("Normal have to be cartesian versor")
+
 	direction = which(n != 0)
 	if (is.data.frame(EQ) || is.matrix(EQ)) {
 		U = as.matrix(EQ)
@@ -164,8 +171,9 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
   # --- Preparing moments to set
 	if (type == "do nothing") {
 	  # --- Set 2nd order moment tensor times normal vector
-		rhs = rhs * n
-		eqn = fs %*% EQ2$D2 %*% n
+        stop("This will not work, use pressure/velocity ZouHe")
+		#rhs = rhs * n
+		#qn = fs %*% EQ2$D2 %*% n
 	} else if (type == "pressure") {
           # --- Set density and non-normal velocity compoments
 		eqn = V(fs %*% EQ2$U %*% diag(d))
@@ -174,13 +182,17 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
 	} else if (type == "velocity") {
           # --- Set all velocity components
 		eqn = V( fs %*% EQ2$U %*% diag(d))
-		rhs = rhs * abs(n) * sum(fs)
+		rhs = rhs * sum(fs)
 	} else stop("Unknown type in ZouHe")
 	cat("/********* ", type, "-type Zou He boundary condition  ****************/\n",sep="");
 	eqn = eqn - rhs;
 	if (length(eqn) != length(R)) stop("Something is terribly wrong")
   # --- Solving all equations for 'R'
-	for (i in 1:length(R)) { cat("real_t "); C_pull(eqn[i],R[i]); }
+    i0 = (1:length(R))[ abs(n) != 0  ]
+    cat("real_t "); C_pull(eqn[i0],R[i0]);
+    sl = 1:length(R)
+    sl = sl[sl != i0]
+	for (i in sl) { cat("real_t "); C_pull(eqn[i],R[i]); }
   # --- Setting the missing densities f
 	C(f[sel],fs[sel]);
 }

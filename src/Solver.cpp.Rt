@@ -485,7 +485,7 @@ int Solver::saveComp(const char* filename, const char* comp) {
 	output("Saving component %s to file %s\n", comp, fn);
     bool somethingWritten = false;
 <?R 
-    for (d in rows(DensityAll)) { 
+    for (d in rows(DensityAll)) if (d$parameter) { 
 ?>
 	if (strcmp(comp, "<?%s d$name ?>") == 0) {
         lattice->Get_<?%s d$nicename ?>(buf); 
@@ -525,7 +525,7 @@ int Solver::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  di
 	output("Providing component %s to buffer..\n", comp);
     bool somethingWritten = false;
 <?R 
-    for (d in rows(DensityAll)) { 
+    for (d in rows(DensityAll)) if (d$parameter){ 
 ?>
 	if (strcmp(comp, "<?%s d$name ?>") == 0) {
         lattice->Get_<?%s d$nicename ?>(buf); 
@@ -537,7 +537,7 @@ int Solver::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  di
     if (!somethingWritten){
         output("Possible densities:\n");
     <?R
-        for (d in rows(DensityAll)) { 
+        for (d in rows(DensityAll)) if (d$parameter){ 
             ?> output("-> <?%s d$name ?>\n") ; <?R
         }
     ?>
@@ -551,7 +551,7 @@ int Solver::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  di
 //    int sizes[7] = { n, region.dx, region.dy, region.dz, region.nx, region.ny, region.nz };
 	return n;
 } 
-int Solver::getQuantitieIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
+int Solver::getQuantityIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
 	int n = region.size();
 
 	dim[0] = region.nx;
@@ -564,7 +564,7 @@ int Solver::getQuantitieIntoBuffer(const char* comp, real_t* &buf, long int*  di
     offsets[1] = region.dy;
     offsets[2] = region.dz;
 
-	output("Providing quantitie %s to buffer..\n", comp);
+	output("Providing quantity %s to buffer..\n", comp);
     bool somethingWritten = false;
 <?R 
 for (q in rows(Quantities)){ ifdef(q$adjoint); 
@@ -603,7 +603,7 @@ ifdef();
 
 int Solver::loadComponentFromBuffer(const char* comp,  real_t* buf) {
 	int n = region.size();
-<?R for (d in rows(DensityAll)) { ?>
+<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
 	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Set_<?%s d$nicename ?>(buf); <?R
 } ?>
     delete [] buf;
@@ -629,7 +629,7 @@ int Solver::loadComp(const char* filename, const char* comp) {
 	assert(n == nn);
 	fclose(f);
 //	for (int i=0; i<n;i ++) buf[i]=1.23;
-<?R for (d in rows(DensityAll)) { ?>
+<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
 	if (strcmp(comp, "<?%s d$name ?>") == 0) lattice->Set_<?%s d$nicename ?>(buf); <?R
 } ?>
 

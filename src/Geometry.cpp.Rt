@@ -771,8 +771,10 @@ int Geometry::Draw(pugi::xml_node & node)
     } else if (strcmp(n.name(), "PythonInline") == 0) {
         #ifdef EMBEDED_PYTHON
         
-        Py_Initialize();
-
+         if (!Py_IsInitialized()) {
+            notice("Python Init");
+            Py_Initialize();
+        }    
         // Make sure the GIL has been created since we need to acquire it in our
         // callback to safely call into the python application.
         if (! PyEval_ThreadsInitialized()) {
@@ -797,7 +799,7 @@ int Geometry::Draw(pugi::xml_node & node)
         }
 
         PyObject* pFunc = PyObject_GetAttrString(pyModule, "test"); ;
-        Py_INCREF(pFunc);
+     //   Py_INCREF(pFunc);
         Py_DECREF(pValue);
 
 
@@ -828,11 +830,11 @@ int Geometry::Draw(pugi::xml_node & node)
 
 
         Py_DECREF(pValue);
-        Py_XDECREF(pFunc);
-        Py_DECREF(pGlobal);
-        Py_DECREF(pLocal);
+  //      Py_XDECREF(pFunc);
+ //       Py_DECREF(pGlobal);
+//        Py_DECREF(pLocal);
         PyGILState_Release(state);
-        Py_Finalize();   
+      //  Py_Finalize();   
 
         #else
             error("You need to compile PYTHON support for this geometry element");

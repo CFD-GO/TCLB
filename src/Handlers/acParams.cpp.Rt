@@ -1,0 +1,54 @@
+<?R
+#include "../HandlerFactory.h"
+source("conf.R")
+	c_header()
+?>
+
+#include "acParams.h"
+std::string acParams::xmlname = "Params";
+
+int acParams::Init () {
+	        std::string par, zone;
+	        int zone_number = -1;
+		Action::Init();
+	        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
+	                debug0("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
+	                par = attr.name();
+                        size_t i = par.find_first_of('-');
+                        if (i == string::npos) {
+                                zone = "";
+                                zone_number = -1;
+                        } else {
+                                zone = par.substr(i+1);
+                                par = par.substr(0,i);
+                                if (solver->geometry->SettingZones.count(zone) > 0) { 
+                                        zone_number = solver->geometry->SettingZones[zone];
+                                } else {
+                                        WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+                                        zone_number = -2;
+                                        zone = "";
+                                }
+                        }
+                        if (zone_number > -2) {
+		<?R for (v in rows(Settings)) { ?>
+		        if (par == "<?%s v$name?>") {
+				double val = solver->units.alt(attr.value());
+	                        output("Setting %s to %s (%lf)\n", par.c_str(), attr.value(), val);
+				solver->lattice-><?%s v$FunName ?>(val);
+			}
+		<?R } ?>
+		<?R for (v in rows(ZoneSettings)) { ?>
+		        if (par == "<?%s v$name?>") {
+				double val = solver->units.alt(attr.value());
+	                        output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, attr.value(), val);
+				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
+			}
+		<?R } ?>
+		        }
+		}
+		return 0;
+	}
+
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acParams > >;

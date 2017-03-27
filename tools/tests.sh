@@ -28,11 +28,11 @@ function try {
 
 test -z "$MODEL" && usage
 
-if ! test -d "src/$MODEL"
-then
-	echo \"$MODEL\" is not a model
-	usage
-fi
+#if ! test -d "src/$MODEL"
+#then
+#	echo \"$MODEL\" is not a model
+#	usage
+#fi
 
 if ! test -f "CLB/$MODEL/main"
 then
@@ -105,8 +105,8 @@ do
 						;;
 					sha1)
 						COMMENT="(SHA1 checksum)"
-                        sha1sum -c "$g" >> /dev/null && R="OK"
-                        ;;
+						sha1sum -c "$g" >/dev/null 2>&1 && R="OK"
+						;;
 					*)
 						diff "$r" "$g" >/dev/null && R="OK"
 						;;
@@ -117,6 +117,12 @@ do
 						echo "OK $COMMENT"
 					else
 						echo "Different $COMMENT"
+						if test "x$EXT" == "xsha1"
+						then
+							cat $g
+							pat=$(cat $g | sed 's/.*[ ][ ]*//')
+							test -z "$pat" || sha1sum $pat
+						fi
 						RESULT="WRONG"
 					fi
 				else

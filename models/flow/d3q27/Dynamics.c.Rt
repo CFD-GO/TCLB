@@ -1,0 +1,213 @@
+<?R
+	source("conf.R")
+	c_header();
+
+
+# Creating variables for symbolic computations
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	rho =  PV("rho")
+	J = PV("J",c("x","y","z"))
+	tmp = PV("tmp")
+
+# Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+#	EQ = MRT_eq(U, rho, J);
+?>
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction real_t getP(){
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+    
+    u.x = u.x+ForceX*0.5;
+    u.y = u.y+ForceY*0.5;
+    u.z = u.z+ForceZ*0.5;
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+
+	return u;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void NSymmetry()
+{
+<?R Symmetry(2, -1) ?>
+}
+
+CudaDeviceFunction void ISymmetry()
+{
+<?R Symmetry(3, 1) ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHe(EQ, 1, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHe(EQ, 1, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHe(EQ, 1, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_NSymmetry:
+		NSymmetry();
+		break;
+	case NODE_ISymmetry:
+		ISymmetry();
+		break;
+	case NODE_Wall:
+		BounceBack();
+                break;
+    }
+    switch (NodeType & NODE_COLLISION) {
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+{
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+}
+
+CudaDeviceFunction void Init() {
+	vector_t ST = SyntheticTurbulence(X,Y,Z);
+	ST.x = Velocity + Turbulence*ST.x;
+	ST.y = Turbulence*ST.y;
+	ST.z = Turbulence*ST.z;
+	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+<?R
+        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+        wi = subst(wi, rho=1)
+        wi = gapply(wi,function(x) sum(0,x$.M), simplify=TRUE)
+        wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+	real_t <?R C(R,sep=",") ?>;
+	real_t gamma  = 1-omega;
+<?R
+	S = PV("S",1:nrow(U)-1);
+	S[EQ$order <= 2] = PV("gamma")
+	S[EQ$order >  2] = PV("gamma2")
+
+
+	C( R, f %*% EQ$mat );
+	C( R[selR], (R - EQ$Req)[selR]);
+
+
+?>
+	if (NodeType & NODE_LES) {
+		real_t Q, tau, tau0;
+<?R
+	Rneq = R; Rneq[EQ$order < 2] = 0
+
+	p = PV(c("x","y","z")); dim(p) = c(3,1)
+	Q = p %*% t(p)
+	Q = subst(Q,x=U[,1],y=U[,2],z=U[,3])
+	Q = Q %*% (Rneq %*% solve(EQ$mat))
+	C(PV("Q"), sum(Q^2))
+?>
+		Q = 18.* sqrt(Q) * Smag;
+		tau0 = 1/(1-gamma);
+		tau = tau0*tau0 + Q;
+		tau = sqrt(tau);
+		tau = (tau + tau0)/2;
+		gamma = 1. - 1./tau;
+	}
+	real_t gamma2 = gamma;
+	if (NodeType & NODE_ENTROPIC) {
+		real_t a,b;
+<?R
+	dh = R; dh[EQ$order <= 2] = 0
+	ds = R; ds[EQ$order != 2] = 0
+
+	C( PV("a"), ds %*% P %*% dh)
+	C( PV("b"), dh %*% P %*% dh)
+?>
+		gamma2 = - gamma2 * a/b;
+	}
+<?R
+
+	C( R[selR], (R * S)[selR]);
+?>
+	Jx += ForceX;
+	Jy += ForceY;
+	Jz += ForceZ;
+    	AddToFlux((Jx+ForceX/2)/rho);
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
+		Jx = 0;
+		Jy = 0;
+		Jz = 0;
+	}
+<?R
+	C( R[selR], (R + EQ$Req)[selR]);
+
+	C( f, R %*% solve(EQ$mat), float=F);
+?>
+}
+

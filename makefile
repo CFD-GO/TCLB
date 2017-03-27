@@ -3,7 +3,7 @@ ifneq ($(MAKECMDGOALS),configure)
 	include makefile.main
 endif
 
-makefile.main:src/makefile.main.Rt src/*
+makefile.main:src/makefile.main.Rt src/* models/* models/*/*
 	@echo "  RT         $@"
 	@tools/RT -I src/ -q -f $< -o $@
 

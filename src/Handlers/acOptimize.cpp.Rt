@@ -1,0 +1,169 @@
+<?R
+#include "../HandlerFactory.h"
+source("conf.R")
+	c_header()
+?>
+
+#include "acOptimize.h"
+
+int acOptimize::OptimizerInit () {
+#ifdef WITH_NLOPT
+		start = NULL;
+		nlopt_result res;
+		material=0.0;
+       		if (Pars == 0) {
+       			ERROR("Error: No parameters defined!\n");
+       			return -1;
+       		}			
+		notice("Parameters in optimization: %d\n", Pars);
+		start = new double[Pars];
+		DEBUG_M;
+		GetParameters(start);
+		DEBUG_M;
+
+                method="MMA";
+                pugi::xml_attribute attr = node.attribute("method");
+                if (attr) {
+                        method = attr.value();
+                }
+                <?R 
+                        methods = data.frame(
+                                name=c("LBFGS","MMA","COBYLA","NELDERMEAD", "DIRECT_L","ESCH"),
+                                type=c("LD","LD","LN","LN","GN","GN")
+                        )
+                        methods$index = paste("NLOPT",methods$type,methods$name,sep="_")
+                        for (method in rows(methods)) {
+                ?> if (method == "<?%s method$name ?>") {
+                        output("Setting the algorithm to <?%s method$name ?>(<?%s method$index ?>)\n");
+                        opt = nlopt_create(<?%s method$index ?>,Pars);
+                } else <?R } ?> {
+                        error("Unknown Method in Optimize: %s\n", method.c_str());
+                        return -1;
+                }
+                {
+                        double * bound = new double[Pars];
+                        Parameters(PAR_LOWER, bound);
+                        output("lower set to %lf\n", bound[0]);
+                        nlopt_set_lower_bounds(opt, bound);
+                        for (int i=0;i<Pars;i++) if (start[i] < bound[i]) start[i] = bound[i];
+                        Parameters(PAR_UPPER, bound);
+                        output("upper set to %lf\n", bound[0]);
+                        nlopt_set_upper_bounds(opt, bound);
+                        for (int i=0;i<Pars;i++) if (start[i] > bound[i]) start[i] = bound[i];
+                        delete[] bound;
+                }
+                res = nlopt_set_max_objective(opt, FOptimize, this);
+                if (res < 0) {
+                        ERROR("Error while appling objective in Optimize: nlopt_set_max_objective = %d\n", res);
+                        exit(-1);
+                }
+                attr = node.attribute("Material");
+                if (attr) {
+                        std::string matdir(attr.value());
+                        for (int i=0;i<Pars; i++) material += start[i];
+                        if (matdir == "more") {
+                                res = nlopt_add_inequality_constraint(opt, FMaterialMore, this, 1e-3);
+                        } else if (matdir == "less") {
+                                res = nlopt_add_inequality_constraint(opt, FMaterialLess, this, 1e-3);
+                        } else {
+                                error("Material attribute in Optimize should be \"more\" or \"less\"\n");
+                                exit(-1);
+                        }
+                        if (res < 0) {
+                                error("Error while appling Material constraint in Optimize: nlopt_add_inequality_constraint = %d\n", res);
+                                exit(-1);
+                        }
+                }
+<?R
+        tab=data.frame(
+                attr=c("XAbsTolerance","RelTolerance","AbsTolerance","StopAtValue","MaxEvaluations"),
+                nlopt=c("xtol_abs1","ftol_rel","ftol_abs","stopval","maxeval"),
+                positive=c(T,T,T,F,T),
+                type=c(rep("double",4),"int")
+        )
+        for (crit in rows(tab)) { ?>
+        		attr = node.attribute("<?%s crit$attr ?>");
+        		if (attr) {
+                                <?%s crit$type ?> crit = attr.as_<?%s crit$type ?>(); <?R
+                if (crit$positive) { ?>
+                                if (crit > 0) { <?R
+                } ?>
+                                        output("NLOPT: Setting <?%s crit$attr ?> to %d\n", crit);
+                                        nlopt_set_<?%s crit$nlopt ?>(opt, crit); <?R
+                if (crit$positive) { ?>
+                                } else {
+        			        error("<?%s crit$attr ?> in Optimize have to be above 0\n");
+        			        exit(-1);
+                                } <?R
+                } ?>
+                        } <?R
+        }
+?>
+		return 0;
+#else
+		ERROR("No nlopt support at configure\n");
+		return -1;
+#endif
+	}
+
+
+int acOptimize::OptimizerRun () {
+#ifdef WITH_NLOPT
+
+		double val;
+        DEBUG_M;
+                nlopt_result res = nlopt_optimize(opt, start, &val);
+        DEBUG_M;
+                notice("NLOpt result: %d\n", res);
+                switch(res) {
+                        case NLOPT_SUCCESS: notice("Optimization generic success!\n"); break;
+                        case NLOPT_STOPVAL_REACHED: notice("Optimization reached desired value (StopAtValue) !\n"); break;
+                        case NLOPT_FTOL_REACHED: notice("Optimization stoped with change of objective below tolerance (RelTolerance/AbsTolerance) !\n"); break;
+                        case NLOPT_XTOL_REACHED: notice("Optimization stoped with change of parameters below tolerance (XAbsTolerance) !\n"); break;
+                        case NLOPT_MAXEVAL_REACHED: notice("Optimization stoped, because maximal number of iterations was made (MaxIterations) !\n"); break;
+                        case NLOPT_FAILURE: notice("Optimization failed, I don't know why!\n"); break;
+                        case NLOPT_INVALID_ARGS: notice("Optimization call failed. Some wrong arguments!\n"); break;
+                        case NLOPT_OUT_OF_MEMORY: notice("Optimization call failed. Out of memory!\n"); break;
+                        case NLOPT_ROUNDOFF_LIMITED: notice("Optimization failed. Changes were below numeric tolerance (good?)\n"); break;
+                        case NLOPT_FORCED_STOP: notice("Optimization failed. It was stoped from within the objective function (why?)\n"); break;
+                        default: notice("NLOpt result: %d\n", res); break;
+                }
+                notice("Final Objective value: %lf\n",val);
+                nlopt_destroy(opt);
+		return 0;
+#else
+		ERROR("No nlopt support at configure\n");
+		return -1;
+#endif
+	
+	}
+
+
+int acOptimize::OptimizerExit () {
+#ifdef WITH_NLOPT
+		nlopt_force_stop(opt);
+		return 0;
+#else
+		ERROR("No nlopt support at configure\n");
+		return -1;
+#endif
+	}
+
+
+// Function created only to check to create Handler for specific conditions
+vHandler * Ask_For_acOptimize(const pugi::xml_node& node) {
+  std::string name = node.name();
+  if (name == "Optimize") {
+#ifdef WITH_NLOPT
+		return new acOptimize;
+#else
+                ERROR("No NLOpt support. configure with --with-nlopt to use Optimize element\n");
+                exit(-1);
+#endif
+  }
+  return NULL;
+}
+
+// Register this function in the Handler Factory
+template class HandlerFactory::Register< Ask_For_acOptimize >;
+

@@ -19,12 +19,14 @@ env:
     - CUDA=6.5-14
   matrix: 
     - MODEL=d2q9 
+    - MODEL=d2q9_BC
     - MODEL=d2q9_hb 
     - MODEL=d2q9_heat 
     - MODEL=d2q9_kuper 
     - MODEL=d2q9_lee 
-    - MODEL=d2q9_les 
-    - MODEL=d2q9_new 
+    - MODEL=d2q9_les
+    - MODEL=d2q9_pf
+    - MODEL=d2q9_csf 
     - MODEL=d2q9_npe_guo 
     - MODEL=d2q9_poison_boltzmann 
     - MODEL=d2q9_solid 
@@ -40,6 +42,7 @@ before_install:
     - sudo tools/install.sh r
     - sudo tools/install.sh openmpi
     - tools/install.sh rdep
+    - tools/install.sh rinside
     - sudo tools/install.sh python-dev
     - tools/install.sh rpython
     - gem install coveralls-lcov

@@ -1,0 +1,598 @@
+<?R
+	source("conf.R")
+	c_header();
+    U = as.matrix(Density[Density$group=="g",c("dx","dy")])
+
+# U = as.matrix( c( 0, 1, 0, -1, 0, 1, -1, -1, 1), c( 0, 0, 1, 0, -1, 1, 1, -1, -1)) 
+    
+# Creating variables for symbolic computations
+
+    g = PV(DensityAll$name[DensityAll$group=="g"])
+    h_0 = PV(DensityAll$name[DensityAll$group=="h_0"])
+    h_1= PV(DensityAll$name[DensityAll$group=="h_1"])
+    f = PV(DensityAll$name[DensityAll$group=="f"])
+    phi = PV(DensityAll$name[DensityAll$group=="phi"])
+
+    psi =  PV("psi")
+    Phi = PV("Phi")
+	RD = PV("RD")
+	tau_psi = 1. #PV("tau_psi")
+	tau_phi = 1. #PV("tau_phi")
+    phi_bc = PV("phi_bc")
+	rho_e = PV("rho_e")
+	epsilon=PV("epsilon")
+    
+   
+
+    wp = c(1./9. - 1., 1./9., 1./9.,1./9.,1./9.,1./9.,1./9.,1./9.,1./9.)
+    wp0 = 1./9.
+    wps = c(0., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8., 1./8.)
+
+#Basic variables
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+    ulb = PV(c("ulb.x","ulb.y"))
+# Calculating equlibrium density set
+## f
+    
+    
+    source("lib/feq.R")
+ 	source("lib/boundary.R")
+
+   
+#    feq = MRT_feq(U, rho, ulb*rho );
+#    du = PV(c("du.x", "du.y"))
+#    feq2 = MRT_feq(U, rho, (ulb+du)*rho );
+
+	EQ = MRT_eq(U, ortogonal=FALSE)
+    wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+    wi = subst(wi, rho=1)
+    wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+    wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W))
+	H = chol(W[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+	EQ = MRT_eq(U, mat=B)
+
+    feq = EQ$feq
+
+#end f
+
+
+
+
+
+#	geq = MRT_feq(U, rhoT, u*rhoT );
+
+#calculating weights
+	wi =  c(4./9., 1./9., 1./9., 1./9., 1./9., 1./36., 1./36., 1./36., 1./36.)
+	bounce = c(0,3,4,1,2,7,8,5,6)	
+    uf = PV("uf")
+#	wi = sapply(wi@vec,"[[",".M") # dirty way to extract numeric value - to be fixed
+#	wi = c(16,4,4,4,4,1,1,1,1)/36
+	over_c2 = 1/sum(wi*U[,1]**2)         
+    n_inf_0 = PV("n_inf_0")	    
+    n_inf_1 = PV("n_inf_1")	   
+#    kb= PV("kb") 
+#    usq=PV("usq") 
+#    el = PV("el")
+#    Temp = PV("T")
+    epsilon = PV("epsilon")
+    el_kbT = PV("el_kbT")   
+
+
+    dt_D = 1.
+	dt = 1.
+#    z1 = -PV("ez")
+    z0 = PV("ez")
+    z1 = 0.-z0
+    D = PV("D")
+    
+
+# one over square of speed of sound
+
+    if ( any( DensityAll$group=="BC" ) ) {
+        BC_Velocity=PV(c('BC[0]', 'BC[1]'))
+    } else {
+        BC_Velocity=PV(c('VelocityX', 'VelocityY'))
+    }
+
+?>
+
+CudaDeviceFunction real_t getPsi(){
+    const real_t wp0 = <?R C(wp0) ?>;
+	return ( <?R C( sum( g[2:9] ))  ?> ) / (1. - wp0);
+}
+
+
+//CudaDeviceFunction real_t getSubiter(){
+//	return subiter;
+//}
+ 
+
+CudaDeviceFunction real_t getrho_e(){
+//    const real_t psi = getPsi();
+//	return -2. * n_inf * z * el * sinh( z * el / kb/ T * psi);
+    return el*(ez*getn0() - ez* getn1());	
+}
+
+CudaDeviceFunction void BounceBack()
+{
+
+  <?R C(PV('real_t temp'), sum(f)) ?>
+
+  if ( temp !=  1 ) {
+   <?R if ( any( DensityAll$group=="BC" ) ) {
+    C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U);
+   } ?>
+  } else {
+   <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
+  }
+
+
+// *******************
+// Bounce back f and phi
+// *******************    
+     real_t uf;
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	C(uf, f[V[i,1]])
+    C(f[V[i,1]], f[V[i,2]])
+    C(f[V[i,2]], uf)
+	
+    C(uf, phi[V[i,1]])
+    C(phi[V[i,1]], phi[V[i,2]])
+    C(phi[V[i,2]], uf)
+	
+   }
+?>
+// ********************
+// Dirichlet for others
+// ********************
+
+<?R
+#    psi_shifted = PV(paste("psi(",-U[,1],",",-U[,2],")"))
+    psi_bc=PV("psi_bc")
+?>
+    real_t h0bc =  exp(-ez * psi_bc * el_kbT);
+
+    real_t h1bc =  exp(ez * psi_bc * el_kbT);
+
+<?R
+    h0bc = PV("h0bc");    
+    h1bc = PV("h1bc");
+# actual, proper bc, g should be from diferent node, as psi_shifted, unable to imlement
+#    C(g, wp*1.  - (1. - wp0) * (g_shifted - wp*psi_shifted))
+    C(g, wp*psi_bc)
+    C(h_0, n_inf_0 * wi * h0bc )
+    C(h_1, n_inf_1 * wi * h1bc )
+
+    ?>
+}
+CudaDeviceFunction void SymmetryBottom()
+{
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+     real_t uf;
+<?R
+  reflect_from = c(4,7,8) + 1;
+  reflect_to = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+ 	C( g[reflect_to[i]], g[reflect_from[i]] )
+ 	C( h_0[reflect_to[i]], h_0[reflect_from[i]] )
+ 	C( h_1[reflect_to[i]], h_1[reflect_from[i]] )
+  }
+?>
+}
+CudaDeviceFunction void SymmetryTop()
+{
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+     real_t uf;
+<?R
+  reflect_to =  c(4,7,8) + 1;
+  reflect_from = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+ 	C( g[reflect_to[i]], g[reflect_from[i]] )
+ 	C( h_0[reflect_to[i]], h_0[reflect_from[i]] )
+ 	C( h_1[reflect_to[i]], h_1[reflect_from[i]] )
+  }
+?>
+}
+CudaDeviceFunction float2 Color() {
+    float2 ret;
+	ret.x = 0;
+	ret.y = 0;
+    return ret;
+}
+
+
+CudaDeviceFunction void Run() {
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+//	case NODE_EVelocity:
+//		EVelocity();
+//		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+//	case NODE_WVelocity:
+//		WVelocity();
+//		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    case NODE_SSymmetry:
+        SymmetryBottom();
+        break;
+    case NODE_NSymmetry:
+        SymmetryTop();
+        break;
+
+
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_NVelocity:
+		NVelocity();
+		break;
+	case NODE_SVelocity:
+		SVelocity();
+		break;
+        
+    }
+
+
+    if ((NodeType & NODE_MRT))
+    {
+//		if (fi_s < 1) {
+			CollisionBGK();
+//		} else {
+//			BounceBack();
+//		}
+    }
+
+
+}
+
+CudaDeviceFunction void Init() {
+	
+    vector_t ulb = {0.,0.}, u={0,0};
+    real_t rho = 1.;
+    real_t Jx = u.x / rho;
+    real_t Jy = u.y / rho;
+
+<?R
+    psi0=PV("psi0");
+    phi0=PV("phi0");
+
+	C( g, psi0 * wp0 );
+    C( f, feq );
+
+    C( h_0, n_inf_0 * wi);
+    C( h_1, n_inf_1 * wi);
+    C(phi, wp0 * phi0);
+?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+   if ( IamBOUNDARY && !IamWall ) {
+       BC[0] = u.x;
+       BC[1] = u.y;
+   } else {
+       BC[0] = 0;
+       BC[1] = 0;
+   }
+<?R } ?>
+
+}
+
+
+CudaDeviceFunction void CollisionBGK()
+{
+	real_t M[9];
+	real_t psi, rho_e, rho, n0, n1;
+    real_t BK, Jx,Jy;
+    vector_t u, Force, ulb;
+
+	rho_e = getrho_e();
+    psi = getPsi();
+    rho = getRho();
+    real_t Phi = getPhi();
+
+    u = getU();
+
+  //  AddToTotalMomentum( rho*(u.x*u.x+u.y*u.y) );
+
+   // ulb = u;
+    n0 = getn0();
+    n1 = getn1();
+
+    const vector_t gradPsi = getGradPsi();
+//    subiter = getSubiter();
+
+    Force = getF();
+    
+    const real_t omega = 1.0/(3.*nu + 0.5);
+<?R
+        cs2 = 1./3.
+        C(PV("const real_t tau_D"), D * dt_D^-1 * cs2^-1  + 1./2.)
+        tau_D = PV("tau_D")
+
+        B = D *(cs2^-1) * (tau_D^-1) * (dt_D^-1) 
+
+        BK = PV("BK")
+
+        C(BK, B * el_kbT)
+        
+        u = PV(c("u.x","u.y"))
+#        u = c(0,0)
+
+        cu = (u[1] * U[,1] + u[2] * U[,2]) 
+        
+        gradPsi = PV(c("gradPsi.x", "gradPsi.y"))
+#        gradPsi = PV(c("0", "0"))
+
+        n0 = PV("n0")    
+        heq0 = wi * n0 * (1. - cu * cs2^-1) ;
+
+        n1 = PV("n1")
+        heq1 = wi * n1 * (1. - cu * cs2^-1)
+        
+        S = gradPsi[1] * U[,1] + gradPsi[2] * U[,2]
+        
+        RD = -2./3. * (0.5 - tau_psi) * dt  * ( rho_e *(epsilon^-1) ) ;
+
+        C(h_0, h_0 - tau_D^-1 * (h_0 - heq0 ) - wi * dt_D * z0 * S * n0 * BK)
+        C(h_1, h_1 - tau_D^-1 * (h_1 - heq1 ) - wi * dt_D * z1 * S * n1 * BK )
+        C(g, g - tau_psi^-1 * (g - wp*psi) +  dt * wps * RD  )
+        C(phi, phi - tau_phi^-1 * (phi - wp*Phi)  )
+
+
+        
+        C(J, f %*% U)
+        omega = PV("omega")
+#C(du, PV(c("Force.x","Force.y")))
+#        C(f,  f - omega*(f -  feq) + (feq2 - feq) ) 
+        C(f, (omega-1) * (EQ$feq - f)  )
+    
+        C( J, J + PV( c("Force.x","Force.y")  ))
+   
+        C(f, f + EQ$feq)
+    ?>
+      
+//    }
+
+}
+
+//CudaDeviceFunction void CalcSubiter()
+//{
+//    if (subiter > 10) {
+//        subiter = 0;
+//    }
+//    subiter = subiter + 1;
+//}
+
+
+CudaDeviceFunction vector_t getGradPsi(){
+
+    vector_t grad;
+
+    <?R 
+        C(PV(c("grad.x","grad.y")), (g - wp*psi) %*% U * ( -(3./2.)*dt^-1*tau_psi^-1 ) );  
+#     C(PV(c("grad.x","grad.y")),c(1,1))
+        
+    ?>
+    return grad;
+
+}
+
+
+
+
+CudaDeviceFunction vector_t getGradPhi(){
+
+    vector_t grad;
+
+    <?R 
+        C(PV(c("grad.x","grad.y")), (phi - wp*Phi) %*% U * ( -(3./2.)*dt^-1*tau_phi^-1 ) );  
+#     C(PV(c("grad.x","grad.y")),c(1,1))
+        
+    ?>
+    return grad;
+
+}
+
+
+
+CudaDeviceFunction real_t getn0(){
+    return <?R C(sum(h_0)) ?>;
+}
+
+CudaDeviceFunction real_t getn1(){
+    return <?R C(sum(h_1)) ?>;
+
+}
+
+CudaDeviceFunction real_t getPhi(){
+    const real_t wp0 = <?R C(wp0) ?>;
+	return ( <?R C( sum( phi[2:9] ))  ?> ) / (1. - wp0);
+}
+
+CudaDeviceFunction real_t getRho(){
+    return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+    <?R C(PV(c("u.x","u.y")) , f %*% U) ?>
+	vector_t F;
+	F = getF();
+    u.x = u.x/d+F.x*0.5;
+    u.y = u.y/d+F.y*0.5;
+//	u.x /= d;
+//	u.y /= d;
+	u.z = 0;
+	return u;
+}
+CudaDeviceFunction vector_t getF(){
+    const vector_t gradPsi = getGradPsi();
+    const vector_t gradPhi = getGradPhi();
+
+    const real_t rho_e = getrho_e();
+    const real_t rho = getRho();
+    vector_t F;
+//    F.x = -(gradPhi.x+gradPsi.x)*rho_e/rho *t_to_s*t_to_s;
+//    F.y = -(gradPhi.y+gradPsi.y)*rho_e/rho *t_to_s*t_to_s;
+    F.x = -(gradPhi.x)*rho_e/rho *t_to_s*t_to_s;
+    F.y = -(gradPhi.y)*rho_e/rho *t_to_s*t_to_s;
+
+
+
+    return F;
+}
+
+<?R
+pressureBC = function(n) {
+     ?> { <?R
+        ZouHeRewrite(EQ, f, n, "pressure", c(PV('rho_bc')) ) 
+     ?> } <?R
+
+     ?> { <?R
+        FullBounceBack(group="g") 
+     ?> } <?R
+   
+        u = BC_Velocity 
+        cu = (u[1] * U[,1] + u[2] * U[,2]) 
+        EQ_h = EQ
+        EQ_h$feq =  wi * n1 * (1. - cu * cs2^-1)
+        EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+        
+     ?> { <?R  
+        ZouHeRewrite(EQ_h, h_0, n, "pressure", n_inf_0)
+     ?> } <?R
+      
+     ?> { <?R
+        ZouHeRewrite(EQ_h, h_1, n, "pressure", n_inf_1)
+     ?> } <?R
+
+     ?> { <?R
+        C(phi, wp*phi_bc)
+     ?> } <?R
+}
+
+?>
+CudaDeviceFunction void WPressure()
+{
+ <?R pressureBC(c(-1,0)) ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+ <?R pressureBC(c(1,0)) ?>
+}
+
+
+
+<?R
+velocityBC = function(n) {
+     ?> { <?R
+        ZouHeRewrite(EQ, f, n, "velocity", BC_Velocity) 
+     ?> } <?R
+
+     ?> { <?R
+        FullBounceBack(group="g") 
+     ?> } <?R
+   
+        u = BC_Velocity 
+        cu = (u[1] * U[,1] + u[2] * U[,2]) 
+        EQ_h = EQ
+        EQ_h$feq =  wi * n1 * (1. - cu * cs2^-1)
+        EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+        
+     ?> { <?R  
+        ZouHeRewrite(EQ_h, h_0, n, "pressure", n_inf_0)
+     ?> } <?R
+      
+     ?> { <?R
+        ZouHeRewrite(EQ_h, h_1, n, "pressure", n_inf_1)
+     ?> } <?R
+     
+}
+
+
+?>
+
+CudaDeviceFunction void EVelocity()
+{
+   <?R velocityBC(c(1,0)) ?>
+   { <?R
+        C(phi, wp*phi_bc)
+   ?> } 
+
+      
+}
+
+CudaDeviceFunction void WVelocity()
+{
+   <?R velocityBC(c(-1,0)) ?>
+   { <?R
+        C(phi, wp*phi_bc)
+   ?>}
+
+    
+}
+
+CudaDeviceFunction void NVelocity()
+{
+   <?R velocityBC(c(0,1)) ?>
+ <?R
+  reflect_to =  c(4,7,8) + 1;
+  reflect_from = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>      
+
+}
+CudaDeviceFunction void SVelocity()
+{
+   <?R velocityBC(c(0,-1)) ?>
+
+<?R
+  reflect_from =  c(4,7,8) + 1;
+  reflect_to = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>
+      
+}
+
+
