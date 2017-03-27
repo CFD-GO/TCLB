@@ -69,7 +69,13 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 <?R for (d in rows(Density)) if (d$parameter) { ?>
 	if (field == "<?%s d$name ?>") {
 		if ((type == PAR_GET) || (type == PAR_SET)) solver->lattice->Get_<?%s d$nicename ?>(buf);
-		if ( type == PAR_GRAD ) solver->lattice->Get_<?%s d$nicename ?>_Adj(buf);
+		if ( type == PAR_GRAD ) {
+		#ifdef ADJOINT
+			solver->lattice->Get_<?%s d$nicename ?>_Adj(buf);
+		#else
+			ERROR("Cannot get gradient of Field Parameter without adjoint\n");
+		#endif // ADJOINT
+		}
 	}
 <?R } ?>
 	int j=0;
