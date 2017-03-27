@@ -169,6 +169,12 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  AUTO-DEP   $@"
 	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
 
+<?%s d ?>/<?%s m ?>/makefile:$(SRC)/makefile.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R <?%s src_all ?>
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || mv $@ $@~
+
+
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
@@ -243,7 +249,7 @@ wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
 	@$(MKPATH) $@
-	@cat $< | sed -r 's/[-+]?[0-9]+\.[0-9]*([eE][-+]?[0-9]+)?/&f/g' > $@
+	@cat $< | sed -r 's/([^a-zA-Z0-9][0-9]+\.[0-9]*([eE][-+]?[0-9]+)?)[fL]+/\1f/g' > $@
 
 
 

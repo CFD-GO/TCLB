@@ -23,8 +23,8 @@ AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="P", unit="Pa");
 AddQuantity(name="F", unit="N", vector=T);
 
-AddSetting(name="omega", comment='one over relaxation time')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="omega", comment='relaxation factor')
+AddSetting(name="nu", omega='1.0-1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')
@@ -38,20 +38,6 @@ AddSetting(name="GravitationX", comment='Gravitation in the direction of x')
 AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall')
 AddSetting(name="Density", comment='zonal density', zonal=TRUE)
 AddSetting(name="Wetting", comment='wetting factor')
-
-AddSetting(name="S0", default="0", comment='MRT Sx')
-AddSetting(name="S1", default="0",comment='MRT Sx')
-AddSetting(name="S2", default="0",comment='MRT Sx')
-AddSetting(name="S3", default="-.333333333", comment='MRT Sx')
-AddSetting(name="S4", default="0", comment='MRT Sx')
-AddSetting(name="S5", default="0", comment='MRT Sx')
-AddSetting(name="S6", default="0", comment='MRT Sx')
-AddSetting(name="S7", default="1.-omega", comment='MRT Sx')
-AddSetting(name="S8", default="1.-omega",  comment='MRT Sx')
-
-
-
-
 
 
 #AddGlobal(name="MovingWallForceX", comment='force x')
