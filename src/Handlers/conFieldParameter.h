@@ -4,12 +4,25 @@
 #include "../CommonHandler.h"
 
 #include "vHandler.h"
-#include "Action.h"
+#include "Callback.h"
+#include "Design.h"
 
-class  conFieldParameter  : public  Action  {
-	public:
+class  conFieldParameter  : public Design  {
+	std::string field;
+	int Pars;
+	int Par_size; ///< Parameter space dimension
+	int *Par_sizes; ///< Parameter space dimensions on all the processors
+	int *Par_disp; ///< Offsets in the Parameter vector for all the processors
+	int mpi_size, mpi_rank;
+	int CalculateNumberOfParameters ();
+	bool FlagInDesignSpace(flag_t);
+	bool InDesignSpace(size_t);
+	int LocalParameters (int type, double * tab);
+public:
 	static std::string xmlname;
-int Init ();
+	int Init ();
+	int NumberOfParameters ();
+	int Parameters (int type, double * tab);
 };
 
 #endif // CONFIELDPARAMETER_H
