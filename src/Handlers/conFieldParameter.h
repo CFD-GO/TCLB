@@ -18,6 +18,7 @@ class  conFieldParameter  : public Design  {
 	bool FlagInDesignSpace(flag_t);
 	bool InDesignSpace(size_t);
 	int LocalParameters (int type, double * tab);
+	flag_t flag_mask, flag_value;
 public:
 	static std::string xmlname;
 	int Init ();

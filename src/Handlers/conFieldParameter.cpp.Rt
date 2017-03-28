@@ -24,13 +24,37 @@ int conFieldParameter::Init () {
 			field = "";
 			return -1;
 		}
+		attr = node.attribute("where");
+		if (attr) {
+			std::string where = attr.value();
+			<?R for (n in rows(NodeTypes)) { ?>
+			if (where == "<?%s n$name ?>") { flag_value = NODE_<?%s n$name ?>; flag_mask = NODE_<?%s n$group ?>; }
+			<?R } ?>
+		} else {
+			flag_value = NODE_None;
+			flag_mask = NODE_NONE;
+		}
+		attr = node.attribute("zone");
+		if (attr) {
+			std::string zone = attr.value();
+			int zone_number = -1;
+			if (solver->geometry->SettingZones.count(zone) > 0) { 
+				zone_number = solver->geometry->SettingZones[zone];
+			} else {
+				ERROR("Unknown zone %s in %s\n", zone.c_str(), node.name());
+				return -1;
+			}
+			flag_mask = flag_mask | NODE_SETTINGZONE;
+			flag_value = flag_value | (zone_number << ZONE_SHIFT);
+		}
 		Pars = CalculateNumberOfParameters ();
 		output("FieldParameter with %d parameters\n",Pars);
 		return Design::Init();
 	}
 
 bool conFieldParameter::FlagInDesignSpace(flag_t flag) {
-	return (flag  & NODE_DesignSpace) != 0;
+//	return (flag  & NODE_DesignSpace) != 0;
+	return (flag & flag_mask) == flag_value;
 }
 
 bool conFieldParameter::InDesignSpace(size_t i) {
