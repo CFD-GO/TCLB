@@ -105,6 +105,28 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 		}
 		output("L2 norm of gradient: %lg\n", sqrt(sum));
 		break;
+	case PAR_X:
+	case PAR_Y:
+	case PAR_Z:
+	case PAR_T:
+		{
+			size_t i=0;
+			for (int z=0; z<solver->region.nz; z++)
+			for (int y=0; y<solver->region.ny; y++)
+			for (int x=0; x<solver->region.nx; x++) {
+				if (InDesignSpace(i)) {
+					switch(type) {
+						case PAR_X: tab[j] = x; break;
+						case PAR_Y: tab[j] = y; break;
+						case PAR_Z: tab[j] = z; break;
+						case PAR_T: tab[j] = 0; break;
+					}
+					j++;
+				}
+				i++;
+			}
+		}
+		break;
 	}
 <?R for (d in rows(Density)) if (d$parameter) { ?>
 	if (field == "<?%s d$name ?>") {
@@ -120,16 +142,17 @@ int conFieldParameter::Parameters (int type, double * tab) {
 	double * ptab = new double[Par_size];
 	switch(type) {
 	case PAR_GET:
+	case PAR_GRAD:
+	case PAR_X:
+	case PAR_Y:
+	case PAR_Z:
+	case PAR_T:
 		LocalParameters(type, ptab);
 		MPI_Gatherv(ptab, Par_size, MPI_DOUBLE, tab, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		break;
 	case PAR_SET:
 		MPI_Scatterv(tab, Par_sizes, Par_disp,  MPI_DOUBLE, ptab, Par_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		LocalParameters(type, ptab);
-		break;
-	case PAR_GRAD:
-		LocalParameters(type, ptab);
-		MPI_Gatherv(ptab, Par_size, MPI_DOUBLE, tab, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		break;
 	case PAR_UPPER:
 		for (size_t i=0;i<Pars;i++) tab[i]=1;
