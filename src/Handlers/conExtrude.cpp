@@ -16,6 +16,15 @@ struct conExtrudeCompare {
         }
 };
 
+bool conExtrude::next(size_t k) {
+        if (! ((k+1) < Pars2)) return true;
+        size_t a=idx[k], b=idx[k+1];
+        for (int i=0;i<4;i++) if (i != direction) {
+                if (coords[i][a] != coords[i][b]) return true;
+        }
+        return false;
+}
+
 int conExtrude::Init () {
 		Pars = -1;
 		pugi::xml_attribute attr;
@@ -37,15 +46,15 @@ int conExtrude::Init () {
 		}
 
 		Pars2 = (*hand)->NumberOfParameters();
-		direction=0;
+		direction=-1;
 		attr = node.attribute("direction");
 		if (attr) {
 		        std::string dire = attr.value();
-		        if (dire == "x") direction = PAR_X;
-		        if (dire == "y") direction = PAR_Y;
-		        if (dire == "z") direction = PAR_Z;
-		        if (dire == "t") direction = PAR_T;
-		        if (direction == 0) {
+		        if (dire == "x") direction = 0;
+		        if (dire == "y") direction = 1;
+		        if (dire == "z") direction = 2;
+		        if (dire == "t") direction = 3;
+		        if (direction < 0) {
         			ERROR("%s needs proper direction - \"%s\" given!\n", node.name(), attr.value());
         			return -1;
                         }
@@ -53,7 +62,18 @@ int conExtrude::Init () {
 			ERROR("%s needs direction!\n", node.name());
 			return -1;
 		}
-		Pars = 0;
+		theta = 1.0;
+		attr = node.attribute("theta");
+		if (attr) {
+		        theta = solver->units.alt(attr.value());
+		        output("Setting theta in %s to %lg\n",node.name(),theta);
+                }
+		margin = 1.0;
+		attr = node.attribute("margin");
+		if (attr) {
+		        margin = solver->units.alt(attr.value());
+		        output("Setting margin in %s to %lg\n",node.name(),margin);
+                }
 	        tab2 = new double[Pars2];
 		for (int i=0;i<4;i++) {
 		        coords[i] = new double[Pars2];
@@ -61,11 +81,11 @@ int conExtrude::Init () {
                 }
                 idx.resize(Pars2);
                 for (size_t i=0; i<Pars2; i++) idx[i] = i;
-                std::sort(idx.begin(),idx.end(),conExtrudeCompare(coords,direction-PAR_X));
-                for (size_t i=0; i<Pars2; i++) {
-                        size_t j=idx[i];
-                        printf("extr: %lf %lf %lf %lf\n", coords[0][j], coords[1][j], coords[2][j], coords[3][j]);
-                }
+                std::sort(idx.begin(),idx.end(),conExtrudeCompare(coords,direction));
+                Pars = 0;
+                for (size_t i=0; i<Pars2; i++) if (next(i)) Pars++;
+                output("%s with %d parameters\n", node.name(), Pars);
+                Par = new double[Pars];
 		return Design::Init();
 	};
 
@@ -80,18 +100,69 @@ int conExtrude::NumberOfParameters () {
 	return Pars;
 };
 
+double conExtrude::Fun(double x, double v) {
+        x = (x-v)/theta;
+        x = exp(x);
+        x = x/(x+1);
+        return x;
+}
+
+double conExtrude::FunD(double x, double v) {
+        x = (x-v)/theta;
+        x = exp(x);
+        x = x/(x+1)/(x+1);
+        return -x/theta;
+}
 
 int conExtrude::Parameters (int type, double * tab) {
+                size_t k=0;
 		switch(type) {
-		case PAR_GET:
-			return 0;
 		case PAR_SET:
+		        for (size_t i=0; i<Pars; i++) Par[i] = tab[i]; // We have to save the parameters, are our trasformation is non-linear
+		        for (size_t i=0; i<Pars2; i++) {
+		                size_t j = idx[i];
+		                tab2[j] = Fun(coords[direction][j],tab[k]);
+		                if (next(i)) k++;
+                        }
+                        assert(k == Pars);
+                        (*hand)->Parameters(type,tab2);
 			return 0;
 		case PAR_GRAD:
+                        (*hand)->Parameters(type,tab2);
+                        for (size_t i=0; i<Pars; i++) tab[i] = 0;
+		        for (size_t i=0; i<Pars2; i++) {
+		                size_t j = idx[i];
+		                tab[k] += FunD(coords[direction][j],Par[k]) * tab2[j];
+		                if (next(i)) k++;
+                        }
+                        assert(k == Pars);
 			return 0;
+		case PAR_GET:
+		        (*hand)->Parameters(type,tab2); // NOTE: no break - continues below
 		case PAR_UPPER:
-			return 0;
 		case PAR_LOWER:
+		        {
+		                bool st=true;
+        		        for (size_t i=0; i<Pars2; i++) {
+        		                size_t j = idx[i];
+        		                switch(type) {
+        		                        case PAR_UPPER: if (tab[k] < coords[direction][j]) st=true; break;
+        		                        case PAR_LOWER: if (tab[k] > coords[direction][j]) st=true; break;
+        		                        case PAR_GET:   if (tab2[j] < 0.5) st=true; break;
+                                        }
+        		                if (st) {
+        		                        tab[k] = coords[direction][j];
+        		                        st = false;
+                                        }
+        		                if (next(i)) { k++; st = true; }
+                                }
+                                double offset = abs(margin*theta);
+       		                switch(type) {
+       		                        case PAR_UPPER: for (size_t i=0; i<Pars; i++) tab[i] += offset; break;
+       		                        case PAR_LOWER: for (size_t i=0; i<Pars; i++) tab[i] -= offset; break;
+       		                        case PAR_GET:   for (size_t i=0; i<Pars; i++) tab[i] -= offset; break;
+                                }
+                        }
 			return 0;
 		default:
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());

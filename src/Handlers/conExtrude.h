@@ -8,17 +8,19 @@
 #include "Design.h"
 
 class  conExtrude  : public  Design  {
-	int Pars;
+	size_t Pars;
 	size_t Pars2;
 	int direction;
 	double * coords[4];
 	double * tab2;
+	double * Par;
+	double theta;
+	double margin;
 	std::vector<int> idx;
-	double lower, upper;
-	FILE * f;
 	Handler * hand;
-	bool per;
-	int order;
+	bool next(size_t i);
+	double Fun(double,double);	
+	double FunD(double,double);	
 public:
 	static std::string xmlname;
 int Init ();
