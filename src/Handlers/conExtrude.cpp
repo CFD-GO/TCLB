@@ -6,13 +6,15 @@ std::string conExtrude::xmlname = "Extrude";
 struct conExtrudeCompare {
         double ** coords;
         int direction;
-        conExtrudeCompare(double ** coords_, int direction_): coords(coords_), direction(direction_) {}
+        bool positive;
+        conExtrudeCompare(double ** coords_, int direction_, bool positive_): coords(coords_), direction(direction_), positive(positive_) {}
         bool operator()(int a, int b) const {
                 for (int i=0;i<4;i++) if (i != direction) {
                         if (coords[i][a] < coords[i][b]) return true;
                         if (coords[i][a] > coords[i][b]) return false;
                 }
-                return coords[direction][a] < coords[direction][b];
+                if (positive) return coords[direction][a] < coords[direction][b];
+                return coords[direction][a] > coords[direction][b];
         }
 };
 
@@ -81,7 +83,7 @@ int conExtrude::Init () {
                 }
                 idx.resize(Pars2);
                 for (size_t i=0; i<Pars2; i++) idx[i] = i;
-                std::sort(idx.begin(),idx.end(),conExtrudeCompare(coords,direction));
+                std::sort(idx.begin(),idx.end(),conExtrudeCompare(coords,direction,theta>0));
                 Pars = 0;
                 for (size_t i=0; i<Pars2; i++) if (next(i)) Pars++;
                 output("%s with %d parameters\n", node.name(), Pars);
