@@ -58,7 +58,8 @@ get.models = function() {
 			test=e$TEST, 
 			git=(m %in% M1), 
 			present=(m %in% M2), 
-			name=rownames(opts), 
+			name=rownames(opts),
+			group=name,
 			path=path
 		)
 		ret$opts = lapply(rownames(opts),function(n) as.list(opts[n,,drop=FALSE]))
