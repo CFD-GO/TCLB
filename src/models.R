@@ -47,7 +47,7 @@ get.models = function() {
 			opts = terms(opts)
 			opts = attr(opts,"factors")
 			opts = data.frame(t(opts))
-			rownames(opts) = paste(name,sub(":","_",rownames(opts)),sep="_")
+			rownames(opts) = paste(name,gsub(":","_",rownames(opts)),sep="_")
 			opts[name,]=0
 		} else {
 			opts = data.frame(row.names=name)
@@ -58,7 +58,8 @@ get.models = function() {
 			test=e$TEST, 
 			git=(m %in% M1), 
 			present=(m %in% M2), 
-			name=rownames(opts), 
+			name=rownames(opts),
+			group=name,
 			path=path
 		)
 		ret$opts = lapply(rownames(opts),function(n) as.list(opts[n,,drop=FALSE]))

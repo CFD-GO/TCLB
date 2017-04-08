@@ -79,6 +79,11 @@ travis : .travis.yml
 	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
 
 
+<?R
+	m = tapply(Models$name, Models$group, paste, collapse=" ")
+	cat(paste0(names(m),"/all : ",m, "\n\n"))
+?>
+
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
 ###############################################################################

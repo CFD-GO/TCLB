@@ -16,6 +16,12 @@
 #define PAR_LOWER 0x04
 #define PAR_UPPER 0x05
 
+#define PAR_X 0x06
+#define PAR_Y 0x07
+#define PAR_Z 0x08
+#define PAR_T 0x09
+
+
 class Solver;
 
 /// Main Handler prototype (virtual) class
