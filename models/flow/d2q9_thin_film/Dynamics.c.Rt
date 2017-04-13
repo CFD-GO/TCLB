@@ -59,7 +59,7 @@ CudaDeviceFunction vector_t getU(){
     u.x += d*GravitationX*0.5;
     u.y += d*GravitationY*0.5;
 
-    real_t nu = (S2 + 0.5) / 3.;
+    real_t nu = -(S2 + 1)/(6*S2 - 6) ;
     
     real_t K = d * 12. * nu * h_Z * h_Z;
     
@@ -285,7 +285,7 @@ CudaDeviceFunction void CollisionMRT()
         real_t dJy =  GravitationY*rho ; 
 <?R } ?>
 
-    real_t nu = (S2 + 0.5) / 3.;
+    real_t nu = -(S2 + 1)/(6*S2 - 6) ;
     real_t K = rho * 12. * nu * h_Z * h_Z;
     
     Jx = Jx + dJx - K*(Jx+dJx*0.5)/(1. + 0.5 * K) / rho;
@@ -303,7 +303,7 @@ CudaDeviceFunction void CollisionCumulant()
 
  real_t c[9],d;
 
- real_t nu = (S2 + 0.5) / 3.;
+ real_t nu = -(S2 + 1)/(6*S2 - 6);
 
  d = getRho();
  real_t  w[5] = {1.0/(3*nu+0.5),1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
