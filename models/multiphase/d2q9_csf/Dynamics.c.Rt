@@ -532,8 +532,7 @@ CudaDeviceFunction vector_t getU(){
     u.y += 0.5*F.y;
 
 
-    real_t nu = (gamma + 0.5) / 3.;
-    
+    real_t nu = -(gamma + 1)/(6*gamma - 6) ;
     real_t K = d * 12. * nu * h_Z * h_Z;
     
     u.x = (u.x)/(1. + 0.5 * K) / d;
@@ -887,8 +886,8 @@ CudaDeviceFunction void CollisionMRT()
     vector_t F = getF();
  
     
-    real_t nu = (gamma + 0.5) / 3.;
-    real_t K = 12. * nu * h_Z * h_Z;
+    real_t nu = -(gamma + 1)/(6*gamma - 6) ;
+    real_t K = rho * 12. * nu * h_Z * h_Z;
    
     //for C-H
     vector_t u;
