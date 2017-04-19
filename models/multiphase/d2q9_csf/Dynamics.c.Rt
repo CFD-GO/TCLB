@@ -914,9 +914,9 @@ CudaDeviceFunction void CollisionMRT()
 
 
 //    real_t d = <?R C(sum(f)) ?>;
-//    vector_t u = getU();
-    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / rho;
-    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / rho;
+    vector_t u = getU();
+//    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / rho;
+//    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / rho;
     real_t omega_ph =  1/( 3 * Mobility + 0.5); 
     real_t Bh;
 
