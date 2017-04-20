@@ -20,7 +20,7 @@ OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geom
 
 AOUT=main
 
-NVCC=nvcc
+NVCC=@NVCC@
 CCTXT=NVCC
 
 ifeq '$(strip $(ADJOINT))' '1'
