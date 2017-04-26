@@ -565,13 +565,15 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 
 
 /// Function listing all buffers in FTabs
-void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
+	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 	if (maxsize) *maxsize = 0;
-	if (n) *n = <?%d length(NonEmptyMargin) ?>;
-	if (size) *size = new size_t[*n];
-	if (ptr) *ptr = new void*[*n];
+	n = <?%d length(NonEmptyMargin) ?>;
+	if (np) *np = n;
+	if (size) *size = new size_t[n];
+	if (ptr) *ptr = new void*[n];
 <?R
 	for (m in NonEmptyMargin) {
 ?>
