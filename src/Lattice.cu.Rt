@@ -577,7 +577,7 @@ void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	if (size) (*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(real_t);
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
 	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
 	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
@@ -585,6 +585,50 @@ void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t
 	}
 ?>
 }
+
+size_t Lattice::sizeOfTab() {
+<?R
+	totsize = 0
+	for (m in NonEmptyMargin) totsize = m$Size + totsize
+?>
+	int nx = region.nx, ny=region.ny,  nz=region.nz;
+	return <?R C(totsize,float=F) ?>;
+}
+
+void Lattice::saveToTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Save buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+void Lattice::loadFromTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Load buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
 
 /// Save a FTabs
 int Lattice::save(FTabs& tab, const char * filename) {
