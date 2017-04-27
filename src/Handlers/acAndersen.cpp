@@ -68,14 +68,14 @@ int acAndersen::Init () {
                         
                         d++;
                         if (d > directions)
-                        //	d = directions;
-                                d = 1;
+                        //	d = directions; // Continue
+                                d = 1;		// Restart
 
-//                        for (int i=0; i < d; i++) {
-//                        for (int i=d-1; i >= 0; i--) {
-                        { int i=0;
-//                                for (int j=0; j < i; j++) {
-                                  for (int j=i+1; j < d; j++) {
+//                        for (int i=0; i < d; i++) {		//Option A
+//                        for (int i=d-1; i >= 0; i--) {	//Option B - obsolete
+                        { int i=0;				//Option B
+//                                for (int j=0; j < i; j++) {	//Option A
+                                  for (int j=i+1; j < d; j++) {	//Option B
                                         double a = skal(e[i],e[j]);
                                         debug2("R[%d,%d]: %lg\n",i,j,a);
                                         for (size_t k=0; k<n; k++) e[i][k] -= a * e[j][k];
