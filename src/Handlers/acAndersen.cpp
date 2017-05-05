@@ -24,6 +24,7 @@ double acAndersen::skal(real_t * a, real_t * b) {
 
 int acAndersen::Init () {
                 int times;
+                double eps = 0;
 		GenericAction::Init();
 		pugi::xml_attribute attr = node.attribute("Directions");
 		if (attr) {
@@ -37,6 +38,10 @@ int acAndersen::Init () {
 			times = attr.as_int();
 		} else {
 		        times = directions;
+		}
+		attr = node.attribute("Eps");
+		if (attr) {
+			eps = attr.as_double();
 		}
 		n = solver->lattice->sizeOfTab();
 		output("Size of vector in Andersen: %ld\n", n);
@@ -61,9 +66,9 @@ int acAndersen::Init () {
                         if (GenericAction::ExecuteInternal()) return -1;
                         solver->lattice->saveToTab(e[0]);
                         for (size_t i=0; i<n; i++) e[0][i] = e[0][i] - x[0][i];
-                        double sum=0;
-                        for (size_t i=0; i<n; i++) sum += e[0][i]*e[0][i];
-                        output("Residual in Andersen: %lg %lg\n",sum,skal(e[0],e[0]));
+                        double sum = skal(e[0],e[0]);
+                        output("Residual in Andersen: %lg\n",sum);
+                        if (sum < eps) break;
                         p[0] = 1;
                         
                         d++;
