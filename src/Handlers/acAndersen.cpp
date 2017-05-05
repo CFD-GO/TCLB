@@ -68,6 +68,7 @@ int acAndersen::Init () {
                         for (size_t i=0; i<n; i++) e[0][i] = e[0][i] - x[0][i];
                         double sum = skal(e[0],e[0]);
                         output("Residual in Andersen: %lg\n",sum);
+                        if (!isfinite(sum)) break;
                         if (sum < eps) break;
                         p[0] = 1;
                         
