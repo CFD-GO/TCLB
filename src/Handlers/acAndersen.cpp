@@ -68,8 +68,8 @@ int acAndersen::Init () {
                         
                         d++;
                         if (d > directions)
-                        //	d = directions; // Continue
-                                d = 1;		// Restart
+                        	d = directions; // Continue
+//                                d = 1;		// Restart
 
 //                        for (int i=0; i < d; i++) {		//Option A
 //                        for (int i=d-1; i >= 0; i--) {	//Option B - obsolete
@@ -101,10 +101,7 @@ int acAndersen::Init () {
                         }
                         solver->lattice->loadFromTab(nx);
                         if (GenericAction::ExecuteInternal()) return -1;
-                        
-                }		
-		
-		
+                }
 		for (int i = 0; i<directions; i++) {
 		        free(x[i]);
 		        free(e[i]);
