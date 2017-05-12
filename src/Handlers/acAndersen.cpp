@@ -48,6 +48,7 @@ int acAndersen::Init () {
 		x = (real_t **) malloc(directions*sizeof(real_t*));
 		e = (real_t **) malloc(directions*sizeof(real_t*));
 		p = (double *)  malloc(directions*sizeof(double));
+		output("Allocating %ld b for Anderson\n",(size_t)2*n*directions * sizeof(real_t));
 		real_t * mem = (real_t *) malloc(2*n*directions * sizeof(real_t));
 		for (int i = 0; i<directions; i++) {
 		        x[i] = &mem[   2*i *n];
