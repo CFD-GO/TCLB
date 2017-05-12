@@ -48,9 +48,10 @@ int acAndersen::Init () {
 		x = (real_t **) malloc(directions*sizeof(real_t*));
 		e = (real_t **) malloc(directions*sizeof(real_t*));
 		p = (double *)  malloc(directions*sizeof(double));
+		real_t * mem = (real_t *) malloc(2*n*directions * sizeof(real_t));
 		for (int i = 0; i<directions; i++) {
-		        x[i] = (real_t *) malloc(n * sizeof(real_t));
-		        e[i] = (real_t *) malloc(n * sizeof(real_t));
+		        x[i] = &mem[   2*i *n];
+		        e[i] = &mem[(2*i+1)*n];
                 }
 	        real_t * nx = (real_t *) malloc(n * sizeof(real_t));
 
@@ -108,12 +109,11 @@ int acAndersen::Init () {
                         solver->lattice->loadFromTab(nx);
                         if (GenericAction::ExecuteInternal()) return -1;
                 }
-		for (int i = 0; i<directions; i++) {
-		        free(x[i]);
-		        free(e[i]);
-                }
+                free(mem);
 		free(x);
 		free(e);
+		free(p);
+		free(nx);
 		return 0;
 }
 
