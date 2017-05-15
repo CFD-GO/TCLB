@@ -80,8 +80,27 @@ travis : .travis.yml
 
 
 <?R
-	m = tapply(Models$name, Models$group, paste, collapse=" ")
-	cat(paste0(names(m),"/all : ",m, "\n\n"))
+	by(Models, Models$group, function(m) {
+		if (length(m$opts[[1]]) > 0) {
+			mat = do.call(rbind,m$opts)
+			mat = ifelse(mat==1, "X","-")
+			mat = as.data.frame(mat)
+			row.names(mat) = m$name
+		} else {
+			mat = as.character(m$name)
+		}
+?>
+
+<?%s m$group[1] ?>/all : <?%s m$name ?>
+
+<?%s m$group[1] ?>/list :
+<?R 
+		f = textConnection("to.echo","w")		
+		sink(f)
+		print(mat)
+		sink(); close(f)
+		cat(paste("\t@echo '",to.echo,"'\n",sep=""),sep="")
+	})
 ?>
 
 ###############################################################################
