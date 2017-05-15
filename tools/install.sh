@@ -73,10 +73,11 @@ function try {
 }
 
 function github_install {
-	name=$(echo $1 | sed "s/\//./g")
+	name=$(echo $1 | sed "s/^.*\///g")
 	rm -f $name.tar.gz
 	try "Downloading $name" wget https://github.com/$1/archive/master.tar.gz -O $name.tar.gz
-	try "Installing $name" R CMD INSTALL $name.tar.gz
+	try "Extracting $name" tar xzf $name.tar.gz
+	try "Installing $name" R CMD INSTALL $name-master
 }
 
 function normal_install {
