@@ -27,14 +27,20 @@ AddSetting(name="ForceY",default=0,comment='Force force Y')
 AddSetting(name="ForceZ",default=0,comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
+AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
+AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")
+AddGlobal(name="Lateral", comment='Force exerted on body in Y-direction', unit="N")
 
 AddNodeType("WVelocityTurbulent","BOUNDARY")
-AddNodeType("NSymmetry","BOUNDARY")
-AddNodeType("SSymmetry","BOUNDARY")
 AddNodeType("NVelocity", "BOUNDARY")
 AddNodeType("SVelocity", "BOUNDARY")
 AddNodeType("NPressure", "BOUNDARY")
 AddNodeType("SPressure", "BOUNDARY")
+
+
+AddNodeType("NSymmetry", "ADDITIONALS")
+AddNodeType("SSymmetry", "ADDITIONALS")
+AddNodeType("Body", "BODY")
 	
 #Adding terms for supporting time-correlation for synthetic turbulence
 

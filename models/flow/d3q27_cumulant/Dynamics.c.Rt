@@ -88,7 +88,19 @@ CudaDeviceFunction float2 Color() {
 }
 CudaDeviceFunction void BounceBack()
 {
+    vector_t p1,p2;
+<?R C(PV(c("p1.x","p1.y", "p1.z")), f %*% U) ?>
+
 <?R FullBounceBack() ?>
+
+<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+
+//Summing the difference in momentum before/after collision
+if((NodeType & NODE_BODY) == NODE_Body) {
+    AddToDrag(p2.x-p1.x);
+    AddToLateral(p2.y-p1.y);
+    AddToLift(p2.z-p1.z);
+    }
 }
 
 CudaDeviceFunction void EVelocity()
@@ -143,43 +155,45 @@ CudaDeviceFunction void SSymmetry()
 }
 
 CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_ADDITIONALS) {
+    	case NODE_NSymmetry:
+    		NSymmetry();
+    		break;
+        case NODE_SSymmetry:
+            SSymmetry();
+            break;
+}
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_WVelocityTurbulent:
 		WVelocityTurbulent();
 		break;
-	case NODE_NSymmetry:
-		NSymmetry();
-		break;
-	case NODE_SSymmetry:
-               	SSymmetry();
-                break;
 	case NODE_EPressure:
-                EPressure();
-               	break;
+        EPressure();
+        break;
 	case NODE_WPressure:
 		WPressure();
 		break;
 	case NODE_SPressure:
-                SPressure();
-                break;
+        SPressure();
+        break;
 	case NODE_NPressure:
-                NPressure();
-                break;
+        NPressure();
+        break;
 	case NODE_WVelocity:
 		WVelocity();
 		break;
 	 case NODE_NVelocity:
-                NVelocity();
-                break;
+        NVelocity();
+        break;
 	 case NODE_SVelocity:
-                SVelocity();
-                break;
+        SVelocity();
+        break;
 	case NODE_EVelocity:
 		EVelocity();
 		break;
 	case NODE_Wall:
 		BounceBack();
-                break;
+        break;
     }
     switch (NodeType & NODE_COLLISION) {
 	case NODE_MRT:
@@ -187,7 +201,6 @@ CudaDeviceFunction void Run() {
 		break;
     }
 }
-
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
 {
 	<?R
@@ -199,8 +212,11 @@ CudaDeviceFunction void Init() {
 	vector_t ST = SyntheticTurbulence(X,Y,Z);
 	ST.x = Turbulence*ST.x + Velocity;
 	ST.y = Turbulence*ST.y;
-	ST.z = Turbulence*ST.z; 
-	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
+	ST.z = Turbulence*ST.z;
+
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+	    SetEquilibrum(1.0,0,0,0);}
+	else SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
 }
 
 CudaDeviceFunction void WVelocityTurbulent() {
