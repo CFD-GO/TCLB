@@ -103,11 +103,13 @@ int acSyntheticTurbulence::Init () {
 		{
 			double timeWN;			
 			if (ReadWaveNumer("Time", &timeWN)) {
-                                ERROR("Must provide TimeWaveNumber for synthetic turbulence\n");
-                                return -1;
+                                notice("TimeWaveNumber not provided for synthetic turbulence\n");
+                        } else {
+        			solver->lattice->ST.setTimeScale(timeWN);
                         }
-			solver->lattice->ST.setTimeScale(timeWN);
 		}
+		solver->lattice->GenerateST();
+
 		return 0;
 	}
 
