@@ -25,16 +25,25 @@ CudaDeviceFunction real_t getRho(){
 }
 
 CudaDeviceFunction real_t getP(){
+    Run();
 	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
 }
 
 CudaDeviceFunction vector_t getU(){
+    Run();
 	real_t d = getRho();
 	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
-	u.x = (u.x + ForceX/2.)/d;
-	u.y = (u.y + ForceY/2.)/d;
-	u.z = (u.z + ForceZ/2.)/d;
+    if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+	u.x = 0;
+	u.y = 0;
+	u.z = 0;
+	}
+	else{
+		u.x = (u.x + ForceX/2.)/d;
+    	u.y = (u.y + ForceY/2.)/d;
+    	u.z = (u.z + ForceZ/2.)/d;
+    }
 	return u;
 }
 #ifdef avgUX
