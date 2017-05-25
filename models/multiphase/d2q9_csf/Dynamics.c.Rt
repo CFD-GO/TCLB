@@ -61,7 +61,6 @@
     wis = rep(1./9., 9)
     wis[1] = wis[1] - 1
     phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
-    
 #	d = PV(Density$name[Density$group=='d'])
 
 ?>
@@ -98,8 +97,11 @@ CudaDeviceFunction void  InitPhisStencil(){
     debug.y = 0;
     debug.z = 0;
     //calculate phi
+    //
     CalcPhi();
     
+    
+
 
     //calculate gradient and normal
     vector_t n, nw;// = getGradientPhi();
@@ -112,19 +114,55 @@ CudaDeviceFunction void  InitPhisStencil(){
 
     unsigned int wall_pattern = 0x0;
 
+    switch (NodeType & NODE_BOUNDARY) {
+    case NODE_SSymmetry:
+            <?R j = 2 ?>     
+            n.x = n.x + <?R C(phis[j]*wi[j]*U[j,1]) ?>;
+
+            <?R j = 4 ?>     
+            n.x = n.x + <?R C(phis[j]*wi[j]*U[j,1]) ?>;
+                 
+            <?R j = 6 ?>
+            n.x = n.x + <?R C(2*phis[j]*wi[j]*U[j,1]) ?>;
+
+            <?R j = 7 ?>
+            n.x = n.x + <?R C(2*phis[j]*wi[j]*U[j,1]) ?>;
+
+            <?R j = 3 ?>
+            n.x = n.x + <?R C(2*phis[j]*wi[j]*U[j,1]) ?>;
+
+        break;
+    case NODE_NSymmetry:
+            <?R j = 2 ?>     
+            n.x = n.x + <?R C(phis[j]*wi[j]*U[j,1]) ?>;
+
+            <?R j = 4 ?>     
+            n.x = n.x + <?R C(phis[j]*wi[j]*U[j,1]) ?>;
+                 
+            <?R j = 9 ?>
+            n.x = n.x + <?R C(2*phis[j]*wi[j]*U[j,1]) ?>;
+
+            <?R j = 8 ?>
+            n.x = n.x + <?R C(2*phis[j]*wi[j]*U[j,1]) ?>;
+
+            <?R j = 5 ?>
+            n.x = n.x + <?R C(2*phis[j]*wi[j]*U[j,1]) ?>;
+        break;
+    default:
+       <?R
+        for (j in 1:9) {
+        ?> 
+            if (<?R C(phis[j]) ?>  != -999) {
+                n.x = n.x + <?R C(phis[j]*U[j,1]*wi[j]) ?>;
+                n.y = n.y + <?R C( phis[j]*U[j,2]*wi[j]) ?>;
+            } else {
+                wall_pattern = wall_pattern + w<?%s j-1 ?>;
+            }
+        <?R } ?>
+        break;
+    }
 
 
-   <?R
-    for (j in 1:9) {
-    ?> 
-        if (<?R C(phis[j]) ?>  != -999) {
-            n.x = n.x + <?R C(phis[j]*U[j,1]*wi[j]) ?>;
-            n.y = n.y + <?R C( phis[j]*U[j,2]*wi[j]) ?>;
-        } else {
-            wall_pattern = wall_pattern + w<?%s j-1 ?>;
-        }
-    <?R } ?>
- 
     gradient.x = n.x*3.;
     gradient.y = n.y*3.;
     gradient.z = 0;
@@ -310,6 +348,66 @@ CudaDeviceFunction void  InitPhisStencil(){
     //calculate curvature
 
     curvature = 0;
+
+
+     switch (NodeType & NODE_BOUNDARY) {
+    case NODE_SSymmetry:
+    <?R    
+        boxes = array(c(
+                  c(0,1,5,2),
+                  c(3,0,2,6),
+                  c(6,2,0,3),
+                  c(2,5,1,0)
+               ), dim=c(4,4))    
+        signs = array(c(
+                    c(1,1),
+                    c(1,-1),
+                    c(-1,-1),
+                    c(-1,1)
+                    ), dim=c(2,4))
+        for (box_i in c(1:4)){
+#                box_i = 3
+                 box = boxes[,box_i]
+                 box_phis = phis[box+1]     
+                ?>
+       
+                 mx = <?R C( box_phis[2] - box_phis[1] + box_phis[3] - box_phis[4] ) ?>;
+                 my  = <?R C( box_phis[3] - box_phis[2] - box_phis[1] + box_phis[4] ) ?>;
+                 t1 = sqrt(mx*mx + my*my) + 1E-18;
+                 curvature = curvature + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+
+    <?R } ?>
+        break;
+    case NODE_NSymmetry:
+    <?R    
+        boxes = array(c(
+                  c(0,1,8,4),
+                  c(3,0,4,7),
+                  c(7,4,0,3),
+                  c(4,8,1,0)
+               ), dim=c(4,4))    
+        signs = array(c(
+                    c(1,1),
+                    c(1,-1),
+                    c(-1,-1),
+                    c(-1,1)
+                    ), dim=c(2,4))
+        for (box_i in c(1:4)){
+#                box_i = 3
+                 box = boxes[,box_i]
+                 box_phis = phis[box+1]     
+                ?>
+       
+                 mx = <?R C( box_phis[2] - box_phis[1] + box_phis[3] - box_phis[4] ) ?>;
+                 my  = <?R C( box_phis[3] - box_phis[2] - box_phis[1] + box_phis[4] ) ?>;
+                 t1 = sqrt(mx*mx + my*my) + 1E-18;
+                 curvature = curvature + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+
+    <?R } ?>
+        break;
+    default:
     <?R    
         boxes = array(c(
                   c(0,1,5,2),
@@ -336,6 +434,9 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 
     <?R } ?>
+        break;
+    }   
+
     
         curvature = - 0.5 * curvature;
     }
@@ -391,13 +492,17 @@ CudaDeviceFunction void  InitPhisStencil(){
 
    **/   
 
-//debug.x = gradient.x;
-//debug.y = gradient.y;
+debug.x = gradient.x;
+debug.y = gradient.y;
 
         ///////////////////
 
 }
 
+
+CudaDeviceFunction real_t getH_Z(){
+	return h_Z ;
+}   
 
 
 CudaDeviceFunction real_t getRho(){
@@ -410,17 +515,30 @@ CudaDeviceFunction real_t getRho(){
 
 CudaDeviceFunction vector_t getU(){
 	real_t d = getRho();
-	vector_t u;
+    vector_t u;
 <?R 
     C(PV(c("u.x","u.y")) , f %*% U)
+
 ?>
 	vector_t F;
 	F = getF();
-    u.x = u.x+F.x*0.5;
-    u.y = u.y+F.y*0.5;
-	u.x /= d;
-	u.y /= d;
-	u.z = 0;
+
+    real_t pf = <?R C(sum(h)) ?> ;
+
+ 	
+    real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
+    
+    u.x += 0.5*F.x;
+    u.y += 0.5*F.y;
+
+
+    real_t nu = -(gamma + 1)/(6*gamma - 6) ;
+    real_t K = d * 12. * nu * h_Z * h_Z;
+    
+    u.x = (u.x)/(1. + 0.5 * K) / d;
+    u.y = (u.y)/(1. + 0.5 * K) / d;   
+
+	u.z = 0.0;
 	return u;
 }
 
@@ -449,9 +567,9 @@ CudaDeviceFunction real_t getCurvature(){
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
 //    vector_t temp;
-//    temp.x = nw_x(0,0);
-//    temp.y = nw_y(0,0);
-    return debug;
+//   temp.x = nw_x(0,0);
+//    temp.y = h_Z;
+    return gradient;
 
 }
 
@@ -505,7 +623,7 @@ CudaDeviceFunction vector_t getF() {
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
     Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
 
-
+    
     return Force;
 
 }
@@ -531,8 +649,9 @@ CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
     }
 **/
     F.z = 0;
-    F.x =  ST * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
-    F.y =  ST * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+    const real_t s = sin(0.5*pi - WettingAngle);
+    F.x =  ST * (curv + 2*h_Z*s)  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+    F.y =  ST * (curv + 2*h_Z*s)  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
     } else {
         F.x = 0;
         F.y = 0;
@@ -578,13 +697,15 @@ CudaDeviceFunction void Init() {
 		uy*rho,
         C
 	);
+
+    h_Z = BrinkmanHeightInv;
     <?R
 #       C(d,1)
     ?>
 }
 
 CudaDeviceFunction void CalcPhi() {
-    if ( (NodeType & NODE_BOUNDARY) == NODE_SSymmetry ){
+    if ( (NodeType & NODE_BOUNDARY) == NODE_NSymmetry ){
        real_t ret = 0;
        <?R 
         ret = PV("ret")
@@ -599,7 +720,7 @@ CudaDeviceFunction void CalcPhi() {
 
    }
 
-   if ( (NodeType & NODE_BOUNDARY) == NODE_NSymmetry ){
+   if ( (NodeType & NODE_BOUNDARY) == NODE_SSymmetry ){
         real_t ret = 0;
         <?R 
         ret = PV("ret")
@@ -626,7 +747,7 @@ CudaDeviceFunction void CalcPhi() {
 }
 
 CudaDeviceFunction void Run() {
-    InitPhisStencil();
+
 
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
@@ -634,24 +755,31 @@ CudaDeviceFunction void Run() {
 		BounceBack();
 		break;
 	case NODE_EVelocity:
+        InitPhisStencil();
 		EVelocity();
 		break;
 	case NODE_WPressure:
-		WPressure();
+        InitPhisStencil(); 
+        WPressure();
 		break;
 	case NODE_WVelocity:
-		WVelocity();
+		InitPhisStencil(); 
+        WVelocity();
 		break;
 	case NODE_EPressure:
-		EPressure();
+		InitPhisStencil(); 
+        EPressure();
 		break;
     case NODE_NSymmetry:
-       <?R Symmetry(2,-1) ?>
-        break;
+           <?R Symmetry(2,-1) ?>
+           InitPhisStencil(); 
+           break;
     case NODE_SSymmetry:
-       <?R Symmetry(2,1) ?>
+        <?R Symmetry(2,1) ?>
+        InitPhisStencil(); 
         break;
-
+    default:
+        InitPhisStencil(); 
     }
     if (NodeType & NODE_MRT)
     {
@@ -727,7 +855,6 @@ CudaDeviceFunction void WVelocity()
 
 CudaDeviceFunction void CollisionMRT()
 {
-    vector_t n = normal;
     real_t pf = <?R C(sum(h)) ?> ;
 <?R
 	MI = solve(EQ$mat)
@@ -757,8 +884,19 @@ CudaDeviceFunction void CollisionMRT()
     //Jx = Jx + rho*GravitationX ;
     //Jy = Jy + rho*GravitationY ; 
     vector_t F = getF();
-    Jx = Jx + F.x ;
-    Jy = Jy + F.y ; 
+ 
+    
+    real_t nu = -(gamma + 1)/(6*gamma - 6) ;
+    real_t K = rho * 12. * nu * h_Z * h_Z;
+   
+    //for C-H
+//    vector_t u;
+//    u.x = Jx;
+//    u.y = Jy;
+
+    Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
+    Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;   
+  
 <?R
 
 
@@ -768,13 +906,37 @@ CudaDeviceFunction void CollisionMRT()
 
 
     # part related to h
-?> 
-    real_t d = <?R C(sum(f)) ?>;
-    vector_t u;
-    u.x = (Jx + 0.5 * F.x) / d;
-    u.y = (Jy + 0.5 * F.y) / d;
+?>
+
+
+//    vector_t n = normal;
+
+
+
+//    real_t d = <?R C(sum(f)) ?>;
+    vector_t u = getU();
+    u.x = PF_Advection_Switch * u.x;
+    u.y = PF_Advection_Switch * u.y;
+
+
+//    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / rho;
+//    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / rho;
     real_t omega_ph =  1/( 3 * Mobility + 0.5); 
     real_t Bh;
+
+    vector_t n = gradient;
+    real_t l = sqrt(n.x*n.x + n.y*n.y);
+    if (pf * pf < SurfaceTensionDecay){
+        n.x -= u.x * pf;
+        n.y -= u.y * pf;
+
+        l = sqrt(n.x*n.x + n.y*n.y);
+        n.x = n.x / (l + 1E-10);
+        n.y = n.y / (l + 1E-10);
+    } else {
+        n.x = 0;
+        n.y = 0;
+    }
 
 <?R
 #u = PV(c('u.x', 'u.y'))

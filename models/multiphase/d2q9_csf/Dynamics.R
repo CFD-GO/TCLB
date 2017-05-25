@@ -24,25 +24,25 @@ AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
+
+AddDensity( name="h_Z", dx=0, dy=0, group="HZ")
 AddField( name="nw_x", stencil2d=1, group="nw")
 AddField( name="nw_y", stencil2d=1, group="nw")
 
 
 
 
-
-AddField("phi"       ,stencil2d=1 );
+AddField("phi"      ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
-         load=DensityAll$group == "f" | DensityAll$group == "h",# | DensityAll$group == "d",  
-         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw"
+         load=DensityAll$group == "f" | DensityAll$group == "h"| DensityAll$group == "HZ",  
+         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw" | Fields$group == "HZ"
          ) 
 AddStage("CalcPhi", 
          save=Fields$name=="phi" ,  
          load=DensityAll$group == "h"
          )
-AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h",#  | Fields$group=="d"
-) 
+AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h"| Fields$group == "HZ") 
 AddStage("CalcWallNormall", "CalcNormal",   
          save=Fields$group=="nw",
          fixedPoint=TRUE
@@ -59,6 +59,8 @@ AddAction("Init", c("BaseInit","CalcPhi", "CalcWallNormall"))
 # Every field must correspond to a function in "Dynamics.c".
 # If one have filed [something] with type [type], one have to define a function: 
 # [type] get[something]() { return ...; }
+
+AddQuantity(name="H_Z")
 
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
@@ -77,11 +79,12 @@ AddQuantity(name="DEBUG", vector=T)
 #  name - name of the constant variable
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
-
+AddSetting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="omega_l", comment='one over relaxation time, light phase')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="Viscosity", omega='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="Viscosity_l", omega_l='1.0/(3*Viscosity_l + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="IntWidth", default=0.1, comment='Anty-diffusivity coeff')
@@ -93,11 +96,12 @@ AddSetting(name="GravitationY", default=0)
 AddSetting(name="GravitationX_l", default=0)
 AddSetting(name="GravitationY_l", default=0)
 
-AddSetting(name="SurfaceTensionDecay", default=100)
+AddSetting(name="SurfaceTensionDecay", default=0.248)
 AddSetting(name="SurfaceTensionRate", default=0.1)
 AddSetting(name="WettingAngle", default=0, zonal=T)
 AddSetting(name="WallAdhesionDecay", default=0, zonal=T)
-#AddSetting(name="WallDistanceRatio", default=0.5, zonal=T)
+
+AddSetting(name="BrinkmanHeightInv", default=0, zonal=T)
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
