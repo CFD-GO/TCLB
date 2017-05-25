@@ -79,7 +79,7 @@ AddQuantity(name="DEBUG", vector=T)
 #  name - name of the constant variable
 #  comment - additional comment
 # You can state that another setting is 'derived' from this one stating for example: omega='1.0/(3*nu + 0.5)'
-AddSeting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
+AddSetting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
 
 AddSetting(name="omega", comment='one over relaxation time')
 AddSetting(name="omega_l", comment='one over relaxation time, light phase')
