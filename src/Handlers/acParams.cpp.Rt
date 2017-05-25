@@ -1,9 +1,11 @@
 <?R
+#include "../HandlerFactory.h"
 source("conf.R")
 	c_header()
 ?>
 
 #include "acParams.h"
+std::string acParams::xmlname = "Params";
 
 int acParams::Init () {
 	        std::string par, zone;
@@ -47,3 +49,6 @@ int acParams::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acParams > >;

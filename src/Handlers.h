@@ -2,6 +2,8 @@
 #define Handler_H
 
 #include "Handlers/vHandler.h"
+#include "Handlers/NullHandler.h"
+#include "HandlerFactory.h"
 
 /// Encapsulating Handler class.
 /**
@@ -14,14 +16,17 @@ public:
 	int *ref; ///< Number of references of the shared pointer
 /// Constructs a Handler based on a XML element
 	inline Handler(pugi::xml_node node, Solver * solver_) {
-		hand = getHandler(node);
+		hand = HandlerFactory::Produce(node);
+		if (hand == NULL) {
+			ERROR("Unknown Handler: %s",node.name());
+			hand = new NullHandler();
+		}
 		hand->solver = solver_;
-		if (hand) {
-			int ret = hand->Init();
-			if (ret) {
-				delete hand;
-				hand = NULL;
-			}
+		hand->node = node;
+		int ret = hand->Init();
+		if (ret) {
+			delete hand;
+			hand = NULL;
 		}
 		ref = new int;
 		*ref=1;

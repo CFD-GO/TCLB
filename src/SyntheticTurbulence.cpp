@@ -6,6 +6,7 @@
 
 void SyntheticTurbulence::CopyToGPU(STWaveSet & ST) {
  ST.resize(cpuset.nmodes, ST_GPU);
+ ST.TimeWN = cpuset.TimeWN;
  if (ST.nmodes != 0) {
   CudaMemcpy(ST.data, cpuset.data, sizeof(real_t) * ST.nmodes * ST_DATA, cudaMemcpyHostToDevice);
  }

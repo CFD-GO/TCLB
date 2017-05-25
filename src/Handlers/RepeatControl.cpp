@@ -1,4 +1,6 @@
 #include "RepeatControl.h"
+std::string RepeatControl::xmlname = "RepeatControl";
+#include "../HandlerFactory.h"
 
 int RepeatControl::Init () {
 		Pars = -1;
@@ -110,3 +112,6 @@ int RepeatControl::Parameters (int type, double * tab) {
 		}
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< RepeatControl > >;

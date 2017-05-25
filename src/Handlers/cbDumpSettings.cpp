@@ -1,4 +1,6 @@
 #include "cbDumpSettings.h"
+std::string cbDumpSettings::xmlname = "DumpSettings";
+#include "../HandlerFactory.h"
 
 int cbDumpSettings::Init () {
 		Callback::Init();
@@ -22,3 +24,6 @@ int cbDumpSettings::Finish () {
 		return Callback::Finish();
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbDumpSettings > >;

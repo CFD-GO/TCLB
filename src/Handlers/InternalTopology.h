@@ -10,6 +10,7 @@
 class  InternalTopology  : public  Design  {
 	int Pars;
 public:
+	static std::string xmlname;
 int Init ();
 int NumberOfParameters ();
 int Parameters (int type, double * tab);

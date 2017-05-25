@@ -27,7 +27,7 @@
 	f = PV(Density[Density$group=='f',"name"])
 	rho = PV("rho")
 	J = PV("J",c("x","y"))
-    if ( any( DensityAll$group=="BC" ) ) {
+    if ( Options$BC ) {
         BC_Velocity=PV(c('BC[0]', 'BC[1]'))
     } else {
         BC_Velocity=PV(c('VelocityX', 'VelocityY'))
@@ -46,7 +46,7 @@ CudaDeviceFunction vector_t getU(){
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
     u.x /= d;
 	u.y /= d;
-<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+<?R if ( Options$BC ) { ?>
     if (!IamBOUNDARY) {   
         u.x += BC[0]*0.5;
         u.y += BC[1]*0.5;
@@ -77,7 +77,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 	C( f, feq)
 ?>
 
-<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+<?R if ( Options$BC ) { ?>
    if ( IamBOUNDARY ) {
        BC[0] = Jx / rho;
        BC[1] = Jy / rho;
@@ -93,13 +93,11 @@ CudaDeviceFunction void Init() {
    	rho = (1+Pressure*3);
 	ux = VelocityX;
     uy = VelocityY;
-<?R if ( any( DensityAll$group=="BC" ) ) { ?>
     if (IamWall){
         rho = 1;
         ux = 0;
         uy = 0;
     }
-<?R } ?>
 	SetEquilibrum(
 		rho,
 		ux*rho,
@@ -146,20 +144,19 @@ CudaDeviceFunction void Run() {
 
 CudaDeviceFunction void BounceBack()
 {
-
-    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-
-    <?R C(PV('real_t temp'), sum(f)) ?>
-
+<?R
+	if ( Options$BC ) {
+		C(PV('real_t temp'), sum(f))
+?>
     if ( temp !=  1+Pressure*3 ) {
         <?R C(PV(c('BC[0]', 'BC[1]')), 2.* f %*% U); ?>
     } else {
         <?R C(PV(c('BC[0]', 'BC[1]')), c(0,0) ); ?>
     }
-    <?R } ?>
-
-    <?R FullBounceBack() ?>
-
+<?R
+	}
+	FullBounceBack()
+?>
 }
 
 CudaDeviceFunction void EVelocity()
@@ -254,7 +251,7 @@ CudaDeviceFunction void CollisionMRT()
 
 ?>
 
-<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+<?R if ( Options$BC ) { ?>
     if (!IamBOUNDARY) {
         Jx = Jx + (GravitationX +  BC[0])*rho ;
         Jy = Jy + (GravitationY +  BC[1])*rho ; 

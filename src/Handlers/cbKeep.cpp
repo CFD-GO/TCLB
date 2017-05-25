@@ -1,4 +1,6 @@
 #include "cbKeep.h"
+std::string cbKeep::xmlname = "Keep";
+#include "../HandlerFactory.h"
 
 int cbKeep::Init () {
 		Callback::Init();
@@ -68,3 +70,6 @@ int cbKeep::Finish () {
 		return Callback::Finish();
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbKeep > >;

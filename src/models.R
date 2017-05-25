@@ -13,7 +13,7 @@ get.model.names = function(path) {
   nm = sapply(ps, tail, 2)
   if (! all(nm[2,] == "conf.mk"))  stop("Something is wrong with model paths (inspect models.R)")
   nm = nm[1,]
-  data.frame(name=nm, path=pt, conf=path)
+  list(name=nm, path=pt, conf=path)
 }
 
 
@@ -22,9 +22,13 @@ get.models = function() {
 	M2 = get.model.dirs("find models/ -name 'conf.mk'")
 	M3 = union(M1,M2)
 	Models = do.call(rbind, lapply(M3,function (m) {
+		ret = get.model.names(m)
+		name = ret$name
+		path = ret$path
 		e = new.env();
 		e$ADJOINT=FALSE
 		e$TEST=TRUE
+		e$OPT=""
 		if (file.exists(m)) {
 			source(m, local=e);
 		} else {
@@ -33,9 +37,35 @@ get.models = function() {
 		if (is.numeric(e$ADJOINT)) e$ADJOINT = e$ADJOINT != 0
 		if (is.logical(e$TEST)) e$TEST = ifelse(e$TEST,"test","no test")
 		e$TEST = as.character(e$TEST)
-		data.frame(conf=m, adjoint=e$ADJOINT, test=e$TEST, git=(m %in% M1), present=(m %in% M2))
+		e$OPT = as.character(e$OPT)
+		if (e$OPT != "") {
+			opts = try(as.formula(paste0("~",e$OPT)))
+		} else {
+			opts = NULL
+		}
+		if (class(opts) == "formula") {
+			opts = terms(opts)
+			opts = attr(opts,"factors")
+			opts = data.frame(t(opts))
+			rownames(opts) = paste(name,gsub(":","_",rownames(opts)),sep="_")
+			opts[name,]=0
+		} else {
+			opts = data.frame(row.names=name)
+		}
+		ret = data.frame(
+			conf=m, 
+			adjoint=e$ADJOINT, 
+			test=e$TEST, 
+			git=(m %in% M1), 
+			present=(m %in% M2), 
+			name=rownames(opts),
+			group=name,
+			path=path
+		)
+		ret$opts = lapply(rownames(opts),function(n) as.list(opts[n,,drop=FALSE]))
+		ret
 	}))
-	Models=merge(Models, get.model.names(M3))
+#	Models=merge(Models, get.model.names(M3))
 	Models$test = factor(Models$test, levels=c("test","no test","compile only","can fail"))
 	Models$experimental = Models$present & (! Models$git)
 	if (any(is.na(Models$test))) stop("Wrong value of TEST in some conf.mk")

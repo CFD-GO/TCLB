@@ -1,4 +1,6 @@
 #include "cbBIN.h"
+std::string cbBIN::xmlname = "BIN";
+#include "../HandlerFactory.h"
 
 int cbBIN::Init () {
 		Callback::Init();
@@ -14,3 +16,6 @@ int cbBIN::DoIt () {
 		return solver->writeBIN(nm.c_str());
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbBIN > >;

@@ -1,9 +1,11 @@
 <?R
+#include "../HandlerFactory.h"
 source("conf.R")
 	c_header()
 ?>
 
 #include "OptimalControl.h"
+std::string OptimalControl::xmlname = "OptimalControl";
 
 int OptimalControl::Init () {
 		std::string par;
@@ -104,3 +106,6 @@ int OptimalControl::Parameters (int type, double * tab) {
 		}
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< OptimalControl > >;

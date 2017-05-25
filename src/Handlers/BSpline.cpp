@@ -1,4 +1,6 @@
 #include "BSpline.h"
+std::string BSpline::xmlname = "BSpline";
+#include "../HandlerFactory.h"
 
 int BSpline::Init () {
 		Pars = -1;
@@ -149,3 +151,6 @@ int BSpline::Parameters (int type, double * tab) {
 		}
 	};
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< BSpline > >;

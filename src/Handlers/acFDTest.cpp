@@ -1,4 +1,6 @@
 #include "acFDTest.h"
+std::string acFDTest::xmlname = "FDTest";
+#include "../HandlerFactory.h"
 
 int acFDTest::OptimizerInit () {
 		start = NULL;
@@ -148,3 +150,6 @@ int acFDTest::OptimizerExit () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acFDTest > >;

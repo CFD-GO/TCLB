@@ -1,4 +1,6 @@
 #include "acRepeat.h"
+std::string acRepeat::xmlname = "Repeat";
+#include "../HandlerFactory.h"
 
 int acRepeat::Init () {
 		GenericAction::Init();
@@ -15,3 +17,6 @@ int acRepeat::Init () {
 		return 0;
 	}
 
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< acRepeat > >;

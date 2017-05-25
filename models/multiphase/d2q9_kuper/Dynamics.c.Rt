@@ -195,6 +195,14 @@ CudaDeviceFunction vector_t getF() {
 //        F.x = 0;
 //        F.y = 0;
 //}
+	switch(NodeType & NODE_BOUNDARY) {
+	case NODE_WPressure:
+	case NODE_EPressure:
+	case NODE_WVelocity:
+	case NODE_EVelocity:
+	        F.x = 0;
+	        F.y = 0;
+        }       
 
     F.z = 0;
 	return F;
@@ -627,12 +635,10 @@ CudaDeviceFunction void CollisionMRT()
         u = PV(c("ux","uy"))
         feq = MRT_feq(U, rho, u*rho );
         R = PV("M[",1:9-1,"]")
-#        OMEGA = c(
-#		PV(rep(0,3)),
-#		PV(rep("omega2",4)),
-#		PV(rep("omega",2))
-#	)
-        OMEGA = PV("S",1:9-1,"")
+        OMEGA = c(
+		PV(c(0,0,0,-1/3,0,0,0)),
+		1-PV(rep("omega",2))
+	)
 
 	M = matrix(c(
 	      1,  1,  1,  1,  1,  1,  1,  1,  1,
