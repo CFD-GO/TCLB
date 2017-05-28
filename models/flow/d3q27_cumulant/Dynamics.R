@@ -14,6 +14,7 @@ AddDensity(
 
 AddQuantity( name="P",unit="Pa")
 AddQuantity( name="U",unit="m/s",vector=T)
+AddQuantity( name="M", unit="N", vector=T)
 
 AddSetting(name="nu", default=0.16666666, comment='Viscosity')
 AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer')

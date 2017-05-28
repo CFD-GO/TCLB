@@ -46,6 +46,23 @@ CudaDeviceFunction vector_t getU(){
     }
 	return u;
 }
+CudaDeviceFunction vector_t getM(){
+    vector_t m;
+    vector_t p1,p2;
+
+    if(((NodeType & NODE_BODY) == NODE_Body) &&((NodeType & NODE_BOUNDARY) == NODE_Wall)) {
+        <?R C(PV(c("p1.x","p1.y", "p1.z")), f %*% U) ?>
+
+        <?R FullBounceBack() ?>
+
+        <?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+        m.x = (p2.x-p1.x);
+        m.y = (p2.y-p1.y);
+        m.z = (p2.z-p1.z);
+        }
+        else m.x = m.y = m.z = 0;
+        return m;
+}
 #ifdef avgUX
 CudaDeviceFunction real_t getaverageP(){
 	return avgP;
