@@ -340,8 +340,24 @@ AddAction = function(name, stages) {
 	Actions[[name]] <<- stages
 }
 
+Objectives = list()
+
+AddObjective = function(name, expr) {
+	if (class(expr) == "gvector") {
+		if (length(expr) == 1) {
+			 expr = expr[[1]]
+		} else {
+			stop("Only one expression for an objective in AddObjective")
+		}
+	}
+	if (! inherits(expr,"pAlg")) stop("Objective need to be a polyAlgebra expression")
+	if (! is.character(name)) stop("Objective name need to be a string in AddObjective")
+	Objectives[[name]] <<- expr
+}
+
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
+for (i in Globals$name) AddObjective(i,PV(i))
 
 if (is.null(Description)) {
 	AddDescription(MODEL)

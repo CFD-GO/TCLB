@@ -37,17 +37,55 @@ public:
 	}
 };
 
+class rZoneSetting : public rWrapper {
+	std::string name;
+	int idx;
+public:
+	std::string print() { return name + " (ZoneSetting)"; }
+	rZoneSetting(const char* name_, const int idx_): name(name_), idx(idx_) {};
+	SEXP Dollar(std::string name) {
+	  return Rcpp::NumericVector(0.0);
+	}
+	void DollarAssign(std::string zone, SEXP v_) {
+		WARNING("in zone %s setting parameter %s\n", zone.c_str(), name.c_str());
+		Rcpp::NumericVector v(v_);
+	        int zone_number = -1;
+                if (solver->geometry->SettingZones.count(zone) > 0) { 
+                        zone_number = solver->geometry->SettingZones[zone];
+                } else {
+                        WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), name.c_str());
+                        return;
+                }
+		solver->lattice->zSet.set(idx, zone_number, v[0]);
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		for (std::map<std::string,int>::iterator it = solver->geometry->SettingZones.begin(); it != solver->geometry->SettingZones.end(); it++) {
+			ret.push_back(it->first);
+		}
+		return ret;
+	}
+
+};
+
+
 class rSettings : public rWrapper {
 public:
 	std::string print() { return "Settings"; }
 	SEXP Dollar(std::string name) {
+		<?R for (v in rows(ZoneSettings)) { ?>
+			return rWrap(new rZoneSetting(name.c_str(),<?%s v$Index?>));
+		<?R } ?>
 	  return 0;
 	}
 
 	void DollarAssign(std::string name, SEXP v_) {
-	  Rcpp::NumericVector v(v_);
+	  <?R for (v in rows(ZoneSettings)) { ?>
+	          if (name == "<?%s v$name?>") return;
+	  <?R } ?>
 	  <?R for (v in rows(Settings)) { ?>
 	          if (name == "<?%s v$name?>") {
+			  Rcpp::NumericVector v(v_);
 	                solver->lattice-><?%s v$FunName ?>(v[0]);
 			return;
 	          }
@@ -57,6 +95,9 @@ public:
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		<?R for (v in rows(Settings)) { ?>
+		ret.push_back("<?%s v$name ?>");
+		<?R } ?>
+		<?R for (v in rows(ZoneSettings)) { ?>
 		ret.push_back("<?%s v$name ?>");
 		<?R } ?>
 		return ret;
