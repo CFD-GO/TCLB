@@ -60,3 +60,5 @@ AddSetting(name="PX", default=0, comment='plate position X', zonal=T)
 AddSetting(name="PY", default=0, comment='plate position Y', zonal=T)
 AddSetting(name="PR", default=0, comment='plate angle', zonal=T)
 
+AddObjective("EfficiencyX", PV("ForceX") * PV("Power") ^ (-1))
+AddObjective("EfficiencyY", PV("ForceY") * PV("Power") ^ (-1))

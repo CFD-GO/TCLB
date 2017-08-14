@@ -123,9 +123,9 @@ CudaDeviceFunction void BounceBack()
 
 //Summing the difference in momentum before/after collision
 if((NodeType & NODE_BODY) == NODE_Body) {
-    AddToDrag(p2.x-p1.x);
-    AddToLateral(p2.y-p1.y);
-    AddToLift(p2.z-p1.z);
+    AddToDrag(-(p2.x-p1.x));
+    AddToLateral(-(p2.y-p1.y));
+    AddToLift(-(p2.z-p1.z));
     }
 }
 
@@ -327,6 +327,17 @@ u.x = c100 + ForceX/(2.*f000);
 u.y = c010 + ForceY/(2.*f000);
 u.z = c001 + ForceZ/(2.*f000);
 
+//Calculating turbulent viscosity for Smagorinsky  turbulence model
+real_t tau_0 = (3*nu + 0.5);
+real_t tau_t;
+real_t q;
+
+q = sqrt((c200-1.0/3)*(c200-1.0/3)+(c020-1.0/3)*(c020-1.0/3)+(c002-1.0/3)*(c002-1.0/3)+2*(c110*c110)+2*(c101*c101)+2*(c011*c011));
+tau_t = 0.5 * (sqrt( tau_0 * tau_0 + 18 * Smag * Smag * q) - tau_0);
+w[0] = 1.0 / (tau_0 + tau_t);
+
+if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
+
 ///////
        real_t dxu,dyv,dzw;
       // vector_t u = getU();
@@ -363,7 +374,13 @@ u.z = c001 + ForceZ/(2.*f000);
 	c110 = c110 * (1-w[0]);
 	c011 = c011 * (1-w[0]);
 	c101 = c101 * (1-w[0]);
-	<?R	sel = rowSums(P) > 2
+//Optional change in relaxation rate of 3rd order cumulants, as per car studies done by Geier et al
+	<?R	sel = rowSums(P) == 3
+		for (i in cumulants[sel]) { ?>
+		<?%s i ?> = 1-Omega;
+	<?R } ?>
+
+	<?R	sel = rowSums(P) > 3
 		for (i in cumulants[sel]) { ?>
 		<?%s i ?> = 0.0;
 	<?R } ?>

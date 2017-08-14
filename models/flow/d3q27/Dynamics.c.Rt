@@ -65,6 +65,12 @@ CudaDeviceFunction void NSymmetry()
 <?R Symmetry(2, -1) ?>
 }
 
+CudaDeviceFunction void SSymmetry()
+{
+<?R Symmetry(2, 1) ?>
+}
+
+
 CudaDeviceFunction void ISymmetry()
 {
 <?R Symmetry(3, 1) ?>
@@ -104,7 +110,10 @@ CudaDeviceFunction void Run() {
 	case NODE_NSymmetry:
 		NSymmetry();
 		break;
-	case NODE_ISymmetry:
+	case NODE_SSymmetry:
+		SSymmetry();
+		break;
+    case NODE_ISymmetry:
 		ISymmetry();
 		break;
 	case NODE_Wall:

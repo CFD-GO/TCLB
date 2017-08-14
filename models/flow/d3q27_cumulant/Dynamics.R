@@ -26,6 +26,8 @@ AddSetting(name="GalileanCorrection",default=1.,comment='Galilean correction ter
 AddSetting(name="ForceX",default=0, comment='Force force X')
 AddSetting(name="ForceY",default=0,comment='Force force Y')
 AddSetting(name="ForceZ",default=0,comment='Force force Z')
+AddSetting(name="Smag", default=0, comment='Smagorinsky coefficient for SGS modeling')
+AddSetting(name="Omega", default=1, comment='relaxation rate for 3rd order cumulants')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
