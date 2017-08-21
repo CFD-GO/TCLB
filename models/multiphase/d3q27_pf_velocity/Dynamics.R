@@ -59,7 +59,7 @@ AddStage("calcPhase"	, "calcPhaseF",	save='PhaseF'                             ,
 AddStage("BaseIter"     , "Run" , save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel", 
 	load=DensityAll$group=="g" | DensityAll$group=="h" | DensityAll$group=="Vel")
 
-if (Options$A) {
+if (Options$SC) {
 AddStage("WallPhase", "calcWallPhase", save="PhaseF")
 AddAction("Iteration", c("BaseIter", "calcPhase", "WallPhase"))
 AddAction("Init"     , c("PhaseInit", "WallPhase","BaseInit", "calcPhase"))
@@ -84,8 +84,11 @@ AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
 
+if (Options$SC) {
 AddSetting(name="ContactAngle", default="90", comment='Contact angle of the phases')
+}
 
+#Domain initialisation (pre-defined set-ups)
 AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
 
 AddSetting(name="Radius", default="0.0", comment='Diffuse Sphere Radius')
