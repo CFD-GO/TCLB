@@ -25,7 +25,7 @@ AddDensity(name="V", dx=0, dy=0, group="Vel")
 
 AddField('PhaseF',stencil2d=1)
 
-if (Options$B) {
+if (Options$RT) {
     AddField('PhaseOld')
     AddStage("PhaseInit" , "Init" 		, save=Fields$name=="PhaseF")
     AddStage("BaseInit"  , "Init_distributions" , save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel" )

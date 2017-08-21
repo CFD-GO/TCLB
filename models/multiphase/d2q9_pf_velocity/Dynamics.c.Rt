@@ -57,7 +57,7 @@ CudaDeviceFunction vector_t calcGradPhi(){
 	return gradPhi;
 }
 CudaDeviceFunction void calcPhaseF(){
-#ifdef OPTIONS_B
+#ifdef OPTIONS_RT
 	PhaseOld = PhaseF(0,0);
 #endif
 	PhaseF = h[0]+h[1]+h[2]+h[3]+h[4]+h[5]+h[6]+h[7]+h[8];
@@ -131,7 +131,7 @@ CudaDeviceFunction void Init_distributions(){
 // ##### geq
 		g[i] = Gamma[i] - wf[i];
 	}
-#ifdef OPTIONS_B
+#ifdef OPTIONS_RT
 	PhaseOld = PhaseF(0,0);
 #endif
 	PhaseF = h[0]+h[1]+h[2]+h[3]+h[4]+h[5]+h[6]+h[7]+h[8];
@@ -171,7 +171,7 @@ CudaDeviceFunction void Run() {
 }
 
 CudaDeviceFunction void CollisionMRT(){
-#ifdef OPTIONS_B
+#ifdef OPTIONS_RT
     real_t uold = U;
     real_t vold = V;
 #endif
@@ -268,12 +268,12 @@ for (j=0;j<2;j++){
 }
 
 // PHASE FIELD POPULATION UPDATE:
-#ifdef OPTIONS_B
+#ifdef OPTIONS_RT
     real_t Req[9];
 #endif
 tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/W;
 for (i=0; i< 9; i++){
-#ifdef OPTIONS_B
+#ifdef OPTIONS_RT
     Req[i] = 3.0 * wf[i] * (d2q9_ex[i] * (PhaseF*U - PhaseOld*uold)
 	      + d2q9_ey[i] * (PhaseF*V - PhaseOld*vold));
     F_phi[i] = calcF_phi(i, tmp1, nx, ny) + Req[i];
@@ -286,11 +286,11 @@ for (i=0; i< 9; i++){
     h[i] = h[i] - omega_phi * (h[i]-heq[i]) + F_phi[i];	// collision
 }
 // PRESSURE EVOLUTION UPDATE:
-#ifdef OPTIONS_A
+#ifdef OPTIONS_GF
     real_t Falpha_x, Falpha_y; // FOR EXTENDED FORCE SCHEME
 #endif
 for (i=0; i< 9; i++){
-#ifdef OPTIONS_A
+#ifdef OPTIONS_GF
     Falpha_x = d2q9_ex[i] - U + 3.0 * d2q9_ex[i] * (d2q9_ex[i]*U + d2q9_ey[i]*V); //FOR EXTENDED FORCE SCHEME
     Falpha_y = d2q9_ey[i] - V + 3.0 * d2q9_ey[i] * (d2q9_ex[i]*U + d2q9_ey[i]*V); //FOR EXTENDED FORCE SCHEME
     F_i[i] = 3.0*wf[i] * (Falpha_x * F_total[0] + Falpha_y * F_total[1] )/rho;    //FOR EXTENDED FORCE SCHEME
