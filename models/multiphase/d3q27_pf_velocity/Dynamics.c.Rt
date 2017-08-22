@@ -98,7 +98,7 @@ CudaDeviceFunction real_t getP(){
 // 	HELPER FUNCTIONS:
 CudaDeviceFunction vector_t calcGradPhi(){
 	vector_t gradPhi = {0.0,0.0,0.0};
-	if (NodeType & NODE_SymmetricXY_W) {
+	if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_W) {
 //			printf("Checkpoint1, %d, %d\n", X, Y);
 			gradPhi.x = 16.00 * (PhaseF(1,0,0) - PhaseF(-1,0,0))
 				  	+ 2.0*(PhaseF(1,1,1) - PhaseF(-1,1,1) + PhaseF(1,-1,1) - PhaseF(-1,-1,1))
@@ -109,7 +109,7 @@ CudaDeviceFunction vector_t calcGradPhi(){
 		  			+ 4.0 * (PhaseF(1,1,0) + PhaseF(-1,1,0) - PhaseF(1,-1,0) - PhaseF(-1,-1,0)
 		          		      +  PhaseF(0,1,1) - PhaseF(0,-1,1) + PhaseF(0,1,1) - PhaseF(0,-1,1));
 			gradPhi.z = 0.0;
-	} else if (NodeType & NODE_SymmetricXY_E) {
+	} else if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_E) {
 //			printf("Checkpoint2, %d, %d\n", X, Y);
 			gradPhi.x = 16.00 * (PhaseF(1,0,0) - PhaseF(-1,0,0))
 		  			+ 2.0*(PhaseF(1,1,-1) - PhaseF(-1,1,-1) + PhaseF(1,-1,-1) - PhaseF(-1,-1,-1))
@@ -144,10 +144,9 @@ CudaDeviceFunction vector_t calcGradPhi(){
 }
 
 CudaDeviceFunction void calcPhaseF(){
-
-if (NodeType & NODE_SymmetricXY_W) {
+if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_W) {
 	PhaseF = h0+h1+h2+h3+h4+2.0*(h6+h11+h12+h13+h14);
-} else if (NodeType & NODE_SymmetricXY_E) {
+} else if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_E) {
 	PhaseF = h0+h1+h2+h3+h4+2.0*(h5+h7+h8+h9+h10);
 } else {
 	PhaseF = <?R C(sum(h))?>;
@@ -173,7 +172,7 @@ CudaDeviceFunction real_t calcMu(real_t C){
 	real_t pfavg, lpPhi, mu;
 	pfavg = 0.5*(PhaseField_l+PhaseField_h);
 
-if (NodeType & NODE_SymmetricXY_W) {
+if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_W) {
 	lpPhi = 16.0 *((PhaseF(1,0,0)) + (PhaseF(-1,0,0))
         	     + (PhaseF(0,1,0)) + (PhaseF(0,-1,0))
         	     + (PhaseF(0,0,1)) + (PhaseF(0,0,1)))
@@ -188,7 +187,7 @@ if (NodeType & NODE_SymmetricXY_W) {
 	             + (PhaseF(0,1,1)) + (PhaseF(0,-1,1))
 	             + (PhaseF(0,1,1))+ (PhaseF(0,-1,1)))
 	       - 152.0 * PhaseF(0,0,0);
-} else if (NodeType & NODE_SymmetricXY_E) {
+} else if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_E) {
 	lpPhi = 16.0 *((PhaseF(1,0,0)) + (PhaseF(-1,0,0))
         	     + (PhaseF(0,1,0)) + (PhaseF(0,-1,0))
         	     + (PhaseF(0,0,-1)) + (PhaseF(0,0,-1)))
@@ -304,7 +303,7 @@ CudaDeviceFunction void Init_distributions(){
 
 	C(g, gammag - w_g)
 ?>
-if ( X==128 && Y==64 && Z==0) printf("Density (%.4f,%.4f), g5=%.4f, g6=%.4f", C,<?R C(sum(g))?>, g5, g6);
+//if ( X==128 && Y==64 && Z==0) printf("Density (%.4f,%.4f), g5=%.4f, g6=%.4f", C,<?R C(sum(g))?>, g5, g6);
 
 }
 
@@ -312,14 +311,14 @@ if ( X==128 && Y==64 && Z==0) printf("Density (%.4f,%.4f), g5=%.4f, g6=%.4f", C,
 CudaDeviceFunction void Run() {
 // SYMMETRY BOUNDARIES ARE NOT YET TESTED!!
 // If you test / fix their implementation before m, then let me know :P
-if ( X==128 && Y==64 && Z==0) printf("1. Density %.4f, g10=%.4f, g14=%.4f\n", PhaseF(0,0,0), g10, g14);
+//if ( X==128 && Y==64 && Z==0) printf("1. Density %.4f, g10=%.4f, g14=%.4f\n", PhaseF(0,0,0), g10, g14);
     switch (NodeType & NODE_ADDITIONALS) {
 		case NODE_SymmetricXY_W:
 			SymmetryXY_W();
 		case NODE_SymmetricXY_E:
 			SymmetryXY_E();
     }
-if ( X==128 && Y==64 && Z==0) printf("2. Density %.4f, g10=%.4f, g14=%.4f\n", PhaseF(0,0,0), g10, g14);
+//if ( X==128 && Y==64 && Z==0) printf("2. Density %.4f, g10=%.4f, g14=%.4f\n", PhaseF(0,0,0), g10, g14);
     switch (NodeType & NODE_BOUNDARY) {
 		case NODE_Solid:
 		case NODE_Wall:
