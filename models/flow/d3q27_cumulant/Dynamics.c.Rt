@@ -20,17 +20,19 @@
 #	EQ = MRT_eq(U, rho, J);
 ?>
 
+#define do_avg 1
+
 CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
 
 CudaDeviceFunction real_t getP(){
-    Run();
+//    Run();
 	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
 }
 
 CudaDeviceFunction vector_t getU(){
-    Run();
+//    Run();
 	real_t d = getRho();
 	vector_t u;
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
@@ -63,9 +65,9 @@ CudaDeviceFunction vector_t getM(){
         else m.x = m.y = m.z = 0;
         return m;
 }
-#ifdef avgUX
+#ifdef do_avg
 CudaDeviceFunction real_t getaverageP(){
-	return avgP;
+	return avgP/average_iter;
 }
 CudaDeviceFunction real_t getDissipation(){
         real_t diss;
@@ -98,7 +100,7 @@ CudaDeviceFunction vector_t getReStr(){
 CudaDeviceFunction real_t getKinE(){
 	real_t ke;
 	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
-	return ke;
+	return ke/average_iter;
 }
 #endif
 CudaDeviceFunction float2 Color() {
@@ -344,7 +346,7 @@ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
        dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
        dyv = dxu + 3.*w[0]/2.*(c200 - c020);
        dzw = dxu + 3.*w[0]/2.*(c200 - c002);
-       #ifdef avgUX
+       #ifdef do_avg
        avgdxu2 = avgdxu2 + dxu*dxu;
        avgdyv2 = avgdyv2 + dyv*dyv;
        avgdzw2 = avgdzw2 + dzw*dzw;
@@ -440,7 +442,7 @@ f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211;
 f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
-#ifdef avgUX
+#ifdef do_avg
 avgP =  avgP + getP();
 avgUX = avgUX(0,0,0) + getU().x;
 avgUY = avgUY(0,0,0) + getU().y;

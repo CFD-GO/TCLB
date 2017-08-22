@@ -1,4 +1,4 @@
-Ave = FALSE
+Ave = TRUE
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -39,7 +39,7 @@ AddNodeType("NVelocity", "BOUNDARY")
 AddNodeType("SVelocity", "BOUNDARY")
 AddNodeType("NPressure", "BOUNDARY")
 AddNodeType("SPressure", "BOUNDARY")
-
+AddNodeType("Buffer", "BOUNDARY")
 
 AddNodeType("NSymmetry", "ADDITIONALS")
 AddNodeType("SSymmetry", "ADDITIONALS")
@@ -54,24 +54,30 @@ AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
 #Averaging values
 if (Ave) {
 
+W = TRUE
+
 AddQuantity(name="KinE",comment="Turbulent kinetic energy")
 AddQuantity( name="ReStr",comment="Reynolds stress off-diagonal component",vector=T)
 AddQuantity( name="Dissipation",comment="Dissipation e")
 AddQuantity( name="avgU",unit="m/s",vector=T)
 AddQuantity( name="varU",vector=T)
 AddQuantity( name="averageP",unit="Pa")
-AddDensity( name="avgP",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="varUX",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="varUY",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="varUXUY",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="varUXUZ",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="varUYUZ",dx=0,dy=0,dz=0,average=T)
+AddDensity( name="avgP",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="varUX",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="varUY",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="varUZ",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="varUXUY",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="varUXUZ",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="varUYUZ",dx=0,dy=0,dz=0,average=W)
 
-AddDensity( name="avgdxu2",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="avgdyv2",dx=0,dy=0,dz=0,average=T)
-AddDensity( name="avgdzw2",dx=0,dy=0,dz=0,average=T)
-AddField(name="avgUX",dx=c(-1,1),average=T)
-AddField(name="avgUY",dy=c(-1,1),average=T)
-AddField(name="avgUZ",dz=c(1,-1),average=T)
+AddDensity( name="avgdxu2",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="avgdyv2",dx=0,dy=0,dz=0,average=W)
+AddDensity( name="avgdzw2",dx=0,dy=0,dz=0,average=W)
+
+AddDensity(name="avgUX",average=W)
+AddDensity(name="avgUY",average=W)
+AddDensity(name="avgUZ",average=W)
+AddField(name="avgUX",dx=c(-1,1),average=W)
+AddField(name="avgUY",dy=c(-1,1),average=W)
+AddField(name="avgUZ",dz=c(1,-1),average=W)
 }
