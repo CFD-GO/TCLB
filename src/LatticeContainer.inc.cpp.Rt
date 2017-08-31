@@ -91,14 +91,14 @@ template < class N > unsigned int ThreadNumber< N >::sy = 0;
 /// Initialize Thread/Block number variables
 int InitDim(int ny) {
 	MPI_Barrier(MPI_COMM_WORLD);
-<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
+<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) if (! Stages[tp$Stage,"particle"]) { ifdef(tp$adjoint) ?>
         ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(ny); <?R
 	}; ifdef(); ?>
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (D_MPI_RANK == 0) {
           debug2( "  Threads  |      Action\n");
         }
-<?R	for (tp in rows(AllKernels)) { ifdef(tp$adjoint) ?>
+<?R	for (tp in rows(AllKernels)) if (! Stages[tp$Stage,"particle"]) { ifdef(tp$adjoint) ?>
 	debug2( "  %3dx%-3d  | %s\n", X_BLOCK, ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::getSY(), "<?%s tp$TemplateArgs ?>");<?R
 	}; ifdef();
 ?>
@@ -352,21 +352,33 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 
 template <class N> CudaGlobalFunction void RunParticlesKernel()
 {
-/*	N now;
-	now.x_ = 10;
-	now.y_ = 10;
-	now.z_ = 10;
-		for (; now.x_ < 30; now.x_++) {
-		now.Pre();
-		if (now.y_ < constContainer.fy) {
-			now.RunElement();
-		} else {
-			now.OutOfDomain();
-		}
-		now.Glob();
-	#ifndef GRID_3D
-		}
-	#endif */
+	N now;
+	Particle p;
+	p.p.x = 50;
+	p.p.y = 50;
+	p.r = 20;
+
+	int pdx = floor(p.p.x - p.r);
+	int pnx = ceil(p.p.x + p.r) + 1;
+	if (pdx < 0) pdx = 0;
+	if (pnx > constContainer.nx) pnx = constContainer.nx;
+	int pdy = floor(p.p.y - p.r);
+	int pny = ceil(p.p.y + p.r) + 1;
+	if (pdy < 0) pdy = 0;
+	if (pny > constContainer.ny) pny = constContainer.ny;
+	int pdz = floor(p.p.z - p.r);
+	int pnz = ceil(p.p.z + p.r) + 1;
+	if (pdz < 0) pdz = 0;
+	if (pnz > constContainer.nz) pnz = constContainer.nz;
+	for (now.z_ = pdz; now.z_ < pnz; now.z_++) {	
+	for (now.y_ = pdy; now.y_ < pny; now.y_++) {	
+	for (now.x_ = pdx; now.x_ < pnx; now.x_++) {	
+		now.LoadElement();
+		now.ExecElement(p);
+		now.SaveElement(); 
+	}
+	}
+	}
 }
 
 
@@ -578,8 +590,10 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 <?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { 
 		st = Stages[tp$Stage,,drop=FALSE]
 		ifdef(tp$adjoint) 	
-		if (st$particle) { ?>
+		if (st$particle) { 
+			if (tp$Globals == "NoGlobals" && tp$Op == "Primal") { ?>
 template void LatticeContainer::RunParticles < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
+			}
 		} else { ?>
 template void LatticeContainer::RunBorder < <?%s tp$TemplateArgs ?> > (CudaStream_t stream);
 template void LatticeContainer::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R

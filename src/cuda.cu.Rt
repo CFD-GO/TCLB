@@ -62,6 +62,11 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
+struct Particle {
+	vector_t p, v;
+	real_t r;
+};
+
 <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")
@@ -81,10 +86,15 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         int x_,y_,z_;
-        CudaDeviceFunction void Pre(){};
-        CudaDeviceFunction void RunElement(){};
-        CudaDeviceFunction void Glob(){};
-	CudaDeviceFunction void OutOfDomain() {};
+        CudaDeviceFunction inline void Pre(){};
+        CudaDeviceFunction inline void ExecElement(){};
+        CudaDeviceFunction inline void LoadElement(){};
+        CudaDeviceFunction inline void SaveElement(){};
+        CudaDeviceFunction inline void RunElement(){};
+        CudaDeviceFunction inline void Glob(){};
+	CudaDeviceFunction inline void OutOfDomain() {};
+        CudaDeviceFunction inline void GlobDiff(){};
+        CudaDeviceFunction inline void GlobDiffOutOfDomain(){};
 };
 
 <?R
@@ -184,7 +194,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 }
         } ?>
 	}
-	CudaDeviceFunction void inline GlobDiff() { 
+	CudaDeviceFunction void inline GlobDiff() {
+	<?R if (any(Globs$zonal)) { ?>
 		int z = NodeType >> ZONE_SHIFT;
 		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
         for (g in rows(Globs)) if (g$zonal) {
@@ -192,14 +203,17 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
         } ?>
 		}
+	<?R } ?>
 	}
 	CudaDeviceFunction void inline GlobDiffOutOfDomain() { 
+	<?R if (any(Globs$zonal)) { ?>
 		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
         for (g in rows(Globs)) if (g$zonal) {
 		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
                 atomicSumDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
         } ?>
 		}
+	<?R } ?> 
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
@@ -289,8 +303,16 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} ?>
 	   GlobDiff();
 	}
-	CudaDeviceFunction inline void RunElement() {
-		LoadElement();
+	<?R
+		if (s$particle) {
+			ExecArgType = "Particle & part"
+			ExecArg = "part"
+		} else {
+			ExecArgType = ""
+			ExecArg  = ""
+		}
+	?>
+	CudaDeviceFunction inline void ExecElement(<?%s ExecArgType ?>) {
 		<?R
 		if (tp$Stream == "Adj") { ?>
 		Run_b(); <?R
@@ -299,10 +321,14 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else if (tp$Stream == "Init") { ?>
 		Init();<?R
 		} else if (tp$Stream == "No") { ?>
-		<?%s s$main ?>(); <?R
+		<?%s s$main ?>(<?%s ExecArg ?>); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
+	}
+	CudaDeviceFunction inline void RunElement(<?%s ExecArgType ?>) {
+		LoadElement();
+		ExecElement(<?%s ExecArg ?>);
 		SaveElement();
 	}
 	CudaDeviceFunction inline void OutOfDomain() {

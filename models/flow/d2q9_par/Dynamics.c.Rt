@@ -54,8 +54,13 @@ real_t d = <?R C(sum(f)) ?>;
 <?R C(PV(c("ux","uy")), (f %*% U) ) ?>
 }
 
-CudaDeviceFunction void CalcF(){
-	if (X > 100 && X < 150 && Y < 50) { ux=0; uy=0; }
+CudaDeviceFunction void CalcF(Particle & p){
+	real_t dx = p.p.x-X;
+	real_t dy = p.p.y-Y;
+	if (dx*dx + dy*dy < p.r*p.r) {
+		ux=0;
+		uy=0;
+	}
 }
 
 
