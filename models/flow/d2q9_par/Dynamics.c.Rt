@@ -41,22 +41,23 @@ CudaDeviceFunction real_t getRho(){
 }
     
 CudaDeviceFunction vector_t getU(){
-	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
-<?R C(PV(c("u.x","u.y")), f %*% U) ?>
-    u.x /= d;
-	u.y /= d;
-<?R if ( Options$BC ) { ?>
-    if (!IamBOUNDARY) {   
-        u.x += BC[0]*0.5;
-        u.y += BC[1]*0.5;
-    }
-<?R } ?>
-    u.x += GravitationX*0.5;
-    u.y += GravitationY*0.5;
+	u.x += ux;
+	u.y += uy;
 	u.z = 0.0;
 	return u;
 }
+
+CudaDeviceFunction void CalcU(){
+RunBoundary();
+real_t d = <?R C(sum(f)) ?>;
+<?R C(PV(c("ux","uy")), (f %*% U) ) ?>
+}
+
+CudaDeviceFunction void CalcF(){
+	if (X > 100 && X < 150 && Y < 50) { ux=0; uy=0; }
+}
+
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
@@ -89,7 +90,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 }
 
 CudaDeviceFunction void Init() {
-	real_t rho, ux, uy;
+	real_t rho;
    	rho = (1+Pressure*3);
 	ux = VelocityX;
     uy = VelocityY;
@@ -105,7 +106,9 @@ CudaDeviceFunction void Init() {
 	);
 }
 
-CudaDeviceFunction void Run() {
+
+
+CudaDeviceFunction void RunBoundary() {
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
 	case NODE_Wall:
@@ -136,6 +139,10 @@ CudaDeviceFunction void Run() {
         SSymmetry();
         break;
     }
+}
+
+CudaDeviceFunction void Run() {
+	RunBoundary();
     if (NodeType & NODE_MRT)
     {
 		CollisionMRT();
@@ -257,8 +264,8 @@ CudaDeviceFunction void CollisionMRT()
         Jy = Jy + (GravitationY +  BC[1])*rho ; 
     }
 <?R } else { ?>
-    Jx = Jx + GravitationX*rho;
-    Jy = Jy + GravitationY*rho; 
+	Jx = Jx + (ux - Jx)*2;
+	Jy = Jy + (uy - Jy)*2;
 <?R } ?>
 
 <?R

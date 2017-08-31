@@ -401,11 +401,24 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
     #endif
 };
 
-template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
+/// Run the border kernel
+/**
+  Dispatch the kernel running RunElement on all border elements of the Lattice
+  \param borderStream CUDA Stream to which add the kernel run
+*/
+template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t borderStream) {
+
+};
+
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunInterior[A(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunParticles(CudaStream_t stream) { RunParticlesT< Node_Run < I, G, S > >(stream); };
+
+
   
 /// Old function for graphics output
 /**
@@ -540,7 +553,18 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 ?>
 
 
-<?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
+
+
+
+<?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { 
+		st = Stages[tp$Stage,,drop=FALSE]
+		ifdef(tp$adjoint) 	
+		if (st$particle) { ?>
+template void LatticeContainer::RunParticles < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
+		} else { ?>
 template void LatticeContainer::RunBorder < <?%s tp$TemplateArgs ?> > (CudaStream_t stream);
 template void LatticeContainer::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
-         }; ifdef(); ?>
+		}
+         };
+	ifdef();
+?>

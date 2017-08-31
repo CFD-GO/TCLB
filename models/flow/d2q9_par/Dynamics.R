@@ -13,17 +13,9 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
-#AddField(name="f[1]", dx=1);
 
-# THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
-# COMMENT OUT FOR PERFORMANCE
-# If present thei are used:
-# As VelocityX/Y for Boundary conditions
-# As mass force (+ GravitationX/Y) in fluid
-if (Options$BC) {
-	AddDensity( name="BC[0]", group="BC", parameter=TRUE)
-	AddDensity( name="BC[1]", group="BC", parameter=TRUE)
-}
+AddDensity( name="ux", group="u", parameter=TRUE)
+AddDensity( name="uy", group="u", parameter=TRUE)
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
@@ -77,3 +69,9 @@ AddNodeType(name="EVelocity", group="BOUNDARY")
 
 AddNodeType(name="NSymmetry", group="BOUNDARY")
 AddNodeType(name="SSymmetry", group="BOUNDARY")
+
+AddStage("BaseIteration", "Run", save=Fields$group == "f", load = DensityAll$group %in% c("f","u"))
+AddStage("CalcU", save=c("ux","uy"), load = DensityAll$group == "f")
+AddStage("CalcF", save=c("ux","uy"), load = DensityAll$group == "u", particle=TRUE)
+
+AddAction("Iteration", c("BaseIteration","CalcU", "CalcF"))
