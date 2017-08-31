@@ -234,7 +234,18 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 }
         } <?R
 	        } ?>
-	CudaDeviceFunction inline void RunElement() {
+
+
+	<?R
+	if (tp$Stream == "Adj") {
+	        for (d in rows(Density)) if (d$parameter) {
+       		        if (tp$Globals == "Globs") { ?>
+        real_t old_<?%s d$adjoint_name ?>; <?R
+			}
+		}
+	} ?>
+
+	CudaDeviceFunction inline void LoadElement() {
 	   constContainer.getType(*this);
 	   PreDiff();
 		<?R
@@ -243,35 +254,56 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
 		        for (d in rows(Density)) if (d$parameter) {
         		        if (tp$Globals == "Globs") { ?>
-                real_t old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
+                old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
                                 }
 	                        if (tp$zeropar) { ?>
                 <?%s d$adjoint_name ?> = 0.0f; <?R
                                 }
-                        } ?>
-		Run_b(); <?R
+                        }
+		} else if (tp$Stream == "Opt") { ?>
+		constContainer.pop_param(*this);
+		constContainer.pop_param_adj(*this); <?R
+		} else if (tp$Stream == "Init") {
+		} else if (tp$Stream == "No") { ?>
+	        constContainer.pop_<?%s s$name ?>(*this); <?R
+		} else {
+		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
+		} ?>
+	}
+	CudaDeviceFunction inline void SaveElement() {
+		<?R
+		if (tp$Stream == "Adj") {
 		        if (tp$Globals == "Globs") for (d in rows(Density)) if (d$parameter) { ?>
                 old_<?%s d$adjoint_name ?> -= <?%s d$adjoint_name ?>;
                 AddToAdjointRes(old_<?%s d$adjoint_name ?>*old_<?%s d$adjoint_name ?>); <?R
                         } ?>
 		constContainer.push_<?%s s$name ?>_adj(*this); <?R
 		} else if (tp$Stream == "Opt") { ?>
-		constContainer.pop_param(*this);
-		constContainer.pop_param_adj(*this); 
-		Opt();
 		constContainer.push_param(*this); <?R
 		} else if (tp$Stream == "Init") { ?>
-		constContainer.getType(*this);
-		Init();
 		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else if (tp$Stream == "No") { ?>
-	        constContainer.pop_<?%s s$name ?>(*this); 
-		<?%s s$main ?>();
 		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
 	   GlobDiff();
+	}
+	CudaDeviceFunction inline void RunElement() {
+		LoadElement();
+		<?R
+		if (tp$Stream == "Adj") { ?>
+		Run_b(); <?R
+		} else if (tp$Stream == "Opt") { ?>
+		Opt(); <?R
+		} else if (tp$Stream == "Init") { ?>
+		Init();<?R
+		} else if (tp$Stream == "No") { ?>
+		<?%s s$main ?>(); <?R
+		} else {
+		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
+		} ?>
+		SaveElement();
 	}
 	CudaDeviceFunction inline void OutOfDomain() {
 	   GlobDiffOutOfDomain();
