@@ -349,6 +349,27 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.Glob();
 }
 
+
+template <class N> CudaGlobalFunction void RunParticlesKernel()
+{
+/*	N now;
+	now.x_ = 10;
+	now.y_ = 10;
+	now.z_ = 10;
+		for (; now.x_ < 30; now.x_++) {
+		now.Pre();
+		if (now.y_ < constContainer.fy) {
+			now.RunElement();
+		} else {
+			now.OutOfDomain();
+		}
+		now.Glob();
+	#ifndef GRID_3D
+		}
+	#endif */
+}
+
+
 /// Copy oneself to the GPU constant memory
 /**
   Copiers the container object to constContainer variable
@@ -401,20 +422,18 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
     #endif
 };
 
-/// Run the border kernel
+/// Run the particle kernel
 /**
-  Dispatch the kernel running RunElement on all border elements of the Lattice
-  \param borderStream CUDA Stream to which add the kernel run
 */
-template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t borderStream) {
-
+template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t interiorStream) {
+	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(1,1,1) , dim3(1),(),interiorStream);
 };
 
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
   void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunInterior[A(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
 template < eOperationType I, eCalculateGlobals G, eStage S >
   void LatticeContainer::RunParticles(CudaStream_t stream) { RunParticlesT< Node_Run < I, G, S > >(stream); };
 
