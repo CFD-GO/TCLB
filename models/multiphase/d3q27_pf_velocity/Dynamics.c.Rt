@@ -220,8 +220,8 @@ if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_W) {
 }
 	lpPhi /= 36.0;
 
-	mu = 4.0*(12.0*sigma/Width)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
-	       - (1.5 *sigma*Width) * lpPhi;
+	mu = 4.0*(12.0*sigma/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
+	       - (1.5 *sigma*IntWidth) * lpPhi;
 	return mu;
 }
 
@@ -249,7 +249,7 @@ CudaDeviceFunction void Init() {
                 real_t Ri;
                 Ri = sqrt( (X - CenterX)*(X - CenterX) + (Y - CenterY)*(Y - CenterY) + (Z - CenterZ)*(Z - CenterZ) );
                 PhaseF = 0.5*(PhaseField_h + PhaseField_l)
-                       - 0.5*(PhaseField_h - PhaseField_l) * BubbleType * tanh(2 * (Ri - Radius)/Width);
+                       - 0.5*(PhaseField_h - PhaseField_l) * BubbleType * tanh(2 * (Ri - Radius)/IntWidth);
         }
 //	THE RAYLEIGH-TAYLOR INSTABILITY:
 	if (RTI_Characteristic_Length > 0){
@@ -288,7 +288,7 @@ CudaDeviceFunction void Init_distributions(){
 	real_t Gamma[27];
 // ##### heq
 	real_t F_phi[15], tmp1;
-	tmp1 = (1.0 - 4.0*(C - C0)*(C - C0))/Width;
+	tmp1 = (1.0 - 4.0*(C - C0)*(C - C0))/IntWidth;
 	for (i=0; i< 27; i++){
 		Gamma[i] = calcGamma(i, U, V, W, mag);
 		if (i < 15) F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz);
@@ -414,7 +414,7 @@ for (j=0;j<2;j++) {
 }
 
 // PHASE FIELD POPULATION UPDATE:
-	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/Width;
+	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	for (i=0; i< 15; i++){
 		F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz); 		// Forcing Terms
 		heq[i] = C * Gamma[i];      	// heq
@@ -526,7 +526,7 @@ for (j=0;j<2;j++) {
 }
 
 // PHASE FIELD POPULATION UPDATE:
-	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/Width;
+	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	for (i=0; i< 15; i++){
 		F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz);
 		heq[i] = C * Gamma[i];
