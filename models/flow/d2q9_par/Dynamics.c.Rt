@@ -58,8 +58,9 @@ CudaDeviceFunction void CalcF(Particle & p){
 	real_t dx = p.p.x-X;
 	real_t dy = p.p.y-Y;
 	if (dx*dx + dy*dy < p.r*p.r) {
-		ux=0;
-		uy=0;
+		real_t s = 0.01;
+		ux=-dy*s;
+		uy=dx*s;
 	}
 }
 
