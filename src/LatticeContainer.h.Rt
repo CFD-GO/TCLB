@@ -44,6 +44,8 @@ class LatticeContainer {
 #endif
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
   cut_t* Q; 
+  rfi_size_t particle_data_size;
+  rfi_real_t* particle_data;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region

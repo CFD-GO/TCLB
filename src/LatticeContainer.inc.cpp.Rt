@@ -206,6 +206,8 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     NodeType = (flag_t*)tmp;
 
     Q = NULL;
+    particle_data_size = 0;
+    particle_data = NULL;
 
     size = (size_t) GLOBALS * sizeof(real_t);
 	ALLOCPRINT1;
@@ -358,16 +360,16 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 	p.p.y = 50;
 	p.r = 20;
 
-	int pdx = floor(p.p.x - p.r);
-	int pnx = ceil(p.p.x + p.r) + 1;
+	int pdx = floor(p.p.x - p.r) - constContainer.px;
+	int pnx = ceil(p.p.x + p.r) + 1 - constContainer.px;
 	if (pdx < 0) pdx = 0;
 	if (pnx > constContainer.nx) pnx = constContainer.nx;
-	int pdy = floor(p.p.y - p.r);
-	int pny = ceil(p.p.y + p.r) + 1;
+	int pdy = floor(p.p.y - p.r) - constContainer.py;
+	int pny = ceil(p.p.y + p.r) + 1 - constContainer.py;
 	if (pdy < 0) pdy = 0;
 	if (pny > constContainer.ny) pny = constContainer.ny;
-	int pdz = floor(p.p.z - p.r);
-	int pnz = ceil(p.p.z + p.r) + 1;
+	int pdz = floor(p.p.z - p.r) - constContainer.pz;
+	int pnz = ceil(p.p.z + p.r) + 1 - constContainer.pz;
 	if (pdz < 0) pdz = 0;
 	if (pnz > constContainer.nz) pnz = constContainer.nz;
 	for (now.z_ = pdz; now.z_ < pnz; now.z_++) {	
