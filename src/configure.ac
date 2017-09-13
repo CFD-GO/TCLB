@@ -272,8 +272,11 @@ else
 fi
 LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
-AC_CHECK_FUNC([MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
-#AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+AC_CHECK_LIB([mpi], [MPI_Recv],[],[
+	AC_CHECK_FUNC([MPI_Recv],[],[
+		AC_MSG_ERROR([Didn't find MPI Library])
+	])
+])
 
 
 if  test "x${with_python}" == "xyes"; then
