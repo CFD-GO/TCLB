@@ -105,6 +105,11 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
+echo $CXX
+test -z "$CXX" && CXX=mpic++
+test -z "$CC" && CC=mpicc
+echo $CXX
+
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC

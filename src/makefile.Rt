@@ -57,7 +57,7 @@ else
 
 %.o:%.cu
 	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NV_OPT)
+	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
