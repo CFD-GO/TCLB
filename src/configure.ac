@@ -98,6 +98,11 @@ AC_ARG_ENABLE([paranoid],
 AC_ARG_ENABLE([profiling],
 	AC_HELP_STRING([--enable-profiling],
 		[enable profiling for R in rtemplate]))		
+
+AC_ARG_WITH([cpp-flags],
+	AC_HELP_STRING([--with-cpp-flags=FLAGS],
+		[privide additionals flags for the compiler]),
+	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
 # Checks for programs.
@@ -267,7 +272,8 @@ else
 fi
 LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
-AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+AC_CHECK_FUNC([MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+#AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
 
 
 if  test "x${with_python}" == "xyes"; then
@@ -481,8 +487,19 @@ then
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
 	CPPFLAGS="${CPPFLAGS} -g"
 	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
+fi
+
+if test "x${CONF_CPPFLAGS}" == "x"
+then
+        if test "x${enable_debug}" == "xyes"
+        then
+                CPPFLAGS="${CPPFLAGS} -g"
+        else
+                CPPFLAGS="${CPPFLAGS} -O3"
+        fi
+        CPPFLAGS="${CPPFLAGS} -Wno-write-strings"
 else
-	CPPFLAGS="${CPPFLAGS} -O3"
+	CPPFLAGS="${CPPFLAGS} ${CONF_CPPFLAGS}"
 fi
 
 if test "x${with_verbosity_level}" == "x0"
