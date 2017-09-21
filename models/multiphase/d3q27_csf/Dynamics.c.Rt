@@ -1,0 +1,633 @@
+<?R
+	source("conf.R")
+	c_header();
+
+
+# Creating variables for symbolic computations
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	rho =  PV("rho")
+	J = PV("J",c("x","y","z"))
+    u  = PV("u.",c("x","y","z"))
+
+	tmp = PV("tmp")
+
+# Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+#	EQ = MRT_eq(U, rho, J);
+
+    wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+    wi = subst(wi, rho=1)
+    wi = gapply(wi,function(x) sum(0,x$.M), simplify=TRUE)
+    wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+#######################################################
+# things related to h
+#######################################################
+    
+   
+    h = PV(Density$name[Density$group=='h'])
+
+
+# Extracting velocity set
+	U_h = as.matrix(DensityAll[DensityAll$group=="h",c("dx","dy","dz")])
+
+    pf = PV("pf")
+	Jpf = PV("Jpf",c(".x",".y",".z"))
+
+    EQ_h = MRT_eq(U_h,pf,Jpf,ortogonal=FALSE, sigma2=c_sq_h  , order=f_eq_order_h) 
+    
+    wi_h = subst(EQ_h$Req, Jpf.x=0, Jpf.y=0, Jpf.z=0)
+    wi_h = subst(wi_h, pf=1)
+    wi_h = gapply(wi_h,function(x) sum(0,x$.M), simplify=TRUE)
+    wi_h = wi_h %*% solve(EQ_h$mat)
+	wi_h = as.vector(wi_h)
+
+
+    phis = PV(paste("phi(",U[,1],",",U[,2],",",U[,3],")"))
+    phis_h = PV(paste("phi(",U_h[,1],",",U_h[,2],",",U_h[,3],")"))
+  
+    n = PV(c("normal.x","normal.y", "normal.z"))
+    W = PV("IntWidth")	
+    mob = PV("Mobility")
+
+    
+#    EQ_h$feq = subst(EQ_h$Req, Jpf.x=0, Jpf.y=0, Jpf.z=0)
+    
+    Bh = mob * (1.-4.*pf*pf)*W * (c_sq_h^-1) 
+
+    EQ_h$feq = EQ_h$feq + Bh * wi_h * n %*% t(U_h)
+    EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+
+?>
+
+/*
+ 
+  <?R 
+    temp =  Bh * wi * n %*% t(U)
+    for (j in 1:lU) {
+        C(tmp, wi_h[j])
+    } 
+  ?>
+ 
+ */
+
+vector_t normal;
+real_t curvature;
+vector_t gradient;
+vector_t debug;
+real_t laplace;
+bool near_wall;
+CudaDeviceFunction void  InitPhisStencil(){
+    debug.x = 0;
+    debug.y = 0;
+    debug.z = 0;
+    //calculate phi
+    CalcPhi();
+
+    //calculate gradient and normal
+    vector_t n, nw;// = getGradientPhi();
+    n.x = 0;
+    n.y = 0;
+    n.z = 0;
+    nw.x = 0;
+    nw.y = 0;
+    nw.z = 0;
+
+    int inwall = 0;
+    unsigned int wall_pattern = 0x0;
+
+    laplace = -phi; 
+    gradient.x = 0;
+    gradient.y = 0;
+    gradient.z = 0;
+
+  <?R
+    for (j in 1:lU) {
+    ?> 
+        if (<?R C(phis[j]) ?>  != -999) {
+            n.x = n.x + <?R C(phis_h[j]*U_h[j,1]*wi_h[j]) ?>;
+            n.y = n.y + <?R C( phis_h[j]*U_h[j,2]*wi_h[j]) ?>;
+            n.z = n.z + <?R C( phis_h[j]*U_h[j,3]*wi_h[j]) ?>;
+
+        }// else {
+         //   wall_pattern = wall_pattern + w<?%s j-1 ?>;
+         // }
+    <?R } ?>
+    <?R
+    for (j in 1:27) {
+    ?> 
+        if (<?R C(phis[j]) ?>  != -999) {
+            gradient.x = gradient.x + <?R C(phis[j]*U[j,1]*wi[j]) ?>;
+            gradient.y = gradient.y + <?R C( phis[j]*U[j,2]*wi[j]) ?>;
+            gradient.z = gradient.z + <?R C( phis[j]*U[j,3]*wi[j]) ?>;
+            laplace =  laplace +  <?R C( phis[j]*wi[j]) ?>;
+
+        }// else {
+         //   wall_pattern = wall_pattern + w<?%s j-1 ?>;
+         // }
+    <?R } ?>
+
+    laplace = laplace * 6.;
+
+    real_t ln = sqrt(n.x*n.x + n.y*n.y + n.z*n.z);
+    if (ln != 0.){
+        n.x /= ln;
+        n.y /= ln;
+        n.z /= ln; 
+    }
+
+    normal = n;
+    real_t phi_cache[27];
+    vector_t n_cache[27];
+
+  
+    <?R 
+
+    phi_cache = PV( paste("phi_cache[",0:8,"]",sep="") )
+    nx_cache = PV( paste("nx_cache[",0:8,"]",sep="") )
+    ny_cache = PV( paste("ny_cache[",0:8,"]",sep="") )
+    nz_cache = PV( paste("nz_cache[",0:8,"]",sep="") )
+
+    U_half = expand.grid(c(-0.5,0.5),c(-0.5,0.5),c(-0.5,0.5))
+
+    
+    for (i0 in 1:8) {
+        ?> 
+            /* <?%s i0 ?>  */
+            n_ = 0;
+        
+        
+        <?R
+
+        for (j in 1:8) {
+
+
+            e = U_half[i0,] + U_half[j,]
+            p_ = PV(paste("phi(",e[1],",",e[2],",",e[3],")",sep="" ))
+            
+            ?>
+            
+            if (<?R C(p_) ?>  != -999) {
+                phi_cache[n_] = <?R C(p_) ?>;
+                nx_cache[n_] = <?%s e[1] ?>;
+                ny_cache[n_] = <?%s e[2] ?>;
+                nz_cache[n_] = <?%s e[3] ?>;
+              
+                n_ = n_ + 1;
+            } 
+            
+            <?R
+        }
+    ?>
+m_0_0_0  =  phi_cache[0] + phi_cache[1] + phi_cache[2] + phi_cache[3] + phi_cache[4] + phi_cache[5] + phi_cache[6] + phi_cache[7] ;
+m_0_0_1  =  nx_cache[0]*phi_cache[0] + nx_cache[1]*phi_cache[1] + nx_cache[2]*phi_cache[2] + nx_cache[3]*phi_cache[3] + nx_cache[4]*phi_cache[4] + nx_cache[5]*phi_cache[5] + nx_cache[6]*phi_cache[6] + nx_cache[7]*phi_cache[7] ;
+m_0_1_0  =  nx_cache[0]*phi_cache[0] + nx_cache[1]*phi_cache[1] + nx_cache[2]*phi_cache[2] + nx_cache[3]*phi_cache[3] + nx_cache[4]*phi_cache[4] + nx_cache[5]*phi_cache[5] + nx_cache[6]*phi_cache[6] + nx_cache[7]*phi_cache[7] ;
+m_0_1_1  =  pow(nx_cache[0], 2)*phi_cache[0] + pow(nx_cache[1], 2)*phi_cache[1] + pow(nx_cache[2], 2)*phi_cache[2] + pow(nx_cache[3], 2)*phi_cache[3] + pow(nx_cache[4], 2)*phi_cache[4] + pow(nx_cache[5], 2)*phi_cache[5] + pow(nx_cache[6], 2)*phi_cache[6] + pow(nx_cache[7], 2)*phi_cache[7] ;
+m_1_0_0  =  nx_cache[0]*phi_cache[0] + nx_cache[1]*phi_cache[1] + nx_cache[2]*phi_cache[2] + nx_cache[3]*phi_cache[3] + nx_cache[4]*phi_cache[4] + nx_cache[5]*phi_cache[5] + nx_cache[6]*phi_cache[6] + nx_cache[7]*phi_cache[7] ;
+m_1_0_1  =  pow(nx_cache[0], 2)*phi_cache[0] + pow(nx_cache[1], 2)*phi_cache[1] + pow(nx_cache[2], 2)*phi_cache[2] + pow(nx_cache[3], 2)*phi_cache[3] + pow(nx_cache[4], 2)*phi_cache[4] + pow(nx_cache[5], 2)*phi_cache[5] + pow(nx_cache[6], 2)*phi_cache[6] + pow(nx_cache[7], 2)*phi_cache[7] ;
+m_1_1_0  =  pow(nx_cache[0], 2)*phi_cache[0] + pow(nx_cache[1], 2)*phi_cache[1] + pow(nx_cache[2], 2)*phi_cache[2] + pow(nx_cache[3], 2)*phi_cache[3] + pow(nx_cache[4], 2)*phi_cache[4] + pow(nx_cache[5], 2)*phi_cache[5] + pow(nx_cache[6], 2)*phi_cache[6] + pow(nx_cache[7], 2)*phi_cache[7] ;
+m_1_1_1  =  pow(nx_cache[0], 3)*phi_cache[0] + pow(nx_cache[1], 3)*phi_cache[1] + pow(nx_cache[2], 3)*phi_cache[2] + pow(nx_cache[3], 3)*phi_cache[3] + pow(nx_cache[4], 3)*phi_cache[4] + pow(nx_cache[5], 3)*phi_cache[5] + pow(nx_cache[6], 3)*phi_cache[6] + pow(nx_cache[7], 3)*phi_cache[7] ;
+
+    switch (n_) {
+        case 7:
+
+        phi_cache[7]  =  (-m_0_0_1*n_z*(ctg_alpha - 1) + m_0_1_0*(ctg_alpha*n_x + n_y) - m_1_0_0*(ctg_alpha*n_y - n_x))/(n_z*nz_cache[7]*(ctg_alpha - 1) + nx_cache[7]*(ctg_alpha*n_y - n_x) - ny_cache[7]*(ctg_alpha*n_x + n_y)) ;
+m_0_0_0 = m_0_0_0 + phi_cache[7] ;
+m_0_0_1 = m_0_0_1 + nz_cache[7]*phi_cache[7] ;
+m_0_1_0 = m_0_1_0 + ny_cache[7]*phi_cache[7] ;
+m_0_1_1 = m_0_1_1 + ny_cache[7]*nz_cache[7]*phi_cache[7] ;
+m_1_0_0 = m_1_0_0 + nx_cache[7]*phi_cache[7] ;
+m_1_0_1 = m_1_0_1 + nx_cache[7]*nz_cache[7]*phi_cache[7] ;
+m_1_1_0 = m_1_1_0 + nx_cache[7]*ny_cache[7]*phi_cache[7] ;
+m_1_1_1 = m_1_1_1 + nx_cache[7]*ny_cache[7]*nz_cache[7]*phi_cache[7] ;
+
+        case 6:
+      
+
+phi_cache[7]  =  (-m_0_0_1*n_z*nx_cache[6]*ny_cache[6]*nz_cache[6]*(ctg_alpha - 1) + m_0_1_0*nx_cache[6]*ny_cache[6]*nz_cache[6]*(ctg_alpha*n_x + n_y) - m_1_0_0*nx_cache[6]*ny_cache[6]*nz_cache[6]*(ctg_alpha*n_y - n_x) + m_1_1_1*(n_z*nz_cache[6]*(ctg_alpha - 1) + nx_cache[6]*(ctg_alpha*n_y - n_x) - ny_cache[6]*(ctg_alpha*n_x + n_y)))/(n_z*nx_cache[6]*ny_cache[6]*nz_cache[6]*nz_cache[7]*(ctg_alpha - 1) - n_z*nx_cache[7]*ny_cache[7]*nz_cache[6]*nz_cache[7]*(ctg_alpha - 1) + nx_cache[6]*nx_cache[7]*ny_cache[6]*nz_cache[6]*(ctg_alpha*n_y - n_x) - nx_cache[6]*nx_cache[7]*ny_cache[7]*nz_cache[7]*(ctg_alpha*n_y - n_x) - nx_cache[6]*ny_cache[6]*ny_cache[7]*nz_cache[6]*(ctg_alpha*n_x + n_y) + nx_cache[7]*ny_cache[6]*ny_cache[7]*nz_cache[7]*(ctg_alpha*n_x + n_y)) ;
+phi_cache[6]  =  (m_0_0_1*n_z*nx_cache[7]*ny_cache[7]*nz_cache[7]*(ctg_alpha - 1) - m_0_1_0*nx_cache[7]*ny_cache[7]*nz_cache[7]*(ctg_alpha*n_x + n_y) + m_1_0_0*nx_cache[7]*ny_cache[7]*nz_cache[7]*(ctg_alpha*n_y - n_x) - m_1_1_1*(n_z*nz_cache[7]*(ctg_alpha - 1) + nx_cache[7]*(ctg_alpha*n_y - n_x) - ny_cache[7]*(ctg_alpha*n_x + n_y)))/(n_z*nx_cache[6]*ny_cache[6]*nz_cache[6]*nz_cache[7]*(ctg_alpha - 1) - n_z*nx_cache[7]*ny_cache[7]*nz_cache[6]*nz_cache[7]*(ctg_alpha - 1) + nx_cache[6]*nx_cache[7]*ny_cache[6]*nz_cache[6]*(ctg_alpha*n_y - n_x) - nx_cache[6]*nx_cache[7]*ny_cache[7]*nz_cache[7]*(ctg_alpha*n_y - n_x) - nx_cache[6]*ny_cache[6]*ny_cache[7]*nz_cache[6]*(ctg_alpha*n_x + n_y) + nx_cache[7]*ny_cache[6]*ny_cache[7]*nz_cache[7]*(ctg_alpha*n_x + n_y)) ;
+m_0_0_0 = m_0_0_0 + phi_cache[6] + phi_cache[7] ;
+m_0_0_1 = m_0_0_1 + nz_cache[6]*phi_cache[6] + nz_cache[7]*phi_cache[7] ;
+m_0_1_0 = m_0_1_0 + ny_cache[6]*phi_cache[6] + ny_cache[7]*phi_cache[7] ;
+m_0_1_1 = m_0_1_1 + ny_cache[6]*nz_cache[6]*phi_cache[6] + ny_cache[7]*nz_cache[7]*phi_cache[7] ;
+m_1_0_0 = m_1_0_0 + nx_cache[6]*phi_cache[6] + nx_cache[7]*phi_cache[7] ;
+m_1_0_1 = m_1_0_1 + nx_cache[6]*nz_cache[6]*phi_cache[6] + nx_cache[7]*nz_cache[7]*phi_cache[7] ;
+m_1_1_0 = m_1_1_0 + nx_cache[6]*ny_cache[6]*phi_cache[6] + nx_cache[7]*ny_cache[7]*phi_cache[7] ;
+m_1_1_1 = m_1_1_1 + nx_cache[6]*ny_cache[6]*nz_cache[6]*phi_cache[6] + nx_cache[7]*ny_cache[7]*nz_cache[7]*phi_cache[7] ;
+
+
+
+    }
+
+    
+
+    laplace = laplace + <?R  C(U_half[i0,3]) ?> * m_0_0_1 + <?R  C(U_half[i0,2]) ?> * m_0_1_0 + <?R  C(U_half[i0,1]) ?> * m_1_0_0; 
+
+
+
+
+    <?R
+    }
+     ?>
+
+    
+
+
+    
+    
+
+
+
+ /**
+  * EVALUATING CURVATURE
+ 
+
+
+    phi_cache[0] = phi(-1,-1,-1);
+    phi_cache[1] = phi(-1,-1,0);
+    phi_cache[2] = phi(-1,-1,1);
+    phi_cache[3] = phi(0,-1,-1);
+    phi_cache[4] = phi(0,-1,0);
+    phi_cache[5] = phi(0,-1,1);
+    phi_cache[6] = phi(1,-1,-1);
+    phi_cache[7] = phi(1,-1,0);
+    phi_cache[8] = phi(1,-1,1);
+    phi_cache[9] = phi(-1,0,-1);
+    phi_cache[10] = phi(-1,0,0);
+    phi_cache[11] = phi(-1,0,1);
+    phi_cache[12] = phi(0,0,-1);
+    phi_cache[13] = phi(0,0,0);
+    phi_cache[14] = phi(0,0,1);
+    phi_cache[15] = phi(1,0,-1);
+    phi_cache[16] = phi(1,0,0);
+    phi_cache[17] = phi(1,0,1);
+    phi_cache[18] = phi(-1,1,-1);
+    phi_cache[19] = phi(-1,1,0);
+    phi_cache[20] = phi(-1,1,1);
+    phi_cache[21] = phi(0,1,-1);
+    phi_cache[22] = phi(0,1,0);
+    phi_cache[23] = phi(0,1,1);
+    phi_cache[24] = phi(1,1,-1);
+    phi_cache[25] = phi(1,1,0);
+    phi_cache[26] = phi(1,1,1);
+*/
+
+curvature = laplace;
+
+}
+
+
+CudaDeviceFunction void CalcPhi() {
+
+   if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+        phi =  -999;
+   } else {
+    	phi =  <?R C(sum(h)) ?> ;
+   }  
+      
+}
+
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction real_t getP(){
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction real_t getPhaseField(){
+        InitPhisStencil();
+        if (IamWall){
+            return 0;
+        }
+    	return phi ;
+}
+    
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getNormal(){
+    InitPhisStencil();
+    return normal;
+
+}
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction real_t getCurvature(){
+    InitPhisStencil();
+    return curvature;
+
+}
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getDEBUG(){
+    InitPhisStencil();
+//    vector_t temp;
+//    temp.x = nw_x(0,0);
+//    temp.y = nw_y(0,0);
+    return debug;
+
+}
+
+
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+    vector_t F = getF();
+    u.x = u.x+F.x*0.5;
+    u.y = u.y+F.y*0.5;
+    u.z = u.z+F.z*0.5;
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+
+	return u;
+}
+
+CudaDeviceFunction vector_t getInterfaceForce(){
+    InitPhisStencil();
+    return real_getInterfaceForce(1);
+}
+
+CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
+	vector_t F = gradient;
+    real_t curv = curvature;
+    real_t phi_l = phi ;
+    const real_t alpha = 3.;
+    const real_t epsilon = 1. / IntWidth; 
+    const real_t epsilon2 = epsilon * epsilon;
+
+    const real_t ST_C = - ST * alpha / epsilon;
+    if (phi_l * phi_l < SurfaceTensionDecay){
+  
+       
+  /**  if (near_wall){
+        real_t scale =  IntWidth * (1-4*phi_l*phi_l);
+
+        F = getNormal();
+        F.x = F.x * scale;
+        F.y = F.y * scale;
+    }
+**/
+//    F.x =  ST * curv  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
+//    F.y =  ST * curv  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+//    F.z =  ST * curv  *  F.z;
+    
+
+    real_t chem_pot = 8*pow(IntWidth, 2)*phi_l*(4*pow(phi_l, 2) - 1) - laplace;
+    F.x =  -ST_C * chem_pot  *  F.x;
+    F.y =  -ST_C * chem_pot  *  F.y;
+    F.z =  -ST_C * chem_pot  *  F.z;       
+     
+    } else {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;
+    }
+	return F;
+}
+
+
+CudaDeviceFunction void CalcNormal(){
+
+
+    CalcPhi();
+
+
+    //calculate gradient and normal
+    vector_t nw;
+    nw.x = 0;
+    nw.y = 0;
+    nw.z = 0;
+
+    real_t magic = 0.12;
+   <?R
+    for (j in 1:27) {
+    ?>
+        if (<?R C(phis[j]) ?>  == -999) {
+            nw.x = nw.x + (1-magic) * <?R C(U[j,1]) ?>;
+            nw.y = nw.y + (1-magic) * <?R C(U[j,2]) ?>;
+            nw.z = nw.z + (1-magic) * <?R C(U[j,3]) ?>;
+
+        }
+
+        nw.x = nw.x + magic * nw_x(  <?R C(U[j,1]) ?>, <?R C(U[j,2]) ?>, <?R C(U[j,3]) ?> );
+        nw.y = nw.y + magic * nw_y(  <?R C(U[j,1]) ?>, <?R C(U[j,2]) ?>, <?R C(U[j,3]) ?> );
+        nw.z = nw.z + magic * nw_z(  <?R C(U[j,1]) ?>, <?R C(U[j,2]) ?>, <?R C(U[j,3]) ?> );
+
+    <?R } ?>
+
+   // real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;
+   // nw.x /= ln;
+   // nw.y /= ln;
+
+    if (IamWall){
+        nw.x = 0;
+        nw.y = 0;
+        nw.z = 0;
+    }
+    nw_x = nw.x;
+    nw_y = nw.y;
+    nw_z = nw.z;
+}
+
+CudaDeviceFunction vector_t getF() {
+    real_t rho = getRho();
+    real_t pf = <?R C(sum(h)) ?> ;
+    vector_t F = real_getInterfaceForce(SurfaceTensionRate);
+
+/*    vector_t F;
+    F.x = 0;
+    F.y = 0;
+    F.z = 0;
+  */  
+    F.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX_h - GravitationX_l);
+    F.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY_h - GravitationY_l);
+
+    return F;
+}
+
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void NSymmetry()
+{
+<?R Symmetry(2, -1) ?>
+}
+
+CudaDeviceFunction void ISymmetry()
+{
+<?R Symmetry(3, 1) ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHe(EQ, 1, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHe(EQ, 1, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHe(EQ, 1, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void Run() {
+    InitPhisStencil();
+    switch (NodeType & NODE_BOUNDARY) {
+/**	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_NSymmetry:
+		NSymmetry();
+		break;
+	case NODE_ISymmetry:
+		ISymmetry();
+		break;
+**/
+	case NODE_Wall:
+		BounceBack();
+                break;
+    }
+    switch (NodeType & NODE_COLLISION) {
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz, real_t pf)
+{
+    vector_t u, n, Jpf;
+    n.x = 0;
+    n.y = 0;
+    n.z = 0;
+    
+    u.x = Jx/rho;
+    u.y = Jy/rho;
+    u.z = Jz/rho;
+    
+    <?R
+        C(Jpf, u * pf)
+		C(f, EQ$Req %*% solve(EQ$mat));
+	    C(h, EQ_h$Req %*% solve(EQ_h$mat));
+?>
+}
+
+CudaDeviceFunction void Init() {
+    const real_t d = 1.0 + Pressure * 3.0;
+	SetEquilibrum( d, Velocity, 0, 0, PhaseField );
+}
+
+CudaDeviceFunction void CollisionMRT()
+{
+    real_t pf = <?R C(sum(h)) ?> ;
+<?R
+
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+	real_t <?R C(R,sep=",") ?>;
+	real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega_h - omega_l));
+<?R
+	S = PV("S",1:nrow(U)-1);
+	S[EQ$order <= 2] = PV("gamma")
+	S[EQ$order >  2] = PV("gamma2")
+
+
+##	C( R, f %*% EQ$mat );
+##	C( R[selR], (R - EQ$Req)[selR]);
+
+
+?>
+	real_t gamma2 = gamma;
+<?R
+
+##	C( R[selR], (R * S)[selR]);
+?>
+    vector_t F = getF();
+	Jx += F.x;
+	Jy += F.y;
+	Jz += F.z;
+    AddToFlux((Jx+F.x/2)/rho);
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
+		Jx = 0;
+		Jy = 0;
+		Jz = 0;
+	}
+<?R
+##	C( R[selR], (R + EQ$Req)[selR]);
+
+##	C( f, R %*% solve(EQ$mat), float=F);
+?>
+
+
+//#######################################################################
+//# part related to h
+ 
+    real_t d = <?R C(sum(f)) ?>;
+
+    vector_t Jpf;
+        
+    <?R C(PV(c("Jpf.x","Jpf.y", "Jpf.z")), f %*% U) ?>
+
+    Jpf.x = (Jpf.x + 0.5 * F.x) / d;
+    Jpf.y = (Jpf.y + 0.5 * F.y) / d;
+    Jpf.z = (Jpf.z + 0.5 * F.z) / d;
+
+
+    real_t omega_ph =  1/(  Mobility/<?%s c_sq_h ?> + 0.5); 
+    real_t Bh;
+
+<?R
+##    C(Jpf, Jpf * pf)
+##    omega_ph=PV("omega_ph")
+##    C( h, (1-omega_ph )*h + omega_ph * EQ_h$feq, float=T )
+?>
+/**
+<?R
+    C(tmp, sum(EQ_h$feq))
+?> 
+**/
+
+}
+

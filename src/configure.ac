@@ -100,6 +100,13 @@ AC_ARG_ENABLE([profiling],
 		[enable profiling for R in rtemplate]))		
 NVFLAGS=""
 
+
+
+if test "x${COMPILER_BINDIR}" != "x"
+then
+	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
+
+fi
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
