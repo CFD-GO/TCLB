@@ -745,6 +745,42 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 			   }
 		}
+	} else if (strcmp(n.name(),"XPipe") == 0) {
+
+	double x0 = units.alt(n.attribute("x").value());
+	double y0 = units.alt(n.attribute("y").value());
+	double z0 = units.alt(n.attribute("z").value());
+
+	double Ry, Rz;
+	if ( n.attribute("R").empty() ) {
+	    Ry = units.alt(n.attribute("Ry").value());
+	    Rz = units.alt(n.attribute("Rz").value());
+	} else {
+	    double R = units.alt(n.attribute("R").value());
+	    Ry = R;
+	    Rz = R;
+	}
+
+	double Ry2 = Ry*Ry;
+	double Rz2 = Rz*Rz;
+
+	reg.dy = y0 - Ry - 5;
+	reg.dz = z0 - Rz - 5;
+
+	reg.ny = 2*Ry + 10;
+	reg.nz = 2*Rz + 10;
+
+	    debug1("Filling XPipe with flag %d (%d)\n, with center at (%lf,%lfi,%f) radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Ry, Rz);
+	    DEBUG1(reg.print();)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		for (int z = reg.dz; z < reg.dz + reg.nz; z++)
+       		    for (int x = reg.dx; x < reg.dx + reg.nx; x++) {
+		double yy = (.5 + y - y0);
+		double zz = (.5 + z - z0);
+			if (zz*zz/Rz2 + yy*yy/Ry2 < 1. ) {
+			    Dot(x,y,z);
+			}
+		}
 	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
 	    DEBUG1(reg.print();)

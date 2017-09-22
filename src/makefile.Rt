@@ -43,25 +43,25 @@ ifdef CPU
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@"
-	@mpic++ $^ -o $@ $(LD_OPT)
+	@$(CXX) $^ -o $@ $(LD_OPT)
 
 else
 
 %.o:%.cpp
 	@echo "  G++        $<"
-	@g++ -c $< -o $@ $(CPP_OPT) $(OPT)
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
 %.o:%.cu
 	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ $(OPT) $(NV_OPT)
+	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
-	@mpic++ $^  -lcudart -o $@ $(LD_OPT)
+	@$(CXX) $^  -lcudart -o $@ $(LD_OPT)
 #	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
 
 endif

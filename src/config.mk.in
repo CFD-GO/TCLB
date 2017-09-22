@@ -1,6 +1,6 @@
 
 OPT = @CPPFLAGS@
-CPP_OPT = -Wno-write-strings @CPP_OPT@
+CPP_OPT = @CPP_OPT@
 LD_OPT = @LDFLAGS@ @LIBS@
 NV_OPT = -D_FORCE_INLINES  @NVFLAGS@
 CPU = @CROSS_CPU@
@@ -22,6 +22,8 @@ AOUT=main
 
 NVCC=nvcc
 CCTXT=NVCC
+CC=@CC@
+CXX=@CXX@
 
 ifeq '$(strip $(ADJOINT))' '1'
  OPT+=-D ADJOINT
