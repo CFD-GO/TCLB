@@ -63,8 +63,11 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 ?>
 
 struct Particle {
-	vector_t p, v;
-	real_t r;
+	vector_t pos, vel, angvel;
+	vector_t cvel, diff;
+	vector_t force, moment;
+	real_t rad;
+	real_t dist;
 };
 
 <?R

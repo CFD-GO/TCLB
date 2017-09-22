@@ -14,8 +14,9 @@ AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
 
-AddDensity( name="ux", group="u", parameter=TRUE)
-AddDensity( name="uy", group="u", parameter=TRUE)
+AddDensity( name="ux",  group="u", parameter=TRUE)
+AddDensity( name="uy",  group="u", parameter=TRUE)
+AddDensity( name="sol", group="u", parameter=TRUE)
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
@@ -27,6 +28,7 @@ AddDensity( name="uy", group="u", parameter=TRUE)
 
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
+AddQuantity(name="Solid",unit="1")
 
 
 
@@ -71,7 +73,8 @@ AddNodeType(name="NSymmetry", group="BOUNDARY")
 AddNodeType(name="SSymmetry", group="BOUNDARY")
 
 AddStage("BaseIteration", "Run", save=Fields$group == "f", load = DensityAll$group %in% c("f","u"))
-AddStage("CalcU", save=c("ux","uy"), load = DensityAll$group == "f")
-AddStage("CalcF", save=c("ux","uy"), load = DensityAll$group == "u", particle=TRUE)
+AddStage("CalcU", save=c("ux","uy","sol"), load = DensityAll$group == "f")
+AddStage("CalcF", save=c("ux","uy","sol"), load = DensityAll$group == "u", particle=TRUE)
 
 AddAction("Iteration", c("BaseIteration","CalcU", "CalcF"))
+AddAction("Init", c("BaseInit","CalcU", "CalcF"))

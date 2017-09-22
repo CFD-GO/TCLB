@@ -409,8 +409,14 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 <?R
 	}
 	old_stage_level = 0
-	for (s in a) {
-                 stage = Stages[s,,drop=F] ?>
+	action_stages = Stages[a,]
+	sel = which(action_stages$particle)	
+	action_stages$first_particle = FALSE
+	action_stages$first_particle[head(sel,1)] = TRUE
+	action_stages$last_particle = FALSE
+	action_stages$last_particle[tail(sel,1)] = TRUE
+	for (stage in rows(action_stages)) {
+?>
 //---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
                  if (old_stage_level > 0) { 
                 	for (m in NonEmptyMargin) { ?>
@@ -420,15 +426,42 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
                  old_stage_level = old_stage_level + 1 ?>
 
 <?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
-	container->CopyToConst();
 <?R if (stage$particle) { ?>
+<?R if (stage$first_particle) { ?>
+	RFI.GetParticles();
+	if (RFI.size() > particle_data_size_max) {
+		if (container->particle_data != NULL) CudaFree(container->particle_data);
+		particle_data_size_max = sizeof(rfi_real_t) * RFI.size();
+		CudaMalloc(&container->particle_data, particle_data_size_max);
+	}
+	container->particle_data_size = RFI.size() / RFI_DATA_SIZE;
+	if (RFI.size() > 0) {
+		CudaMemcpy(container->particle_data, RFI.Particles(), sizeof(rfi_real_t) * RFI.size(), cudaMemcpyHostToDevice);
+	}
+<?R } ?>
+	container->CopyToConst();
 	container->RunParticles< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream);
-<?R if (! all(Fields$parameter[Fields[,stage$tag]])) { ?>
+<?R if (stage$last_particle) { ?>
+//{
+//rfi_real_t* data = RFI.Particles();
+//    for (int i=0;i<container->particle_data_size;i++) {
+//     data[i*RFI_DATA_SIZE + RFI_DATA_FORCE+0] = 0;
+//     data[i*RFI_DATA_SIZE + RFI_DATA_FORCE+1] = 0;
+//     data[i*RFI_DATA_SIZE + RFI_DATA_FORCE+2] = 0;
+//    }
+//}
         CudaStreamSynchronize(kernelStream);
+	if (RFI.size() > 0) {
+		CudaMemcpy(RFI.Particles(), container->particle_data, sizeof(rfi_real_t) * RFI.size(), cudaMemcpyDeviceToHost);
+	}
+	RFI.SetParticles();
+<?R } ?>
+<?R if (! all(Fields$parameter[Fields[,stage$tag]])) { ?>
         MPIStream_A();
 	MPIStream_B();
 <?R } ?>
 <?R } else { ?>
+	container->CopyToConst();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
@@ -663,6 +696,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 */
 Lattice::~Lattice()
 {
+	RFI.Close();
         CudaAllocFreeAll();
 	container->Free();
 	for (int i=0; i<nSnaps; i++) {

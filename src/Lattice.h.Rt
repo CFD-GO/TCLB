@@ -10,6 +10,8 @@
 #include "ZoneSettings.h"
 #include "SyntheticTurbulence.h"
 #include "Sampler.h"
+#include "RemoteForceInterface.h"
+
 class lbRegion;
 class LatticeContainer;
 
@@ -71,6 +73,8 @@ public:
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
+  RemoteForceInterface RFI;
+  rfi_size_t particle_data_size_max;
   char snapFileName[STRING_LEN];
   Lattice (lbRegion region, MPIInfo, int);
   ~Lattice ();

@@ -42,25 +42,37 @@ CudaDeviceFunction real_t getRho(){
     
 CudaDeviceFunction vector_t getU(){
 	vector_t u;
-	u.x += ux;
-	u.y += uy;
+	u.x = ux;
+	u.y = uy;
 	u.z = 0.0;
 	return u;
+}
+
+CudaDeviceFunction real_t getSolid(){
+	return sol;
 }
 
 CudaDeviceFunction void CalcU(){
 RunBoundary();
 real_t d = <?R C(sum(f)) ?>;
 <?R C(PV(c("ux","uy")), (f %*% U) ) ?>
+sol = 0;
 }
 
 CudaDeviceFunction void CalcF(Particle & p){
-	real_t dx = p.p.x-X;
-	real_t dy = p.p.y-Y;
-	if (dx*dx + dy*dy < p.r*p.r) {
-		real_t s = 0.01;
-		ux=-dy*s;
-		uy=dx*s;
+/*	real_t dx = p.pos.x-X;
+	real_t dy = p.pos.y-Y;
+	if (dx*dx + dy*dy < p.rad*p.rad) {
+		real_t s = p.angvel.z;
+		ux=p.vel.x-dy*s;
+		uy=p.vel.y+dx*s;
+	}*/
+	if (p.dist < p.rad) {
+		p.force.x += (ux - p.cvel.x);
+		p.force.y += (uy - p.cvel.y);
+		ux = p.cvel.x;
+		uy = p.cvel.y;
+		sol += 1;
 	}
 }
 
@@ -69,11 +81,7 @@ CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
-        if (NodeType == NODE_Solid){
-                ret.y = 0;
-        } else {
-                ret.y = 1;
-        }
+        ret.y = 1-sol;
         return ret;
 }
 
@@ -270,8 +278,8 @@ CudaDeviceFunction void CollisionMRT()
         Jy = Jy + (GravitationY +  BC[1])*rho ; 
     }
 <?R } else { ?>
-	Jx = Jx + (ux - Jx)*2;
-	Jy = Jy + (uy - Jy)*2;
+	Jx = Jx + (ux - Jx);
+	Jy = Jy + (uy - Jy);
 <?R } ?>
 
 <?R

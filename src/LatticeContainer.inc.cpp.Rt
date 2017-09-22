@@ -356,30 +356,53 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 {
 	N now;
 	Particle p;
-	p.p.x = 100;
-	p.p.y = 50;
-	p.r = 20;
-
-	int pdx = floor(p.p.x - p.r) - constContainer.px;
-	int pnx = ceil(p.p.x + p.r) + 1 - constContainer.px;
-	if (pdx < 0) pdx = 0;
-	if (pnx > constContainer.nx) pnx = constContainer.nx;
-	int pdy = floor(p.p.y - p.r) - constContainer.py;
-	int pny = ceil(p.p.y + p.r) + 1 - constContainer.py;
-	if (pdy < 0) pdy = 0;
-	if (pny > constContainer.ny) pny = constContainer.ny;
-	int pdz = floor(p.p.z - p.r) - constContainer.pz;
-	int pnz = ceil(p.p.z + p.r) + 1 - constContainer.pz;
-	if (pdz < 0) pdz = 0;
-	if (pnz > constContainer.nz) pnz = constContainer.nz;
-	for (now.z_ = pdz; now.z_ < pnz; now.z_++) {	
-	for (now.y_ = pdy; now.y_ < pny; now.y_++) {	
-	for (now.x_ = pdx; now.x_ < pnx; now.x_++) {	
-		now.LoadElement();
-		now.ExecElement(p);
-		now.SaveElement(); 
-	}
-	}
+	rfi_size_t i = CudaBlock.x;
+	if (i < constContainer.particle_data_size) {
+		p.rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
+		p.pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
+		p.pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
+		p.pos.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+2];
+		p.vel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+0];
+		p.vel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+1];
+		p.vel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+2];
+		p.angvel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+0];
+		p.angvel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+1];
+		p.angvel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+2];
+		p.force.x = 0;
+		p.force.y = 0;
+		p.force.z = 0;
+                int pdx = floor(p.pos.x - p.rad) - constContainer.px;
+                int pnx = ceil(p.pos.x + p.rad) + 1 - constContainer.px;
+                if (pdx < 0) pdx = 0;
+                if (pnx > constContainer.nx) pnx = constContainer.nx;
+                int pdy = floor(p.pos.y - p.rad) - constContainer.py;
+                int pny = ceil(p.pos.y + p.rad) + 1 - constContainer.py;
+                if (pdy < 0) pdy = 0;
+                if (pny > constContainer.ny) pny = constContainer.ny;
+                int pdz = floor(p.pos.z - p.rad) - constContainer.pz;
+                int pnz = ceil(p.pos.z + p.rad) + 1 - constContainer.pz;
+                if (pdz < 0) pdz = 0;
+                if (pnz > constContainer.nz) pnz = constContainer.nz;
+                for (now.z_ = pdz; now.z_ < pnz; now.z_++) {	
+                for (now.y_ = pdy; now.y_ < pny; now.y_++) {	
+                for (now.x_ = pdx; now.x_ < pnx; now.x_++) {
+                        p.diff.x = p.pos.x - now.x_ - constContainer.px;
+                        p.diff.y = p.pos.y - now.y_ - constContainer.py;
+                        p.diff.z = p.pos.z - now.z_ - constContainer.pz;
+                        p.dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
+                        p.cvel.x = p.vel.x + p.angvel.y*p.diff.z - p.angvel.z*p.diff.y;
+                        p.cvel.y = p.vel.y + p.angvel.z*p.diff.x - p.angvel.x*p.diff.z;
+                        p.cvel.z = p.vel.z + p.angvel.x*p.diff.y - p.angvel.y*p.diff.x;
+                        now.RunElement(p);
+        //		now.LoadElement();
+        //		now.ExecElement(p);
+        //		now.SaveElement(); 
+                }
+                }
+                }
+		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
+		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
+		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = p.force.z;
 	}
 }
 
@@ -440,7 +463,9 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 /**
 */
 template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t interiorStream) {
-	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(1,1,1) , dim3(1),(),interiorStream);
+	if (particle_data_size > 0) {
+	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) , dim3(1),(),interiorStream);
+	}
 };
 
 
