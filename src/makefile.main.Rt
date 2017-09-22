@@ -73,7 +73,7 @@ wiki/% : src/%.Rt
 
 travis : .travis.yml
 
-.travis.yml : src/travis.yml.Rt src/*/conf.mk
+.travis.yml : src/travis.yml.Rt models/* models/*/* models/*/*/* src/models.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
