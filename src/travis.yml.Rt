@@ -17,16 +17,27 @@
 #####################################################
 language: c
 
+
+addons:
+  apt:
+    packages:
+      - libcuinj64-5.5
+      - nvidia-profiler
+      - nvidia-cuda-dev
+      - nvidia-cuda-toolkit
+      - openmpi-bin
+      - libopenmpi-dev
+      - lcov
+      - time
+
 git:
     submodules: false
 
 env:
-  global:
-    - CUDA=6.5-14
   matrix: <?R
 sel = Models$test != "no test"
 for (m in Models$name[sel]) { ?>
-    - MODEL=<?%s m ?> <?R
+    - MODEL=<?%s m ?><?R
 } ?>
 <?R
 sel = Models$test == "can fail"
@@ -40,18 +51,13 @@ matrix:
 ?>
 
 before_install:
-    - sudo tools/install.sh cuda $CUDA
     - sudo tools/install.sh r
-    - sudo tools/install.sh openmpi
     - tools/install.sh rdep
+    - tools/install.sh rinside
     - sudo tools/install.sh python-dev
     - tools/install.sh rpython
     - gem install coveralls-lcov
     - tools/install.sh submodules
-    - sudo tools/install.sh coveralls
-    - export CUDA_HOME=/usr/local/cuda-${CUDA%%-*}
-    - export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
-    - export PATH=${CUDA_HOME}/bin:${PATH}
 
 install:
     - nvcc --version

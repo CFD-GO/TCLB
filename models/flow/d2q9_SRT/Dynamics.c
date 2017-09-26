@@ -16,15 +16,11 @@ BGK-lattice Boltzmann method
 
 CudaDeviceFunction float2 Color() {
 // used for graphics - can usually ignore function
- /*       float2 ret;
+        float2 ret;
         vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
-        if (NodeType == NODE_Solid){
-                ret.y = 0;
-        } else {
-                ret.y = 1;
-        }
-        return ret;*/
+        ret.y = 1;
+        return ret;
 }
 
 CudaDeviceFunction void Init() {
