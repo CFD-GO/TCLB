@@ -2,7 +2,7 @@
 #include "RemoteForceInterface.h"
 #include "Global.h"
 
-RemoteForceInterface::RemoteForceInterface() : intercomm(MPI_COMM_NULL), workers(0), masters(0), totsize(0) {
+RemoteForceInterface::RemoteForceInterface() : workers(0), masters(0), intercomm(MPI_COMM_NULL), totsize(0) {
 }
 
 RemoteForceInterface::~RemoteForceInterface() {
