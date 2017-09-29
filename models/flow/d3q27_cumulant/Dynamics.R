@@ -3,8 +3,9 @@ x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
 
+fname = paste("f",P$x,P$y,P$z,sep="")
 AddDensity(
-	name = paste("f",P$x,P$y,P$z,sep=""),
+	name = fname,
 	dx   = U[,1],
 	dy   = U[,2],
 	dz   = U[,3],
@@ -14,7 +15,6 @@ AddDensity(
 
 AddQuantity( name="P",unit="Pa")
 AddQuantity( name="U",unit="m/s",vector=T)
-AddQuantity( name="M", unit="N", vector=T)
 
 AddSetting(name="nu", default=0.16666666, comment='Viscosity')
 AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer')
@@ -50,6 +50,9 @@ AddNodeType("Body", "BODY")
 AddDensity( name="SynthTX",dx=0,dy=0,dz=0)
 AddDensity( name="SynthTY",dx=0,dy=0,dz=0)
 AddDensity( name="SynthTZ",dx=0,dy=0,dz=0)
+
+AddNodeType("IB",group="HO_BOUNDARY")
+for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
 
 #Averaging values
 if (Ave) {
