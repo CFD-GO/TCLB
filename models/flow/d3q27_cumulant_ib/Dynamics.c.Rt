@@ -101,7 +101,7 @@ CudaDeviceFunction vector_t getReStr(){
 CudaDeviceFunction real_t getKinE(){
 	real_t ke;
 	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
-	return ke/average_iter;
+	return ke;
 }
 #endif
 CudaDeviceFunction float2 Color() {
