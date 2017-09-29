@@ -1,1 +1,2 @@
+OPT="IB*SMAG"
 ADJOINT=0
