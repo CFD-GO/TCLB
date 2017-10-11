@@ -493,7 +493,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     ret = fread(&ntri, 1, sizeof(int), f);
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
     char *lev = (char *) malloc(reg.sizeL() * sizeof(char));
-    for (size_t i = 0; i < reg.size(); i++)
+    for (size_t i = 0; i < reg.sizeL(); i++)
 	lev[i] = insideOut;
     debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     ret = fread(tri, ntri, sizeof(STL_tri), f);
