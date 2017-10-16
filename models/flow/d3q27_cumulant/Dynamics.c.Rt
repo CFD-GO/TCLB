@@ -50,7 +50,7 @@ CudaDeviceFunction vector_t getU(){
 
 }
 
-#ifdef OPT_AVG
+#ifdef OPTIONS_AVG
 CudaDeviceFunction real_t getaverageP(){
 	return avgP/average_iter;
 }
@@ -168,7 +168,7 @@ CudaDeviceFunction void SSymmetry()
 <?R Symmetry(2,1) ?>
 }
 
-#ifdef OPT_IB
+#ifdef OPTIONS_IB
 CudaDeviceFunction void InterpolatedBounceBack()
 {
 	real_t q;
@@ -213,7 +213,7 @@ CudaDeviceFunction void InterpolatedBounceBack()
 #endif
 
 CudaDeviceFunction void RunBoundaries() {
-#ifdef OPT_IB
+#ifdef OPTIONS_IB
     switch (NodeType & NODE_HO_BOUNDARY) {
     case NODE_IB:
             InterpolatedBounceBack();
@@ -370,7 +370,7 @@ vector_t u;
 u.x = c100 + ForceX/(2.*f000);
 u.y = c010 + ForceY/(2.*f000);
 u.z = c001 + ForceZ/(2.*f000);
-#ifdef OPT_SMAG
+#ifdef OPTIONS_SMAG
 //Calculating turbulent viscosity for Smagorinsky  turbulence model
 real_t tau_0 = (3*nu + 0.5);
 real_t tau_t;
@@ -388,7 +388,7 @@ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
        dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
        dyv = dxu + 3.*w[0]/2.*(c200 - c020);
        dzw = dxu + 3.*w[0]/2.*(c200 - c002);
-       #ifdef OPT_AVG
+       #ifdef OPTIONS_AVG
        avgdxu2 = avgdxu2 + dxu*dxu;
        avgdyv2 = avgdyv2 + dyv*dyv;
        avgdzw2 = avgdzw2 + dzw*dzw;
@@ -485,7 +485,7 @@ f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021;
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221;
 
-#ifdef OPT_AVG
+#ifdef OPTIONS_AVG
 avgP =  avgP + getP();
 avgUX = avgUX(0,0,0) + getU_().x;
 avgUY = avgUY(0,0,0) + getU_().y;
