@@ -50,7 +50,7 @@ CudaDeviceFunction vector_t getU(){
 
 }
 
-
+#ifdef OPT_AVG
 CudaDeviceFunction real_t getaverageP(){
 	return avgP/average_iter;
 }
@@ -88,7 +88,7 @@ CudaDeviceFunction real_t getKinE(){
 	return ke;
 }
 
-
+#endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
