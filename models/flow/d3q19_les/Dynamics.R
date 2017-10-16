@@ -37,12 +37,12 @@ AddDensity(
 )
 
 
-AddDensity(
-	name = "w",
-	comment="weight fluid-solid",
-	group="w",
-	parameter=T
-)
+#AddDensity(
+#	name = "w",
+#	comment="weight fluid-solid",
+#	group="w",
+#	parameter=T
+#)
 
 AddQuantity( name="Rho",unit="kg/m3")
 AddQuantity( name="U",unit="m/s",vector=T)
