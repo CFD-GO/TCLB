@@ -52,7 +52,7 @@ class vHandler {
 	\param iter Iteration number for which to check
 	\return True if the iteration is right to DoIt
 */
-	inline const bool Now(int iter) {
+	inline const bool Now(double iter) {
 		if (everyIter) {
 			iter -= startIter;
 			return floor((iter)/everyIter) > floor((iter-1)/everyIter);
@@ -64,7 +64,7 @@ class vHandler {
 	\param iter Iteration from which to calculate the next one
 	\return Number of the next iteration to DoIt
 */
-	inline const int Next(int iter) {
+	inline const int Next(double iter) {
 		if (everyIter) {
 			iter -= startIter;
 			int k = floor((iter)/everyIter);
@@ -78,7 +78,7 @@ class vHandler {
 	\param iter Iteration from which to calculate the next one
 	\return Number of the next iteration to DoIt
 */
-	inline const int Prev(int iter) {
+	inline const int Prev(double iter) {
 		if (everyIter) {
 			iter -= startIter;
 			int k = floor((iter-1)/everyIter);
