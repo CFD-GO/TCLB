@@ -15,6 +15,8 @@ language: c
 addons:
   apt:
     packages:
+      - libcuinj64-5.5
+      - nvidia-profiler
       - nvidia-cuda-dev
       - nvidia-cuda-toolkit
       - openmpi-bin
@@ -27,25 +29,19 @@ git:
 
 env:
   matrix: 
-    - MODEL=d2q9 
+    - MODEL=d2q9_npe_guo
     - MODEL=d2q9_BC
-    - MODEL=d2q9_hb 
-    - MODEL=d2q9_heat 
-    - MODEL=d2q9_kuper 
-    - MODEL=d2q9_lee 
-    - MODEL=d2q9_les
+    - MODEL=d2q9
+    - MODEL=d2q9_SRT
+    - MODEL=d2q9_thin_film
+    - MODEL=d3q19
+    - MODEL=d3q19_les
+    - MODEL=d3q19_heat
+    - MODEL=d2q9_kuper
     - MODEL=d2q9_pf
-    - MODEL=d2q9_csf 
-    - MODEL=d2q9_npe_guo 
-    - MODEL=d2q9_poison_boltzmann 
-    - MODEL=d2q9_solid 
-    - MODEL=d3q19 
-    - MODEL=d3q19_heat 
-    - MODEL=d3q19_les 
     - MODEL=d3q27 
     - MODEL=d3q27_cumulant 
     - MODEL=d3q27_cumulant_AVG_IB_SMAG
-
 
 before_install:
     - sudo tools/install.sh r

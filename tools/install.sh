@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython [VERSION]"
+	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython [VERSION]"
 	exit -2
 }
 
@@ -33,6 +33,12 @@ then
 	shift
 else
 	RUN=normal
+fi
+
+if test "x$1" == "xskipssl"
+then
+	WGETOPT="--no-check-certificate"
+	shift
 fi
 
 # --------------- First argument is type of install ---------
@@ -75,7 +81,7 @@ function try {
 function github_install {
 	name=$(echo $1 | sed "s/\//./g")
 	rm -f $name.tar.gz
-	try "Downloading $name" wget https://github.com/$1/archive/master.tar.gz -O $name.tar.gz
+	try "Downloading $name" wget $WGETOPT https://github.com/$1/archive/master.tar.gz -O $name.tar.gz
 	try "Installing $name" R CMD INSTALL $name.tar.gz
 }
 
@@ -137,7 +143,7 @@ cuda)
 	CUDA=$1
 	shift
 	echo "#### Installing CUDA library ####"
-	try "Downloading CUDA dist" wget http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+	try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
 	try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
 	try "Updating APT" apt-get update -qq
 	CUDA_APT=${CUDA%-*}
