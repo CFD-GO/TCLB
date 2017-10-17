@@ -1239,11 +1239,8 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;
-	<?R for (d in rows(DensityAll)) if (d$average) {?> 
-	  CudaMemset(&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));	 
-	<?R } ?> 
-        <?R for (f in Fields)  if ((f$average) && (!(f$name %in% Density$name)))   { ?>
-          CudaMemset(&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
+        <?R for (f in Fields)  if (f$average) { ?>
+          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
 	 <?R } ?>
 } 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>

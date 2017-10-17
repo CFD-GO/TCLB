@@ -67,8 +67,8 @@ AC_ARG_ENABLE([waitany],
 	AC_HELP_STRING([--enable-waitany],
 		[enables MPI WaitAny (default)]))
 
-AC_ARG_ENABLE([openmp],
-	AC_HELP_STRING([--enable-openmp],
+AC_ARG_WITH([openmp],
+	AC_HELP_STRING([--with-openmp],
 		[enable openMP in the CPU code]))
 
 AC_ARG_ENABLE([coverage],
@@ -120,6 +120,11 @@ if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
 fi
+
+OPENMP="${with_openmp}"
+test "x${with_openmp}" == "xno" && OPENMP=""
+test "x${with_openmp}" == "x" && OPENMP=""
+test "x${with_openmp}" == "xyes" && OPENMP="-fopenmp"	
 
 if test "x${enable_cuda}" != "xno"
 then
@@ -226,7 +231,7 @@ then
 		#NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
 		NVFLAGS="${NVFLAGS} -arch=compute_${CUDA_SUFF}"
 	fi
-	if test "x${enable_openmp}" == "xyes"
+	if ! test -z "$OPENMP"
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
 	fi
@@ -237,10 +242,10 @@ else
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with CPU version])
 	fi
-	if test "x${enable_openmp}" == "xyes"
+	if ! test -z "$OPENMP"
 	then
-		CPPFLAGS="${CPPFLAGS} -fopenmp"
-		LDFLAGS="${CPPFLAGS} -fopenmp"
+		CPPFLAGS="${CPPFLAGS} $OPENMP"
+		LDFLAGS="${CPPFLAGS} $OPENMP"
 		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
 fi
