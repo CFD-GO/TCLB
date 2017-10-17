@@ -27,19 +27,32 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction real_t getP(){
 	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
 }
+CudaDeviceFunction vector_t getU_(){
+        real_t d = getRho();
+        vector_t u;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+    if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+        u.x = 0;
+        u.y = 0;
+        u.z = 0;
+        }
+        else{
+                u.x = (u.x + ForceX/2.)/d;
+        u.y = (u.y + ForceY/2.)/d;
+        u.z = (u.z + ForceZ/2.)/d;
+    }
+        return u;
+}
 
 CudaDeviceFunction vector_t getU(){
-	real_t d = getRho();
-	vector_t u;
-<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
-	u.x = (u.x + ForceX/2.)/d;
-	u.y = (u.y + ForceY/2.)/d;
-	u.z = (u.z + ForceZ/2.)/d;
-	return u;
+	RunBoundaries();
+	return getU_();
+
 }
-#ifdef avgUX
+
+#ifdef OPTIONS_AVG
 CudaDeviceFunction real_t getaverageP(){
-	return avgP;
+	return avgP/average_iter;
 }
 CudaDeviceFunction real_t getDissipation(){
         real_t diss;
@@ -74,6 +87,7 @@ CudaDeviceFunction real_t getKinE(){
 	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
 	return ke;
 }
+
 #endif
 CudaDeviceFunction float2 Color() {
         float2 ret;
@@ -88,7 +102,19 @@ CudaDeviceFunction float2 Color() {
 }
 CudaDeviceFunction void BounceBack()
 {
+    vector_t p1,p2;
+<?R C(PV(c("p1.x","p1.y", "p1.z")), f %*% U) ?>
+
 <?R FullBounceBack() ?>
+
+<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+
+//Summing the difference in momentum before/after collision
+if((NodeType & NODE_BODY) == NODE_Body) {
+    AddToDrag(-(p2.x-p1.x));
+    AddToLateral(-(p2.y-p1.y));
+    AddToLift(-(p2.z-p1.z));
+    }
 }
 
 CudaDeviceFunction void EVelocity()
@@ -142,45 +168,102 @@ CudaDeviceFunction void SSymmetry()
 <?R Symmetry(2,1) ?>
 }
 
-CudaDeviceFunction void Run() {
+#ifdef OPTIONS_IB
+CudaDeviceFunction void InterpolatedBounceBack()
+{
+	real_t q;
+	vector_t F;
+	F.x = F.y = F.z = 0.0;
+<?R
+        bounce = Bounce(U);
+        sel = DensityAll$group=="f"
+        attach(DensityAll[sel,])
+        f = PV(name)
+        fold = PV(name,"(0,0,0)")
+        fpre = PV(name,"(",-dx,",",-dy,",",-dz,")")
+        QU = cbind(dx,dy,dz)
+        detach()
+        Qw = PV( paste("Q",P$x,P$y,P$z,sep=""))
+        Q = PV( "q")
+	F = PV("F.",c("x","y","z"))
+        for (i in 2:length(Qw)) {
+                C(Q,Qw[i]);
+?>
+        if (q != NO_CUT) {
+                real_t p = ((real_t)q) * 0.01; // q * 0.005 * 2 <?R p = PV("p"); op = p^(-1); ?>
+                real_t fa = <?R C(fold[i]) ?>; <?R fa = PV("fa"); ?>
+                if (p > 1.0) { <?R
+			C(f[bounce[i]],fa*op + fold[bounce[i]]*(p-1)*op) ?>
+                } else { <?R
+			C(f[bounce[i]],fa*p + f[i]*(1-p)) ?>
+                }
+	<?R
+                        v = (f[bounce[i]] - fa) * QU[i,]
+                        for (j in 1:3) if (! is.zero(v[j])) C(F[j],F[j] + v[j]) ?>
+	}
+	<?R
+	}
+	?>
+	if((NodeType & NODE_BODY) == NODE_Body) { <?R
+	for (j in 1:3) { ?>
+		AddTo<?%s c("Drag","Lateral","Lift")[j] ?>(<?R C(F[j]) ?>); <?R
+	} ?>
+	}
+}
+#endif
+
+CudaDeviceFunction void RunBoundaries() {
+#ifdef OPTIONS_IB
+    switch (NodeType & NODE_HO_BOUNDARY) {
+    case NODE_IB:
+            InterpolatedBounceBack();
+            break;
+    }
+#endif
+    switch (NodeType & NODE_ADDITIONALS) {
+	case NODE_NSymmetry:
+	    NSymmetry();
+            break;
+        case NODE_SSymmetry:
+            SSymmetry();
+            break;
+    }
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_WVelocityTurbulent:
 		WVelocityTurbulent();
 		break;
-	case NODE_NSymmetry:
-		NSymmetry();
-		break;
-	case NODE_SSymmetry:
-               	SSymmetry();
-                break;
 	case NODE_EPressure:
-                EPressure();
-               	break;
+        EPressure();
+        break;
 	case NODE_WPressure:
 		WPressure();
 		break;
 	case NODE_SPressure:
-                SPressure();
-                break;
+        SPressure();
+        break;
 	case NODE_NPressure:
-                NPressure();
-                break;
+        NPressure();
+        break;
 	case NODE_WVelocity:
 		WVelocity();
 		break;
 	 case NODE_NVelocity:
-                NVelocity();
-                break;
+        NVelocity();
+        break;
 	 case NODE_SVelocity:
-                SVelocity();
-                break;
+        SVelocity();
+        break;
 	case NODE_EVelocity:
 		EVelocity();
 		break;
 	case NODE_Wall:
 		BounceBack();
-                break;
+        break;
     }
+}
+
+CudaDeviceFunction void Run() {
+    RunBoundaries();
     switch (NodeType & NODE_COLLISION) {
 	case NODE_MRT:
 		CollisionMRT();
@@ -199,8 +282,11 @@ CudaDeviceFunction void Init() {
 	vector_t ST = SyntheticTurbulence(X,Y,Z);
 	ST.x = Turbulence*ST.x + Velocity;
 	ST.y = Turbulence*ST.y;
-	ST.z = Turbulence*ST.z; 
-	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
+	ST.z = Turbulence*ST.z;
+
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+	    SetEquilibrum(1.0,0,0,0);}
+	else SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
 }
 
 CudaDeviceFunction void WVelocityTurbulent() {
@@ -284,14 +370,25 @@ vector_t u;
 u.x = c100 + ForceX/(2.*f000);
 u.y = c010 + ForceY/(2.*f000);
 u.z = c001 + ForceZ/(2.*f000);
+#ifdef OPTIONS_SMAG
+//Calculating turbulent viscosity for Smagorinsky  turbulence model
+real_t tau_0 = (3*nu + 0.5);
+real_t tau_t;
+real_t q;
 
+q = sqrt((c200-1.0/3)*(c200-1.0/3)+(c020-1.0/3)*(c020-1.0/3)+(c002-1.0/3)*(c002-1.0/3)+2*(c110*c110)+2*(c101*c101)+2*(c011*c011));
+tau_t = 0.5 * (sqrt( tau_0 * tau_0 + 18 * Smag * Smag * q) - tau_0);
+w[0] = 1.0 / (tau_0 + tau_t);
+
+if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
+#endif
 ///////
        real_t dxu,dyv,dzw;
       // vector_t u = getU();
        dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
        dyv = dxu + 3.*w[0]/2.*(c200 - c020);
        dzw = dxu + 3.*w[0]/2.*(c200 - c002);
-       #ifdef avgUX
+       #ifdef OPTIONS_AVG
        avgdxu2 = avgdxu2 + dxu*dxu;
        avgdyv2 = avgdyv2 + dyv*dyv;
        avgdzw2 = avgdzw2 + dzw*dzw;
@@ -321,7 +418,13 @@ u.z = c001 + ForceZ/(2.*f000);
 	c110 = c110 * (1-w[0]);
 	c011 = c011 * (1-w[0]);
 	c101 = c101 * (1-w[0]);
-	<?R	sel = rowSums(P) > 2
+//Optional change in relaxation rate of 3rd order cumulants, as per car studies done by Geier et al
+	<?R	sel = rowSums(P) == 3
+		for (i in cumulants[sel]) { ?>
+		<?%s i ?> = 1-Omega;
+	<?R } ?>
+
+	<?R	sel = rowSums(P) > 3
 		for (i in cumulants[sel]) { ?>
 		<?%s i ?> = 0.0;
 	<?R } ?>
@@ -380,18 +483,19 @@ f110 = -f112 + f110; f111 = ( f112 + f111 )/2.; f112 = f112 - f111;
 f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211; 
 f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
 f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
-f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
-#ifdef avgUX
+f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221;
+
+#ifdef OPTIONS_AVG
 avgP =  avgP + getP();
-avgUX = avgUX(0,0,0) + getU().x;
-avgUY = avgUY(0,0,0) + getU().y;
-avgUZ = avgUZ(0,0,0) + getU().z;
-varUX = varUX + getU().x*getU().x;
-varUY = varUY + getU().y*getU().y;
-varUZ = varUZ + getU().z*getU().z;
-varUXUY = varUXUY + getU().x*getU().y;
-varUXUZ = varUXUZ + getU().x*getU().z;
-varUYUZ = varUYUZ + getU().y*getU().z;
+avgUX = avgUX(0,0,0) + getU_().x;
+avgUY = avgUY(0,0,0) + getU_().y;
+avgUZ = avgUZ(0,0,0) + getU_().z;
+varUX = varUX + getU_().x*getU_().x;
+varUY = varUY + getU_().y*getU_().y;
+varUZ = varUZ + getU_().z*getU_().z;
+varUXUY = varUXUY + getU_().x*getU_().y;
+varUXUZ = varUXUZ + getU_().x*getU_().z;
+varUYUZ = varUYUZ + getU_().y*getU_().z;
 #endif
 }
 
