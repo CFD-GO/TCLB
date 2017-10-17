@@ -104,6 +104,20 @@
       __shared__ real_t  sumtab[MAX_THREADS];
       __shared__ real_t* sumptr[MAX_THREADS];
 
+      __device__ inline real_t blockSum(real_t val) {
+              int i = blockDim.x*blockDim.y;
+              int k = blockDim.x*blockDim.y;
+              int j = blockDim.x*threadIdx.y + threadIdx.x;
+              sumtab[j] = val;
+              while (i> 1) {
+                      k = i >> 1;
+                      i = i - k;
+                      if (j<k) sumtab[j] += sumtab[j+i];
+                      __syncthreads();
+              }
+              return sumtab[0];
+      }
+      
       __device__ inline void atomicSum_f(real_t * sum) {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
