@@ -125,6 +125,9 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 //        zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
 <?R } ?>
         ZoneIter = 0;
+	particle_data_size_max = 0;
+	container->particle_data = NULL;
+	container->particle_data_size = 0;
 
 }
 
