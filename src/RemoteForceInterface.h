@@ -13,13 +13,14 @@ class RemoteForceInterface {
 public:
   RemoteForceInterface();
   ~RemoteForceInterface();
-  int Start();
+  int Start(char * worker_program, char * args[]);
   inline const rfi_size_t size() const { return totsize; }
   inline rfi_real_t* Particles() { return &tab[0]; }
   void GetParticles();
   void SetParticles();
   void Close();
   inline bool Active() { return intercomm != MPI_COMM_NULL; }
+  inline int space_for_workers() { return universe_size - world_size; };
 private:
   int world_size, universe_size;
   int rank;

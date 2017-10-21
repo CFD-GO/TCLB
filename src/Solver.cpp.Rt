@@ -332,6 +332,9 @@ void MainFree( Solver *d);
 	                                                        }
 	                                                        dz += zlens[i];
 	                                                }
+						        mpi.divx = 1;
+						        mpi.divy = divy;
+						        mpi.divz = divz;
 	                                                fillSides(mpi, 1, divy, divz);
 	                                        } else {
 	                                                str += sprintf(str, "Mesh too small to divide\n");
@@ -353,6 +356,9 @@ void MainFree( Solver *d);
 		}
 	
 	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPI_COMM_WORLD);
+	        MPI_Bcast(&mpi.divx, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	        MPI_Bcast(&mpi.divy, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	        MPI_Bcast(&mpi.divz, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	        region = mpi.node[mpi_rank].region;
 	        mpi.totalregion = info.region;
 	        output("Local lattice size: %dx%dx%d\n", region.nx, region.ny,region.nz);

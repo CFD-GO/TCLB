@@ -3,6 +3,12 @@
 #include "Global.h"
 
 RemoteForceInterface::RemoteForceInterface() : workers(0), masters(0), intercomm(MPI_COMM_NULL), totsize(0) {
+   int *universe_sizep, flag;
+   MPI_Comm_size(MPI_COMM_WORLD, &world_size); 
+   MPI_Attr_get(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
+   if (!flag) { 
+     universe_size = 0;
+   } else universe_size = *universe_sizep;
 }
 
 RemoteForceInterface::~RemoteForceInterface() {
@@ -11,24 +17,16 @@ RemoteForceInterface::~RemoteForceInterface() {
   }
 }
 
-int RemoteForceInterface::Start() {
+int RemoteForceInterface::Start(char * worker_program, char * args[]) {
    if (intercomm != MPI_COMM_NULL) {
     error("RemoteForceInterface(M) Already started\n");
     return -2;
    }
-   int *universe_sizep, flag;
-   MPI_Comm_size(MPI_COMM_WORLD, &world_size); 
-   MPI_Attr_get(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
-   if (!flag) { 
-     universe_size = 0;
-   } else universe_size = *universe_sizep;
    if (universe_size == world_size) {
     ERROR("No room to start workers"); 
     return -1;
    }
    MPI_Comm everyone;
-   char * worker_program = "esysparticle";
-   char * args[] = { "test.py", NULL };
    MPI_Comm_spawn(worker_program, args, universe_size - world_size,
              MPI_INFO_NULL, 0, MPI_COMM_WORLD, &everyone,  
              MPI_ERRCODES_IGNORE); 
