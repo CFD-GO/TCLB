@@ -277,9 +277,9 @@ CudaDeviceFunction void Init_distributions(){
 // Find Gradients and normals:
 	int i;
 	real_t C;
-if (NodeType & NODE_SymmetricXY_W) {
+if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_W) {
 	C = PhaseF(0,0,1);
-} else if (NodeType & NODE_SymmetricXY_E) {
+} else if ((NodeType & NODE_ADDITIONALS) == NODE_SymmetricXY_E) {
 	C = PhaseF(0,0,-1);
 } else {
 	C = PhaseF(0,0,0);
@@ -577,6 +577,11 @@ for (j=0;j<2;j++) {
 			{
 				location = X + (C-0.5)/(C-PhaseF(1,0,0));
 				AddToInterfacePosition(location);
+				AddToVback(U);
+			}
+			if (C >0.5 && PhaseF(-1,0,0) < 0.5)
+			{
+				AddToVfront(U);
 			}
 		case NODE_Spiketrack:
 			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
