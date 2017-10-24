@@ -92,6 +92,24 @@ real_t curvature;
 vector_t gradient;
 vector_t debug;
 bool near_wall;
+
+#define buffSize 4
+
+    
+void matPrint( const real_t AA[buffSize][buffSize]){
+
+    for (int i=0; i <buffSize; i++){
+        printf("[ ");
+        for (int j=0; j < buffSize; j++){
+            printf("%.5f, ", AA[i][j]);
+        }        
+        printf("]\n");
+    }
+    printf("\nXXXXXXXXXXXXXXXXXX\n\n");
+
+}
+
+
 CudaDeviceFunction void  InitPhisStencil(){
     debug.x = 0;
     debug.y = 0;
@@ -111,7 +129,7 @@ CudaDeviceFunction void  InitPhisStencil(){
     nw.y = 0;
     int inwall = 0;
 
-
+    real_t ctg_alpha = 0;
     unsigned int wall_pattern = 0x0;
 
     switch (NodeType & NODE_BOUNDARY) {
@@ -220,9 +238,9 @@ CudaDeviceFunction void  InitPhisStencil(){
             wa = WettingAngle;
         }
           
-        debug.z = wa;
+    
 
-        const real_t ctg_alpha = tan(wa+pi/2.);
+        ctg_alpha = tan(wa+pi/2.);
         unsigned btype = 0x0;
         vector_t grad;
         grad.x = 0;
@@ -338,8 +356,6 @@ CudaDeviceFunction void  InitPhisStencil(){
      
         normal = n;
      
-        debug.x = nw.x;
-        debug.y = nw.y;
 
         curvature = - 0.5*  curvature;
     } else {
@@ -441,62 +457,219 @@ CudaDeviceFunction void  InitPhisStencil(){
         curvature = - 0.5 * curvature;
     }
 
-/**
-    real_t nx[3][3];
-    real_t ny[3][3];
-    real_t temp = 1;
-    <?R
-
-    for (i in -2:2) {
-        for (j in -2:2){
-            ?> 
-                temp = temp * ( <?R C( PV( "phi(",i,",",j,")" ) ) ?> == -999 ? 0 : 1  ); 
-            <?R
-        }
-    }
-
-    ?>
-    if (temp == 1) {
-    temp = 0;
-
-    <?R
-    #gradient
-    for (i in 0:2) {
-        for (j in 0:2){
-            n = c( PV( "nx[",i,"][",j,"]"), PV("ny[",i,"][",j,"]" ) ) 
-            C( n,  PV("phi(",i+U[,1]-1,",",j+U[,2]-1,")") %*%(c(wi)*U) )
-            C( PV("temp"), n %*% n )
-    #normal
-            ?>
-            temp = 1./ sqrt(temp);
-            nx[ <?%s i ?>  ][ <?%s j ?>] *= temp;
-            ny[ <?%s i ?>  ][ <?%s j ?>] *= temp;
-            <?R
-
-        }
-    }
-
-
-    #div
-    
-        nxs = PV("nx[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
-        nys = PV("ny[",1+U[,1],"][",1+U[,2],"]" ) * c(wi)
-        temp2 = nxs %*% U[,1] + nys %*% U[,2]
-        C(PV("temp"), 3 * ( temp2[1] + temp2[2] ) )
-    
-    ?>
-    curvature =  -temp;
-    } else {
-        curvature = 0;
-    }
-
-   **/   
-
-debug.x = gradient.x;
-debug.y = gradient.y;
 
         ///////////////////
 
+
+//*******
+//NEXTGEN STARS HERE ;)
+//**/
+
+    int aj = 0;
+
+    const int ai = buffSize;
+    real_t A[buffSize][buffSize];
+    real_t B[buffSize][buffSize];
+    real_t y[buffSize];
+    int iwrite = 0;        
+    real_t temp[buffSize];
+
+
+	const real_t A0[16] = {
+		 1, 1, 1, 1,
+		-1, 1, 1,-1,
+		-1,-1, 1, 1,
+		 1,-1, 1,-1
+	};
+/**	const real_t A0[16] = {
+		1, -1,-1, 1,
+		1, -1, 1,-1,
+		1,  1,-1,-1,
+		1,  1, 1, 1
+	};
+*/
+ <?R 
+    boxes = array(c(
+        c(0,1,5,2),
+        c(3,0,2,6),
+        c(7,4,0,3),
+        c(4,8,1,0)
+    ), dim=c(4,4))    
+    signs = array(c(
+        c(1,1),
+        c(1,-1),
+        c(-1,-1),
+        c(-1,1)
+    ), dim=c(2,4))
+
+
+    A0 = array(c(
+                c(1,1,1,1),
+                c(-1,-1,1,1),
+                c(-1,1,-1,1),
+                c(1,-1,-1,1)
+        ),dim=c(4,4))
+
+#    for (box_i in c(1:2)){
+    if (TRUE){
+        box_i = 3
+        box = boxes[,box_i]
+
+        box_phis = phis[box+1]     
+        ?>
+
+        aj = 0;
+        <?R
+        for (pid in c(1:4)){
+            ?>
+            if (!(wall_pattern >> s<?%s box[pid]?> & 0x1 )) { 
+                <?R for (fid in c(1:4)){  ?>
+                    A[<?%s fid-1 ?>][aj] =  A0[buffSize*<?%s fid-1 ?> + aj] ;
+                <?R } ?>
+				y[aj] = <?R C(box_phis[pid]) ?>;
+                aj++;
+            } <?R
+        }
+        
+        ?>
+
+        if (aj < buffSize-1) {
+                 A[0][aj] = 0;
+            A[1][aj] = -ctg_alpha*nw.x - nw.y;
+            A[2][aj] = ctg_alpha*nw.y - nw.x;
+            A[3][aj] = 0;  
+            y[aj] = 0;
+            aj++;
+/**
+			if(!IamWall){
+			printf("%.2f %.2f %.2f ", nw.x, nw.y, ctg_alpha);
+			printf("%#010x\n", wall_pattern);
+            matPrint(A);
+		    for (int i = 0; i < aj; i++){
+            printf("%.3f ", y[i]);
+            }
+
+            // add condition for gradient direction
+            printf("\n");
+ 
+			}*/
+        }
+
+        // orthogonalize
+        
+        iwrite = 0;
+        for (int iread=0; iread<buffSize; iread++){
+            
+            for(int j = 0; j < aj; j++){
+                temp[j] = A[iread][j];   
+            }
+            
+            for (int i=0; i<iread; i++){
+                t1 = 0;
+                for(int j = 0; j < aj; j++){
+                    t1 = t1 + A[i][j]*temp[j];   
+                }          
+                
+                for(int j = 0; j < aj; j++){
+                    temp[j] = temp[j] - t1*A[i][j];   
+                }                                     
+                B[iwrite][i] = t1;
+            }
+           
+            t1 = 0;
+            for(int i = 0; i < ai; i++){
+                t1 = t1 + temp[i]*temp[i];
+            }     
+            
+
+            if (t1*t1 > 1E-16){
+                t1 = sqrt(t1);
+            
+                for(int i = 0; i < ai; i++){
+                    temp[i] /= t1;
+                }         
+
+                t1 = 0;
+                
+                for(int j = 0; j < aj; j++){
+                    t1 = t1 + A[iread][j]*temp[j];   
+                }          
+                
+                B[iwrite][iwrite] = t1;
+                
+                for(int j = 0; j < aj; j++){
+                    A[iwrite][j] = temp[j];   
+                }
+
+            } else {
+                for(int j = 0; j < buffSize; j++){
+                    A[iwrite][j] = 0;   
+                }
+                B[iwrite][iwrite] = 1;
+           
+            } 
+
+            iwrite++;
+        }
+
+
+
+//        matPrint(A);
+        //////////////////////////////
+        // Solve the system
+
+        for (int i=0; i < buffSize; i++){
+            temp[i] = 0;
+            for (int j = 0; j< buffSize; j++){
+                temp[i] = temp[i] + y[j] * A[i][j];
+            }        
+        }
+
+        for (int i=ai-1; i >= 0; i--){
+            y[i] = temp[i]; 
+            for (int j = i+1; j < aj ; ++j){
+                y[i] = y[i] - y[j] * B[j][i];
+            }        
+            y[i] = y[i] / B[i][i];
+        }
+/**
+        if(aj<buffSize){
+             for (int i = 0; i < buffSize; i++){
+            printf("%.3f ", y[i]);
+            }
+            // add condition for gradient direction
+            printf("\n");
+        }
+  */      
+        mx = -y[0];
+        my = -y[2];
+
+//        debug.x = debug.x +  mx;
+ //       debug.y = debug.y + my;
+      	debug.z =  y[2];
+		debug.x = y[0];
+		debug.y = y[1];
+
+        t1 = sqrt(mx*mx + my*my) + 1E-18;
+        debug.z = debug.z + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+
+   
+<?R } 
+ 
+ ?>
+
+if(IamWall){
+	debug.x = 0;
+	debug.y = 0;
+	debug.z = 0;
+}
+//debug.z = -0.5 * debug.z;
+
+//debug.x = nw.x;
+//debug.y = nw.y;
+//debug.z = ctg_alpha;
+
+////END
 }
 
 
@@ -569,7 +742,7 @@ CudaDeviceFunction vector_t getDEBUG(){
 //    vector_t temp;
 //   temp.x = nw_x(0,0);
 //    temp.y = h_Z;
-    return gradient;
+    return debug;
 
 }
 
@@ -648,10 +821,16 @@ CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
         F.y = F.y * scale;
     }
 **/
-    F.z = 0;
+/**    F.z = 0;
     const real_t s = sin(0.5*pi - WettingAngle);
     F.x =  ST * (curv + 2*h_Z*s)  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
     F.y =  ST * (curv + 2*h_Z*s)  *  F.y;// exp(- SurfaceTensionDecay * phi_l*phi_l);
+
+    **/
+
+    F.x =  ST *   F.x;
+    F.y =  ST *   F.y;
+
     } else {
         F.x = 0;
         F.y = 0;
