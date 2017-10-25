@@ -473,7 +473,9 @@ CudaDeviceFunction void  InitPhisStencil(){
     real_t y[buffSize];
     int iwrite = 0;        
     real_t temp[buffSize];
-
+    debug.x = 0;
+    debug.y = 0;
+    debug.z = 0;
 
 	const real_t A0[16] = {
 		 1, 1, 1, 1,
@@ -510,9 +512,8 @@ CudaDeviceFunction void  InitPhisStencil(){
                 c(1,-1,-1,1)
         ),dim=c(4,4))
 
-#    for (box_i in c(1:2)){
-    if (TRUE){
-        box_i = 3
+    for (box_i in c(1:4)){
+
         box = boxes[,box_i]
 
         box_phis = phis[box+1]     
@@ -532,29 +533,16 @@ CudaDeviceFunction void  InitPhisStencil(){
         }
         
         ?>
-
+/**
         if (aj < buffSize-1) {
                  A[0][aj] = 0;
-            A[1][aj] = -ctg_alpha*nw.x - nw.y;
-            A[2][aj] = ctg_alpha*nw.y - nw.x;
+            A[1][aj] = ctg_alpha*nw.y - nw.x;
+            A[2][aj] = -ctg_alpha*nw.x - nw.y;
             A[3][aj] = 0;  
             y[aj] = 0;
             aj++;
-/**
-			if(!IamWall){
-			printf("%.2f %.2f %.2f ", nw.x, nw.y, ctg_alpha);
-			printf("%#010x\n", wall_pattern);
-            matPrint(A);
-		    for (int i = 0; i < aj; i++){
-            printf("%.3f ", y[i]);
-            }
-
-            // add condition for gradient direction
-            printf("\n");
- 
-			}*/
         }
-
+*/
         // orthogonalize
         
         iwrite = 0;
@@ -614,7 +602,6 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 
 
-//        matPrint(A);
         //////////////////////////////
         // Solve the system
 
@@ -632,26 +619,17 @@ CudaDeviceFunction void  InitPhisStencil(){
             }        
             y[i] = y[i] / B[i][i];
         }
-/**
-        if(aj<buffSize){
-             for (int i = 0; i < buffSize; i++){
-            printf("%.3f ", y[i]);
-            }
-            // add condition for gradient direction
-            printf("\n");
-        }
-  */      
-        mx = -y[0];
-        my = -y[2];
 
-//        debug.x = debug.x +  mx;
- //       debug.y = debug.y + my;
-      	debug.z =  y[2];
-		debug.x = y[0];
-		debug.y = y[1];
+
+        mx = y[1] / 2.;
+        my = y[2] / 2.;
+
+        debug.x = debug.x + mx;
+        debug.y = debug.y + my;
 
         t1 = sqrt(mx*mx + my*my) + 1E-18;
         debug.z = debug.z + ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
+        //debug.z = debug.z + y[3];
 
    
 <?R } 
@@ -663,7 +641,7 @@ if(IamWall){
 	debug.y = 0;
 	debug.z = 0;
 }
-//debug.z = -0.5 * debug.z;
+debug.z = -0.225 * debug.z;
 
 //debug.x = nw.x;
 //debug.y = nw.y;
