@@ -109,7 +109,19 @@ void matPrint( const real_t AA[buffSize][buffSize]){
 
 }
 
+void vecPrint( const real_t AA[buffSize]){
 
+    printf("[ ");
+    
+    for (int i=0; i <buffSize; i++){
+        printf("%.5f, ", AA[i]);
+    }
+    
+    printf("]\n");
+    
+    printf("\nXXXXXXXXXXXXXXXXXX\n\n");
+
+}
 CudaDeviceFunction void  InitPhisStencil(){
     debug.x = 0;
     debug.y = 0;
@@ -465,8 +477,8 @@ CudaDeviceFunction void  InitPhisStencil(){
 //NEXTGEN STARS HERE ;)
 //**/
 
-    int aj = 0;
-
+    const int aj = buffSize;
+    int ajj = 0;
     const int ai = buffSize;
     real_t A[buffSize][buffSize];
     real_t B[buffSize][buffSize];
@@ -477,19 +489,21 @@ CudaDeviceFunction void  InitPhisStencil(){
     debug.y = 0;
     debug.z = 0;
 
+	const real_t A0_BC[4] = {
+            0,
+            ctg_alpha*nw.y - nw.x,
+            -ctg_alpha*nw.x - nw.y,
+            0  
+	};
+    bool pid_cond;
+
 	const real_t A0[16] = {
 		 1, 1, 1, 1,
 		-1, 1, 1,-1,
 		-1,-1, 1, 1,
 		 1,-1, 1,-1
 	};
-/**	const real_t A0[16] = {
-		1, -1,-1, 1,
-		1, -1, 1,-1,
-		1,  1,-1,-1,
-		1,  1, 1, 1
-	};
-*/
+
  <?R 
     boxes = array(c(
         c(0,1,5,2),
@@ -507,9 +521,9 @@ CudaDeviceFunction void  InitPhisStencil(){
 
     A0 = array(c(
                 c(1,1,1,1),
+                c(-1,1,1,-1),
                 c(-1,-1,1,1),
-                c(-1,1,-1,1),
-                c(1,-1,-1,1)
+                c(1,-1,1,-1)
         ),dim=c(4,4))
 
     for (box_i in c(1:4)){
@@ -519,30 +533,33 @@ CudaDeviceFunction void  InitPhisStencil(){
         box_phis = phis[box+1]     
         ?>
 
-        aj = 0;
-        <?R
-        for (pid in c(1:4)){
-            ?>
-            if (!(wall_pattern >> s<?%s box[pid]?> & 0x1 )) { 
-                <?R for (fid in c(1:4)){  ?>
-                    A[<?%s fid-1 ?>][aj] =  A0[buffSize*<?%s fid-1 ?> + aj] ;
-                <?R } ?>
-				y[aj] = <?R C(box_phis[pid]) ?>;
-                aj++;
-            } <?R
+        ajj = 0;
+
+        for(int i = 0; i < buffSize; i++){
+           for(int j = 0; j < buffSize; j++){
+              A[i][j] = 0;  
+              B[i][j] = 0;
+           }
+           y[i] = 0;
+           temp[i] = 0;
         }
-        
-        ?>
-/**
-        if (aj < buffSize-1) {
-                 A[0][aj] = 0;
-            A[1][aj] = ctg_alpha*nw.y - nw.x;
-            A[2][aj] = -ctg_alpha*nw.x - nw.y;
-            A[3][aj] = 0;  
-            y[aj] = 0;
-            aj++;
+
+        <?R for (pid in c(1:4)){ ?>
+            pid_cond =  (wall_pattern >> s<?%s box[pid]?> & 0x1 ) ; 
+            <?R for (fid in c(1:4)){  ?>
+                A[<?%s fid-1 ?>][<?%s pid-1 ?>] = pid_cond ? A0_BC[<?%s fid-1 ?>] : <?%s A0[pid,fid] ?>;
+            <?R } ?>
+    		y[<?%s pid-1 ?>] = pid_cond ? 0 : <?R C(box_phis[pid]) ?> ;
+            ajj += pid_cond ? 0 : 1;
+
+        <?R } ?>
+
+        if (ajj < buffSize) {
+//            matPrint( A );
+//            vecPrint( y );           
         }
-*/
+
+
         // orthogonalize
         
         iwrite = 0;
@@ -600,6 +617,7 @@ CudaDeviceFunction void  InitPhisStencil(){
             iwrite++;
         }
 
+        
 
 
         //////////////////////////////
@@ -624,6 +642,18 @@ CudaDeviceFunction void  InitPhisStencil(){
         mx = y[1] / 2.;
         my = y[2] / 2.;
 
+/**
+        if (aj < buffSize) {
+ 
+            printf("Result ---------------- \n");
+            matPrint( A );
+            matPrint( B );
+            vecPrint( y );
+            printf("Done ----------------- \n");
+            
+        }
+*/        
+
         debug.x = debug.x + mx;
         debug.y = debug.y + my;
 
@@ -641,7 +671,7 @@ if(IamWall){
 	debug.y = 0;
 	debug.z = 0;
 }
-debug.z = -0.225 * debug.z;
+debug.z = -0.5 * debug.z;
 
 //debug.x = nw.x;
 //debug.y = nw.y;
