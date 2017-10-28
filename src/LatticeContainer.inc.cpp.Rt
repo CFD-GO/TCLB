@@ -400,18 +400,19 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
                 }
                 }
                 }
-		real_t fx = blockSum(p.force.x);
-		real_t fy = blockSum(p.force.y);
-		real_t fz = blockSum(p.force.z);
-	fz = 0;
-//		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
-//		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
-//		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = p.force.z;
-		if (CudaThread.x == 0 && CudaThread.y == 0) {
+//		real_t fx = blockSum(p.force.x);
+//		real_t fy = blockSum(p.force.y);
+//		real_t fz = blockSum(p.force.z);
+//	fz = 0;
+		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
+		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
+		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = p.force.z;
+/*		if (CudaThread.x == 0 && CudaThread.y == 0) {
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = fx;
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = fy;
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = fz;
 		}
+*/
 
 	}
 }
