@@ -26,7 +26,10 @@ int GenericAction::ExecuteInternal () {
 						hand.DoIt();
 					}
 				}
-			} else return -1;
+			} else {
+				ERROR("Something wrong in %s\n",node.name());
+				return -1;
+			}
                 }
 		return 0;
 	}

@@ -9,6 +9,11 @@
 class  acRemoteForceInterface  : public  Action  {
 	public:
 	static std::string xmlname;
+	std::string particle_type;
+	std::string sim;
+	double gridSpacing;
+	double verletDist;
+	bool xcirc;
 	int Init ();
 };
 
