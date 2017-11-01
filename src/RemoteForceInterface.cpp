@@ -9,6 +9,7 @@ RemoteForceInterface::RemoteForceInterface() : workers(0), masters(0), intercomm
    if (!flag) { 
      universe_size = 0;
    } else universe_size = *universe_sizep;
+   sent = false;
 }
 
 RemoteForceInterface::~RemoteForceInterface() {
@@ -45,9 +46,10 @@ int RemoteForceInterface::Start(char * worker_program, char * args[]) {
    MPI_Comm_size(intercomm, &masters);
    MPI_Comm_rank(intercomm, &rank);
    sizes.resize(workers, 0);
+   nsizes.resize(workers, 0);
    offsets.resize(workers+1, 0);
-   reqs.resize(workers);
-   stats.resize(workers);
+   reqs.resize(workers+1);
+   stats.resize(workers+1);
    return 0;
 }
 
@@ -64,10 +66,23 @@ void RemoteForceInterface::Close() {
 }
 
 
-void RemoteForceInterface::GetParticles() {
+void RemoteForceInterface::GetSizes() {
     if (intercomm == MPI_COMM_NULL) return;
-    debug1("RemoteForceInterface(M) Exchange of sizes ...\n");
-    MPI_Alltoall(NULL, 0, MPI_RFI_SIZE_T, &sizes[0], 1, MPI_RFI_SIZE_T, intercomm);
+    if (sent) {
+     debug1("Wait for it ... (GetSizes)\n");
+     MPI_Waitall(workers+1, &reqs[0], &stats[0]);
+//     printf("Wait for it ... (GetSizes2)\n");
+//     MPI_Ialltoall(NULL, 0, MPI_RFI_SIZE_T, &sizes[0], 1, MPI_RFI_SIZE_T, intercomm, &reqs[workers]);
+//     MPI_Waitall(1, &reqs[workers], &stats[workers]);
+     for (int i=0; i<workers; i++) sizes[i] = nsizes[i];
+     sent = false;
+    } else {
+         debug1("RemoteForceInterface(M) Exchange of sizes ...\n");
+         MPI_Request req;
+         MPI_Status stat;
+         MPI_Ialltoall(NULL, 0, MPI_RFI_SIZE_T, &sizes[0], 1, MPI_RFI_SIZE_T, intercomm, &req);
+         MPI_Wait(&req, &stat);
+    }
     for (int i=0; i<workers; i++) if (sizes[i] == RFI_FINISHED) { Close(); return; }
     for (int i=0; i<workers; i++) debug1("RemoteForceInterface(M) [%2d] we got %ld from %d\n", rank, (size_t) sizes[i], i);
     for (int i=0; i<workers; i++) offsets[i+1] = offsets[i] + sizes[i];
@@ -77,7 +92,13 @@ void RemoteForceInterface::GetParticles() {
     for (int i=0; i<workers; i++) {
         MPI_Irecv(&tab[offsets[i]], sizes[i], MPI_RFI_REAL_T, i, i, intercomm, &reqs[i]);
     }
+}
+
+void RemoteForceInterface::GetParticles() {
+    if (intercomm == MPI_COMM_NULL) return;
+    debug1("Wait for it ... (GetParticles)\n");
     MPI_Waitall(workers, &reqs[0], &stats[0]);
+//    intercomm = MPI_COMM_NULL;
 }
 
 void RemoteForceInterface::SetParticles() {
@@ -86,6 +107,7 @@ void RemoteForceInterface::SetParticles() {
     for (int i=0; i<workers; i++) {
         MPI_Isend(&tab[offsets[i]], sizes[i], MPI_RFI_REAL_T, i, i+workers, intercomm, &reqs[i]);
     }
-    MPI_Waitall(workers, &reqs[0], &stats[0]);
+    MPI_Ialltoall(NULL, 0, MPI_RFI_SIZE_T, &nsizes[0], 1, MPI_RFI_SIZE_T, intercomm, &reqs[workers]);
+    sent=true;
 }
 

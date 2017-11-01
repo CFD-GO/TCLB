@@ -400,19 +400,19 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
                 }
                 }
                 }
-//		real_t fx = blockSum(p.force.x);
-//		real_t fy = blockSum(p.force.y);
-//		real_t fz = blockSum(p.force.z);
+		real_t fx = blockSum(p.force.x);
+		real_t fy = blockSum(p.force.y);
+		real_t fz = blockSum(p.force.z);
 //	fz = 0;
-		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
-		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
-		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = p.force.z;
-/*		if (CudaThread.x == 0 && CudaThread.y == 0) {
+//		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
+//		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
+//		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = p.force.z;
+		if (CudaThread.x == 0 && CudaThread.y == 0) {
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = fx;
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = fy;
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = fz;
 		}
-*/
+
 
 	}
 }
@@ -475,7 +475,8 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 */
 template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t interiorStream) {
 	if (particle_data_size > 0) {
-	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) , dim3(1,1),(),interiorStream);
+	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) ,
+dim3(32,8),(),interiorStream);
 	}
 };
 

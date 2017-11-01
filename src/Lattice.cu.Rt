@@ -411,6 +411,9 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
 <?R
 	}
+?>
+	RFI.GetSizes();
+<?R
 	old_stage_level = 0
 	action_stages = Stages[a,]
 	sel = which(action_stages$particle)	
