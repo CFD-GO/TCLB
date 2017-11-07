@@ -105,3 +105,5 @@ AddGlobal(name="RTISpike",  comment='Spike Tracker')
 # Boundary things
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
+AddNodeType(name="Symmetry_N", group="BOUNDARY")
+AddNodeType(name="Symmetry_S", group="BOUNDARY")
