@@ -248,10 +248,25 @@ AddNodeType = function(name, group) {
 }
 
 
+## Description
+read.a.file = function(file) {
+	pot = c(file, paste(include.dir,file,sep="/"))
+	sel = sapply(pot,file.exists)
+	sel = which(sel)
+	pot = pot[sel]
+	if (length(pot) < 1) return(NULL)
+	pot = pot[1]
+	readLines(pot)
+}
+
 Description = NULL
-AddDescription = function(short, long=short) {
+AddDescription = function(short, long) {
 	if (! is.null( Description ) ) {
 		stop("Adding descripition twice!")
+	}
+	if (missing(long)) {
+		long = read.a.file("Description.md")
+		if (is.null(long)) long = short
 	}
 	Description <<- list(
 		name=MODEL,
@@ -356,6 +371,7 @@ AddObjective = function(name, expr) {
 }
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
+
 
 for (i in Globals$name) AddObjective(i,PV(i))
 
