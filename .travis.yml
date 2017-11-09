@@ -29,19 +29,8 @@ git:
 
 env:
   matrix: 
-    - MODEL=d2q9_npe_guo
-    - MODEL=d2q9_BC
     - MODEL=d2q9
     - MODEL=d2q9_SRT
-    - MODEL=d2q9_thin_film
-    - MODEL=d3q19
-    - MODEL=d3q19_les
-    - MODEL=d3q19_heat
-    - MODEL=d2q9_kuper
-    - MODEL=d2q9_pf
-    - MODEL=d3q27 
-    - MODEL=d3q27_cumulant 
-    - MODEL=d3q27_cumulant_AVG_IB_SMAG
 
 before_install:
     - sudo tools/install.sh r
@@ -55,21 +44,20 @@ before_install:
 install:
     - nvcc --version
 
+script:
+    - make configure
+    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
+    - make $MODEL/source
+    - make $MODEL
+    - make $MODEL/clean
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python --enable-paranoid
+    - make $MODEL
+    - tools/tests.sh $MODEL
+
 jobs:
   include:
-    - stage: test
-      script:
-          - make configure
-          - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
-          - make $MODEL/source
-          - make $MODEL
-          - make $MODEL/clean
-          - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python --enable-paranoid
-          - make $MODEL
-          - tools/tests.sh $MODEL
     - stage: docs
-      env:
-        MODEL=none
+      env: MODEL=none
       script:
           - mkdir -p wiki/xml wiki/images
           - R -f tools/gen.doc.R
