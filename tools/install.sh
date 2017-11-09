@@ -123,9 +123,11 @@ rdep)
                 github_install cran/getopt
                 github_install cran/optparse
                 github_install cran/numbers
+                github_install cran/yaml
         else
                 normal_install optparse
                 normal_install numbers
+                normal_install yaml
         fi
 	github_install llaniewski/rtemplate
 	github_install llaniewski/gvector

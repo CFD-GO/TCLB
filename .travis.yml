@@ -59,6 +59,8 @@ jobs:
     - stage: docs
       env: MODEL=none
       script:
+          - make configure
+          - ./configure --disable-cuda
           - mkdir -p wiki/xml wiki/images
           - R -f tools/gen.doc.R
           - make wiki/Models.md
