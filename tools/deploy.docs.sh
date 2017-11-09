@@ -56,7 +56,10 @@ fi
 
 echo "Clone the docs ..."
 git clone ${GH}CFD-GO/TCLB_docs
-(cd TCLB_docs; git checkout -B $doc_branch)
+if "$doc_branch" != "master"
+then
+	(cd TCLB_docs; git checkout -B $doc_branch)
+fi
 
 rm -r TCLB_docs/docs/models
 cp -r wiki/models/ TCLB_docs/docs/models
@@ -68,6 +71,11 @@ pushd TCLB_docs
 	git config user.name "$name"
 	git add -A
 	git commit -F ../.msg | head -n 300
-	git push --set-upstream origin $doc_branch
+	if "$doc_branch" != "master"
+	then
+		git push --force --set-upstream origin $doc_branch
+	else
+		git push
+	fi
 popd
 
