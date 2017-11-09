@@ -9,7 +9,7 @@ type.link = function(n) {
     stop("no such element")
   } else {
     d = dat$types[[n]]
-    paste("[[",d$name,"]]",sep="")
+    paste("[",d$name,"](",d$filename,")",sep="")
   }
 }
 
@@ -20,10 +20,10 @@ element.link = function(n)
   } else {
     d = dat[[n]]
     if (is.null(d$type)) {
-      paste("[[",d$name,"]]",sep="")
+      paste("[",d$name,"](",d$name,")",sep="")
     } else {
       dt = dat$types[[d$type]]
-      paste("[[<code>&lt;",d$name,"/&gt;</code>|",dt$name,"#",tolower(d$name),"]]",sep="")
+      paste("[<code>&lt;",d$name,"/&gt;</code>](",dt$filename,"#",tolower(d$name),")",sep="")
     }
   }
 })
@@ -31,6 +31,7 @@ element.link = function(n)
 for (n in names(dat$types)) {
   d = dat$types[[n]]
   if (is.null(d$name)) d$name = n
+  d$filename = paste(gsub(" ","-",d$name),"md",sep=".")
   dat$types[[n]] = d
 }
 
@@ -56,9 +57,9 @@ type.link("geom")
 
 for (nt in names(dat$types)) {
 t = dat$types[[nt]]
-fn = gsub(" ","-",t$name)
+fn = t$filename
 cat("----------",nt,t$name,"-------------\n");
-fn = paste("wiki/xml/",fn,".md",sep="");
+fn = paste("wiki/xml/",fn,sep="");
 cat(fn,"\n");
 sink(fn);
 cat("# ",t$name,"\n");
