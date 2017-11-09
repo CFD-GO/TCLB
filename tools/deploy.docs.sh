@@ -40,11 +40,8 @@ echo "  Branch     : $branch"
 echo "  doc-branch : $doc_branch"
 echo "  Name       : $name"
 echo "  e-mail     : $email"
-echo "  Commit     :"
+cat .msg | sed 's/^/  Commit     : /'
 echo "---------------------------------------------"
-cat .msg
-echo "---------------------------------------------"
-
 
 if test -z "$GH_TOKEN"
 then
