@@ -492,8 +492,8 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     ret = fread(header, 80, sizeof(char), f);
     ret = fread(&ntri, 1, sizeof(int), f);
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
-    char *lev = (char *) malloc(reg.size() * sizeof(char));
-    for (int i = 0; i < reg.size(); i++)
+    char *lev = (char *) malloc(reg.sizeL() * sizeof(char));
+    for (size_t i = 0; i < reg.sizeL(); i++)
 	lev[i] = insideOut;
     debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     ret = fread(tri, ntri, sizeof(STL_tri), f);
@@ -524,11 +524,11 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	v2[1] = tri[i].p3[2] - tri[i].p1[2];
 	c0 = v1[0] * v2[1] - v1[1] * v2[0];
 	if (insideOut == 2) {
-            size_t regsize = reg.size();
+            size_t regsize = region.sizeL();
             for (int x = min[0]; x <= max[0]; x++)
                 for (int z = min[2]; z <= max[2]; z++)
-                    for (int y = min[1]; y <= max[1]; y++) if (reg.isIn(x, y, z)) {
-                            size_t k = reg.offset(x, y, z);
+                    for (int y = min[1]; y <= max[1]; y++) if (region.isIn(x, y, z)) {
+                            size_t k = region.offset(x, y, z);
                             cut_t nq;
                             ActivateCuts();
                             for (int d = 0; d<26; d++) {
