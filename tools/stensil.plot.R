@@ -60,7 +60,7 @@ mark.stensil = function(tab,mx=0,only2d=FALSE,pref="st_") {
                 }
         }
         dev.off()
-	w
+	paste0("/",w)
 }
 
 
