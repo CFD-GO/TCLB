@@ -29,8 +29,19 @@ git:
 
 env:
   matrix: 
+    - MODEL=d2q9_npe_guo
+    - MODEL=d2q9_BC
     - MODEL=d2q9
     - MODEL=d2q9_SRT
+    - MODEL=d2q9_thin_film
+    - MODEL=d3q19
+    - MODEL=d3q19_les
+    - MODEL=d3q19_heat
+    - MODEL=d2q9_kuper
+    - MODEL=d2q9_pf
+    - MODEL=d3q27 
+    - MODEL=d3q27_cumulant 
+    - MODEL=d3q27_cumulant_AVG_IB_SMAG
 
 before_install:
     - sudo tools/install.sh r
