@@ -101,10 +101,11 @@ NodeTypes = data.frame()
 Fields = data.frame()
 
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
+	if (length(sym) != 3) stop("sym provided to AddDensity have to be a vector of length 3");
 	comment = ifelse(comment == "", name, comment);
 	dd = data.frame(
 		name=name,
@@ -116,7 +117,10 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		adjoint=adjoint,
 		group=group,
 		parameter=parameter,
-		average=average
+		average=average,
+		symX=sym[1],
+		symY=sym[2],
+		symZ=sym[3]
 	)
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
@@ -127,11 +131,12 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 			group=d$group,
 			parameter=d$parameter,
 			average=d$average,
+			sym=sym
 		)
 	}
 }
 
-AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F) {
+AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
 	comment = ifelse(comment == "", name, comment);
@@ -147,7 +152,10 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			adjoint=adjoint,
 			group=group,
 			parameter=parameter,
-			average=average
+			average=average,
+			symX=sym[1],
+			symY=sym[2],
+			symZ=sym[3]
 		)
 
 		if (any(Fields$name == d$name)) {
@@ -377,6 +385,10 @@ for (i in Globals$name) AddObjective(i,PV(i))
 
 if (is.null(Description)) {
 	AddDescription(MODEL)
+}
+
+
+if (Options$autosym) { ## Automatic symmetries
 }
 
 if (!"Iteration" %in% names(Actions)) {
