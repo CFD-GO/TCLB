@@ -665,12 +665,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
   sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
   size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
   MarginNSize = PV(rep(0L,27))
-  ret = Fields
-  ret$get_offsets = rep(list(NULL),nrow(ret))
-  ret$put_offsets = rep(list(NULL),nrow(ret))
-  ret$fOffset = rep(list(NULL),nrow(ret))
-  for (idx in 1:nrow(ret)) {
-    f = ret[idx,]
+  calc.functions = function(f) {
     mins = c(f$minx,f$miny,f$minz)
     maxs = c(f$maxx,f$maxy,f$maxz)
     tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
@@ -685,7 +680,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
     if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
     nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
     mSize = MarginNSize
-    MarginNSize <- mSize + nsize
+    MarginNSize <<- mSize + nsize
     offset.p = function(positions,cpu) {
       positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
       if (cpu) {
@@ -706,7 +701,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
       }
       offset
     }
-    ret$get_offsets[[idx]] = 
+    list(get_offsets = 
       function(w,dw,cpu=def.cpu) {
         tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
         tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
@@ -716,14 +711,25 @@ offsets = function(d2=FALSE, cpu=FALSE) {
         offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
         cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
-      }
-    ret$put_offsets[[idx]] = 
+      },
+      put_offsets = 
       function(w,cpu=def.cpu) {
         offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
         cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
         list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
-      }
-    ret$fOffset[[idx]]=mSize*size
+      },
+      fOffset=mSize*size
+    )
+  }
+  ret = Fields
+  ret$get_offsets = rep(list(NULL),nrow(ret))
+  ret$put_offsets = rep(list(NULL),nrow(ret))
+  ret$fOffset = rep(list(NULL),nrow(ret))
+  for (idx in 1:nrow(ret)) {
+      fun = calc.functions(ret[idx,])
+      ret$get_offsets[[idx]] = fun$get_offsets
+      ret$put_offsets[[idx]] = fun$put_offsets
+      ret$fOffset[[idx]] = fun$fOffset
   }
   list(Fields=ret, MarginSizes=MarginNSize * size)
 }
