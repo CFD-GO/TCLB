@@ -45,8 +45,15 @@ echo "---------------------------------------------"
 
 if test -z "$GH_TOKEN"
 then
-	echo "No token, trying ssh"
-	GH="git@github.com:"
+	if test -z "$TRAVIS_BRANCH"
+	then
+		echo "No token, trying ssh"
+		GH="git@github.com:"
+	else
+		echo "No token, and not on Travis-CI"
+		echo "Exiting without error"
+		exit 0;
+	fi
 else
 	GH="https://$GH_TOKEN@github.com/"
 fi
