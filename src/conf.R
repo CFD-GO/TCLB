@@ -388,7 +388,7 @@ if (is.null(Description)) {
 }
 
 
-if (Options$autosym) { ## Automatic symmetries
+if (!is.null(Options$autosym)) if (Options$autosym) { ## Automatic symmetries
 }
 
 if (!"Iteration" %in% names(Actions)) {
