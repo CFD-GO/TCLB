@@ -17,6 +17,7 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 # SYMALGEBRA=TRUE
 
 options(stringsAsFactors=FALSE)
+format.list = function(x,...) sapply(x, class)
 
 #source("fun_v3.R")
 
@@ -27,13 +28,12 @@ if (! SYMALGEBRA) {
 	library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 }
 
-source("bunch.R")
 source("linemark.R")
 
 rows = function(x) {
 	rows_df= function(x) {
 		if (nrow(x) > 0) {
-			lapply(1:nrow(x),function(i) unclass(x[i,,drop=F]))
+			lapply(1:nrow(x),function(i) lapply(x,"[[",i))
 		} else {
 			list()
 		}
@@ -540,8 +540,6 @@ DensityAD = DensityAll[  DensityAll$adjoint, ]
 
 Fields$nicename = gsub("[][ ]","",Fields$name)
 
-Fields = bunch(Fields)
-
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 AddGlobal(name="Objective",comment="Objective function");
@@ -654,83 +652,84 @@ Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSe
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
 offsets = function(d2=FALSE, cpu=FALSE) {
-	def.cpu = cpu
-	mw = PV(c("nx","ny","nz"))
-	if2d3d = c(FALSE,FALSE,d2 == TRUE)
-	one = PV(c(1L,1L,1L))
-	bp = expand.grid(x=1:3,y=1:3,z=1:3)
-	p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
-	tab1 = c(1,-1,0)
-	tab2 = c(0,-1,1)
-	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
-	sizes = c(one,mw,one)
-	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
-	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
-	MarginNSize = PV(rep(0L,27))
-	ret = lapply(Fields, function (f) 
-	{
-		mins = c(f$minx,f$miny,f$minz)
-		maxs = c(f$maxx,f$maxy,f$maxz)
-		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
-		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
-		tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
-		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
-		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-		mins = pmin(mins,0)
-		maxs = pmax(maxs,0)
-		nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
-		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
-		mSize = MarginNSize
-		MarginNSize <<- mSize + nsize
-		offset.p = function(positions,cpu) {
-			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
-			if (cpu) {
-			offset =  (positions[p$x] +
-				  (positions[p$y] +
-				  (positions[p$z]
-					) * sizes[p$y] * nsizes[p$y]
-					) * sizes[p$x] * nsizes[p$x]
-					) * MarginNSize +
-				  mSize
-			} else {
-			offset =   positions[p$x] +
-				  (positions[p$y] +
-				  (positions[p$z]
-					) * sizes[p$y] * nsizes[p$y]
-					) * sizes[p$x] * nsizes[p$x] +
-				  mSize * size
-			}
-			offset
-		}
-		c(f,list(
-			get_offsets = 
-			function(w,dw,cpu=def.cpu) {
-				tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-				tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-				tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
-				get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
-				get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-				offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
-				cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
-				list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
-			},
-			put_offsets = 
-			function(w,cpu=def.cpu) {
-				offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
-				cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
-				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
-			},
-			fOffset=mSize*size
-		))
-	})
-	class(ret) = "bunch"
-	attr(ret,"cols") = names(ret[[1]])
-	list(Fields=ret, MarginSizes=MarginNSize * size)
+  def.cpu = cpu
+  mw = PV(c("nx","ny","nz"))
+  if2d3d = c(FALSE,FALSE,d2 == TRUE)
+  one = PV(c(1L,1L,1L))
+  bp = expand.grid(x=1:3,y=1:3,z=1:3)
+  p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
+  tab1 = c(1,-1,0)
+  tab2 = c(0,-1,1)
+  get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
+  sizes = c(one,mw,one)
+  sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
+  size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
+  MarginNSize = PV(rep(0L,27))
+  ret = Fields
+  ret$get_offsets = rep(list(NULL),nrow(ret))
+  ret$put_offsets = rep(list(NULL),nrow(ret))
+  ret$fOffset = rep(list(NULL),nrow(ret))
+  for (idx in 1:nrow(ret)) {
+    f = ret[idx,]
+    mins = c(f$minx,f$miny,f$minz)
+    maxs = c(f$maxx,f$maxy,f$maxz)
+    tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
+    tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+    tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
+    put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+    put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+    mins = pmin(mins,0)
+    maxs = pmax(maxs,0)
+    nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
+    if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+    if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+    nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
+    mSize = MarginNSize
+    MarginNSize <- mSize + nsize
+    offset.p = function(positions,cpu) {
+      positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
+      if (cpu) {
+        offset =  (positions[p$x] +
+                     (positions[p$y] +
+                        (positions[p$z]
+                        ) * sizes[p$y] * nsizes[p$y]
+                     ) * sizes[p$x] * nsizes[p$x]
+        ) * MarginNSize +
+          mSize
+      } else {
+        offset =   positions[p$x] +
+          (positions[p$y] +
+             (positions[p$z]
+             ) * sizes[p$y] * nsizes[p$y]
+          ) * sizes[p$x] * nsizes[p$x] +
+          mSize * size
+      }
+      offset
+    }
+    ret$get_offsets[[idx]] = 
+      function(w,dw,cpu=def.cpu) {
+        tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
+        tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
+        tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+        get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+        get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+        offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
+        cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
+        list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
+      }
+    ret$put_offsets[[idx]] = 
+      function(w,cpu=def.cpu) {
+        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
+        cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
+        list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
+      }
+    ret$fOffset[[idx]]=mSize*size
+  }
+  list(Fields=ret, MarginSizes=MarginNSize * size)
 }
 
 ret = offsets(cpu=FALSE)
+
 Fields = ret$Fields
 
 for (i in 1:length(Margin)) {
