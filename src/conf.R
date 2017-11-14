@@ -28,6 +28,8 @@ if (! SYMALGEBRA) {
 	library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 }
 
+if (is.null(Options$autosym)) Options$autosym = FALSE
+
 source("linemark.R")
 
 rows = function(x) {
@@ -388,7 +390,7 @@ if (is.null(Description)) {
 }
 
 
-if (!is.null(Options$autosym)) if (Options$autosym) { ## Automatic symmetries
+if (Options$autosym) { ## Automatic symmetries
   symmetries = data.frame(symX=c(-1,1,1),symY=c(1,-1,1),symZ=c(1,1,-1))
 
   for (g in unique(DensityAll$group)) {
