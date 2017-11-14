@@ -76,16 +76,16 @@ class LatticeContainer {
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) { ?>
   template <int DX, int DY, int DZ>
-  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
     typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
     return 0.0;
   };
   
   template <int DY, int DZ>
-  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const int & dx);
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx);
   template <int DZ>
-  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const int & dx, const int & dy);
-  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const int & dx, const int & dy, const int & dz);
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy);
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
   <?R
   } ?>
 //  template <class N> CudaDeviceFunction void push_new(N & node);
