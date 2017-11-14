@@ -412,6 +412,17 @@ if (!is.null(Options$autosym)) if (Options$autosym) { ## Automatic symmetries
     sel = Fields[,s] == ""
     Fields[sel,s] = Fields$name[s]
   }
+
+  AddNodeType("SymmetryX_plus",  group="SYMX")
+  AddNodeType("SymmetryX_minus", group="SYMX")
+  AddNodeType("SymmetryY_plus",  group="SYMY")
+  AddNodeType("SymmetryY_minus", group="SYMY")
+  if (all(range(Fields$minz,Fields$maxz) == c(0,0))) {
+	# we're in 2D
+  } else {
+	AddNodeType("SymmetryZ_plus",  group="SYMZ")
+	AddNodeType("SymmetryZ_minus", group="SYMZ")
+  }
 }
 
 if (!"Iteration" %in% names(Actions)) {
