@@ -389,6 +389,29 @@ if (is.null(Description)) {
 
 
 if (!is.null(Options$autosym)) if (Options$autosym) { ## Automatic symmetries
+  symmetries = data.frame(symX=c(-1,1,1),symY=c(1,-1,1),symZ=c(1,1,-1))
+
+  for (g in unique(DensityAll$group)) {
+    D = DensityAll[DensityAll$group == g, ,drop=FALSE]
+    for (d in rows(D)) {
+      v = c(d$dx,d$dy,d$dz)
+      for (s in names(symmetries)) if (d[[s]] == "") {
+        s_v = v * symmetries[,s]
+        s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
+        if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
+        if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
+        i = which(s_sel)
+        s_d = D[s_sel,,drop=FALSE]
+        DensityAll[DensityAll$name == d$name,s] = s_d$name
+        if (Fields[Fields$name == d$field,s] == "") Fields[Fields$name == d$field,s] = s_d$field
+      }
+    }
+  }
+
+  for (s in names(symmetries)) {
+    sel = Fields[,s] == ""
+    Fields[sel,s] = Fields$name[s]
+  }
 }
 
 if (!"Iteration" %in% names(Actions)) {
