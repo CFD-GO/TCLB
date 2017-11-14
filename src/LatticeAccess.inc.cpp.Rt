@@ -186,7 +186,32 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   if (is.null(s$save.fields))  s$save.fields = Fields[,s$tag];
   if (is.null(s$suffix))  s$suffix = paste("_",s$name,sep="")
 
-  ?>
+resolve.symmetries = function(D) {
+  if (nrow(D) < 1) return();
+  dp = D[,c("dx","dy","dz"),drop=FALSE]
+  for (i in 1:3) {
+    plus = dp[,i] < 0
+    minus = dp[,i] > 0
+    s = names(symmetries)[i]
+    ch = c("X","Y","Z")[i]
+    if (any(plus | minus)) { ?>
+  switch (node.NodeType & NODE_SYM<?%s ch ?>) {
+<?R if (any(plus)) { ?>
+  case NODE_Symmetry<?%s ch ?>_plus:
+<?R C(PV("node.",D[plus, "name"]), PV("node.",D[plus, s])) ?>
+  break;
+<?R }
+    if (any(minus)) { ?>
+  case NODE_Symmetry<?%s ch ?>_minus:
+<?R C(PV("node.",D[minus, "name"]), PV("node.",D[minus, s])) ?>
+    break;
+<?R } ?>
+  }
+<?R }
+  }
+}
+
+?>
 template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node) 
 {
 <?R
@@ -197,7 +222,9 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
     p = PV(c("node.x_","node.y_","node.z_"));
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field(paste("node",d$name,sep="."), f, p, dp,con)
-  }?>
+  }
+  if (Options$autosym) resolve.symmetries(Density[s$load.densities,,drop=FALSE])
+?>
 }
 
 template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node) 
