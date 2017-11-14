@@ -200,19 +200,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
   }?>
 }
 
-template <class N> CudaDeviceFunction void LatticeContainer::pull<?%s s$suffix ?>(N & node) 
-{
-<?R
-  con = make.context("in",pocket=TRUE);
-  for (d in rows(Density)[s$load.densities]) { ?>
-//--------------------------- <?%s d$name ?> ----------------------<?R
-    f = rows(Fields)[Fields$name == d$field][[1]]
-    p = PV(c("node.x_","node.y_","node.z_"));
-    dp = c(-d$dx, -d$dy, -d$dz)
-    con=load.field(paste("node",d$name,sep="."), f, p, dp, con)
-  }?>
-}
-
 template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node) 
 {
 <?R
