@@ -292,12 +292,16 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 #  dx = job$dx
 #  dy = job$dy
 #  dz = job$dz
+
+suffix = ""
+if (Options$autosym) suffix = "0"
+
     for (f in rows(Fields)) {
     for (dz in f$minz:f$maxz) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>
 template <> 
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) 
+CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) 
 {
   real_t ret; <?R
   con = make.context("in");
@@ -306,9 +310,13 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>
   con=load.field("ret", f, p, dp, con) ?>
   return ret;
 }
+
+
+
 <?R } ?>
 <?R } ?>
 <?R } ?>
+
 template <int DY, int DZ> 
 CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx) 
 {
@@ -340,4 +348,37 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int 
 }
 <?R } ?>
 
+<?R
+if (Options$autosym) {
+  sym_load = function(f,d,i) {
+   if (i > 3) { ?>
+    return load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
+   <?R } else {
+    s = names(symmetries)[i]
+    si = which(Fields$name == f[[s]])
+    sf = rows(Fields)[[si]]
+    sd = d
+    sd[i] = -sd[i]
+    ch = c("X","Y","Z")[i]
+    if (d[i] > 0) { ?>
+    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_plus) { <?R sym_load(sf,sd,i+1) ?> }
+    <?R } else if (d[i] < 0) { ?>
+    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_minus) { <?R sym_load(sf,sd,i+1) ?> }
+    <?R } ?>
+    <?R sym_load(f,d,i+1)
+    }
+  }
 
+    for (f in rows(Fields)) {
+    for (dz in f$minz:f$maxz) {
+    for (dy in f$miny:f$maxy) {
+    for (dx in f$minx:f$maxx) { ?>
+template <> 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) {
+<?R sym_load(f,c(dx,dy,dz),1); ?>
+}
+
+<?R
+}}}}
+}
+ ?>
