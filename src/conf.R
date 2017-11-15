@@ -17,6 +17,7 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 # SYMALGEBRA=TRUE
 
 options(stringsAsFactors=FALSE)
+format.list = function(x,...) sapply(x, class)
 
 #source("fun_v3.R")
 
@@ -27,13 +28,14 @@ if (! SYMALGEBRA) {
 	library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 }
 
-source("bunch.R")
+if (is.null(Options$autosym)) Options$autosym = FALSE
+
 source("linemark.R")
 
 rows = function(x) {
 	rows_df= function(x) {
 		if (nrow(x) > 0) {
-			lapply(1:nrow(x),function(i) unclass(x[i,,drop=F]))
+			lapply(1:nrow(x),function(i) lapply(x,"[[",i))
 		} else {
 			list()
 		}
@@ -101,10 +103,11 @@ NodeTypes = data.frame()
 Fields = data.frame()
 
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
+	if (length(sym) != 3) stop("sym provided to AddDensity have to be a vector of length 3");
 	comment = ifelse(comment == "", name, comment);
 	dd = data.frame(
 		name=name,
@@ -116,7 +119,10 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		adjoint=adjoint,
 		group=group,
 		parameter=parameter,
-		average=average
+		average=average,
+		symX=sym[1],
+		symY=sym[2],
+		symZ=sym[3]
 	)
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
@@ -127,11 +133,12 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 			group=d$group,
 			parameter=d$parameter,
 			average=d$average,
+			sym=sym
 		)
 	}
 }
 
-AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F) {
+AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
 	comment = ifelse(comment == "", name, comment);
@@ -147,7 +154,10 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			adjoint=adjoint,
 			group=group,
 			parameter=parameter,
-			average=average
+			average=average,
+			symX=sym[1],
+			symY=sym[2],
+			symZ=sym[3]
 		)
 
 		if (any(Fields$name == d$name)) {
@@ -379,6 +389,44 @@ if (is.null(Description)) {
 	AddDescription(MODEL)
 }
 
+
+if (Options$autosym) { ## Automatic symmetries
+  symmetries = data.frame(symX=c(-1,1,1),symY=c(1,-1,1),symZ=c(1,1,-1))
+
+  for (g in unique(DensityAll$group)) {
+    D = DensityAll[DensityAll$group == g, ,drop=FALSE]
+    for (d in rows(D)) {
+      v = c(d$dx,d$dy,d$dz)
+      for (s in names(symmetries)) if (d[[s]] == "") {
+        s_v = v * symmetries[,s]
+        s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
+        if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
+        if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
+        i = which(s_sel)
+        s_d = D[s_sel,,drop=FALSE]
+        DensityAll[DensityAll$name == d$name,s] = s_d$name
+        if (Fields[Fields$name == d$field,s] == "") Fields[Fields$name == d$field,s] = s_d$field
+      }
+    }
+  }
+
+  for (s in names(symmetries)) {
+    sel = Fields[,s] == ""
+    Fields[sel,s] = Fields$name[s]
+  }
+
+  AddNodeType("SymmetryX_plus",  group="SYMX")
+  AddNodeType("SymmetryX_minus", group="SYMX")
+  AddNodeType("SymmetryY_plus",  group="SYMY")
+  AddNodeType("SymmetryY_minus", group="SYMY")
+  if (all(range(Fields$minz,Fields$maxz) == c(0,0))) {
+	# we're in 2D
+  } else {
+	AddNodeType("SymmetryZ_plus",  group="SYMZ")
+	AddNodeType("SymmetryZ_minus", group="SYMZ")
+  }
+}
+
 if (!"Iteration" %in% names(Actions)) {
 	AddAction(name="Iteration", stages=c("BaseIteration"))
 }
@@ -540,8 +588,6 @@ DensityAD = DensityAll[  DensityAll$adjoint, ]
 
 Fields$nicename = gsub("[][ ]","",Fields$name)
 
-Fields = bunch(Fields)
-
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 AddGlobal(name="Objective",comment="Objective function");
@@ -654,83 +700,90 @@ Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSe
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
 offsets = function(d2=FALSE, cpu=FALSE) {
-	def.cpu = cpu
-	mw = PV(c("nx","ny","nz"))
-	if2d3d = c(FALSE,FALSE,d2 == TRUE)
-	one = PV(c(1L,1L,1L))
-	bp = expand.grid(x=1:3,y=1:3,z=1:3)
-	p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
-	tab1 = c(1,-1,0)
-	tab2 = c(0,-1,1)
-	get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
-	sizes = c(one,mw,one)
-	sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
-	size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
-	MarginNSize = PV(rep(0L,27))
-	ret = lapply(Fields, function (f) 
-	{
-		mins = c(f$minx,f$miny,f$minz)
-		maxs = c(f$maxx,f$maxy,f$maxz)
-		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
-		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
-		tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
-		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
-		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-		mins = pmin(mins,0)
-		maxs = pmax(maxs,0)
-		nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
-		if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-		if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-		nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
-		mSize = MarginNSize
-		MarginNSize <<- mSize + nsize
-		offset.p = function(positions,cpu) {
-			positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
-			if (cpu) {
-			offset =  (positions[p$x] +
-				  (positions[p$y] +
-				  (positions[p$z]
-					) * sizes[p$y] * nsizes[p$y]
-					) * sizes[p$x] * nsizes[p$x]
-					) * MarginNSize +
-				  mSize
-			} else {
-			offset =   positions[p$x] +
-				  (positions[p$y] +
-				  (positions[p$z]
-					) * sizes[p$y] * nsizes[p$y]
-					) * sizes[p$x] * nsizes[p$x] +
-				  mSize * size
-			}
-			offset
-		}
-		c(f,list(
-			get_offsets = 
-			function(w,dw,cpu=def.cpu) {
-				tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-				tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-				tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
-				get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
-				get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-				offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
-				cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
-				list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
-			},
-			put_offsets = 
-			function(w,cpu=def.cpu) {
-				offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
-				cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
-				list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
-			},
-			fOffset=mSize*size
-		))
-	})
-	class(ret) = "bunch"
-	attr(ret,"cols") = names(ret[[1]])
-	list(Fields=ret, MarginSizes=MarginNSize * size)
+  def.cpu = cpu
+  mw = PV(c("nx","ny","nz"))
+  if2d3d = c(FALSE,FALSE,d2 == TRUE)
+  one = PV(c(1L,1L,1L))
+  bp = expand.grid(x=1:3,y=1:3,z=1:3)
+  p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
+  tab1 = c(1,-1,0)
+  tab2 = c(0,-1,1)
+  get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
+  sizes = c(one,mw,one)
+  sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
+  size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
+  MarginNSize = PV(rep(0L,27))
+  calc.functions = function(f) {
+    mins = c(f$minx,f$miny,f$minz)
+    maxs = c(f$maxx,f$maxy,f$maxz)
+    tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
+    tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+    tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
+    put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+    put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+    mins = pmin(mins,0)
+    maxs = pmax(maxs,0)
+    nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
+    if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+    if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
+    nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
+    mSize = MarginNSize
+    MarginNSize <<- mSize + nsize
+    offset.p = function(positions,cpu) {
+      positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
+      if (cpu) {
+        offset =  (positions[p$x] +
+                     (positions[p$y] +
+                        (positions[p$z]
+                        ) * sizes[p$y] * nsizes[p$y]
+                     ) * sizes[p$x] * nsizes[p$x]
+        ) * MarginNSize +
+          mSize
+      } else {
+        offset =   positions[p$x] +
+          (positions[p$y] +
+             (positions[p$z]
+             ) * sizes[p$y] * nsizes[p$y]
+          ) * sizes[p$x] * nsizes[p$x] +
+          mSize * size
+      }
+      offset
+    }
+    list(get_offsets = 
+      function(w,dw,cpu=def.cpu) {
+        tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
+        tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
+        tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+        get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
+        get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
+        offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
+        cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
+        list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
+      },
+      put_offsets = 
+      function(w,cpu=def.cpu) {
+        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
+        cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
+        list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
+      },
+      fOffset=mSize*size
+    )
+  }
+  ret = Fields
+  ret$get_offsets = rep(list(NULL),nrow(ret))
+  ret$put_offsets = rep(list(NULL),nrow(ret))
+  ret$fOffset = rep(list(NULL),nrow(ret))
+  for (idx in 1:nrow(ret)) {
+      fun = calc.functions(ret[idx,])
+      ret$get_offsets[[idx]] = fun$get_offsets
+      ret$put_offsets[[idx]] = fun$put_offsets
+      ret$fOffset[[idx]] = fun$fOffset
+  }
+  list(Fields=ret, MarginSizes=MarginNSize * size)
 }
 
 ret = offsets(cpu=FALSE)
+
 Fields = ret$Fields
 
 for (i in 1:length(Margin)) {
