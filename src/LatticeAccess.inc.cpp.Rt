@@ -273,12 +273,15 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
  )
 
  
- txtlapply(rows(job_tab), function(job) {
-  f = Fields[[job$field]]
-  dx = job$dx
-  dy = job$dy
-  dz = job$dz
-#    for (f in Fields) for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
+# txtlapply(rows(job_tab), function(job) {
+#  f = Fields[[job$field]]
+#  dx = job$dx
+#  dy = job$dy
+#  dz = job$dz
+    for (f in Fields) {
+    for (dz in f$minz:f$maxz) {
+    for (dy in f$miny:f$maxy) {
+    for (dx in f$minx:f$maxx) { ?>
 template <> 
 CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
 {
@@ -289,6 +292,38 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>
   con=load.field("ret", f, p, dp, con) ?>
   return ret;
 }
-<?R }) ?>
+<?R } ?>
+<?R } ?>
+<?R } ?>
+template <int DY, int DZ> 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const int & dx) 
+{
+  switch(dx) {
+<?R  for (dx in f$minx:f$maxx) { ?>
+    case <?%d dx ?>: return load_<?%s f$nicename ?> < <?%d dx ?>, DY, DZ > (x, y, z);
+<?R } ?>
+    default: return NAN;
+  }
+}
+template < int DZ > 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const int & dx, const int & dy) 
+{
+  switch(dy) {
+<?R  for (dy in f$miny:f$maxy) { ?>
+    case <?%d dy ?>: return load_<?%s f$nicename ?> < <?%d dy ?>, DZ > (x, y, z, dx);
+<?R } ?>
+    default: return NAN;
+  }
+}
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const int & dx, const int & dy, const int & dz) 
+{
+  switch(dz) {
+<?R  for (dz in f$minz:f$maxz) { ?>
+    case <?%d dz ?>: return load_<?%s f$nicename ?> < <?%d dz ?> > (x, y, z, dx, dy);
+<?R } ?>
+    default: return NAN;
+  }
+}
+<?R } ?>
 
 
