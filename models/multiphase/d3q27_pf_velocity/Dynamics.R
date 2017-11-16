@@ -135,6 +135,8 @@ AddNodeType(name="SymmetricXY_W",group="ADDITIONALS")
 AddNodeType(name="SymmetricXY_E",group="ADDITIONALS")
 
 AddGlobal("InterfacePosition",comment='trackPosition')
+AddGlobal("Vfront",comment='velocity infront of bubble')
+AddGlobal("Vback",comment='velocity behind bubble')
 AddGlobal("RTISpike", comment='SpikeTracker ')
 AddGlobal("RTIBubble",comment='BubbleTracker')
 AddGlobal("RTISaddle",comment='SaddleTracker')
