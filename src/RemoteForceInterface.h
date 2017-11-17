@@ -13,7 +13,7 @@ class RemoteForceInterface {
 public:
   RemoteForceInterface();
   ~RemoteForceInterface();
-  int Start(char * worker_program, char * args[]);
+  int Start(char * worker_program, char * args[], double units[]);
   inline const rfi_size_t size() const { return totsize; }
   inline rfi_real_t* Particles() { return &tab[0]; }
   void GetSizes();

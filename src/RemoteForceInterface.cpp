@@ -18,7 +18,7 @@ RemoteForceInterface::~RemoteForceInterface() {
   }
 }
 
-int RemoteForceInterface::Start(char * worker_program, char * args[]) {
+int RemoteForceInterface::Start(char * worker_program, char * args[], double units[]) {
    if (intercomm != MPI_COMM_NULL) {
     error("RemoteForceInterface(M) Already started\n");
     return -2;
@@ -50,6 +50,10 @@ int RemoteForceInterface::Start(char * worker_program, char * args[]) {
    offsets.resize(workers+1, 0);
    reqs.resize(workers+1);
    stats.resize(workers+1);
+   int root = MPI_PROC_NULL; if (rank == 0) root = MPI_ROOT;
+   MPI_Bcast(&units[0], 1, MPI_DOUBLE, root, intercomm);
+   MPI_Bcast(&units[1], 1, MPI_DOUBLE, root, intercomm);
+   MPI_Bcast(&units[2], 1, MPI_DOUBLE, root, intercomm);
    return 0;
 }
 

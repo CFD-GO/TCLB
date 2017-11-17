@@ -89,6 +89,11 @@ int acRemoteForceInterface::Init () {
 
         
         char fn[STRING_LEN];
+        double units[3];
+        units[0] = solver->units.alt("1m");
+        units[1] = solver->units.alt("1s");
+        units[2] = solver->units.alt("1kg");
+
 //	solver->outGlobalFile("ESYS", ".py", fn);
         sprintf(fn, "%s_%s.py", solver->info.outpath, "ESYS");
         output("ESYS-P: config: %s\n", fn);
@@ -99,10 +104,16 @@ int acRemoteForceInterface::Init () {
                 fprintf(f, "from esys.lsm.geometry import *\n\n");
                 fprintf(f, "%s = LsmMpi(numWorkerProcesses=%d, mpiDimList=[%d,%d,%d])\n", sim.c_str(), nx*ny*nz, nx, ny, nz);
                 fprintf(f, "%s.initNeighbourSearch( particleType=\"%s\", gridSpacing=%lg, verletDist=%lg )\n", sim.c_str(), particle_type.c_str(), gridSpacing, verletDist);
-                fprintf(f, "%s.setSpatialDomain( BoundingBox(Vec3(%lg,%lg,%lg), Vec3(%lg,%lg,%lg)), circDimList = [%s, False, False])\n", sim.c_str(), 0.0, 0.0, 0.0, sx, sy, sz, xcirc ? "True" : "False");
-                fprintf(f, "%s.setTimeStepSize(%lg)\n", sim.c_str(), 1.0);
+                fprintf(f, "%s.setSpatialDomain( BoundingBox(Vec3(%lg,%lg,%lg), Vec3(%lg,%lg,%lg)), circDimList = [%s, False, False])\n",
+                        sim.c_str(),
+                        0.0, 0.0, 0.0,
+                        sx/units[0], sy/units[0], sz/units[0],
+                        xcirc ? "True" : "False");
+                fprintf(f, "%s.setTimeStepSize(%lg)\n", sim.c_str(), 1.0/units[1]);
                 fprintf(f, "%s.setNumTimeSteps(%d)\n", sim.c_str(), Next(solver->iter));
                 fprintf(f, "%s.createInteractionGroup(	TCLBForcePrms(name=\"tclb\", acceleration=Vec3(0,-9.81,0), fluidDensity=1.0, fluidHeight=0) )\n", sim.c_str());
+                fprintf(f, "output_prefix=\"%s_%s\"\n", solver->info.outpath, "ESYS");
+                fprintf(f, "def output_path(x):\n\treturn output_prefix + x\n");
                 fprintf(f, "%s\n", node.child_value());
                 fprintf(f, "%s.run()\n", sim.c_str());
                 fflush(f);
@@ -112,7 +123,7 @@ int acRemoteForceInterface::Init () {
 
         char * args[] = {fn,NULL};
         
-        solver->lattice->RFI.Start("esysparticle",args);
+        solver->lattice->RFI.Start("esysparticle",args, units);
 	return 0;
 }
 
