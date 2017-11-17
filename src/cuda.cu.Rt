@@ -68,7 +68,15 @@ struct Particle {
 	vector_t force, moment;
 	real_t rad;
 	real_t dist;
-};
+	CudaDeviceFunction inline void applyForce(vector_t f) {
+		force.x += f.x;
+		force.y += f.y;
+		force.z += f.z;
+		moment.x -= f.y*diff.z - f.z*diff.y;
+		moment.y -= f.z*diff.x - f.x*diff.z;
+		moment.z -= f.x*diff.y - f.y*diff.x;
+	}
+    };
 
 <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)

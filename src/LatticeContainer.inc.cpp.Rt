@@ -371,6 +371,9 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 		p.force.x = 0;
 		p.force.y = 0;
 		p.force.z = 0;
+		p.moment.x = 0;
+		p.moment.y = 0;
+		p.moment.z = 0;
                 int pdx = floor(p.pos.x - p.rad) - constContainer.px;
                 int pnx = ceil(p.pos.x + p.rad) + 1 - constContainer.px;
                 if (pdx < 0) pdx = 0;
@@ -403,6 +406,9 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 		real_t fx = blockSum(p.force.x);
 		real_t fy = blockSum(p.force.y);
 		real_t fz = blockSum(p.force.z);
+		real_t afx = blockSum(p.moment.x);
+		real_t afy = blockSum(p.moment.y);
+		real_t afz = blockSum(p.moment.z);
 //	fz = 0;
 //		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
 //		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
@@ -411,6 +417,9 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = fx;
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = fy;
 			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2] = fz;
+			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0] = afx;
+			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1] = afy;
+			constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2] = afz;
 		}
 
 

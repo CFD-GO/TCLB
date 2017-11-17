@@ -30,11 +30,12 @@ CudaDeviceFunction void CalcF(Particle & p){
 		force.x = u.x - d*p.cvel.x;
 		force.y = u.y - d*p.cvel.y;
 		force.z = u.z - d*p.cvel.z;
-		p.force.x += +force.x;
+		p.applyForce(force);
+//		p.force.x += +force.x;
 		fx         = -force.x;
-		p.force.y += +force.y;
+//		p.force.y += +force.y;
 		fy         = -force.y;
-		p.force.z += +force.z;
+//		p.force.z += +force.z;
 		fz         = -force.z;
 		sol = p.dist;
 	}
