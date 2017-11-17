@@ -751,7 +751,7 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
-	eModel=as.character(MODEL),
+	eModel=paste("model",as.character(MODEL),sep="_"),
 	eAction=names(Actions),
 	eStage=c(Stages$name,"Get"),
 	eTape = c("NoTape", "RecordTape")

@@ -11,9 +11,10 @@ MRT_polyMatrix = function(U) {
   D2 = NULL; for (i in 1:nrow(d2)) { D2 = cbind(D2, U[,d2$i[i]] * U[,d2$j[i]]) }
   dim(D2) = c(nrow(U), d,d)
   p = ifelse(U < 0,2,U)
+  can = order(rowSums(p))
   p = p[order(rowSums(p)),]
   W = NULL; for (i in 1:nrow(p)) {W = cbind(W, apply(t(U) ^ p[i,],2,prod)) }
-  list(order=rowSums(p), mat=W, p=p, D2=D2)
+  list(order=rowSums(p), mat=W, p=p, D2=D2, canonical=can)
 }
 
 MRT_integerOrtogonal = function(M) {
@@ -72,7 +73,7 @@ MRT_eq = function(U, rho=PV("rho"), J=PV(c("Jx","Jy","Jz")), sigma2=1/3, order=2
 	ret$Req = ret$Req %*% (solve(W$mat) %*% M)
 	ret$mat = M
 	ret$p = NULL
-  }
+  } else ret$canonical = W$canonical
   ret$feq = ret$Req %*% solve(ret$mat)
   ret
 }
