@@ -1,13 +1,16 @@
 // 04/02/2017 - Model Developed: A. Fakhari, T. Mitchell
 //	      - Implementation:	 T. Mitchell
 
-// Based on paper submitted to PRE:
-// """" A robust phase-field lattice Boltzmann model for
-//		immiscible fluids at high density ratios 	""""
-// """" A. Fakhari, T. Mitchell, C. Leonardi, D. Bolster (2017) """"
+// Model for Physical Review E article:
+//
+// """" Improved locality of the phase-field lattice Boltzmann 
+//	model for immiscible fluids at high density ratios 	    """"
+//
+// Authors: A. Fakhari, T. Mitchell, C. Leonardi, D. Bolster (2017) """"
+// DOI: 10.1103/PhysRevE.96.053301
+
 
 // Maintainer: Travis-Mitchell @TravisMitchell
-
 // Code updates:
 //		04/02/2017: Development starts...
 //		- Verification/Validation:
@@ -147,9 +150,9 @@ CudaDeviceFunction void Run() {
 		case NODE_MovingWall_N:
 			MovingNWall();
 			break;
-                case NODE_MovingWall_S:
-                        MovingSWall();
-                        break;
+    case NODE_MovingWall_S:
+            MovingSWall();
+            break;
 		case NODE_EPressure:
 			EPressure();
 			break;
@@ -162,6 +165,12 @@ CudaDeviceFunction void Run() {
 		case NODE_WVelocity:
 			WVelocity();
 			break;
+		case NODE_Symmetry_N:
+		  NSymmetry();
+		  break;
+		case NODE_Symmetry_S:
+		  SSymmetry();
+		  break;
         }
     if (NodeType & NODE_MRT) {
 		CollisionMRT();
@@ -495,6 +504,23 @@ h[5] = h[7] + ( Ry + Rx )/6.;
 h[8] = h[6] + ( -Ry + Rx )/6.;
 }
 
+CudaDeviceFunction void NSymmetry(){
+	g[4] = g[2];
+	g[7] = g[6];
+	g[8] = g[5];
+	h[4] = h[2];
+	h[7] = h[6];
+	h[8] = h[5];
+}
+
+CudaDeviceFunction void SSymmetry(){
+	g[2] = g[4];
+	g[6] = g[7];
+	g[5] = g[8];
+	h[2] = h[4];
+	h[6] = h[7];
+	h[5] = h[8];
+}
 
 CudaDeviceFunction void MovingNWall(){
 	g[4] = g[2];

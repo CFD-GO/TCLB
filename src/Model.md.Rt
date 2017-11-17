@@ -82,7 +82,7 @@
 | Name | Access pattern | Comment |
 | --- | --- | --- |
 <?R
-  for (d in Fields) {
+  for (d in rows(Fields)) {
     cat("", paste("`",d$name,"`",sep=""),
       stensil(d),
       d$comment, "\n", sep="|");
