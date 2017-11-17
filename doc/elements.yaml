@@ -154,6 +154,34 @@ Stop:
         numeric: int
       comment: Numer of times the change have to be below the limit to stop the computation.
 
+
+PID:
+  comment: PID controller. Allows to achive a specified value of an Global, with tweaking of a Setting
+  example: <PID Flux="10.0" control="ForceX" scale="0.01" DerivativeTime="100" IntegrationTime="10000" Iterations="10"/>
+  type: callback
+  attr:
+    - name:
+        special: Globals
+      val:
+        numeric: float
+      comment: Target value for a specified Global
+    - name: control
+      val:
+        special: Settings
+      comment: The setting to control (currently only zonal settings are supported)
+    - name: scale
+      val:
+        numeric: float
+      comment: The proportional rate D in PID controller 
+    - name: DerivativeTime
+      val:
+        numeric: float
+      comment: The derivative time scale. D = P * DerivativeTime
+    - name: IntegrationTime
+      val:
+        numeric: float
+      comment: The integral time scale. I = P / IntegrationTime
+
 Sample:
   comment: Effecient sampling of quantities on each iteration, without need for VTK
   example: <Sample Iterations="1000" what="U,P" ><Point dx="10" dy="20"/></Sample>

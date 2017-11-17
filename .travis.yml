@@ -65,6 +65,19 @@ script:
     - make $MODEL
     - tools/tests.sh $MODEL
 
+jobs:
+  include:
+    - stage: docs
+      env:
+        secure: "gDINAbE+apFUrReGDClqtSd4ir1ivFww/EjslD2XA8igmwELA0Kkom3z+X6HiMjlPaNLK5oRoyD7BkFSJ9Sf1i6z2+iLVmqJoOLaexZXM09C557Xmh38DisHTvQf6IVg0TRvQ8DEGDfFMrNr5jjDpXdPYs2sVJPW1Mi0Hwehtvt1Siuxr8bkoa/p6qZLbmhYl6ETGqFXDMmRWKFMaJpJ38BScwWIPgVqwSOcejhEdaPUuGtOYSirUhUDWoSQmOUPfbHfadIAT9+OPDY4p91eQmDQGNj9ZgWMvU8dECrrzE2Z6UfbO+swXmfMWe0BYwEpcGtYMG19y6dEKh4TmrEPR8Y/9SaVFiY/PPm906agKeJdGwHdokYqcjB/STSR83ni+b3qAfIgwYW2pcSMSEpbn+kUp70k9emV3KVJVIg3G/s4fEC1bip5wkBAYInPGa+FmNJTM8Y3iSHeQmuv2zia5od5RJDZg98kf0nXv9iEWEYrQl2KkEGNPK+bsWinA0KES1cZ21aMnPENf7mhyOsUUEYX4oCCxzzR16PCWWx4b7E4SBDweU5DfsEuwByjAImTOArSuofv1QnXynmDDD5W3TVDqx+067pMCE4FLV1yWqqrnaoPpWeWGlhTQStbO3xYSNgUNMma8pYEQStTpdkgXt4gx6RHaCjZwZ/FZx1rZRk="
+      script:
+          - make configure
+          - ./configure --disable-cuda
+          - mkdir -p wiki/xml wiki/images
+          - R -f tools/gen.doc.R
+          - make wiki/Models.md
+          - tools/deploy.docs.sh
+
 after_success:
     - tools/coveralls.sh
 
