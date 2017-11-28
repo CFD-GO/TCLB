@@ -11,8 +11,9 @@ class vtkFileOut {
 	char * name; int name_size;
 	int parallel;
 	int size;
+	MPI_Comm comm;
 public:
-	vtkFileOut ();
+	vtkFileOut (MPI_Comm comm_=MPI_COMM_WORLD);
 	int Open(const char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, char* selection);

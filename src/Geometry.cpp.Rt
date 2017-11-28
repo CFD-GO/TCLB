@@ -996,7 +996,7 @@ Geometry::~Geometry()
 /// Dumps the Geometry to a vti file
 void Geometry::writeVTI(const char *filename)
 {
-    vtkFileOut vtkFile;
+    vtkFileOut vtkFile(MPMD.local);
     if (vtkFile.Open(filename)) {
 	return;
     }

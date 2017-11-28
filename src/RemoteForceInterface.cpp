@@ -4,11 +4,8 @@
 
 RemoteForceInterface::RemoteForceInterface() : workers(0), masters(0), intercomm(MPI_COMM_NULL), totsize(0) {
    int *universe_sizep, flag;
-   MPI_Comm_size(MPI_COMM_WORLD, &world_size); 
-   MPI_Attr_get(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
-   if (!flag) { 
-     universe_size = 0;
-   } else universe_size = *universe_sizep;
+   world_size = MPMD.world_size;
+   universe_size = MPMD.universe_size;
 }
 
 RemoteForceInterface::~RemoteForceInterface() {
@@ -26,21 +23,14 @@ int RemoteForceInterface::Start(char * worker_program, char * args[]) {
     ERROR("No room to start workers"); 
     return -1;
    }
-   MPI_Comm everyone;
-   MPI_Comm_spawn(worker_program, args, universe_size - world_size,
-             MPI_INFO_NULL, 0, MPI_COMM_WORLD, &everyone,  
-             MPI_ERRCODES_IGNORE); 
-             
-   MPI_Group group;
-   MPI_Comm_group(MPI_COMM_WORLD, &group);
-   MPI_Comm_create(everyone, group, &intercomm);
-   
-   {
-    int s1,s2;
-    MPI_Comm_remote_size(everyone, &s1);
-    MPI_Comm_remote_size(intercomm, &s2);
-    output("RemoteForceInterface(M) Total children: %d, intercomm with: %d\n",s1,s2);
+   MPMDIntercomm inter = MPMD["ESYSPARTICLE"];
+   if (! inter) {
+    printf("Spawning ...\n");
+    inter = MPMD.Spawn(worker_program, args, universe_size - world_size,MPI_INFO_NULL);
    }
+   intercomm = inter.work;
+   
+   
    MPI_Comm_remote_size(intercomm, &workers);
    MPI_Comm_size(intercomm, &masters);
    MPI_Comm_rank(intercomm, &rank);

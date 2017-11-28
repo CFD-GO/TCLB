@@ -90,7 +90,7 @@ int cbFailcheck::DoIt () {
 		}
 		<?R }; ifdef(); ?>
 
-		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPI_COMM_WORLD);
+		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPMD.local);
 
 	    if ((fin) && (rkept)) {
             rkept = 0;

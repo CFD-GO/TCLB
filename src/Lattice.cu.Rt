@@ -322,10 +322,10 @@ inline void Lattice::MPIStream_B(int tag)
                 MPI_Status status;
                 MPI_Request request;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPMD.local, &request);
                 }
                 for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
-                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPMD.local, &status);
                         CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
                 }
         #else
@@ -336,11 +336,11 @@ inline void Lattice::MPIStream_B(int tag)
                 MPI_Request * sendreq = new MPI_Request[bufnumber];
         //	DEBUG_M;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
+                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPMD.local, &recvreq[i]);
                 }
         //	DEBUG_M;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &sendreq[i]);
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPMD.local, &sendreq[i]);
                 }
         //	DEBUG_M;
                 #ifdef CROSS_MPI_WAITANY
@@ -733,9 +733,9 @@ void Lattice::Init()
 	Iter = 0;
 	container->iter = 0;
 	Snap=0;
-   MPI_Barrier(MPI_COMM_WORLD);
+   MPI_Barrier(MPMD.local);
    Action_Init(1,0,ITER_NO);
-   MPI_Barrier(MPI_COMM_WORLD);
+   MPI_Barrier(MPMD.local);
 	Iter = 0;
 	container->iter = 0;
 	clearGlobals();
@@ -1151,7 +1151,7 @@ void Lattice::getGlobals(real_t * tab) {
                         MPI_REAL_T,
                         MPI_<?%s G$op[1] ?>,
                         0,
-                        MPI_COMM_WORLD); <?R
+                        MPMD.local); <?R
         }) ?>
 }
 

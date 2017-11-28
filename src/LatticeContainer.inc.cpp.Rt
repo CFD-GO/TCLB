@@ -90,11 +90,11 @@ template < class N > unsigned int ThreadNumber< N >::sy = 0;
   
 /// Initialize Thread/Block number variables
 int InitDim(int ny) {
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPMD.local);
 <?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) if (! Stages[tp$Stage,"particle"]) { ifdef(tp$adjoint) ?>
         ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(ny); <?R
 	}; ifdef(); ?>
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPMD.local);
 	if (D_MPI_RANK == 0) {
           debug2( "  Threads  |      Action\n");
         }
