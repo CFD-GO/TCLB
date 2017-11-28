@@ -13,7 +13,7 @@
   }
   cat("---------------------------------------------------------------------------------------\n");
   cat(sprintf("                %-15s               |Adj| comment", "FIELDS"),"\n");
-  for (d in Fields) {
+  for (d in rows(Fields)) {
     if (d$parameter) {
     cat(sprintf("%-31s parameter     | %1s | %s", d$name, ifelse(d$adjoint, "X"," "), d$comment),"\n");
     } else {

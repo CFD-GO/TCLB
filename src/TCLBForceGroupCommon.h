@@ -20,10 +20,10 @@ typedef char rfi_code_t;
 
 #define RFI_DATA_VOL 0
 #define RFI_DATA_FORCE 1
-#define RFI_DATA_SIGMA 4
-#define RFI_DATA_OUT_SIZE 13
+#define RFI_DATA_MOMENT 4
+#define RFI_DATA_OUT_SIZE 7
 
-#define RFI_DATA_SIZE 13
+#define RFI_DATA_SIZE 10
 
 typedef unsigned long int rfi_size_t;
 #define MPI_RFI_SIZE_T MPI_UNSIGNED_LONG

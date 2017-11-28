@@ -21,6 +21,7 @@
 ?>
 
 CudaDeviceFunction void CalcF(Particle & p){
+	if ((NodeType & NODE_BOUNDARY) == 0) {
 	real_t d = getRho();
         vector_t u;
 	vector_t force;
@@ -29,13 +30,15 @@ CudaDeviceFunction void CalcF(Particle & p){
 		force.x = u.x - d*p.cvel.x;
 		force.y = u.y - d*p.cvel.y;
 		force.z = u.z - d*p.cvel.z;
-		p.force.x += +force.x;
+		p.applyForce(force);
+//		p.force.x += +force.x;
 		fx         = -force.x;
-		p.force.y += +force.y;
+//		p.force.y += +force.y;
 		fy         = -force.y;
-		p.force.z += +force.z;
+//		p.force.z += +force.z;
 		fz         = -force.z;
 		sol = p.dist;
+	}
 	}
 }
 
@@ -297,7 +300,10 @@ CudaDeviceFunction void Run() {
 		CollisionMRT();
 		break;
     }
-	fx=fy=fz=sol=0;
+	fx=ForceX;
+	fy=ForceY;
+	fz=ForceZ;
+	sol=0;
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
@@ -316,7 +322,10 @@ CudaDeviceFunction void Init() {
 	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
 	    SetEquilibrum(1.0,0,0,0);}
 	else SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
-	fx=fy=fz=sol=0;
+	fx=ForceX;
+        fy=ForceY;
+        fz=ForceZ;
+        sol=0;
 }
 
 CudaDeviceFunction void WVelocityTurbulent() {

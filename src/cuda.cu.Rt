@@ -40,10 +40,13 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
-        for (f in Fields) { ?>
-#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_))
-#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_))
-#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__) <?R
+        for (f in rows(Fields)) { ?>
+#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
+#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
+#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
+#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
+#define <?%s f$nicename ?>_dyn_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
+#define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
         }
 ?>
 
@@ -68,7 +71,15 @@ struct Particle {
 	vector_t force, moment;
 	real_t rad;
 	real_t dist;
-};
+	CudaDeviceFunction inline void applyForce(vector_t f) {
+		force.x += f.x;
+		force.y += f.y;
+		force.z += f.z;
+		moment.x -= f.y*diff.z - f.z*diff.y;
+		moment.y -= f.z*diff.x - f.x*diff.z;
+		moment.z -= f.x*diff.y - f.y*diff.x;
+	}
+    };
 
 <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
