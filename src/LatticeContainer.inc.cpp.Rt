@@ -74,34 +74,42 @@ template < class N > dim3 GetThreads() {
 
 template < class N > class ThreadNumber {
   public:
-  static unsigned int ky, sy;
-  static void Init(size_t ny) {
+  static unsigned int ky, sy, maxy;
+  static std::string name;
+  static void Init(bool fit, size_t ny, std::string name_) {
+        name = name_;
 	dim3 th = GetThreads< N >();
-	sy = th.y;
-	ky = ny/th.y;
+	maxy = th.y;
+	sy = maxy;
+	ky = ny/sy;
+	if (fit) while ((sy > 1) && (ky*sy != ny)) { sy--; ky = ny/sy; }
 	if (ky*th.y < ny) ky++;
+	print();
   }
   static inline int getKY() { return ky; }
   static inline int getSY() { return sy; }
+  static inline void print() {
+    if (maxy != sy) {
+	notice( "  %3dx%-3d  | %s --- Reduced from %d to fit Y dim\n", X_BLOCK, sy, name.c_str(), maxy);
+    } else {
+	output( "  %3dx%-3d  | %s\n", X_BLOCK, sy, name.c_str());
+    }
+  }
 };
 
 template < class N > unsigned int ThreadNumber< N >::ky = 0;
 template < class N > unsigned int ThreadNumber< N >::sy = 0;
+template < class N > unsigned int ThreadNumber< N >::maxy = 0;
+template < class N > std::string ThreadNumber< N >::name = "";
   
 /// Initialize Thread/Block number variables
 int InitDim(int ny) {
 	MPI_Barrier(MPMD.local);
-<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) if (! Stages[tp$Stage,"particle"]) { ifdef(tp$adjoint) ?>
-        ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(ny); <?R
+        output( "  Threads  |      Action\n");
+<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
+        ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(<?%s {if (Stages$particle[tp$Stage]) "true" else "false"} ?>, ny, "<?%s tp$TemplateArgs ?>"); <?R
 	}; ifdef(); ?>
 	MPI_Barrier(MPMD.local);
-	if (D_MPI_RANK == 0) {
-          debug2( "  Threads  |      Action\n");
-        }
-<?R	for (tp in rows(AllKernels)) if (! Stages[tp$Stage,"particle"]) { ifdef(tp$adjoint) ?>
-	debug2( "  %3dx%-3d  | %s\n", X_BLOCK, ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::getSY(), "<?%s tp$TemplateArgs ?>");<?R
-	}; ifdef();
-?>
         return 0;
 }
 
@@ -355,8 +363,8 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 template <class N> CudaGlobalFunction void RunParticlesKernel()
 {
 	N now;
-	Particle p;
-	rfi_size_t i = CudaBlock.x;
+	Particle p(0.0,0.0,0.0);
+	size_t i = CudaBlock.x;
 	if (i < constContainer.particle_data_size) {
 		p.rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
 		p.pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
@@ -397,6 +405,8 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
                         p.cvel.y = p.vel.y + p.angvel.z*p.diff.x - p.angvel.x*p.diff.z;
                         p.cvel.z = p.vel.z + p.angvel.x*p.diff.y - p.angvel.y*p.diff.x;
                         now.RunElement(p);
+//                    p.force.x += -p.vel.x;
+//                    p.force.y += -p.vel.y;
         //		now.LoadElement();
         //		now.ExecElement(p);
         //		now.SaveElement(); 
@@ -409,6 +419,7 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 		real_t afx = blockSum(p.moment.x);
 		real_t afy = blockSum(p.moment.y);
 		real_t afz = blockSum(p.moment.z);
+
 //	fz = 0;
 //		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0] = p.force.x;
 //		constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1] = p.force.y;
@@ -484,8 +495,8 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
 */
 template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t interiorStream) {
 	if (particle_data_size > 0) {
-	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) ,
-dim3(32,8),(),interiorStream);
+	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) , dim3(32,8),(),interiorStream);
+//	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) , dim3(1),(),interiorStream);
 	}
 };
 
@@ -638,14 +649,9 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 <?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { 
 		st = Stages[tp$Stage,,drop=FALSE]
 		ifdef(tp$adjoint) 	
-		if (st$particle) { 
-			if (tp$Globals == "NoGlobals" && tp$Op == "Primal") { ?>
-template void LatticeContainer::RunParticles < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
-			}
-		} else { ?>
+		?>
 template void LatticeContainer::RunBorder < <?%s tp$TemplateArgs ?> > (CudaStream_t stream);
 template void LatticeContainer::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
-		}
          };
 	ifdef();
 ?>

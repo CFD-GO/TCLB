@@ -59,20 +59,13 @@ real_t d = <?R C(sum(f)) ?>;
 sol = 0;
 }
 
-CudaDeviceFunction void CalcF(Particle & p){
-/*	real_t dx = p.pos.x-X;
-	real_t dy = p.pos.y-Y;
-	if (dx*dx + dy*dy < p.rad*p.rad) {
-		real_t s = p.angvel.z;
-		ux=p.vel.x-dy*s;
-		uy=p.vel.y+dx*s;
-	}*/
-	if (p.dist < p.rad) {
-		p.force.x += (ux - p.cvel.x);
-		p.force.y += (uy - p.cvel.y);
-		ux = p.cvel.x;
-		uy = p.cvel.y;
-		sol += 1;
+CudaDeviceFunction void CalcF(){
+	for (TreeParticleIterator p(X,Y,Z); p; ++p) {
+		if (p.in()) {
+			sol++;
+			ux = p.cvel.x;
+			uy = p.cvel.y;
+		}
 	}
 }
 

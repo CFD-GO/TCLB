@@ -65,21 +65,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
-struct Particle {
-	vector_t pos, vel, angvel;
-	vector_t cvel, diff;
-	vector_t force, moment;
-	real_t rad;
-	real_t dist;
-	CudaDeviceFunction inline void applyForce(vector_t f) {
-		force.x += f.x;
-		force.y += f.y;
-		force.z += f.z;
-		moment.x -= f.y*diff.z - f.z*diff.y;
-		moment.y -= f.z*diff.x - f.x*diff.z;
-		moment.z -= f.x*diff.y - f.y*diff.x;
-	}
-    };
+#include "Particle.hpp"
 
 <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
@@ -318,13 +304,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	   GlobDiff();
 	}
 	<?R
-		if (s$particle) {
-			ExecArgType = "Particle & part"
-			ExecArg = "part"
-		} else {
-			ExecArgType = ""
-			ExecArg  = ""
-		}
+		ExecArgType = ""
+		ExecArg  = ""
 	?>
 	CudaDeviceFunction inline void ExecElement(<?%s ExecArgType ?>) {
 		<?R

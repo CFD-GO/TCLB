@@ -11,9 +11,12 @@ int acRemoteForceInterface::Init () {
         char fn[STRING_LEN];
         std::string filename;
         double units[3];
+        int N;
         units[0] = solver->units.alt("1m");
         units[1] = solver->units.alt("1s");
         units[2] = solver->units.alt("1kg");
+
+        N = MPMD.universe_size - MPMD.world_size;
 
         inter = MPMD["ESYSPARTICLE"];
         if (inter) need_file = false;
@@ -63,7 +66,7 @@ int acRemoteForceInterface::Init () {
                 sy = solver->mpi.totalregion.ny;
                 sz = solver->mpi.totalregion.nz;
                 
-                int workers = solver->lattice->RFI.space_for_workers() - 1;
+                int workers = N - 1;
                 if (workers < 1) {
                         ERROR("ESYS-P: No place for workers (you need at least 2 additionals processes)\n");
                         return -1;
@@ -141,7 +144,12 @@ int acRemoteForceInterface::Init () {
 
         char * args[] = {fn,NULL};
         
-        solver->lattice->RFI.Start("esysparticle",args, units);
+//        solver->lattice->RFI.Start("esysparticle",args, units);
+        if (! inter) {
+                output("Spawning esysparticle with script: %s\n", fn);
+                inter = MPMD.Spawn("esysparticle", args, N, MPI_INFO_NULL);
+        }
+        solver->lattice->RFI.Connect(inter.work);
 	return 0;
 }
 
