@@ -77,9 +77,9 @@ struct TreeParticleIterator : ParticleI {
 		    tr_elem elem = constContainer.balltree_data[nodei];
 		    if (elem.flag >= 4) { i = elem.right; break; }
 		    int dir = elem.flag;
-		    if (go_left) if (__syncthreads_or(node[dir] < elem.b)) { nodei++; continue; }
+		    if (go_left) if (CudaSyncThreadsOr(node[dir] < elem.b)) { nodei++; continue; }
 		    go_left = true;
-		    if (__syncthreads_or(node[dir] >= elem.a)) { nodei = elem.right; continue; }
+		    if (CudaSyncThreadsOr(node[dir] >= elem.a)) { nodei = elem.right; continue; }
 		    go_left = false;
 		    nodei = elem.back;
 		}    
