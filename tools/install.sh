@@ -54,7 +54,7 @@ trap rm_tmp EXIT
 # --------------- Install functions -------------------------
 function try {
 	comment=$1
-	log=$(echo $comment | sed 's/ /./g').log
+	log=$(echo $comment | sed 's|[ /]|.|g').log
 	shift
 	if dry
 	then
@@ -98,6 +98,47 @@ function normal_install {
 EOF
 }
 
+function gitdep.cp {
+	echo -n "Copy $1... "
+	if ! test -f "gitdep_repo/$1"
+	then
+		echo "No such file"
+		exit -1;
+	fi
+	if ! test -d "../$2"
+	then
+		echo "Targed directory $2 doesn't exist";
+		exit -1;
+	fi
+	if diff gitdep_repo/$1 ../$2 >/dev/null
+	then
+		echo "Same"
+	else
+		echo "Changed"
+		if dry
+		then
+			echo "cp \"gitdep_repo/$1\" \"../$2\""
+		else
+			cp "gitdep_repo/$1" "../$2"
+		fi
+	fi
+	return 0;
+}
+
+function gitdep {
+	DIR=$1
+	shift
+	REPO=$1
+	shift
+	echo "repo: $REPO dir:$DIR files:$@"
+	try "Clone $REPO" git clone $REPO gitdep_repo
+	for i in "$@"
+	do
+		gitdep.cp "$i" "$DIR"
+	done
+	rm -r gitdep_repo
+	return 0;
+}
 
 # --------------- Main install script -----------------------
 
@@ -174,6 +215,17 @@ submodules)
 	try "Updating \"tests\" submodule" git submodule update --init ../tests
 	try "Loading gitmodules" mv gitmodules ../.gitmodules
 	
+	;;
+gitdep)
+	if ! test -f "../.gitdeps"
+	then
+		echo no .gitdeps file
+		exit 0;
+	fi
+	while read line
+	do
+		gitdep $line
+	done <../.gitdeps
 	;;
 python-dev)
     try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy

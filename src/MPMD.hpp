@@ -39,8 +39,10 @@ inline void MPI_Exchange(void * out, int out_count, void * in, int in_count, MPI
 
 template <typename T> inline MPI_Datatype MPI_Auto_datatype();
 template <> inline MPI_Datatype MPI_Auto_datatype< int >() { return MPI_INT; }
+template <> inline MPI_Datatype MPI_Auto_datatype< unsigned int >() { return MPI_UNSIGNED; }
+template <> inline MPI_Datatype MPI_Auto_datatype< long int >() { return MPI_LONG; }
+template <> inline MPI_Datatype MPI_Auto_datatype< unsigned long int >() { return MPI_UNSIGNED_LONG; }
 template <> inline MPI_Datatype MPI_Auto_datatype< char >() { return MPI_CHAR; }
-template <> inline MPI_Datatype MPI_Auto_datatype< size_t >() { return MPI_LONG; }
 
 template <class T> inline T MPI_Exchange(T& out, MPI_Comm intercomm, MPI_Comm comm) {
    T ret;
@@ -57,12 +59,12 @@ inline int MPI_Exchange(int& out, MPI_Comm intercomm, MPI_Comm comm) {
 
 template <class T>
 inline T MPI_Exchange_container(T& out, MPI_Comm intercomm, MPI_Comm comm) {
-   int my_size = out.size();
-   int other_size = MPI_Exchange(my_size, intercomm, comm);
-   int mx = my_size;
+   size_t my_size = out.size();
+   size_t other_size = MPI_Exchange(my_size, intercomm, comm);
+   size_t mx = my_size;
    if (other_size > mx) mx = other_size;
    T ret;
-   for (int i=0; i<mx; i++) {
+   for (size_t i=0; i<mx; i++) {
       typename T::value_type a,b;
       if (i < my_size) a = out[i];
       b = MPI_Exchange(a, intercomm, comm);
@@ -83,9 +85,9 @@ inline std::string MPI_Exchange(std::string& out, MPI_Comm intercomm, MPI_Comm c
 
 
 class MPMDHelper {
-   static char * char_vec_from_string( std::string str, int size) {
+   static char * char_vec_from_string( std::string str, size_t size) {
       char * ret = new char[size];
-      int i=0;
+      size_t i=0;
       for (; i<str.size(); i++) ret[i] = str[i];
       for (; i<size; i++) ret[i] = '\0';
       return ret;
