@@ -2,22 +2,26 @@ struct Particle {
 	real_t node[3];
 	vector_t pos, vel, angvel;
 	vector_t cvel, diff;
-	vector_t force, moment;
 	real_t rad;
 	real_t dist;
-	CudaDeviceFunction Particle(real_t x, real_t y, real_t z) { node[0] = x; node[1] = y; node[2] = z; };
-	CudaDeviceFunction inline void applyForce(vector_t f) {
-		force.x += f.x;
-		force.y += f.y;
-		force.z += f.z;
-		moment.x -= f.y*diff.z - f.z*diff.y;
-		moment.y -= f.z*diff.x - f.x*diff.z;
-		moment.z -= f.x*diff.y - f.y*diff.x;
-	}
 	CudaDeviceFunction bool in() {
 		return dist < rad;
 	}
-	CudaDeviceFunction void pull_all(size_t i) {
+};
+
+struct ParticleI : Particle {
+	size_t i;
+	real_t node[3];
+	CudaDeviceFunction ParticleI(real_t x, real_t y, real_t z) { node[0] = x; node[1] = y; node[2] = z; };
+	CudaDeviceFunction inline void applyForce(vector_t f) {
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],f.x);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],f.y);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],f.z);
+//		moment.x -= f.y*diff.z - f.z*diff.y;
+//		moment.y -= f.z*diff.x - f.x*diff.z;
+//		moment.z -= f.x*diff.y - f.y*diff.x;
+	}
+	CudaDeviceFunction void pull_all() {
 		rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
 		pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
 		pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
@@ -28,12 +32,6 @@ struct Particle {
 		angvel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+0];
 		angvel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+1];
 		angvel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+2];
-		force.x = 0;
-		force.y = 0;
-		force.z = 0;
-		moment.x = 0;
-		moment.y = 0;
-		moment.z = 0;
 		diff.x = pos.x - node[0];
 		diff.y = pos.y - node[1];
 		diff.z = pos.z - node[2];
@@ -44,28 +42,28 @@ struct Particle {
 	}
 };
 
-struct AllParticleIterator : Particle {
-	size_t i;
-	CudaDeviceFunction AllParticleIterator(real_t x, real_t y, real_t z) : Particle(x,y,z), i(0) {
-		if (i < constContainer.particle_data_size) pull_all(i);
+struct AllParticleIterator : ParticleI {
+	CudaDeviceFunction AllParticleIterator(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {
+		i = 0;
+		if (i < constContainer.particle_data_size) pull_all();
 	}
 	CudaDeviceFunction void operator++ () {
 		i++;
-		if (i < constContainer.particle_data_size) pull_all(i);
+		if (i < constContainer.particle_data_size) pull_all();
 	}
 	CudaDeviceFunction operator bool () {
 		return (i < constContainer.particle_data_size);
 	}
 };
 
-struct TreeParticleIterator : Particle {
+struct TreeParticleIterator : ParticleI {
 	tr_addr_t nodei;
 	CudaDeviceFunction void safe_pull() {
 		if (nodei != -1) {
-			pull_all(constContainer.balltree_data[nodei].right);
+			pull_all();
 		}
 	}
-	CudaDeviceFunction TreeParticleIterator(real_t x, real_t y, real_t z) : Particle(x,y,z) {
+	CudaDeviceFunction TreeParticleIterator(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {
 	        nodei = 0;
 	        if (constContainer.particle_data_size == 0) {
 	        	nodei = -1;
@@ -77,7 +75,7 @@ struct TreeParticleIterator : Particle {
 	CudaDeviceFunction void go(bool go_left) {
 		while (nodei != -1) {
 		    tr_elem elem = constContainer.balltree_data[nodei];
-		    if (elem.flag >= 4) { break; }
+		    if (elem.flag >= 4) { i = elem.right; break; }
 		    int dir = elem.flag;
 		    if (go_left) if (__syncthreads_or(node[dir] < elem.b)) { nodei++; continue; }
 		    go_left = true;
@@ -99,7 +97,7 @@ struct TreeParticleIterator : Particle {
 };
 
 
-template <class N> CudaDeviceFunction void FillParticle(N& now, Particle& p, size_t& i) {
+/*template <class N> CudaDeviceFunction void FillParticle(N& now, Particle& p, size_t& i) {
 	p.rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
 	p.pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
 	p.pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
@@ -124,3 +122,4 @@ template <class N> CudaDeviceFunction void FillParticle(N& now, Particle& p, siz
 	p.cvel.y = p.vel.y + p.angvel.z*p.diff.x - p.angvel.x*p.diff.z;
 	p.cvel.z = p.vel.z + p.angvel.x*p.diff.y - p.angvel.y*p.diff.x;
 }
+*/

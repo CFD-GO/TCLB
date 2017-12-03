@@ -50,9 +50,9 @@ CudaDeviceFunction vector_t getU(){
 
 CudaDeviceFunction vector_t getThread(){
 	vector_t ret;
-	ret.x = CudaThread.x;
-	ret.y = CudaThread.y;
-	ret.z = CudaThread.z;
+	ret.x = thx;
+	ret.y = thy;
+	ret.z = thz;
 	return ret;
 }
 
@@ -75,30 +75,46 @@ sol = 0;
 }
 
 CudaDeviceFunction void CalcF(){
+	real_t fx=0, fy=0;
+	sol = 0;
+	for (TreeParticleIterator p(X,Y,Z); p; ++p) if (p.in()) {
+		sol += 1;
+		fx += ux - p.cvel.x;
+		fy += uy - p.cvel.y;
+	}
+	CudaSyncThreads();
+	if (sol > 0) {
+		fx /= sol;
+		fy /= sol;
+		ux = ux - fx;
+		uy = uy - fy;
+	}	
 	for (TreeParticleIterator p(X,Y,Z); p; ++p) {
-		sol++;
+		vector_t f;
+		f.x=0.0; f.y=0; f.z=0;
 		if (p.in()) {
-			//sol++;
-			ux = p.cvel.x;
-			uy = p.cvel.y;
+			f.x = fx/sol;
+			f.y = fy/sol;
+			f.z = 0;
 		}
+		p.applyForce(f);
 	}
 }
 
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-//        vector_t u = getU();
-        ret.y = 1;
+        vector_t u = getU();
+/*        ret.y = 1;
         ret.x = 0;
 	for (TreeParticleIterator p(X,Y,Z); p; ++p) {
 		ret.x += 0.01;
 		if (p.in()) {
 			ret.y = 0;
 		}
-	}
-//        ret.x = sqrt(u.x*u.x + u.y*u.y);
-//        ret.y = 1-sol;
+	}*/
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        ret.y = 1-sol;
         return ret;
 }
 
@@ -173,6 +189,9 @@ CudaDeviceFunction void RunBoundary() {
 }
 
 CudaDeviceFunction void Run() {
+thx = CudaThread.x;
+thy = CudaThread.y;
+thz = CudaThread.z;
 	RunBoundary();
 <?R C(PV(c("ux","uy")), (f %*% U) ) ?>
 	sol = 0;

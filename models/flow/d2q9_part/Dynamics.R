@@ -17,6 +17,9 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 AddDensity( name="ux",  group="u", parameter=TRUE)
 AddDensity( name="uy",  group="u", parameter=TRUE)
 AddDensity( name="sol", group="u", parameter=TRUE)
+AddDensity(name="thx", group="th")
+AddDensity(name="thy", group="th")
+AddDensity(name="thz", group="th")
 
 
 # Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)

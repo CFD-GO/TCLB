@@ -15,6 +15,8 @@
 
 namespace rfi {
 
+#define safe_MPI_Type_free(datatype) { if ((*datatype) != NULL) MPI_Type_free(datatype); }
+
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
 RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::RemoteForceInterface() : workers(0), masters(0), intercomm(MPI_COMM_NULL), totsize(0), ntab(0) {
    connected = false;
@@ -48,6 +50,58 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::~RemoteForceInterface()
 }
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::MakeTypes(bool particle_size_change, bool totsize_change) {
+  bool commit_types = false;
+  int parti_size = RFI_DATA_VOL - RFI_DATA_R;
+  int force_size = RFI_DATA_SIZE - RFI_DATA_VOL;
+  MPI_Datatype tmp;
+  MPI_Aint lb=0;
+  if (STORAGE == ArrayOfStructures) {
+    if (particle_size_change) {
+      safe_MPI_Type_free(&MPI_PARTICLE);
+      safe_MPI_Type_free(&MPI_FORCES);
+      MPI_Type_contiguous(parti_size, MPI_RFI_REAL_T, &tmp);
+      MPI_Aint lb = 0;
+      MPI_Type_create_resized(tmp, lb, real_size * RFI_DATA_SIZE, &MPI_PARTICLE);
+      safe_MPI_Type_free(&tmp);
+      MPI_Type_indexed(1, &force_size, &parti_size, MPI_RFI_REAL_T, &tmp); 
+      MPI_Type_create_resized(tmp, real_size * parti_size, real_size * RFI_DATA_SIZE, &MPI_FORCES);
+      safe_MPI_Type_free(&tmp);
+      commit_types = true;
+    }
+  } else {
+    if (totsize_change) {
+      safe_MPI_Type_free(&MPI_PARTICLE);
+      safe_MPI_Type_free(&MPI_FORCES);
+      static int mt_offsets[RFI_DATA_SIZE], mt_sizes[RFI_DATA_SIZE];
+      for (int i=0;i<RFI_DATA_SIZE;i++) { mt_offsets[i] = i*totsize; mt_sizes[i] = 1; }
+      MPI_Type_indexed(parti_size, &mt_sizes[0], &mt_offsets[0], MPI_RFI_REAL_T, &tmp);
+      MPI_Type_create_resized(tmp, lb, real_size, &MPI_PARTICLE);
+      safe_MPI_Type_free(&tmp);
+      MPI_Type_indexed(force_size, &mt_sizes[parti_size], &mt_offsets[parti_size], MPI_RFI_REAL_T, &tmp);
+      MPI_Type_create_resized(tmp, lb, real_size, &MPI_FORCES);
+      safe_MPI_Type_free(&tmp);
+      commit_types = true;
+    }
+  }
+  if (commit_types) {
+   output("RFI: Adding type MPI ...\n");
+   MPI_Type_commit(&MPI_PARTICLE);
+   MPI_Type_commit(&MPI_FORCES);
+//   #ifdef DEBUG_TYPES
+    MPI_Aint lb,ex; int si;
+    MPI_Type_get_extent(MPI_PARTICLE, &lb, &ex);
+    MPI_Type_size(MPI_PARTICLE, &si);
+    output("MPI_PARTICLE: size: %d, lb: %ld, ex: %ld\n", si, lb, ex);
+    MPI_Type_get_extent(MPI_FORCES, &lb, &ex);
+    MPI_Type_size(MPI_FORCES, &si);
+    output("MPI_FORCES: size: %d, lb: %ld, ex: %ld\n", si, lb, ex);
+//   #endif
+  }
+}
+
+
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
 int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
   if (! connected) return -1;
   output("RFI: %s: Starting negotiations ...\n", name);
@@ -59,20 +113,19 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
   rot = my_rot && other_rot;
   
   if (rot) {
-   particle_size = 20;
+   particle_size = RFI_DATA_SIZE;
    output("RFI: %s: Decided to calculate with rotation\n",name);
   } else {
-   particle_size = 20;
+   particle_size = RFI_DATA_SIZE;
    output("RFI: %s: Decided to calculate without rotation\n",name);
   }
 
-  if (STORAGE == ArrayOfStructures) {
-    MPI_Type_contiguous(particle_size, MPI_RFI_REAL_T, &MPI_PARTICLE);
-  } else {
-    MPI_Type_vector(particle_size, 1, totsize, MPI_RFI_REAL_T, &MPI_PARTICLE);
-  }
-  output("Adding type ...\n");
-  MPI_Type_commit(&MPI_PARTICLE);
+   MPI_Aint lb;
+   MPI_Type_get_extent(MPI_RFI_REAL_T, &lb, &real_size);
+   MPI_PARTICLE = NULL;
+   MPI_FORCES = NULL;
+
+  MakeTypes(true,true);
 
   output("RFI: %s: Finished negotiations\n",name);
   MPI_Barrier(intercomm);
@@ -106,17 +159,7 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Alloc() {
       totsize = offsets[workers];
       ntab = totsize * particle_size;
       if (ntab > tab.size()) tab.resize(ntab);
-      if (STORAGE == ArrayOfStructures) {
-      } else {
-        MPI_Aint lb, extent;
-        MPI_Type_get_extent(MPI_RFI_REAL_T, &lb, &extent);
-        MPI_Datatype MPI_PARTICLE_;
-        MPI_Type_vector(particle_size, 1, totsize, MPI_RFI_REAL_T, &MPI_PARTICLE_);
-        MPI_Type_create_resized(MPI_PARTICLE_, lb, extent, &MPI_PARTICLE);
-        output("Adding type MPI ...\n");
-        MPI_Type_commit(&MPI_PARTICLE);
-        MPI_Type_get_extent(MPI_PARTICLE, &lb, &extent);
-      }
+      MakeTypes(false, true);      
     }
 }
 
@@ -181,10 +224,10 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::SendForces() {
     debug1("RFI: %s: SendForces ...\n", name);
     for (int i=0; i<workers; i++) if (sizes[i] > 0) {
       if (TYPE == ForceCalculator) {
-        MPI_Send(&Data(offsets[i],0), sizes[i], MPI_PARTICLE, i, 0xF1, intercomm);
+        MPI_Send(&Data(offsets[i],0), sizes[i], MPI_FORCES, i, 0xF1, intercomm);
       } else {
         MPI_Status stat;
-        MPI_Recv(&Data(offsets[i],0), sizes[i], MPI_PARTICLE, i, 0xF1, intercomm, &stat);
+        MPI_Recv(&Data(offsets[i],0), sizes[i], MPI_FORCES, i, 0xF1, intercomm, &stat);
       }
     }
 }

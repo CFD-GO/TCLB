@@ -21,11 +21,11 @@ namespace rfi {
 #define RFI_DATA_VEL 4
 #define RFI_DATA_ANGVEL 7
 
-#define RFI_DATA_VOL 0
-#define RFI_DATA_FORCE 1
-#define RFI_DATA_MOMENT 4
+#define RFI_DATA_VOL 10
+#define RFI_DATA_FORCE 11
+#define RFI_DATA_MOMENT 14
 
-#define RFI_DATA_SIZE 20
+#define RFI_DATA_SIZE 17
 
 #define MPI_SIZE_T MPI_UNSIGNED_LONG
 
@@ -62,6 +62,7 @@ private:
   std::vector<MPI_Status> stats; ///< Array of MPI status for non-blocking calls
   MPI_Datatype MPI_RFI_REAL_T; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_PARTICLE; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
+  MPI_Datatype MPI_FORCES; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   bool rot;
   bool active;
   bool connected;
@@ -69,12 +70,14 @@ private:
   int Negotiate();
   void Zero();
   void Finish();
+  MPI_Aint real_size;
 public:
   int particle_size;
   char * name;
   RemoteForceInterface();
   ~RemoteForceInterface();
-  
+
+  void MakeTypes(bool,bool);  
   int Connect(MPI_Comm intercomm_);
   void Alloc();  
   inline const size_t size() const { return totsize; }

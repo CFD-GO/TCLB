@@ -77,6 +77,7 @@ template < class N > class ThreadNumber {
   static unsigned int ky, sy, maxy;
   static std::string name;
   static void Init(bool fit, size_t ny, std::string name_) {
+      ny = ny - 2;
         name = name_;
 	dim3 th = GetThreads< N >();
 	maxy = th.y;
@@ -362,7 +363,7 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 
 template <class N> CudaGlobalFunction void RunParticlesKernel()
 {
-	N now;
+/*	N now;
 	Particle p(0.0,0.0,0.0);
 	size_t i = CudaBlock.x;
 	if (i < constContainer.particle_data_size) {
@@ -435,6 +436,7 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 
 
 	}
+	*/
 }
 
 

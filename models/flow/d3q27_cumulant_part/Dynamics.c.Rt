@@ -20,7 +20,8 @@
 #	EQ = MRT_eq(U, rho, J);
 ?>
 
-CudaDeviceFunction void CalcF(Particle & p){
+CudaDeviceFunction void CalcF(){
+	for (TreeParticleIterator p(X,Y,Z); p; ++p) {
 	if ((NodeType & NODE_BOUNDARY) == 0) {
 	real_t d = getRho();
         vector_t u;
@@ -38,6 +39,7 @@ CudaDeviceFunction void CalcF(Particle & p){
 //		p.force.z += +force.z;
 		fz         = -force.z;
 		sol = p.dist;
+	}
 	}
 	}
 }
