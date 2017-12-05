@@ -63,7 +63,7 @@ CudaDeviceFunction real_t getSolid(){
 
 CudaDeviceFunction real_t getChecks(){
 	real_t ret = 0;
-	for (TreeParticleIterator p(X,Y,Z); p; ++p) ret++;
+	for (ParticleIterator p(X,Y,Z); p; ++p) ret++;
 	return ret;
 }
 
@@ -77,7 +77,7 @@ sol = 0;
 CudaDeviceFunction void CalcF(){
 	real_t fx=0, fy=0;
 	sol = 0;
-	for (TreeParticleIterator p(X,Y,Z); p; ++p) if (p.in()) {
+	for (ParticleIterator p(X,Y,Z); p; ++p) if (p.in()) {
 		sol += 1;
 		fx += ux - p.cvel.x;
 		fy += uy - p.cvel.y;
@@ -89,7 +89,7 @@ CudaDeviceFunction void CalcF(){
 		ux = ux - fx;
 		uy = uy - fy;
 	}	
-	for (TreeParticleIterator p(X,Y,Z); p; ++p) {
+	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 		vector_t f;
 		f.x=0.0; f.y=0; f.z=0;
 		if (p.in()) {
