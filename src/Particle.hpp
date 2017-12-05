@@ -9,17 +9,17 @@ struct Particle {
 	}
 };
 
+#define safe_push_all if (P::valid_()) this->push_all
+#define safe_pull_all if (P::valid_()) this->pull_all
+
 struct ParticleI : Particle {
+	static const bool sync = false;
 	size_t i;
 	real_t node[3];
-	CudaDeviceFunction ParticleI(real_t x, real_t y, real_t z) { node[0] = x; node[1] = y; node[2] = z; };
-	CudaDeviceFunction inline void applyForce(vector_t f) {
-		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],f.x);
-		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],f.y);
-		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],f.z);
-//		moment.x -= f.y*diff.z - f.z*diff.y;
-//		moment.y -= f.z*diff.x - f.x*diff.z;
-//		moment.z -= f.x*diff.y - f.y*diff.x;
+	CudaDeviceFunction inline bool valid_() { return i < constContainer.particle_data_size; }
+	CudaDeviceFunction operator bool () { return valid_(); }
+	CudaDeviceFunction ParticleI(real_t x, real_t y, real_t z) { node[0] = x; node[1] = y; node[2] = z; i = 0; };
+	CudaDeviceFunction void push_all() {
 	}
 	CudaDeviceFunction void pull_all() {
 		rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
@@ -42,59 +42,83 @@ struct ParticleI : Particle {
 	}
 };
 
-struct AllParticleIterator : ParticleI {
-	CudaDeviceFunction AllParticleIterator(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {
-		i = 0;
-		if (i < constContainer.particle_data_size) pull_all();
+struct ParticleS : ParticleI {
+	static const bool sync = true;
+	vector_t force;
+	CudaDeviceFunction ParticleS(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {};
+	CudaDeviceFunction inline void applyForce(vector_t f) {
+		force.x += f.x;
+		force.y += f.y;
+		force.z += f.z;
+//		moment.x -= f.y*diff.z - f.z*diff.y;
+//		moment.y -= f.z*diff.x - f.x*diff.z;
+//		moment.z -= f.x*diff.y - f.y*diff.x;
 	}
-	CudaDeviceFunction void operator++ () {
-		i++;
-		if (i < constContainer.particle_data_size) pull_all();
+	CudaDeviceFunction void push_all() {
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
+		ParticleI::push_all();
 	}
-	CudaDeviceFunction operator bool () {
-		return (i < constContainer.particle_data_size);
+	CudaDeviceFunction void pull_all() {
+		ParticleI::pull_all();
+		force.x = 0;
+		force.y = 0;
+		force.z = 0;
 	}
 };
 
-struct TreeParticleIterator : ParticleI {
-	tr_addr_t nodei;
-	CudaDeviceFunction void safe_pull() {
-		if (nodei != -1) {
-			pull_all();
-		}
+template < class P >
+struct AllParticleIterator : P {
+	CudaDeviceFunction AllParticleIterator(real_t x, real_t y, real_t z) : P(x,y,z) {
+		safe_pull_all();
 	}
-	CudaDeviceFunction TreeParticleIterator(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {
+	CudaDeviceFunction void operator++ () {
+		safe_push_all();
+		this->i++;
+		safe_pull_all();
+	}
+};
+
+template < class P >
+struct TreeParticleIterator : P {
+	tr_addr_t nodei;
+	CudaDeviceFunction inline bool valid_() { return nodei != -1; }
+	CudaDeviceFunction operator bool () { return valid_(); }
+	CudaDeviceFunction TreeParticleIterator(real_t x, real_t y, real_t z) : P(x,y,z) {
 	        nodei = 0;
 	        if (constContainer.particle_data_size == 0) {
 	        	nodei = -1;
 	        	return;
 		}
 	        go(true);
-		safe_pull();
+		safe_pull_all();
 	}
 	CudaDeviceFunction void go(bool go_left) {
 		while (nodei != -1) {
 		    tr_elem elem = constContainer.balltree_data[nodei];
-		    if (elem.flag >= 4) { i = elem.right; break; }
+		    if (elem.flag >= 4) { this->i = elem.right; break; }
 		    int dir = elem.flag;
-		    if (go_left) if (CudaSyncThreadsOr(node[dir] < elem.b)) { nodei++; continue; }
+		    if (go_left) if (CudaSyncThreadsOr(this->node[dir] < elem.b)) { nodei++; continue; }
 		    go_left = true;
-		    if (CudaSyncThreadsOr(node[dir] >= elem.a)) { nodei = elem.right; continue; }
+		    if (CudaSyncThreadsOr(this->node[dir] >= elem.a)) { nodei = elem.right; continue; }
 		    go_left = false;
 		    nodei = elem.back;
 		}    
 	}
 	CudaDeviceFunction void operator++ () {
 		if (nodei != -1) {
+		    this->push_all();
 		    nodei = constContainer.balltree_data[nodei].back;
 		    go(false);
-		    safe_pull();
 		}
-	}
-	CudaDeviceFunction operator bool() {
-		return nodei != -1;
+	        safe_pull_all();
 	}
 };
+
+
+typedef TreeParticleIterator< ParticleS > SyncParticleIterator;
+typedef TreeParticleIterator< ParticleI > ParticleIterator;
 
 
 /*template <class N> CudaDeviceFunction void FillParticle(N& now, Particle& p, size_t& i) {
