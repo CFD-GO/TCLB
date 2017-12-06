@@ -53,13 +53,15 @@ private:
   int workers; ///< Number of workers
   int masters; ///< Number of masters
   MPI_Comm intercomm; ///< Intercomm between master and slave
+  MPI_Comm comm;
   size_t ntab; ///< Length of tab
   size_t totsize; ///< Total number of particles
   std::vector<rfi_real_t> tab; ///< Array storing all the data of particles
   std::vector<size_t> sizes; ///< Array of sizes of data recieved from each slave/master 
   std::vector<size_t> offsets; ///< Array of offsets of data recieved from each slave/master
-  std::vector<MPI_Request> reqs; ///< Array of MPI requests for non-blocking calls
-  std::vector<MPI_Status> stats; ///< Array of MPI status for non-blocking calls
+  std::vector<MPI_Request> sizes_req; ///< Array of MPI requests for non-blocking calls
+  std::vector<MPI_Request> forces_req; ///< Array of MPI requests for non-blocking calls
+  std::vector<MPI_Request> particles_req; ///< Array of MPI requests for non-blocking calls
   MPI_Datatype MPI_RFI_REAL_T; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_PARTICLE; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_FORCES; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
@@ -73,19 +75,26 @@ private:
   MPI_Aint real_size;
 public:
   int particle_size;
-  char * name;
+  std::string name;
   RemoteForceInterface();
   ~RemoteForceInterface();
 
   void MakeTypes(bool,bool);  
-  int Connect(MPI_Comm intercomm_);
+  int Connect(MPI_Comm comm_, MPI_Comm intercomm_);
   void Alloc();  
   inline const size_t size() const { return totsize; }
   inline const size_t mem_size() const { return ntab * sizeof(rfi_real_t); }
   inline rfi_real_t* Particles() { return &tab[0]; }
+  void WaitAll(std::vector<MPI_Request>& reqs);
   void SendSizes();
+  void ISendSizes();
+  void WSendSizes();
   void SendParticles();
+  void ISendParticles();
+  void WSendParticles();
   void SendForces();
+  void ISendForces();
+  void WSendForces();
   void Close();
   inline bool Active() { return active; }
   inline bool Connected() { return connected; }
@@ -93,6 +102,7 @@ public:
   inline size_t& Size(int i) { return sizes[i]; }
   inline bool Rot() { return rot; }
   inline int space_for_workers() { return universe_size - world_size; };
+  template <class T> inline T Exchange(T out);
   inline rfi_real_t& Data(size_t i, int j) {
     if (STORAGE == ArrayOfStructures) {
       return tab[i*particle_size + j];

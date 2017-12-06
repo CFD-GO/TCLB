@@ -149,7 +149,7 @@ int acRemoteForceInterface::Init () {
                 output("Spawning esysparticle with script: %s\n", fn);
                 inter = MPMD.Spawn("esysparticle", args, N, MPI_INFO_NULL);
         }
-        solver->lattice->RFI.Connect(inter.work);
+        solver->lattice->RFI.Connect(MPMD.work,inter.work);
 	return 0;
 }
 

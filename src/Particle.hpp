@@ -1,9 +1,7 @@
 struct Particle {
-	real_t node[3];
-	vector_t pos, vel, angvel;
+//	vector_t pos, vel, angvel;
 	vector_t cvel, diff;
-	real_t rad;
-	real_t dist;
+	real_t rad; real_t dist;
 	CudaDeviceFunction bool in() {
 		return dist < rad;
 	}
@@ -11,9 +9,12 @@ struct Particle {
 
 #define safe_push_all if (P::valid_()) this->push_all
 #define safe_pull_all if (P::valid_()) this->pull_all
+#define safe_pull_base if (P::valid_()) this->pull_base
+#define safe_pull_rest if (P::valid_()) this->pull_rest
 
 struct ParticleI : Particle {
 	static const bool sync = false;
+	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return b; }
 	size_t i;
 	real_t node[3];
 	CudaDeviceFunction inline bool valid_() { return i < constContainer.particle_data_size; }
@@ -22,6 +23,7 @@ struct ParticleI : Particle {
 	CudaDeviceFunction void push_all() {
 	}
 	CudaDeviceFunction void pull_all() {
+		vector_t pos, vel, angvel;
 		rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
 		pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
 		pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
@@ -44,20 +46,25 @@ struct ParticleI : Particle {
 
 struct ParticleS : ParticleI {
 	static const bool sync = true;
+	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return CudaSyncThreadsOr(b); }
 	vector_t force;
+	vector_t moment;
 	CudaDeviceFunction ParticleS(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {};
 	CudaDeviceFunction inline void applyForce(vector_t f) {
 		force.x += f.x;
 		force.y += f.y;
 		force.z += f.z;
-//		moment.x -= f.y*diff.z - f.z*diff.y;
-//		moment.y -= f.z*diff.x - f.x*diff.z;
-//		moment.z -= f.x*diff.y - f.y*diff.x;
+		moment.x -= f.y*diff.z - f.z*diff.y;
+		moment.y -= f.z*diff.x - f.x*diff.z;
+		moment.z -= f.x*diff.y - f.y*diff.x;
 	}
 	CudaDeviceFunction void push_all() {
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
+		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
 		ParticleI::push_all();
 	}
 	CudaDeviceFunction void pull_all() {
@@ -65,6 +72,9 @@ struct ParticleS : ParticleI {
 		force.x = 0;
 		force.y = 0;
 		force.z = 0;
+		moment.x = 0;
+		moment.y = 0;
+		moment.z = 0;
 	}
 };
 
@@ -99,9 +109,9 @@ struct TreeParticleIterator : P {
 		    tr_elem elem = constContainer.balltree_data[nodei];
 		    if (elem.flag >= 4) { this->i = elem.right; break; }
 		    int dir = elem.flag;
-		    if (go_left) if (CudaSyncThreadsOr(this->node[dir] < elem.b)) { nodei++; continue; }
+		    if (go_left) if (P::SyncOr(this->node[dir] < elem.b)) { nodei++; continue; }
 		    go_left = true;
-		    if (CudaSyncThreadsOr(this->node[dir] >= elem.a)) { nodei = elem.right; continue; }
+		    if (P::SyncOr(this->node[dir] >= elem.a)) { nodei = elem.right; continue; }
 		    go_left = false;
 		    nodei = elem.back;
 		}    
