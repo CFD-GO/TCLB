@@ -655,8 +655,8 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	{
 		mins = c(f$minx,f$miny,f$minz)
 		maxs = c(f$maxx,f$maxy,f$maxz)
-		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
-		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+		tab1 = c(0,0,0,ifelse(mins == maxs & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
+		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs == mins & mins < 0,-1,0),0,0,0)
 		tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
 		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
 		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
