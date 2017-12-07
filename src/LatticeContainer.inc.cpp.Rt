@@ -303,7 +303,7 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 <?R }
     if (tmaxz > tminz) { ?>
 	now.y_ = CudaBlock.x;
-	if ((now.y_ < constContainer.fy) && (now.y_ => constContainer.dy)) {
+	if ((now.y_ < constContainer.fy) && (now.y_ >= constContainer.dy)) {
 <?R	for (z in tminz:tmaxz) if (z < 0) { ?>
 		now.z_ = <?%d 0 - z ?>;
 		now.RunElement();
