@@ -132,6 +132,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->balltree_data = NULL;
 	balltree_data_size_max = 0;
 	BT.balls = &RFI;
+	RFI.name = "TCLB";
 }
 
 /// Initialization of MPI buffors
@@ -445,13 +446,13 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	}
 	container->particle_data_size = RFI.size();
 //		for (int i=0; i<RFI.size(); i++){
-//			printf("Vel   r: %lg %lg %lg\n",RFI.Data(i, RFI_DATA_VEL+0), RFI.Data(i, RFI_DATA_VEL+1), RFI.Data(i, RFI_DATA_VEL+2));
+//			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
 //		}
 	if (true) {
 		for (int i=0; i<RFI.size(); i++){
-			RFI.Data(i, RFI_DATA_FORCE+0) = 0;
-			RFI.Data(i, RFI_DATA_FORCE+1) = 0;
-			RFI.Data(i, RFI_DATA_FORCE+2) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
 		}
 	}
 
@@ -506,10 +507,10 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	if (false) {
 //		printf("%d\n", RFI.size());
 		for (int i=0; i<RFI.size(); i++){
-//			printf("Force s: %lg %lg %lg\n",RFI.Data(i, RFI_DATA_FORCE+0), RFI.Data(i, RFI_DATA_FORCE+1), RFI.Data(i, RFI_DATA_FORCE+2));
-			RFI.Data(i, RFI_DATA_FORCE+0) = 0.05;
-			RFI.Data(i, RFI_DATA_FORCE+1) = 0;
-			RFI.Data(i, RFI_DATA_FORCE+2) = 0;
+//			printf("Force s: %lg %lg %lg\n",RFI.RawData(i, RFI_DATA_FORCE+0), RFI.RawData(i, RFI_DATA_FORCE+1), RFI.RawData(i, RFI_DATA_FORCE+2));
+			RFI.RawData(i, RFI_DATA_FORCE+0) = 0.05;
+			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
 		}
 	}
 	RFI.SendForces();

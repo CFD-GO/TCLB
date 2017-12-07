@@ -16,6 +16,9 @@ int acRemoteForceInterface::Init () {
         units[1] = solver->units.alt("1s");
         units[2] = solver->units.alt("1kg");
 
+        solver->lattice->RFI.setUnits(units[0],units[1],units[2]);
+        solver->lattice->RFI.CanCopeWithUnits(false);
+
         N = MPMD.universe_size - MPMD.world_size;
 
         inter = MPMD["ESYSPARTICLE"];

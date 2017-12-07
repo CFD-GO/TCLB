@@ -15,7 +15,7 @@
 
 namespace rfi {
 
-const int version = 0x000101;
+const int version = 0x000102;
 
 #define safe_MPI_Type_free(datatype) { if ((*datatype) != NULL) MPI_Type_free(datatype); }
 
@@ -42,6 +42,23 @@ template <class T> inline T RemoteForceInterface< TYPE, ROT, STORAGE, rfi_real_t
    MPI_Bcast(&in, 1, datatype, 0, comm);
    return in;
 };
+
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+template <class T> inline std::vector<T> RemoteForceInterface< TYPE, ROT, STORAGE, rfi_real_t >::Exchange(std::vector<T> out) {
+   std::vector<T> in;
+   size_t in_size = Exchange(out.size());
+   in.resize(in_size);
+   MPI_Request request; MPI_Status status;
+   MPI_Datatype datatype = MPI_dt<T>();
+   if (rank == 0) {
+      MPI_Isend(&out[0], out.size(), datatype, 0, 124, intercomm, &request);
+      MPI_Recv(&in[0], in.size(), datatype, 0, 124, intercomm, &status);
+      MPI_Wait(&request,  &status);
+   }
+   MPI_Bcast(&in[0], in.size(), datatype, 0, comm);
+   return in;
+};
+
 
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
@@ -73,6 +90,11 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::RemoteForceInterface() 
      ERROR("RFI: Unknown type rfi_real_t in RemoteForceInterface");
      exit(-1);
    }
+   base_units[0] = 1.0;
+   base_units[1] = 1.0;
+   base_units[2] = 1.0;
+   non_trivial_units = false;
+   can_cope_with_units = true;
 }
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
@@ -81,6 +103,27 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::~RemoteForceInterface()
   if (intercomm != MPI_COMM_NULL) {
     ERROR("RFI: This should never happen\n"); // LCOV_EXCL_LINE
   }
+}
+
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+inline void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::setUnits(rfi_real_t meter, rfi_real_t second, rfi_real_t kilogram) {
+ if (Connected()) {
+   ERROR("Units can be set only before connection is established\n");
+   exit(-1);
+ }
+ base_units[0] = meter;
+ base_units[1] = second;
+ base_units[2] = kilogram;
+ non_trivial_units = true;
+}
+
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+inline void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::CanCopeWithUnits(bool ccwu_) {
+   if (Connected()) {
+     ERROR("You can set the can_cope_with_units flag only before connection is established\n");
+     exit(-1);
+   }
+   can_cope_with_units = ccwu_;
 }
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
@@ -129,6 +172,7 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::MakeTypes(bool par
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
 int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
   if (! connected) return -1;
+  MPI_Barrier(intercomm);
   output("RFI: %s: Starting negotiations ...\n", name.c_str());
   MPI_Barrier(intercomm);
   
@@ -149,6 +193,10 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
    particle_size = RFI_DATA_SIZE;
    output("RFI: %s: Decided to calculate without rotation\n",name.c_str());
   }
+
+  unit.resize(particle_size);
+  for (int i=0;i<RFI_DATA_SIZE; i++) unit[i] = 1.0;
+
 
   MPI_Aint lb,ex; int si, other_si;
   MPI_Type_size(MPI_RFI_REAL_T, &si);
@@ -179,7 +227,51 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
     ERROR("RFI: Sizes of force data mismatch\n");
     exit(-1);
   }
+  
+  int my_ntu = non_trivial_units;
+  int other_ntu = Exchange(my_ntu);
+  if (non_trivial_units || other_ntu) {
+    output("RFI: %s: Non trivial units\n",name.c_str());
+    int my_ccwu = can_cope_with_units;
+    int other_ccwu = Exchange(my_ccwu);
+    if (my_ccwu && other_ccwu) {
+      if (TYPE == ForceCalculator) {
+        other_ccwu = false;
+      } else {
+        my_ccwu = false;
+      }
+    }
+    if (my_ccwu) {
+      output("RFI: %s: I'm taking care of the units\n",name.c_str());
+    } else if (other_ccwu) {
+      // The other side is taking care of the units
+    } else {
+      ERROR("RFI: Nobody is taking care of the units!\n");
+      exit(-1);
+    }
+    std::vector< rfi_real_t > my_units, other_units;
+    for (int i=0;i<3;i++) my_units.push_back(base_units[i]);
+    other_units = Exchange(my_units);
+    double meter, second, kilogram;
+    unit.resize(particle_size);
+    if (my_ccwu) {
+      meter = other_units[0]/my_units[0];
+      second = other_units[1]/my_units[1];
+      kilogram = other_units[2]/my_units[2];
+      output("RFI: %s: Unit conversion: m:%lg, s:%lg, kg:%lg\n",name.c_str(), meter, second, kilogram);
+      unit[RFI_DATA_R] = meter;
+      unit[RFI_DATA_VOL] = meter*meter*meter;
+      for (int i=0;i<3;i++) {
+        unit[RFI_DATA_POS+i] = meter;
+        unit[RFI_DATA_VEL+i] = meter/second;
+        unit[RFI_DATA_ANGVEL+i] = 1.0/second;
+        unit[RFI_DATA_FORCE+i] = kilogram*meter/(second*second);
+        unit[RFI_DATA_MOMENT+i] = kilogram*meter*meter/(second*second);
+      }
+    }
+  }
 
+  MPI_Barrier(intercomm);
   output("RFI: %s: Finished negotiations\n",name.c_str());
   MPI_Barrier(intercomm);
   active = true;
@@ -317,9 +409,9 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::ISendForces() {
     for (int i=0; i<workers; i++) if (sizes[i] > 0) {
       MPI_Request req;
       if (TYPE == ForceCalculator) {
-        MPI_Isend(&Data(offsets[i],0), sizes[i], MPI_FORCES, i, 0xF1, intercomm, &req);
+        MPI_Isend(&RawData(offsets[i],0), sizes[i], MPI_FORCES, i, 0xF1, intercomm, &req);
       } else {
-        MPI_Irecv(&Data(offsets[i],0), sizes[i], MPI_FORCES, i, 0xF1, intercomm, &req);
+        MPI_Irecv(&RawData(offsets[i],0), sizes[i], MPI_FORCES, i, 0xF1, intercomm, &req);
       }
       forces_req.push_back(req);
     }
@@ -352,9 +444,9 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::ISendParticles() {
     for (int i=0; i<workers; i++) if (sizes[i] > 0) {
       MPI_Request req;
       if (TYPE == ForceCalculator) {
-        MPI_Irecv(&Data(offsets[i],0), sizes[i], MPI_PARTICLE, i, 0xF2, intercomm, &req);
+        MPI_Irecv(&RawData(offsets[i],0), sizes[i], MPI_PARTICLE, i, 0xF2, intercomm, &req);
       } else {
-        MPI_Isend(&Data(offsets[i],0), sizes[i], MPI_PARTICLE, i, 0xF2, intercomm, &req);
+        MPI_Isend(&RawData(offsets[i],0), sizes[i], MPI_PARTICLE, i, 0xF2, intercomm, &req);
       }
       particles_req.push_back(req);
     }

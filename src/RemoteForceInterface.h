@@ -73,6 +73,16 @@ private:
   void Zero();
   void Finish();
   MPI_Aint real_size;
+  rfi_real_t base_units[3];
+  std::vector< rfi_real_t > unit;
+  bool non_trivial_units;
+  bool can_cope_with_units;
+  void ISendSizes();
+  void WSendSizes();
+  void ISendParticles();
+  void WSendParticles();
+  void ISendForces();
+  void WSendForces();
 public:
   int particle_size;
   std::string name;
@@ -85,16 +95,11 @@ public:
   inline const size_t size() const { return totsize; }
   inline const size_t mem_size() const { return ntab * sizeof(rfi_real_t); }
   inline rfi_real_t* Particles() { return &tab[0]; }
+  void CanCopeWithUnits(bool ccwu_);
   void WaitAll(std::vector<MPI_Request>& reqs);
   void SendSizes();
-  void ISendSizes();
-  void WSendSizes();
   void SendParticles();
-  void ISendParticles();
-  void WSendParticles();
   void SendForces();
-  void ISendForces();
-  void WSendForces();
   void Close();
   inline bool Active() { return active; }
   inline bool Connected() { return connected; }
@@ -103,21 +108,26 @@ public:
   inline bool Rot() { return rot; }
   inline int space_for_workers() { return universe_size - world_size; };
   template <class T> inline T Exchange(T out);
-  inline rfi_real_t& Data(size_t i, int j) {
+  template <class T> inline std::vector<T> Exchange(std::vector<T> out);
+  void setUnits(rfi_real_t meter, rfi_real_t second, rfi_real_t kilogram);
+  inline rfi_real_t& RawData(size_t i, int j) {
     if (STORAGE == ArrayOfStructures) {
       return tab[i*particle_size + j];
     } else {
       return tab[i + j*totsize];
     }
   }
-  inline rfi_real_t& getPos(size_t i, int j) {
-    return Data(i, RFI_DATA_POS+j);
+  inline rfi_real_t getPos(size_t i, int j) {
+    return getData(i, RFI_DATA_POS+j);
   }
-  inline rfi_real_t& getRad(size_t i) {
-    return Data(i, RFI_DATA_R);
+  inline rfi_real_t getRad(size_t i) {
+    return getData(i, RFI_DATA_R);
   }
-  inline void SetData(size_t i, int j, rfi_real_t val) {
-    Data(i,j) = val;
+  inline void setData(size_t i, int j, rfi_real_t val) {
+    RawData(i,j) = val * unit[j];
+  }
+  inline rfi_real_t getData(size_t i, int j) {
+    return RawData(i,j) / unit[j];
   }
 };
 
