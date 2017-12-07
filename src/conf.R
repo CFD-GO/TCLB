@@ -58,7 +58,7 @@ c_table_decl = function(d, sizes=TRUE) {
 	if(any(sel)) {
 		w = d[sel]
 #		w = regmatches(w,regexec("([^[]*)\\[ *([^\\] ]*) *]",w))
-		r = regexpr("\\[[^\\]]*\\]",w)
+		r = regexpr("\\[[^]]*\\]",w)
 		w = lapply(1:length(r), function(i) {
 			a_=w[i]
 			c(a_,
