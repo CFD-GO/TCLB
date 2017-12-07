@@ -9,6 +9,7 @@ AddDensity( name="g[5]", dx= 1, dy= 1, group="g")
 AddDensity( name="g[6]", dx=-1, dy= 1, group="g")
 AddDensity( name="g[7]", dx=-1, dy=-1, group="g")
 AddDensity( name="g[8]", dx= 1, dy=-1, group="g")
+
 #	Phase Field Evolution:
 AddDensity( name="h[0]", dx= 0, dy= 0, group="h")
 AddDensity( name="h[1]", dx= 1, dy= 0, group="h")
@@ -19,27 +20,48 @@ AddDensity( name="h[5]", dx= 1, dy= 1, group="h")
 AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
-#	Velcity Fields
+if (Options$Outflow) {
+	AddDensity( name=paste("gold",0:8,sep=""), dx=0, dy=0, group="gold")
+	AddDensity( name=paste("hold",0:8,sep=""), dx=0, dy=0, group="hold")
+}
+#	Velocity Fields
 AddDensity(name="U", dx=0, dy=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, group="Vel")
 
+
+
 AddField('PhaseF',stencil2d=1)
+
+if (Options$Outflow){
+AddDensity(name="PhaseOld", dx=0, dy=0, group="PF")
+for (d in rows(DensityAll)){
+    AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+}
+AddField('U',dx=c(-1,0)) # For convective boundary
+}
 
 if (Options$RT) {
     AddField('PhaseOld')
     AddStage("PhaseInit" , "Init" 		, save=Fields$name=="PhaseF")
-    AddStage("BaseInit"  , "Init_distributions" , save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel" )
-    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF" | Fields$name=="PhaseOld", 
+    AddStage("BaseInit"  , "Init_distributions" , save=Fields$group %in% c("g","h","Vel") )
+    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name %in% c("PhaseF","PhaseOld"), 
 						  load=DensityAll$group=="h")
-    AddStage("BaseIter"  , "Run" 		, save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel", 
-						  load=DensityAll$group=="g" | DensityAll$group=="h" | DensityAll$group=="Vel")
+    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel"), 
+						  load=DensityAll$group %in% c("g","h","Vel"))
+} else if (Options$Outflow) {
+    AddStage("PhaseInit" , "Init"		, save=Fields$name=="PhaseF")
+    AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel","gold","hold") )
+    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF", 
+						  load=DensityAll$group %in% c("g","h","Vel","gold","hold"))
+    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel","gold","hold") , 
+						  load=DensityAll$group %in% c("g","h","Vel","gold","hold"))
 } else {
     AddStage("PhaseInit" , "Init"		, save=Fields$name=="PhaseF")
-    AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel" )
+    AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel") )
     AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF", 
-						  load=DensityAll$group=="h")
-    AddStage("BaseIter"  , "Run" 		, save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel", 
-						  load=DensityAll$group=="g" | DensityAll$group=="h" | DensityAll$group=="Vel")
+						  load=DensityAll$group %in% c("g","h","Vel"))
+    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel") , 
+						  load=DensityAll$group %in% c("g","h","Vel"))
 }
 
 AddAction("Iteration", c("BaseIter", "calcPhase"))
@@ -107,3 +129,7 @@ AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 AddNodeType(name="Symmetry_N", group="BOUNDARY")
 AddNodeType(name="Symmetry_S", group="BOUNDARY")
+if (Options$Outflow) {
+	AddNodeType(name="Convective_E", group="BOUNDARY")
+	AddNodeType(name="Neumann_E", group="BOUNDARY")
+}
