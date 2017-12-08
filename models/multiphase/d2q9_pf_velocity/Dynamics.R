@@ -38,7 +38,7 @@ AddField('PhaseF',stencil2d=1, group="PF")
 
 #	Additional access required for outflow boundaries
 if (Options$Outflow){
-	AddDensity(name="PhaseOld", dx=0, dy=0, group="PF")
+	AddField(name="PhaseOld", stencil2d=1, group="PF")
 	for (d in rows(DensityAll)){
     		AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
 	}
@@ -58,10 +58,10 @@ if (Options$RT) {
 						  load=DensityAll$group %in% c("g","h","Vel"))
 } else if (Options$Outflow) {
     AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel","gold","hold","PF","nw") )
-    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF", 
-						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","PF","nw"))
+    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name %in% c("PhaseF","PhaseOld"), 
+						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
     AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel","gold","hold","nw") , 
-						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","PF","nw"))
+						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
 } else {
     AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel") )
     AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF", 
