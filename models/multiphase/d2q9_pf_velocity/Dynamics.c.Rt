@@ -68,6 +68,15 @@ CudaDeviceFunction real_t getP(){
 	return p;
 }
 
+CudaDeviceFunction vector_t getNormal(){
+	vector_t normal;
+	normal.x = nw_x;
+	normal.y = nw_y;
+	normal.z = 0.0;
+	return normal;
+
+}
+
 // 	HELPER FUNCTIONS:
 CudaDeviceFunction vector_t calcGradPhi(){
 	vector_t gradPhi;
@@ -133,6 +142,29 @@ CudaDeviceFunction void calcPhaseF(){
 	PhaseF = h[0]+h[1]+h[2]+h[3]+h[4]+h[5]+h[6]+h[7]+h[8];
 }
 
+CudaDeviceFunction real_t calcWallPhase(){
+// Contact angle shizzzzz:
+	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+		real_t myA, myH, myPhase;
+	// in 6.2 replace with dynamic access of fields
+		if      (nw_x ==  1 && nw_y ==  0 ) { myPhase = PhaseF(1,0)  ; myH=1;} 
+		else if (nw_x ==  0 && nw_y ==  1 ) { myPhase = PhaseF(0,1)  ; myH=1;}	
+		else if (nw_x == -1 && nw_y ==  0 ) { myPhase = PhaseF(-1,0) ; myH=1;}	
+		else if (nw_x ==  0 && nw_y == -1 ) { myPhase = PhaseF(0,-1) ; myH=1;}
+		else if (nw_x ==  1 && nw_y ==  1 ) { myPhase = PhaseF(1,1)  ; myH=1.414214;}
+		else if (nw_x == -1 && nw_y ==  1 ) { myPhase = PhaseF(-1,1) ; myH=1.414214;}
+		else if (nw_x == -1 && nw_y == -1 ) { myPhase = PhaseF(-1,-1); myH=1.414214;}
+		else if (nw_x ==  1 && nw_y == -1 ) { myPhase = PhaseF(1,-1) ; myH=1.414214;}
+		
+
+		if (ContactAngle == 90) { PhaseF = myPhase; }
+		else {   
+			myA = 1 - 0.5*myH * (4.0/W)  * cos(radAngle);
+			PhaseF = (myA - sqrt( myA*myA - 4.0 * (myA-1)*myPhase))/(myA-1) - myPhase;
+		}
+	} else { PhaseF = PhaseF(0,0);}
+}
+
 CudaDeviceFunction real_t calcMu(real_t C){
 	real_t pfavg, lpPhi, mu;
 	pfavg = 0.5*(PhaseField_l+PhaseField_h);
@@ -176,6 +208,7 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny){
 
 //	INITIALISATION:
 CudaDeviceFunction void Init() {
+
 	PhaseF = PhaseField;
 
 // RAYLEIGH TAYLOR INSTABILITY
@@ -190,6 +223,48 @@ CudaDeviceFunction void Init() {
 	    Ri = sqrt( (X - CenterX)*(X - CenterX) + (Y - CenterY)*(Y - CenterY) );
 	    PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
 		   - 0.5 * (PhaseField_h - PhaseField_l) * BubbleType * tanh(2.0*(Ri - Radius)/W);
+	}
+	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) PhaseF = -999;
+}
+
+CudaDeviceFunction void Init_wallNorm(){
+	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
+		int solidFlags[9], i;
+		solidFlags[0] = PhaseF(0,0)  /-998;
+		solidFlags[1] = PhaseF(1,0)  /-998;
+		solidFlags[2] = PhaseF(0,1)  /-998;
+		solidFlags[3] = PhaseF(-1,0) /-998;
+		solidFlags[4] = PhaseF(0,-1) /-998;
+		solidFlags[5] = PhaseF(1,1)  /-998;
+		solidFlags[6] = PhaseF(-1,1 )/-998;
+		solidFlags[7] = PhaseF(-1,-1)/-998;
+		solidFlags[8] = PhaseF(1,-1) /-998;
+
+		real_t myNorm[2]={0.0,0.0};
+		for (i = 0 ; i < 9; i++){
+			myNorm[0] += wf[i]*d2q9_ex[i]*solidFlags[i];
+			myNorm[1] += wf[i]*d2q9_ey[i]*solidFlags[i];	
+		}
+		myNorm[0] *= -1.0/3.0;
+		myNorm[1] *= -1.0/3.0;
+
+		real_t dot, maxn=0.0;
+		int maxi;
+
+		for (i = 0; i<9; i++) {
+			dot = (myNorm[0]*d2q9_ex[i] + myNorm[1]*d2q9_ey[i])/ 
+			      sqrt( (myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1])*(d2q9_ex[i]*d2q9_ex[i] + d2q9_ey[i]*d2q9_ey[i]+1e-12 ));
+		
+			if (dot > maxn) {
+				maxn = dot;
+				maxi = i;
+			}
+		}
+
+		nw_x = d2q9_ex[maxi];
+		nw_y = d2q9_ey[maxi];
+	} else {
+		nw_x = 0.0; nw_y =0.0;
 	}
 }
 

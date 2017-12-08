@@ -24,55 +24,61 @@ if (Options$Outflow) {
 	AddDensity( name=paste("gold",0:8,sep=""), dx=0, dy=0, group="gold")
 	AddDensity( name=paste("hold",0:8,sep=""), dx=0, dy=0, group="hold")
 }
+
+#	Fields required for solid contact
+AddDensity(name="nw_x", dx=0, dy=0, group="nw")
+AddDensity(name="nw_y", dx=0, dy=0, group="nw")
+
 #	Velocity Fields
 AddDensity(name="U", dx=0, dy=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, group="Vel")
 
+#	Phase-field stencil for finite differences
+AddField('PhaseF',stencil2d=1, group="PF")
 
-
-AddField('PhaseF',stencil2d=1)
-
+#	Additional access required for outflow boundaries
 if (Options$Outflow){
-AddDensity(name="PhaseOld", dx=0, dy=0, group="PF")
-for (d in rows(DensityAll)){
-    AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
-}
-AddField('U',dx=c(-1,0)) # For convective boundary
+	AddDensity(name="PhaseOld", dx=0, dy=0, group="PF")
+	for (d in rows(DensityAll)){
+    		AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+	}
+	AddField('U',dx=c(-1,0))
 }
 
+AddStage("PhaseInit" , "Init" 		, save=Fields$name=="PhaseF")
+AddStage("WallInit", "Init_wallNorm"    , save=Fields$group %in% c("nw"))
+AddStage("calcWall", "calcWallPhase"    , save=Fields$group %in% c("PF"),
+	     				  load=DensityAll$group=="nw") 
 if (Options$RT) {
     AddField('PhaseOld')
-    AddStage("PhaseInit" , "Init" 		, save=Fields$name=="PhaseF")
     AddStage("BaseInit"  , "Init_distributions" , save=Fields$group %in% c("g","h","Vel") )
     AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name %in% c("PhaseF","PhaseOld"), 
 						  load=DensityAll$group=="h")
     AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel"), 
 						  load=DensityAll$group %in% c("g","h","Vel"))
 } else if (Options$Outflow) {
-    AddStage("PhaseInit" , "Init"		, save=Fields$name=="PhaseF")
-    AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel","gold","hold") )
+    AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel","gold","hold","PF","nw") )
     AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF", 
-						  load=DensityAll$group %in% c("g","h","Vel","gold","hold"))
-    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel","gold","hold") , 
-						  load=DensityAll$group %in% c("g","h","Vel","gold","hold"))
+						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","PF","nw"))
+    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel","gold","hold","nw") , 
+						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","PF","nw"))
 } else {
-    AddStage("PhaseInit" , "Init"		, save=Fields$name=="PhaseF")
     AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel") )
     AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name=="PhaseF", 
-						  load=DensityAll$group %in% c("g","h","Vel"))
-    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel") , 
-						  load=DensityAll$group %in% c("g","h","Vel"))
+						  load=DensityAll$group %in% c("g","h","Vel","nw"))
+    AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel","nw") , 
+						  load=DensityAll$group %in% c("g","h","Vel","nw"))
 }
 
-AddAction("Iteration", c("BaseIter", "calcPhase"))
-AddAction("Init"     , c("PhaseInit", "BaseInit"))
+AddAction("Iteration", c("BaseIter", "calcPhase","calcWall"))
+AddAction("Init"     , c("PhaseInit","WallInit", "calcWall","BaseInit"))
 
 # 	Outputs:
 AddQuantity(name="Rho",	  unit="kg/m3")
 AddQuantity(name="PhaseField",unit="1")
 AddQuantity(name="U",	  unit="m/s",vector=T)
 AddQuantity(name="P",	  unit="Pa")
-
+AddQuantity(name="Normal", unit="1", vector=T)
 #	Initialisation States
 AddSetting(name="Period", default="0", comment='Number of cells per cos wave')
 AddSetting(name="Perturbation", default="0", comment='Size of wave perturbation, Perturbation Period')
@@ -93,6 +99,9 @@ AddSetting(name="W", default=4,    comment='Anti-diffusivity coeff')
 AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
+AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
+AddSetting(name="radAngle", comment='Conversion to rads for calcs')
+
 # 	Inputs: Fluid Properties
 AddSetting(name="tau_l", comment='relaxation time (low density fluid)')
 AddSetting(name="tau_h", comment='relaxation time (high density fluid)')
