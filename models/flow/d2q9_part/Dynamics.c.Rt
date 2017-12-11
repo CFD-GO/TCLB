@@ -32,6 +32,7 @@
     } else {
         BC_Velocity=PV(c('VelocityX', 'VelocityY'))
     }
+    Grav = PV("Gravitation",c("X","Y"))
 ?>
 
 #define pi 3.141592653589793116
@@ -193,7 +194,8 @@ thx = CudaThread.x;
 thy = CudaThread.y;
 thz = CudaThread.z;
 	RunBoundary();
-<?R C(PV(c("ux","uy")), (f %*% U) ) ?>
+	real_t d = <?R C(sum(f)) ?>;
+<?R C(PV(c("ux","uy")), (f %*% U) * PV("d")^ (-1) + Grav * 0.5 ) ?>
 	sol = 0;
 	CalcF();
     if (NodeType & NODE_MRT)
@@ -317,8 +319,8 @@ CudaDeviceFunction void CollisionMRT()
         Jy = Jy + (GravitationY +  BC[1])*rho ; 
     }
 <?R } else { ?>
-	Jx = Jx + (ux - Jx);
-	Jy = Jy + (uy - Jy);
+	Jx = Jx + ((ux + GravitationX*0.5)*rho - Jx);
+	Jy = Jy + ((uy + GravitationY*0.5)*rho - Jy);
 <?R } ?>
 
 <?R
