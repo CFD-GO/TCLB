@@ -115,6 +115,7 @@ int acRemoteForceInterface::Init () {
                         }
                 }
 
+                double maxRad = 10;
 
         //	solver->outGlobalFile("ESYS", ".py", fn);
                 sprintf(fn, "%s_%s.py", solver->info.outpath, "ESYS");
@@ -133,7 +134,7 @@ int acRemoteForceInterface::Init () {
                                 xcirc ? "True" : "False");
                         fprintf(f, "%s.setTimeStepSize(%lg)\n", sim.c_str(), 1.0/units[1]);
                         fprintf(f, "%s.setNumTimeSteps(%d)\n", sim.c_str(), Next(solver->iter));
-                        fprintf(f, "%s.createInteractionGroup(	TCLBForcePrms(name=\"tclb\", acceleration=Vec3(0,-9.81,0), fluidDensity=1.0, fluidHeight=0) )\n", sim.c_str());
+                        fprintf(f, "%s.createInteractionGroup(	RemoteForcePrms(name=\"tclb\", remote_name=\"%s\", max_rad=%lg) )\n", sim.c_str(), MPMD.name.c_str(), maxRad);
                         fprintf(f, "output_prefix=\"%s_%s\"\n", solver->info.outpath, "ESYS");
                         fprintf(f, "def output_path(x):\n\treturn output_prefix + x\n");
                         fprintf(f, "%s\n", node.child_value());
