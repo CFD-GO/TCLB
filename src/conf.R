@@ -487,36 +487,28 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	NodeShiftNum <<- NodeShiftNum + l
 	tab
 }))
-
-if (NodeShiftNum > 16) {
-	stop("NodeTypes exceeds short int")
-} else {
-	ZoneBits = 16 - NodeShiftNum
-	ZoneShift = NodeShiftNum
-	if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
-	ZoneMax = 2^ZoneBits
-#	ZoneRange = 1:ZoneMax
-#	NodeTypes = rbind(NodeTypes,data.frame(
-#		name=paste("SettingZone",ZoneRange,sep=""),
-#		group="SETTINGZONE",
-#		index=ZoneRange,
-#		Index=paste("SettingZone",ZoneRange,sep=""),
-#		value=(ZoneRange-1)*NodeShift,
-#		mask=(ZoneMax-1)*NodeShift,
-#		shift=NodeShiftNum
-#	))
-	NodeTypes = rbind(NodeTypes,data.frame(
-		name="DefaultZone",
-		group="SETTINGZONE",
-		index=1,
-		Index="DefaultZone",
-		value=0,
-		mask=(ZoneMax-1)*NodeShift,
-		shift=NodeShiftNum
-	))
-	NodeShiftNum = 16
-	NodeShift = 2^NodeShiftNum
+FlagT = "unsigned short int"
+if (NodeShiftNum > 14) {
+	FlagT = "unsigned int"
+	if (NodeShiftNum > 30) {
+		stop("NodeTypes exceeds 32 bits")
+	}
 }
+ZoneBits = 16 - NodeShiftNum
+ZoneShift = NodeShiftNum
+if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
+ZoneMax = 2^ZoneBits
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="DefaultZone",
+        group="SETTINGZONE",
+        index=1,
+        Index="DefaultZone",
+        value=0,
+        mask=(ZoneMax-1)*NodeShift,
+        shift=NodeShiftNum
+))
+NodeShiftNum = 16
+NodeShift = 2^NodeShiftNum
 
 if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
 
