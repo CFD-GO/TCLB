@@ -1,6 +1,12 @@
 <?R
 	source("conf.R")
         c_header()
+    tminx = min(0,Fields$minx)
+    tmaxx = max(0,Fields$maxx)
+    tminy = min(0,Fields$miny)
+    tmaxy = max(0,Fields$maxy)
+    tminz = min(0,Fields$minz)
+    tmaxz = max(0,Fields$maxz)
 ?>
 /** \file LatticeContainer.cu
   File defining LatticeContainer and some additional CUDA functions
@@ -247,8 +253,8 @@ void LatticeContainer::Free()
 template <class N> CudaGlobalFunction void RunKernel()
 {
 	N now;
-	now.x_ = CudaThread.x+CudaBlock.z*CudaNumberOfThreads.x+constContainer.dx;
-	now.y_ = CudaThread.y+CudaBlock.x*CudaNumberOfThreads.y+constContainer.dy;
+	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
+	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
 	now.z_ = CudaBlock.y+constContainer.dz;
 	#ifndef GRID_3D
 		for (; now.x_ < constContainer.nx; now.x_ += CudaNumberOfThreads.x) {
@@ -273,51 +279,6 @@ template <class N> CudaGlobalFunction void RunKernel()
 // The model is 2D (no BORDER_Z)
 <?R } ?>
 
-/*
-// Border Kernel
-//   iterates over border elements and runs them with RunElement function
-template <class N> CudaGlobalFunction void RunBorderKernel()
-{
-	N now;
-	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z_ = CudaBlock.x;
-	now.Pre();
-#ifdef BORDER_Z
-	if (now.z_ < constContainer.nz) {
-#endif
-		now.y_ = 0;
-		now.RunElement();
-#ifdef BORDER_Z
-	}
-#endif
-	now.Glob();
-	now.Pre();
-#ifdef BORDER_Z
-	if (now.z_ < constContainer.nz) {
-#endif
-		now.y_ = constContainer.ny - 1;
-		now.RunElement();
-#ifdef BORDER_Z
-	}
-#endif
-	now.Glob();
-	now.Pre();
-#ifdef BORDER_Z
-	now.y_ = CudaBlock.x;
-	if ((now.y_ < constContainer.ny-1) && (now.y_ > 0)) {
-		now.z_ = 0;
-                now.RunElement();
-	}
-	now.Glob();
-	now.Pre();
-	if ((now.y_ < constContainer.ny-1) && (now.y_ > 0)) {
-                now.z_ = constContainer.nz - 1;
-                now.RunElement();
-	}
-	now.Glob();
-#endif
-}
-*/
 
 /// Border Kernel
 /**
@@ -329,23 +290,29 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
 	now.z_ = CudaBlock.x;
 	now.Pre();
-#ifdef BORDER_Z
+<?R if (tmaxy > tminy) { ?>
 	if (now.z_ < constContainer.nz) {
-#endif
-		now.y_ = 0;
+<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
+		now.y_ = <?%d y - 1 ?>;
 		now.RunElement();
-		now.y_ = constContainer.ny - 1;
+<?R	} else if (y < 0) { ?>
+		now.y_ = constContainer.ny - <?%d -y ?>;
 		now.RunElement();
-#ifdef BORDER_Z
+<?R	} ?>
 	}
+<?R }
+    if (tmaxz > tminz) { ?>
 	now.y_ = CudaBlock.x;
-	if ((now.y_ < constContainer.ny-1) && (now.y_ > 0)) {
-		now.z_ = 0;
-                now.RunElement();
-                now.z_ = constContainer.nz - 1;
-                now.RunElement();
+	if ((now.y_ < constContainer.fy) && (now.y_ >= constContainer.dy)) {
+<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
+		now.z_ = <?%d z - 1 ?>;
+		now.RunElement();
+<?R	} else if (z < 0) { ?>
+		now.z_ = constContainer.nz - <?%d -z ?>;
+		now.RunElement();
+<?R	} ?>
 	}
-#endif
+<?R } ?>
 	now.Glob();
 }
 
@@ -355,16 +322,12 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
   in the constant memory of the GPU
 */
 void LatticeContainer::CopyToConst() {
-    fx=nx;
-    fy=ny-1;
-    dx = 0; dy = 1; 
-    #ifdef BORDER_Z
-	dz = 1;
-	fz = nz - 1;
-    #else
-	dz = 0;
-	fz = nz;
-    #endif
+    dx =  0;
+    fx = nx;
+    dy = <?%d tmaxy ?>;
+    fy = ny - <?%d -tminy ?>;
+    dz = <?%d tmaxz ?>;
+    fz = nz - <?%d -tminz ?>;
     CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));
 }
 
@@ -389,11 +352,7 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderS
 template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
     int nnz;
     ky = ThreadNumber< N >::getKY();
-    #ifdef BORDER_Z
-	nnz = nz - 2;
-    #else
-	nnz = nz;
-    #endif
+    nnz = fz - dz;
     #ifdef GRID_3D
         CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
     #else
