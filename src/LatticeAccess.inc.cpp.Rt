@@ -350,22 +350,33 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int 
 
 <?R
 if (Options$autosym) {
-  sym_load = function(f,d,i) {
-   if (i > 3) { ?>
+  sym_load = function(f,d,i,sig=1) {
+   if (i > 3) {
+    if (sig < 0) { ?>
+    return -load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
+<?R } else { ?>
     return load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
-   <?R } else {
+<?R }
+   } else {
     s = names(symmetries)[i]
-    si = which(Fields$name == f[[s]])
+    fn = f[[s]]
+    if (substr(fn,1,1) == "-") {
+     nsig = -1;
+     fn = substr(fn,2,nchar(fn))
+    } else {
+     nsig = 1;
+    }
+    si = which(Fields$name == fn)
     sf = rows(Fields)[[si]]
     sd = d
     sd[i] = -sd[i]
     ch = c("X","Y","Z")[i]
     if (d[i] > 0) { ?>
-    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_plus) { <?R sym_load(sf,sd,i+1) ?> }
+    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_plus) { <?R sym_load(sf,sd,i+1,sig*nsig) ?> }
     <?R } else if (d[i] < 0) { ?>
-    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_minus) { <?R sym_load(sf,sd,i+1) ?> }
+    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_minus) { <?R sym_load(sf,sd,i+1,sig*nsig) ?> }
     <?R } ?>
-    <?R sym_load(f,d,i+1)
+    <?R sym_load(f,d,i+1,sig)
     }
   }
 

@@ -302,13 +302,13 @@ AddNodeType("EVelocity","BOUNDARY")
 # AddNodeType("Wet","ADDITIONALS")
 # AddNodeType("Dry","ADDITIONALS")
 # AddNodeType("Propagate","ADDITIONALS")
-AddNodeType("Inlet","OBJECTIVE")
-AddNodeType("Outlet","OBJECTIVE")
+#AddNodeType("Inlet","OBJECTIVE")
+#AddNodeType("Outlet","OBJECTIVE")
 # AddNodeType("Obj1","OBJECTIVE")
 # AddNodeType("Obj2","OBJECTIVE")
 # AddNodeType("Obj3","OBJECTIVE")
 # AddNodeType("Thermometer","OBJECTIVE")
-AddNodeType("DesignSpace","DESIGNSPACE")
+#AddNodeType("DesignSpace","DESIGNSPACE")
 
 Stages=NULL
 
@@ -398,12 +398,16 @@ if (Options$autosym) { ## Automatic symmetries
     for (d in rows(D)) {
       v = c(d$dx,d$dy,d$dz)
       for (s in names(symmetries)) if (d[[s]] == "") {
-        s_v = v * symmetries[,s]
-        s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
-        if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
-        if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
-        i = which(s_sel)
-        s_d = D[s_sel,,drop=FALSE]
+	if (all(v == 0)) {
+		s_d = d
+	} else {
+          s_v = v * symmetries[,s]
+          s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
+          if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
+          if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
+          i = which(s_sel)
+          s_d = D[s_sel,,drop=FALSE]
+	}
         DensityAll[DensityAll$name == d$name,s] = s_d$name
         if (Fields[Fields$name == d$field,s] == "") Fields[Fields$name == d$field,s] = s_d$field
       }
@@ -412,7 +416,7 @@ if (Options$autosym) { ## Automatic symmetries
 
   for (s in names(symmetries)) {
     sel = Fields[,s] == ""
-    Fields[sel,s] = Fields$name[s]
+    Fields[sel,s] = Fields$name[sel]
   }
 
   AddNodeType("SymmetryX_plus",  group="SYMX")
