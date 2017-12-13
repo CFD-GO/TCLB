@@ -49,30 +49,36 @@ AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
 
+AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
+AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
+AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
+
 AddField('PhaseF',stencil3d=1, group="OrderParameter")
 
 # Stages - processes to run for initialisation and each iteration
-AddStage("PhaseInit"    , "Init", save="PhaseF")
-AddStage("BaseInit"     , "Init_distributions", save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel")
-AddStage("calcPhase"	, "calcPhaseF",	save='PhaseF'                             , 
-	load=DensityAll$group=="h")
-AddStage("BaseIter"     , "Run" , save=Fields$group=="g" | Fields$group=="h" | Fields$group=="Vel", 
-	load=DensityAll$group=="g" | DensityAll$group=="h" | DensityAll$group=="Vel")
+AddStage("PhaseInit" , "Init", save="PhaseF")
+AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel"))
+AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
+
+AddStage("calcWall"  , "calcWallPhase", save="PhaseF", load=DensityAll$group=="nw")
+AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group=="h" )
+AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel"), 
+	                                load=DensityAll$group %in% c("g","h","Vel"))
 
 if (Options$SC) {
 AddStage("WallPhase", "calcWallPhase", save="PhaseF")
 AddAction("Iteration", c("BaseIter", "calcPhase", "WallPhase"))
 AddAction("Init"     , c("PhaseInit", "WallPhase","BaseInit", "calcPhase"))
 } else {
-AddAction("Iteration", c("BaseIter", "calcPhase"))
-AddAction("Init"     , c("PhaseInit","BaseInit", "calcPhase"))
+AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
+AddAction("Init"     , c("PhaseInit","WallInit","calcWall","BaseInit"))
 }
 
 # 	Outputs:
 AddQuantity(name="PhaseField",unit="1")
 AddQuantity(name="U",	  unit="m/s",vector=T)
 AddQuantity(name="P",	  unit="Pa")
-
+AddQuantity(name="Normal", unit=1, vector=T)
 #	Inputs: For phasefield evolution
 AddSetting(name="Density_h", comment='High density')
 AddSetting(name="Density_l", comment='Low  density')
@@ -83,6 +89,9 @@ AddSetting(name="IntWidth", default=4,    comment='Anti-diffusivity coeff')
 AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
+
+AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
+AddSetting(name='radAngle', comment='Conversion to rads for calcs')
 
 if (Options$SC) {
 AddSetting(name="ContactAngle", default="90", comment='Contact angle of the phases')
@@ -131,8 +140,6 @@ AddNodeType("Bubbletrack",group="ADDITIONALS")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
-AddNodeType(name="SymmetricXY_W",group="ADDITIONALS")
-AddNodeType(name="SymmetricXY_E",group="ADDITIONALS")
 
 AddGlobal("InterfacePosition",comment='trackPosition')
 AddGlobal("Vfront",comment='velocity infront of bubble')
