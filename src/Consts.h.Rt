@@ -23,11 +23,21 @@
 #endif
 
 <?R
+  big_hex = function(x,bits=16) {
+    ret = ""
+    while (x > 0 | bits > 0) {
+      a = x %% 16
+      ret = sprintf("%01x%s",a,ret)
+      x = (x-a) / 16
+      bits = bits - 4
+    }
+    ret
+  }
   for (n in names(Node)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%08x Node[n] ?> <?R
+#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node[n]) ?> <?R
   }
   for (n in names(Node_Group)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%08x Node_Group[n] ?> <?R
+#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node_Group[n]) ?> <?R
   }
 ?>
 <?R

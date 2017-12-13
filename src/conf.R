@@ -308,7 +308,7 @@ AddNodeType("EVelocity","BOUNDARY")
 # AddNodeType("Obj2","OBJECTIVE")
 # AddNodeType("Obj3","OBJECTIVE")
 # AddNodeType("Thermometer","OBJECTIVE")
-#AddNodeType("DesignSpace","DESIGNSPACE")
+AddNodeType("DesignSpace","DESIGNSPACE")
 
 Stages=NULL
 
@@ -488,13 +488,15 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	tab
 }))
 FlagT = "unsigned short int"
+FlagTBits = 16
 if (NodeShiftNum > 14) {
 	FlagT = "unsigned int"
+	FlagTBits = 32
 	if (NodeShiftNum > 30) {
 		stop("NodeTypes exceeds 32 bits")
 	}
 }
-ZoneBits = 16 - NodeShiftNum
+ZoneBits = FlagTBits - NodeShiftNum
 ZoneShift = NodeShiftNum
 if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
 ZoneMax = 2^ZoneBits
@@ -507,10 +509,10 @@ NodeTypes = rbind(NodeTypes,data.frame(
         mask=(ZoneMax-1)*NodeShift,
         shift=NodeShiftNum
 ))
-NodeShiftNum = 16
+NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
 
 NodeTypes = rbind(NodeTypes, data.frame(
 	name="None",
