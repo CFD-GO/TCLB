@@ -201,8 +201,8 @@ CudaDeviceFunction void calcWallPhase(){
 		real_t myA, myH, myPhase;
 
 		myPhase = PhaseF_dyn(nw_x, nw_y, nw_z);
-		if (X == 48) printf("Y=%d, %.4f\n",Y,myPhase);
 		myH = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
+		
 		if ( ContactAngle == 90 ) {
 			PhaseF = myPhase;
 		} else {
@@ -306,14 +306,17 @@ CudaDeviceFunction void Init_wallNorm(){
 
 		<?R
 			myN = PV(paste0("myNorm[",1:3-1,"]"))
-			pf = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")"))
+			pf = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
 			solid = PV(paste0("solidFlag[",1:27-1,"]"))
-			tmp = PV("1/-998")
 			
-			C(solid, pf*tmp)
-			
-			C(myN, sum(wg*U*solid))
+			C(solid, pf)
 		?>
+		for (i=0;i<27;i++){
+			myNorm[0] += wg[i] * solidFlag[i] * d3q27_ex[i];
+			myNorm[1] += wg[i] * solidFlag[i] * d3q27_ey[i];
+			myNorm[2] += wg[i] * solidFlag[i] * d3q27_ez[i];
+			
+		}
 		myNorm[0] *= -1.0/3.0;
 		myNorm[1] *= -1.0/3.0;
 		myNorm[2] *= -1.0/3.0;

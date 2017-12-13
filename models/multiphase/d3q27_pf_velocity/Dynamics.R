@@ -62,8 +62,8 @@ AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
 
 AddStage("calcWall"  , "calcWallPhase", save="PhaseF", load=DensityAll$group=="nw")
 AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group=="h" )
-AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel"), 
-	                                load=DensityAll$group %in% c("g","h","Vel"))
+AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel","nw"), 
+	                                load=DensityAll$group %in% c("g","h","Vel","nw"))
 
 if (Options$SC) {
 AddStage("WallPhase", "calcWallPhase", save="PhaseF")
