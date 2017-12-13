@@ -28,3 +28,5 @@ AddGlobal(name="TotalPressureFlux", comment='pressure loss')
 AddGlobal(name="OutletFlux", comment='pressure loss')
 AddGlobal(name="InletPressureIntegral", comment='pressure loss')
 
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")
