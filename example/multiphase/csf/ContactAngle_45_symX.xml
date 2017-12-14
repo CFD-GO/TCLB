@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+<!-- MODEL: d3q27_pf_velocity_autosym
+     Solid contact angle example to test out symmetry
+     in single plane.
+        Created: 14/12/2017
+        Responsible: @TravisMitchell
+-->
+	<Geometry nx="64" ny="64" nz="128" >
+		<MRT>
+			<Box />
+		</MRT>
+		<SymmetryX_plus>
+			<Box dx="-1"/>
+		</SymmetryX_plus>
+		<SymmetryX_minus>
+			<Box nx="1"/>
+		</SymmetryX_minus>
+		<Wall mask="ALL" name="Upper">
+			<Box dy="-1" />
+		</Wall>
+		<Wall mask="ALL" name="Lower">
+			<Box ny="1" />
+		</Wall>
+	</Geometry>
+	<Model>
+		<Params 
+	Density_h="1" Density_l="0.001" 
+
+	ContactAngle="45" 
+	IntWidth="4" M="0.05" sigma="5e-5" 
+	Viscosity_l="0.0166" Viscosity_h="0.166"
+	
+	Radius="24"
+	CenterX="64"
+	CenterY="0"
+	CenterZ="64"
+	/>
+	</Model>
+	<VTK />
+	<Failcheck Iterations="1000" />
+	<Solve Iterations="200000">
+	<VTK   Iterations="10000"/>
+	</Solve>
+</CLBConfig>
