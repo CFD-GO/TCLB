@@ -76,7 +76,6 @@
 #    m25 = 0.5 * U[3,] * (9*absCi2*absCi2 - 33*absCi2+81)
 #    m26 = 0.5 * (9*absCi2*absCi2*absCi2 - 18*absCi2*absCi2 + 87*absCi2 - 26)
 
-
     m23 = 0.5 * U[,1]*(9*absCi2*absCi2 - 33*absCi2 + 26)
     m24 = 0.5 * U[,2]*(9*absCi2*absCi2 - 33*absCi2 + 26)
     m25 = 0.5 * U[,3]*(9*absCi2*absCi2 - 33*absCi2 + 26)
@@ -213,21 +212,6 @@ CudaDeviceFunction void calcWallPhase(){
 		PhaseF = PhaseF(0,0,0);
 	}
 }
-
-#ifdef OPTIONS_SC
-CudaDeviceFunction void calcWallPhase(){
-	PhaseF = PhaseF(0,0,0);
-	if ( Y == 0 ) {
-		if ( ContactAngle == 90 ) {
-			PhaseF = PhaseF(0,1,0);
-		} else {
-			PhaseF = PhaseF(0,1,0) + 0.5 * tan( PI*0.5 - ContactAngle * PI/180.0 ) * sqrt(
-				      ( PhaseF(1,1,0)-PhaseF(-1,1,0) )*( PhaseF(1,1,0)-PhaseF(-1,1,0) )
-				     +( PhaseF(0,1,1)-PhaseF(0,1,-1) )*( PhaseF(0,1,1)-PhaseF(0,1,-1) ) );
-		}
-	}
-}
-#endif
 
 CudaDeviceFunction real_t calcMu(real_t C){
 	real_t pfavg, lpPhi, mu;
@@ -367,6 +351,7 @@ CudaDeviceFunction void Init_distributions(){
 		Gamma[i] = calcGamma(i, U, V, W, mag);
 		if (i < 15) F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz);
 	}
+
 <?R
 	C(h, w_h * phase * gammah - 0.5 * Fphi)
 ?>
@@ -505,7 +490,7 @@ for (j=0;j<2;j++) {
 	C(heq, EQ_h$feq * PV("C"))
 	n = PV("n",c("x","y","z"))
 	EQ_h = MRT_eq(U[1:15,],PV(1),PV(c(0,0,0)))
-	wh = EQ_h$feq
+	wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))    #EQ_h$feq
 	C(Fphi, wh * PV("tmp1") * (U[1:15,] %*% n))
 	
 # 	SRT Relaxation for h

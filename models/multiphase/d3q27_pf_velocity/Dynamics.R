@@ -65,14 +65,8 @@ AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group=="h" )
 AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel","nw"), 
 	                                load=DensityAll$group %in% c("g","h","Vel","nw"))
 
-if (Options$SC) {
-AddStage("WallPhase", "calcWallPhase", save="PhaseF")
-AddAction("Iteration", c("BaseIter", "calcPhase", "WallPhase"))
-AddAction("Init"     , c("PhaseInit", "WallPhase","BaseInit", "calcPhase"))
-} else {
 AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
 AddAction("Init"     , c("PhaseInit","WallInit","calcWall","BaseInit"))
-}
 
 # 	Outputs:
 AddQuantity(name="PhaseField",unit="1")
@@ -93,10 +87,6 @@ AddSetting(name="sigma", 		   comment='surface tension')
 AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
 AddSetting(name='radAngle', comment='Conversion to rads for calcs')
 
-if (Options$SC) {
-AddSetting(name="ContactAngle", default="90", comment='Contact angle of the phases')
-}
-
 #Domain initialisation (pre-defined set-ups)
 AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
 
@@ -111,13 +101,6 @@ AddSetting(name="tau_l", comment='relaxation time (low density fluid)')
 AddSetting(name="tau_h", comment='relaxation time (high density fluid)')
 AddSetting(name="Viscosity_l", tau_l='(3*Viscosity_l)', default=0.16666666, comment='kinematic viscosity')
 AddSetting(name="Viscosity_h", tau_h='(3*Viscosity_h)', default=0.16666666, comment='kinematic viscosity')
-#AddSetting(name="S0", default=1.0, comment='Relaxation Param')
-#AddSetting(name="S1", default=1.0, comment='Relaxation Param')
-#AddSetting(name="S2", default=1.0, comment='Relaxation Param')
-#AddSetting(name="S3", default=1.0, comment='Relaxation Param')
-#AddSetting(name="S4", default=1.0, comment='Relaxation Param')
-#AddSetting(name="S5", default=1.0, comment='Relaxation Param')
-#AddSetting(name="S6", default=1.0, comment='Relaxation Param')
 #	Inputs: Flow Properties
 AddSetting(name="VelocityX", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
