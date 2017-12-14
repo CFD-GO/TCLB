@@ -108,3 +108,5 @@ AddNodeType(name="EPressure",group="BOUNDARY")
 
 AddNodeType(name="WVelocity",group="BOUNDARY")
 AddNodeType(name="EVelocity",group="BOUNDARY")
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")

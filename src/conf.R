@@ -302,8 +302,8 @@ AddNodeType("EVelocity","BOUNDARY")
 # AddNodeType("Wet","ADDITIONALS")
 # AddNodeType("Dry","ADDITIONALS")
 # AddNodeType("Propagate","ADDITIONALS")
-AddNodeType("Inlet","OBJECTIVE")
-AddNodeType("Outlet","OBJECTIVE")
+#AddNodeType("Inlet","OBJECTIVE")
+#AddNodeType("Outlet","OBJECTIVE")
 # AddNodeType("Obj1","OBJECTIVE")
 # AddNodeType("Obj2","OBJECTIVE")
 # AddNodeType("Obj3","OBJECTIVE")
@@ -398,12 +398,16 @@ if (Options$autosym) { ## Automatic symmetries
     for (d in rows(D)) {
       v = c(d$dx,d$dy,d$dz)
       for (s in names(symmetries)) if (d[[s]] == "") {
-        s_v = v * symmetries[,s]
-        s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
-        if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
-        if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
-        i = which(s_sel)
-        s_d = D[s_sel,,drop=FALSE]
+	if (all(v == 0)) {
+		s_d = d
+	} else {
+          s_v = v * symmetries[,s]
+          s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
+          if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
+          if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
+          i = which(s_sel)
+          s_d = D[s_sel,,drop=FALSE]
+	}
         DensityAll[DensityAll$name == d$name,s] = s_d$name
         if (Fields[Fields$name == d$field,s] == "") Fields[Fields$name == d$field,s] = s_d$field
       }
@@ -412,7 +416,7 @@ if (Options$autosym) { ## Automatic symmetries
 
   for (s in names(symmetries)) {
     sel = Fields[,s] == ""
-    Fields[sel,s] = Fields$name[s]
+    Fields[sel,s] = Fields$name[sel]
   }
 
   AddNodeType("SymmetryX_plus",  group="SYMX")
@@ -483,38 +487,32 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	NodeShiftNum <<- NodeShiftNum + l
 	tab
 }))
-
-if (NodeShiftNum > 16) {
-	stop("NodeTypes exceeds short int")
-} else {
-	ZoneBits = 16 - NodeShiftNum
-	ZoneShift = NodeShiftNum
-	if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
-	ZoneMax = 2^ZoneBits
-#	ZoneRange = 1:ZoneMax
-#	NodeTypes = rbind(NodeTypes,data.frame(
-#		name=paste("SettingZone",ZoneRange,sep=""),
-#		group="SETTINGZONE",
-#		index=ZoneRange,
-#		Index=paste("SettingZone",ZoneRange,sep=""),
-#		value=(ZoneRange-1)*NodeShift,
-#		mask=(ZoneMax-1)*NodeShift,
-#		shift=NodeShiftNum
-#	))
-	NodeTypes = rbind(NodeTypes,data.frame(
-		name="DefaultZone",
-		group="SETTINGZONE",
-		index=1,
-		Index="DefaultZone",
-		value=0,
-		mask=(ZoneMax-1)*NodeShift,
-		shift=NodeShiftNum
-	))
-	NodeShiftNum = 16
-	NodeShift = 2^NodeShiftNum
+FlagT = "unsigned short int"
+FlagTBits = 16
+if (NodeShiftNum > 14) {
+	FlagT = "unsigned int"
+	FlagTBits = 32
+	if (NodeShiftNum > 30) {
+		stop("NodeTypes exceeds 32 bits")
+	}
 }
+ZoneBits = FlagTBits - NodeShiftNum
+ZoneShift = NodeShiftNum
+if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
+ZoneMax = 2^ZoneBits
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="DefaultZone",
+        group="SETTINGZONE",
+        index=1,
+        Index="DefaultZone",
+        value=0,
+        mask=(ZoneMax-1)*NodeShift,
+        shift=NodeShiftNum
+))
+NodeShiftNum = FlagTBits
+NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
 
 NodeTypes = rbind(NodeTypes, data.frame(
 	name="None",
