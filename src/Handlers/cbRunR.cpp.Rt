@@ -312,9 +312,9 @@ SEXP Dollar(std::string name) {
 		Rcpp::NumericVector small(size);
 		small.attr("dim") = retdim;
 		size_t i=0;
-		for (size_t z=0;z<reg.nz;z++)
-		for (size_t y=0;y<reg.ny;y++)
-		for (size_t x=0;x<reg.nx;x++) {
+		for (int z=0;z<reg.nz;z++)
+		for (int y=0;y<reg.ny;y++)
+		for (int x=0;x<reg.nx;x++) {
 			double val=0;
 			switch (dir) {
 			case 0:	val = reg.dx + x; break;
