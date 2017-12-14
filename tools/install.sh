@@ -138,7 +138,12 @@ rpython)
 	normal_install rPython
 	;;
 rinside)
-	normal_install RInside
+	if test "x$1" == "xgithub"
+	then
+		github_install eddelbuettel/rinside
+	else
+		normal_install RInside
+	fi
 	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
