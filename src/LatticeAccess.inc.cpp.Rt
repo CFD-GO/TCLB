@@ -297,6 +297,7 @@ suffix = ""
 if (Options$autosym) suffix = "0"
 
     for (f in rows(Fields)) {
+    if (! f$big) {
     for (dz in f$minz:f$maxz) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>
@@ -310,12 +311,7 @@ CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?
   con=load.field("ret", f, p, dp, con) ?>
   return ret;
 }
-
-
-
-<?R } ?>
-<?R } ?>
-<?R } ?>
+<?R }}} ?>
 
 template <int DY, int DZ> 
 CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx) 
@@ -346,7 +342,22 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int 
     default: return NAN;
   }
 }
-<?R } ?>
+<?R } else { ?>
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+{
+  real_t ret; <?R
+  con = make.context("in");
+  p = PV(c("x","y","z"));
+  dp = PV(c("dx","dy","dz"));
+  con=load.field("ret", f, p, dp, con) ?>
+  return ret;
+}
+
+
+<?R
+    } 
+    }
+?>
 
 <?R
 if (Options$autosym) {

@@ -556,6 +556,7 @@ Fields$tangent_name = add.to.var.name(Fields$name,"d")
 
 Fields$area = with(Fields,(maxx-minx+1)*(maxy-miny+1)*(maxz-minz+1))
 Fields$simple_access = (Fields$area == 1)
+Fields$big = Fields$area > 27
 
 if (ADJOINT==1) {
 
@@ -749,13 +750,21 @@ offsets = function(d2=FALSE, cpu=FALSE) {
     }
     list(get_offsets = 
       function(w,dw,cpu=def.cpu) {
-        tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-        tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-        tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+	if (is.numeric(dw)) {
+          tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
+          tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
+          tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+	  dw = PV(as.integer(dw))
+	} else {
+          tab1 = c(1,1,1,-1,-1,-1,0,0,0)
+          tab2 = c(0,0,0,-1,-1,-1,1,1,1)
+          tab3 = rep(TRUE,9)
+	}
+	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-        offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
-        cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
+        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw),cpu=cpu)
+        cond = c(w+dw,mw-w-dw-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
       },
       put_offsets = 
@@ -783,6 +792,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 ret = offsets(cpu=FALSE)
 
 Fields = ret$Fields
+
 
 for (i in 1:length(Margin)) {
 	Margin[[i]]$Size = ret$MarginSizes[i]
