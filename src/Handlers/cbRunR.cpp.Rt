@@ -303,6 +303,31 @@ SEXP Dollar(std::string name) {
 	retdim[1] = reg.ny;
 	retdim[2] = reg.nz;
 	if (name == "dim") return retdim;
+	if ((name == "X") || (name == "Y") || (name == "Z")) { // Positions
+		double unit = 1/solver->units.alt("1m");
+		int dir = -1;
+		if (name == "X") dir = 0;
+		if (name == "Y") dir = 1;
+		if (name == "Z") dir = 2;
+		Rcpp::NumericVector small(size);
+		small.attr("dim") = retdim;
+		size_t i=0;
+		for (int z=0;z<reg.nz;z++)
+		for (int y=0;y<reg.ny;y++)
+		for (int x=0;x<reg.nx;x++) {
+			double val=0;
+			switch (dir) {
+			case 0:	val = reg.dx + x; break;
+			case 1: val = reg.dy + y; break;
+			case 2: val = reg.dz + z; break;
+			}
+			val = (val + 0.5) * unit; 
+			small[i] = val;
+			i++;
+		}
+		return small;
+	}
+
 	{ // Geometry components
 		flag_t * NodeType = new flag_t[size];
 		solver->lattice->GetFlags(reg, NodeType);
@@ -323,6 +348,7 @@ SEXP Dollar(std::string name) {
 			} ?>
 			small.attr("levels") = levels;
 			small.attr("class") = "factor";
+			delete[] NodeType;
 			return small;
 		}
 		<?R } ?>
@@ -336,6 +362,9 @@ SEXP Dollar(std::string name) {
 		ret.push_back("dx");
 		ret.push_back("dy");
 		ret.push_back("dz");
+		ret.push_back("X");
+		ret.push_back("Y");
+		ret.push_back("Z");
 		ret.push_back("size");
 		ret.push_back("dim");
 		<?R
