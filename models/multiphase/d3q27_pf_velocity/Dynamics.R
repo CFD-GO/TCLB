@@ -45,6 +45,11 @@ AddDensity( name="h12",dx=-1, dy= 1, dz=-1, group="h")
 AddDensity( name="h13",dx= 1, dy=-1, dz=-1, group="h")
 AddDensity( name="h14",dx=-1, dy=-1, dz=-1, group="h")
 
+if (Options$OutFlow){
+	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
+	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
+}
+
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
@@ -55,16 +60,34 @@ AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
 AddField('PhaseF',stencil3d=1, group="OrderParameter")
 
+if (Options$OutFlow){
+	for (d in rows(DensityAll)) {
+		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+	}
+	AddField(name="U",dx=c(-1,0,0))
+}
+
+
 # Stages - processes to run for initialisation and each iteration
+if (Options$OutFlow){
+AddStage("PhaseInit" , "Init", save="PhaseF")
+AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold"))
+AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
+
+AddStage("calcWall"  , "calcWallPhase", save="PhaseF", load=DensityAll$group=="nw")
+AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group %in% c("g","h","gold","hold") )
+AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel","nw","gold","hold"), 
+	                                load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold"))
+} else {
 AddStage("PhaseInit" , "Init", save="PhaseF")
 AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel"))
 AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
 
 AddStage("calcWall"  , "calcWallPhase", save="PhaseF", load=DensityAll$group=="nw")
-AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group=="h" )
+AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group %in% c("g","h") )
 AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel","nw"), 
 	                                load=DensityAll$group %in% c("g","h","Vel","nw"))
-
+}
 AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
 AddAction("Init"     , c("PhaseInit","WallInit","calcWall","BaseInit"))
 
@@ -123,7 +146,10 @@ AddNodeType("Bubbletrack",group="ADDITIONALS")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
-
+if (Options$OutFlow){
+AddNodeType(name="ENeumann", group="BOUNDARY")
+AddNodeType(name="EConvect", group="BOUNDARY")
+}
 AddGlobal("InterfacePosition",comment='trackPosition')
 AddGlobal("Vfront",comment='velocity infront of bubble')
 AddGlobal("Vback",comment='velocity behind bubble')
