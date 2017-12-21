@@ -39,9 +39,11 @@ AddField('PhaseF',stencil2d=1, group="PF")
 #	Additional access required for outflow boundaries
 if (Options$Outflow){
 	for (d in rows(DensityAll)){
-    		AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+    		AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy )
+    		AddField( name=d$name,  dx=-d$dx, dy=-d$dy-1 )
 	}
 	AddField('U',dx=c(-1,0))
+	AddField('V',dx=c(0,-1))
 }
 
 AddStage("PhaseInit" , "Init" 		, save=Fields$name=="PhaseF")
@@ -137,5 +139,6 @@ AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 if (Options$Outflow) {
 	AddNodeType(name="Convective_E", group="BOUNDARY")
+	AddNodeType(name="Convective_N", group="BOUNDARY")
 	AddNodeType(name="Neumann_E", group="BOUNDARY")
 }
