@@ -139,6 +139,12 @@ CudaDeviceFunction void calcPhaseF(){
 	case NODE_WPressure:
 		WPressure();
 		break;
+	case NODE_NVelocity:
+		NVelocity();
+		break;
+	case NODE_SVelocity:
+		SVelocity();
+		break;
 	case NODE_EVelocity:
 		EVelocity();
 		break;
@@ -363,6 +369,12 @@ CudaDeviceFunction void Run() {
 			break;
 		case NODE_WPressure:
 			WPressure();
+			break;
+		case NODE_NVelocity:
+			NVelocity();
+			break;
+		case NODE_SVelocity:
+			SVelocity();
 			break;
 		case NODE_EVelocity:
 			EVelocity();
@@ -692,13 +704,45 @@ C(h, PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy
 }
 #endif
 
+CudaDeviceFunction void NVelocity()
+{
+/********* velocity-type Zou He boundary condition  ****************/
+// NOTE THAT THIS IS A VELOCITY BASED LBM SO FORMULAS ARE MODIFIED
+g[4] = g[2] - 6.0*VelocityY;
+g[7] = g[5] + 0.5*(VelocityY*5.0 - VelocityX + g[1] - g[3] );
+g[8] = g[6] + 0.5*(VelocityY*5.0 + VelocityX - g[1] + g[3] );
+
+/********* pressure-type Zou He boundary condition  ****************/
+real_t Ry  =  h[3] + h[1] + h[0] - PhaseField + ( h[6] + h[5] + h[2] )*2. ;
+real_t Rx  =  ( h[3] - h[1] )*3. ;
+h[4] = h[2] - Ry*2./3.;
+h[7] = h[5] + ( -Ry - Rx )/6.;
+h[8] = h[6] + ( -Ry + Rx )/6.;
+}
+
+CudaDeviceFunction void SVelocity()
+{
+/********* velocity-type Zou He boundary condition  ****************/
+// NOTE THAT THIS IS A VELOCITY BASED LBM SO FORMULAS ARE MODIFIED
+g[2] = g[4] + 6.0*VelocityY;
+g[5] = g[7] + 0.5*( VelocityX - VelocityY*5.0 - g[1] + g[3] );
+g[6] = g[8] + 0.5*(-VelocityX - VelocityY*5.0 + g[1] - g[3] );
+
+/********* pressure-type Zou He boundary condition  ****************/
+real_t Ry  =  - h[3] - h[1] - h[0] + PhaseField + ( -h[8] - h[7] - h[4] )*2. ;
+real_t Rx  =  ( h[3] - h[1] )*3. ;
+h[2] = h[4] + Ry*2./3.;
+h[5] = h[7] + ( Ry + Rx )/6.;
+h[6] = h[8] + ( Ry - Rx )/6.;
+}
+
 CudaDeviceFunction void EVelocity()
 {
 /********* velocity-type Zou He boundary condition  ****************/
 // NOTE THAT THIS IS A VELOCITY BASED LBM SO FORMULAS ARE MODIFIED
-g[3] = g[1] + 6.0*VelocityX;
-g[7] = g[5] + 0.5*(VelocityX*6.0 - VelocityY + g[2] - g[4] );
-g[6] = g[8] + 0.5*(VelocityX*6.0 + VelocityY - g[2] + g[4] );
+g[3] = g[1] - 6.0*VelocityX;
+g[6] = g[8] + 0.5*(VelocityX*5.0 + VelocityY - g[2] + g[4] );
+g[7] = g[5] + 0.5*(VelocityX*5.0 - VelocityY + g[2] - g[4] );
 
 /********* pressure-type Zou He boundary condition  ****************/
 real_t Rx  =  -PhaseField + h[4] + h[2] + h[0] + ( h[8] + h[5] + h[1] )*2. ;
@@ -712,9 +756,9 @@ CudaDeviceFunction void WVelocity()
 {
 /********* velocity-type Zou He boundary condition  ****************/
 // NOTE THAT THIS IS A VELOCITY BASED LBM SO FORMULAS ARE MODIFIED
-g[1] = g[3] - 6.0*VelocityX;
-g[5] = g[7] + 0.5*(VelocityX*6.0 + VelocityY - g[2] + g[4] );
-g[8] = g[6] + 0.5*(VelocityX*6.0 - VelocityY + g[2] - g[4] );
+g[1] = g[3] + 6.0*VelocityX;
+g[5] = g[7] + 0.5*( VelocityY - 5.0*VelocityX - g[2] + g[4] );
+g[8] = g[6] + 0.5*(-VelocityY - 5.0*VelocityX + g[2] - g[4] );
 
 /********* pressure-type Zou He boundary condition  ****************/
 real_t Rx  =  PhaseField - h[4] - h[2] - h[0] + ( -h[6] - h[7] - h[3] )*2. ;

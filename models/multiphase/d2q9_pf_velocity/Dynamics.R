@@ -137,6 +137,15 @@ AddGlobal(name="RTISpike",  comment='Spike Tracker')
 # Boundary things
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="NPressure", group="BOUNDARY")
+AddNodeType(name="SPressure", group="BOUNDARY")
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+
 if (Options$Outflow) {
 	AddNodeType(name="Convective_E", group="BOUNDARY")
 	AddNodeType(name="Convective_N", group="BOUNDARY")
