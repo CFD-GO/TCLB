@@ -185,7 +185,7 @@ CudaDeviceFunction void CollisionMRT(){
     real_t vold = V;
 #endif
 	PhaseF = PhaseF(0,0);
-	int i,j;
+	int i;
 	real_t C = PhaseF(0,0), mu;			// Phase and chemical potential
 	real_t tau, DynVisc, rho, p;			// Macroscopic Properties
 	vector_t gradPhi;				// Phase field gradients
@@ -230,7 +230,7 @@ CudaDeviceFunction void CollisionMRT(){
 	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
 
 // Calculate viscous force
-for (j=0;j<2;j++){
+
 // 	MRT stuff
 	mag = U*U + V*V;
 	for (i=0; i< 9; i++){
@@ -274,7 +274,7 @@ for (j=0;j<2;j++){
 	F_total[1] = mu*gradPhi.y + F_pressure[1] + F_body[1] + F_mu[1];
 	U = g[1]-g[3]+g[5]-g[6]-g[7]+g[8] + 0.5*F_total[0]/rho;
 	V = g[2]-g[4]+g[5]+g[6]-g[7]-g[8] + 0.5*F_total[1]/rho;
-}
+
 
 // PHASE FIELD POPULATION UPDATE:
 #ifdef OPTIONS_RT
