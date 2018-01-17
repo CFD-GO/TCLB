@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+    <Geometry nx="200" ny="200">
+		<MRT><Box /></MRT>
+     	<None name="disc">
+            <Sphere  ny="50" nx="50" dx="75" dy="75" />
+        </None>
+	</Geometry>
+    <Model>
+		<Params
+				Density_h="1"
+				Density_l="0.001" 
+				PhaseField_h="1.0"
+				PhaseField_l="0.0" 
+    		
+				PhaseField="1.0"
+       			PhaseField-disc="0.0"
+				/>
+        <Params W="4" 
+        		M="1"
+				sigma="0.000001" />
+        <Params omega_l="33.33333"
+				omega_h="0.33333"
+				S0="1.0"
+				S1="1.0"
+				S2="1.0"
+				S3="1.0"
+				S4="1.0"
+				S5="1.0"
+				S6="1.0"
+		/>
+    </Model>
+<VTK/>
+<Solve Iterations="50000" output="output/">  
+<VTK Iterations="1000"/>
+</Solve>
+<Solve Iterations="5000" output="output/">  
+<VTK Iterations="100"/>
+</Solve>
+</CLBConfig>
+
+

@@ -267,12 +267,17 @@ CudaDeviceFunction void  InitPhisStencil(){
     real_t A[buffSize][buffSize];
     real_t B[buffSize][buffSize];
     real_t y[buffSize];
-    int iwrite = 0;        
+    int iwrite = 0;  
+    real_t wx,wy,wc;
     real_t temp[buffSize];
     gradient.x = 0;
     gradient.y = 0;
     gradient.z = 0;
     curvature = 0;
+    wx = 0;
+    wy = 0;
+    wc = 0;
+
 
 	const real_t A0_BC[4] = {
             0,
@@ -392,7 +397,6 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 
 
-
         // orthogonalize
         
         iwrite = 0;
@@ -474,26 +478,21 @@ CudaDeviceFunction void  InitPhisStencil(){
 
         mx = y[1] / 2.;
         my = y[2] / 2.;
-
-
-/**
-        if (aj < buffSize) {
- 
-            printf("Result ---------------- \n");
-            matPrint( A );
-            matPrint( B );
-            vecPrint( y );
-            printf("Done ----------------- \n");
-            
-        }
-*/        
-
-        gradient.x = gradient.x + mx;
-        gradient.y = gradient.y + my;
-        
         t1 = sqrt(mx*mx + my*my) + 1E-18;
         curvature +=  ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
-         
+
+        
+        t1 = (1E-6 + y[1]*y[1] + y[2]*y[2] + y[3]*y[3]);
+        t1 = 1./(t1*t1);
+
+        wx = wx + t1;
+        gradient.x = gradient.x + t1 * y[1] / 2.;
+
+//        t1 = (1E-6 + y[2]*y[2]);
+//        t1 = (t1*t1);
+        wy = wy + t1; 
+        gradient.y = gradient.y + t1 * y[2] / 2.;
+
 <?R } 
  
  ?>
@@ -503,10 +502,19 @@ if(IamWall){
 	gradient.y = 0;
 	curvature = 0;
 }
+
+gradient.x = gradient.x / wx;
+gradient.y = gradient.y / wy; 
+
+
 curvature = -0.5 * curvature;
 
 normal.x = nw_x;
 normal.y = nw.y;
+
+
+debug.x = gradient.x;
+debug.y = gradient.y;
 
 ////END
 }
@@ -652,14 +660,11 @@ CudaDeviceFunction vector_t real_getInterfaceForce(const real_t ST) {
     if (phi_l * phi_l < SurfaceTensionDecay){
   
        
-  /**  if (near_wall){
-        real_t scale =  IntWidth * (1-4*phi_l*phi_l);
-
-        F = getNormal();
-        F.x = F.x * scale;
-        F.y = F.y * scale;
+    if (near_wall){
+        F.x = F.x * WallAdhesionDecay;
+        F.y = F.y * WallAdhesionDecay;
     }
-**/
+
     F.z = 0;
     const real_t s = sin(0.5*pi - WettingAngle);
     F.x =  ST * (curv + 2*h_Z*s)  *  F.x; // exp(- SurfaceTensionDecay * phi_l*phi_l);
@@ -881,12 +886,13 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 	real_t <?R C(R,sep=",") ?>;
 	real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
-    real_t gamma2 = gamma;
 <?R
 	S = PV("S",1:nrow(U)-1);
 	
-    S[EQ$order <= 2] = PV("gamma")
-	S[EQ$order >  2] = PV("gamma2")
+    S=PV("S",1:nrow(U)-1);
+	S[EQ$order == 2] = PV("gamma")
+	S[EQ$order == 3] = PV("S3")
+ 	S[EQ$order == 4] = PV("S4")   
 
 
 	C( R, f %*% EQ$mat );
@@ -941,17 +947,18 @@ CudaDeviceFunction void CollisionMRT()
 
     vector_t n = gradient;
     real_t l = sqrt(n.x*n.x + n.y*n.y);
-    if (pf * pf < SurfaceTensionDecay){
-        n.x -= u.x * pf;
-        n.y -= u.y * pf;
-
-        l = sqrt(n.x*n.x + n.y*n.y);
-        n.x = n.x / (l + 1E-10);
-        n.y = n.y / (l + 1E-10);
-    } else {
+    n.x -= u.x * pf;
+    n.y -= u.y * pf;
+    l = sqrt(n.x*n.x + n.y*n.y);
+    n.x = n.x / (l + 1E-10);
+    n.y = n.y / (l + 1E-10);
+  
+    /**  } else {
         n.x = 0;
         n.y = 0;
     }
+*/
+
 
 <?R
 #u = PV(c('u.x', 'u.y'))
@@ -959,7 +966,22 @@ CudaDeviceFunction void CollisionMRT()
 #    mob = PV("M")
     omega_ph=PV("omega_ph")
 #    C( Bh, 3*mob * (1.-4.*pf*pf)*(W) )
-    C( h, (1-omega_ph )*h + omega_ph * EQ_h$feq )
+#    C( h, (1-omega_ph )*h + omega_ph * EQ_h$feq )
+#    C( h, h+omega_ph*(EQ_h$feq-h) )
+
+
+	selR = EQ_h$order > 0
+    
+	R[!selR] = EQ_h$Req[!selR]
+	
+    S = PV("S",1:nrow(U)-1);
+	
+    S[EQ_h$order <= 1] = PV("omega_ph")
+	S[EQ_h$order >  1] = PV("omega2_ph")
+
+	C( R, h %*% EQ_h$mat );
+	C( R, (R + S * (EQ_h$Req-R)));
+	C( h, R %*% solve(EQ_h$mat), float=F);
 
 ?>
 //    vector_t du = getBoundaryForcing();

@@ -82,6 +82,8 @@ AddQuantity(name="DEBUG", vector=T)
 AddSetting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
 
 AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="omega2_ph", default="1", comment='one over relaxation time - second for phase field')
+
 AddSetting(name="omega_l", comment='one over relaxation time, light phase')
 AddSetting(name="Viscosity", omega='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Viscosity_l", omega_l='1.0/(3*Viscosity_l + 0.5)', default=0.16666666, comment='viscosity')
@@ -100,7 +102,9 @@ AddSetting(name="SurfaceTensionDecay", default=0.248)
 AddSetting(name="SurfaceTensionRate", default=0.1)
 AddSetting(name="WettingAngle", default=0, zonal=T)
 AddSetting(name="WallAdhesionDecay", default=0, zonal=T)
-
+AddSetting(name="S2", default="0", comment='MRT Sx')
+AddSetting(name="S3", default="0", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
 AddSetting(name="BrinkmanHeightInv", default=0, zonal=T)
 # Globals - table of global integrals that can be monitored and optimized
 
