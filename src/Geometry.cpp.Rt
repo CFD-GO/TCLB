@@ -226,6 +226,7 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	ret.nx = ret.ny = ret.nz = 1;
 	return ret;
     }
+    if (strcmp(node.name(),"Geometry")) return region;
     ret = getRegion(node.parent());
 
     char side; 
