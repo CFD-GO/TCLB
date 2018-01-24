@@ -27,9 +27,10 @@ class Geometry {
 public:
   flag_t * geom; ///< Main table of flags/NodeType's
   cut_t * Q;
-  lbRegion region; ///< Global Lattive region
+  lbRegion region; ///< Lattive region
+  lbRegion totalregion; ///< Global Lattive region
   UnitEnv units; ///< Units object for unit calculations
-  Geometry(const lbRegion& r, const UnitEnv& units_);
+  Geometry(const lbRegion& r, const lbRegion& tr, const UnitEnv& units_);
   ~Geometry();
   int load(pugi::xml_node&);
   void writeVTI(const char * filename);
