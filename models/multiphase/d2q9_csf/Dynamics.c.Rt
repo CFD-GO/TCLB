@@ -123,6 +123,13 @@ void vecPrint( const real_t AA[buffSize]){
 
 }
 CudaDeviceFunction void  InitPhisStencil(){
+
+    if(IamWall){
+	    gradient.x = 0;
+    	gradient.y = 0;
+	    curvature = 0;
+    } else {
+
     debug.x = 0;
     debug.y = 0;
     debug.z = 0;
@@ -497,11 +504,7 @@ CudaDeviceFunction void  InitPhisStencil(){
  
  ?>
 
-if(IamWall){
-	gradient.x = 0;
-	gradient.y = 0;
-	curvature = 0;
-}
+
 
 gradient.x = gradient.x / wx;
 gradient.y = gradient.y / wy; 
@@ -515,7 +518,7 @@ normal.y = nw.y;
 
 debug.x = gradient.x;
 debug.y = gradient.y;
-
+    } //end IaAmWall-Else
 ////END
 }
 
@@ -577,6 +580,28 @@ CudaDeviceFunction vector_t getNormal(){
     return normal;
 
 }
+
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getWallNormal(){
+    vector_t nw;
+    if (!IamWall) {
+        nw.x = nw_x(0,0);
+        nw.y = nw_y(0,0);
+        nw.z = 0;
+        real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
+        if(ln == 0.){
+            nw.x = 0.;
+            nw.y = 0.;
+        } else {
+            nw.x /= -ln;
+            nw.y /= -ln;
+        }
+    }
+    return nw;
+
+}
+
+
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction real_t getCurvature(){
     InitPhisStencil();
@@ -606,7 +631,7 @@ CudaDeviceFunction void CalcNormal(){
     nw.y = 0;
 
 
-    real_t magic = 0.12;
+/**    real_t magic = 0.12;
    <?R
     for (j in 1:9) {
     ?>
@@ -622,8 +647,29 @@ CudaDeviceFunction void CalcNormal(){
    // real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;
    // nw.x /= ln;
    // nw.y /= ln;
+**/
 
-    if (IamWall){
+
+    real_t magic = 0.12;
+    bool has_normal = false;
+   <?R
+    for (j in 1:9) {
+    ?>
+        if (<?R C(phis[j]) ?>  == -999) {
+            nw.x = nw.x + (1-magic) * <?R C(U[j,1]) ?>;
+            nw.y = nw.y + (1-magic) * <?R C(U[j,2]) ?>;
+            has_normal = true;
+        }
+
+        nw.x = nw.x + magic * nw_x(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
+        nw.y = nw.y + magic * nw_y(  <?R C(U[j,1]) ?>,   <?R C(U[j,2]) ?> );
+    <?R } ?>
+
+    real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y) + 1E-8;
+    nw.x /= ln;
+    nw.y /= ln;
+
+    if (IamWall || !has_normal){
         nw.x = 0;
         nw.y = 0;
     }
