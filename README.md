@@ -26,14 +26,16 @@ sudo tools/install.sh openmpi
      tools/install.sh rdep
 sudo tools/install.sh python-dev
      tools/install.sh rpython
+sudo tools/install.sh modules
 ```
 The `install.sh` script is designed to work on Ubuntu (e.g. on the [Travis-CI](https://travis-ci.org/CFD-GO/TCLB) VMs). You can install the **`sudo`** parts by yourself, and use script to install R packages: rdep and rpython.
 
 ### Compilation
 This should work:
 ```bash
+module load mpi/openmpi-x86_64
 make configure
-./configure --enable-double --enable-graphics --with-cuda-arch=sm_20
+./configure --enable-double --disable-cuda
 make d2q9
 ```
 
