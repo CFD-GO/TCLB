@@ -21,7 +21,7 @@ You'll need:
 You can install lot of these with the tools/install.sh script (if you are not afraid of running a script with sudo):
 
 ```bash
-sudo tools/install.sh cuda 6.5-14
+sudo tools/install.sh cuda 6.5-14 # only if your GPU supports cuda
 sudo tools/install.sh r
 sudo tools/install.sh openmpi
      tools/install.sh rdep
