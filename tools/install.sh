@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython [VERSION]"
+	echo "install.sh [dry] [skipssl] Ubuntu|CentOS [OS] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython|modules [VERSION]"
 	exit -2
 }
 
@@ -26,7 +26,7 @@ function rm_tmp {
   return 0;
 }
   
-# --------------- First check if running dry ----------------
+# --------------- First, check if running dry ----------------
 if test "x$1" == "xdry"
 then
 	RUN=dry
@@ -40,6 +40,21 @@ then
 	WGETOPT="--no-check-certificate"
 	shift
 fi
+
+# ------------------- Second, check OS  ----------------------
+OS=""
+if test "x$1" == "xCentOS"
+then
+	OS=CentOS
+	shift
+fi
+if test "x$1" == "xUbuntu"
+then
+	OS=Ubuntu
+	shift
+fi
+test -z "$OS" && echo "Unknown type of OS [Ubuntu | CentOS]" && usage
+
 
 # --------------- First argument is type of install ---------
 test -z "$1" && usage
@@ -82,7 +97,7 @@ function github_install {
 	name=$(echo $1 | sed "s/\//./g")
 	rm -f $name.tar.gz
 	try "Downloading $name" wget $WGETOPT https://github.com/$1/archive/master.tar.gz -O $name.tar.gz
-	try "Installing $name" R CMD INSTALL $name.tar.gz
+	try "Installing $name" R CMD INSTALL $name.tar.gz 
 }
 
 function normal_install {
@@ -98,11 +113,11 @@ function normal_install {
 EOF
 }
 
-
 # --------------- Main install script -----------------------
 
 dry && echo Running dry install
-
+echo -e "Running install for $OS. \n"
+	
 case "$inst" in
 r)
 	CRAN="http://cran.rstudio.com"
@@ -111,21 +126,31 @@ r)
 	then
 		DIST=trusty # All Mints are Trusty :-)
 	fi
-	try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
-	try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
-	try "Updating APT" apt-get update -qq
-	try "Installing R base" apt-get install -y --no-install-recommends r-base-dev r-recommended qpdf
-	try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
+	if test "x$OS" == "xCentOS"
+	then
+	    try "Adding epel-release repo" yum install -y epel-release
+	    try "Installing R base" sudo yum install -y R
+	    try "Changing access to R lib paths" chmod 2777 /usr/lib64/R/library /usr/share/R/library
+	fi
+	
+	if test "x$OS" == "xUbuntu"
+	then
+	    try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
+	    try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
+	    try "Updating APT" apt-get update -qq
+	    try "Installing R base" apt-get install -y --no-install-recommends r-base-dev r-recommended qpdf
+	    try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
+	fi
 	;;
 rdep)
         if test "x$1" == "xgithub"
         then
-                github_install cran/getopt
-                github_install cran/optparse
-                github_install cran/numbers
+	    github_install cran/getopt
+	    github_install cran/optparse
+	    github_install cran/numbers
         else
-                normal_install optparse
-                normal_install numbers
+	    normal_install optparse
+	    normal_install numbers
         fi
 	github_install llaniewski/rtemplate
 	github_install llaniewski/gvector
@@ -143,23 +168,50 @@ cuda)
 	CUDA=$1
 	shift
 	echo "#### Installing CUDA library ####"
-	try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-	try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-	try "Updating APT" apt-get update -qq
-	CUDA_APT=${CUDA%-*}
-	CUDA_APT=${CUDA_APT/./-}
-	try "Installing CUDA form APT" apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
-	try "Clean APT" apt-get clean
+	
+	if test "x$OS" == "xCentOS"
+	then
+		echo "The install script doesnt support CentOS yet, please install CUDA manually."
+	fi
+	
+	if test "x$OS" == "xUbuntu"
+	then
+	    try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+	    try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+	    try "Updating APT" apt-get update -qq
+	    CUDA_APT=${CUDA%-*}
+	    CUDA_APT=${CUDA_APT/./-}
+	    try "Installing CUDA form APT" apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
+	    try "Clean APT" apt-get clean
+	fi
 	;;
 openmpi)
-	try "Updating APT" apt-get update -qq
-	try "Installing MPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
-	try "Clean APT" apt-get clean
+	if test "x$OS" == "xCentOS"
+	then
+		try "Installing openmpi from yum" yum install -y openmpi
+		try "Installing openmpi-devel from yum" yum install -y openmpi-devel
+		try "Clean yum" yum clean packages
+		echo "Don't forget to load mpi module before compilation."
+	fi
+	if test "x$OS" == "xUbuntu"
+	then
+		try "Updating APT" apt-get update -qq
+		try "Installing MPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
+		try "Clean APT" apt-get clean
+	fi
 	;;
 coveralls)
-	try "Installing lcov" apt-get install -y lcov
-	try "Installing time" apt-get install -y time
-#	try "Installing coveralls-lcov" gem install coveralls-lcov
+	if test "x$OS" == "xCentOS"	
+	then
+		echo "The install script doesnt support CentOS yet, please install CUDA manually."
+	fi 
+	
+	if test "x$OS" == "xUbuntu"
+	then
+		try "Installing lcov" apt-get install -y lcov
+		try "Installing time" apt-get install -y time
+	#	try "Installing coveralls-lcov" gem install coveralls-lcov
+	fi
 	;;
 submodules)
 	if test -f "../tests/README.md"
@@ -171,11 +223,29 @@ submodules)
 	try "Changing URLs of submodules" sed -i 's/git@github.com:/https:\/\/github.com\//' ../.gitmodules
 	try "Updating \"tests\" submodule" git submodule update --init ../tests
 	try "Loading gitmodules" mv gitmodules ../.gitmodules
-	
 	;;
 python-dev)
-    try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
-    ;;
+	if test "x$OS" == "xCentOS"	
+	then
+		try "Installing python-devel from yum" yum install -y python-devel
+		try "Installing numpy from yum" yum install -y numpy 
+		try "Installing sympy from yum" yum install -y sympy
+	fi
+	
+	if test "x$OS" == "xUbuntu"
+	then
+		try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
+	fi
+	;;
+modules)
+	try "Downloading modules" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
+	try "Unpacking archive" tar -xjf modules-4.1.0.tar.bz2 -C .
+	try "Entering modules directory" cd modules-4.1.0
+	try "Configuring" ./configure
+	try "make" make
+	try "make install" make install
+	try "Leaving modules directory" cd ..
+	;;
 *)
 	echo "Unknown type of install $inst"
 	usage
