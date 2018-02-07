@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] [skipssl] Ubuntu|CentOS [OS] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython|modules [VERSION]"
+	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython|module [VERSION]"
 	exit -2
 }
 
@@ -43,17 +43,16 @@ fi
 
 # ------------------- Second, check OS  ----------------------
 OS=""
-if test "x$1" == "xCentOS"
+if lsb_release -sid | grep "CentOS"
 then
 	OS=CentOS
-	shift
 fi
-if test "x$1" == "xUbuntu"
+
+if lsb_release -sid | grep "Ubuntu"
 then
 	OS=Ubuntu
-	shift
 fi
-test -z "$OS" && echo "Unknown type of OS [Ubuntu | CentOS]" && usage
+test -z "$OS" && echo "Unknown type of OS, only Ubuntu and CentOS are supported" && usage
 
 
 # --------------- First argument is type of install ---------
@@ -116,8 +115,8 @@ EOF
 # --------------- Main install script -----------------------
 
 dry && echo Running dry install
-echo -e "Running install for $OS. \n"
-	
+
+
 case "$inst" in
 r)
 	CRAN="http://cran.rstudio.com"
@@ -237,14 +236,15 @@ python-dev)
 		try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
 	fi
 	;;
-modules)
-	try "Downloading modules" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
+module)
+	try "Downloading module" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
 	try "Unpacking archive" tar -xjf modules-4.1.0.tar.bz2 -C .
-	try "Entering modules directory" cd modules-4.1.0
+	try "Entering module directory" cd modules-4.1.0
 	try "Configuring" ./configure
 	try "make" make
 	try "make install" make install
-	try "Leaving modules directory" cd ..
+	try "Leaving module directory" cd ..
+	try "Restarting terminal" source ~/.bashrc
 	;;
 *)
 	echo "Unknown type of install $inst"
