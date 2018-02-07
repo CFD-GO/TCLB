@@ -40,7 +40,8 @@ This should work:
 ```bash
 module load mpi/openmpi-x86_64 # only on CentOS
 make configure
-./configure --enable-double --enable-graphics --with-cuda-arch=sm_20
+./configure --enable-double --enable-graphics --with-cuda-arch=sm_20 
+# only CPU ./configure --enable-double --disable-cuda
 make d2q9
 ```
 
