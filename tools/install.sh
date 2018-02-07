@@ -244,7 +244,7 @@ module)
 	try "make" make
 	try "make install" make install
 	try "Leaving module directory" cd ..
-	try "Restarting terminal" source ~/.bashrc
+	try "Restarting terminal" . ~/.bashrc
 	;;
 *)
 	echo "Unknown type of install $inst"
