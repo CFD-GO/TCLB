@@ -386,7 +386,7 @@ void MainFree( Solver *d);
 		// Setting global variables
 		initSettings();
 
-		geometry = new Geometry(region, units);
+		geometry = new Geometry(region, mpi.totalregion, units);
 
 		return 0;
 	}

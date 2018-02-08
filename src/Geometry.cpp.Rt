@@ -39,7 +39,7 @@ const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(units_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
 {
     geom = new flag_t[region.sizeL()];
     Q = NULL;
@@ -226,6 +226,7 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	ret.nx = ret.ny = ret.nz = 1;
 	return ret;
     }
+    if (strcmp(node.name(),"Geometry") == 0) return totalregion;
     ret = getRegion(node.parent());
 
     char side; 
