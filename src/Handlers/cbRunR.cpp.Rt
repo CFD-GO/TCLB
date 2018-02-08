@@ -471,6 +471,32 @@ public:
 	}
 };
 
+class rXMLNode : public rWrapper {
+public:
+	pugi::xml_node node;
+	rXMLNode(const pugi::xml_node& node_): node(node_) {};
+	std::string print() { return "XMLNode"; }
+	SEXP Call(Rcpp::List args) {
+		output("call to xml node: %s\n",node.name());
+                Handler hand(node, solver);
+                if (hand) {
+                        if (hand.Type() & HANDLER_DESIGN) {
+                                error("No support for DESIGN XML elements in RunR");
+                        } else if (hand.Type() & HANDLER_CALLBACK) {
+                                if ((hand.hand->everyIter != 0) || (hand.Type() & HANDLER_DESIGN)) {
+	                                error("No support for CALLBACK XML elements with Iterations set in RunR");
+                                } else {
+                                        hand.DoIt();
+                                }
+                        }
+                };
+		return rNull;
+	}
+
+};
+
+
+
 
 SEXP CLBFunctionCall(Rcpp::XPtr< rWrapper > obj, Rcpp::List args) {
 	debug2("R: Calling %s",obj->print().c_str());
@@ -559,8 +585,6 @@ int RunR::Init() {
 	Callback::Init();
 	notice("R: Initializing R environment ...");
 
-	output("NoP: %d\n",this->NumberOfParameters());
-
 	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
 	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
 	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
@@ -579,6 +603,29 @@ int RunR::Init() {
 	R_Consolefile = NULL;
 
 	R.parseEval("options(prompt='[  ] R:> ');");
+
+	source = "";
+        for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+		if (par.type() == pugi::node_element) {
+			char nd_name[20];
+			sprintf(nd_name, "xml_%0zx", par.hash_value());
+			R[nd_name]          = base.rWrap(new  rXMLNode (par));
+			
+			source = source + nd_name + "()\n";
+			output("element\n");
+		} else if (par.type() == pugi::node_pcdata) {
+			output("pcdata\n");
+			source += par.value();
+		} else if (par.type() == pugi::node_cdata) {
+			output("cdata\n");
+			source += par.value();
+		} else {
+			output("Unknown\n");
+		}
+	}
+	output("----- RunR -----\n");
+	output("%s\n",source.c_str());
+	output("----------------\n");	
 	
 	return 0;
 }
@@ -588,7 +635,7 @@ int RunR::DoIt() {
 	try {
 		if (strlen(node.child_value()) != 0) {
 			solver->print("Running R ...");
-			R.parseEval(node.child_value());
+			R.parseEval(source);
 		}
 		bool interactive = false;
 		interactive = node.attribute("interactive");
