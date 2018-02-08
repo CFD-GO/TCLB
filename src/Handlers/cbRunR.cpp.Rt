@@ -15,6 +15,7 @@ RInside RunR::R(0,0,true,false,true);
 class rWrapper { // Wrapper for all my R objects
 public:
 	Solver * solver;
+	vHandler * hand;
 	virtual SEXP Dollar(std::string name) { return rNull; };
 	virtual void DollarAssign(std::string name, SEXP v) {};
 	virtual Rcpp::CharacterVector Names() { return Rcpp::CharacterVector(0); };
@@ -29,6 +30,7 @@ public:
 	SEXP rWrap(T * ptr) {
 	        Rcpp::XPtr< rWrapper > a(ptr);
 		a->solver = solver;
+		a->hand = hand;
 		Rcpp::Function wraper("CLBFunctionWrap");
 		Rcpp::Function ra = wraper(a);
 	        ra.attr("class") = "CLB";
@@ -104,9 +106,9 @@ public:
 	}
 };
 
-class rParameters : public rWrapper {
+class rFields : public rWrapper {
 public:
-	std::string print() { return "Parameters"; }
+	std::string print() { return "Fields"; }
 	SEXP Dollar(std::string name) {
 		lbRegion reg = solver->lattice->region;
 		Rcpp::NumericVector ret(reg.size());
@@ -152,6 +154,64 @@ public:
 		<?R for (d in rows(DensityAll)) if (d$parameter){ ?>
 		ret.push_back("<?%s d$nicename ?>");
 		<?R } ?>
+		return ret;
+	}
+};
+
+class rParameters : public rWrapper {
+public:
+	std::string print() { return "Parameters"; }
+	SEXP Dollar(std::string name) {
+		int len = hand->NumberOfParameters();
+		Rcpp::NumericVector ret(len);
+		if (name == "Values") {
+			hand->Parameters(PAR_GET, &ret[0]);
+		} else if (name == "Lower") {
+			hand->Parameters(PAR_LOWER, &ret[0]);
+		} else if (name == "Upper") {
+			hand->Parameters(PAR_UPPER, &ret[0]);
+		} else if (name == "Grad") {
+			hand->Parameters(PAR_GRAD, &ret[0]);
+		} else if (name == "X") {
+			hand->Parameters(PAR_X, &ret[0]);
+		} else if (name == "Y") {
+			hand->Parameters(PAR_Y, &ret[0]);
+		} else if (name == "Z") {
+			hand->Parameters(PAR_Z, &ret[0]);
+		} else if (name == "T") {
+			hand->Parameters(PAR_T, &ret[0]);
+		} else {
+			ERROR("R: Unknown parameter");
+			return Rcpp::NumericVector(0);
+		}
+		return ret;
+	}
+
+	void DollarAssign(std::string name, SEXP v_) {
+		Rcpp::NumericVector v(v_);
+		int len = hand->NumberOfParameters();
+		if (v.size() != len) {
+			ERROR("R: Wrong number of parameters");
+			return;
+		}
+		if (name == "Values") {
+			hand->Parameters(PAR_SET, &v[0]);
+		} else {
+			ERROR("R: Cannot set anything but Values");
+			return;
+		}
+		return;
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		ret.push_back("Values");
+		ret.push_back("Lower");
+		ret.push_back("Upper");
+		ret.push_back("Grad");
+		ret.push_back("X");
+		ret.push_back("Y");
+		ret.push_back("Z");
+		ret.push_back("T");
 		return ret;
 	}
 };
@@ -386,6 +446,8 @@ public:
 	SEXP Dollar(std::string name) {
 	  if (name == "Settings") {  
 	    return rWrap(new rSettings());
+	  } else if (name == "Fields") {  
+	    return rWrap(new rFields());
 	  } else if (name == "Parameters") {  
 	    return rWrap(new rParameters());
 	  } else if (name == "Quantities") {  
@@ -400,6 +462,7 @@ public:
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		ret.push_back("Settings");
+		ret.push_back("Fields");
 		ret.push_back("Parameters");
 		ret.push_back("Quantities");
 		ret.push_back("Actions");
@@ -496,6 +559,8 @@ int RunR::Init() {
 	Callback::Init();
 	notice("R: Initializing R environment ...");
 
+	output("NoP: %d\n",this->NumberOfParameters());
+
 	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
 	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
 	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
@@ -505,6 +570,7 @@ int RunR::Init() {
 
 	rWrapper base;
 	base.solver = solver;
+	base.hand = this;
 	R["Solver"]          = base.rWrap(new  rSolver ());
 
         ptr_R_WriteConsoleEx = CLB_WriteConsoleEx ;
