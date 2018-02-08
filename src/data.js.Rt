@@ -1,0 +1,89 @@
+<?R
+	library(jsonlite)
+	library(yaml)
+	source("conf.R")
+	data = yaml::yaml.load_file("../../doc/elements.yaml")
+
+    eq = function(a,b) if (is.null(a)) FALSE else a == b;
+    get.by.type = function(tp) {
+      data[sapply(data, function(x) eq(x$type,tp))]
+    }
+
+for (i in rows(NodeTypes)) {
+  el = list(
+    comment = i$comment,
+    type="nodetypes"
+  )
+  data[[i$name]] = el
+}
+
+specials = list()
+
+specials[["Settings"]] = Settings$name
+specials[["Quantities"]] = Quantities$name
+specials[["GeometryComponents"]] = names(Node_Group)
+specials[["SettingsFull"]] = lapply(rows(Settings), function(i) list(
+    name=i$name,
+    comment=i$comment,
+    val=list(unit="float")
+  ))
+
+rep = function(l) { if (is.list(l)) {
+  sel = sapply(l, function(x) if (is.list(x)) "special" %in% names(x) else FALSE)
+  ret = l[!sel]
+  for (i in which(sel)) {
+    nm = l[[i]]$special
+    if (nm %in% names(specials)) {
+      ret = c(ret,specials[[nm]])
+    } else {
+      warning("no ",nm," in specials")
+    }
+  }
+  lapply(ret,rep)
+} else l }
+data = rep(data)
+
+    res = list()
+    for (name in names(data)) if (name != "types") {
+      el = data[[name]]  
+      if (is.character(el$type)) {
+        tp = data$types[[el$type]]
+        el$children = c(el$children,tp$children)
+        el$attr = c(el$attr,tp$attr)
+      }
+      resel = list()
+      ret = NULL
+      for (i in el$children) {
+        if (names(i) == "type") {
+          ret = c(ret,get.by.type(i$type))
+        }
+      }
+      resel[["children"]] = as.character(names(ret))
+      ret = list()
+      for (i in el$attr) {
+        val = NA
+        type = NA
+        if (is.list(i$val)) {
+          if ("select" %in% names(i$val)) {
+            val = i$val$select
+            type="select"
+          }
+          if ("list" %in% names(i$val)) {
+            val = i$val$list
+            type="list"
+          }
+        }
+        if (is.character(i$name)) ret[[i$name]] = list(value=val,comment=i$comment,type=type)
+      }
+      resel[["attrs"]] = ret
+      resel[["comment"]] = el$comment
+      res[[name]] = resel
+    }
+
+    res[["!top"]] = "CLBConfig"
+    res[["!attrs"]] = list()
+
+    result = jsonlite::toJSON(res, pretty=TRUE)
+    result = gsub("\\[null\\]","null",result)
+    writeLines(paste0("var tclb_xml_scheme = ",result,";"))
+?>

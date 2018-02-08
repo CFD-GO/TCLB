@@ -150,6 +150,10 @@ for (d in destinations) {
 <?%s m ?>/source: <?%s src_all ?>
 	@echo "  DONE       $@"
 
+<?%s m ?>/editor: <?%s d ?>/<?%s m ?>/data.js
+	@echo "  FIREFOX    $@"
+	firefox 'editor.html?model=<?%s m ?>'
+
 <?%s m ?>/clean: <?%s d ?>/<?%s m ?>/makefile
 	@echo "  CLEAN      $@"
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE) clean

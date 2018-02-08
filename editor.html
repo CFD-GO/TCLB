@@ -1,0 +1,86 @@
+﻿<!doctype html>
+
+<title>CodeMirror: XML Autocomplete Demo</title>
+<meta charset="utf-8"/>
+<link rel=stylesheet href="../doc/docs.css">
+
+<link rel="stylesheet" href="tools/lib/codemirror.css">
+<link rel="stylesheet" href="tools/lib/my-show-hint.css">
+<script src="tools/lib/codemirror.js"></script>
+<script src="tools/lib/my-show-hint.js"></script>
+<script src="tools/lib/my-xml-hint.js"></script>
+<script src="tools/lib/xml.js"></script>
+<style type="text/css">
+      .CodeMirror { border: 1px solid #eee; }
+    </style>
+
+<article>
+<h2>TCLB Editor</h2>
+<form><textarea id="code" name="code"><!-- write some xml below -->
+</textarea></form>
+
+    <script>
+
+var queryDict = {}
+location.search.substr(1).split("&").forEach(function(item) {queryDict[item.split("=")[0]] = item.split("=")[1]})
+    	model="d2q9_"
+	if (queryDict["model"]) model=queryDict["model"]    
+    
+      function completeAfter(cm, pred) {
+        var cur = cm.getCursor();
+        if (!pred || pred()) setTimeout(function() {
+          if (!cm.state.completionActive)
+            cm.showHint({completeSingle: false});
+        }, 100);
+        return CodeMirror.Pass;
+      }
+
+      function completeIfAfterLt(cm) {
+        return completeAfter(cm, function() {
+          var cur = cm.getCursor();
+          return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+        });
+      }
+
+      function completeIfInTag(cm) {
+        return completeAfter(cm, function() {
+          var tok = cm.getTokenAt(cm.getCursor());
+          if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)) return false;
+          var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
+          return inner.tagName;
+        });
+      }
+
+	var script = document.createElement('script');
+	script.onload = function () {
+      var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+        mode: "xml",
+        lineNumbers: true,
+        extraKeys: {
+          "'<'": completeAfter,
+          "'/'": completeIfAfterLt,
+          "' '": completeIfInTag,
+          "'='": completeIfInTag,
+          "Ctrl-Space": "autocomplete"
+        },
+        hintOptions: {schemaInfo: tclb_xml_scheme}
+      });
+	
+	};
+	script.src = "CLB/" + model + "/data.js";
+	document.head.appendChild(script);
+
+      var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+        mode: "xml",
+        lineNumbers: true,
+        extraKeys: {
+          "'<'": completeAfter,
+          "'/'": completeIfAfterLt,
+          "' '": completeIfInTag,
+          "'='": completeIfInTag,
+          "Ctrl-Space": "autocomplete"
+        },
+        hintOptions: {schemaInfo: tclb_xml_scheme}
+      });
+    </script>
+  </article>
