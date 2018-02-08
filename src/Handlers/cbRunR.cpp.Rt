@@ -170,7 +170,7 @@ public:
 			hand->Parameters(PAR_LOWER, &ret[0]);
 		} else if (name == "Upper") {
 			hand->Parameters(PAR_UPPER, &ret[0]);
-		} else if (name == "Grad") {
+		} else if (name == "Gradient") {
 			hand->Parameters(PAR_GRAD, &ret[0]);
 		} else if (name == "X") {
 			hand->Parameters(PAR_X, &ret[0]);
@@ -207,7 +207,7 @@ public:
 		ret.push_back("Values");
 		ret.push_back("Lower");
 		ret.push_back("Upper");
-		ret.push_back("Grad");
+		ret.push_back("Gradient");
 		ret.push_back("X");
 		ret.push_back("Y");
 		ret.push_back("Z");
@@ -268,6 +268,38 @@ public:
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		ret.push_back("<?%s q$name ?>");
+		ret.push_back("<?%s q$name ?>.si");
+		<?R }
+		ifdef(); ?>
+		return ret;
+	}
+};
+
+class rGlobals : public rWrapper {
+public:
+	std::string print() { return "Globals"; }
+	SEXP Dollar(std::string name) {
+		Rcpp::NumericVector ret(1);
+	<?R 
+		for (q in rows(Globals)) { ifdef(q$adjoint);
+	?>
+	    if (name == "<?%s q$name ?>" || name == "<?%s q$name ?>.si") {
+		double v = 1;
+		if (name == "<?%s q$name ?>.si") v = solver->units.alt("<?%s q$unit ?>");
+		ret[0] = v * solver->lattice->globals[<?%s q$Index ?>];
+		return ret;
+	    }
+	<?R
+	}
+	ifdef();
+	?>
+		ERROR("R: Unknown global");
+		return Rcpp::NumericVector(0);
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		<?R for (q in rows(Globals)) { ifdef(q$adjoint); ?>
 		ret.push_back("<?%s q$name ?>");
 		ret.push_back("<?%s q$name ?>.si");
 		<?R }
@@ -452,6 +484,8 @@ public:
 	    return rWrap(new rParameters());
 	  } else if (name == "Quantities") {  
 	    return rWrap(new rQuantities());
+	  } else if (name == "Globals") {  
+	    return rWrap(new rGlobals());
 	  } else if (name == "Actions") {  
 	    return rWrap(new rActions());
 	  } else if (name == "Geometry") {  
@@ -465,6 +499,7 @@ public:
 		ret.push_back("Fields");
 		ret.push_back("Parameters");
 		ret.push_back("Quantities");
+		ret.push_back("Globals");
 		ret.push_back("Actions");
 		ret.push_back("Geometry");
 		return ret;
@@ -623,9 +658,9 @@ int RunR::Init() {
 			output("Unknown\n");
 		}
 	}
-	output("----- RunR -----\n");
-	output("%s\n",source.c_str());
-	output("----------------\n");	
+//	output("----- RunR -----\n");
+//	output("%s\n",source.c_str());
+//	output("----------------\n");	
 	
 	return 0;
 }
@@ -635,6 +670,9 @@ int RunR::DoIt() {
 	try {
 		if (strlen(node.child_value()) != 0) {
 			solver->print("Running R ...");
+	output("----- RunR -----\n");
+	output("%s\n",source.c_str());
+	output("----------------\n");	
 			R.parseEval(source);
 		}
 		bool interactive = false;
