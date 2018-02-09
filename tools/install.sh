@@ -43,7 +43,7 @@ fi
 
 # ------------------- Second, check Package Management System - PMS  ----------------------
 PMS=""
-pms_array=( zypp apt-get yum pacman emerge )
+pms_array=( apt-get yum )
 for i in "${pms_array[@]}"
 do
 	if [ -x "$(command -v $i)" ] ; then 
@@ -52,7 +52,7 @@ do
 	fi
 done
  
-test -z "$PMS" && echo "Unknown type of Package Manager, only apt-get and yum are supported" && usage
+test -z "$PMS" && echo "Unknown type of Package Manager, only apt-get and yum are supported." && usage
 
 
 # --------------- First argument is type of install ---------
