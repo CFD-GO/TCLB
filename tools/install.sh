@@ -43,22 +43,15 @@ fi
 
 # ------------------- Second, check Package Management System - PMS  ----------------------
 PMS=""
-
-declare -A osInfo; # create an associative array
-osInfo[/etc/redhat-release]=yum
-#osInfo[/etc/arch-release]=pacman
-#osInfo[/etc/gentoo-release]=emerge
-#osInfo[/etc/SuSE-release]=zypp
-osInfo[/etc/debian_version]=apt-get
-
-for f in ${!osInfo[@]}
+pms_array=( zypp apt-get yum pacman emerge )
+for i in "${pms_array[@]}"
 do
-    if [[ -f $f ]];then
-        echo Discovered Package Manager: ${osInfo[$f]}
-        PMS=${osInfo[$f]}
-    fi
+	if [ -x "$(command -v $i)" ] ; then 
+	  echo "Discovered Package Manager: $i"
+	  PMS=$i
+	fi
 done
-
+ 
 test -z "$PMS" && echo "Unknown type of Package Manager, only apt-get and yum are supported" && usage
 
 
