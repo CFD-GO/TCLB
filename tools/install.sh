@@ -41,18 +41,18 @@ then
 	shift
 fi
 
-# ------------------- Second, check OS  ----------------------
-OS=""
-if lsb_release -sid | grep "CentOS"
-then
-	OS=CentOS
-fi
-
-if lsb_release -sid | grep "Ubuntu"
-then
-	OS=Ubuntu
-fi
-test -z "$OS" && echo "Unknown type of OS, only Ubuntu and CentOS are supported" && usage
+# ------------------- Second, check Package Management System - PMS  ----------------------
+PMS=""
+pms_array=( zypp apt-get yum pacman emerge )
+for i in "${pms_array[@]}"
+do
+	if [ -x "$(command -v $i)" ] ; then 
+	  echo "Discovered Package Manager: $i"
+	  PMS=$i
+	fi
+done
+ 
+test -z "$PMS" && echo "Unknown type of Package Manager, only apt-get and yum are supported" && usage
 
 
 # --------------- First argument is type of install ---------
@@ -125,14 +125,14 @@ r)
 	then
 		DIST=trusty # All Mints are Trusty :-)
 	fi
-	if test "x$OS" == "xCentOS"
+	if test "x$PMS" == "xyum"
 	then
 	    try "Adding epel-release repo" yum install -y epel-release
 	    try "Installing R base" sudo yum install -y R
 	    try "Changing access to R lib paths" chmod 2777 /usr/lib64/R/library /usr/share/R/library
 	fi
 	
-	if test "x$OS" == "xUbuntu"
+	if test "x$PMS" == "xapt-get"
 	then
 	    try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
 	    try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
@@ -168,12 +168,12 @@ cuda)
 	shift
 	echo "#### Installing CUDA library ####"
 	
-	if test "x$OS" == "xCentOS"
+	if test "x$PMS" == "xyum"
 	then
-		echo "The install script doesnt support CentOS yet, please install CUDA manually."
+		echo "The install script doesnt support yum yet, please install CUDA manually."
 	fi
 	
-	if test "x$OS" == "xUbuntu"
+	if test "x$PMS" == "xapt-get"
 	then
 	    try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
 	    try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
@@ -185,14 +185,14 @@ cuda)
 	fi
 	;;
 openmpi)
-	if test "x$OS" == "xCentOS"
+	if test "x$PMS" == "xyum"
 	then
 		try "Installing openmpi from yum" yum install -y openmpi
 		try "Installing openmpi-devel from yum" yum install -y openmpi-devel
 		try "Clean yum" yum clean packages
 		echo "Don't forget to load mpi module before compilation."
 	fi
-	if test "x$OS" == "xUbuntu"
+	if test "x$PMS" == "xapt-get"
 	then
 		try "Updating APT" apt-get update -qq
 		try "Installing MPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
@@ -200,12 +200,12 @@ openmpi)
 	fi
 	;;
 coveralls)
-	if test "x$OS" == "xCentOS"	
+	if test "x$PMS" == "xyum"	
 	then
-		echo "The install script doesnt support CentOS yet, please install CUDA manually."
+		echo "The install script doesnt support yum yet, please install CUDA manually."
 	fi 
 	
-	if test "x$OS" == "xUbuntu"
+	if test "x$PMS" == "xapt-get"
 	then
 		try "Installing lcov" apt-get install -y lcov
 		try "Installing time" apt-get install -y time
@@ -224,19 +224,21 @@ submodules)
 	try "Loading gitmodules" mv gitmodules ../.gitmodules
 	;;
 python-dev)
-	if test "x$OS" == "xCentOS"	
+	if test "x$PMS" == "xyum"	
 	then
 		try "Installing python-devel from yum" yum install -y python-devel
 		try "Installing numpy from yum" yum install -y numpy 
 		try "Installing sympy from yum" yum install -y sympy
 	fi
 	
-	if test "x$OS" == "xUbuntu"
+	if test "x$PMS" == "xapt-get"
 	then
 		try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
 	fi
 	;;
 module)
+	try "Installing dependencies: tcl" yum install tcl 
+	#yum intstall tcl-devel
 	try "Downloading module" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
 	try "Unpacking archive" tar -xjf modules-4.1.0.tar.bz2 -C .
 	try "Entering module directory" cd modules-4.1.0
@@ -244,7 +246,8 @@ module)
 	try "make" make
 	try "make install" make install
 	try "Leaving module directory" cd ..
-	try "Restarting terminal" . ~/.bashrc
+	echo "Restarting terminal" 
+	. ~/.bashrc
 	;;
 *)
 	echo "Unknown type of install $inst"
