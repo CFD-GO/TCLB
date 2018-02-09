@@ -237,8 +237,8 @@ python-dev)
 	fi
 	;;
 module)
-	try "Installing dependencies: tcl" yum install tcl 
-	#yum intstall tcl-devel
+	try "Installing dependencies: tcl" yum -y install tcl 
+	try "Installing dependencies: tcl-devel "yum -y install tcl-devel
 	try "Downloading module" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
 	try "Unpacking archive" tar -xjf modules-4.1.0.tar.bz2 -C .
 	try "Entering module directory" cd modules-4.1.0
@@ -246,8 +246,7 @@ module)
 	try "make" make
 	try "make install" make install
 	try "Leaving module directory" cd ..
-	echo "Restarting terminal" 
-	. ~/.bashrc
+	try "Restarting terminal" . ~/.bashrc	
 	;;
 *)
 	echo "Unknown type of install $inst"
