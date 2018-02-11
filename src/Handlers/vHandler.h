@@ -36,11 +36,13 @@ class vHandler {
 	double everyIter; ///< Interval by which it should be activated
 	pugi::xml_node node; ///< XML element connected to the Handler
 	Solver* solver; ///< The solver object connected to the Handler
+	vHandler();
 	virtual ~vHandler() {};
 	virtual int Init(); ///< Initialize the Handler
 	virtual int DoIt(); ///< Do what have to be done
 	virtual int Finish(); ///< Finalize the Handler
 	virtual int Type(); ///< Return the type of the Handler
+	int parSize;
 	virtual int NumberOfParameters(); ///< Return the type of the Handler
 	virtual int Parameters(int type, double* data);
 	inline  int GetParameters(double * data) { return this->Parameters(PAR_GET, data); };
