@@ -1,9 +1,8 @@
 
-
 // 'Lattice Boltzmann model for simulating flows with multiple phases and components' by X. Shan and H. Chen, 1993
 // 'Simulation of nonideal gases and liquid-gas phase transitions by the lattice Boltzmann equation' by X. Shan and H. Chen, 1994
 
-// This type of models also know as pseuodo-potential models.
+// This type of models are also know as pseuodo-potential models.
 
 <?R 
 	source("conf.R")
@@ -48,18 +47,18 @@ CudaDeviceFunction void SetEquilibrium(real_t d, real_t u[2]){
 }
 
 CudaDeviceFunction real_t calcRho() {
+    // This function calculates and returns the value of macroscopic density at the current node.
     real_t d = f[8]+f[7]+f[6]+f[5]+f[4]+f[3]+f[2]+f[1]+f[0];
     return d;
 } 
 
 CudaDeviceFunction real_t getRho() {
-    // This function defines the macroscopic density at the current node.
+    // This function returnes the stored value of macroscopic density at the current node.
     return rho;
 }
 
 CudaDeviceFunction void Run() {
     // This defines the dynamics that we run at each node in the domain.
-
     rho = calcRho();
 
     switch (NodeType & NODE_BOUNDARY) {
@@ -73,25 +72,7 @@ CudaDeviceFunction void Run() {
         CollisionBGK();
     }
 
-    // rho = calcRho();
     neighbour_type = neighbour_type(0,0);
-}
-
-CudaDeviceFunction void BounceBack() {
-    // Method to reverse distribution functions along the bounding nodes.
-    real_t uf;
-    uf = f[3];
-    f[3] = f[1];
-    f[1] = uf;
-    uf = f[4];
-    f[4] = f[2];
-    f[2] = uf;
-    uf = f[7];
-    f[7] = f[5];
-    f[5] = uf;
-    uf = f[8];
-    f[8] = f[6];
-    f[6] = uf;
 }
 
 CudaDeviceFunction void CollisionBGK() {
@@ -126,6 +107,23 @@ CudaDeviceFunction void CollisionBGK() {
     f[8] = f_temp[8] - omega*(f_temp[8]-f[8]);
 }
 
+CudaDeviceFunction void BounceBack() {
+    // Method to reverse distribution functions along the bounding nodes.
+    real_t uf;
+    uf = f[3];
+    f[3] = f[1];
+    f[1] = uf;
+    uf = f[4];
+    f[4] = f[2];
+    f[2] = uf;
+    uf = f[7];
+    f[7] = f[5];
+    f[5] = uf;
+    uf = f[8];
+    f[8] = f[6];
+    f[6] = uf;
+}
+
 CudaDeviceFunction vector_t getU() {
     // This function defines the macroscopic velocity at the current node.
     real_t d = getRho();
@@ -141,6 +139,7 @@ CudaDeviceFunction vector_t getU() {
 }
 
 CudaDeviceFunction vector_t getUeq(real_t d) {
+    // This function defines the equilibrium velocity at the current node.
     vector_t F_ff = getF_ff();
     vector_t F_sf = getF_sf();
     vector_t u_eq;
@@ -162,7 +161,6 @@ CudaDeviceFunction void calcPsi() {
     // Calculate psi at each point so that pseudopotential force can be found.
     
     real_t d = calcRho();
-    // real_t d = getRho(); // this one crashes
     psi = 1 - exp(-d);
 }
 
@@ -198,7 +196,7 @@ CudaDeviceFunction vector_t getF_ff() {
 }
 
 CudaDeviceFunction vector_t getF_sf() {
-    // fluid - solid interaction force 
+    // solid - fluid interaction force 
 
     vector_t F_sf;
     F_sf.x = 0;

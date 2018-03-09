@@ -10,7 +10,7 @@ AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
 AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
 AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
-AddDensity( name="rho", dx=0, dy=0, group="density") # is it the same as  AddField("rho", dx=c(0,0), dy=c(0,0), group="density")
+AddDensity( name="rho", dx=0, dy=0, group="density") # how to run it using AddField("rho", dx=c(0,0), dy=c(0,0), group="density")
 
 AddField("psi", stencil2d=1, group="pp") # Pseudopotential field
 AddField("neighbour_type", stencil2d=1, group="neighbour_type_group")
@@ -30,10 +30,6 @@ AddAction("Iteration", c("BaseIteration", "PsiIteration"))
 AddQuantity( name="U",    unit="m/s", vector=TRUE )
 AddQuantity( name="Rho",  unit="kg/m3" )
 AddQuantity( name="Psi",  unit="1" )
-AddQuantity( name="Neighbour_type",  unit="1" )
-AddQuantity( name="F_ff", unit="N", vector=TRUE)
-AddQuantity( name="F_sf", unit="N", vector=TRUE)
-
 
 # Model Specific Parameters
 AddSetting( name="omega", comment='inverse of relaxation time')
@@ -45,4 +41,4 @@ AddSetting( name="GravitationY",default=0, comment='body/external acceleration',
 AddSetting( name="Density",default=1, comment='Density',zonal=TRUE)
 
 AddSetting( name="G_ff",default=0, comment='fluid-fluid interaction strength')
-AddSetting( name="G_sf",default=0, comment='fluid-solid interaction strength')
+AddSetting( name="G_sf",default=0, comment='solid-fluid interaction strength')
