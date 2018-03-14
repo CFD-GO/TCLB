@@ -450,12 +450,12 @@ cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, d
 	?>
 //	return 0;
 	GaussSolve(mat,b,r,4);
-	if (r[0] < 0) return 255;
-	if (r[1] < 0) return 255;
-	if (r[2] < 0) return 255;
-	if (r[3] < 0) return 255;
-	if (r[3] > 1) return 255;
-	return r[3]*200;
+	if (r[0] < 0) return NO_CUT;
+	if (r[1] < 0) return NO_CUT;
+	if (r[2] < 0) return NO_CUT;
+	if (r[3] < 0) return NO_CUT;
+	if (r[3] > 1) return NO_CUT;
+	return r[3]*CUT_MAX;
 }
 
 

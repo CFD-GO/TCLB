@@ -13,10 +13,10 @@
 //  typedef char flag_t;
   typedef unsigned short int flag_t;
 
-  typedef unsigned char cut_t;
+  typedef unsigned short int cut_t;
   
-  #define NO_CUT 255
-  #define CUT_MAX 200
+  #define NO_CUT 65535
+  #define CUT_MAX 65000
   #define CUT_LEN(x__) (0.005f * (x__))
   
 /*
