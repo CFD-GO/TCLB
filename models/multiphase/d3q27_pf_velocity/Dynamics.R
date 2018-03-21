@@ -58,7 +58,7 @@ AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
-AddField('PhaseF',stencil3d=1, group="OrderParameter")
+AddField("PhaseF",stencil3d=1, group="PF")
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -69,29 +69,29 @@ if (Options$OutFlow){
 
 
 # Stages - processes to run for initialisation and each iteration
+AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
+AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
+AddStage("calcWall"  , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
+
 if (Options$OutFlow){
-AddStage("PhaseInit" , "Init", save="PhaseF")
-AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold"))
-AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
-
-AddStage("calcWall"  , "calcWallPhase", save="PhaseF", load=DensityAll$group=="nw")
-AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group %in% c("g","h","gold","hold") )
-AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel","nw","gold","hold"), 
-	                                load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold"))
+    AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold","PF"))
+    AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
+                                                 load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
+    AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
+	                                         load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold","nw"))
 } else {
-AddStage("PhaseInit" , "Init", save="PhaseF")
-AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel"))
-AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
-
-AddStage("calcWall"  , "calcWallPhase", save="PhaseF", load=DensityAll$group=="nw")
-AddStage("calcPhase" , "calcPhaseF",	save="PhaseF", load=DensityAll$group %in% c("g","h") )
-AddStage("BaseIter"  , "Run"       ,    save=Fields$group %in% c("g","h","Vel","nw"), 
-	                                load=DensityAll$group %in% c("g","h","Vel","nw"))
+    AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
+    AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
+					         load=DensityAll$group %in% c("g","h","Vel","nw") )
+    AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw"), 
+	                                	 load=DensityAll$group %in% c("g","h","Vel","nw"))
 }
 AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
-AddAction("Init"     , c("PhaseInit","WallInit","calcWall","BaseInit"))
+AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
+#AddAction("Init"     , c("BaseInit","WallInit" , "calcWall"))
 
 # 	Outputs:
+AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="PhaseField",unit="1")
 AddQuantity(name="U",	  unit="m/s",vector=T)
 AddQuantity(name="P",	  unit="Pa")

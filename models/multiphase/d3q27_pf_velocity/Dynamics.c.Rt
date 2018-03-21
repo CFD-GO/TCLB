@@ -30,6 +30,10 @@
 //				- MRT collision updated to moment space
 //				- Symmetry bounds removed, autosym added to options
 //				- BGK made option
+//		21/03/2018: Fix of solid contact
+//				- Previous issue with bulk solid regions i.e. solid cells
+//				  surrounded by all solid nodes
+//				- Check added for these cases to stop nan appearances
 
 <?R
     g=PV(DensityAll$name[DensityAll$group=="g"])
@@ -113,7 +117,6 @@ U_inv = PV("invU")
 #include <math.h>
 #define PI 3.14159265
 
-//	EXPORTABLE QUANTITIES:
 /* MRT Matrix Check:
 <?R
 options(width=200)
@@ -140,6 +143,13 @@ for (i in 1:27) {
 ?>
 */
 
+//	EXPORTABLE QUANTITIES:
+CudaDeviceFunction real_t getRho(){
+	real_t rho;
+	rho = Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
+	return rho;
+}
+
 CudaDeviceFunction real_t getPhaseField(){
 	return PhaseF(0,0,0);
 }
@@ -151,10 +161,12 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 CudaDeviceFunction real_t getP(){
-	real_t   p = <?R C(sum(g)) ?>;
+	real_t   p = <?R C(sum(g)) ?>; // Normalised pressure p* = p/(rho.cs^2)
+	real_t   d = <?R C(sum(h)) ?>; // Phase Field
+
+	p = p*(Density_h + (d - PhaseField_l)*(Density_h-Density_l))/3.0;
 	return p;
 }
-
 CudaDeviceFunction vector_t getNormal(){
 	vector_t n;
 	n.x = nw_x;
@@ -264,13 +276,16 @@ CudaDeviceFunction void calcPhaseF(){
 }
 
 CudaDeviceFunction void calcWallPhase(){
+// Determine the value of the phase field in wall nodes
 	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
 		real_t myA, myH, myPhase;
 
 		myPhase = PhaseF_dyn(nw_x, nw_y, nw_z);
 		myH = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 		
-		if ( ContactAngle == 90 ) {
+		if (myH < 0.01) { // if solid node surrounded by solid.
+			PhaseF = 0;
+		} else if (ContactAngle == 90){
 			PhaseF = myPhase;
 		} else {
 			myA = 1.0 - myH * (4.0/IntWidth) * cos(radAngle);
@@ -359,6 +374,9 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, re
 	return f_phi;
 }
 
+
+
+
 //	INITIALISATION:
 CudaDeviceFunction void Init() {
 	PhaseF = PhaseField;
@@ -381,18 +399,25 @@ CudaDeviceFunction void Init() {
 			PhaseF = 1.0;
 		}
 	}
-	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
-		PhaseF = -999;
-	}
+	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) PhaseF = -999;
 
 }
-
 CudaDeviceFunction void Init_wallNorm(){
+	PhaseF = PhaseF(0,0,0);
+
 	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
-		int solidFlag[27], i, maxi;
+	// Check all surrounding nodes aren't solid.
+	  int i,j,k;
+	  real_t tmp = 0.0;
+	  for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
+		tmp += PhaseF_dyn(i,j,k);
+	  }}}
+	  if ( abs(tmp) > 26000){
+		nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+	  } else { 
+		int solidFlag[27], maxi;
 		real_t myNorm[3] = {0.0,0.0,0.0};
 		real_t maxn=0.0, dot;
-
 		<?R
 			myN = PV(paste0("myNorm[",1:3-1,"]"))
 			pf = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
@@ -410,7 +435,6 @@ CudaDeviceFunction void Init_wallNorm(){
 		myNorm[1] *= -1.0/3.0;
 		myNorm[2] *= -1.0/3.0;
 		
-		real_t tmp;
 		tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
 		for (i = 0; i<27; i++) {
 			dot = (myNorm[0]*d3q27_ex[i] + myNorm[1]*d3q27_ey[i] + myNorm[2]*d3q27_ez[i]) /
@@ -424,13 +448,11 @@ CudaDeviceFunction void Init_wallNorm(){
 		nw_y = d3q27_ey[maxi];
 		nw_z = d3q27_ez[maxi];
 		}
+	  }
 	} else {
-		nw_x = 0.0;
-		nw_y = 0.0;
-		nw_z = 0.0;
+		nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
 	}
 }
-
 CudaDeviceFunction void Init_distributions(){
 // Initialise phase variables:
 	int i;
@@ -450,7 +472,8 @@ CudaDeviceFunction void Init_distributions(){
 	real_t mag = U*U + V*V + W*W;
 	real_t Gamma[27];
 // ##### heq
-	real_t F_phi[15], tmp1;
+	real_t F_phi[15]; 
+	real_t tmp1;
 	tmp1 = (1.0 - 4.0*(C - C0)*(C - C0))/IntWidth;
 	for (i=0; i< 27; i++){
 		Gamma[i] = calcGamma(i, U, V, W, mag);
@@ -459,14 +482,18 @@ CudaDeviceFunction void Init_distributions(){
 
 <?R
 	C(h, w_h * phase * gammah - 0.5 * Fphi)
+#	C(h, w_h * phase * gammah )
 ?>
-
+	
 // ##### geq
 <?R
 	w_g = PV(c(paste("wg[",1:27-1,"]",sep="")))
 	press = PV("Pressure")
 	C(g, (press - 1) * w_g + gammag )
 ?>
+
+	PhaseF = <?R C(sum(h)) ?>;
+ 
 #ifdef OPTIONS_OutFlow
         if ((NodeType & NODE_BOUNDARY) == NODE_EConvect){
                 <?R if (Options$OutFlow){
@@ -475,6 +502,8 @@ CudaDeviceFunction void Init_distributions(){
         }
 #endif
 }
+
+
 
 //	ITERATION:
 CudaDeviceFunction void Run() {
@@ -525,6 +554,9 @@ CudaDeviceFunction void Run() {
 
 #ifndef OPTIONS_BGK
 CudaDeviceFunction void CollisionMRT(){
+
+	PhaseF = PhaseF(0,0,0);
+
 	int i, j;
 	real_t C = PhaseF(0,0,0), mu;
 	real_t tau, DynVisc, rho, p;			// Macroscopic Properties
