@@ -421,7 +421,7 @@ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 //Optional change in relaxation rate of 3rd order cumulants, as per car studies done by Geier et al
 	<?R	sel = rowSums(P) == 3
 		for (i in cumulants[sel]) { ?>
-		<?%s i ?> = 1-Omega;
+		<?%s i ?> = (1-Omega)*<?%s i ?>;
 	<?R } ?>
 
 	<?R	sel = rowSums(P) > 3
