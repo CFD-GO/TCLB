@@ -492,6 +492,11 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     }
     ret = fread(header, 80, sizeof(char), f);
     ret = fread(&ntri, 1, sizeof(int), f);
+    if (!strncmp(header, "solid", 5)){      // Checking if STL is binary. STL in ASCII begins with "solid"
+        error("'STL' element %s is not in binary format!\n", n.attribute("file").value());
+        debug1("'solid' found at the beginning of STL file");
+        return -1;
+    }
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
     char *lev = (char *) malloc(reg.sizeL() * sizeof(char));
     for (size_t i = 0; i < reg.sizeL(); i++)
