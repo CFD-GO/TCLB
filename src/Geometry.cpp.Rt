@@ -995,8 +995,11 @@ Geometry::~Geometry()
 }
 
 /// Dumps the Geometry to a vti file
-void Geometry::writeVTI(const char *filename)
+void Geometry::writeVTI(const char *name)
 {
+	char filename[STRING_LEN];
+	sprintf(filename, "%s_P%02d.vti", name, D_MPI_RANK);
+
     vtkFileOut vtkFile;
     if (vtkFile.Open(filename)) {
 	return;
