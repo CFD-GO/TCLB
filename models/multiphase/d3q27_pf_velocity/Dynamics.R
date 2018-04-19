@@ -117,7 +117,7 @@ AddSetting(name="Radius", default="0.0", comment='Diffuse Sphere Radius')
 AddSetting(name="CenterX", default="0.0", comment='Diffuse sphere center_x')
 AddSetting(name="CenterY", default="0.0", comment='Diffuse sphere center_y')
 AddSetting(name="CenterZ", default="0.0", comment='Diffuse sphere center_z')
-AddSetting(name="BubbleType",default="1.0", comment='droplet or bubble?!')
+AddSetting(name="BubbleType",default="1.0", comment='droplet(1.0) or bubble(-1.0)?!')
 
 # 	Inputs: Fluid Properties
 AddSetting(name="tau_l", comment='relaxation time (low density fluid)')
@@ -132,11 +132,12 @@ AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', z
 AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
 AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
-AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX')
-AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY')
-AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho-rho_h)*BuoyancyZ')
+AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho_h-rho)*BuoyancyX')
+AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho_h-rho)*BuoyancyY')
+AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ')
 
 # Velocity Tracking on Centerline:
+AddSetting(name="xyzTrack", default=1,comment='x<-1, y<-2, z<-3')
 #  For TaylorBubble tracking
 AddNodeType("Centerline",group="ADDITIONALS")
 #  For RTI interface tracking
@@ -146,6 +147,7 @@ AddNodeType("Bubbletrack",group="ADDITIONALS")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
 if (Options$OutFlow){
 AddNodeType(name="ENeumann", group="BOUNDARY")
 AddNodeType(name="EConvect", group="BOUNDARY")
@@ -162,5 +164,5 @@ AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
-
+AddGlobal(name="KineticEnergy",comment='Measure of kinetic energy', unit="J")
 

@@ -518,6 +518,9 @@ CudaDeviceFunction void Run() {
 		case NODE_WVelocity:
 			WVelocity();
 			break;
+		case NODE_NVelocity:
+			NVelocity();
+			break;
 		case NODE_EPressure:
 			EPressure();
 			break;
@@ -572,6 +575,9 @@ CudaDeviceFunction void CollisionMRT(){
 	mu = calcMu( C );
 	rho = Density_l + (C - PhaseField_l)*(Density_h - Density_l)/(PhaseField_h - PhaseField_l);
 	
+	AddToTotalDensity( rho ); // Add globals of post-stream, pre-collide macroscopic globals.
+	AddToKineticEnergy( rho*(U*U + V*V + W*W) );
+	
 	real_t m0[27];
 <?R
 	EQ = MRT_eq(U,PV(1),u,mat=t(M))
@@ -616,9 +622,11 @@ CudaDeviceFunction void CollisionMRT(){
 	F_pressure[0] = (-1.0/3.0) * p * (Density_h-Density_l) * gradPhi.x;
 	F_pressure[1] = (-1.0/3.0) * p * (Density_h-Density_l) * gradPhi.y;
 	F_pressure[2] = (-1.0/3.0) * p * (Density_h-Density_l) * gradPhi.z;
-	F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
-	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
-	F_body[2] = (rho-Density_h)*BuoyancyZ + rho*GravitationZ;
+	// can apply body force either through buoyancy Fakhari et al. 2017
+	//  or through the normal rho*G technique
+	F_body[0] = (Density_h-rho)*BuoyancyX + rho*GravitationX;
+	F_body[1] = (Density_h-rho)*BuoyancyY + rho*GravitationY;
+	F_body[2] = (Density_h-rho)*BuoyancyZ + rho*GravitationZ;
 
 //  Viscous Force:
 //	1. determine stress tensor
@@ -672,6 +680,8 @@ for (j=0;j<2;j++) {
 	switch (NodeType & NODE_ADDITIONALS) {
 		real_t location;
 		case NODE_Centerline:
+		    if ( fabs(xyzTrack-1) < 1e-3 )
+		    {  // track along X
 			if (C < 0.5 && PhaseF(1,0,0) > 0.5)
 			{
 				location = X + (C-0.5)/(C-PhaseF(1,0,0));
@@ -682,6 +692,31 @@ for (j=0;j<2;j++) {
 			{
 				AddToVfront(U);
 			}
+		    } else if ( fabs(xyzTrack-2) < 1e-3)
+		    { // track along Y
+			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+			{
+				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+				AddToInterfacePosition(location);
+				AddToVback(V);
+			}
+			if (C >0.5 && PhaseF(0,-1,0) < 0.5)
+			{
+				AddToVfront(V);
+			}
+		    } else if ( fabs(xyzTrack-3) < 1e-3)
+		    { // track along Z
+			if (C < 0.5 && PhaseF(0,0,1) > 0.5)
+			{
+				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
+				AddToInterfacePosition(location);
+				AddToVback(W);
+			}
+			if (C >0.5 && PhaseF(0,0,-1) < 0.5)
+			{
+				AddToVfront(W);
+			}
+		    }
 		case NODE_Spiketrack:
 			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
 			{
@@ -701,6 +736,8 @@ for (j=0;j<2;j++) {
 				AddToRTIBubble(location);
 			}
 	}
+	
+
 }
 #endif
 
@@ -780,6 +817,28 @@ CudaDeviceFunction void EVelocity()
 ?>
 	{
 		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
+}
+
+CudaDeviceFunction void NVelocity()
+{
+	U = VelocityX;
+	V = VelocityY;
+	W = VelocityZ;
+<?R
+	n = c(0,0,-1)
+        geq = EQ$feq
+        bounce = Bounce(U)
+        sel = as.vector( (U %*% n) < 0)
+
+	sel2 = as.vector( ( U %*% n) == 0)	
+	exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
+	Unknowns = 1.0/9.0
+
+	C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
+?>
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(0,0,-1),"pressure", rhs=PV("PhaseField")) ?>
 	}
 }
 
@@ -927,9 +986,9 @@ CudaDeviceFunction void CollisionBGK(){
 	F_pressure[0] = (-1.0/3.0) * p * (Density_h-Density_l) * gradPhi.x;
 	F_pressure[1] = (-1.0/3.0) * p * (Density_h-Density_l) * gradPhi.y;
 	F_pressure[2] = (-1.0/3.0) * p * (Density_h-Density_l) * gradPhi.z;
-	F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
-	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
-	F_body[2] = (rho-Density_h)*BuoyancyZ + rho*GravitationZ;
+	F_body[0] = (Density_h-rho)*BuoyancyX + rho*GravitationX;
+	F_body[1] = (Density_h-rho)*BuoyancyY + rho*GravitationY;
+	F_body[2] = (Density_h-rho)*BuoyancyZ + rho*GravitationZ;
 
 // VISCOUS FORCE:
 for (j=0;j<2;j++) {
@@ -986,5 +1045,6 @@ real_t omega_g = 1.0/tau;
 
 	C(g, g - (geq+0.5*Fi)*om + Fi)
 ?>
+	AddToTotalDensity( C );
 }
 #endif
