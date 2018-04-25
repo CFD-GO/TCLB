@@ -192,10 +192,15 @@ CudaDeviceFunction real_t calcW0(real_t d) {
 
 CudaDeviceFunction real_t calcW(real_t dx, real_t dy) {
 	real_t ret = 1;
+        if( PRAD == 0 ){
 	ret = ret * calcW0(PDX-2*dx);
 	ret = ret * calcW0(PDX+2*dx);
 	ret = ret * calcW0(PDY-2*dy);
 	ret = ret * calcW0(PDY+2*dy);
+        }
+        if( PDX == 0 || PDY == 0 ){
+        ret = ret * calcW0( (PRAD*PRAD) - dx*dx - dy*dy );
+        }
 	return ret;
 }
 
