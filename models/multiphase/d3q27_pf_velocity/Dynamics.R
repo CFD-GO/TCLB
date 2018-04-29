@@ -138,8 +138,9 @@ AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ
 
 # Velocity Tracking on Centerline:
 AddSetting(name="xyzTrack", default=1,comment='x<-1, y<-2, z<-3')
-#  For TaylorBubble tracking
 AddNodeType("Centerline",group="ADDITIONALS")
+# Allow for smoothing of sharp interface initiation by diffusion
+AddNodeType("Smoothing",group="ADDITIONALS")
 #  For RTI interface tracking
 AddNodeType("Spiketrack",group="ADDITIONALS")
 AddNodeType("Saddletrack",group="ADDITIONALS")

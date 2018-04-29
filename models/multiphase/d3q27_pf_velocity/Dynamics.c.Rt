@@ -507,7 +507,11 @@ CudaDeviceFunction void Init_distributions(){
 
 //	ITERATION:
 CudaDeviceFunction void Run() {
-    switch (NodeType & NODE_BOUNDARY) {
+// If desired, incorporate a smoothing stage, in this we simply let diffusion occur
+    if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing) {
+	Init_distributions();
+    } else {	
+        switch (NodeType & NODE_BOUNDARY) {
 		case NODE_Solid:
 		case NODE_Wall:
 			BounceBack();
@@ -544,15 +548,16 @@ CudaDeviceFunction void Run() {
 	}
 
 #ifdef OPTIONS_BGK
-    if (NodeType & NODE_BGK) {
-		CollisionBGK();
-    }
+        if (NodeType & NODE_BGK) {
+            CollisionBGK();
+	}
 #else
-    if (NodeType & NODE_MRT)
-    {
-		CollisionMRT();
-    } 
+        if (NodeType & NODE_MRT)
+        {
+            CollisionMRT();
+        } 
 #endif
+    }
 }
 
 #ifndef OPTIONS_BGK
