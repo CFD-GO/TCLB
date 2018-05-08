@@ -28,7 +28,13 @@ CudaDeviceFunction void Init() {
     vector_t u;
     u.x = Velocity_x; u.y = Velocity_y;  
     real_t d = Density;
-    SetEquilibrium(f, d, u);
+	
+    real_t f_eq[9];
+    SetEquilibrium(f_eq, d, u);
+
+    for (int i=0; i< 9; i++) {
+	f[i] = f_eq[i];	
+    }
 }
  
 CudaDeviceFunction void Run() {
