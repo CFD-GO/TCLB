@@ -200,7 +200,7 @@ CudaDeviceFunction real_t calcW(real_t dx, real_t dy) {
         }
         if( PDX == 0 || PDY == 0 ){
         ret = ret * calcW0( PRAD - sqrt(dx*dx - dy*dy) );
-        }
+      }
 	return ret;
 }
 
