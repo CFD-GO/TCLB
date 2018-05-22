@@ -32,12 +32,9 @@ AddQuantity(name="Solid",unit="1")
 #AddSetting(name="omega", comment='one over relaxation time')
 #AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="tau0", comment='one over relaxation time')
-AddSetting(name="nu", tau0='3*nu + 0.5', default=0.16666666,
-comment='viscosity', unit="m2/s")
-AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity',
-zonal=T, unit="m/s")
-AddSetting(name="Density", default=1, comment='inlet/outlet/init density',
-zonal=T, unit="kg/m3")
+AddSetting(name="nu", tau0='3*nu + 0.5', default=0.16666666, comment='viscosity', unit="m2/s")
+AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T, unit="m/s")
+AddSetting(name="Density", default=1, comment='inlet/outlet/init density', zonal=T, unit="kg/m3")
 AddSetting(name="Smag", default=1, comment='inlet density')
 
 AddQuantity( name="RhoB",adjoint=T)
@@ -53,16 +50,16 @@ AddGlobal(name="PowerY", comment='reaction force X', unit="W/m")
 AddGlobal(name="PowerR", comment='reaction force Y', unit="W/m")
 AddGlobal(name="Power", comment='reaction force X', unit="W/m")
 AddGlobal(name="Power2", comment='reaction force Y', unit="W/m")
+AddGlobal(name="VolumeW", comment="Volume of moving body", unit="m2")
 
 
 AddSetting(name="PDX", default=0, comment='plate diameter X', unit="m")
 AddSetting(name="PDY", default=0, comment='plate diameter Y', unit="m")
+AddSetting(name="PRAD", default=0, comment='cylinder radious', unit='m')
 AddSetting(name="SM",   default=1, comment='smoothing diameter', unit="m")
 AddSetting(name="SM_M", default=0, comment='smoothing bias')
-AddSetting(name="PX", default=0, comment='plate position X', zonal=T,
-unit="m")
-AddSetting(name="PY", default=0, comment='plate position Y', zonal=T,
-unit="m")
+AddSetting(name="PX", default=0, comment='plate position X', zonal=T, unit="m")
+AddSetting(name="PY", default=0, comment='plate position Y', zonal=T, unit="m")
 AddSetting(name="PR", default=0, comment='plate angle', zonal=T, unit="1")
 
 AddObjective("EfficiencyX", PV("ForceX") * PV("Power") ^ (-1))
