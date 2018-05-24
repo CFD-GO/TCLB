@@ -208,6 +208,7 @@ CudaDeviceFunction void CollisionMRT()
 {
 	real_t u[2], usq, d, R[6], Q, tau, omega;
 	vector_t F;
+	real_t tau0 = 3.0*nu+0.5;
 <?R
         R = PV(c(
 		"d",
@@ -288,8 +289,8 @@ real_t w = calcW(dx,dy);
 
 real_t Vx = PX_DT - PR_DT*py;
 real_t Vy = PY_DT + PR_DT*px;
-real_t Fx = 2*w*(Vx - u[0]);
-real_t Fy = 2*w*(Vy - u[1]);
+real_t Fx = 2*w*(Vx*d - u[0]);
+real_t Fy = 2*w*(Vy*d - u[1]);
 AddToForceX(Fx);
 AddToForceY(Fy);
 AddToMoment(Fx*py-Fy*px);
