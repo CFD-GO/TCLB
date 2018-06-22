@@ -488,15 +488,20 @@ CudaDeviceFunction void  InitPhisStencil(){
         t1 = sqrt(mx*mx + my*my) + 1E-18;
         curvature +=  ( ( <?%s signs[2,box_i]  ?> )*mx + ( <?%s signs[1,box_i]  ?> )*my ) / t1;
 
-        
-        t1 = (1E-6 + y[1]*y[1] + y[2]*y[2] + y[3]*y[3]);
-        t1 = 1./(t1*t1);
+        //t1 = 1;
+        //t1 = (1E-12 + y[1]*y[1] + 0.08333*y[3]*y[3]);
+        t1 = (1E-12 + y[2]*y[2]*0.0833333 +  y[1]*y[1]*1.0833333 +  y[3]*y[3]*0.0902777); 
+	t1 = 1./(t1*t1);
 
         wx = wx + t1;
         gradient.x = gradient.x + t1 * y[1] / 2.;
 
-//        t1 = (1E-6 + y[2]*y[2]);
-//        t1 = (t1*t1);
+	//t1 = 1;
+        //t1 = (1E-12 + y[2]*y[2] + 0.08333*y[3]*y[3]);
+        
+	t1 = (1E-12 + y[2]*y[2]*1.0833333 +  y[1]*y[1]*0.0833333 +  y[3]*y[3]*0.0902777); 
+	
+	t1 = 1./(t1*t1);
         wy = wy + t1; 
         gradient.y = gradient.y + t1 * y[2] / 2.;
 

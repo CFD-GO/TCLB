@@ -37,7 +37,7 @@ models.
 	<Params Mobility="0.001" />
 	<Params PhaseField="-0.5" />
 	<Params PhaseField-drop="0.5" />
-	<Params IntWidth=".1" />
+	<Params IntWidth=".33333" />
 	<Params Velocity="0." />
 	<Params GravitationX="0.0" />
 	<Params GravitationY="0.0" />
@@ -46,7 +46,7 @@ models.
 	<Params Viscosity_l="0.1666667" />
     <Params SurfaceTensionDecay="0.248"/>
     <Params SurfaceTensionRate="0.0"/>
-    <Params WettingAngle="0.5" />
+    <Params WettingAngle="0.75" />
     <Params WallAdhesionDecay="0" />
     <Params BrinkmanHeightInv="0"/>
     <Params PF_Advection_Switch="0"/>
@@ -59,8 +59,8 @@ models.
     </Solve>
     <Params SurfaceTensionRate="0.01"/>
     <Params PF_Advection_Switch="1"/>
-    <Solve Iterations="1000m">
-       <VTK Iterations="10m" />
+    <Solve Iterations="10000m">
+       <VTK Iterations="50m" />
        <!-- <SaveBinary Iterations="1m" />-->
     </Solve>
 </CLBConfig>
