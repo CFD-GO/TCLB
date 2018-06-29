@@ -39,10 +39,10 @@ int IfContainer::Init () {
    
         }
         if (proceed) {
-            debug("EvalIf - proceed\n");
+            debug1("EvalIf - proceed\n");
 		    return  GenericAction::ExecuteInternal();
         } else {
-            debug("EvalIf - skipped\n");
+            debug1("EvalIf - skipped\n");
             return 0;
         }
 }
