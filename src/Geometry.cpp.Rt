@@ -39,7 +39,7 @@ const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(units_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
 {
     geom = new flag_t[region.sizeL()];
     Q = NULL;
@@ -226,6 +226,7 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	ret.nx = ret.ny = ret.nz = 1;
 	return ret;
     }
+    if (strcmp(node.name(),"Geometry") == 0) return totalregion;
     ret = getRegion(node.parent());
 
     char side; 
@@ -492,8 +493,8 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     ret = fread(header, 80, sizeof(char), f);
     ret = fread(&ntri, 1, sizeof(int), f);
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
-    char *lev = (char *) malloc(reg.size() * sizeof(char));
-    for (int i = 0; i < reg.size(); i++)
+    char *lev = (char *) malloc(reg.sizeL() * sizeof(char));
+    for (size_t i = 0; i < reg.sizeL(); i++)
 	lev[i] = insideOut;
     debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     ret = fread(tri, ntri, sizeof(STL_tri), f);
@@ -524,11 +525,11 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	v2[1] = tri[i].p3[2] - tri[i].p1[2];
 	c0 = v1[0] * v2[1] - v1[1] * v2[0];
 	if (insideOut == 2) {
-            size_t regsize = reg.size();
+            size_t regsize = region.sizeL();
             for (int x = min[0]; x <= max[0]; x++)
                 for (int z = min[2]; z <= max[2]; z++)
-                    for (int y = min[1]; y <= max[1]; y++) if (reg.isIn(x, y, z)) {
-                            size_t k = reg.offset(x, y, z);
+                    for (int y = min[1]; y <= max[1]; y++) if (region.isIn(x, y, z)) {
+                            size_t k = region.offset(x, y, z);
                             cut_t nq;
                             ActivateCuts();
                             for (int d = 0; d<26; d++) {
@@ -744,6 +745,42 @@ int Geometry::Draw(pugi::xml_node & node)
 			   if ( xx*xx/Rx2 + yy*yy/Ry2 < 1. ) {
 			    Dot(x, y, z);
 			   }
+		}
+	} else if (strcmp(n.name(),"XPipe") == 0) {
+
+	double x0 = units.alt(n.attribute("x").value());
+	double y0 = units.alt(n.attribute("y").value());
+	double z0 = units.alt(n.attribute("z").value());
+
+	double Ry, Rz;
+	if ( n.attribute("R").empty() ) {
+	    Ry = units.alt(n.attribute("Ry").value());
+	    Rz = units.alt(n.attribute("Rz").value());
+	} else {
+	    double R = units.alt(n.attribute("R").value());
+	    Ry = R;
+	    Rz = R;
+	}
+
+	double Ry2 = Ry*Ry;
+	double Rz2 = Rz*Rz;
+
+	reg.dy = y0 - Ry - 5;
+	reg.dz = z0 - Rz - 5;
+
+	reg.ny = 2*Ry + 10;
+	reg.nz = 2*Rz + 10;
+
+	    debug1("Filling XPipe with flag %d (%d)\n, with center at (%lf,%lfi,%f) radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Ry, Rz);
+	    DEBUG1(reg.print();)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		for (int z = reg.dz; z < reg.dz + reg.nz; z++)
+       		    for (int x = reg.dx; x < reg.dx + reg.nx; x++) {
+		double yy = (.5 + y - y0);
+		double zz = (.5 + z - z0);
+			if (zz*zz/Rz2 + yy*yy/Ry2 < 1. ) {
+			    Dot(x,y,z);
+			}
 		}
 	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);

@@ -99,6 +99,7 @@ int cbFailcheck::DoIt () {
                 Handler hand(par, solver);
                 if (hand) hand.DoIt();
             }
+		rkept = 1;
             notice("Stopping due to Nan value\n");
             ret = ITERATION_STOP;
         }

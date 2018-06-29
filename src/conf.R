@@ -58,7 +58,7 @@ c_table_decl = function(d, sizes=TRUE) {
 	if(any(sel)) {
 		w = d[sel]
 #		w = regmatches(w,regexec("([^[]*)\\[ *([^\\] ]*) *]",w))
-		r = regexpr("\\[[^\\]]*\\]",w)
+		r = regexpr("\\[[^]]*\\]",w)
 		w = lapply(1:length(r), function(i) {
 			a_=w[i]
 			c(a_,
@@ -340,8 +340,24 @@ AddAction = function(name, stages) {
 	Actions[[name]] <<- stages
 }
 
+Objectives = list()
+
+AddObjective = function(name, expr) {
+	if (class(expr) == "gvector") {
+		if (length(expr) == 1) {
+			 expr = expr[[1]]
+		} else {
+			stop("Only one expression for an objective in AddObjective")
+		}
+	}
+	if (! inherits(expr,"pAlg")) stop("Objective need to be a polyAlgebra expression")
+	if (! is.character(name)) stop("Objective name need to be a string in AddObjective")
+	Objectives[[name]] <<- expr
+}
+
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
+for (i in Globals$name) AddObjective(i,PV(i))
 
 if (is.null(Description)) {
 	AddDescription(MODEL)
@@ -639,8 +655,8 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	{
 		mins = c(f$minx,f$miny,f$minz)
 		maxs = c(f$maxx,f$maxy,f$maxz)
-		tab1 = c(0,0,0,ifelse(mins > 0 & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
-		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs < 0 & mins < 0,-1,0),0,0,0)
+		tab1 = c(0,0,0,ifelse(mins == maxs & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
+		tab2 = c(ifelse(mins < 0,1,0),ifelse(maxs == mins & mins < 0,-1,0),0,0,0)
 		tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
 		put_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
 		put_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]

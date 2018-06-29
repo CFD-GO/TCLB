@@ -67,8 +67,8 @@ AC_ARG_ENABLE([waitany],
 	AC_HELP_STRING([--enable-waitany],
 		[enables MPI WaitAny (default)]))
 
-AC_ARG_ENABLE([openmp],
-	AC_HELP_STRING([--enable-openmp],
+AC_ARG_WITH([openmp],
+	AC_HELP_STRING([--with-openmp],
 		[enable openMP in the CPU code]))
 
 AC_ARG_ENABLE([coverage],
@@ -98,6 +98,11 @@ AC_ARG_ENABLE([paranoid],
 AC_ARG_ENABLE([profiling],
 	AC_HELP_STRING([--enable-profiling],
 		[enable profiling for R in rtemplate]))		
+
+AC_ARG_WITH([cpp-flags],
+	AC_HELP_STRING([--with-cpp-flags=FLAGS],
+		[privide additionals flags for the compiler]),
+	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
 
@@ -107,6 +112,10 @@ then
 	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
 
 fi
+
+test -z "$CXX" && CXX=mpic++
+test -z "$CC" && CC=mpicc
+
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
@@ -119,6 +128,11 @@ if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
 fi
+
+OPENMP="${with_openmp}"
+test "x${with_openmp}" == "xno" && OPENMP=""
+test "x${with_openmp}" == "x" && OPENMP=""
+test "x${with_openmp}" == "xyes" && OPENMP="-fopenmp"	
 
 if test "x${enable_cuda}" != "xno"
 then
@@ -225,7 +239,7 @@ then
 		#NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
 		NVFLAGS="${NVFLAGS} -arch=compute_${CUDA_SUFF}"
 	fi
-	if test "x${enable_openmp}" == "xyes"
+	if ! test -z "$OPENMP"
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
 	fi
@@ -236,10 +250,10 @@ else
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with CPU version])
 	fi
-	if test "x${enable_openmp}" == "xyes"
+	if ! test -z "$OPENMP"
 	then
-		CPPFLAGS="${CPPFLAGS} -fopenmp"
-		LDFLAGS="${CPPFLAGS} -fopenmp"
+		CPPFLAGS="${CPPFLAGS} $OPENMP"
+		LDFLAGS="${CPPFLAGS} $OPENMP"
 		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
 fi
@@ -274,7 +288,11 @@ else
 fi
 LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
-AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+AC_CHECK_LIB([mpi], [MPI_Recv],[],[
+	AC_CHECK_FUNC([MPI_Recv],[],[
+		AC_MSG_ERROR([Didn't find MPI Library])
+	])
+])
 
 
 if  test "x${with_python}" == "xyes"; then
@@ -488,8 +506,19 @@ then
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
 	CPPFLAGS="${CPPFLAGS} -g"
 	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
+fi
+
+if test "x${CONF_CPPFLAGS}" == "x"
+then
+        if test "x${enable_debug}" == "xyes"
+        then
+                CPPFLAGS="${CPPFLAGS} -g"
+        else
+                CPPFLAGS="${CPPFLAGS} -O3"
+        fi
+        CPPFLAGS="${CPPFLAGS} -Wno-write-strings"
 else
-	CPPFLAGS="${CPPFLAGS} -O3"
+	CPPFLAGS="${CPPFLAGS} ${CONF_CPPFLAGS}"
 fi
 
 if test "x${with_verbosity_level}" == "x0"

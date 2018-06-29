@@ -105,10 +105,9 @@ void SyntheticTurbulence::setVonKarman(double Le, double Ld, double Lmin, double
   L = i*dL + dL/2 + Lmin;
 
   WaveLengths[i] = L;
-  double c = 0.9685081;
+  double c = 1.453;
   double E = c / Le * pow(L/Le,4.0) / pow(1.0+pow(L/Le,2.0),17./6.)*exp(-2.0*pow(L/Ld,2.0));
   Amplitudes[i] = sqrt(E * dL);
-  printf(" %lg -> %lg (%lg)\n", WaveLengths[i], Amplitudes[i], E);
  }
  double sum=0;
  for (int i=0;i<size;i++) sum = sum + pow(Amplitudes[i],2.0);
