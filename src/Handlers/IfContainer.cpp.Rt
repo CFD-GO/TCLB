@@ -19,7 +19,7 @@ int IfContainer::Init () {
         for (v in ls(Options)) {
             if(Options[[v]]){
                 ?> 
-                if (strcmp("<?R cat(v) ?>", present.value() ) == 0) ){proceed = true;}; 
+                if (strcmp("<?R cat(v) ?>", present.value() ) == 0) {proceed = true;}; 
                 <?R
             }
         }    
@@ -31,7 +31,7 @@ int IfContainer::Init () {
         for (v in ls(Options)) {
             if(Options[[v]]){
                 ?> 
-                if (strcmp("<?R cat(v) ?>", present.value() ) == 0) ){proceed = false;}; 
+                if (strcmp("<?R cat(v) ?>", present.value() ) == 0) {proceed = false;}; 
                 <?R
             }
         }    
