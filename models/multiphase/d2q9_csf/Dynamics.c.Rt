@@ -34,6 +34,11 @@
 	J = PV("J",c("x","y"))
     u = PV(c("u.x","u.y"))
 
+    if ( any( DensityAll$group=="BC" ) ) {
+        BC_Velocity=PV(c('BC[0]', 'BC[1]'))
+    } else {
+        BC_Velocity=PV(c('VelocityX', 'VelocityY'))
+    }
 
 # things related to h
     h = PV(Density$name[Density$group=='h'])
@@ -566,6 +571,13 @@ CudaDeviceFunction vector_t getU(){
     u.x = (u.x)/(1. + 0.5 * K) / d;
     u.y = (u.y)/(1. + 0.5 * K) / d;   
 
+
+    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (OverwriteVelocityField) {
+        u.x = BC[0] ;
+        u.y = BC[1] ; 
+    }
+    <?R } ?> 
 	u.z = 0.0;
 	return u;
 }
@@ -694,6 +706,13 @@ CudaDeviceFunction vector_t getF() {
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
     Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
 
+    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+     if (!IamBOUNDARY) {   
+        Force.x += BC[0]*0.5;
+        Force.y += BC[1]*0.5;
+    }    
+    <?R } ?>   
+    
     
     return Force;
 
@@ -759,8 +778,7 @@ CudaDeviceFunction void Init() {
 	real_t rho, ux, uy, C;
 	rho = (1+Pressure*3);
 	ux=0;
-	uy=0;
-	ux = Velocity+ux;
+    <?R C(c(PV('ux'),PV('uy')), BC_Velocity) ?>
     C = PhaseField; 
 	SetEquilibrum(
 		rho,
@@ -868,7 +886,7 @@ CudaDeviceFunction void EVelocity()
 {
     {
 <?R 
-    ZouHeRewrite(EQ,   f, c(1,0), type="velocity")
+    ZouHeRewrite(EQ,   f, c(1,0), type="velocity", BC_Velocity)
 ?>
     }
     {
@@ -911,7 +929,7 @@ CudaDeviceFunction void WVelocity()
 {
    {
 <?R 
-    ZouHeRewrite(EQ,   f, c(-1,0), type="velocity")
+    ZouHeRewrite(EQ,   f, c(-1,0), type="velocity", BC_Velocity)
 ?>
     }
     {
@@ -937,7 +955,12 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 	real_t <?R C(R,sep=",") ?>;
 	real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
+
 <?R
+	if (Options$noflow){
+    C(PV('rho'),1)    
+	}
+
 	S = PV("S",1:nrow(U)-1);
 	
     S=PV("S",1:nrow(U)-1);
@@ -965,18 +988,30 @@ CudaDeviceFunction void CollisionMRT()
 //    vector_t u;
 //    u.x = Jx;
 //    u.y = Jy;
-
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (!IamBOUNDARY) {
+    Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
+    Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;
+    }
+    if (OverwriteVelocityField) {
+        Jx = BC[0]*rho ;
+        Jy = BC[1]*rho ; 
+    }   
+<?R } else { ?>
     Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
     Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;   
-  
-<?R
+<?R } ?>
+
+   <?R
 
 
-	C( R[selR], (R + EQ$Req)[selR]);
+ 
+	if (Options$noflow){
+    C(c(PV('Jx'),PV('Jy')),BC_Velocity*PV('rho'))    
+	}
 
+    C( R[selR], (R + EQ$Req)[selR]);
 	C( f, R %*% solve(EQ$mat), float=F);
-
-
     # part related to h
 ?>
 

@@ -26,9 +26,17 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
 
 AddDensity( name="h_Z", dx=0, dy=0, group="HZ")
+
+if (Options$bc) {
+    AddSetting(name="OverwriteVelocityField", default="0")
+    AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+    AddDensity( name="BC[1]", group="BC", parameter=TRUE)
+}
+
+
+
 AddField( name="nw_x", stencil2d=1, group="nw")
 AddField( name="nw_y", stencil2d=1, group="nw")
-
 
 
 
@@ -89,7 +97,8 @@ AddSetting(name="omega2_ph", default="1", comment='one over relaxation time - se
 AddSetting(name="omega_l", comment='one over relaxation time, light phase')
 AddSetting(name="Viscosity", omega='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Viscosity_l", omega_l='1.0/(3*Viscosity_l + 0.5)', default=0.16666666, comment='viscosity')
-AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="IntWidth", default=0.1, comment='Anty-diffusivity coeff')
 AddSetting(name="Mobility", default=0.05, comment='Mobility')
