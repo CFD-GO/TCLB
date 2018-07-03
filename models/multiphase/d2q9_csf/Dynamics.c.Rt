@@ -570,14 +570,6 @@ CudaDeviceFunction vector_t getU(){
     
     u.x = (u.x)/(1. + 0.5 * K) / d;
     u.y = (u.y)/(1. + 0.5 * K) / d;   
-
-
-    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-//    if (OverwriteVelocityField) {
-//       u.x = BC[0] ;
-//        u.y = BC[1] ; 
-//    }
-    <?R } ?> 
 	u.z = 0.0;
 	return u;
 }
@@ -628,8 +620,8 @@ CudaDeviceFunction real_t getCurvature(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
-    debug.x = BC[0];
-    debug.y = BC[1];
+//    debug.x = BC[0];
+//    debug.y = BC[1];
     return debug;
 
 }
@@ -967,27 +959,18 @@ CudaDeviceFunction void CollisionMRT()
  	S[EQ$order == 4] = PV("S4")   
 
 
-    if ( any( DensityAll$group=="BC" ) ) { 
-?>
-        if (OverwriteVelocityField) {
-            Jx = BC[0] ;
-            Jy = BC[1] ;
-            rho = 1;
 
-            <?R
-        	feq = EQ$Req %*% solve(EQ$mat)
-        	C( f, feq)
-            ?>    
-                     
-        }  
-<?R 
-    } else { 
+     if ( Options$noflow ) { 
+        C(c(PV('Jx'),PV('Jy')), BC_Velocity)
+        C(PV('rho') , 1)
+        C( f,  EQ$Req %*% solve(EQ$mat))
+     } else { 
   
 	    C( R, f %*% EQ$mat );
     	C( R[selR], (R - EQ$Req)[selR]);
 	    C( R[selR], (R * S)[selR]);
 
-        ?>
+?>
     
         vector_t F = getF();
  
