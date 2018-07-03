@@ -34,7 +34,7 @@
 	J = PV("J",c("x","y"))
     u = PV(c("u.x","u.y"))
 
-    if ( any( DensityAll$group=="BC" ) ) {
+    if ( any( DensityAll$group == "BC" ) ) {
         BC_Velocity=PV(c('BC[0]', 'BC[1]'))
     } else {
         BC_Velocity=PV(c('VelocityX', 'VelocityY'))
@@ -496,17 +496,17 @@ CudaDeviceFunction void  InitPhisStencil(){
         //t1 = 1;
         //t1 = (1E-12 + y[1]*y[1] + 0.08333*y[3]*y[3]);
         t1 = (1E-12 + y[2]*y[2]*0.0833333 +  y[1]*y[1]*1.0833333 +  y[3]*y[3]*0.0902777); 
-	t1 = 1./(t1*t1);
+	    t1 = 1./(t1*t1);
 
         wx = wx + t1;
         gradient.x = gradient.x + t1 * y[1] / 2.;
 
-	//t1 = 1;
+	    //t1 = 1;
         //t1 = (1E-12 + y[2]*y[2] + 0.08333*y[3]*y[3]);
         
-	t1 = (1E-12 + y[2]*y[2]*1.0833333 +  y[1]*y[1]*0.0833333 +  y[3]*y[3]*0.0902777); 
-	
-	t1 = 1./(t1*t1);
+	    t1 = (1E-12 + y[2]*y[2]*1.0833333 +  y[1]*y[1]*0.0833333 +  y[3]*y[3]*0.0902777); 	
+    	t1 = 1./(t1*t1);
+
         wy = wy + t1; 
         gradient.y = gradient.y + t1 * y[2] / 2.;
 
@@ -518,13 +518,13 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 gradient.x = gradient.x / wx;
 gradient.y = gradient.y / wy; 
-
+gradient.z = 0;
 
 curvature = -0.5 * curvature;
 
-normal.x = nw_x;
+normal.x = nw.x;
 normal.y = nw.y;
-
+normal.z = 0;
 
 debug.x = gradient.x;
 debug.y = gradient.y;
@@ -573,10 +573,10 @@ CudaDeviceFunction vector_t getU(){
 
 
     <?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    if (OverwriteVelocityField) {
-        u.x = BC[0] ;
-        u.y = BC[1] ; 
-    }
+//    if (OverwriteVelocityField) {
+//       u.x = BC[0] ;
+//        u.y = BC[1] ; 
+//    }
     <?R } ?> 
 	u.z = 0.0;
 	return u;
@@ -628,9 +628,8 @@ CudaDeviceFunction real_t getCurvature(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
-//    vector_t temp;
-//   temp.x = nw_x(0,0);
-//    temp.y = h_Z;
+    debug.x = BC[0];
+    debug.y = BC[1];
     return debug;
 
 }
@@ -646,7 +645,7 @@ CudaDeviceFunction void CalcNormal(){
     vector_t nw;
     nw.x = 0;
     nw.y = 0;
-
+    nw.z = 0;
 
 /**    real_t magic = 0.12;
    <?R
@@ -692,7 +691,7 @@ CudaDeviceFunction void CalcNormal(){
     }
     nw_x = nw.x;
     nw_y = nw.y;
-
+    
 
 
 }
@@ -777,8 +776,14 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t p
 CudaDeviceFunction void Init() {
 	real_t rho, ux, uy, C;
 	rho = (1+Pressure*3);
-	ux=0;
-    <?R C(c(PV('ux'),PV('uy')), BC_Velocity) ?>
+
+	ux = 0;
+    uy = 0;
+    
+ /* this generates NaN on boundary, don't know why. MD
+   <?R C(c(PV('ux'),PV('uy')), BC_Velocity) ?> 
+  */
+    
     C = PhaseField; 
 	SetEquilibrum(
 		rho,
@@ -788,9 +793,7 @@ CudaDeviceFunction void Init() {
 	);
 
     h_Z = BrinkmanHeightInv;
-    <?R
-#       C(d,1)
-    ?>
+
 }
 
 CudaDeviceFunction void CalcPhi() {
@@ -957,61 +960,60 @@ CudaDeviceFunction void CollisionMRT()
 	real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
 
 <?R
-	if (Options$noflow){
-    C(PV('rho'),1)    
-	}
-
 	S = PV("S",1:nrow(U)-1);
-	
-    S=PV("S",1:nrow(U)-1);
+    S = PV("S",1:nrow(U)-1);
 	S[EQ$order == 2] = PV("gamma")
 	S[EQ$order == 3] = PV("S3")
  	S[EQ$order == 4] = PV("S4")   
 
 
-	C( R, f %*% EQ$mat );
-	C( R[selR], (R - EQ$Req)[selR]);
-
-
-	C( R[selR], (R * S)[selR]);
-
+    if ( any( DensityAll$group=="BC" ) ) { 
 ?>
-    //Jx = Jx + rho*GravitationX ;
-    //Jy = Jy + rho*GravitationY ; 
-    vector_t F = getF();
+        if (OverwriteVelocityField) {
+            Jx = BC[0] ;
+            Jy = BC[1] ;
+            rho = 1;
+
+            <?R
+        	feq = EQ$Req %*% solve(EQ$mat)
+        	C( f, feq)
+            ?>    
+                     
+        }  
+<?R 
+    } else { 
+  
+	    C( R, f %*% EQ$mat );
+    	C( R[selR], (R - EQ$Req)[selR]);
+	    C( R[selR], (R * S)[selR]);
+
+        ?>
+    
+        vector_t F = getF();
  
     
-    real_t nu = -(gamma + 1)/(6*gamma - 6) ;
-    real_t K = rho * 12. * nu * h_Z * h_Z;
+        real_t nu = -(gamma + 1)/(6*gamma - 6) ;
+        real_t K = rho * 12. * nu * h_Z * h_Z;
    
-    //for C-H
-//    vector_t u;
-//    u.x = Jx;
-//    u.y = Jy;
-<?R if ( any( DensityAll$group=="BC" ) ) { ?>
-    if (!IamBOUNDARY) {
-    Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
-    Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;
-    }
-    if (OverwriteVelocityField) {
-        Jx = BC[0]*rho ;
-        Jy = BC[1]*rho ; 
-    }   
-<?R } else { ?>
-    Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
-    Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;   
-<?R } ?>
+        
+    
+        Jx = Jx + F.x - K*(Jx+F.x*0.5)/(1. + 0.5 * K) / rho;
+        Jy = Jy + F.y - K*(Jy+F.y*0.5)/(1. + 0.5 * K) / rho;   
 
-   <?R
+        <?R
 
 
  
-	if (Options$noflow){
-    C(c(PV('Jx'),PV('Jy')),BC_Velocity*PV('rho'))    
-	}
+    #	if (Options$noflow){
+    #    C(c(PV('Jx'),PV('Jy')),BC_Velocity*PV('rho'))    
+    #	}
 
-    C( R[selR], (R + EQ$Req)[selR]);
-	C( f, R %*% solve(EQ$mat), float=F);
+        C( R[selR], (R + EQ$Req)[selR]);
+    	C( f, R %*% solve(EQ$mat), float=F);
+
+    }
+
+
     # part related to h
 ?>
 
@@ -1022,9 +1024,10 @@ CudaDeviceFunction void CollisionMRT()
 
 //    real_t d = <?R C(sum(f)) ?>;
     vector_t u = getU();
-    u.x = PF_Advection_Switch * u.x;
-    u.y = PF_Advection_Switch * u.y;
-
+    if ( PF_Advection_Switch == 0 ){
+        u.x = 0;
+        u.y = 0;
+    }
 
 //    u.x = (Jx + 0.5 * F.x) / (1.+ 0.5 * K) / rho;
 //    u.y = (Jy + 0.5 * F.y) / (1.+ 0.5 * K) / rho;
@@ -1033,8 +1036,8 @@ CudaDeviceFunction void CollisionMRT()
 
     vector_t n = gradient;
     real_t l = sqrt(n.x*n.x + n.y*n.y);
-    n.x -= u.x * pf;
-    n.y -= u.y * pf;
+    //n.x -= u.x * pf;
+    //n.y -= u.y * pf;
     l = sqrt(n.x*n.x + n.y*n.y);
     n.x = n.x / (l + 1E-10);
     n.y = n.y / (l + 1E-10);
@@ -1070,23 +1073,5 @@ CudaDeviceFunction void CollisionMRT()
 	C( h, R %*% solve(EQ_h$mat), float=F);
 
 ?>
-//    vector_t du = getBoundaryForcing();
-//    du.x *= 0.3;
-//    du.y *= 0.3;
- //   vector_t wd = getWallDirection();
- //   real_t lwd = sqrt(wd.x*wd.x + wd.y*wd.y);
- //   vector_t zero;
- //   zero.x = 0;
- //   zero.y = 0;
- /*   real_t sd;
-    sd = d[0];
-    for (int i = 1; i <9; i++ ){
-        sd = d[i] > sd ? d[i] : sd;
-    }*/
-    <?R
-#    sd =  PV('sd')
-#    C( d, sd* PV('WallDistanceRatio') )
-    ?>
-
     
 }

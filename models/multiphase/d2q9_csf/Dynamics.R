@@ -43,8 +43,8 @@ AddField( name="nw_y", stencil2d=1, group="nw")
 AddField("phi"      ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
-         load=DensityAll$group == "f" | DensityAll$group == "h"| DensityAll$group == "HZ",  
-         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw" | Fields$group == "HZ"
+         load=DensityAll$group == "f" | DensityAll$group == "h"| DensityAll$group == "HZ" | DensityAll$group == "BC",  
+         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw" | Fields$group == "HZ" 
          ) 
 AddStage("CalcPhi", 
          save=Fields$name=="phi" ,  
