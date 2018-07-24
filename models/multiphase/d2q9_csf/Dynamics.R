@@ -33,6 +33,10 @@ if (Options$bc) {
     AddDensity( name="BC[1]", group="BC", parameter=TRUE)
 }
 
+if (Options$bcinit) {
+    AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+}
+
 
 
 AddField( name="nw_x", stencil2d=1, group="nw")
@@ -50,7 +54,10 @@ AddStage("CalcPhi",
          save=Fields$name=="phi" ,  
          load=DensityAll$group == "h"
          )
-AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h"| Fields$group == "HZ") 
+AddStage("BaseInit", "Init",  
+    load=DensityAll$group == "BC",  
+    save=Fields$group=="f" | Fields$group=="h"| Fields$group == "HZ"
+) 
 AddStage("CalcWallNormall", "CalcNormal",   
          save=Fields$group=="nw",
          fixedPoint=TRUE

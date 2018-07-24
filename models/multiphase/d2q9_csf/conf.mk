@@ -1,3 +1,3 @@
 ADJOINT=0
 TEST=FALSE
-OPT="bc*noflow"
+OPT="(bc+bcinit)*noflow"

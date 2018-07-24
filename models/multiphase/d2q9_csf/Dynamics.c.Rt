@@ -620,8 +620,8 @@ CudaDeviceFunction real_t getCurvature(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
-//    debug.x = BC[0];
-//    debug.y = BC[1];
+    debug.x = BC[0];
+    debug.y = BC[1];
     return debug;
 
 }
@@ -775,8 +775,14 @@ CudaDeviceFunction void Init() {
  /* this generates NaN on boundary, don't know why. MD
    <?R C(c(PV('ux'),PV('uy')), BC_Velocity) ?> 
   */
-    
-    C = PhaseField; 
+	<?R
+
+    if ( Options$bcinit ) { 
+    	C(PV('C'), PV('BC[0]')) 
+	} else {
+    	C(PV('C'), PV('PhaseField')) 
+	}
+	?>
 	SetEquilibrum(
 		rho,
 		ux*rho,
