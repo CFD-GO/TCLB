@@ -582,6 +582,12 @@ CudaDeviceFunction void CollisionMRT(){
 	
 	AddToTotalDensity( rho ); // Add globals of post-stream, pre-collide macroscopic globals.
 	AddToKineticEnergy( rho*(U*U + V*V + W*W) );
+
+	if ( C < 0.5 ) 
+	{
+	    AddToGasTotalVelocity( sqrt(U*U + V*V + W*W));
+	    AddToGasCells(1);
+	}
 	
 	real_t m0[27];
 <?R
@@ -741,8 +747,6 @@ for (j=0;j<2;j++) {
 				AddToRTIBubble(location);
 			}
 	}
-	
-
 }
 #endif
 
