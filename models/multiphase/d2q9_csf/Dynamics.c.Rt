@@ -34,7 +34,8 @@
 	J = PV("J",c("x","y"))
     u = PV(c("u.x","u.y"))
 
-    if ( any( DensityAll$group == "BC" ) ) {
+
+    if ( Options$bc ) {
         BC_Velocity=PV(c('BC[0]', 'BC[1]'))
     } else {
         BC_Velocity=PV(c('VelocityX', 'VelocityY'))
@@ -697,7 +698,8 @@ CudaDeviceFunction vector_t getF() {
     Force.x += GravitationX_l + (pf - 0.5)/(-1)*(GravitationX - GravitationX_l);
     Force.y += GravitationY_l + (pf - 0.5)/(-1)*(GravitationY - GravitationY_l);
 
-    <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    
+    <?R if ( Options$bc ) { ?>
      if (!IamBOUNDARY) {   
         Force.x += BC[0]*0.5;
         Force.y += BC[1]*0.5;
