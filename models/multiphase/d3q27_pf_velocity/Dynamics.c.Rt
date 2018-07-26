@@ -586,6 +586,9 @@ CudaDeviceFunction void CollisionMRT(){
 	if ( C < 0.5 ) 
 	{
 	    AddToGasTotalVelocity( sqrt(U*U + V*V + W*W));
+	    AddToGasTotalVelocityX( U );
+	    AddToGasTotalVelocityY( V );
+	    AddToGasTotalVelocityZ( W );
 	    AddToGasCells(1);
 	}
 	
