@@ -179,6 +179,7 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction real_t calcW0(real_t d) {
 	d = d + SM_M;
+        eps = 0;
 	if (SM == 0) {
 		if (d < 0) return 0;
 		return 1;
@@ -186,21 +187,22 @@ CudaDeviceFunction real_t calcW0(real_t d) {
 		d = d / SM;
 		if (d < -1) return 0;
 		if (d > 1) return 1;
-		return ((3-d*d)*d+2)/4;
+                eps = ( (EPSF = 0) ? ( 0.5*(d + 1) ) : ( ((3-d*d)*d+2)/4 ) );
+		return eps;
 	}
 }
 
 CudaDeviceFunction real_t calcW(real_t dx, real_t dy) {
 	real_t ret = 1;
         if( PRAD == 0 ){
-	ret = ret * calcW0(PDX-2*dx);
-	ret = ret * calcW0(PDX+2*dx);
-	ret = ret * calcW0(PDY-2*dy);
-	ret = ret * calcW0(PDY+2*dy);
+            ret = ret * calcW0(PDX-2*dx);
+            ret = ret * calcW0(PDX+2*dx);
+            ret = ret * calcW0(PDY-2*dy);
+            ret = ret * calcW0(PDY+2*dy);
         }
         if( PDX == 0 || PDY == 0 ){
-        ret = ret * calcW0( PRAD - sqrt(dx*dx + dy*dy) );
-      }
+            ret = ret * calcW0( PRAD - sqrt(dx*dx + dy*dy) );
+        }
 	return ret;
 }
 
@@ -283,6 +285,7 @@ real_t dx = px*cos(PR) + py*sin(PR);
 real_t dy =-px*sin(PR) + py*cos(PR);
 
 real_t w = calcW(dx,dy);
+w = ( ( BF = 0 ) ? (w) : ( (w * (tau - 0.5)) / ((1 - w) + (tau - 0.5))) );
 
 //dx = fabs(dx*2);
 //dy = fabs(dy*2);
