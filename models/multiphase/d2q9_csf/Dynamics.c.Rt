@@ -554,6 +554,7 @@ CudaDeviceFunction vector_t getU(){
     C(PV(c("u.x","u.y")) , f %*% U)
 
 ?>
+<?R if (!Options$noflow ) { ?>
 	vector_t F;
 	F = getF();
 
@@ -571,6 +572,7 @@ CudaDeviceFunction vector_t getU(){
     
     u.x = (u.x)/(1. + 0.5 * K) / d;
     u.y = (u.y)/(1. + 0.5 * K) / d;   
+<?R } ?>
 	u.z = 0.0;
 	return u;
 }
