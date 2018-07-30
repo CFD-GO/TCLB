@@ -866,6 +866,17 @@ CudaDeviceFunction void Run() {
 		InitPhisStencil(); 
         EPressure();
 		break;
+	case NODE_SVelocity:
+		InitPhisStencil(); 
+        SVelocity();
+		break;
+	case NODE_NVelocity:
+		InitPhisStencil(); 
+        NVelocity();
+		break;
+
+
+        
     case NODE_NSymmetry:
            <?R Symmetry(2,-1) ?>
            InitPhisStencil(); 
@@ -888,7 +899,32 @@ CudaDeviceFunction void BounceBack()
 <?R FullBounceBack() ?>
 }
 
-
+CudaDeviceFunction void NVelocity()
+{
+    {
+<?R 
+    ZouHeRewrite(EQ,   f, c(0,1), type="velocity", BC_Velocity)
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(0,1), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+CudaDeviceFunction void SVelocity()
+{
+    {
+<?R 
+    ZouHeRewrite(EQ,   f, c(0,-1), type="velocity", BC_Velocity)
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(0,-1), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
 CudaDeviceFunction void EVelocity()
 {
     {

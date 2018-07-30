@@ -139,6 +139,10 @@ AddNodeType(name="WPressure",group="BOUNDARY")
 AddNodeType(name="EVelocity",group="BOUNDARY")
 AddNodeType(name="WVelocity",group="BOUNDARY")
 
+AddNodeType(name="NVelocity",group="BOUNDARY")
+AddNodeType(name="SVelocity",group="BOUNDARY")
+
+
 
 
  
