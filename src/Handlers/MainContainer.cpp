@@ -4,7 +4,7 @@ std::string MainContainer::xmlname = "CLBConfig";
 
 int MainContainer::Init () {
 		GenericAction::Init();
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 
 		solver->outIterFile("config", ".xml", filename);
 		pugi::xml_node n = solver->configfile.child("CLBConfig").append_child("Run");
