@@ -623,8 +623,10 @@ CudaDeviceFunction real_t getCurvature(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction vector_t getDEBUG(){
     InitPhisStencil();
+    <?R if (Options$bc) { ?>
     debug.x = BC[0];
     debug.y = BC[1];
+    <?R } ?>
     return debug;
 
 }
