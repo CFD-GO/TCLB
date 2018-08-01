@@ -397,6 +397,19 @@ CudaDeviceFunction void Init() {
 		else             {PhaseF = 1.0;	}
 	}
 
+	if ( DonutTime > 0){
+		real_t intLocation = Donut_D * 
+					sqrt( pow(Donut_h,2) 
+					    - pow( DonutTime - sqrt(pow(Y-CenterY,2) + pow(Z-CenterZ,2)), 2) );
+
+		if (  (X < Donut_x0 + intLocation) && (X > Donut_x0 - intLocation) )
+		{
+			PhaseF = 0.0;
+		} else {
+			PhaseF = 1.0;
+		}
+	}
+
 	if ( IamWall || IamSolid ) PhaseF = -999;
 }
 

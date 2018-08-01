@@ -119,6 +119,11 @@ AddSetting(name="CenterY", default="0.0", comment='Diffuse sphere center_y')
 AddSetting(name="CenterZ", default="0.0", comment='Diffuse sphere center_z')
 AddSetting(name="BubbleType",default="1.0", comment='droplet(1.0) or bubble(-1.0)?!')
 
+AddSetting(name="DonutTime", default="0.0", comment='Radius of a Torus - initialised to travel along x-axis')
+AddSetting(name="Donut_h",   default="0.0", comment='Half donut thickness, i.e. the radius of the cross-section')
+AddSetting(name="Donut_D",   default="0.0", comment='Dilation factor along the x-axis')
+AddSetting(name="Donut_x0",  default="0.0", comment='Position along x-axis')
+
 # 	Inputs: Fluid Properties
 AddSetting(name="tau_l", comment='relaxation time (low density fluid)')
 AddSetting(name="tau_h", comment='relaxation time (high density fluid)')
