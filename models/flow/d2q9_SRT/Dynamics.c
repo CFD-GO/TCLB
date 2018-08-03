@@ -56,9 +56,7 @@ CudaDeviceFunction void Run() {
 	if (NodeType & NODE_BGK) 
 	{
 		CollisionBGK();
-	} else if (NodeType & NODE_MRT) {
-		printf("NOT IMPLEMENTED... press <crtl + c>\n");
-	}
+	} 
 }
 
 CudaDeviceFunction void CollisionBGK() {

@@ -39,8 +39,7 @@ AddField('PhaseF',stencil2d=1, group="PF")
 #	Additional access required for outflow boundaries
 if (Options$Outflow){
 	for (d in rows(DensityAll)){
-    		AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy )
-    		AddField( name=d$name,  dx=-d$dx, dy=-d$dy-1 )
+    		AddField( name=d$name,  dx=c(-d$dx-1,-d$dx), dy=c(-d$dy,-d$dy-1) )
 	}
 	AddField('U',dx=c(-1,0))
 	AddField('V',dx=c(0,-1))
