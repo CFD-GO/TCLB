@@ -458,6 +458,11 @@ CudaDeviceFunction void Init_wallNorm(){
 				if (dot > maxn) {
 					maxn = dot; maxi = i;
 				}
+			}
+			if (maxi < 0) {
+				// This should not happen ?
+				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+			} else {
 				nw_x = d3q27_ex[maxi];nw_y = d3q27_ey[maxi];nw_z = d3q27_ez[maxi];
 			}
 	  	}
