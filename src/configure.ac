@@ -257,7 +257,7 @@ if test -z "${MPI_INCLUDE}"; then
 	else
 		MPI_INCLUDE="${MPI}/include"
 	fi
-	AC_MSG_RESULT([${MPI_INCLUDuE}])
+	AC_MSG_RESULT([${MPI_INCLUDE}])
 else
 	AC_MSG_RESULT([${MPI_INCLUDE}])
 fi
