@@ -24,7 +24,6 @@ AddSetting(name="GalileanCorrection",default=1.,comment='Galilean correction ter
 AddSetting(name="ForceX", default=0, comment='Force force X')
 AddSetting(name="ForceY", default=0, comment='Force force Y')
 AddSetting(name="ForceZ", default=0, comment='Force force Z')
-AddSetting(name="Smag", default=0, comment='Smagorinsky coefficient for SGS modeling')
 AddSetting(name="Omega", default=1, comment='relaxation rate for 3rd order cumulants')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
@@ -32,6 +31,7 @@ AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
 AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")
 AddGlobal(name="Lateral", comment='Force exerted on body in Y-direction', unit="N")
 
+AddNodeType("Buffer", "BOUNDARY")
 AddNodeType("WVelocityTurbulent", "BOUNDARY")
 AddNodeType("NVelocity", "BOUNDARY")
 AddNodeType("SVelocity", "BOUNDARY")
@@ -40,9 +40,21 @@ AddNodeType("SPressure", "BOUNDARY")
 AddNodeType("NSymmetry", "ADDITIONALS")
 AddNodeType("SSymmetry", "ADDITIONALS")
 AddNodeType("Body", "BODY")
-AddNodeType("IB", group="HO_BOUNDARY")
+
 
 for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
+
+##########OPTIONAL VALUES##########
+
+#Smagorinsky coefficient
+if(Options$SMAG){
+	AddSetting(name="Smag", default=0, comment='Smagorinsky coefficient for SGS modeling')
+}
+
+#Interpolated BounceBack Node
+if(Options$IB){
+	AddNodeType("IB", group="HO_BOUNDARY")
+}
 
 #Averaging values
 if (Options$AVG) {

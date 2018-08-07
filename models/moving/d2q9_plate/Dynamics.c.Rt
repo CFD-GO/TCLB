@@ -283,8 +283,8 @@ real_t w = calcW(dx,dy);
 
 real_t Vx = PX_DT - PR_DT*py;
 real_t Vy = PY_DT + PR_DT*px;
-real_t Fx = w*(Vx - u[0]);
-real_t Fy = w*(Vy - u[1]);
+real_t Fx = 2*w*(Vx - u[0]);
+real_t Fy = 2*w*(Vy - u[1]);
 AddToForceX(Fx);
 AddToForceY(Fy);
 AddToMoment(Fx*py-Fy*px);
