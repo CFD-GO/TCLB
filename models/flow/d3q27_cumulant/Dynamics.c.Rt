@@ -190,7 +190,7 @@ CudaDeviceFunction void InterpolatedBounceBack()
                 C(Q,Qw[i]);
 ?>
         if (q != NO_CUT) {
-                real_t p = ((real_t)q) * 0.01; // q * 0.005 * 2 <?R p = PV("p"); op = p^(-1); ?>
+                real_t p = ((real_t)q) * (2.0 /CUT_MAX); // q * 0.005 * 2 <?R p = PV("p"); op = p^(-1); ?>
                 real_t fa = <?R C(fold[i]) ?>; <?R fa = PV("fa"); ?>
                 if (p > 1.0) { <?R
 			C(f[bounce[i]],fa*op + fold[bounce[i]]*(p-1)*op) ?>
@@ -421,7 +421,7 @@ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 //Optional change in relaxation rate of 3rd order cumulants, as per car studies done by Geier et al
 	<?R	sel = rowSums(P) == 3
 		for (i in cumulants[sel]) { ?>
-		<?%s i ?> = 1-Omega;
+		<?%s i ?> = (1-Omega)*<?%s i ?>;
 	<?R } ?>
 
 	<?R	sel = rowSums(P) > 3
