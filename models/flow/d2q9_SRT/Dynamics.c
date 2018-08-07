@@ -53,13 +53,10 @@ CudaDeviceFunction void Run() {
 //		NVelocity();
 //		break;
     }
-	if (NodeType & NODE_MRT) 
+	if (NodeType & NODE_BGK) 
 	{
-	// Set as if MRT as majority of examples specify
-	// solution zone as MRT box, so avoid changing 
-	// input files.
 		CollisionBGK();
-	}
+	} 
 }
 
 CudaDeviceFunction void CollisionBGK() {
