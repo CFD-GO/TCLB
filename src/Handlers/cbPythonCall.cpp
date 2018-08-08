@@ -24,10 +24,15 @@ int cbPythonCall::Init () {
             } else {
                 oldpath = std::string( syspythonpath );
             }            
+            pugi::xml_attribute pn_pythonpath = node.attribute("pythonpath");
             
             oldpath.resize (oldpath.size()+1,':');
             oldpath.resize (oldpath.size()+1,'.');
-
+    
+            if (pn_pythonpath){
+                oldpath.resize (oldpath.size()+1,':');
+                oldpath.append(pn_pythonpath.value());
+            }
             setenv("PYTHONPATH",oldpath.c_str(),1);
             debug1("PYTHONPATH set to %s", oldpath.c_str() );
 

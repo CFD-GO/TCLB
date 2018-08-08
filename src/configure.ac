@@ -295,8 +295,15 @@ if  test "x${with_python}" == "xyes"; then
 
     AC_MSG_CHECKING([python embandinng: linker flags])
     PF=$(${python_config} --ldflags)
+	
     LDFLAGS="${LDFLAGS} ${PF}"
+
     AC_MSG_RESULT([${PF}])
+
+	AC_MSG_CHECKING([Python - numpy additional include path])
+	PYINC="$(python -c 'import numpy; print(numpy.get_include())')"
+	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
+    AC_MSG_RESULT([${PYINC}])
     
     AC_MSG_CHECKING([Python Embandinng: compiler flags])
 #    PF=$($python_config --cflags)
