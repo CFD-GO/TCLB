@@ -102,12 +102,19 @@ CudaDeviceFunction vector_t getNormal(){
     vector_t n;
     vector_t u = getU();
     <?R
-    ee_x = U[,1] - u[1]
-    ee_y = U[,2] - u[2]
-
-    C(k10, sum(h%*%ee_x) )
-    C(k01, sum(h%*%ee_y) )
+    if (Options$fd){
+        ee_x = U[,1] * wi  
+        ee_y = U[,2] * wi
     
+        C(k10, 3*sum(h%*%ee_x) )
+        C(k01, 3*sum(h%*%ee_y) )
+    } else {
+        ee_x = U[,1] - u[1]
+        ee_y = U[,2] - u[2]
+    
+        C(k10, sum(h%*%ee_x) )
+        C(k01, sum(h%*%ee_y) )
+    }
     ?>
     real_t ln = sqrt(k10*k10 + k01*k01);    
     if (ln == 0.){
