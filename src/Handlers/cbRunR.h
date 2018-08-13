@@ -23,6 +23,7 @@
 #ifdef WITH_R
 
 class RunR : public  Callback  {
+    std::string source;
 public:
     static RInside R;
     int Init ();

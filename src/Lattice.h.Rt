@@ -87,6 +87,12 @@ public:
 //  inline int load(const char * filename){ return load(container->in, filename); }
   void saveSolution(const char * filename);
   void loadSolution(const char * filename);
+  size_t sizeOfTab();
+  void saveToTab(real_t * tab, int snap);
+  inline void saveToTab(real_t * tab) { saveToTab(tab,Snap); };
+  void loadFromTab(real_t * tab, int snap);
+  inline void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); };
+//  inline int save(const char * filename){ return save(container->in, filename); }
   void startRecord();
   void rewindRecord();
   void stopRecord();

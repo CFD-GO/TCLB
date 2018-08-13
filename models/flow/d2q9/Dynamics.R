@@ -77,3 +77,6 @@ AddNodeType(name="EVelocity", group="BOUNDARY")
 
 AddNodeType(name="NSymmetry", group="BOUNDARY")
 AddNodeType(name="SSymmetry", group="BOUNDARY")
+
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")

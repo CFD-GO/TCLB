@@ -40,16 +40,19 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
-        for (f in Fields) { ?>
-#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_))
-#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_))
-#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__) <?R
+        for (f in rows(Fields)) { ?>
+#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
+#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
+#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
+#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
+#define <?%s f$nicename ?>_dyn_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
+#define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
         }
 ?>
 
-#define X (x_ + constContainer.px)
-#define Y (y_ + constContainer.py)
-#define Z (z_ + constContainer.pz)
+#define X ((real_t) x_ + constContainer.px + 0.5)
+#define Y ((real_t) y_ + constContainer.py + 0.5)
+#define Z ((real_t) z_ + constContainer.pz + 0.5)
 #define Time (constContainer.iter)
 #define SyntheticTurbulence(x__,y__,z__) constContainer.getST(x__,y__,z__)
 #define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
