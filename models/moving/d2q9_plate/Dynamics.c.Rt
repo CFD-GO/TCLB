@@ -179,7 +179,6 @@ CudaDeviceFunction void EPressure()
 
 CudaDeviceFunction real_t calcW0(real_t d) {
 	d = d + SM_M;
-        eps = 0;
 	if (SM == 0) {
 		if (d < 0) return 0;
 		return 1;
@@ -187,8 +186,8 @@ CudaDeviceFunction real_t calcW0(real_t d) {
 		d = d / SM;
 		if (d < -1) return 0;
 		if (d > 1) return 1;
-                eps = ( (EPSF = 0) ? ( 0.5*(d + 1) ) : ( ((3-d*d)*d+2)/4 ) );
-		return eps;
+                if (EPSF == 0) return (0.5 * (d + 1));	
+		else return(((3-d*d)*d+2)/4);
 	}
 }
 
@@ -284,8 +283,15 @@ real_t py = Y - PY;
 real_t dx = px*cos(PR) + py*sin(PR);
 real_t dy =-px*sin(PR) + py*cos(PR);
 
-real_t w = calcW(dx,dy);
-w = ( ( BF = 0 ) ? (w) : ( (w * (tau - 0.5)) / ((1 - w) + (tau - 0.5))) );
+real_t eps = calcW(dx, dy);
+real_t w = 0;
+
+if(BF == 0){
+	w = eps;
+} else {
+	w = (eps * (tau - 0.5)) / ((1 - eps) + (tau - 0.5));
+}
+
 
 //dx = fabs(dx*2);
 //dy = fabs(dy*2);
