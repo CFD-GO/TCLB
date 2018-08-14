@@ -27,7 +27,7 @@
 	f = PV(Density[Density$group=='f',"name"])
 	rho = PV("rho")
 	J = PV("J",c("x","y"))
-    if ( Options$BC ) {
+    if ( Options$bc ) {
         BC_Velocity=PV(c('BC[0]', 'BC[1]'))
     } else {
         BC_Velocity=PV(c('VelocityX', 'VelocityY'))
@@ -46,7 +46,7 @@ CudaDeviceFunction vector_t getU(){
 <?R C(PV(c("u.x","u.y")), f %*% U) ?>
     u.x /= d;
 	u.y /= d;
-<?R if ( Options$BC ) { ?>
+<?R if ( Options$bc ) { ?>
     if (!IamBOUNDARY) {   
         u.x += BC[0]*0.5;
         u.y += BC[1]*0.5;
@@ -77,7 +77,7 @@ CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy)
 	C( f, feq)
 ?>
 
-<?R if ( Options$BC ) { ?>
+<?R if ( Options$bc ) { ?>
    if ( IamBOUNDARY ) {
        BC[0] = Jx / rho;
        BC[1] = Jy / rho;
@@ -145,7 +145,7 @@ CudaDeviceFunction void Run() {
 CudaDeviceFunction void BounceBack()
 {
 <?R
-	if ( Options$BC ) {
+	if ( Options$bc ) {
 		C(PV('real_t temp'), sum(f))
 ?>
     if ( temp !=  1+Pressure*3 ) {
@@ -251,7 +251,7 @@ CudaDeviceFunction void CollisionMRT()
 
 ?>
 
-<?R if ( Options$BC ) { ?>
+<?R if ( Options$bc ) { ?>
     if (!IamBOUNDARY) {
         Jx = Jx + (GravitationX +  BC[0])*rho ;
         Jy = Jy + (GravitationY +  BC[1])*rho ; 
