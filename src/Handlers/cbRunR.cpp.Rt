@@ -15,6 +15,7 @@ RInside RunR::R(0,0,true,false,true);
 class rWrapper { // Wrapper for all my R objects
 public:
 	Solver * solver;
+	vHandler * hand;
 	virtual SEXP Dollar(std::string name) { return rNull; };
 	virtual void DollarAssign(std::string name, SEXP v) {};
 	virtual Rcpp::CharacterVector Names() { return Rcpp::CharacterVector(0); };
@@ -29,6 +30,7 @@ public:
 	SEXP rWrap(T * ptr) {
 	        Rcpp::XPtr< rWrapper > a(ptr);
 		a->solver = solver;
+		a->hand = hand;
 		Rcpp::Function wraper("CLBFunctionWrap");
 		Rcpp::Function ra = wraper(a);
 	        ra.attr("class") = "CLB";
@@ -104,9 +106,9 @@ public:
 	}
 };
 
-class rParameters : public rWrapper {
+class rFields : public rWrapper {
 public:
-	std::string print() { return "Parameters"; }
+	std::string print() { return "Fields"; }
 	SEXP Dollar(std::string name) {
 		lbRegion reg = solver->lattice->region;
 		Rcpp::NumericVector ret(reg.size());
@@ -152,6 +154,64 @@ public:
 		<?R for (d in rows(DensityAll)) if (d$parameter){ ?>
 		ret.push_back("<?%s d$nicename ?>");
 		<?R } ?>
+		return ret;
+	}
+};
+
+class rParameters : public rWrapper {
+public:
+	std::string print() { return "Parameters"; }
+	SEXP Dollar(std::string name) {
+		int len = hand->NumberOfParameters();
+		Rcpp::NumericVector ret(len);
+		if (name == "Values") {
+			hand->Parameters(PAR_GET, &ret[0]);
+		} else if (name == "Lower") {
+			hand->Parameters(PAR_LOWER, &ret[0]);
+		} else if (name == "Upper") {
+			hand->Parameters(PAR_UPPER, &ret[0]);
+		} else if (name == "Gradient") {
+			hand->Parameters(PAR_GRAD, &ret[0]);
+		} else if (name == "X") {
+			hand->Parameters(PAR_X, &ret[0]);
+		} else if (name == "Y") {
+			hand->Parameters(PAR_Y, &ret[0]);
+		} else if (name == "Z") {
+			hand->Parameters(PAR_Z, &ret[0]);
+		} else if (name == "T") {
+			hand->Parameters(PAR_T, &ret[0]);
+		} else {
+			ERROR("R: Unknown parameter");
+			return Rcpp::NumericVector(0);
+		}
+		return ret;
+	}
+
+	void DollarAssign(std::string name, SEXP v_) {
+		Rcpp::NumericVector v(v_);
+		int len = hand->NumberOfParameters();
+		if (v.size() != len) {
+			ERROR("R: Wrong number of parameters");
+			return;
+		}
+		if (name == "Values") {
+			hand->Parameters(PAR_SET, &v[0]);
+		} else {
+			ERROR("R: Cannot set anything but Values");
+			return;
+		}
+		return;
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		ret.push_back("Values");
+		ret.push_back("Lower");
+		ret.push_back("Upper");
+		ret.push_back("Gradient");
+		ret.push_back("X");
+		ret.push_back("Y");
+		ret.push_back("Z");
+		ret.push_back("T");
 		return ret;
 	}
 };
@@ -208,6 +268,38 @@ public:
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		ret.push_back("<?%s q$name ?>");
+		ret.push_back("<?%s q$name ?>.si");
+		<?R }
+		ifdef(); ?>
+		return ret;
+	}
+};
+
+class rGlobals : public rWrapper {
+public:
+	std::string print() { return "Globals"; }
+	SEXP Dollar(std::string name) {
+		Rcpp::NumericVector ret(1);
+	<?R 
+		for (q in rows(Globals)) { ifdef(q$adjoint);
+	?>
+	    if (name == "<?%s q$name ?>" || name == "<?%s q$name ?>.si") {
+		double v = 1;
+		if (name == "<?%s q$name ?>.si") v = solver->units.alt("<?%s q$unit ?>");
+		ret[0] = v * solver->lattice->globals[<?%s q$Index ?>];
+		return ret;
+	    }
+	<?R
+	}
+	ifdef();
+	?>
+		ERROR("R: Unknown global");
+		return Rcpp::NumericVector(0);
+	}
+	Rcpp::CharacterVector Names() {
+		Rcpp::CharacterVector ret;
+		<?R for (q in rows(Globals)) { ifdef(q$adjoint); ?>
 		ret.push_back("<?%s q$name ?>");
 		ret.push_back("<?%s q$name ?>.si");
 		<?R }
@@ -303,6 +395,31 @@ SEXP Dollar(std::string name) {
 	retdim[1] = reg.ny;
 	retdim[2] = reg.nz;
 	if (name == "dim") return retdim;
+	if ((name == "X") || (name == "Y") || (name == "Z")) { // Positions
+		double unit = 1/solver->units.alt("1m");
+		int dir = -1;
+		if (name == "X") dir = 0;
+		if (name == "Y") dir = 1;
+		if (name == "Z") dir = 2;
+		Rcpp::NumericVector small(size);
+		small.attr("dim") = retdim;
+		size_t i=0;
+		for (int z=0;z<reg.nz;z++)
+		for (int y=0;y<reg.ny;y++)
+		for (int x=0;x<reg.nx;x++) {
+			double val=0;
+			switch (dir) {
+			case 0:	val = reg.dx + x; break;
+			case 1: val = reg.dy + y; break;
+			case 2: val = reg.dz + z; break;
+			}
+			val = (val + 0.5) * unit; 
+			small[i] = val;
+			i++;
+		}
+		return small;
+	}
+
 	{ // Geometry components
 		flag_t * NodeType = new flag_t[size];
 		solver->lattice->GetFlags(reg, NodeType);
@@ -323,6 +440,7 @@ SEXP Dollar(std::string name) {
 			} ?>
 			small.attr("levels") = levels;
 			small.attr("class") = "factor";
+			delete[] NodeType;
 			return small;
 		}
 		<?R } ?>
@@ -336,6 +454,9 @@ SEXP Dollar(std::string name) {
 		ret.push_back("dx");
 		ret.push_back("dy");
 		ret.push_back("dz");
+		ret.push_back("X");
+		ret.push_back("Y");
+		ret.push_back("Z");
 		ret.push_back("size");
 		ret.push_back("dim");
 		<?R
@@ -357,10 +478,14 @@ public:
 	SEXP Dollar(std::string name) {
 	  if (name == "Settings") {  
 	    return rWrap(new rSettings());
+	  } else if (name == "Fields") {  
+	    return rWrap(new rFields());
 	  } else if (name == "Parameters") {  
 	    return rWrap(new rParameters());
 	  } else if (name == "Quantities") {  
 	    return rWrap(new rQuantities());
+	  } else if (name == "Globals") {  
+	    return rWrap(new rGlobals());
 	  } else if (name == "Actions") {  
 	    return rWrap(new rActions());
 	  } else if (name == "Geometry") {  
@@ -371,13 +496,41 @@ public:
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		ret.push_back("Settings");
+		ret.push_back("Fields");
 		ret.push_back("Parameters");
 		ret.push_back("Quantities");
+		ret.push_back("Globals");
 		ret.push_back("Actions");
 		ret.push_back("Geometry");
 		return ret;
 	}
 };
+
+class rXMLNode : public rWrapper {
+public:
+	pugi::xml_node node;
+	rXMLNode(const pugi::xml_node& node_): node(node_) {};
+	std::string print() { return "XMLNode"; }
+	SEXP Call(Rcpp::List args) {
+		output("call to xml node: %s\n",node.name());
+                Handler hand(node, solver);
+                if (hand) {
+                        if (hand.Type() & HANDLER_DESIGN) {
+                                error("No support for DESIGN XML elements in RunR");
+                        } else if (hand.Type() & HANDLER_CALLBACK) {
+                                if ((hand.hand->everyIter != 0) || (hand.Type() & HANDLER_DESIGN)) {
+	                                error("No support for CALLBACK XML elements with Iterations set in RunR");
+                                } else {
+                                        hand.DoIt();
+                                }
+                        }
+                };
+		return rNull;
+	}
+
+};
+
+
 
 
 SEXP CLBFunctionCall(Rcpp::XPtr< rWrapper > obj, Rcpp::List args) {
@@ -476,6 +629,7 @@ int RunR::Init() {
 
 	rWrapper base;
 	base.solver = solver;
+	base.hand = this;
 	R["Solver"]          = base.rWrap(new  rSolver ());
 
         ptr_R_WriteConsoleEx = CLB_WriteConsoleEx ;
@@ -484,6 +638,29 @@ int RunR::Init() {
 	R_Consolefile = NULL;
 
 	R.parseEval("options(prompt='[  ] R:> ');");
+
+	source = "";
+        for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+		if (par.type() == pugi::node_element) {
+			char nd_name[20];
+			sprintf(nd_name, "xml_%0zx", par.hash_value());
+			R[nd_name]          = base.rWrap(new  rXMLNode (par));
+			
+			source = source + nd_name + "()\n";
+			output("element\n");
+		} else if (par.type() == pugi::node_pcdata) {
+			output("pcdata\n");
+			source += par.value();
+		} else if (par.type() == pugi::node_cdata) {
+			output("cdata\n");
+			source += par.value();
+		} else {
+			output("Unknown\n");
+		}
+	}
+//	output("----- RunR -----\n");
+//	output("%s\n",source.c_str());
+//	output("----------------\n");	
 	
 	return 0;
 }
@@ -493,7 +670,10 @@ int RunR::DoIt() {
 	try {
 		if (strlen(node.child_value()) != 0) {
 			solver->print("Running R ...");
-			R.parseEval(node.child_value());
+	output("----- RunR -----\n");
+	output("%s\n",source.c_str());
+	output("----------------\n");	
+			R.parseEval(source);
 		}
 		bool interactive = false;
 		interactive = node.attribute("interactive");
