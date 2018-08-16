@@ -23,7 +23,10 @@ int GenericAction::ExecuteInternal () {
 						solver->hands.push_back(hand);
 						stack++;
 					} else {
-						hand.DoIt();
+						if ( 0 != hand.DoIt() ) {
+                            error("Handler call error: %s", par.name());
+                            return -1;
+                        };
 					}
 				}
 			} else return -1;
