@@ -164,7 +164,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
  all_stages = c(rows(Stages),list(
 	list(
 		load.densities = rep(TRUE, nrow(DensityAll)),
-		save.fields = rep(TRUE, length(Fields)),
+		save.fields = rep(TRUE, nrow(Fields)),
 		suffix=""
 	),
 	list(
@@ -186,38 +186,52 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   if (is.null(s$save.fields))  s$save.fields = Fields[,s$tag];
   if (is.null(s$suffix))  s$suffix = paste("_",s$name,sep="")
 
-  ?>
+resolve.symmetries = function(D) {
+  if (nrow(D) < 1) return();
+  dp = D[,c("dx","dy","dz"),drop=FALSE]
+  for (i in 1:3) {
+    plus = dp[,i] < 0
+    minus = dp[,i] > 0
+    s = names(symmetries)[i]
+    ch = c("X","Y","Z")[i]
+    if (any(plus | minus)) { ?>
+  switch (node.NodeType & NODE_SYM<?%s ch ?>) {
+<?R if (any(plus)) { ?>
+  case NODE_Symmetry<?%s ch ?>_plus:
+<?R C(PV("node.",D[plus, "name"]), PV("node.",D[plus, s])) ?>
+  break;
+<?R }
+    if (any(minus)) { ?>
+  case NODE_Symmetry<?%s ch ?>_minus:
+<?R C(PV("node.",D[minus, "name"]), PV("node.",D[minus, s])) ?>
+    break;
+<?R } ?>
+  }
+<?R }
+  }
+}
+
+?>
 template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node) 
 {
 <?R
   con = make.context("in",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
-    f = Fields[Fields$name == d$field][[1]]
+    f = rows(Fields)[Fields$name == d$field][[1]]
     p = PV(c("node.x_","node.y_","node.z_"));
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field(paste("node",d$name,sep="."), f, p, dp,con)
-  }?>
-}
-
-template <class N> CudaDeviceFunction void LatticeContainer::pull<?%s s$suffix ?>(N & node) 
-{
-<?R
-  con = make.context("in",pocket=TRUE);
-  for (d in rows(Density)[s$load.densities]) { ?>
-//--------------------------- <?%s d$name ?> ----------------------<?R
-    f = Fields[Fields$name == d$field][[1]]
-    p = PV(c("node.x_","node.y_","node.z_"));
-    dp = c(-d$dx, -d$dy, -d$dz)
-    con=load.field(paste("node",d$name,sep="."), f, p, dp, con)
-  }?>
+  }
+  if (Options$autosym) resolve.symmetries(Density[s$load.densities,,drop=FALSE])
+?>
 }
 
 template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node) 
 {
 <?R
   con = make.context("out",pocket=TRUE);
-  for (f in Fields[s$save.fields]) { ?>
+  for (f in rows(Fields)[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
     p = PV(c("node.x_","node.y_","node.z_"));
     con=save.field(paste("node",f$name,sep="."), f, p, con)
@@ -232,7 +246,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
 //--------------------------- <?%s d$name ?> ----------------------<?R
     con = field.access(
      d=paste("node",d$adjoint_name,sep="."),
-     f=Fields[Fields$name == d$field][[1]],
+     f=rows(Fields)[Fields$name == d$field][[1]],
      p=PV(c("node.x_","node.y_","node.z_")),
      dp=c(-d$dx, -d$dy, -d$dz),
      pattern="get",
@@ -246,7 +260,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 {
 <?R
   con = make.context("adjin",pocket=TRUE);
-  for (f in Fields[s$save.fields]) { ?>
+  for (f in rows(Fields)[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
     p = PV(c("node.x_","node.y_","node.z_"));
     con = field.access(
@@ -266,21 +280,29 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 <?R
  
  job_tab = do.call(rbind,
-  lapply(1:length(Fields), function(i) {
-   f = Fields[[i]]
+  lapply(seq_len(nrow(Fields)), function(i) {
+   f = rows(Fields)[[i]]
    expand.grid(field=i,  dz=f$minz:f$maxz, dy=f$miny:f$maxy, dx=f$minx:f$maxx)
   })
  )
 
  
- txtlapply(rows(job_tab), function(job) {
-  f = Fields[[job$field]]
-  dx = job$dx
-  dy = job$dy
-  dz = job$dz
-#    for (f in Fields) for (dx in f$minx:f$maxx) for (dy in f$miny:f$maxy) for (dz in f$minz:f$maxz) { ?>
+# txtlapply(rows(job_tab), function(job) {
+#  f = rows(Fields)[[job$field]]
+#  dx = job$dx
+#  dy = job$dy
+#  dz = job$dz
+
+suffix = ""
+if (Options$autosym) suffix = "0"
+
+    for (f in rows(Fields)) {
+    if (! f$big) {
+    for (dz in f$minz:f$maxz) {
+    for (dy in f$miny:f$maxy) {
+    for (dx in f$minx:f$maxx) { ?>
 template <> 
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z) 
+CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) 
 {
   real_t ret; <?R
   con = make.context("in");
@@ -289,6 +311,96 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>
   con=load.field("ret", f, p, dp, con) ?>
   return ret;
 }
-<?R }) ?>
+<?R }}} ?>
+
+template <int DY, int DZ> 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx) 
+{
+  switch(dx) {
+<?R  for (dx in f$minx:f$maxx) { ?>
+    case <?%d dx ?>: return load_<?%s f$nicename ?> < <?%d dx ?>, DY, DZ > (x, y, z, nt);
+<?R } ?>
+    default: return NAN;
+  }
+}
+template < int DZ > 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy) 
+{
+  switch(dy) {
+<?R  for (dy in f$miny:f$maxy) { ?>
+    case <?%d dy ?>: return load_<?%s f$nicename ?> < <?%d dy ?>, DZ > (x, y, z, nt, dx);
+<?R } ?>
+    default: return NAN;
+  }
+}
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+{
+  switch(dz) {
+<?R  for (dz in f$minz:f$maxz) { ?>
+    case <?%d dz ?>: return load_<?%s f$nicename ?> < <?%d dz ?> > (x, y, z, nt, dx, dy);
+<?R } ?>
+    default: return NAN;
+  }
+}
+<?R } else { ?>
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+{
+  real_t ret; <?R
+  con = make.context("in");
+  p = PV(c("x","y","z"));
+  dp = PV(c("dx","dy","dz"));
+  con=load.field("ret", f, p, dp, con) ?>
+  return ret;
+}
 
 
+<?R
+    } 
+    }
+?>
+
+<?R
+if (Options$autosym) {
+  sym_load = function(f,d,i,sig=1) {
+   if (i > 3) {
+    if (sig < 0) { ?>
+    return -load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
+<?R } else { ?>
+    return load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
+<?R }
+   } else {
+    s = names(symmetries)[i]
+    fn = f[[s]]
+    if (substr(fn,1,1) == "-") {
+     nsig = -1;
+     fn = substr(fn,2,nchar(fn))
+    } else {
+     nsig = 1;
+    }
+    si = which(Fields$name == fn)
+    sf = rows(Fields)[[si]]
+    sd = d
+    sd[i] = -sd[i]
+    ch = c("X","Y","Z")[i]
+    if (d[i] > 0) { ?>
+    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_plus) { <?R sym_load(sf,sd,i+1,sig*nsig) ?> }
+    <?R } else if (d[i] < 0) { ?>
+    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_minus) { <?R sym_load(sf,sd,i+1,sig*nsig) ?> }
+    <?R } ?>
+    <?R sym_load(f,d,i+1,sig)
+    }
+  }
+
+    for (f in rows(Fields)) {
+    for (dz in f$minz:f$maxz) {
+    for (dy in f$miny:f$maxy) {
+    for (dx in f$minx:f$maxx) { ?>
+template <> 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) {
+<?R sym_load(f,c(dx,dy,dz),1); ?>
+}
+
+<?R
+}}}}
+}
+ ?>

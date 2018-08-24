@@ -39,7 +39,7 @@ const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(units_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
 {
     geom = new flag_t[region.sizeL()];
     Q = NULL;
@@ -226,6 +226,7 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	ret.nx = ret.ny = ret.nz = 1;
 	return ret;
     }
+    if (strcmp(node.name(),"Geometry") == 0) return totalregion;
     ret = getRegion(node.parent());
 
     char side; 
@@ -449,12 +450,12 @@ cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, d
 	?>
 //	return 0;
 	GaussSolve(mat,b,r,4);
-	if (r[0] < 0) return 255;
-	if (r[1] < 0) return 255;
-	if (r[2] < 0) return 255;
-	if (r[3] < 0) return 255;
-	if (r[3] > 1) return 255;
-	return r[3]*200;
+	if (r[0] < 0) return NO_CUT;
+	if (r[1] < 0) return NO_CUT;
+	if (r[2] < 0) return NO_CUT;
+	if (r[3] < 0) return NO_CUT;
+	if (r[3] > 1) return NO_CUT;
+	return r[3]*CUT_MAX;
 }
 
 
@@ -491,6 +492,11 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     }
     ret = fread(header, 80, sizeof(char), f);
     ret = fread(&ntri, 1, sizeof(int), f);
+    if (!strncmp(header, "solid", 5)){      // Checking if STL is binary. STL in ASCII begins with "solid"
+        error("'STL' element %s is not in binary format!\n", n.attribute("file").value());
+        debug1("'solid' found at the beginning of STL file");
+        return -1;
+    }
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
     char *lev = (char *) malloc(reg.sizeL() * sizeof(char));
     for (size_t i = 0; i < reg.sizeL(); i++)
@@ -994,8 +1000,11 @@ Geometry::~Geometry()
 }
 
 /// Dumps the Geometry to a vti file
-void Geometry::writeVTI(const char *filename)
+void Geometry::writeVTI(const char *name)
 {
+	char filename[STRING_LEN];
+	sprintf(filename, "%s_P%02d.vti", name, D_MPI_RANK);
+
     vtkFileOut vtkFile;
     if (vtkFile.Open(filename)) {
 	return;

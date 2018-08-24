@@ -193,7 +193,7 @@ void Lattice::startRecord()
 		iSnaps[i]= -1;
 	}
 	{
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
 		save(Snaps[Snap], filename);
@@ -565,24 +565,70 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 
 
 /// Function listing all buffers in FTabs
-void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
+	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
-	*maxsize = 0;
-	*n = <?%d length(NonEmptyMargin) ?>;
-	*size = new size_t[*n];
-	*ptr = new void*[*n];
+	if (maxsize) *maxsize = 0;
+	n = <?%d length(NonEmptyMargin) ?>;
+	if (np) *np = n;
+	if (size) *size = new size_t[n];
+	if (ptr) *ptr = new void*[n];
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	(*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(real_t);
-	(*ptr)[j] = (void*) tab.<?%s m$name ?>;
-	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
+	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
+	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
 	}
 ?>
 }
+
+size_t Lattice::sizeOfTab() {
+<?R
+	totsize = 0
+	for (m in NonEmptyMargin) totsize = m$Size + totsize
+?>
+	int nx = region.nx, ny=region.ny,  nz=region.nz;
+	return <?R C(totsize,float=F) ?>;
+}
+
+void Lattice::saveToTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Save buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+void Lattice::loadFromTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Load buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
 
 /// Save a FTabs
 int Lattice::save(FTabs& tab, const char * filename) {
@@ -738,7 +784,7 @@ void Lattice::IterateTill(int it, int iter_type)
 	if (imx >= nSnaps) {
 		if (reverse_save) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
-			char filename[STRING_LEN];
+			char filename[2*STRING_LEN];
 			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
@@ -761,7 +807,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
-				char filename[STRING_LEN];
+				char filename[2*STRING_LEN];
 				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}
@@ -943,7 +989,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 }
 
 <?R
-	for (f in Fields[Fields$parameter]) { 
+	for (f in rows(Fields)[Fields$parameter]) { 
 
 	for (adjoint in c(TRUE,FALSE)) {
 	if (adjoint) {
@@ -1196,7 +1242,7 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;
-        <?R for (f in Fields)  if (f$average) { ?>
+        <?R for (f in rows(Fields))  if (f$average) { ?>
           CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
 	 <?R } ?>
 } 

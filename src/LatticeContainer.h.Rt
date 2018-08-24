@@ -31,7 +31,7 @@ template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
   LatticeContainer is the container class which
   owns all the data needed by the kernels on device
   like pointers to the global gpu memory etc.
-  It defines push/pull/pop functions allowing access
+  It defines push/pop functions allowing access
   to node data stored in memory.
 */
 class LatticeContainer {
@@ -64,11 +64,9 @@ class LatticeContainer {
 <?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
   ?>
   template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
-  template<class N>  CudaDeviceFunction void pull<?%s s ?>(N & f);
   template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
 #ifdef ADJOINT
   template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pull<?%s s ?>_adj(N & f);
   template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
 #endif
 <?R } ?>
@@ -76,12 +74,28 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void getType(N & f);
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
-  for (f in Fields) { ?>
+  for (f in rows(Fields)) {
+    if (! f$big) { ?>
   template <int DX, int DY, int DZ>
-  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
     typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
     return 0.0;
-  }; <?R
+  };
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load0_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt);
+  
+  template <int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx);
+  template <int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy);
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+  <?R } else { ?>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
+    return load_<?%s f$nicename ?>(x,y,z,nt,DX,DY,DZ);
+  };
+  <?R }
   } ?>
 //  template <class N> CudaDeviceFunction void push_new(N & node);
 

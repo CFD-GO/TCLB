@@ -38,11 +38,11 @@ AddField('PhaseF',stencil2d=1, group="PF")
 
 #	Additional access required for outflow boundaries
 if (Options$Outflow){
-	AddField(name="PhaseOld", stencil2d=1, group="PF")
 	for (d in rows(DensityAll)){
-    		AddField( name=d$name,  dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+    		AddField( name=d$name,  dx=c(-d$dx-1,-d$dx), dy=c(-d$dy,-d$dy-1) )
 	}
 	AddField('U',dx=c(-1,0))
+	AddField('V',dx=c(0,-1))
 }
 
 AddStage("PhaseInit" , "Init" 		, save=Fields$name=="PhaseF")
@@ -58,7 +58,7 @@ if (Options$RT) {
 						  load=DensityAll$group %in% c("g","h","Vel"))
 } else if (Options$Outflow) {
     AddStage("BaseInit"  , "Init_distributions"	, save=Fields$group %in% c("g","h","Vel","gold","hold","PF","nw") )
-    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name %in% c("PhaseF","PhaseOld"), 
+    AddStage("calcPhase" , "calcPhaseF"		, save=Fields$name %in% c("PhaseF"), 
 						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
     AddStage("BaseIter"  , "Run" 		, save=Fields$group %in% c("g","h","Vel","gold","hold","nw") , 
 						  load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
@@ -136,9 +136,17 @@ AddGlobal(name="RTISpike",  comment='Spike Tracker')
 # Boundary things
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
-AddNodeType(name="Symmetry_N", group="BOUNDARY")
-AddNodeType(name="Symmetry_S", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="NPressure", group="BOUNDARY")
+AddNodeType(name="SPressure", group="BOUNDARY")
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+
 if (Options$Outflow) {
 	AddNodeType(name="Convective_E", group="BOUNDARY")
+	AddNodeType(name="Convective_N", group="BOUNDARY")
 	AddNodeType(name="Neumann_E", group="BOUNDARY")
 }

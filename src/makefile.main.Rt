@@ -1,6 +1,10 @@
 <?R 
 	source("models.R")
 	Models = get.models();
+	Models$model.md = ifelse(Models$in.group == 1,
+		paste0(Models$path,".md"),
+		paste0(Models$path,"/",Models$name,".md")
+	)
 	destinations=c("CLB");
 ?>
 # MODELS: 
@@ -58,7 +62,7 @@ $(MAKEHEADERS):tools/makeheaders.c
 	gcc -o $@ $<
 
 
-wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/Model-", Models$name, ".md", sep="", collapse=" ") ?>
+wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ $(RTOPT) "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
@@ -174,10 +178,10 @@ for (d in destinations) {
 <?%s d ?>/<?%s m ?>/ :
 	@$(MKPATH) $@
 
-wiki/%-<?%s m ?>.md:$(SRC)/%.md.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path ?>/*
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w wiki/ -o $@ $(RTOPT)<?R if (adjoint) {?> $(RTOPT_ADJ)<?R }?> MODEL=\"<?%s m ?>\" || rm $@
+	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w wiki/ -o $@ <?%s ropt ?> || rm $@
 
 # for model <?%s m ?> and destination <?%s d ?>
 
