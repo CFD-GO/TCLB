@@ -1093,19 +1093,18 @@ CudaDeviceFunction void CollisionMRT()
 #    C( h, h+omega_ph*(EQ_h$feq-h) )
 
 
-	selR = EQ_h$order > 0
-    
-	R[!selR] = EQ_h$Req[!selR]
-	
-    S = PV("S",1:nrow(U)-1);
-	
-    S[EQ_h$order <= 1] = PV("omega_ph")
-	S[EQ_h$order >  1] = PV("omega2_ph")
+#	selR = EQ_h$order > 0   
+#	R[!selR] = EQ_h$Req[!selR]
+#   S = PV("S",1:nrow(U)-1);
+#   S[EQ_h$order <= 1] = PV("omega_ph")
+#	S[EQ_h$order >  1] = PV("omega_ph")
+#	C( R, h %*% EQ_h$mat );
+#	C( R, (R + S * (EQ_h$Req-R)));
+#	C( h, R %*% solve(EQ_h$mat), float=F);
 
-	C( R, h %*% EQ_h$mat );
-	C( R, (R + S * (EQ_h$Req-R)));
-	C( h, R %*% solve(EQ_h$mat), float=F);
-
+    RelaxationRate_ph= PV('omega_ph') 
+    C( h, h - RelaxationRate_ph * ( h - EQ_h$feq ) )
 ?>
+
     
 }
