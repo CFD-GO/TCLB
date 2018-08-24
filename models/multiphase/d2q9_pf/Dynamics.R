@@ -42,7 +42,7 @@ if (Options$fd) {
     AddField("phi"      ,stencil2d=1 );
 
     AddStage("BaseIteration", "Run", 
-             load=DensityAll$group == "h" | DensityAll$group == "f",
+             load=DensityAll$group == "h" | DensityAll$group == "f" | DensityAll$group == "BC",
              save=Fields$group=="h" | Fields$group=="f"  
          ) 
     AddStage("CalcPhi", 
@@ -51,8 +51,9 @@ if (Options$fd) {
 
          )
     AddStage("BaseInit", "Init",  
-        save=Fields$group=="h" |Fields$group == "f"  
-
+	load=DensityAll$group == "BC",
+        save=Fields$group=="h" | Fields$group == "f" | Fields$group == "BC" 
+ 
     )
     AddAction("Iteration", c("BaseIteration","CalcPhi"))
     AddAction("Init", c("BaseInit","CalcPhi"))
