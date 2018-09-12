@@ -403,7 +403,10 @@ CudaDeviceFunction void CollisionMRT()
   
     real_t pf = getPhaseField();
     vector_t u = getU();
-     
+    if ( PF_Advection_Switch == 0 ){
+        u.x = 0;
+        u.y = 0;
+    }
 <?R
     RelaxationRate_ph= PV('RelaxationRate_ph') 
 	?>

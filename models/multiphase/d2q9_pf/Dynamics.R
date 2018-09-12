@@ -85,6 +85,8 @@ AddSetting(name="PhaseField",
 
 
 AddSetting(name="OverwriteVelocityField", default="0")
+AddSetting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
+
 #########################################################
 
 
