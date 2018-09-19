@@ -67,6 +67,9 @@ if (Options$OutFlow){
 	AddField(name="U",dx=c(-1,0,0))
 }
 
+if (Options$RT){
+	AddDensity(name="PhaseF_old",dx=0, dy=0, dz=0, group="PF")
+}
 
 # Stages - processes to run for initialisation and each iteration
 AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
@@ -79,7 +82,7 @@ if (Options$OutFlow){
                                                  load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
     AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
 	                                         load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold","nw"))
-} else {
+} else { 
     AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
     AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
 					         load=DensityAll$group %in% c("g","h","Vel","nw") )

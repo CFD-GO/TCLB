@@ -270,7 +270,9 @@ CudaDeviceFunction void calcPhaseF(){
 			break;
 #endif
 	}
-
+#ifdef OPTIONS_RT
+	PhaseF_old = PhaseF(0,0,0);
+#endif
 	PhaseF = <?R C(sum(h))?>;
 
 }
@@ -377,6 +379,9 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, re
 //	INITIALISATION:
 CudaDeviceFunction void Init() {
 	PhaseF = PhaseField;
+#ifdef OPTIONS_RT
+	PhaseF_old = PhaseF;
+#endif
 
 // Pre-defined Initialisation patterns:
 	// Diffuse interface sphere
@@ -582,7 +587,7 @@ CudaDeviceFunction void Run() {
 CudaDeviceFunction void CollisionMRT(){
 
 	PhaseF = PhaseF(0,0,0);
-
+	
 	int i, j;
 	real_t C = PhaseF(0,0,0), mu;
 	real_t tau, DynVisc, rho, p;			// Macroscopic Properties
@@ -594,6 +599,9 @@ CudaDeviceFunction void CollisionMRT(){
 	real_t F_i[27];					// Momentum distribution forcing term
 	real_t m[27]; 					//MRT Details
 
+#ifdef OPTIONS_RT
+	real_t u_old[3] = {U, V, W};
+#endif
 // Find Macroscopic Details
 	mu = calcMu( C );
 	rho = Density_l + (C - PhaseField_l)*(Density_h - Density_l)/(PhaseField_h - PhaseField_l);
@@ -696,8 +704,14 @@ for (j=0;j<2;j++) {
 	n = PV("n",c("x","y","z"))
 	EQ_h = MRT_eq(U[1:15,],PV(1),PV(c(0,0,0)))
 	wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))    #EQ_h$feq
+if (Options$RT) {
+	u_old = PV(c("u_old[0]","u_old[1]","u_old[2]"))
+	pf_old= PV("PhaseF_old")
+	pf    = PV("PhaseF")
+	C(Fphi, wh * PV("tmp1") * (U[1:15,] %*% n) + 3.0 * U[1:15,] %*% (pf*u - pf_old*u_old) )
+} else {
 	C(Fphi, wh * PV("tmp1") * (U[1:15,] %*% n))
-	
+}	
 # 	SRT Relaxation for h
 	C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
 
