@@ -107,11 +107,18 @@ AddSetting(name="Viscosity_l", omega_l='1.0/(3*Viscosity_l + 0.5)', default=0.16
 AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="IntWidth", default=0.1, comment='Anty-diffusivity coeff')
 AddSetting(name="Mobility", default=0.05, comment='Mobility')
 AddSetting(name="PhaseField", default=0.5, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
+
+
+if (Options$viscstep) {
+    AddSetting(name="ViscosityStepWidth")
+    AddSetting(name="IntWidth", ViscosityStepWidth='IntWidth/4.', comment='Viscous step width wrt interface width')
+} else {
+    AddSetting(name="IntWidth", default=0.333, comment='1/(PF interface width)')
+}
 
 AddSetting(name="GravitationX_l", default=0)
 AddSetting(name="GravitationY_l", default=0)
