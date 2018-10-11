@@ -1004,9 +1004,9 @@ CudaDeviceFunction void CollisionMRT()
     <?R if (Options$viscstep) { ?>
         const real_t tl = tanh(-0.5/ViscosityStepWidth);
         const real_t th = tanh( 0.5/ViscosityStepWidth);
-        real_t gamma =  1-omega + (omega_l - omega)*(-tl+tanh(pf/ViscosityStepWidth))/(th-tl);
+        real_t gamma =  1 - (omega + (omega_l - omega)*(-tl+tanh(pf/ViscosityStepWidth))/(th-tl));
     <?R } else { ?>
-	    real_t gamma  = 1-( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
+	    real_t gamma  = 1 - ( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
     <?R } ?>
 
 <?R
