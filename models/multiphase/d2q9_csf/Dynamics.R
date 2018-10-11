@@ -114,8 +114,8 @@ AddSetting(name="GravitationY", default=0)
 
 
 if (Options$viscstep) {
-    AddSetting(name="ViscosityStepWidth")
-    AddSetting(name="IntWidth", ViscosityStepWidth='IntWidth/4.', comment='Viscous step width wrt interface width')
+    AddSetting(name="ViscosityStepWidth", default=1)
+    AddSetting(name="IntWidth", comment='Viscous step width wrt interface width')
 } else {
     AddSetting(name="IntWidth", default=0.333, comment='1/(PF interface width)')
 }
