@@ -3,7 +3,7 @@ std::string cbLog::xmlname = "Log";
 #include "../HandlerFactory.h"
 
 int cbLog::Init () {
-		char fn[STRING_LEN];
+		char fn[2*STRING_LEN];
 		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("name");
 		std::string nm = "Log";

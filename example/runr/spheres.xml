@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="512" ny="256">
+		<MRT><Box/></MRT>
+	</Geometry>
+	<RunR>
+		rad = 20
+		n = 3
+		tab = data.frame(x=runif(n,100+rad,500-rad),y=runif(n,100+rad,200-rad))
+		X = Solver$Geometry$X
+		Y = Solver$Geometry$Y
+		sel = rep(FALSE, length(X))
+		for (i in 1:nrow(tab)) {
+			R = sqrt((X - tab$x[i]) ^ 2 + (Y - tab$y[i]) ^ 2)
+			sel = sel |  (rad > R)
+		}
+		Solver$Geometry$BOUNDARY[sel] = "Wall"
+		Solver$Geometry$COLLISION[sel] = "None"
+	</RunR>
+	<Model>
+		<Params VelocityX="0.0"/>
+		<Params Viscosity="0.02"/>
+	</Model>
+	<RunR>
+		Fx = rep(0, length(X))
+		Fy = rep(0, length(X))
+		for (i in 1:nrow(tab)) {
+			R = sqrt((X - tab$x[i]) ^ 2 + (Y - tab$y[i]) ^ 2)
+			val = (R-rad)/(R^2)
+			Fx = Fx - (Y - tab$y[i]) / R * val
+			Fy = Fy + (X - tab$x[i]) / R * val
+		}
+		Solver$Parameters$BC0 = Fx*0.001
+		Solver$Parameters$BC1 = Fy*0.001
+	</RunR>
+	<RunR Iterations="100"/>
+	<VTK Iterations="100"/>
+	<Solve Iterations="10000"/>
+</CLBConfig>
