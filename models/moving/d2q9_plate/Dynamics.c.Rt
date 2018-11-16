@@ -133,7 +133,7 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
         real_t rho, ru;
-	real_t ux0 = Velocity;
+	real_t ux0 = abs(VelocityX);
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -156,7 +156,7 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void WVelocity()
 {
         real_t rho, ru;
-	real_t ux0 = Velocity;
+	real_t ux0 = abs(VelocityX);
 	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - ux0);
 	ru = rho * ux0;
 	f1 = f3 + (2./3.) * ru;
@@ -179,7 +179,7 @@ CudaDeviceFunction void EPressure()
 CudaDeviceFunction void NVelocity()
 {
         real_t rho, ru;
-	real_t uy0 = Velocity;
+	real_t uy0 = abs(VelocityY);
 	rho = ( f0 + f1 + f3 + 2.*(f2 + f5 + f6) ) / (1. + uy0);
 	ru = rho * uy0;
 	f4 = f2 + (2./3.) * ru;
