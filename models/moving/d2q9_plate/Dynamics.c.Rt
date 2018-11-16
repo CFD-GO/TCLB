@@ -78,7 +78,7 @@ CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 }
 
 CudaDeviceFunction void Init() {
-	real_t u[2] = {Velocity,0.};
+	real_t u[2] = {VelocityX,VelocityY};
 	real_t d = Density;
 	SetEquilibrum(d,u);
 }
@@ -100,6 +100,12 @@ CudaDeviceFunction void Run() {
 		break;
 	case NODE_EPressure:
 		EPressure();
+		break;
+        case NODE_SPressure:
+		SPressure();
+		break;
+        case NODE_NVelocity:
+		NVelocity();
 		break;
     }
     if (NodeType & NODE_MRT)
@@ -150,9 +156,9 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void WVelocity()
 {
         real_t rho, ru;
-	real_t u[2] = {Velocity,0.};
-	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
-	ru = rho * u[0];
+	real_t ux0 = Velocity;
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - ux0);
+	ru = rho * ux0;
 	f1 = f3 + (2./3.) * ru;
 	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
 	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
@@ -168,6 +174,29 @@ CudaDeviceFunction void EPressure()
 	f3 = f1 - (2./3.) * ru;
 	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
 	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
+}
+
+CudaDeviceFunction void NVelocity()
+{
+        real_t rho, ru;
+	real_t uy0 = Velocity;
+	rho = ( f0 + f1 + f3 + 2.*(f2 + f5 + f6) ) / (1. + uy0);
+	ru = rho * uy0;
+	f4 = f2 + (2./3.) * ru;
+	f7 = f5 + (1./6.) * ru + (1./2.)*(f1 - f3);
+	f8 = f6 + (1./6.) * ru + (1./2.)*(f3 - f1);
+}
+
+CudaDeviceFunction void SPressure()
+{
+        real_t ru, uy0;
+	real_t rho = Density;
+	uy0 = -1. + ( f0 + f1 + f3 + 2.*(f4 + f7 + f8) ) / rho;
+	ru = rho * uy0;
+
+	f2 = f4 - (2./3.) * ru;
+	f5 = f7 - (1./6.) * ru + (1./2.)*(f3 - f1);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f1 - f3);
 }
 
 #define S4 1.0
