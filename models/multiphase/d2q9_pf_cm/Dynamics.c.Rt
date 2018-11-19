@@ -503,9 +503,13 @@ CudaDeviceFunction vector_t getTotalHydrodynamicForce(){
 	real_t rho = calcRho(PhaseF);
 	real_t tau = calcTau(PhaseF, rho);
 	real_t p = getNormalizedPressure() ; // normalized pressure
+	
 
-	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
-
+	if ((NodeType & NODE_COLLISION) == NODE_MRT){
+		vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	} else {
+		vector_t Fhydro = calcTotalHydrodynamicForceCM(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	}
 	return Fhydro;
 }
 
@@ -1525,8 +1529,12 @@ CudaDeviceFunction void WVelocity()
 	real_t rho = calcRho(PhaseF);
 	real_t tau = calcTau(PhaseF, rho);
 	real_t p = getNormalizedPressure() ; // normalized pressure
-	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
 
+	if ((NodeType & NODE_COLLISION) == NODE_MRT){
+		vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	} else {
+		vector_t Fhydro = calcTotalHydrodynamicForceCM(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	}
 	// enforce Poiseuille velocity profile
 	// real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
 	// real_t uInProfileX = VelocityX *(2 * Y* R - Y*Y) / (R*R); // calculate profile
@@ -1596,7 +1604,12 @@ CudaDeviceFunction void EVelocity()
 	real_t rho = calcRho(PhaseF);
 	real_t tau = calcTau(PhaseF, rho);
 	real_t p = getNormalizedPressure() ; // normalized pressure
-	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+	
+	if ((NodeType & NODE_COLLISION) == NODE_MRT){
+		vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	} else {
+		vector_t Fhydro = calcTotalHydrodynamicForceCM(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	}
 
 	// enforce Poiseuille velocity profile
 	// real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
@@ -1668,7 +1681,12 @@ CudaDeviceFunction void NVelocity()
 	real_t rho = calcRho(PhaseF);
 	real_t tau = calcTau(PhaseF, rho);
 	real_t p = getNormalizedPressure() ; // normalized pressure
-	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+	
+	if ((NodeType & NODE_COLLISION) == NODE_MRT){
+		vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	} else {
+		vector_t Fhydro = calcTotalHydrodynamicForceCM(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+	}
 
     // eq 6.58 p253 from The Lattice Boltzmann Method: Principles and Practice
 	// T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
@@ -1769,7 +1787,11 @@ CudaDeviceFunction void BounceBack()
 		real_t rho = calcRho(PhaseF);
 		real_t tau = calcTau(PhaseF, rho);
 		real_t p = getNormalizedPressure() ; // normalized pressure
-		vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+		if ((NodeType & NODE_COLLISION) == NODE_MRT){
+			vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+		} else {
+			vector_t Fhydro = calcTotalHydrodynamicForceCM(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+		}
 		p1.x = p1.x*rho + 0.5*Fhydro.x;
 		p1.y = p1.y*rho + 0.5*Fhydro.y;
 	}
@@ -1814,7 +1836,11 @@ CudaDeviceFunction void BounceBack()
 		real_t rho = calcRho(PhaseF);
 		real_t tau = calcTau(PhaseF, rho);
 		real_t p = getNormalizedPressure() ; // normalized pressure
-		vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+		if ((NodeType & NODE_COLLISION) == NODE_MRT){
+			vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+		} else {
+			vector_t Fhydro = calcTotalHydrodynamicForceCM(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+		}
 
 		p2.x = p2.x*rho + 0.5*Fhydro.x;
 		p2.y = p2.y*rho + 0.5*Fhydro.y;
