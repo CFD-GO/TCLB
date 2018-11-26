@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <vector>
-
+#include <string> //JM
 namespace rfi {
 
 #define RFI_CODE_HANDSHAKE 1

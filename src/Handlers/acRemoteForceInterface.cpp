@@ -34,6 +34,8 @@ int acRemoteForceInterface::Init () {
         }
         if (need_file) {
                 xcirc = false;
+                ycirc = false; //JM
+                zcirc = false; //JM
                 particle_type = "NRotSphere";
                 sim = "sim";
                 gridSpacing = 25.0;
@@ -53,6 +55,8 @@ int acRemoteForceInterface::Init () {
                 if (attr) verletDist = attr.as_double();
                 attr = node.attribute("esys-object");
                 if (attr) sim = attr.value();
+                
+                /*
                 attr = node.attribute("periodic");
                 if (attr) {
                         if (strcmp(attr.value(),"x") == 0) {
@@ -61,6 +65,37 @@ int acRemoteForceInterface::Init () {
                                 xcirc = false;
                         } else {
                                 ERROR("ESYS-Particles can be only periodic in X direction\n");
+                                return -1;
+                        }
+                } */
+                //JM Version for full periodicity
+                attr = node.attribute("periodic");
+                if (attr) {
+                        if (strcmp(attr.value(),"x") == 0) {
+                                xcirc = true;
+                        } else if (strcmp(attr.value(),"y") == 0) {
+                                ycirc = true;
+                        } else if (strcmp(attr.value(),"z") == 0) {
+                                zcirc = true;
+                        } else if (strcmp(attr.value(),"x+y") == 0) {
+                                xcirc = true;
+                                ycirc = true;
+                        } else if (strcmp(attr.value(),"x+z") == 0) {
+                                xcirc = true;
+                                zcirc = true;
+                        } else if (strcmp(attr.value(),"y+z") == 0) {
+                                ycirc = true;
+                                zcirc = true;
+                        } else if (strcmp(attr.value(),"x+y+z") == 0) {
+                                xcirc = true;
+                                ycirc = true;
+                                zcirc = true;
+                        } else if (strcmp(attr.value(),"") == 0) {
+                                xcirc = false;
+                                ycirc = false;
+                                zcirc = false;
+                        } else {
+                                ERROR("Incorrect input options use e.g. x+y\n");
                                 return -1;
                         }
                 }
@@ -79,14 +114,22 @@ int acRemoteForceInterface::Init () {
                         int nx0, ny0, nz0;
                         int nx1, ny1, nz1;
                         int tot, tot1;
+                        
+                        //JM 
+                        int xper, yper, zper;
+                        xper = xcirc ? 1 : 0;
+                        yper = ycirc ? 1 : 0;
+                        zper = zcirc ? 1 : 0;                        
+                        
                         tot=0;
                         nx0 = solver->mpi.divx;
                         ny0 = solver->mpi.divy;
                         nz0 = solver->mpi.divz;
                         output("%dx%dx%d\n",nx0, ny0, nz0);
-                        for (int nx1=1; nx1<=nx0; nx1++) if (nx0 % nx1 == 0) {
-                                for (int ny1=1; ny1<=ny0; ny1++) if (ny0 % ny1 == 0) {
-                                        for (int nz1=1; nz1<=nz0; nz1++) if (nz0 % nz1 == 0) {
+                        //JM *per additions to account for periodicity in multiple directions (hopefully ...)
+                        for (int nx1=(1+xper); nx1<=(nx0+xper); nx1++) if ((nx0+xper) % nx1 == 0) {
+                                for (int ny1=(1+yper); ny1<=(ny0+yper); ny1++) if ((ny0+yper) % ny1 == 0) {
+                                        for (int nz1=(1+zper); nz1<=(nz0+zper); nz1++) if ((nz0+zper) % nz1 == 0) {
                                                 int tot1 = nx1*ny1*nz1;
                                                 if (tot1 <= workers) {
                                                         if (workers % tot1 == 0) {
@@ -101,7 +144,9 @@ int acRemoteForceInterface::Init () {
                                         }
                                 }
                         }
+                        output("%dx%dx%d\n",nx1, ny1, nz1);
                         if (tot == 0) {
+                                output("Error may be due to periodicity in multiple directions calculation");
                                 ERROR("ESYS-P: Cannot find a good division. Requested workers (%d) do not fit well with TCLB division (%dx%dx%d)\n", workers, nx0, ny0, nz0);
                                 return -1;
                         }
@@ -111,6 +156,19 @@ int acRemoteForceInterface::Init () {
                 if (xcirc) {
                         if (nx < 2) {
                                 ERROR("ESYS-P can be periodic in X only when there are 2 processes in this direction.\n");
+                                return -1;
+                        }
+                }
+                //JM
+                if (ycirc) {
+                        if (ny < 2) {
+                                ERROR("ESYS-P can be periodic in Y only when there are 2 processes in this direction.\n");
+                                return -1;
+                        }
+                }
+                if (zcirc) {
+                        if (nz < 2) {
+                                ERROR("ESYS-P can be periodic in Z only when there are 2 processes in this direction.\n");
                                 return -1;
                         }
                 }
@@ -127,11 +185,13 @@ int acRemoteForceInterface::Init () {
                         fprintf(f, "from esys.lsm.geometry import *\n\n");
                         fprintf(f, "%s = LsmMpi(numWorkerProcesses=%d, mpiDimList=[%d,%d,%d])\n", sim.c_str(), nx*ny*nz, nx, ny, nz);
                         fprintf(f, "%s.initNeighbourSearch( particleType=\"%s\", gridSpacing=%lg, verletDist=%lg )\n", sim.c_str(), particle_type.c_str(), gridSpacing, verletDist);
-                        fprintf(f, "%s.setSpatialDomain( BoundingBox(Vec3(%lg,%lg,%lg), Vec3(%lg,%lg,%lg)), circDimList = [%s, False, False])\n",
+                        fprintf(f, "%s.setSpatialDomain( BoundingBox(Vec3(%lg,%lg,%lg), Vec3(%lg,%lg,%lg)), circDimList = [%s, %s, %s])\n", //JM [%s,False, False]
                                 sim.c_str(),
                                 0.0, 0.0, 0.0,
                                 sx/units[0], sy/units[0], sz/units[0],
-                                xcirc ? "True" : "False");
+                                xcirc ? "True" : "False",
+                                ycirc ? "True" : "False",
+                                zcirc ? "True" : "False");
                         fprintf(f, "%s.setTimeStepSize(%lg)\n", sim.c_str(), 1.0/units[1]);
                         fprintf(f, "%s.setNumTimeSteps(%d)\n", sim.c_str(), Next(solver->iter));
                         fprintf(f, "%s.createInteractionGroup(	RemoteForcePrms(name=\"tclb\", remote_name=\"%s\", max_rad=%lg) )\n", sim.c_str(), MPMD.name.c_str(), maxRad);

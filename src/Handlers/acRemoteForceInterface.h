@@ -14,6 +14,8 @@ class  acRemoteForceInterface  : public  Action  {
 	double gridSpacing;
 	double verletDist;
 	bool xcirc;
+	bool ycirc; //JM
+	bool zcirc; //JM
 	int Init ();
 };
 

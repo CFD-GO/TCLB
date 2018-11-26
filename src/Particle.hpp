@@ -130,6 +130,8 @@ struct TreeParticleIterator : P {
 typedef TreeParticleIterator< ParticleS > SyncParticleIterator;
 typedef TreeParticleIterator< ParticleI > ParticleIterator;
 
+typedef AllParticleIterator< ParticleI > FullParticleIterator;
+typedef AllParticleIterator< ParticleS > SyncFullParticleIterator;
 
 /*template <class N> CudaDeviceFunction void FillParticle(N& now, Particle& p, size_t& i) {
 	p.rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
