@@ -1,13 +1,20 @@
-
-#define S2 1.3333
-#define S3 1.0
-#define S5 1.0
-#define S7 1.0
-#define S8 omega
-#define S9 omega
-
 <?R 
 	source("conf.R") 
+	c_header();
+	source("lib/feq.R")
+	source("lib/boundary.R")
+?>
+
+// 26/11/2018 - Model development:
+//		- Relaxation method: SRT - BGK
+//		- Thermal: Total energy formulation
+//			"" Guo et al. PRE 75, 036704 (2007) ""
+//		- Coupling: discrete element method
+//			"" Noble & Torczynski, Int. J. Mod. Phys. C 9, 8 (1998) ""
+//
+//	Maintainer: Jon McCullough @JonMcCullough
+
+<?R
 	f = PV(DensityAll$name[DensityAll$group=="f"])
 	h = PV(DensityAll$name[DensityAll$group=="h"])
 
@@ -31,8 +38,6 @@
 	tmp = PV("tmp")
 
 # Calculating equlibrium density set
-	source("lib/feq.R")
-	source("lib/boundary.R")
 
 	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
 	
