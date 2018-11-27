@@ -135,9 +135,8 @@ AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', 
 AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
-AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX*lattVol')
-AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY*lattVol')
-AddSetting(name="lattVol", default=0.0, comment='Volume of the lattice for buoyancy force')
+AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX - i.e. use in same direction as Gr..X')
+AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY - i.e. use in same direction as Gr..Y')
 
 #	Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")

@@ -915,18 +915,11 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceCM(vector_t gradPhi, real_
 	AddToF_pressureX(F_pressure[0]);
 	AddToF_pressureY(F_pressure[1]);
 
-	/*if (myPhaseF < 0.5) {
-        	F_body[0] = (-Density_h)*BuoyancyX*lattVol + rho*GravitationX;
-		F_body[1] = (-Density_h)*BuoyancyY*lattVol + rho*GravitationY;
-        } else {
-        	F_body[0] = rho*GravitationX;
-		F_body[1] = rho*GravitationY;
-        }*/	
-        	F_body[0] = (rho-0.5*(Density_h+Density_l))*BuoyancyX + rho*GravitationX;
-		F_body[1] = (rho-0.5*(Density_h+Density_l))*BuoyancyY + rho*GravitationY;
+        F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
+	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;	
+
 	AddToF_bodyX(F_body[0]);
 	AddToF_bodyY(F_body[1]);
-	
 
 	// TODO: HACK - add gravitation only to higher density fluid ;p
 	// real_t bfsc = 0.506*tanh(5*myPhaseF-2.5) + 0.5; // bfsc - body force smoothing coefficient
@@ -1018,11 +1011,9 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForce_experimental(vector_t gra
 	real_t density_coeff = (Density_h-Density_l)/(PhaseField_h-PhaseField_l);
 	F_pressure[0] = (-1.0/3.0) * p * density_coeff * gradPhi.x;
 	F_pressure[1] = (-1.0/3.0) * p * density_coeff * gradPhi.y;
-	
-	//F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
-	//F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
-        	F_body[0] = (rho-0.5*(Density_h+Density_l))*BuoyancyX + rho*GravitationX;
-		F_body[1] = (rho-0.5*(Density_h+Density_l))*BuoyancyY + rho*GravitationY;
+        
+	F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
+	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
 
 	// TODO: HACK - add gravitation only to higher density fluid ;p
 	// real_t bfsc = 0.506*tanh(5*myPhaseF-2.5) + 0.5; // bfsc - body force smoothing coefficient
@@ -1138,10 +1129,9 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceMRT(
 	AddToF_pressureX(F_pressure[0]);
 	AddToF_pressureY(F_pressure[1]);
 
-	//F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
-	//F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
-        	F_body[0] = (rho-0.5*(Density_h+Density_l))*BuoyancyX + rho*GravitationX;
-		F_body[1] = (rho-0.5*(Density_h+Density_l))*BuoyancyY + rho*GravitationY;
+        F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
+	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
+
 	AddToF_bodyX(F_body[0]);
 	AddToF_bodyY(F_body[1]);
 	// TODO: HACK - add gravitation only to higher density fluid ;p
@@ -1433,10 +1423,9 @@ CudaDeviceFunction void CollisionBGK(){
 	real_t density_coeff = (Density_h-Density_l)/(PhaseField_h-PhaseField_l);
 	F_pressure[0] = (-1.0/3.0) * p * density_coeff * gradPhi.x;
 	F_pressure[1] = (-1.0/3.0) * p * density_coeff * gradPhi.y;
-	//F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
-	//F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
-        	F_body[0] = (rho-0.5*(Density_h+Density_l))*BuoyancyX + rho*GravitationX;
-		F_body[1] = (rho-0.5*(Density_h+Density_l))*BuoyancyY + rho*GravitationY;
+	
+	F_body[0] = (rho-Density_h)*BuoyancyX + rho*GravitationX;
+	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
 
 	// Finding viscous force:
 	for (j=0;j<1;j++) {
