@@ -1713,7 +1713,7 @@ CudaDeviceFunction void MovingWall_N_Dirichlet(){
 
 CudaDeviceFunction void BounceBack()
 {
-	vector_t p1,p2i,Fhydro;
+	vector_t p1,p2,Fhydro;
 	if((NodeType & NODE_BODY) == NODE_Body) {
 		p1.x = g[8] +g[1] +g[5] -g[6] -g[3] -g[7];
 		p1.y = g[5] +g[2] +g[6] -g[7] -g[4] -g[8];
