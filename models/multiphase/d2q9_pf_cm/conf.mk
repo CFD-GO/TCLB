@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(GF+RT+Outflow+GuoCM+PF_FOI)*autosym"
+OPT="(GF+RT+Outflow+GuoCM+PF_FOI+EDM_CMFOI+CMPCU)*autosym"
 
 # GF: Guo Forcing;
 #	This is using a higher order Forcing scheme
@@ -15,9 +15,8 @@ OPT="(GF+RT+Outflow+GuoCM+PF_FOI)*autosym"
 # 	so results in a slower code.
 # autosym:
 # 	Allows symmetry node type flags introduced in v6.2
-# Guo_CM:
-#   Use transformation of the Guo's scheme in central moments space. 
-#   Default is the He's scheme.
 # PF_FOI: 
 #   First order integration (rectangular disretization)
 #   Deafult is second order integration (trapezoidal discretization)
+# PCU_CM: 
+# PCU use post collision velocity to back transform from CM

@@ -126,8 +126,8 @@ AddSetting(name="tau_h", comment='relaxation time (high density fluid)')
 AddSetting(name="Viscosity_l", tau_l='(3*Viscosity_l)', default=0.16666666, comment='kinematic viscosity')
 AddSetting(name="Viscosity_h", tau_h='(3*Viscosity_h)', default=0.16666666, comment='kinematic viscosity')
 
-AddSetting(name="omega_bulk", comment='inverse of bulk relaxation time')
-AddSetting(name="bulk_visc", omega_bulk='1.0/(3*bulk_visc+0.5)', default=1.0, comment='bulk viscosity')
+AddSetting(name="omega_bulk", comment='inverse of bulk relaxation time', default=1.0)
+AddSetting(name="bulk_visc", omega_bulk='1.0/(3*bulk_visc+0.5)',  comment='bulk viscosity')
 
 #	Inputs: Flow Properties
 AddSetting(name="VelocityX", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
@@ -135,8 +135,8 @@ AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', 
 AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
-AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX - i.e. use in same direction as Gr..X')
-AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY - i.e. use in same direction as Gr..Y')
+AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX')
+AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY')
 
 #	Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
@@ -163,7 +163,6 @@ AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="WVelocity", group="BOUNDARY")
-AddNodeType(name="EVelocity", group="BOUNDARY")
 
 AddNodeType(name="Smoothing", group="ADDITIONALS")
 AddNodeType("Body", "BODY")
