@@ -162,7 +162,9 @@ AddNodeType("CM","COLLISION")  # Central Moments collision
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
 AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
 
 AddNodeType(name="Smoothing", group="ADDITIONALS")
 AddNodeType("Body", "BODY")
