@@ -365,6 +365,12 @@ CudaDeviceFunction void BC_Switcher ()
 		case NODE_EVelocity:
 			EVelocity();
 			break;
+		case NODE_WVelocity_parabolic:
+			WVelocity_para();
+			break;
+		case NODE_EVelocity_parabolic:
+			EVelocity_para();
+			break;
 
 	#ifdef OPTIONS_Outflow
 		case NODE_Convective_E:
@@ -1497,6 +1503,140 @@ CudaDeviceFunction void EVelocity()
 	
 	for (int i=0; i< 9; i++){
 		Gamma[i] = calcGamma(i, VelocityX, VelocityY, mag);	 
+		geq[i] = wf[i]*p + Gamma[i] - wf[i]; // eq 17
+		heq[i] = PhaseF * Gamma[i];  // eq 10
+	}
+
+	// Excess of momentum (positive value upwards)
+	real_t N = 2; // number of unknown distributions: e[i] * n_tau !=0
+	real_t M = d2q9_ey[2]*(g_prim[2] - geq[2]) + d2q9_ey[4]*(g_prim[4] - geq[4]); // eq C18
+
+	g[3] = -0.5*F_i[3] + g_prim[1] + geq[3] - geq[1] ; // eq C17
+	g[7] = -0.5*F_i[7] + g_prim[5] + geq[7] - geq[5] - d2q9_ey[7] * M / N; // eq C19
+	g[6] = -0.5*F_i[6] + g_prim[8] + geq[6] - geq[8] - d2q9_ey[6] * M / N; // eq C19
+
+	/*********  Zou He boundary condition with force - phaseField ****************/
+	
+	// excess density - eq C22 from 
+	// "Phase-field-based lattice Boltzmann model for incompressible binary fluid systems
+	// with density and viscosity contrasts" by Y. Q. Zu and S. He, 2013
+	real_t v = h[4] - heq[4] + h[2] - heq[2];
+
+	h[3] = heq[3] - (h[1]-heq[1]); 	       // eq C23a 
+	h[6] = heq[6] - (h[8]-heq[8]) - v/N;   // eq C23b
+	h[7] = heq[7] - (h[5]-heq[5]) - v/N;   // eq C23b
+
+	// TODO: eq C23 work only for inlet; for moving wall use 'standard' bounce back, as one below
+
+	// h[1] = h[3]; 		  
+	// h[8] = h[6];
+	// h[5] = h[7];
+ }
+
+CudaDeviceFunction void WVelocity_para()
+{
+	/********* velocity-type Zou He boundary condition with force - hydrodynamics ****************/
+
+	PhaseF = PhaseField_init; 
+	vector_t gradPhi = calcGradPhi(); // Phase field gradient
+	real_t rho = calcRho(PhaseF);
+	real_t tau = calcTau(PhaseF, rho);
+	real_t p = getNormalizedPressure() ; // normalized pressure
+	vector_t Fhydro;
+	
+	if ((NodeType & NODE_COLLISION) == NODE_MRT) {
+		Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+	} else {
+		Fhydro = calcTotalHydrodynamicForceCM(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+	}
+	// enforce Poiseuille velocity profile
+	real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
+	real_t uInProfileX = u_movingFrame + VelocityX *(2 * Y* R - Y*Y) / (R*R); // calculate profile
+	real_t uInProfileY = 0.0; // calculate profile
+
+	// appendix C16-C23 from
+	// "Phase-field-based lattice Boltzmann model for incompressible binary fluid systems
+	// with density and viscosity contrasts" by Y. Q. Zu and S. He, 2013
+	real_t F_i[9], g_prim[9];
+	for (int i=0; i< 9; i++){
+			// eq 15 from "Improved locality of the phase-field lattice Boltzmann 
+			//	model for immiscible fluids at high density ratios"
+			F_i[i] = 3.0*wf[i] * (Fhydro.x*d2q9_ex[i] + Fhydro.y*d2q9_ey[i])/rho; // eq 15
+			g_prim[i] = g[i] + 0.5 * F_i[i]; // eq C6 		
+	}
+	
+	real_t Gamma[9], heq[9], geq[9];
+	real_t mag = uInProfileX*uInProfileX + uInProfileY*uInProfileY; // velocity magnitude
+	
+	for (int i=0; i< 9; i++){
+		Gamma[i] = calcGamma(i, uInProfileX, uInProfileY, mag);	 
+		geq[i] = wf[i]*p + Gamma[i] - wf[i]; // eq 17
+		heq[i] = PhaseF * Gamma[i];  // eq 10
+	}
+
+	// Excess of momentum (positive value upwards)
+	real_t N = 2; // number of unknown distributions: e[i] * n_tau !=0
+	real_t M = d2q9_ey[2]*(g_prim[2] - geq[2]) + d2q9_ey[4]*(g_prim[4] - geq[4]); // eq C18
+
+	g[1] = -0.5*F_i[1] + g_prim[3] + geq[1] - geq[3] ; // eq C17
+	g[5] = -0.5*F_i[5] + g_prim[7] + geq[5] - geq[7] - d2q9_ey[5] * M / N; // eq C19
+	g[8] = -0.5*F_i[8] + g_prim[6] + geq[8] - geq[6] - d2q9_ey[8] * M / N; // eq C19
+
+	/*********  Zou He boundary condition with force - phaseField ****************/
+	
+	// excess density - eq C22 from 
+	// "Phase-field-based lattice Boltzmann model for incompressible binary fluid systems
+	// with density and viscosity contrasts" by Y. Q. Zu and S. He, 2013
+	real_t v = h[4] - heq[4] + h[2] - heq[2];
+
+	h[1] = heq[1] - (h[3]-heq[3]); 		   // eq C23a 
+	h[8] = heq[8] - (h[6]-heq[6]) - v/N;   // eq C23b
+	h[5] = heq[5] - (h[7]-heq[7]) - v/N;   // eq C23b
+
+	// TODO: eq C23 work only for inlet; for moving wall use 'standard' bounce back, as one below
+
+	// h[1] = h[3]; 		  
+	// h[8] = h[6];
+	// h[5] = h[7];
+ }
+
+CudaDeviceFunction void EVelocity_para()
+{
+	/********* velocity-type Zou He boundary condition with force - hydrodynamics ****************/
+	// comments as per WVelocity
+	PhaseF = PhaseField_init; 
+	vector_t gradPhi = calcGradPhi(); // Phase field gradient
+	real_t rho = calcRho(PhaseF);
+	real_t tau = calcTau(PhaseF, rho);
+	real_t p = getNormalizedPressure() ; // normalized pressure
+	vector_t Fhydro;
+	
+	if ((NodeType & NODE_COLLISION) == NODE_MRT) {
+		Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+	} else {
+		Fhydro = calcTotalHydrodynamicForceCM(gradPhi, PhaseF, rho, tau,  calcMu(PhaseF), p);
+	}
+	// enforce Poiseuille velocity profile
+	real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
+	real_t uInProfileX = u_movingFrame + VelocityX *(2 * Y* R - Y*Y) / (R*R); // calculate profile
+	real_t uInProfileY = 0.0; // calculate profile
+
+	// alternatively - appendix C16-C23 from
+	// "Phase-field-based lattice Boltzmann model for incompressible binary fluid systems
+	// with density and viscosity contrasts" by Y. Q. Zu and S. He, 2013
+	real_t F_i[9], g_prim[9];
+	for (int i=0; i< 9; i++){
+			// eq 15 from "Improved locality of the phase-field lattice Boltzmann 
+			//	model for immiscible fluids at high density ratios"
+			F_i[i] = 3.0*wf[i] * (Fhydro.x*d2q9_ex[i] + Fhydro.y*d2q9_ey[i])/rho; // eq 15
+			g_prim[i] = g[i] + 0.5 * F_i[i]; // eq C6 		
+	}
+	
+	real_t Gamma[9], heq[9], geq[9];
+	real_t mag = uInProfileX*uInProfileX + uInProfileY*uInProfileY; // velocity magnitude
+	
+	for (int i=0; i< 9; i++){
+		Gamma[i] = calcGamma(i, uInProfileX, uInProfileY, mag);	 
 		geq[i] = wf[i]*p + Gamma[i] - wf[i]; // eq 17
 		heq[i] = PhaseF * Gamma[i];  // eq 10
 	}

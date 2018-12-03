@@ -132,6 +132,8 @@ AddSetting(name="bulk_visc", omega_bulk='1.0/(3*bulk_visc+0.5)',  comment='bulk 
 #	Inputs: Flow Properties
 AddSetting(name="VelocityX", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="pipe_diameter", default=0.0, comment='use for parabolic velocity profiles', zonal=T)
+AddSetting(name="u_movingFrame", default=0.0, comment='poiseuille flow with moving reference', zonal=T)
 AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', zonal=T)
 AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
@@ -165,6 +167,8 @@ AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="SVelocity", group="BOUNDARY")
 AddNodeType(name="WVelocity", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity_parabolic", group="BOUNDARY")
+AddNodeType(name="EVelocity_parabolic", group="BOUNDARY")
 
 AddNodeType(name="Smoothing", group="ADDITIONALS")
 AddNodeType("Body", "BODY")
