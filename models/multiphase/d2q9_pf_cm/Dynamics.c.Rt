@@ -306,8 +306,16 @@ CudaDeviceFunction void Init_distributions(){
 	ny = gradPhi.y/gradPhi.z;
 
 	// Define Equilibrium, then initialise all da things
-	U = VelocityX;
-	V = VelocityY;
+	if ( ((NodeType & NODE_BOUNDARY) == NODE_EVelocity_parabolic)  || ((NodeType & NODE_BOUNDARY) == NODE_WVelocity_parabolic ) )
+	{	
+		real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
+		real_t myY = Y+2;
+		U = u_movingFrame + VelocityX *(2 * myY* R - myY*myY) / (R*R); // calculate profile
+		V = 0.0; // calculate profile
+	} else {
+		U = VelocityX;
+		V = VelocityY;
+	}
 	real_t mag = U*U + V*V;
 
 	real_t Gamma[9], F_phi[9];
@@ -1551,7 +1559,8 @@ CudaDeviceFunction void WVelocity_para()
 	}
 	// enforce Poiseuille velocity profile
 	real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
-	real_t uInProfileX = u_movingFrame + VelocityX *(2 * Y* R - Y*Y) / (R*R); // calculate profile
+	real_t myY = Y+2;
+	real_t uInProfileX = u_movingFrame + VelocityX *(2 * myY* R - myY*myY) / (R*R); // calculate profile
 	real_t uInProfileY = 0.0; // calculate profile
 
 	// appendix C16-C23 from
@@ -1618,7 +1627,8 @@ CudaDeviceFunction void EVelocity_para()
 	}
 	// enforce Poiseuille velocity profile
 	real_t R = (pipe_diameter / 2) - 2; // subtract top/bottom wall thickness
-	real_t uInProfileX = u_movingFrame + VelocityX *(2 * Y* R - Y*Y) / (R*R); // calculate profile
+	real_t myY = Y+2;
+	real_t uInProfileX = u_movingFrame + VelocityX *(2 * myY* R - myY*myY) / (R*R); // calculate profile
 	real_t uInProfileY = 0.0; // calculate profile
 
 	// alternatively - appendix C16-C23 from
