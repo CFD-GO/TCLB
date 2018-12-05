@@ -200,7 +200,7 @@ void Lattice::startRecord()
 		iSnaps[i]= -1;
 	}
 	{
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
 		save(Snaps[Snap], filename);
@@ -850,7 +850,7 @@ void Lattice::IterateTill(int it, int iter_type)
 	if (imx >= nSnaps) {
 		if (reverse_save) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
-			char filename[STRING_LEN];
+			char filename[2*STRING_LEN];
 			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
@@ -873,7 +873,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
-				char filename[STRING_LEN];
+				char filename[2*STRING_LEN];
 				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}

@@ -17,7 +17,7 @@
 #include "Lattice.h"
 #include "mpi.h"
 #define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
-#define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, tmp+size)
+#define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
 
 int _xsdim = 0;
 int _ysdim = 1;

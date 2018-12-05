@@ -153,3 +153,6 @@ AddGlobal(name="EnergyFlux", comment='pressure loss')
 AddGlobal(name="PressureFlux", comment='pressure loss')
 AddGlobal(name="PressureDiff", comment='pressure loss')
 AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate material parameter')
+
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")

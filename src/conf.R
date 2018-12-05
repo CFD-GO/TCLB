@@ -302,8 +302,8 @@ AddNodeType("EVelocity","BOUNDARY")
 # AddNodeType("Wet","ADDITIONALS")
 # AddNodeType("Dry","ADDITIONALS")
 # AddNodeType("Propagate","ADDITIONALS")
-AddNodeType("Inlet","OBJECTIVE")
-AddNodeType("Outlet","OBJECTIVE")
+#AddNodeType("Inlet","OBJECTIVE")
+#AddNodeType("Outlet","OBJECTIVE")
 # AddNodeType("Obj1","OBJECTIVE")
 # AddNodeType("Obj2","OBJECTIVE")
 # AddNodeType("Obj3","OBJECTIVE")
@@ -399,12 +399,16 @@ if (Options$autosym) { ## Automatic symmetries
     for (d in rows(D)) {
       v = c(d$dx,d$dy,d$dz)
       for (s in names(symmetries)) if (d[[s]] == "") {
-        s_v = v * symmetries[,s]
-        s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
-        if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
-        if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
-        i = which(s_sel)
-        s_d = D[s_sel,,drop=FALSE]
+	if (all(v == 0)) {
+		s_d = d
+	} else {
+          s_v = v * symmetries[,s]
+          s_sel = (D$dx == s_v[1]) & (D$dy == s_v[2]) & (D$dz == s_v[3])
+          if (sum(s_sel) == 0) stop("Could not find symmetry for density",d$name)
+          if (sum(s_sel) > 1) stop("Too many symmetries for density",d$name)
+          i = which(s_sel)
+          s_d = D[s_sel,,drop=FALSE]
+	}
         DensityAll[DensityAll$name == d$name,s] = s_d$name
         if (Fields[Fields$name == d$field,s] == "") Fields[Fields$name == d$field,s] = s_d$field
       }
@@ -413,7 +417,7 @@ if (Options$autosym) { ## Automatic symmetries
 
   for (s in names(symmetries)) {
     sel = Fields[,s] == ""
-    Fields[sel,s] = Fields$name[s]
+    Fields[sel,s] = Fields$name[sel]
   }
 
   AddNodeType("SymmetryX_plus",  group="SYMX")
@@ -484,38 +488,32 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	NodeShiftNum <<- NodeShiftNum + l
 	tab
 }))
-
-if (NodeShiftNum > 16) {
-	stop("NodeTypes exceeds short int")
-} else {
-	ZoneBits = 16 - NodeShiftNum
-	ZoneShift = NodeShiftNum
-	if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
-	ZoneMax = 2^ZoneBits
-#	ZoneRange = 1:ZoneMax
-#	NodeTypes = rbind(NodeTypes,data.frame(
-#		name=paste("SettingZone",ZoneRange,sep=""),
-#		group="SETTINGZONE",
-#		index=ZoneRange,
-#		Index=paste("SettingZone",ZoneRange,sep=""),
-#		value=(ZoneRange-1)*NodeShift,
-#		mask=(ZoneMax-1)*NodeShift,
-#		shift=NodeShiftNum
-#	))
-	NodeTypes = rbind(NodeTypes,data.frame(
-		name="DefaultZone",
-		group="SETTINGZONE",
-		index=1,
-		Index="DefaultZone",
-		value=0,
-		mask=(ZoneMax-1)*NodeShift,
-		shift=NodeShiftNum
-	))
-	NodeShiftNum = 16
-	NodeShift = 2^NodeShiftNum
+FlagT = "unsigned short int"
+FlagTBits = 16
+if (NodeShiftNum > 14) {
+	FlagT = "unsigned int"
+	FlagTBits = 32
+	if (NodeShiftNum > 30) {
+		stop("NodeTypes exceeds 32 bits")
+	}
 }
+ZoneBits = FlagTBits - NodeShiftNum
+ZoneShift = NodeShiftNum
+if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
+ZoneMax = 2^ZoneBits
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="DefaultZone",
+        group="SETTINGZONE",
+        index=1,
+        Index="DefaultZone",
+        value=0,
+        mask=(ZoneMax-1)*NodeShift,
+        shift=NodeShiftNum
+))
+NodeShiftNum = FlagTBits
+NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^16)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
 
 NodeTypes = rbind(NodeTypes, data.frame(
 	name="None",
@@ -559,6 +557,7 @@ Fields$tangent_name = add.to.var.name(Fields$name,"d")
 
 Fields$area = with(Fields,(maxx-minx+1)*(maxy-miny+1)*(maxz-minz+1))
 Fields$simple_access = (Fields$area == 1)
+Fields$big = Fields$area > 27
 
 if (ADJOINT==1) {
 
@@ -752,13 +751,21 @@ offsets = function(d2=FALSE, cpu=FALSE) {
     }
     list(get_offsets = 
       function(w,dw,cpu=def.cpu) {
-        tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-        tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-        tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+	if (is.numeric(dw)) {
+          tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
+          tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
+          tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
+	  dw = PV(as.integer(dw))
+	} else {
+          tab1 = c(1,1,1,-1,-1,-1,0,0,0)
+          tab2 = c(0,0,0,-1,-1,-1,1,1,1)
+          tab3 = rep(TRUE,9)
+	}
+	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-        offset = offset.p(c(w+PV(as.integer(dw)) - PV(as.integer(mins)),w+PV(as.integer(dw)),w+PV(as.integer(dw)) - mw),cpu=cpu)
-        cond = c(w+PV(as.integer(dw)),mw-w-PV(as.integer(dw))-one)
+        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw),cpu=cpu)
+        cond = c(w+dw,mw-w-dw-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
       },
       put_offsets = 
@@ -786,6 +793,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 ret = offsets(cpu=FALSE)
 
 Fields = ret$Fields
+
 
 for (i in 1:length(Margin)) {
 	Margin[[i]]$Size = ret$MarginSizes[i]
