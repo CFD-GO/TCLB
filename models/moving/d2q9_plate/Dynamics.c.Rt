@@ -1,8 +1,9 @@
 <?R
 	source("conf.R") 
 	c_header();
-	f = PV(Density$name)
-	U = as.matrix(Density[,c("dx","dy")])
+	sel = Density$group == "f"
+	f = PV(Density$name[sel])
+	U = as.matrix(Density[sel,c("dx","dy")])
 
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	uf = PV("uf")
@@ -49,6 +50,22 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+CudaDeviceFunction vector_t getU_AVG(){
+	vector_t u;
+	u.x = avg_ux/average_iter;
+	u.y = avg_uy/average_iter;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction vector_t getF_AVG(){
+	vector_t u;
+	u.x = avg_fx/average_iter;
+	u.y = avg_fy/average_iter;
+	u.z = 0.0;
+	return u;
+}
+
 CudaDeviceFunction real_t getSolid(){
 	real_t px = X - PX;
 	real_t py = Y - PY;
@@ -81,6 +98,7 @@ CudaDeviceFunction void Init() {
 	real_t u[2] = {VelocityX,VelocityY};
 	real_t d = Density;
 	SetEquilibrum(d,u);
+	avg_ux = avg_uy = avg_fx = avg_fy = 0;
 }
 
 CudaDeviceFunction void Run() {
@@ -337,6 +355,14 @@ AddToPowerY(PY_DT*Fy);
 AddToPowerR(PR_DT*(-Fx*py+Fy*px));
 AddToPower(Fx*Vx + Fy*Vy);
 AddToVolumeW(w);
+
+Fx = Fx + ExternalForceX;
+Fy = Fy + ExternalForceY;
+
+avg_ux = avg_ux + u[0] + Fx/2;
+avg_uy = avg_uy + u[1] + Fy/2;
+avg_fx = avg_fx + Fx;
+avg_fy = avg_fy + Fy;
 
 u[0] = u[0] + Fx;
 u[1] = u[1] + Fy;

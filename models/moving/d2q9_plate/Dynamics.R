@@ -15,6 +15,11 @@ AddDensity( name="f8", dx= 1, dy=-1, group="f")
 
 # Boundary initialization
 
+AddDensity( name="avg_ux", group="avg_u")
+AddDensity( name="avg_uy", group="avg_u")
+AddDensity( name="avg_fx", group="avg_f")
+AddDensity( name="avg_fy", group="avg_f")
+
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="SPressure", group="BOUNDARY")
 
@@ -27,6 +32,8 @@ AddNodeType(name="SPressure", group="BOUNDARY")
 
 AddQuantity(name="Rho",unit="kg/m3")
 AddQuantity(name="U",unit="m/s",vector=T)
+AddQuantity(name="U_AVG",unit="m/s",vector=T)
+AddQuantity(name="F_AVG",unit="N/m3",vector=T)
 AddQuantity(name="Solid",unit="1")
 
 # Settings - table of settings (constants) that are taken from a .xml file
@@ -72,3 +79,6 @@ AddSetting(name="PR", default=0, comment='plate angle', zonal=T, unit="1")
 
 AddObjective("EfficiencyX", PV("ForceX") * PV("Power") ^ (-1))
 AddObjective("EfficiencyY", PV("ForceY") * PV("Power") ^ (-1))
+
+AddSetting(name="ExternalForceX", default=0, comment='external force x', zonal=T, unit="N/m3")
+AddSetting(name="ExternalForceY", default=0, comment='external force y', zonal=T, unit="N/m3")
