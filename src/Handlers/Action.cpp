@@ -31,12 +31,3 @@ int Action::Finish () {
 	int Action::Type() { return HANDLER_ACTION; }
 
 
-int Action::NumberOfParameters () {
-		return -1;
-	};
-
-
-int Action::Parameters (int type, double * tab) {
-		return -1;
-	};
-
