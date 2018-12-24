@@ -853,7 +853,28 @@ CudaDeviceFunction void Run() {
 	case NODE_Wall:
 		BounceBack();
 		break;
-	case NODE_EVelocity:
+
+	<?R
+        if ( Options$noflow ) {
+    ?>
+	    case NODE_EVelocity:
+    	case NODE_WVelocity:
+	    case NODE_SVelocity:
+    	case NODE_NVelocity:
+
+
+        
+        SetEquilibrum(
+		    1.,
+    		<?R C(BC_Velocity[1]) ?>,
+            <?R C(BC_Velocity[2]) ?>,
+            PhaseField
+    	);
+    
+        break;
+    <?R } else { ?>
+	
+    case NODE_EVelocity:
         InitPhisStencil();
 		EVelocity();
 		break;
@@ -878,7 +899,8 @@ CudaDeviceFunction void Run() {
         NVelocity();
 		break;
 
-
+    
+    <?R }?>
         
     case NODE_NSymmetry:
            <?R Symmetry(2,-1) ?>
@@ -890,6 +912,8 @@ CudaDeviceFunction void Run() {
         break;
     default:
         InitPhisStencil(); 
+
+
     }
     if (NodeType & NODE_MRT)
     {
