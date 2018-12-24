@@ -870,7 +870,7 @@ CudaDeviceFunction void Run() {
             <?R C(BC_Velocity[2]) ?>,
             PhaseField
     	);
-    
+   		InitPhisStencil(); 
         break;
     <?R } else { ?>
 	
