@@ -112,7 +112,7 @@ int RepeatControl::Parameters (int type, double * tab) {
 			exit(-1);
 		}
 	} else {
-		(*hand)->Parameters(type, NULL);
+		return (*hand)->Parameters(type, NULL);
 	}
 };
 
