@@ -438,6 +438,7 @@ R6 =    T5 + T6 ;
 	   R6 = (1 - omT)*(   R6 - 2.5000000000e-01*T );
 
 	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) {
+		AddToHeatInput(Temperature - T);
 		T = Temperature;
 	}
 //	if ((NodeType & NODE_ADDITIONALS) == NODE_HeatSource) {

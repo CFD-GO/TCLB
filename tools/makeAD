@@ -26,7 +26,7 @@ do
 	test -f $f || { echo "Tapenade failed"; exit -1; }
 	$path_to_script/ADmod.R -f $f -o ${f}_ -x "$FIX"
 	mv ${f}_ $f
-	while read line; do
+	while read -r line; do
 		if test ! -z "$line"
 		then
 			sed "$line" $f > ${f}_

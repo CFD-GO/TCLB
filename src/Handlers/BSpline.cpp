@@ -84,6 +84,7 @@ double BSpline::Pos (int j) {
 
 
 int BSpline::Parameters (int type, double * tab) {
+	if (solver->mpi_rank == 0) {
 		switch(type) {
 		case PAR_GET:
 			output("Getting the params and making fourier decomposition\n");
@@ -149,6 +150,9 @@ int BSpline::Parameters (int type, double * tab) {
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
 			exit(-1);
 		}
+	} else {
+		return (*hand)->Parameters(type, NULL);
+	}
 	};
 
 
