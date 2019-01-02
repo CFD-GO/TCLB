@@ -45,6 +45,7 @@ AddSetting(name="Buoyancy", comment='Buoyancy coefficient of temperature')
 AddSetting(name="PorocityGamma", comment='Gamma in hiperbolic transformation of porocity (-infty,1)')
 AddSetting(name="PorocityTheta", comment='Theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
 
+AddGlobal(name="HeatInput", comment='Flux of heat into heater', unit="Km3/s")
 AddGlobal(name="HeatFlux", comment='Flux of heat', unit="Km3/s")
 AddGlobal(name="HeatSquareFlux", comment='Flux of temperature squered', unit="K2m3/s")
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
@@ -56,3 +57,6 @@ AddGlobal(name="MaterialPenalty", comment='Quadratic penalty for intermediate ma
 AddNodeType("Heater","ADDITIONALS")
 AddNodeType("HeatSource","ADDITIONALS")
 AddNodeType("Thermometer","OBJECTIVE")
+
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")
