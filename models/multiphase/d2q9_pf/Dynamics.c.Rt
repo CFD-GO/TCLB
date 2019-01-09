@@ -122,7 +122,15 @@ CudaDeviceFunction vector_t getNormal(){
         C(k01, 3*sum(phis%*%ee_y) )
     } else {
 
-        ?> vector_t u = getU(); <?R
+        ?> 
+        
+        vector_t u = getU();
+        if ( PF_Advection_Switch == 0 ){
+            u.x = 0;
+            u.y = 0;
+        }       
+        
+        <?R
         ee_x = u[1] - U[,1]
         ee_y = u[2] - U[,2]
     
