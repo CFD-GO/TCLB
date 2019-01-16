@@ -1,8 +1,9 @@
 <?R
 	source("conf.R") 
 	c_header();
-	f = PV(Density$name)
-	U = as.matrix(Density[,c("dx","dy")])
+	sel = Density$group == "f"
+	f = PV(Density$name[sel])
+	U = as.matrix(Density[sel,c("dx","dy")])
 
 	u = PV(paste("u[",1:2-1,"]",sep=""))
 	uf = PV("uf")
@@ -49,6 +50,22 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+CudaDeviceFunction vector_t getU_AVG(){
+	vector_t u;
+	u.x = avg_ux/average_iter;
+	u.y = avg_uy/average_iter;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction vector_t getF_AVG(){
+	vector_t u;
+	u.x = avg_fx/average_iter;
+	u.y = avg_fy/average_iter;
+	u.z = 0.0;
+	return u;
+}
+
 CudaDeviceFunction real_t getSolid(){
 	real_t px = X - PX;
 	real_t py = Y - PY;
@@ -78,9 +95,10 @@ CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
 }
 
 CudaDeviceFunction void Init() {
-	real_t u[2] = {Velocity,0.};
+	real_t u[2] = {VelocityX,VelocityY};
 	real_t d = Density;
 	SetEquilibrum(d,u);
+	avg_ux = avg_uy = avg_fx = avg_fy = 0;
 }
 
 CudaDeviceFunction void Run() {
@@ -100,6 +118,12 @@ CudaDeviceFunction void Run() {
 		break;
 	case NODE_EPressure:
 		EPressure();
+		break;
+        case NODE_SPressure:
+		SPressure();
+		break;
+        case NODE_NVelocity:
+		NVelocity();
 		break;
     }
     if (NodeType & NODE_MRT)
@@ -127,7 +151,7 @@ CudaDeviceFunction void BounceBack()
 CudaDeviceFunction void EVelocity()
 {
         real_t rho, ru;
-	real_t ux0 = Velocity;
+	real_t ux0 = abs(VelocityX);
 	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
 	ru = rho * ux0;
 	f3 = f1 - (2./3.) * ru;
@@ -150,9 +174,9 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void WVelocity()
 {
         real_t rho, ru;
-	real_t u[2] = {Velocity,0.};
-	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
-	ru = rho * u[0];
+	real_t ux0 = abs(VelocityX);
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - ux0);
+	ru = rho * ux0;
 	f1 = f3 + (2./3.) * ru;
 	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
 	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
@@ -170,7 +194,30 @@ CudaDeviceFunction void EPressure()
 	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
 }
 
-#define S4 1.3333
+CudaDeviceFunction void NVelocity()
+{
+        real_t rho, ru;
+	real_t uy0 = abs(VelocityY);
+	rho = ( f0 + f1 + f3 + 2.*(f2 + f5 + f6) ) / (1. + uy0);
+	ru = rho * uy0;
+	f4 = f2 + (2./3.) * ru;
+	f7 = f5 + (1./6.) * ru + (1./2.)*(f1 - f3);
+	f8 = f6 + (1./6.) * ru + (1./2.)*(f3 - f1);
+}
+
+CudaDeviceFunction void SPressure()
+{
+        real_t ru, uy0;
+	real_t rho = Density;
+	uy0 = -1. + ( f0 + f1 + f3 + 2.*(f4 + f7 + f8) ) / rho;
+	ru = rho * uy0;
+
+	f2 = f4 - (2./3.) * ru;
+	f5 = f7 - (1./6.) * ru + (1./2.)*(f3 - f1);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f1 - f3);
+}
+
+#define S4 1.0
 #define S5 1.0
 #define S6 1.0
 #define S7 1.0
@@ -186,16 +233,22 @@ CudaDeviceFunction real_t calcW0(real_t d) {
 		d = d / SM;
 		if (d < -1) return 0;
 		if (d > 1) return 1;
-		return ((3-d*d)*d+2)/4;
+                if (EPSF == 0) return (0.5 * (d + 1));	
+		else return(((3-d*d)*d+2)/4);
 	}
 }
 
 CudaDeviceFunction real_t calcW(real_t dx, real_t dy) {
 	real_t ret = 1;
-	ret = ret * calcW0(PDX-2*dx);
-	ret = ret * calcW0(PDX+2*dx);
-	ret = ret * calcW0(PDY-2*dy);
-	ret = ret * calcW0(PDY+2*dy);
+        if( PRAD == 0 ){
+            ret = ret * calcW0(PDX-2*dx);
+            ret = ret * calcW0(PDX+2*dx);
+            ret = ret * calcW0(PDY-2*dy);
+            ret = ret * calcW0(PDY+2*dy);
+        }
+        if( PDX == 0 || PDY == 0 ){
+            ret = ret * calcW0( PRAD - sqrt(dx*dx + dy*dy) );
+        }
 	return ret;
 }
 
@@ -203,6 +256,7 @@ CudaDeviceFunction void CollisionMRT()
 {
 	real_t u[2], usq, d, R[6], Q, tau, omega;
 	vector_t F;
+	real_t tau0 = 3.0*nu+0.5;
 <?R
         R = PV(c(
 		"d",
@@ -276,15 +330,23 @@ real_t py = Y - PY;
 real_t dx = px*cos(PR) + py*sin(PR);
 real_t dy =-px*sin(PR) + py*cos(PR);
 
-real_t w = calcW(dx,dy);
+real_t eps = calcW(dx, dy);
+real_t w = 0;
+
+if(BF == 0){
+	w = eps;
+} else {
+	w = (eps * (tau - 0.5)) / ((1 - eps) + (tau - 0.5));
+}
+
 
 //dx = fabs(dx*2);
 //dy = fabs(dy*2);
 
 real_t Vx = PX_DT - PR_DT*py;
 real_t Vy = PY_DT + PR_DT*px;
-real_t Fx = 2*w*(Vx - u[0]);
-real_t Fy = 2*w*(Vy - u[1]);
+real_t Fx = 2*w*(Vx*d - u[0]);
+real_t Fy = 2*w*(Vy*d - u[1]);
 AddToForceX(Fx);
 AddToForceY(Fy);
 AddToMoment(Fx*py-Fy*px);
@@ -292,6 +354,16 @@ AddToPowerX(PX_DT*Fx);
 AddToPowerY(PY_DT*Fy);
 AddToPowerR(PR_DT*(-Fx*py+Fy*px));
 AddToPower(Fx*Vx + Fy*Vy);
+AddToVolumeW(w);
+
+Fx = Fx + ExternalForceX;
+Fy = Fy + ExternalForceY;
+
+avg_ux = avg_ux + u[0] + Fx/2;
+avg_uy = avg_uy + u[1] + Fy/2;
+avg_fx = avg_fx + Fx;
+avg_fy = avg_fy + Fy;
+
 u[0] = u[0] + Fx;
 u[1] = u[1] + Fy;
 
