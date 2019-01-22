@@ -35,7 +35,7 @@
 //			- Pressure/velocity not fully tested - use at your own PERIL!
 
 
-// Maintainer: Grzegorz Gruszczynski @ggruszczynski
+// Maintainer & Implementation: Grzegorz Gruszczynski @ggruszczynski
 // Code updates:
 //		16/08/2018: Cascaded collision scheme
 
@@ -211,9 +211,9 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t numerator, real_t nx, real_t n
 	// eq 7 from "Improved locality of the phase-field lattice Boltzmann 
 	// model for immiscible fluids at high density ratios"
 
+	// nx: normalized PhaseField gradient in x direction
 	// this method calculates F_phi in [0-9] lattice coord
 
-	// nx: normalized PhaseField gradient in x direction
 	real_t f_phi;
 	f_phi = wf[i] * numerator * (d2q9_ex[i]*nx + d2q9_ey[i]*ny);
 	return f_phi;
@@ -410,8 +410,6 @@ CudaDeviceFunction void calcHydroIter() {
 		AddToMomentumX_afterCol(U*rho);
 		AddToMomentumY_afterCol(V*rho);
 	}
-
-
 }
 
 CudaDeviceFunction void log_data_from_special_nodes ()
@@ -429,14 +427,6 @@ CudaDeviceFunction void log_data_from_special_nodes ()
 				AddToRTIBubble(location);
 			}
 	}
-
-	if ((NodeType & NODE_BOUNDARY) == NODE_Wall)
-	{
-		// this shall work on if S wall is the only one
-		real_t myPhaseF = PhaseF(0,0);
-		real_t rho = calcRho(myPhaseF);
-		AddToWallForceMeasure(-2*(g[5]-g[6])*rho); // for bottom wall  -outgoing distributions - after collision
-	}
 }
 
 
@@ -448,7 +438,7 @@ CudaDeviceFunction void calcPhaseFIter(){
 	BC_Switcher(); 
 
 	// eq 12 from "Improved locality of the phase-field lattice Boltzmann 
-	//	model for immiscible fluids at high density ratios"	
+	// model for immiscible fluids at high density ratios"	
 	PhaseF = getPhaseField_from_h_distributions_sum();
 }
 
@@ -648,66 +638,17 @@ CudaDeviceFunction void relax_and_collide_CM_hydro(real_t f_in[9], real_t tau, v
 	cm_eq[8] = m00*ux2*uy2 + 1./3.*m00*ux2 + 1./3.*m00*uy2 + 1./9.*m00 - ux2*uy2 - 1./3.*ux2 - 1./3.*uy2;
 
 	//calculate forces in cm space
-	//He: default - get_continuous_Maxwellian_DF(dzeta=dzeta, psi=1, u=(ux, uy)) - velocity term
+	//He's scheme: get_continuous_Maxwellian_DF(dzeta=dzeta, psi=1, u=(ux, uy)) - velocity term
 	//collide eq: (eye(9)-S)*cm + S*cm_eq + (eye(9)-S/2.)*force_in_cm_space // SOI
-	#ifdef OPTIONS_EDM_CMFOI
-		// update the velocity and use it for edm and back transformation
-		u.x += Fhydro.x/rho;
-		u.y += Fhydro.y/rho;
-		uxuy = u.x*u.y;
-		ux2 = u.x*u.x;
-		uy2 = u.y*u.y;
-	
-		//calculate equilibrium distributions in cm space (u+F)
-		real_t cm_eq_uf[9];
-		cm_eq_uf[0] = m00;
-		cm_eq_uf[1] = -u.x*(m00 - 1.0);
-		cm_eq_uf[2] = -u.y*(m00 - 1.0);
-		cm_eq_uf[3] = m00*ux2 + 1./3.*m00 - ux2;
-		cm_eq_uf[4] = m00*uy2 + 1./3.*m00 - uy2;
-		cm_eq_uf[5] = uxuy*(m00 - 1.0);
-		cm_eq_uf[6] = -u.y*(m00*ux2 + 1./3.*m00 - ux2 - 1./3.);
-		cm_eq_uf[7] = -u.x*(m00*uy2 + 1./3.*m00 - uy2 - 1./3.);
-		cm_eq_uf[8] = m00*ux2*uy2 + 1./3.*m00*ux2 + 1./3.*m00*uy2 + 1./9.*m00 - ux2*uy2 - 1./3.*ux2 - 1./3.*uy2;
-
-		f_in[0] = cm_eq[0];
-		f_in[1] = cm_eq[1];
-		f_in[2] = cm_eq[2];
-		f_in[3] = 0.5*cm_eq[3]*(s_b + s_v) + 0.5*cm_eq[4]*(s_b - s_v) - temp[3]*(0.5*s_b + 0.5*s_v - 1.0) - 0.5*temp[4]*(s_b - s_v);
-		f_in[4] = 0.5*cm_eq[3]*(s_b - s_v) + 0.5*cm_eq[4]*(s_b + s_v) - 0.5*temp[3]*(s_b - s_v) - temp[4]*(0.5*s_b + 0.5*s_v - 1.0);
-		f_in[5] = cm_eq[5]*s_v - temp[5]*(s_v - 1.0);
-		f_in[6] = cm_eq[6];
-		f_in[7] = cm_eq[7];
-		f_in[8] = cm_eq[8];
-
-		f_in[0] += cm_eq_uf[0] - cm_eq[0];
-		f_in[1] += cm_eq_uf[1] - cm_eq[1];
-		f_in[2] += cm_eq_uf[2] - cm_eq[2];
-		f_in[3] += cm_eq_uf[3] - cm_eq[3];
-		f_in[4] += cm_eq_uf[4] - cm_eq[4];
-		f_in[5] += cm_eq_uf[5] - cm_eq[5];
-		f_in[6] += cm_eq_uf[6] - cm_eq[6];
-		f_in[7] += cm_eq_uf[7] - cm_eq[7];
-		f_in[8] += cm_eq_uf[8] - cm_eq[8];
-	#else
-		f_in[0] = cm_eq[0];
-		f_in[1] = 0.5*Fhydro.x/rho + cm_eq[1];
-		f_in[2] = 0.5*Fhydro.y/rho + cm_eq[2];
-		f_in[3] = 0.5*cm_eq[3]*(s_b + s_v) + 0.5*cm_eq[4]*(s_b - s_v) - temp[3]*(0.5*s_b + 0.5*s_v - 1.0) - 0.5*temp[4]*(s_b - s_v);
-		f_in[4] = 0.5*cm_eq[3]*(s_b - s_v) + 0.5*cm_eq[4]*(s_b + s_v) - 0.5*temp[3]*(s_b - s_v) - temp[4]*(0.5*s_b + 0.5*s_v - 1.0);
-		f_in[5] = cm_eq[5]*s_v - temp[5]*(s_v - 1.0);
-		f_in[6] = 1./6.*Fhydro.y/rho + cm_eq[6];
-		f_in[7] = 1./6.*Fhydro.x/rho + cm_eq[7];
-		f_in[8] = cm_eq[8];
-
-		#ifdef OPTIONS_CMPCU
-				u.x +=  0.5*Fhydro.x/rho;
-				u.y +=  0.5*Fhydro.y/rho;
-				uxuy = u.x*u.y;
-				ux2 = u.x*u.x;
-				uy2 = u.y*u.y;
-		#endif
-	#endif
+	f_in[0] = cm_eq[0];
+	f_in[1] = 0.5*Fhydro.x/rho + cm_eq[1];
+	f_in[2] = 0.5*Fhydro.y/rho + cm_eq[2];
+	f_in[3] = 0.5*cm_eq[3]*(s_b + s_v) + 0.5*cm_eq[4]*(s_b - s_v) - temp[3]*(0.5*s_b + 0.5*s_v - 1.0) - 0.5*temp[4]*(s_b - s_v);
+	f_in[4] = 0.5*cm_eq[3]*(s_b - s_v) + 0.5*cm_eq[4]*(s_b + s_v) - 0.5*temp[3]*(s_b - s_v) - temp[4]*(0.5*s_b + 0.5*s_v - 1.0);
+	f_in[5] = cm_eq[5]*s_v - temp[5]*(s_v - 1.0);
+	f_in[6] = 1./6.*Fhydro.y/rho + cm_eq[6];
+	f_in[7] = 1./6.*Fhydro.x/rho + cm_eq[7];
+	f_in[8] = cm_eq[8];
 
 	//back to raw moments
 	temp[0] = f_in[0];
@@ -761,7 +702,7 @@ CudaDeviceFunction void relax_and_collide_CM_phase_field(real_t f_in[9], real_t 
 	// f_in[7] = temp[5] - temp[6] - temp[7] + temp[8];
 	// f_in[8] = temp[5] + temp[6] + temp[7] + temp[8];
 
-	//central moments from raw moments
+	// Central moments from raw moments
 	// temp[0] = m00;
 	temp[1] = -f_in[0]*u.x + f_in[1];
 	temp[2] = -f_in[0]*u.y + f_in[2];
@@ -773,74 +714,20 @@ CudaDeviceFunction void relax_and_collide_CM_phase_field(real_t f_in[9], real_t 
 	// temp[7] = -f_in[0]*u.x*uy2 + f_in[1]*uy2 + 2*f_in[2]*uxuy - f_in[4]*u.x - 2*f_in[5]*u.y + f_in[7];
 	// temp[8] = f_in[0]*ux2*uy2 - 2*f_in[1]*u.x*uy2 - 2*f_in[2]*ux2*u.y + f_in[3]*uy2 + f_in[4]*ux2 + 4*f_in[5]*uxuy - 2*f_in[6]*u.y - 2*f_in[7]*u.x + f_in[8];
 
-	//collision in central moments space
-	#ifdef OPTIONS_PF_FOI
-		// First order integration (rectangular disretization)
-		// collide eq: (eye(9)-S)*cm + S*cm_eq + F_phi_cm
-		// First order integration (rectangular disretization)
+	// Collision in central moments space
+	// Default is second order integration (trapezoidal discretization)
+	// collide eq: (eye(9)-S)*cm + S*cm_eq + (eye(9)-S/2.)*F_phi_cm
+	// relax 1st moments
+	f_in[0] = m00;
+	f_in[1] = -F_phi.x*(0.5*s_v - 1.0) - temp[1]*(s_v - 1.0);
+	f_in[2] = -F_phi.y*(0.5*s_v - 1.0) - temp[2]*(s_v - 1.0);
+	f_in[3] = 1./3.*m00;
+	f_in[4] = 1./3.*m00;
+	f_in[5] = 0;
+	f_in[6] = 1./6.*F_phi.y;
+	f_in[7] = 1./6.*F_phi.x;
+	f_in[8] = 1./9.*m00;
 
-		// relax 2nd moments
-		// f_in[0] = m00;
-		// f_in[1] = F_phi.x;
-		// f_in[2] = F_phi.y;
-		// f_in[3] = 1./3.*m00*s_b - 0.5*s_b*temp[3] - 0.5*s_b*temp[4] - 0.5*s_v*temp[3] + 0.5*s_v*temp[4] + temp[3];
-		// f_in[4] = 1./3.*m00*s_b - 0.5*s_b*temp[3] - 0.5*s_b*temp[4] + 0.5*s_v*temp[3] - 0.5*s_v*temp[4] + temp[4];
-		// f_in[5] = -temp[5]*(s_v - 1.0);
-		// f_in[6] = 1./3.*F_phi.y;
-		// f_in[7] = 1./3.*F_phi.x;
-		// f_in[8] = 1./9.*m00;
-
-		// relax 1st moments
-		f_in[0] = m00;
-		f_in[1] = F_phi.x - temp[1]*(s_v - 1.0);
-		f_in[2] = F_phi.y - temp[2]*(s_v - 1.0);
-		f_in[3] = 1./3.*m00;
-		f_in[4] = 1./3.*m00;
-		f_in[5] = 0;
-		f_in[6] = 1./3.*F_phi.y;
-		f_in[7] = 1./3.*F_phi.x;
-		f_in[8] = 1./9.*m00;
-	#else
-		// Default is second order integration (trapezoidal discretization)
-		// collide eq: (eye(9)-S)*cm + S*cm_eq + (eye(9)-S/2.)*F_phi_cm
-
-		// relax 2nd moments
-		// f_in[0] = m00;
-		// f_in[1] = 0.5*F_phi.x;
-		// f_in[2] = 0.5*F_phi.y;
-		// f_in[3] = 1./3.*m00*s_b - 0.5*s_b*temp[3] - 0.5*s_b*temp[4] - 0.5*s_v*temp[3] + 0.5*s_v*temp[4] + temp[3];
-		// f_in[4] = 1./3.*m00*s_b - 0.5*s_b*temp[3] - 0.5*s_b*temp[4] + 0.5*s_v*temp[3] - 0.5*s_v*temp[4] + temp[4];
-		// f_in[5] = -temp[5]*(s_v - 1.0);
-		// f_in[6] = 1./6.*F_phi.y;
-		// f_in[7] = 1./6.*F_phi.x;
-		// f_in[8] = 1./9.*m00;
-
-		// relax 1st moments
-		f_in[0] = m00;
-		f_in[1] = -F_phi.x*(0.5*s_v - 1.0) - temp[1]*(s_v - 1.0);
-		f_in[2] = -F_phi.y*(0.5*s_v - 1.0) - temp[2]*(s_v - 1.0);
-		f_in[3] = 1./3.*m00;
-		f_in[4] = 1./3.*m00;
-		f_in[5] = 0;
-		f_in[6] = 1./6.*F_phi.y;
-		f_in[7] = 1./6.*F_phi.x;
-		f_in[8] = 1./9.*m00;
-	#endif
-
-	#ifdef OPTIONS_EDM_CMFOI
-		// forcing = update the velocity and use it for back transformation
-		u.x += Fhydro.x/rho;
-		u.y += Fhydro.y/rho;
-		uxuy = u.x*u.y;
-	 	ux2 = u.x*u.x;
-		uy2 = u.y*u.y;
-	#elif OPTIONS_CMPCU
-		u.x +=  0.5*Fhydro.x/rho;
-		u.y +=  0.5*Fhydro.y/rho;
-		uxuy = u.x*u.y;
-		ux2 = u.x*u.x;
-		uy2 = u.y*u.y;
-	#endif
 	//back to raw moments
 	temp[0] = f_in[0];
 	temp[1] = f_in[0]*u.x + f_in[1];
@@ -901,7 +788,7 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceCM(vector_t gradPhi, real_
 	AddToF_bodyY(F_body[1]);
 	
 
-	// TODO: HACK - add gravitation only to higher density fluid ;p
+	// HACK - add gravitation only to higher density fluid ;p
 	// real_t bfsc = 0.506*tanh(5*myPhaseF-2.5) + 0.5; // bfsc - body force smoothing coefficient
 	// bfsc = (bfsc < 0.004) ? 0 : bfsc;
 	// bfsc = (bfsc > 0.996) ? 1 : bfsc;
@@ -951,10 +838,8 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceCM(vector_t gradPhi, real_
 		U = g[1]-g[3]+g[5]-g[6]-g[7]+g[8];
 		V = g[2]-g[4]+g[5]+g[6]-g[7]-g[8];
 
-		#ifndef OPTIONS_EDM_CMFOI
-			U += 0.5*F_total_hydro.x/rho;
-			V += 0.5*F_total_hydro.y/rho;
-		#endif
+		U += 0.5*F_total_hydro.x/rho;
+		V += 0.5*F_total_hydro.y/rho;
 	}
 	AddToF_muX(F_mu[0]);
 	AddToF_muY(F_mu[1]);
@@ -971,7 +856,7 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceMRT(
 	// gradPhi - Phase field gradients
 	// myPhaseF - PhaseField value at cell of interest (0,0 or BC like inlet_PhaseF, moving_wall_PhaseF)
 
-	// Fluid Properties: //
+	// Fluid Properties: 
 	// real_t rho - fluid density
 	// real_t tau - relaxation parameter
 	// real_t mu - chemical potential 
@@ -981,7 +866,7 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceMRT(
 	real_t F_pressure[2], F_body[2], F_mu[2], F_surf_tension[2];   // Forces
 	vector_t F_total_hydro;	
 
-	real_t stress[3];				// Stress tensor calculation
+	real_t stress[3];			// Stress tensor calculation
 	real_t R[9];				// Populations for MRT relaxation
 
 	// Find Macroscopic Details
@@ -998,7 +883,7 @@ CudaDeviceFunction vector_t calcTotalHydrodynamicForceMRT(
 	F_body[1] = (rho-Density_h)*BuoyancyY + rho*GravitationY;
 	AddToF_bodyX(F_body[0]);
 	AddToF_bodyY(F_body[1]);
-	// TODO: HACK - add gravitation only to higher density fluid ;p
+	// HACK - add gravitation only to higher density fluid ;p
 	// real_t bfsc = 0.506*tanh(5*myPhaseF-2.5) + 0.5; // bfsc - body force smoothing coefficient
 	// bfsc = (bfsc < 0.004) ? 0 : bfsc;
 	// bfsc = (bfsc > 0.996) ? 1 : bfsc;
@@ -1115,7 +1000,7 @@ CudaDeviceFunction void CollisionMRT(){
 
 	real_t F_phi[9], heq[9];		// Phase field collision terms
 	real_t F_i[9];					// Momentum distribution forcing term
-	real_t R[9];				// Populations for MRT relaxation
+	real_t R[9];					// Populations for MRT relaxation
 
 	// Find Macroscopic Details
 	real_t rho = calcRho(myPhaseF);
@@ -1129,12 +1014,13 @@ CudaDeviceFunction void CollisionMRT(){
 
 	real_t p = getNormalizedPressure(); // normlized pressure
 	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
+
 	// PHASE FIELD POPULATION UPDATE:
 	#ifdef OPTIONS_RT
 		real_t Req[9];
 	#endif
 
-	real_t Gamma[9], geq[9]; 	//  equilibrium
+	real_t Gamma[9], geq[9]; 	// equilibrium
 	real_t mag = U*U + V*V; 	// velocity magnitude
 	for (int i=0; i< 9; i++){
 		Gamma[i] = calcGamma(i, U, V, mag);
@@ -1179,22 +1065,11 @@ CudaDeviceFunction void CollisionMRT(){
 	}
 
 	relaxMRT(R, tau);
-	// Collision
+
+	// Collision 
 	for (int i=0; i< 9; i++) {
 		g[i] = g[i]-R[i]+F_i[i];
 	}
-	// ---------------------- MRT ---------------------------
-
-	// if ((NodeType & NODE_BOUNDARY) == NODE_NVelocity)
-    // {
-
-	// 	real_t dJ = <?R C(g[7+1]*d2q9[7+1,1] + g[8+1]*d2q9[8+1,1]) ?> * rho + 0.5*Fhydro.x; // 'outgoing' momentum - after collision
-	// 	AddToNMovingWallForce(dJ);	
-	// 	AddToNMovingWallPower(VelocityX*dJ); // VelocityX of moving wallidl
-
-	// 	// <?R C(g[7+1]*d2q9[7+1,1] + g[8+1]*d2q9[8+1,1]) ?>;	--compiles to--> 	-g[7] + g[8];
-	// }
-
 }
 
 
@@ -1211,7 +1086,7 @@ CudaDeviceFunction void CollisionCM(){
 	real_t tau = calcTau(myPhaseF, rho);
 	real_t pfavg = 0.5*(PhaseField_l+PhaseField_h);
 
-	//  Gradients & Normals
+	// Gradients & Normals
 	vector_t gradPhi = calcGradPhi(); // Phase field gradient
 	real_t p = getNormalizedPressure(); // normalized pressure
 
@@ -1225,9 +1100,8 @@ CudaDeviceFunction void CollisionCM(){
 
 	relax_and_collide_CM_phase_field(h, 1./omega_phi, u, F_phi_vect, Fhydro, rho);
 	
-	//  PRESSURE EVOLUTION UPDATE:
+	// PRESSURE EVOLUTION UPDATE:
 	relax_and_collide_CM_hydro(g, tau, u, Fhydro, rho);
-
 }
 
 CudaDeviceFunction void CollisionBGK(){
@@ -1566,8 +1440,6 @@ CudaDeviceFunction void BounceBack()
 		p1.y = p1.y*rho + 0.5*Fhydro.y;
 	}
 
-	//AddToTestCounter(g[8]-g[7]); //OK
-
 	real_t tmp;
 	tmp = g[1];
 	g[1] = g[3];
@@ -1594,8 +1466,6 @@ CudaDeviceFunction void BounceBack()
 	tmp = h[6];
 	h[6] = h[8];
 	h[8] = tmp;
-
-	//AddToTestCounter(-(g[5]-g[6]));	//OK
 
 	//Summing the difference in momentum before/after collision
 	if((NodeType & NODE_BODY) == NODE_Body) {

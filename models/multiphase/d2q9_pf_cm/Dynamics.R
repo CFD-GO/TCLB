@@ -143,39 +143,18 @@ AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
-
 AddNodeType(name="SpikeTrack",group="ADDITIONALS")
 AddNodeType(name="BubbleTrack",group="ADDITIONALS")
 AddGlobal(name="RTIBubble", comment='Bubble Tracker')
 AddGlobal(name="RTISpike",  comment='Spike Tracker')
 
-AddGlobal("NMovingWallForce")
-AddGlobal("NMovingWallPower")
-
-AddGlobal("WallForceMeasure")  # experimental
-AddGlobal("CountCells") # experimental
-AddGlobal("TestCounter") # experimental
-
-AddNodeType("CM","COLLISION")  # Central Moments collision
-
-#	Boundary things
-AddNodeType(name="MovingWall_N", group="BOUNDARY")
-AddNodeType(name="MovingWall_S", group="BOUNDARY")
-AddNodeType(name="NVelocity", group="BOUNDARY")
-AddNodeType(name="WVelocity", group="BOUNDARY")
-
-AddNodeType(name="Smoothing", group="ADDITIONALS")
-AddNodeType("Body", "BODY")
-
-AddGlobal(name="FDrag", comment='Force exerted on body in X-direction', unit="N")
-AddGlobal(name="FLift", comment='Force exerted on body in Y-direction', unit="N")
-AddGlobal(name="FTotal", comment='Force exerted on body in X+Y -direction', unit="N")
+AddGlobal(name="NMovingWallForce", comment='force exerted on the N Moving Wall')
+AddGlobal(name="NMovingWallPower", comment='implented: Vx* incoming momentum (precollision)')
 
 AddGlobal(name="MomentumX", comment='Total momentum in the domain', unit="")
 AddGlobal(name="MomentumY", comment='Total momentum in the domain', unit="")
 AddGlobal(name="MomentumX_afterCol", comment='Total momentum in the domain', unit="")
 AddGlobal(name="MomentumY_afterCol", comment='Total momentum in the domain', unit="")
-
 
 AddGlobal(name="F_pressureX", comment='Pressure force X', unit="")
 AddGlobal(name="F_pressureY", comment='Pressure force Y', unit="")
@@ -191,9 +170,24 @@ AddGlobal(name="F_total_hydroY", comment='Total hydrodynamic force Y', unit="")
 AddGlobal(name="F_phiX", comment='Forcing term for interface tracking X', unit="")
 AddGlobal(name="F_phiY", comment='Forcing term for interface tracking Y', unit="")
 
+#	Node things
+AddNodeType(name="CM", group="COLLISION")  # Central Moments collision
+AddNodeType(name="Smoothing", group="ADDITIONALS")  #  To smooth phase field interface during initialization.
+
+#	Boundary things
+AddNodeType(name="MovingWall_N", group="BOUNDARY")
+AddNodeType(name="MovingWall_S", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+
+AddNodeType(name="Body", group="BODY")  # To measure force exerted on the body.
+
+AddGlobal(name="FDrag", comment='Force exerted on body in X-direction', unit="N")
+AddGlobal(name="FLift", comment='Force exerted on body in Y-direction', unit="N")
+AddGlobal(name="FTotal", comment='Force exerted on body in X+Y -direction', unit="N")
+
 if (Options$Outflow) {
 	AddNodeType(name="Convective_E", group="BOUNDARY")
 	AddNodeType(name="Convective_N", group="BOUNDARY")
 	AddNodeType(name="Neumann_E", group="BOUNDARY")
 }
-
