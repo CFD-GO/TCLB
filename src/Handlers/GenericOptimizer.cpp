@@ -4,11 +4,9 @@ int GenericOptimizer::Init () {
 		GenericAction::Init();
 		Pars = NumberOfParameters();
 		int ret;
-		if (solver->mpi_rank == 0) {
-			DEBUG_M;
-			ret = OptimizerInit();
-		}
-		MPI_Bcast( &ret, 1, MPI_INT, 0, MPMD.local );
+		DEBUG_M;
+		ret = OptimizerInit();
+		MPI_Bcast( &ret, 1, MPI_INT, 0, MPI_COMM_WORLD );
 		if (ret) {
 			ERROR("Failed to initialize Optimizer");
 			return -1;
