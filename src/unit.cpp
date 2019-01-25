@@ -6,16 +6,19 @@
 #include <sstream>
 #include "unit.h"
 #define IND(x,y) ((y)*n+(x))
+int is_zero(double x){
+return fabs(x) < 1e-10;
+}
 
-void gauss (double A[], double b[], double x[], int n)
+void GaussSolve (double A[], double b[], double x[], int n)
 {
   int i, j, k;
 
   for (k=0; k<n-1; k++)
   {
-    if (A[IND(k,k)] == 0.0)
+    if (is_zero(A[IND(k,k)]))
       for (i=k+1; i<n; i++)
-        if (A[IND(i,k)] != 0.0)
+        if (!is_zero(A[IND(i,k)]))
         {
           double tmp;
           for (j=0; j<n; j++)
@@ -256,7 +259,7 @@ std::string strFromDouble(double val) {
       ERROR("Gauge variables under-constructed\n");
       throw(std::string("Wrong number of gauge variables"));
     }
-    gauss(Mat,b,x,m_unit);
+    GaussSolve(Mat,b,x,m_unit);
     for (int j=0;j<m_unit;j++) {
       scale[j] = exp(-x[j]);
     }

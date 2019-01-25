@@ -1,0 +1,42 @@
+AddDensity( name="f0", dx= 0, dy= 0, group="f" )
+AddDensity( name="f1", dx= 1, dy= 0, group="f" )
+AddDensity( name="f2", dx= 0, dy= 1, group="f" )
+AddDensity( name="f3", dx=-1, dy= 0, group="f" )
+AddDensity( name="f4", dx= 0, dy=-1, group="f" )
+AddDensity( name="f5", dx= 1, dy= 1, group="f" )
+AddDensity( name="f6", dx=-1, dy= 1, group="f" )
+AddDensity( name="f7", dx=-1, dy=-1, group="f" )
+AddDensity( name="f8", dx= 1, dy=-1, group="f" )
+AddDensity( name="w", group="w", parameter=T )
+
+AddQuantity( name="Rho",unit="kg/m3")
+AddQuantity( name="U",unit="m/s",vector=T)
+AddQuantity( name="RhoB",adjoint=T)
+AddQuantity( name="UB",adjoint=T,vector=T)
+AddQuantity( name="W")
+AddQuantity( name="WB",adjoint=T)
+
+AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="nu", omega='1-1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="Velocity", default="0m/s", comment='inlet velocity', zonal=TRUE)
+AddSetting(name="Pressure", default="0Pa", comment='inlet pressure', zonal=TRUE)
+
+AddSetting(name="ForceX", comment='Gravitation in the direction of x')
+AddSetting(name="ForceY", comment='Gravitation in the direction of y')
+
+AddGlobal(name="Drag", comment='pressure loss')
+AddGlobal(name="Lift", comment='pressure loss')
+AddGlobal(name="MaterialPenalty", comment='material penalty')
+AddGlobal(name="Material", comment='material')
+AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
+AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
+AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+
+AddSetting(name="PorocityGamma", comment='gamma in hiperbolic transformation of porocity (-infty,1)')
+AddSetting(name="PorocityTheta", comment='theta in hiperbolic transformation of porocity', PorocityGamma='1.0 - exp(PorocityTheta)')
+
+AddSetting(name="Porocity", comment='initial porocity of Porous nodes', zonal=TRUE)
+
+#AddNodeType(name="MovingWall", group="BOUNDARY")
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")

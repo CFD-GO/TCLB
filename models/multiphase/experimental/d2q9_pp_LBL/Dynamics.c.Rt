@@ -1,0 +1,496 @@
+// 25/5/2016 - Model Developed based on Lycett-Brown & Luo (LBL)
+// """"Improved forcing scheme in pseudopotential lattice Boltzmann""""
+// """"  methods for multiphase flow at arbitrarily high density   """"
+// """"                       ratios                               """"
+// Maintainer: Travis-Mitchell @TravisMitchell
+
+// Code to be updated to:
+/*   + Additional higher order forcing term to separate coupling of 
+ *   surface tension and diffuse interface width */
+/*   + General tidy up of boundary conditions and update to newer 
+ *   R code preamble also required */
+
+<?R
+#region RPreamble
+	source("conf.R") 
+	source("lib/feq.R")
+	c_header();
+	library(polyAlgebra)
+
+# Extract from d2q9_kuper to set up general parameters:
+	U  = as.matrix(Density[Density$group=="f",c("dx","dy")])
+	f  = PV(Density$name[Density$group=="f"])
+	ph = PV(paste("psi(",-U[,1],",",-U[,2],")"))
+	
+	u  = PV(paste("u[",1:2-1,"]",sep=""))
+	uf = PV("uf")
+	d  = PV("d")
+	usq   = PV("usq")
+	omega = PV("omega")
+	uf1 = uf
+	uf2 = uf
+	uf3 = uf
+	t1 = 4/9
+	t2 = 1/9
+	t3 = 1/36
+	c_squ = 1/3
+	tn    = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
+	bounce = c(0,3,4,1,2,7,8,5,6)
+#endregion RPreamble
+?>
+<?python
+#region python preamble
+from sympy import *
+from sympy.printing import print_ccode
+G = var('G')
+ueq_f = var(['ueq_f.x', 'ueq_f.y'])
+rho = var('rho')
+Densities = var(Density['name'])
+R = var(['R[0]','R[1]','R[2]','R[3]','R[4]','R[5]','R[6]','R[7]','R[8]'])
+S = var(['S[0]','S[1]','S[2]','S[3]','S[4]','S[5]','S[6]','S[7]','S[8]'])
+w0 = 4/9.0
+w1 = 1/9.0
+w2 = 1/36.0
+w  = [w0, w1, w1, w1, w1, w2, w2, w2, w2]
+cx = [0, 1, 0, -1, 0, 1, -1, -1, 1]
+cy = [0, 0, 1, 0, -1, 1, 1, -1, -1]
+feq= [0, 0, 0, 0,  0, 0, 0,  0,  0]
+psi=[0, 0, 0, 0,  0, 0, 0,  0,  0]
+for i in range(9):
+	psi[i]= var(str('psi(' + str(cx[i]) + ',' + str(cy[i]) + ')'))
+u   = var(['u[0]', 'u[1]'])
+u1  = var([['uf.x', 'uf.y'],['ug.x', 'ug.y']])
+#endregion python preamble
+?>
+CudaDeviceFunction void Init() {
+	real_t u[2] = {Velocity,VelocityY};
+	real_t rho = Density;
+	SetEquilibrium(rho,u);
+}
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+	case NODE_TopSymmetry:
+		SymmetryTop();
+		break;
+	case NODE_BottomSymmetry:
+		SymmetryBottom();
+		break;
+    }
+    if (NodeType & NODE_MRT)
+    {
+//		CollisionMRT();
+//		BodyForce();
+		CollisionBGK();
+    }
+}
+CudaDeviceFunction void SetEquilibrium(real_t d, real_t u[2]) {
+real_t usq, uf;
+<?R
+    C(usq , sum(u*u)*(1/c_squ)) ?>
+<?R
+	for (i in 1:9) {
+         cat("//--",i,"-------------------------------------------------\n")
+         w2 = list(
+                 c(uf1, (u %*% t(U) * (1/c_squ))[i]),
+                 c(uf2 , uf1 + (uf1*uf1+usq*(-1))*0.5 + 1),
+                 c(uf3 , d * uf2),
+                 c(f[i] , uf3 * tn[i,i])
+         )
+         for (h in w2) C(h[1],h[2])
+        }
+?>
+}
+// Get Quantity Functions:
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?> ;
+	}  
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+	vector_t F;
+	<?R 
+		C(PV(c("u.x","u.y")), f %*% U) 
+	?>
+	F = getF(); 
+	u.x = u.x + F.x*0.5;
+	u.y = u.y + F.y*0.5;
+	u.z = 0.0;
+	u.x /= d;
+	u.y /= d;
+	return u;
+}
+CudaDeviceFunction vector_t getF(){
+	real_t rho = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
+	vector_t F = PPForce();
+	F.x += GravitationX*rho ; // Need to check implementation
+	F.y += GravitationY*rho ; // as to incorporate buoyancy effects	
+	F.z = 0.0;
+	return F;
+}
+CudaDeviceFunction real_t getP(){
+// Carnahan-Starling EoS.
+	real_t p0,bp, d;
+	d = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
+	bp = d*beta/4.0;
+	p0 = d*R*T*(1+bp+bp*bp-bp*bp*bp)/pow(1-bp,3) - alpha*d*d;
+	return p0;
+}
+CudaDeviceFunction real_t getPsi(){
+	return psi(0,0);
+}
+// Pseudopotential Specific Functions
+CudaDeviceFunction vector_t PPForce(){
+	real_t R[9];
+	vector_t F;
+	<?R
+		Force = PV(c("F.x","F.y"));
+       	R = PV(c(paste("R[",1:9-1,"]",sep="")))
+        C(R , ph);
+    ?>
+// Symmetry alteration same as kuper model - set outside psi equal to inside
+	if ((NodeType & NODE_BOUNDARY) == NODE_TopSymmetry) {
+	<?R
+		reflect_to   = c(8,4,7) + 1;
+		reflect_from = c(5,2,6) + 1;
+		for (i in 1:3)		{
+			C( R[reflect_to[i]], R[reflect_from[i]] )		}
+	?>
+	}
+	if ((NodeType & NODE_BOUNDARY) == NODE_RightSymmetry) {
+		 <?R
+			reflect_to   = c(6,3,7) + 1;
+			reflect_from = c(5,1,8) + 1;
+			for (i in 1:3)			{
+				C( R[reflect_to[i]], R[reflect_from[i]] )	}
+		?>
+	} 
+/*<?R
+    # tn_force From McDonald & Turner 2015:
+    # tn_force = matrix( c(0,2,2,2,2,1,1,1,1),9,1)
+    # tn_force taken as lattice weightings
+	#tn_force = matrix( c(t1,t2,t2,t2,t2,t3,t3,t3,t3),9,1)
+	# tn_force taken as weightings from kupershtok model
+	# tn_force = matrix( c(0,1,1,1,1,1/4,1/4,1/4,1/4),9,1)
+	#G  = PV("G")
+	#b  = PV("betaforcing")
+	#temp = tn_force * R
+	#temp = t(temp) %*% U
+	#temp = b * G * R[1] * c_squ*temp
+	#temp2 = R * R
+	#temp2 = tn_force * temp2
+	#temp2 = t(temp2) %*% U
+	#temp2 = 0.5*(1.0 - b) * G * temp2
+	#C(Force,temp + temp2)  
+?>*/
+<?python
+tempx = 0.0
+tempy = 0.0
+for i in range(9):
+    print_ccode(psi[i], assign_to=R[i])
+for i in range(1,9):
+    tempx += w[i]*R[i]*cx[i]
+    tempy += w[i]*R[i]*cy[i]
+F = var(['F.x', 'F.y'])
+print_ccode(tempx*(-G*R[0]),assign_to=F[0])
+print_ccode(tempy*(-G*R[0]),assign_to=F[1])
+?>
+	F.z = 0.0;
+	return F;
+}
+CudaDeviceFunction void calcPsi(){
+// Calculate psi at each point so that pseudopotential force
+// can be found.
+	real_t p0, d;
+	d = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
+	p0 = getP();
+	psi = sqrt(2*(p0-d/3.0)/(G/3.0));
+}
+// Boundary Conditions
+CudaDeviceFunction void BounceBack() {
+     real_t uf;
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+	C(uf, f[V[i,1]])
+    C(f[V[i,1]], f[V[i,2]])
+    C(f[V[i,2]], uf)
+   }
+?>
+}
+CudaDeviceFunction void EVelocity(){
+     real_t rho, ru;
+	 real_t ux0 = Velocity;
+	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
+	ru = rho * ux0;
+	f[3] = f[1] - (2./3.) * ru;
+	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
+}
+CudaDeviceFunction void WPressure(){
+     real_t ru;
+	 real_t rho = Density;
+	ru = rho - ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) );
+
+	f[1] = f[3] + (2./3.) * ru;
+	f[5] = f[7] + (1./6.) * ru - (1./2.)*(f[2] - f[4]);
+	f[8] = f[6] + (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+}
+CudaDeviceFunction void WVelocity(){
+	real_t rho2;
+	real_t u[2] = {Velocity,0.};
+	rho2 = Density;
+	SetEquilibrium(rho2,u);
+}
+CudaDeviceFunction void EPressure(){
+        real_t ru;
+	 real_t rho = Density;
+	ru = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) - rho;
+
+	f[3] = f[1] - (2./3.) * ru;
+	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
+	f[6] = f[8] - (1./6.) * ru - (1./2.)*(f[2] - f[4]);
+}
+CudaDeviceFunction void SymmetryTop() {
+// *******************
+// Symmetry BC for TOP WALL
+// *******************    
+<?R
+  reflect_to =  c(4,7,8) + 1;
+  reflect_from = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+  }
+?>
+}
+CudaDeviceFunction void SymmetryRight() {
+// *******************
+// Symmetry BC for RIGHT WALL
+// *******************    
+<?R
+  reflect_to =  c(6,3,7) + 1;
+  reflect_from = c(5,1,8) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+#    C( phi[reflect_to[i]], phi[reflect_from[i]] )
+  }
+?>
+}
+CudaDeviceFunction void SymmetryBottom() {
+// *******************
+// Symmetry BC for BOTTOM WALL
+// *******************    
+<?R
+  reflect_from =  c(4,7,8) + 1;
+  reflect_to = c(2,6,5) + 1;
+  for (i in 1:3)
+  {
+	C( f[reflect_to[i]], f[reflect_from[i]] )
+  }
+?>
+}
+// Collision Operations
+CudaDeviceFunction void CollisionMRT() {
+	real_t M[9];
+	real_t rho, ux, uy;
+<?R
+# Calculating equlibrium density set
+    	source("lib/feq.R")
+        rho = PV("rho")
+        u = PV(c("ux","uy"))
+        feq = MRT_feq(U, rho, u*rho );
+        R = PV("M[",1:9-1,"]")
+        OMEGA = PV("S",1:9-1,"")
+
+	M = matrix(c(
+	      1,  1,  1,  1,  1,  1,  1,  1,  1,
+	      0,  1,  0, -1,  0,  1, -1, -1,  1,
+	      0,  0,  1,  0, -1,  1,  1, -1, -1,
+	     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+	      4, -2, -2, -2, -2,  1,  1,  1,  1,
+	      0, -2,  0,  2,  0,  1, -1, -1,  1,
+	      0,  0, -2,  0,  2,  1,  1, -1, -1,
+	      0,  1, -1,  1, -1,  0,  0,  0,  0,
+	      0,  0,  0,  0,  0,  1, -1,  1, -1), 9, 9);
+
+	C( rho, sum(f) )
+	C( u, f %*% U * ( rho^(-1) ) )
+	C( R, (f-feq) %*% M * OMEGA );
+?>
+  //  vector_t F = getF();   # LBL doesn't use altered velocity
+  //  ux = ux+F.x/(2.0*rho); #  Zarghami et al 2015
+  //  uy = uy+F.y/(2.0*rho); 
+    
+<?R
+	C( R, R + feq %*% M);
+	C( R, R * (1/ diag(t(M) %*% M)));
+	C( f, R %*% t(M) );
+?>
+}
+CudaDeviceFunction void CollisionBGK() {
+// Here we perform a single relaxation time collision operation.
+	real_t rho, f_temp[9], u[2];
+	rho = <?R C(sum(f)) ?> ;
+	// pu = sum(e_i*f_i)
+	u[0] = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/rho );
+	u[1] = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/rho );
+	f_temp[0] = f[0];
+	f_temp[1] = f[1];
+	f_temp[2] = f[2];
+	f_temp[3] = f[3];
+	f_temp[4] = f[4];
+	f_temp[5] = f[5];
+	f_temp[6] = f[6];
+	f_temp[7] = f[7];
+	f_temp[8] = f[8];
+	// forcing term
+	vector_t Force = getF();
+	real_t gamma, c_squ, S[9], w[9];
+	gamma = 1 - 0.25*tempomega - rho*tempomega/(4*G*c_squ*psi*psi);
+<?python
+F = var(['Force.x', 'Force.y'])
+g = var('gamma')
+for i in range(9):
+    uf1x = (cx[i]-u[0])*3.0
+    uf1y = (cy[i]-u[1])*3.0
+    uf2x = (cx[i]*u[0]+cy[i]*u[1])*cx[i]*9.0
+    uf2y = (cx[i]*u[0]+cy[i]*u[1])*cy[i]*9.0
+    temp1 = ((F[0]*(uf1x+uf2x) + F[1]*(uf1y+uf2y)))
+    uf1x = (cx[i]*F[0]+cy[i]*F[1])**2/(2.0*rho/9.0)
+    uf2x = (F[0]*F[0]+F[1]*F[1])/(2.0*rho/3.0)
+    temp2 = (uf1x - uf2x)
+    print_ccode(w[i]*(temp1+temp2), assign_to=S[i]) 
+?>	
+	SetEquilibrium(rho, u);
+	f[0] = f_temp[0] - tempomega*(f_temp[0]-f[0])+S[0];	
+	f[1] = f_temp[1] - tempomega*(f_temp[1]-f[1])+S[1];
+	f[2] = f_temp[2] - tempomega*(f_temp[2]-f[2])+S[2];
+	f[3] = f_temp[3] - tempomega*(f_temp[3]-f[3])+S[3];	
+	f[4] = f_temp[4] - tempomega*(f_temp[4]-f[4])+S[4];
+	f[5] = f_temp[5] - tempomega*(f_temp[5]-f[5])+S[5];
+	f[6] = f_temp[6] - tempomega*(f_temp[6]-f[6])+S[6];	
+	f[7] = f_temp[7] - tempomega*(f_temp[7]-f[7])+S[7];
+	f[8] = f_temp[8] - tempomega*(f_temp[8]-f[8])+S[8];
+}
+// Body Force Operation - LBL Implementation:
+CudaDeviceFunction void BodyForce() {
+	real_t S[9], theta[4];
+	real_t ux, uy, uf, gamma;
+	real_t rho = f[1]+f[2]+f[3]+f[4]+f[5]+f[6]+f[7]+f[8]+f[0];
+	vector_t Force = getF();
+	real_t c_squ = 1/3.0;
+	<?R 
+	# Write out velocities and define symbolic forces.
+		d = PV("rho")
+        u = PV(c("ux","uy"))
+		F = PV(c("Force.x","Force.y"))
+		C(PV(c("ux","uy")), f %*% U)
+	?>
+	ux /= rho;
+	uy /= rho;
+	gamma = 1 - 0.25*tempomega - rho*tempomega/(4*G*c_squ*psi*psi);
+	// Calculate THETA: Additional higher order term
+	<?R
+	# Implement this once normal forcing is working
+	?>
+	// Calculate Si - forcing term in LBE
+	real_t w[9];
+	w[0] = 4/9.0;
+	w[1] = 1/9.0;
+	w[2] = 1/9.0;
+	w[3] = 1/9.0;
+	w[4] = 1/9.0;
+	w[5] = 1/36.0;
+	w[6] = 1/36.0;
+	w[7] = 1/36.0;
+	w[8] = 1/36.0;/*
+	w[0] = 0.0;
+	w[1] = 1.0;
+	w[2] = 1.0;
+	w[3] = 1.0;
+	w[4] = 1.0;
+	w[5] = 1/4.0;
+	w[6] = 1/4.0;
+	w[7] = 1/4.0;
+	w[8] = 1/4.0;
+	S[0]=w[0]*(((0.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[1]=w[1]*(((1.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[2]=w[2]*(((0.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[3]=w[3]*(((-1.0-ux)*Force.x+(0.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[4]=w[4]*(((0.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(0.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[5]=w[5]*(((1.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[6]=w[6]*(((-1.0-ux)*Force.x+(1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[7]=w[7]*(((-1.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(-1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	S[8]=w[8]*(((1.0-ux)*Force.x+(-1.0-uy)*Force.y)/c_squ+ (gamma/(2.0*c_squ*rho))*(pow(1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)));
+	/*printf("\n rho, %6.4lf", rho);
+	printf("\n gamma, %6.4lf", gamma);
+	printf("\n omega, %6.4lf", tempomega);
+	printf("\n G, %6.4lf", G);
+	printf("\n psi, %6.4lf", psi);
+	for (int i=0;i<9;i++){
+		//if (S[i] > 0.1){
+			printf("\n S %d is",i);
+			printf("%6.4lf",S[i]);
+			printf("\n f %d is",i);
+			printf("%6.4lf",f[i]);
+			//printf("\n ux is %6.4lf, uy is %6.4lf", ux,uy);
+			//printf("\n fx is %6.4lf, fy is %6.4lf",Force.x,Force.y);
+		//}
+	}*/
+	// Excel Generated Code:
+S[0]=w[0]*((0.0-ux+0.0*(0.0*ux+0.0*uy)/c_squ)*Force.x+(0.0-uy+0.0*(0.0*ux+0.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(0.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[1]=w[1]*((1.0-ux+1.0*(1.0*ux+0.0*uy)/c_squ)*Force.x+(0.0-uy+0.0*(1.0*ux+0.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[2]=w[2]*((0.0-ux+0.0*(0.0*ux+1.0*uy)/c_squ)*Force.x+(1.0-uy+1.0*(0.0*ux+1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(0.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[3]=w[3]*((-1.0-ux+-1.0*(-1.0*ux+0.0*uy)/c_squ)*Force.x+(0.0-uy+0.0*(-1.0*ux+0.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(-1.0*Force.x+0.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[4]=w[4]*((0.0-ux+0.0*(0.0*ux+-1.0*uy)/c_squ)*Force.x+(-1.0-uy+-1.0*(0.0*ux+-1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(0.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[5]=w[5]*((1.0-ux+1.0*(1.0*ux+1.0*uy)/c_squ)*Force.x+(1.0-uy+1.0*(1.0*ux+1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[6]=w[6]*((-1.0-ux+-1.0*(-1.0*ux+1.0*uy)/c_squ)*Force.x+(1.0-uy+1.0*(-1.0*ux+1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(-1.0*Force.x+1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[7]=w[7]*((-1.0-ux+-1.0*(-1.0*ux+-1.0*uy)/c_squ)*Force.x+(-1.0-uy+-1.0*(-1.0*ux+-1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(-1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+S[8]=w[8]*((1.0-ux+1.0*(1.0*ux+-1.0*uy)/c_squ)*Force.x+(-1.0-uy+-1.0*(1.0*ux+-1.0*uy)/c_squ)*Force.y+(gamma/(2.0*rho))*(pow(1.0*Force.x+-1.0*Force.y,2)/c_squ-(Force.x*Force.x+Force.y*Force.y)))/c_squ;
+	
+	// Alter PDF's
+	f[0]=f[0]+S[0];
+	f[1]=f[1]+S[1];
+	f[2]=f[2]+S[2];
+	f[3]=f[3]+S[3];
+	f[4]=f[4]+S[4];
+	f[5]=f[5]+S[5];
+	f[6]=f[6]+S[6];
+	f[7]=f[7]+S[7];
+	f[8]=f[8]+S[8];
+
+
+}
+
+// FOR GUI-graphics
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}

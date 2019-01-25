@@ -1,0 +1,88 @@
+<?R
+#include "../HandlerFactory.h"
+source("conf.R")
+	c_header()
+?>
+
+#include "cbStop.h"
+std::string cbStop::xmlname = "Stop";
+
+int cbStop::Init () {
+		Callback::Init();
+		double stop;
+		pugi::xml_attribute attr;
+		<?R 
+		        for (g in rows(Globals)) { ?>
+		attr = node.attribute("<?%s g$name ?>Change");
+		if (attr) {
+			stop = attr.as_double();
+			what.push_back(<?%s g$Index ?>);
+			change.push_back(stop);
+			old.push_back(-12341234);
+		} <?R
+		        } ?>
+		if (what.size() < 1) {
+			error("No *Change attribute in %s\n", node.name());
+			return -1;
+		}
+		attr = node.attribute("Times");
+		if (attr) {
+			times = attr.as_int();
+			if (times < 1) {
+			        error("Minimal number for Times attribute is 1\n");
+                                return -1;
+                        }
+		} else {
+		        times = 1;
+		}
+		score = 0;
+		old_iter_type = solver->iter_type;
+		solver->iter_type |= ITER_LASTGLOB;
+		return 0;
+	}
+
+
+int cbStop::DoIt () {
+		Callback::DoIt();
+		int ret=0;
+                if (solver->mpi_rank == 0) {
+                        int any = 0;
+                        output("Stop criterium:");
+                        for (size_t i=0;i<what.size();i++) {
+                                double v = solver->lattice->globals[ what[i] ];
+                                if (fabs(old[i] - v) > change[i]) any++;
+                                if (D_MPI_RANK == 0) {
+                                        output("                 %4lg / %4lg", fabs(old[i] - v), change[i]);
+                                }
+                                old[i] = v;
+                        }
+                        if (!any) {
+                                score++;
+                        } else {
+                                score = 0;
+                        }
+                        if (D_MPI_RANK == 0) {
+                                output("Score: %d\n", score);
+                        }
+                        if (score >= times) {
+                                if (D_MPI_RANK == 0) notice("Stop.\n");
+                                ret = ITERATION_STOP;
+                                for (size_t i=0;i<what.size();i++) {
+                                        old[i] = -12341234;
+                                }
+                                score=0;
+                        }
+                }
+                MPI_Bcast(&ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		return ret;
+	}
+
+
+int cbStop::Finish () {
+		solver->iter_type = old_iter_type;
+		return Callback::Finish();
+	}
+
+
+// Register the handler (basing on xmlname) in the Handler Factory
+template class HandlerFactory::Register< GenericAsk< cbStop > >;

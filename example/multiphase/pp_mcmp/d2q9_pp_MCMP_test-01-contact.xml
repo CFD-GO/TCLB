@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+		<!--<Units>
+				<Params size="0.0001m" gauge="1"/>
+				<Params nu="1e-5m2/s" gauge="0.166666666666"/>
+		</Units>-->
+        <Geometry nx="200" ny="100">
+		<BGK><Box/></BGK>
+		<None name="zdrop">
+            	<Box dx="80" fx="121" dy="0" fy="23"/>
+		</None>
+		<Wall mask="ALL" name="zwall">
+				<Box dx="0" fx="-1" dy="0" fy="1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Params omega="1"
+				omega_g="1"
+				Density="0.06"
+				Density-zdrop="2.0"
+				Density_dry="2.0"
+				Density_dry-zdrop="0.06"
+				GravitationX ="0.0"
+				GravitationY ="0.0"
+				/>
+		<Params
+				Gc="0.9"
+				Gad1="-0.3"
+				Gad2="0.3"
+         />
+	</Model>
+	<VTK/>
+	<VTK Iterations="100"/>
+	<Solve Iterations="24000"/>
+</CLBConfig>

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="300" ny="100">
+		<MRT><Box/></MRT>
+		<WVelocity name="Inlet"><Inlet/></WVelocity>
+		<EPressure name="Outlet"><Outlet/></EPressure>
+		<Inlet nx='1' dx='5'><Box/></Inlet>
+		<Outlet nx='1' dx='-5'><Box/></Outlet>
+		<Wall mask="ALL">
+			<Channel/>
+		</Wall>
+		<DesignSpace>
+			<Box dx="100" nx="100" dy="20" ny="60"/>
+		</DesignSpace>		
+		<Solid>
+			<Box dx="150" nx="1" dy="0" ny="40"/>
+		</Solid>
+		<None mask="DESIGNSPACE">
+			<Box dx="150" nx="1" dy="0" ny="40"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Params Velocity="0.005"/>
+		<Params nu="0.01"/>
+		<Params DragInObj="-1.0" PorocityTheta="-3"/>
+	</Model>
+	<VTK Iterations="1000"/>
+	<Log Iterations="100"/>
+	<Params Descent="1.0"/>
+	<OptSolve Iterations="100000"/>	
+</CLBConfig>

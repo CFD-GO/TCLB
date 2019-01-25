@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+		<Units>
+				<Params size="0.1m" gauge="1"/>
+				<Params nu="1e-6m2/s" gauge="0.166666666666"/>
+		</Units>
+        <Geometry nx="100" ny="100">
+		<BGK><Box/></BGK>
+		<None name="zdrop">
+            	<Sphere dx="10" fx="90" dy="10" fy="90"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Params omega="1"
+				omega_g="1"
+				Density="0.0"
+				Density-zdrop="1"
+				Density_dry="1"
+				Density_dry-zdrop="0.0"
+				/>
+		<Params
+				Gc="1.8"
+         />
+	</Model>
+	<VTK/>
+	<VTK Iterations="2000"/>
+	<Log Iterations="2000"/>
+	<Solve Iterations="20000"/>
+</CLBConfig>

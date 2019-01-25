@@ -1,0 +1,17 @@
+<?R
+	source("conf.R");
+	c_header();
+	source("lib/lattice.R");
+	U = d2q9
+?>
+
+CudaDeviceFunction real_t getRhoB(){
+        return <?R C(sum(PV(Density$adjoint_name[Density$group == "f"]))) ?>;
+}
+
+CudaDeviceFunction vector_t getUB(){
+        vector_t u;
+	<?R C(PV(c("u.x","u.y")),PV(Density$adjoint_name[Density$group == "f"]) %*% U) ?>;
+	u.z=0;
+	return u;
+}

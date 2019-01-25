@@ -1,0 +1,368 @@
+
+#define S2 1.3333
+#define S3 1.0
+#define S5 1.0
+#define S7 1.0
+#define S8 omega
+#define S9 omega
+
+<?R 
+	source("conf.R") 
+
+
+	u = PV(paste("u[",1:2-1,"]",sep=""))
+	uf = PV("uf")
+	d = PV("d")
+	usq = PV("usq")
+	omega = PV("omega")
+        uf1 = uf;
+        uf2 = uf;
+        uf3 = uf;
+#	omega = 1.0
+
+	fT = PV(Density$name[Density$group=="T"])
+	f = PV(Density$name[Density$group=="f"])
+	U = as.matrix(Density[Density$group=="f",c("dx","dy")])
+
+
+t1 = 4/9
+t2 = 1/9
+t3 = 1/36
+c_squ = 1/3
+
+tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
+bounce = c(0,3,4,1,2,7,8,5,6)
+
+?>
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?> ;
+}
+
+CudaDeviceFunction real_t getT(){
+	return <?R C(sum(fT)) ?> ;
+}
+    
+CudaDeviceFunction vector_t getU(){
+	real_t d = <?R C(sum(f)) ?>;
+	vector_t u;
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
+//	u.x /= d;
+//	u.y /= d;
+	u.z = 0.0;
+	return u;
+}
+
+CudaDeviceFunction real_t getW(){
+	return w;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+//        vector_t u = getU();
+//        ret.x = sqrt(u.x*u.x + u.y*u.y);
+
+	ret.x = (<?R C(sum(fT)) ?>);
+	ret.x = ret.x/111;
+//	ret.x = wb;
+        ret.y = w;
+        return ret;
+}
+
+
+CudaDeviceFunction void BounceBack()
+{
+     real_t uf;
+     #define dump 1
+<?R
+  V = cbind(1:9, bounce+1)
+  sel = V[,1] > V[,2]
+  V = V[sel,]
+  for (i in 1:nrow(V))
+  {
+           C(uf,f[V[i,1]])
+           C(f[V[i,1]],f[V[i,2]])
+           C(f[V[i,2]],uf)
+	
+           C(uf,fT[V[i,1]])
+           C(fT[V[i,1]], fT[V[i,2]]*PV("dump"))
+           C(fT[V[i,2]], uf*PV("dump"))
+   }
+?>
+}
+
+// 0 1 2 3 4 5 6 7 8
+// 1 5 2 6 3 7 4 8 0
+
+CudaDeviceFunction void EVelocity()
+{
+     real_t rho, ru;
+	real_t ux0 = InletVelocity;
+	rho = ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / (1. + ux0);
+	ru = rho * ux0;
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
+}
+
+CudaDeviceFunction void WPressure()
+{
+     real_t ru, ux0;
+	real_t rho = InletDensity;
+	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / rho;
+	ru = rho * ux0;
+
+	f1 = f3 - (2./3.) * ru;
+	f5 = f7 - (1./6.) * ru + (1./2.)*(f4 - f2);
+	f8 = f6 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	#define rho_bar InletTemperature
+	rho = 6.*( rho_bar - (T0 + T2 + T4 + T3 + T7 + T6) );
+	T1 = (1./9.) * rho;
+	T5 = (1./36.) * rho;
+	T8 = (1./36.) * rho;
+}
+/*
+CudaDeviceFunction void WPressure()
+{
+	real_t ru;
+	real_t rho;
+	ru = .75*(-InletTotalPressure + f2 + f4 + 2.*f3 + 4.*(f7 + f6) );
+
+
+	f1 = f3 - (2./3.) * ru;
+	f5 = f7 - (1./6.) * ru + (1./2.)*(f4 - f2);
+	f8 = f6 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	#define rho_bar InletTemperature
+	rho = 6.*( rho_bar - (T0 + T2 + T4 + T3 + T7 + T6) );
+	T1 = (1./9.) * rho;
+	T5 = (1./36.) * rho;
+	T8 = (1./36.) * rho;
+}
+*/
+CudaDeviceFunction void eqWVelocity()
+{
+     real_t rho;
+	real_t u[2] = {InletVelocity,0.};
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
+	SetEquilibrum(rho,u);
+}
+
+CudaDeviceFunction void WVelocity()
+{
+     real_t rho, ru;
+	real_t u[2] = {InletVelocity,0.};
+	rho = ( f0 + f2 + f4 + 2.*(f3 + f7 + f6) ) / (1. - u[0]);
+	ru = rho * u[0];
+	f1 = f3 + (2./3.) * ru;
+	f5 = f7 + (1./6.) * ru + (1./2.)*(f4 - f2);
+	f8 = f6 + (1./6.) * ru + (1./2.)*(f2 - f4);
+	double T = InletTemperature;
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) T=HeaterTemperature;
+	rho = 6.*( T - (T0 + T2 + T4 + T3 + T7 + T6) );
+	T1 = (1./9.) * rho;
+	T5 = (1./36.) * rho;
+	T8 = (1./36.) * rho;
+
+}
+
+CudaDeviceFunction void EPressure()
+{
+     real_t ru, ux0;
+	real_t rho = 1.0;
+	ux0 = -1. + ( f0 + f2 + f4 + 2.*(f1 + f5 + f8) ) / rho;
+	ru = rho * ux0;
+
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
+
+	rho = 6.*( T1 + T5 + T8 );///(1-3*ux0);
+	T3 = (1./ 9.) * rho;
+	T7 = (1./36.) * rho;
+	T6 = (1./36.) * rho;
+}
+
+/*CudaDeviceFunction void EPressure()
+{
+	real_t ru, rho;
+//	h1 = f0 + f2 + f4 + 2.*(f1 + f5 + f8)
+//	h2 = 2.*f1 + f2 + f4 + 4.*(f5 + f8)
+//	ru/.75 = -OutletTotalPressure + h2;
+//	d = -ru + h1;
+//	ru*d/.75 = -OutletTotalPressure*ru + h2*d;
+//	ru*d/.75 = -OutletTotalPressureFlux + h2*d;
+//	ru*(-ru + h1)/.75 = -OutletTotalPressureFlux + h2*(-ru + h1);
+//	-ru*ru/.75 + ru*h1/.75 = -OutletTotalPressureFlux - h2*ru + h2*h1;
+//	0 = ru*ru - ru * (h1 + h2*.75) + (-OutletTotalPressureFlux + h2*h1)*.75;
+//	h1*h1 + 2*h1*h2*.75 + h2*h2*.75*.75 +4*OutletTotalPressureFlux - 4*h2*h1*.75;
+//	d = -ru + h1;
+
+	ru = .75 * (-OutletTotalPressure + 2.*f1 + f2 + f4 + 4.*(f5 + f8) );
+	f3 = f1 - (2./3.) * ru;
+	f7 = f5 - (1./6.) * ru + (1./2.)*(f2 - f4);
+	f6 = f8 - (1./6.) * ru + (1./2.)*(f4 - f2);
+
+	rho = 6.*( T1 + T5 + T8 );///(1-3*ux0);
+	T3 = (1./ 9.) * rho;
+	T7 = (1./36.) * rho;
+	T6 = (1./36.) * rho;
+}
+*/
+
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+		w=0;
+		break;
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    }
+    if (NodeType & NODE_MRT)
+    {
+		CollisionMRT();
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t d, real_t u[2])
+{	real_t usq, uf;
+<?R C(usq, sum(u*u)*(1/c_squ)) ?>
+<?R
+	for (i in 1:9) {
+         cat("//--",i,"-------------------------------------------------\n")
+                 C(uf1 ,  (u %*% t(U) * (1/c_squ))[i]       )
+                 C(uf2 ,  uf1 + (uf1*uf1+usq*(-1))*0.5 + 1  )
+                 C(uf3 ,  d * uf2                           )
+                 C(f[i] ,  uf3 * tn[i,i]                    )
+        }
+?>
+
+}
+
+CudaDeviceFunction void Init() {
+	real_t u[2] = {InletVelocity,0.};
+	real_t d = 1.0;
+	SetEquilibrum(d,u);
+//	for (int i =0; i<9;i++) T[i] = 0;
+	w=1;
+	<?R for (i in 1:9) { ?>
+		T<?%d i-1 ?> = InitTemperature*<?%f tn[i,i] ?>;
+	<?R }?>
+}
+
+
+CudaDeviceFunction void CollisionMRT()
+{
+	real_t u[2], usq, d, R[6], uf, T, Tx, Ty;
+<?R
+        R = PV(c(
+		"d",
+		paste("u[",1:2-1,"]",sep=""),
+		paste("R[",1:6-1,"]",sep="")
+	))
+        RT = PV(c(
+		"T",
+		"Tx","Ty",
+		paste("R[",1:6-1,"]",sep="")
+	))
+
+M = matrix(c(
+      1,  1,  1,  1,  1,  1,  1,  1,  1,
+      0,  1,  0, -1,  0,  1, -1, -1,  1,
+      0,  0,  1,  0, -1,  1,  1, -1, -1,
+     -4, -1, -1, -1, -1,  2,  2,  2,  2,
+      4, -2, -2, -2, -2,  1,  1,  1,  1,
+      0, -2,  0,  2,  0,  1, -1, -1,  1,
+      0,  0, -2,  0,  2,  1,  1, -1, -1,
+      0,  1, -1,  1, -1,  0,  0,  0,  0,
+      0,  0,  0,  0,  0,  1, -1,  1, -1), 9,9);
+
+
+	C( R , f %*% M );
+	C( usq , sum(u*u) );
+?>
+R[0] = R[0] -  (-2. * d + 3. * usq);
+R[1] = R[1] -  (d - 3.*usq);
+R[2] = R[2] -  (-u[0]);
+R[3] = R[3] -  (-u[1]);
+R[4] = R[4] -  (u[0]*u[0] - u[1]*u[1]);
+R[5] = R[5] -  (u[0]*u[1]);
+	u[0] *= w;
+	u[1] *= w;
+<?R
+	C( usq , sum(u*u) );
+?>
+
+R[0] = R[0]*(1-S2)  +  (-2. * d + 3. * usq);
+R[1] = R[1]*(1-S3)  +  (d - 3.*usq);
+R[2] = R[2]*(1-S5)  +  (-u[0]);
+R[3] = R[3]*(1-S7)  +  (-u[1]);
+R[4] = R[4]*(1-S8)  +  (u[0]*u[0] - u[1]*u[1]);
+R[5] = R[5]*(1-S9)  +  (u[0]*u[1]);
+
+<?R
+	C( f , R %*% solve(M) );
+?>
+//	real_t us[2];
+	u[0] = u[0] / d;
+	u[1] = u[1] / d;
+
+#define Tom omegaT
+#define Tom2 omegaT
+real_t omegaT = FluidAlpha * w + SolidAlpha * (1-w);
+omegaT = 1.0/(3*omegaT + 0.5);
+
+<?R
+	C( RT , fT %*% M );
+?>
+R[0] = R[0] - (-2*T);
+R[1] = R[1] - (T);
+R[2] = R[2] - (-u[0]*T);
+R[3] = R[3] - (-u[1]*T);
+Tx = Tx - (u[0]*T);
+Ty = Ty - (u[1]*T);
+
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) T=HeaterTemperature;
+        if ((NodeType & NODE_OBJECTIVE) == NODE_Outlet) {
+                AddToFlux( u[0] );
+                AddToHeatFlux( T*u[0] );
+                AddToHeatSquareFlux( T*T*u[0] );
+        }
+        if ((NodeType & NODE_OBJECTIVE) == NODE_Thermometer) {
+                AddToTemperature(T);
+                if (T > LimitTemperature) {
+                        AddToHighTemperature((T-LimitTemperature)*(T-LimitTemperature));
+                } else {
+                        AddToLowTemperature( (T-LimitTemperature)*(T-LimitTemperature));
+                }
+        }
+
+R[0] = R[0]*(1-Tom2) + (-2*T);
+R[1] = R[1]*(1-Tom2) + (T);
+R[2] = R[2]*(1-Tom2) + (-u[0]*T);
+R[3] = R[3]*(1-Tom2) + (-u[1]*T);
+R[4] = R[4]*(1-Tom);
+R[5] = R[5]*(1-Tom);
+Tx = Tx*(1-Tom2) + (u[0]*T);
+Ty = Ty*(1-Tom2) + (u[1]*T);
+
+<?R
+	C( fT , RT %*% solve(M) );
+?>
+
+}
+
+

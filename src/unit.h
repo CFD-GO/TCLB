@@ -17,6 +17,9 @@ std::string strFromDouble(double val);
 const int m_unit = 9;
 const std::string m_units[]={"m","s","kg","K", "x", "y", "z", "A", "t"};
 
+void GaussSolve (double A[], double b[], double x[], int n);
+
+
 /// Variable with unit
 /**
   Type for a variable with unit, capable of calculations.

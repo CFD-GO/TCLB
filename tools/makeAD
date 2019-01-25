@@ -7,7 +7,7 @@ rm Dynamics_tmp.c Dynamics_b.c* ADpre_.h types_b.h tmp 2>/dev/null
 echo "#define CudaDeviceFunction" > Dynamics_tmp.c
 echo "#include \"../config.h\"" >> Dynamics_tmp.c
 echo "#include \"types.h\"" >> Dynamics_tmp.c
-//echo "#define CONFIG_H" >> Dynamics_tmp.c
+#echo "#define CONFIG_H" >> Dynamics_tmp.c
 echo "#include \"Consts.h\"" >> Dynamics_tmp.c
 echo "#include \"Dynamics.h\"" >> Dynamics_tmp.c
 echo "#include \"ADpre_.h\"" >> Dynamics_tmp.c
@@ -15,16 +15,18 @@ cp ADpre.h ADpre_.h
 cat Dynamics.c | sed 's/pow(\([^,]*\),3)/((\1)*(\1)*(\1))/g' >> Dynamics_tmp.c
 echo Variables for differentiation: $VARIABLES
 echo Additional variables for differentiation: $SETTINGS
-tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o DynamicsS -vars "$VARIABLES $SETTINGS" -outvars "$VARIABLES $SETTINGS"
+echo tapenade -html -msglevel 12 -b Dynamics_tmp.c -root $MAIN_FUN -o DynamicsS -vars "$VARIABLES $SETTINGS" -outvars "$VARIABLES $SETTINGS"
+tapenade -msglevel 12 -b Dynamics_tmp.c -root $MAIN_FUN -o DynamicsS -vars "$VARIABLES $SETTINGS" -outvars "$VARIABLES $SETTINGS"
 echo "#define CONST_SETTINGS" > ADpre_.h
 cat ADpre.h >> ADpre_.h
-tapenade -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES" -outvars "$VARIABLES"
+echo tapenade -html -msglevel 12 -b Dynamics_tmp.c -root $MAIN_FUN -o DynamicsS -vars "$VARIABLES $SETTINGS" -outvars "$VARIABLES $SETTINGS"
+tapenade -msglevel 12 -b Dynamics_tmp.c -root $MAIN_FUN -o Dynamics -vars "$VARIABLES" -outvars "$VARIABLES"
 for f in Dynamics_b.c DynamicsS_b.c
 do
 	test -f $f || { echo "Tapenade failed"; exit -1; }
 	$path_to_script/ADmod.R -f $f -o ${f}_ -x "$FIX"
 	mv ${f}_ $f
-	while read line; do
+	while read -r line; do
 		if test ! -z "$line"
 		then
 			sed "$line" $f > ${f}_

@@ -17,21 +17,33 @@ public:
   real_t * gpuConst;
     
   inline ZoneSettings() {
+    DEBUG_M;
     len = 1;
     MaxZones=0;
+    debug1("TIME_SEG: %d\n", TIME_SEG);
     cpuValues = (real_t**) malloc(sizeof(real_t*) * TIME_SEG);
+    assert(cpuValues != NULL);
     cpuTab = (real_t**) malloc(sizeof(real_t*) * TIME_SEG);
+    assert(cpuTab != NULL);
     for (int i=0; i<TIME_SEG; i++) {
       cpuValues[i] = NULL;
       cpuTab[i] = NULL;
     }
     cpuConst = (real_t*) malloc(sizeof(real_t) * TIME_SEG);
+    assert(cpuConst != NULL);
     for (int i=0; i<TIME_SEG; i++) {
       cpuConst[i] = 0.0;
     }
-    CudaMalloc(&gpuTab, sizeof(real_t*) * TIME_SEG);
-    CudaMalloc(&gpuConst,   sizeof(real_t)  * TIME_SEG);
+    DEBUG_M;
+    debug0("&gpuTab: %p, size: %ld\n", &gpuTab, sizeof(real_t*) * TIME_SEG);
+    CudaMalloc((void**) &gpuTab, sizeof(real_t*) * TIME_SEG);
+    assert(gpuTab != NULL);
+    DEBUG_M;
+    CudaMalloc((void**) &gpuConst,   sizeof(real_t)  * TIME_SEG);
+    assert(gpuConst != NULL);
+    DEBUG_M;
     CopyToGPU();
+    DEBUG_M;
   }
   
   inline void zone_max(int z) {
@@ -214,8 +226,10 @@ public:
 
   
   inline void CopyToGPU () {
+    DEBUG_M;
     CudaMemcpy(gpuTab,   cpuTab,   sizeof(real_t*) * TIME_SEG, cudaMemcpyHostToDevice);
     CudaMemcpy(gpuConst, cpuConst, sizeof(real_t)  * GRAD_OFFSET, cudaMemcpyHostToDevice);
+    DEBUG_M;
     for (int i=0; i<GRAD_OFFSET; i++) if (cpuValues[i] != NULL) {
       assert(cpuTab[i] != NULL);
       CudaMemcpy(cpuTab[i],   cpuValues[i],  sizeof(real_t) * len, cudaMemcpyHostToDevice);
@@ -224,15 +238,16 @@ public:
 
   inline void ClearGrad () {
     for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
-      output("Clearing gradient in ZoneSettings (%d)\n", i);
+      debug0("Clearing gradient in ZoneSettings (%d)\n", i);
       CudaMemset(cpuTab[i], 0, sizeof(real_t) * len);
     }
   }
 
   inline void CopyFromGPU () {
+    DEBUG_M;
     for (int i=GRAD_OFFSET; i<TIME_SEG; i++) if (cpuValues[i] != NULL) {
       assert(cpuTab[i] != NULL);
-      printf("Copying gradient data from GPU (%d)\n", i);
+      debug0("Copying gradient data from GPU (%d)\n", i);
       CudaMemcpy(cpuValues[i], cpuTab[i],  sizeof(real_t) * len, cudaMemcpyDeviceToHost);
     }
   }
@@ -247,6 +262,8 @@ public:
     free(cpuConst);
     CudaFree(gpuConst);
   }
+
+  int dumpToFile(const char*);
   
   inline size_t getLen() { return len; }
 };

@@ -80,6 +80,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->py = region.dy;
 	container->pz = region.dz;
 	container->iter = 0;
+	container->reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -193,8 +194,8 @@ void Lattice::startRecord()
 		iSnaps[i]= -1;
 	}
 	{
-		char filename[STRING_LEN];
-		sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, getSnap(0));
+		char filename[2*STRING_LEN];
+		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
 		save(Snaps[Snap], filename);
 	}
@@ -264,6 +265,17 @@ void Lattice::clearDPar()
 	Clear_<?%s d$nicename ?>(); <?R
 	}
 ?>
+}
+
+/// Finish unsteady adjoint record
+/**
+        Stops the Adjoint recording process
+*/
+void Lattice::rewindRecord()
+{
+	Record_Iter = 0;
+	IterateTill(Record_Iter, ITER_NORM);
+	debug2("Rewind tape\n");
 }
 
 /// Finish unsteady adjoint record
@@ -369,7 +381,7 @@ inline void Lattice::MPIStream_B(int tag)
         \param tab1 Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
+void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 {
 	real_t * tmp;
 	int size, from, to;
@@ -382,8 +394,6 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
 	container->ZoneIndex = ZoneIter;
 	container->MaxZones = zSet.MaxZones;
-	ST.Generate();
-	ST.CopyToGPU(container->ST);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -392,6 +402,8 @@ inline void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	if (mpi.rank != to) {
 		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
 		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
@@ -468,18 +480,18 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 	container->ZoneIndex = ZoneIter;
 	container->MaxZones = zSet.MaxZones;
-	ST.Generate();
-	ST.CopyToGPU(container->ST);
 
 	debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	from = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
 		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
@@ -558,24 +570,70 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 
 
 /// Function listing all buffers in FTabs
-void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
+	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
-	*maxsize = 0;
-	*n = <?%d length(NonEmptyMargin) ?>;
-	*size = new size_t[*n];
-	*ptr = new void*[*n];
+	if (maxsize) *maxsize = 0;
+	n = <?%d length(NonEmptyMargin) ?>;
+	if (np) *np = n;
+	if (size) *size = new size_t[n];
+	if (ptr) *ptr = new void*[n];
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	(*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(real_t);
-	(*ptr)[j] = (void*) tab.<?%s m$name ?>;
-	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
+	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
+	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
 	}
 ?>
 }
+
+size_t Lattice::sizeOfTab() {
+<?R
+	totsize = 0
+	for (m in NonEmptyMargin) totsize = m$Size + totsize
+?>
+	int nx = region.nx, ny=region.ny,  nz=region.nz;
+	return <?R C(totsize,float=F) ?>;
+}
+
+void Lattice::saveToTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Save buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+void Lattice::loadFromTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Load buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
 
 /// Save a FTabs
 int Lattice::save(FTabs& tab, const char * filename) {
@@ -683,6 +741,9 @@ void Lattice::Init()
    MPI_Barrier(mpi.comm);
    Action_Init(1,0,ITER_NO);
    MPI_Barrier(mpi.comm);
+	Iter = 0;
+	container->iter = 0;
+	clearGlobals();
 
 //   Stream();
 //   container->Init();
@@ -692,6 +753,12 @@ void Lattice::Init()
 void Lattice::BeforeIt()
 {
 }
+
+void Lattice::GenerateST() {
+	ST.Generate();
+	ST.CopyToGPU(container->ST);
+}
+
 
 /// Function for calculating the index of a Snapshot for a iteration
 int Lattice::getSnap(int i) {
@@ -722,8 +789,8 @@ void Lattice::IterateTill(int it, int iter_type)
 	if (imx >= nSnaps) {
 		if (reverse_save) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
-			char filename[STRING_LEN];
-			sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, imx);
+			char filename[2*STRING_LEN];
+			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
 			ERROR("I have to read from disk, but reverse_save is not switched on\n");
@@ -745,8 +812,8 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
-				char filename[STRING_LEN];
-				sprintf(filename, "Snap_%02d_%02d.dat", D_MPI_RANK, s2);
+				char filename[2*STRING_LEN];
+				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}
 		}
@@ -891,6 +958,23 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 
 }
 
+void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
+{
+	if (Q == NULL) return;
+	container->ActivateCuts();
+	lbRegion inter = region.intersect(over);
+        int x = inter.dx;
+	size_t regsize = region.size();
+	size_t oversize = over.size();
+        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+        for (int d = 0; d<26; d++)
+        {
+                CudaMemcpy2D(&container->Q[region.offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, cudaMemcpyHostToDevice);
+        }
+
+}
+
 /// Get NodeType's from a region
 void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {
@@ -910,7 +994,8 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 }
 
 <?R
-	for (d in rows(rbind(Density,DensityAD))) { 
+	for (f in rows(Fields)[Fields$parameter]) { 
+
 	for (adjoint in c(TRUE,FALSE)) {
 	if (adjoint) {
 		from="aSnaps[aSnap]";
@@ -922,47 +1007,47 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 	ifdef(adjoint)
 ?>
 
-/// Get [<?%s d$comment ?>]
+/// Get [<?%s f$comment ?>]
 /**
-        Retrive the values of the density <?%s d$nicename ?> (<?%s d$comment ?>)
+        Retrive the values of the density <?%s f$nicename ?> (<?%s f$comment ?>)
         from the GPU memory
 */
-void Lattice::Get_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
+void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 {
-	debug2("Pulling all <?%s d$nicename ?>\n");
+	debug2("Pulling all <?%s f$nicename ?>\n");
 	CudaMemcpy(
 		tab,
-		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
 		region.sizeL()*sizeof(real_t),
 		cudaMemcpyDeviceToHost);
 }
 
-/// Clear [<?%s d$comment ?>]
+/// Clear [<?%s f$comment ?>]
 /**
         Clear (set to zero) the values of
-        the density <?%s d$nicename ?> (<?%s d$comment ?>)
+        the density <?%s f$nicename ?> (<?%s f$comment ?>)
         in the GPU memory
 */
-void Lattice::Clear_<?%s d$nicename ?><?%s suff ?>()
+void Lattice::Clear_<?%s f$nicename ?><?%s suff ?>()
 {
-	debug2("Clearing all <?%s d$nicename ?>\n");
+	debug2("Clearing all <?%s f$nicename ?>\n");
 	CudaMemset(
-		&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
 		0,
 		region.sizeL()*sizeof(real_t));
 }
 
-/// Set [<?%s d$comment ?>]
+/// Set [<?%s f$comment ?>]
 /**
         Set the values of
-        the density <?%s d$nicename ?> (<?%s d$comment ?>)
+        the density <?%s f$nicename ?> (<?%s f$comment ?>)
         in the GPU memory
 */
-void Lattice::Set_<?%s d$nicename ?><?%s suff ?>(real_t * tab)
+void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 {
-	debug2("Setting all <?%s d$nicename ?>\n");
+	debug2("Setting all <?%s f$nicename ?>\n");
 	CudaMemcpy(
-		&<?%s from ?>.block14[<?%s d$Index?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()], 
 		tab,
 		region.sizeL()*sizeof(real_t),
 		cudaMemcpyHostToDevice);
@@ -1162,11 +1247,8 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;
-	<?R for (d in rows(DensityAll)) if (d$average) {?> 
-	  CudaMemset(&<?%s from ?>.block14[<?%s d$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));	 
-	<?R } ?> 
-        <?R for (f in Fields)  if ((f$average) && (!(f$name %in% Density$name)))   { ?>
-          CudaMemset(&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
+        <?R for (f in rows(Fields))  if (f$average) { ?>
+          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
 	 <?R } ?>
 } 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>

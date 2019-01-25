@@ -6,6 +6,7 @@ AC_PREREQ([2.63])
 AC_INIT([CLB], 0.01)
 AC_CONFIG_AUX_DIR([tools])
 AC_CONFIG_HEADERS([CLB/config.h:src/config.h.in])
+AC_LANG([C++])
 
 AC_ARG_WITH([gcc],
 	AC_HELP_STRING([--with-gcc=compiler_bindir],
@@ -36,11 +37,19 @@ AC_ARG_ENABLE([double],
 
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
-		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30)]))
+		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30/sm_60)]))
 
 AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
 		[specify the full path to your nlopt library]))
+
+AC_ARG_WITH([r],
+	AC_HELP_STRING([--with-r=r],
+		[specify the full path to your r]))
+
+AC_ARG_ENABLE([rinside],
+	AC_HELP_STRING([--enable-rinside],
+		[specify the full path to your r]))
 
 AC_ARG_WITH([catalyst],
 	AC_HELP_STRING([--with-catalyst=path],
@@ -58,8 +67,8 @@ AC_ARG_ENABLE([waitany],
 	AC_HELP_STRING([--enable-waitany],
 		[enables MPI WaitAny (default)]))
 
-AC_ARG_ENABLE([openmp],
-	AC_HELP_STRING([--enable-openmp],
+AC_ARG_WITH([openmp],
+	AC_HELP_STRING([--with-openmp],
 		[enable openMP in the CPU code]))
 
 AC_ARG_ENABLE([coverage],
@@ -78,11 +87,26 @@ AC_ARG_WITH([python],
 	AC_HELP_STRING([--with-python],
 		[Enable CallPython handler, requires python-dev]))
 
+AC_ARG_WITH([python_config],
+	AC_HELP_STRING([--with-python-config],
+		[Set python(2)-config binary to call]))
+
+
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
 		[Makes GCC paranoid.]))
-			
+AC_ARG_ENABLE([profiling],
+	AC_HELP_STRING([--enable-profiling],
+		[enable profiling for R in rtemplate]))		
+
+AC_ARG_WITH([cpp-flags],
+	AC_HELP_STRING([--with-cpp-flags=FLAGS],
+		[privide additionals flags for the compiler]),
+	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
+
+test -z "$CXX" && CXX=mpic++
+test -z "$CC" && CC=mpicc
 
 # Checks for programs.
 AC_PROG_CXX
@@ -96,6 +120,11 @@ if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
 fi
+
+OPENMP="${with_openmp}"
+test "x${with_openmp}" == "xno" && OPENMP=""
+test "x${with_openmp}" == "x" && OPENMP=""
+test "x${with_openmp}" == "xyes" && OPENMP="-fopenmp"	
 
 if test "x${enable_cuda}" != "xno"
 then
@@ -190,6 +219,12 @@ then
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
 		CUDA_SUFF="30"
+	elif test "$CUDA_ARCH" == "sm_60"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+		CUDA_SUFF="60"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -202,7 +237,7 @@ then
 		#NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
 		NVFLAGS="${NVFLAGS} -arch=compute_${CUDA_SUFF}"
 	fi
-	if test "x${enable_openmp}" == "xyes"
+	if ! test -z "$OPENMP"
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
 	fi
@@ -213,10 +248,10 @@ else
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with CPU version])
 	fi
-	if test "x${enable_openmp}" == "xyes"
+	if ! test -z "$OPENMP"
 	then
-		CPPFLAGS="${CPPFLAGS} -fopenmp"
-		LDFLAGS="${CPPFLAGS} -fopenmp"
+		CPPFLAGS="${CPPFLAGS} $OPENMP"
+		LDFLAGS="${CPPFLAGS} $OPENMP"
 		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
 fi
@@ -236,26 +271,6 @@ CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
 
 
-if  test "x${with_python}" == "xyes"; then
-    AC_CHECK_PROG(PC,[python-config],[yes],[no])
-    if test "x${PC}" == "xyes"; then
-        python_config="python-config"
-    fi
-
-    AC_MSG_CHECKING([Python Embandinng: linker flags])
-    PF=$($python_config --ldflags)
-    LDFLAGS="${LDFLAGS} ${PF}"
-    AC_MSG_RESULT([${PF}])
-    
-    AC_MSG_CHECKING([Python Embandinng: compiler flags])
-#    PF=$($python_config --cflags)
-    PF=$($python_config --includes)
-    CPP_OPT="${CPPFLAGS} ${PF}"
-    EMBEDED_PYTHON=1
-    AC_MSG_RESULT([${PF}])
-fi
-
-
 
 
 AC_MSG_CHECKING([MPI library path])
@@ -271,7 +286,45 @@ else
 fi
 LDFLAGS="${LDFLAGS} -L${MPI_LIB}"
 AC_CHECK_HEADERS([mpi.h],[],[AC_MSG_ERROR([Didn't find mpi.h])])
-AC_CHECK_LIB([mpi], [MPI_Recv],[],[AC_MSG_ERROR([Didn't find MPI Library])])
+AC_CHECK_LIB([mpi], [MPI_Recv],[],[
+	AC_CHECK_FUNC([MPI_Recv],[],[
+		AC_MSG_ERROR([Didn't find MPI Library])
+	])
+])
+
+
+if  test "x${with_python}" == "xyes"; then
+   
+    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
+    
+    AC_MSG_NOTICE([python config: ${python_config}])
+
+    AC_MSG_CHECKING([python embandinng: linker flags])
+    PF=$(${python_config} --ldflags)
+	
+    LDFLAGS="${LDFLAGS} ${PF}"
+
+    AC_MSG_RESULT([${PF}])
+
+	AC_MSG_CHECKING([Python - numpy additional include path])
+	PYINC="$(python -c 'import numpy; print(numpy.get_include())')"
+	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
+    AC_MSG_RESULT([${PYINC}])
+    
+    AC_MSG_CHECKING([Python Embandinng: compiler flags])
+#    PF=$($python_config --cflags)
+    PF=$($python_config --includes)
+    CPPFLAGS="${CPPFLAGS} ${PF}"
+
+    PF=$($python_config --prefix)
+
+    LDFLAGS="${LDFLAGS} -L${PF}/lib"
+    EMBEDED_PYTHON=1
+    AC_MSG_RESULT([${PF}])
+	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
+fi
+
+
 
 NLOPT=""
 
@@ -388,6 +441,66 @@ then
 fi
 
 
+if test "x${with_r}" == "x"
+then
+	AC_PATH_PROG(with_r,[R],[no])
+fi
+
+if test "x${with_r}" == "xno"
+then
+	AC_MSG_ERROR([Cannot run without R (--without-r not allowed)])
+else
+	R_BIN=${with_r}
+fi
+
+AC_MSG_CHECKING($R_BIN)
+if ! test -f "$R_BIN"
+then
+	AC_MSG_ERROR([not found])
+else
+	AC_MSG_RESULT([exists])
+fi
+
+AC_MSG_CHECKING([R package: optparse])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("optparse")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: numbers])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("numbers")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: rtemplate])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("rtemplate")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: gvector])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("gvector")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+AC_MSG_CHECKING([R package: polyAlgebra])
+AS_IF([$R_BIN --vanilla --slave -e 'if (!require("polyAlgebra")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+
+if test "x${enable_rinside}" != "xno"
+then
+	AC_MSG_CHECKING([R package: RInside])
+	RINSIDE=yes
+	AS_IF([$R_BIN --vanilla --slave -e 'if (!require("RInside")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),[AC_MSG_RESULT([no]); RINSIDE=no])
+	if test "x${RINSIDE}" == "xno"
+	then
+		AC_MSG_CHECKING([if RInside required])
+		if test "x${enable_rinside}" == "xyes"
+		then
+			AC_MSG_ERROR([yes])
+		else
+			AC_MSG_RESULT([no])
+		fi
+	else
+		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
+		CPP_OPT=${CPPFLAGS}
+		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --without-rinside]))
+		AC_DEFINE([WITH_R], [1], [Using R])
+	fi
+fi
+
 if test "x${enable_debug}" == "xyes"
 then
 	if test "x${with_verbosity_level}" == "x"
@@ -398,8 +511,19 @@ then
 	AC_DEFINE([CROSS_SYNCALLOC], [1], [Sync malloc calls])
 	CPPFLAGS="${CPPFLAGS} -g"
 	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
+fi
+
+if test "x${CONF_CPPFLAGS}" == "x"
+then
+        if test "x${enable_debug}" == "xyes"
+        then
+                CPPFLAGS="${CPPFLAGS} -g"
+        else
+                CPPFLAGS="${CPPFLAGS} -O3"
+        fi
+        CPPFLAGS="${CPPFLAGS} -Wno-write-strings"
 else
-	CPPFLAGS="${CPPFLAGS} -O3"
+	CPPFLAGS="${CPPFLAGS} ${CONF_CPPFLAGS}"
 fi
 
 if test "x${with_verbosity_level}" == "x0"
@@ -450,6 +574,11 @@ then
 	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
 fi
 
+if test "x${enable_profiling}" == "xyes"
+then
+	RTOPT="${RTOPT} -p"
+fi
+
 # Checks for typedefs, structures, and compiler characteristics.
 #AC_HEADER_STDBOOL
 #AC_C_INLINE
@@ -473,6 +602,7 @@ AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
+AC_SUBST(WITH_R)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
