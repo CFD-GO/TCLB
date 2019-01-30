@@ -1,8 +1,20 @@
+#include "Consts.h"
+#ifdef EMBEDED_PYTHON
+    #include "Python.h"
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#endif
+
+<?R
+ library(gvector,quiet=TRUE,warn.conflicts=FALSE)
+ library(polyAlgebra,quiet=TRUE,warn.conflicts=FALSE)
+?>
+
+
 #include <stdlib.h>
 #include <cstring>
 #include <iostream>
 #include "pugixml.hpp"
-#include "Consts.h"
+
 #include "cross.h"
 #include "types.h"
 #include "Region.h"
@@ -14,20 +26,37 @@
 #include "spline.h"
 #include <assert.h>
 
+
+<?R
+				x = c(0,1,-1);
+				U = expand.grid(x,x,x)
+?>
+const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
+
 /// Main constructor
 /**
         Constructs the Geometry object based on size
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const UnitEnv & units_):region(r), units(units_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
 {
     geom = new flag_t[region.sizeL()];
+    Q = NULL;
     for (size_t i = 0; i < region.sizeL(); i++) {
 	geom[i] = 0;
     }
     output("Creating geom size:%ld\n", region.sizeL());
     SettingZones["DefaultZone"] = 0;
+}
+
+inline void Geometry::ActivateCuts() {
+	if (Q == NULL) {
+		Q = new cut_t[region.sizeL()*26];
+		for (size_t i = 0; i < region.sizeL()*26; i++) {
+			Q[i] = NO_CUT;
+		}
+	}
 }
 
 #define E(x) if (x) { return -1; }
@@ -197,6 +226,7 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 	ret.nx = ret.ny = ret.nz = 1;
 	return ret;
     }
+    if (strcmp(node.name(),"Geometry") == 0) return totalregion;
     ret = getRegion(node.parent());
 
     char side; 
@@ -383,18 +413,51 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] += v;
 	}
     }
+    const double sm_diff[3] = {0.123e-5, 0.231e-5, 0.312e-5};
     for (int i = 0; i < ntri; i++) {
 	for (int j = 0; j < 3; j++) {
-		tri[i].p1[j] += 1e-7 - 0.5;
-		tri[i].p2[j] += 1e-7 - 0.5;
-		tri[i].p3[j] += 1e-7 - 0.5;
 		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
 		tri[i].p2[j] = myround(tri[i].p2[j] * 1e5) * 1e-5;
 		tri[i].p3[j] = myround(tri[i].p3[j] * 1e5) * 1e-5;
+		tri[i].p1[j] += sm_diff[j] - 0.5;
+		tri[i].p2[j] += sm_diff[j] - 0.5;
+		tri[i].p3[j] += sm_diff[j] - 0.5;
 	}
     }
     return 0;
 }
+
+inline cut_t smaller(cut_t a,cut_t b) {
+	if (a<b) return a;
+	return b;
+}
+
+cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, double dz) {
+	double mat[16],b[4],r[4];
+	<?R
+		M = PV("mat[",1:16-1,"]")
+		dim(M) = c(4,4)
+		W = M
+		xyz = c("x","y","z");
+		W[1:3,1] = PV(xyz) - PV("tri.p1[",1:3-1,"]")
+		W[1:3,2] = PV(xyz) - PV("tri.p2[",1:3-1,"]")
+		W[1:3,3] = PV(xyz) - PV("tri.p3[",1:3-1,"]")
+		W[1:3,4] = PV("d",xyz)
+		W[4,1:4] = c(1,1,1,0)
+		b = c(0,0,0,1)
+		C(M,W)
+		C(PV("b[",1:4-1,"]"),c(0,0,0,1))
+	?>
+//	return 0;
+	GaussSolve(mat,b,r,4);
+	if (r[0] < 0) return NO_CUT;
+	if (r[1] < 0) return NO_CUT;
+	if (r[2] < 0) return NO_CUT;
+	if (r[3] < 0) return NO_CUT;
+	if (r[3] > 1) return NO_CUT;
+	return r[3]*CUT_MAX;
+}
+
 
 /// Load STL file
 inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
@@ -414,8 +477,10 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 	    insideOut=0;
         } else if (side == "out") {
             insideOut=1;
+        } else if (side == "surface") {
+            insideOut=2;
         } else {
-	    error("'side' in 'STL' element have to be 'in' or 'out'\n");
+	    error("'side' in 'STL' element have to be 'in', 'out' or 'surface'\n");
 	    return -1;
 	}
     }
@@ -427,9 +492,14 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     }
     ret = fread(header, 80, sizeof(char), f);
     ret = fread(&ntri, 1, sizeof(int), f);
+    if (!strncmp(header, "solid", 5)){      // Checking if STL is binary. STL in ASCII begins with "solid"
+        error("'STL' element %s is not in binary format!\n", n.attribute("file").value());
+        debug1("'solid' found at the beginning of STL file");
+        return -1;
+    }
     tri = (STL_tri *) malloc(ntri * sizeof(STL_tri));
-    char *lev = (char *) malloc(reg.size() * sizeof(char));
-    for (int i = 0; i < reg.size(); i++)
+    char *lev = (char *) malloc(reg.sizeL() * sizeof(char));
+    for (size_t i = 0; i < reg.sizeL(); i++)
 	lev[i] = insideOut;
     debug1("%d x %ld = %ld\n", ntri, sizeof(STL_tri), ntri * sizeof(STL_tri));
     ret = fread(tri, ntri, sizeof(STL_tri), f);
@@ -438,60 +508,73 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     debug1("Number of triangles: %d\n", ntri);
     transformSTL(ntri, tri, n);
     for (int i = 0; i < ntri; i++) {
-	int minx, maxx, minz, maxz;
-	minx = ceil(tri[i].p1[0]);
-	if (tri[i].p2[0] < minx)
-	    minx = ceil(tri[i].p2[0]);
-	if (tri[i].p3[0] < minx)
-	    minx = ceil(tri[i].p3[0]);
-	maxx = floor(tri[i].p1[0]);
-	if (tri[i].p2[0] > maxx)
-	    maxx = floor(tri[i].p2[0]);
-	if (tri[i].p3[0] > maxx)
-	    maxx = floor(tri[i].p3[0]);
-	minz = ceil(tri[i].p1[2]);
-	if (tri[i].p2[2] < minz)
-	    minz = ceil(tri[i].p2[2]);
-	if (tri[i].p3[2] < minz)
-	    minz = ceil(tri[i].p3[2]);
-	maxz = floor(tri[i].p1[2]);
-	if (tri[i].p2[2] > maxz)
-	    maxz = floor(tri[i].p2[2]);
-	if (tri[i].p3[2] > maxz)
-	    maxz = floor(tri[i].p3[2]);
+	int min[3], max[3];
+	for (int j=0; j<3;j++) {
+		min[j] = ceil(tri[i].p1[j]);
+		if (tri[i].p2[j] < min[j])
+		    min[j] = ceil(tri[i].p2[j]);
+		if (tri[i].p3[j] < min[j])
+		    min[j] = ceil(tri[i].p3[j]);
+		max[j] = floor(tri[i].p1[j]);
+		if (tri[i].p2[j] > max[j])
+		    max[j] = floor(tri[i].p2[j]);
+		if (tri[i].p3[j] > max[j])
+		    max[j] = floor(tri[i].p3[j]);
+		min[j] -= 1;
+		max[j] += 1;
+	}
 	double v[2], v1[2], v2[2], c0, c1, c2, c3;
 	v1[0] = tri[i].p2[0] - tri[i].p1[0];
 	v1[1] = tri[i].p2[2] - tri[i].p1[2];
 	v2[0] = tri[i].p3[0] - tri[i].p1[0];
 	v2[1] = tri[i].p3[2] - tri[i].p1[2];
 	c0 = v1[0] * v2[1] - v1[1] * v2[0];
-	for (int x = minx; x <= maxx; x++)
-	    for (int z = minz; z <= maxz; z++) {
-		v[0] = x - tri[i].p1[0];
-		v[1] = z - tri[i].p1[2];
-		c1 = v1[0] * v[1] - v1[1] * v[0];
-		c2 = v[0] * v2[1] - v[1] * v2[0];
-		c1 /= c0;
-		c2 /= c0;
-		if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
-		    c3 = 1. - c1 - c2;
-		    double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
-		    for (int y = reg.dy; y <= h; y++) {
-//                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
-			if (reg.isIn(x, y, z))
-			    lev[reg.offset(x, y, z)]++;
-		    }
-		}
-	    }
+	if (insideOut == 2) {
+            size_t regsize = region.sizeL();
+            for (int x = min[0]; x <= max[0]; x++)
+                for (int z = min[2]; z <= max[2]; z++)
+                    for (int y = min[1]; y <= max[1]; y++) if (region.isIn(x, y, z)) {
+                            size_t k = region.offset(x, y, z);
+                            cut_t nq;
+                            ActivateCuts();
+                            for (int d = 0; d<26; d++) {
+                                    nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+                                    if (nq < Q[regsize*d+k]) {
+                                            Q[regsize*d+k] = nq;
+                                            Dot(x, y, z);
+                                    }
+                            }
+                    }
+	} else {
+            for (int x = min[0]; x <= max[0]; x++)
+                for (int z = min[2]; z <= max[2]; z++) {
+                    v[0] = x - tri[i].p1[0];
+                    v[1] = z - tri[i].p1[2];
+                    c1 = v1[0] * v[1] - v1[1] * v[0];
+                    c2 = v[0] * v2[1] - v[1] * v2[0];
+                    c1 /= c0;
+                    c2 /= c0;
+                    if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
+                        c3 = 1. - c1 - c2;
+                        double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
+                        for (int y = reg.dy; y <= h; y++) {
+    //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
+                            if (reg.isIn(x, y, z))
+                                lev[reg.offset(x, y, z)]++;
+                        }
+                    }
+                }
+	}
     }
-    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
-		if (lev[reg.offset(x, y, z)] % 2 == 1) {
-//                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
-		    Dot(x, y, z);
-		}
-	    }
+    if (insideOut != 2)
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+                for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+                    if (lev[reg.offset(x, y, z)] % 2 == 1) {
+    //                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
+                        Dot(x, y, z);
+                    }
+                }
     free(tri);
     free(lev);
     return 0;
@@ -617,7 +700,7 @@ int Geometry::Draw(pugi::xml_node & node)
         reg.dy = y0 - Ry - 5;
         reg.dz = z0 - Rz - 5;
 
-        reg.nx = 2*Rz + 10;
+        reg.nx = 2*Rx + 10;
         reg.ny = 2*Ry + 10;
         reg.nz = 2*Rz + 10;
 
@@ -632,6 +715,77 @@ int Geometry::Draw(pugi::xml_node & node)
 			   if ( xx*xx/Rx2 + yy*yy/Ry2 + zz*zz/Rz2 < 1. ) {
 			    Dot(x, y, z);
 			   }
+		}
+	}  else if (strcmp(n.name(), "OffgridPipe") == 0) {
+
+        double x0 = units.alt(n.attribute("x").value());
+        double y0 = units.alt(n.attribute("y").value());
+        double z0 = units.alt(n.attribute("z").value());
+
+        double Rx,Ry;
+        if ( n.attribute("R").empty() ){
+           Rx = units.alt(n.attribute("Rx").value());
+           Ry = units.alt(n.attribute("Ry").value());
+        } else {
+           double R = units.alt(n.attribute("R").value());
+           Rx = R;
+           Ry = R;
+        }
+
+        double Rx2 = Rx*Rx;
+        double Ry2 = Ry*Ry;
+   
+        reg.dx = x0 - Rx - 5;
+        reg.dy = y0 - Ry - 5;
+
+        reg.nx = 2*Rx + 10;
+        reg.ny = 2*Ry + 10;
+	    debug1("Filling Z-pipe  with flag %d (%d)\n, with center at (%lf,%lfi,%f) and radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Rx,Ry);
+	    DEBUG1(reg.print();)
+		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+               double xx =  (.5 + x - x0);  
+               double yy =  (.5 + y - y0);  
+			   if ( xx*xx/Rx2 + yy*yy/Ry2 < 1. ) {
+			    Dot(x, y, z);
+			   }
+		}
+	} else if (strcmp(n.name(),"XPipe") == 0) {
+
+	double x0 = units.alt(n.attribute("x").value());
+	double y0 = units.alt(n.attribute("y").value());
+	double z0 = units.alt(n.attribute("z").value());
+
+	double Ry, Rz;
+	if ( n.attribute("R").empty() ) {
+	    Ry = units.alt(n.attribute("Ry").value());
+	    Rz = units.alt(n.attribute("Rz").value());
+	} else {
+	    double R = units.alt(n.attribute("R").value());
+	    Ry = R;
+	    Rz = R;
+	}
+
+	double Ry2 = Ry*Ry;
+	double Rz2 = Rz*Rz;
+
+	reg.dy = y0 - Ry - 5;
+	reg.dz = z0 - Rz - 5;
+
+	reg.ny = 2*Ry + 10;
+	reg.nz = 2*Rz + 10;
+
+	    debug1("Filling XPipe with flag %d (%d)\n, with center at (%lf,%lfi,%f) radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Ry, Rz);
+	    DEBUG1(reg.print();)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		for (int z = reg.dz; z < reg.dz + reg.nz; z++)
+       		    for (int x = reg.dx; x < reg.dx + reg.nx; x++) {
+		double yy = (.5 + y - y0);
+		double zz = (.5 + z - z0);
+			if (zz*zz/Rz2 + yy*yy/Ry2 < 1. ) {
+			    Dot(x,y,z);
+			}
 		}
 	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
@@ -655,7 +809,79 @@ int Geometry::Draw(pugi::xml_node & node)
 			if (inWedge((x - reg.dx) / (reg.nx - 1.), (y - reg.dy) / (reg.ny - 1.), (z - reg.dz) / (reg.nz - 1.), type)) {
 			    Dot(x, y, z);
 			}
-		    }
+         }
+    } else if (strcmp(n.name(), "PythonInline") == 0) {
+        #ifdef EMBEDED_PYTHON
+        
+         if (!Py_IsInitialized()) {
+            notice("Python Init");
+            Py_Initialize();
+        }    
+        // Make sure the GIL has been created since we need to acquire it in our
+        // callback to safely call into the python application.
+        if (! PyEval_ThreadsInitialized()) {
+            PyEval_InitThreads();
+        }
+        
+        PyObject *pGlobal;
+        PyObject* pyModule, *pLocal, *pValue;
+
+        PyGILState_STATE state;
+        state = PyGILState_Ensure();
+   
+        pyModule = PyImport_AddModule("__main__"); 
+        pLocal = PyModule_GetDict(pyModule);
+        pGlobal = PyModule_GetDict(pyModule);
+
+
+
+        pValue = PyRun_String( n.child_value(), Py_file_input, pGlobal, pLocal );
+        if (pValue == NULL){
+             error("Provided Python code is not executable or does not contain 'test' function");    
+        }
+
+        PyObject* pFunc = PyObject_GetAttrString(pyModule, "test"); ;
+     //   Py_INCREF(pFunc);
+        Py_DECREF(pValue);
+
+
+        if (pFunc && PyCallable_Check(pFunc)) {
+            PyObject* pArgs;
+            pArgs = PyTuple_New(3);
+  
+            for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+        	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+	            for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+
+                    PyTuple_SetItem( pArgs, 0, PyFloat_FromDouble((x-reg.dx)/(real_t)reg.nx));
+                    PyTuple_SetItem( pArgs, 1, PyFloat_FromDouble((y-reg.dy)/(real_t)reg.ny));
+                    PyTuple_SetItem( pArgs, 2, PyFloat_FromDouble((z-reg.dz)/(real_t)reg.nz));
+           
+                    //Call my function, passing it the number four
+                    pValue = PyObject_CallObject(pFunc, pArgs);
+
+           			if (  PyInt_AsLong(pValue) == 1 ) {
+   			             Dot(x, y, z);
+		            }
+                 
+                 }   
+            Py_DECREF(pArgs);
+        } else {
+            error("Provided Python code is not executable or does not contain 'test' function");        
+        }
+
+
+        Py_DECREF(pValue);
+  //      Py_XDECREF(pFunc);
+ //       Py_DECREF(pGlobal);
+//        Py_DECREF(pLocal);
+        PyGILState_Release(state);
+      //  Py_Finalize();   
+
+        #else
+            error("You need to compile PYTHON support for this geometry element");
+        #endif
+
 	} else if (strcmp(n.name(), "STL") == 0) {
 	    debug1("Filling stl geometry with flag %d (%d)\n", fg, fg_mask);
 	    DEBUG1(reg.print();)
@@ -760,6 +986,9 @@ int Geometry::load(pugi::xml_node & node)
         }
 	E(Draw(n));
     }
+    if (node.attribute("save")) {
+	writeVTI(node.attribute("save").value());
+    }
     return 0;
 }
 
@@ -767,17 +996,30 @@ Geometry::~Geometry()
 {
     debug1("[%d] Destroy geom\n", D_MPI_RANK);
     delete[]geom;
+    if (Q != NULL) delete[] Q;
 }
 
 /// Dumps the Geometry to a vti file
-void Geometry::writeVTI(char *filename)
+void Geometry::writeVTI(const char *name)
 {
+	char filename[STRING_LEN];
+	sprintf(filename, "%s_P%02d.vti", name, D_MPI_RANK);
+
     vtkFileOut vtkFile;
     if (vtkFile.Open(filename)) {
 	return;
     }
     vtkFile.Init(region, "");
     vtkFile.WriteField("geom", geom);
+    if (Q != NULL) {
+        size_t regsize = region.size();
+        for (int d=0;d<26;d++) {
+            char nm[20];
+//            sprintf(nm,"Q(%2d,%2d,%2d)",d3q27_vec[(d+1)+3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+            sprintf(nm,"Q_%d",d);
+            vtkFile.WriteField(nm, Q + regsize*d);
+        }
+    }
     vtkFile.Finish();
     vtkFile.Close();
 }

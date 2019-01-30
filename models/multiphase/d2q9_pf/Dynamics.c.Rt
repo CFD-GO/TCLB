@@ -1,0 +1,396 @@
+<?R
+# #############
+# based on "Conservative phase-field lattice Boltzmann model for interface tracking equation"
+# implemented by M. Dzikowski 2016
+# #############
+
+	source("conf.R") 
+	c_header();
+	
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+    U = t(as.matrix(   rbind( Density$dx[Density$group=='f'], Density$dy[Density$group=='f'] ) ))
+	EQ = MRT_eq(U, ortogonal=FALSE)
+        wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+        wi = subst(wi, rho=1)
+        wi = gapply(wi,function(x) x$.M, simplify=TRUE)
+        wi = wi %*% solve(EQ$mat)
+	wi = as.vector(wi)
+
+	W0 = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
+	i = rev(1:nrow(W0))
+	H = chol(W0[i,i])[i,i]
+	H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+	B = EQ$mat %*% t(H)
+
+	EQ = MRT_eq(U, mat=B)
+
+	
+
+	f = PV(Density$name[Density$group=='f'])
+	rho = PV("rho")
+	J = PV("J",c("x","y"))
+    u = PV(c("u.x","u.y"))
+
+    if ( any( DensityAll$group=="BC" ) ) {
+        BC_Velocity=PV(c('BC[0]', 'BC[1]'))
+    } else {
+        BC_Velocity=PV(c('VelocityX', 'VelocityY'))
+    }
+# things related to h
+    h  = PV(Density$name[Density$group=='h'])
+    pf = PV("pf")
+    n = PV(c("n.x","n.y"))
+    W = PV("IntWidth")	
+    n = c(PV('n.x'),PV('n.y'))
+    
+    EQ_h = MRT_eq(U,mat=B)
+    EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
+     
+    mob = PV("Mobility")
+    Bh = 3*mob * (1.-4.*pf*pf)*W 
+
+    EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
+    EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
+    UN = t(U[1:9,])
+    phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
+    
+    
+    k01 = PV("k01")
+    k10 = PV("k10")
+
+
+?>
+
+#define pi 3.141592653589793116
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?> ;
+}
+    
+CudaDeviceFunction real_t getPhaseField(){
+	return <?R C(sum(h)) ?> ;
+}
+    
+CudaDeviceFunction vector_t getU(){
+	real_t d = <?R C(sum(f)) ?>;
+	vector_t u;
+<?R C(PV(c("u.x","u.y")), f %*% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z = 0.0;
+    u.x += GravitationX * 0.5;
+    u.y += GravitationY * 0.5;
+
+
+ <?R if ( any( DensityAll$group=="BC" ) ) { ?>
+     if (!IamBOUNDARY) {   
+        u.x += BC[0]*0.5;
+        u.y += BC[1]*0.5;
+    }    
+    if (OverwriteVelocityField) {
+        u.x = BC[0] ;
+        u.y = BC[1] ; 
+    }
+ <?R } ?>   
+	return u;
+}
+
+CudaDeviceFunction vector_t getNormal(){
+    real_t k01, k10;
+    vector_t n;
+    vector_t u = getU();
+    <?R
+    ee_x = U[,1] - u[1]
+    ee_y = U[,2] - u[2]
+
+    C(k10, sum(h%*%ee_x) )
+    C(k01, sum(h%*%ee_y) )
+    
+    ?>
+    real_t ln = sqrt(k10*k10 + k01*k01);    
+    if (ln == 0.){
+        n.x = 0.;
+        n.y = 0.;
+    } else {
+        n.x = - k10 / ln;
+        n.y = - k01 / ln;
+    }
+    return n;
+
+}
+
+
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t pf)
+{
+    vector_t u,n;
+    n.x = 0;
+    n.y = 0;
+<?R
+#	feq = EQ$Req %*% solve(EQ$mat)
+	C( f, EQ$feq)
+    C(u, PV(c('Jx/rho', 'Jy/rho')))
+    C( h,  pf * wi  )
+
+?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+   if ( IamBOUNDARY ) {
+       BC[0] = Jx / rho;
+       BC[1] = Jy / rho;
+   } else {
+       BC[0] = 0;
+       BC[1] = 0;
+   }
+<?R } ?>
+
+}
+
+CudaDeviceFunction void Init() {
+	real_t rho, ux, uy, C;
+	rho = (1+Pressure*3);
+	uy = VelocityY;
+	ux = VelocityX;
+    C = PhaseField; 
+
+
+	SetEquilibrum(
+		rho,
+		ux*rho,
+		uy*rho,
+        C
+	);
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+    case NODE_NPressure:
+        NPressure();
+        break;
+    case NODE_SPressure:
+        SPressure();
+        break;
+    }
+    if (NodeType & NODE_MRT)
+    {
+		CollisionMRT();
+    }
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+    {
+<?R 
+    ZouHeRewrite(EQ,   f, c(1,0), type="velocity", BC_Velocity)
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+CudaDeviceFunction void EPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(1,0), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+
+CudaDeviceFunction void WPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(-1,0), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(-1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+CudaDeviceFunction void WVelocity()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(-1,0), type="velocity", BC_Velocity)
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(-1,0), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+CudaDeviceFunction void NPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(0,1), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(0,1), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+
+CudaDeviceFunction void SPressure()
+{
+   {
+<?R 
+    ZouHeRewrite(EQ,   f, c(0,-1), type="pressure")
+?>
+    }
+    {
+<?R
+    ZouHeRewrite(EQ_h, h, c(0,-1), type="pressure", rhs=PV('PhaseField'))
+?>
+    }
+}
+
+
+
+
+
+
+CudaDeviceFunction void CollisionMRT()
+{
+<?R
+	MI = solve(EQ$mat)
+	P = MI %*% diag(1/wi) %*% t(MI)
+
+	R = PV("R", 1:nrow(U)-1);
+	selR = EQ$order > 1
+	R[!selR] = EQ$Req[!selR]
+?>
+ 
+	real_t <?R C(R,sep=",") ?>;
+    real_t Usq=0;
+
+<?R
+    S=PV("S",1:nrow(U)-1);
+	S[EQ$order == 2] = PV("S2")
+	S[EQ$order == 3] = PV("S3")
+ 	S[EQ$order == 4] = PV("S4")   
+	C( R, f %*% EQ$mat );
+
+?>
+
+    switch (NodeType & NODE_OBJECTIVE) {
+        case NODE_Outlet:
+<?R 
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+
+?>
+            AddToOutletFlux(Jx/rho/rho);
+            AddToPressureLoss(-(Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+        break;
+        case NODE_Inlet:
+<?R
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+?>
+           AddToInletFlux(Jx/rho/rho);
+           AddToPressureLoss((Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+       break;
+    
+    }
+<?R
+	C( R[selR], (R - EQ$Req)[selR]);
+	C( R[selR], (R * S)[selR]);
+
+?>
+
+<?R if ( any( DensityAll$group=="BC" ) ) { ?>
+    if (!IamBOUNDARY) {
+        Jx = Jx + (GravitationX +  BC[0])*rho ;
+        Jy = Jy + (GravitationY +  BC[1])*rho ; 
+    }
+    if (OverwriteVelocityField) {
+        Jx = BC[0]*rho ;
+        Jy = BC[1]*rho ; 
+    }   
+<?R } else { ?>
+    Jx = Jx + GravitationX*rho;
+    Jy = Jy + GravitationY*rho; 
+<?R } ?>
+
+<?R
+    C( R[selR], (R + EQ$Req)[selR]);
+	C( f, R %*% solve(EQ$mat), float=F);
+?>
+//////////////////////////////////////
+////     part related to h
+/////////////////////////////////////
+//    vector_t n = getNormal();
+
+
+    real_t k01, k10;
+    vector_t n = getNormal();
+  
+    real_t pf = getPhaseField();
+    vector_t u = getU();
+     
+<?R
+    RelaxationRate_ph= PV('RelaxationRate_ph') 
+	?>
+	real_t RelaxationRate_ph = 1./(3*Mobility + 0.5);
+<?R
+    C( h, h - RelaxationRate_ph * ( h - EQ_h$feq ) )
+?>
+}
+
+

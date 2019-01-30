@@ -13,7 +13,7 @@ class vtkFileOut {
 	int size;
 public:
 	vtkFileOut ();
-	int Open(char* filename);
+	int Open(const char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, char* selection);
 	void Init(lbRegion, lbRegion region, char* selection, double spacing);
@@ -36,6 +36,7 @@ public:
 	inline void WriteField(char * name, unsigned char * data) { WriteField(name, (void*) data, sizeof(char), "UInt8", 1); };
 	inline void WriteField(char * name, short int * data) { WriteField(name, (void*) data, sizeof(short int), "Int16", 1); };
 	inline void WriteField(char * name, unsigned short int * data) { WriteField(name, (void*) data, sizeof(unsigned short int), "UInt16", 1); };
+	inline void WriteField(char * name, unsigned int * data) { WriteField(name, (void*) data, sizeof(unsigned int), "UInt32", 1); };
 	void Finish();
 	void Close();
 };

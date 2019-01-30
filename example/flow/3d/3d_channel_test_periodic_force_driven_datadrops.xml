@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="64" ny="16" nz="32">
+		<MRT><Box/></MRT>
+		<Wall mask="ALL">
+			<Channel/>
+		</Wall>
+		<XYslice1><Box dz="16" nz="1"/></XYslice1>
+                <XZslice1><Box dy="16" ny="1"/></XZslice1>
+                <YZslice1><Box dx="32" nx="1"/></YZslice1>
+	</Geometry>
+	<Model>
+		<Params nu="0.02"/>
+		<!-- X-force and Z-force defined so that the flow will be skew wrt to the orientation axes  -->
+		<!-- Channel walls are parallel to Y- plane  -->
+		 <Params ForceX="0.000001" ForceZ="-0.000003"/>
+	</Model>
+	<VTK Iterations="10"/>
+	<Log Iterations="50"/>
+	<Solve Iterations="5000"/>
+</CLBConfig>

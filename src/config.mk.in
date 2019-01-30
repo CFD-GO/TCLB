@@ -1,8 +1,8 @@
 
 OPT = @CPPFLAGS@
-CPP_OPT = -Wno-write-strings @CPP_OPT@
+CPP_OPT = @CPP_OPT@
 LD_OPT = @LDFLAGS@ @LIBS@
-NV_OPT = @NVFLAGS@
+NV_OPT = -D_FORCE_INLINES  @NVFLAGS@
 CPU = @CROSS_CPU@
 
 PV_SOURCE = @PV_SOURCE@
@@ -16,12 +16,14 @@ SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.
 SOURCE=$(SOURCE_CU)
 HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h Dynamics.hp types.h pugixml.hpp pugiconfig.hpp
 
-OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o Handlers.o SyntheticTurbulence.o Sampler.o
+OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o SyntheticTurbulence.o Sampler.o ZoneSettings.o
 
 AOUT=main
 
 NVCC=nvcc
 CCTXT=NVCC
+CC=@CC@
+CXX=@CXX@
 
 ifeq '$(strip $(ADJOINT))' '1'
  OPT+=-D ADJOINT
@@ -67,7 +69,4 @@ ifeq '$(strip $(WITH_CATALYST))' '1'
  HEADERS += Catalyst.h
 endif
 
-ifeq '$(strip $(EMBEDED_PYTHON))' '1'
- OPT+=-D EMBEDED_PYTHON
-endif
 

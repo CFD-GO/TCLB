@@ -28,11 +28,11 @@ function try {
 
 test -z "$MODEL" && usage
 
-if ! test -d "src/$MODEL"
-then
-	echo \"$MODEL\" is not a model
-	usage
-fi
+#if ! test -d "src/$MODEL"
+#then
+#	echo \"$MODEL\" is not a model
+#	usage
+#fi
 
 if ! test -f "CLB/$MODEL/main"
 then
@@ -72,10 +72,12 @@ then
 fi
 
 GLOBAL="OK"
+PP=$PYTHONPATH
 for t in $TESTS
 do
 	name=${t%.*}
 	RESULT="FAILED"
+    export PYTHONPATH=$PP:tests/$MODEL
 	if try "Running \"$name\" test" CLB/$MODEL/main "tests/$MODEL/$t"
 	then
 		RESULT="OK"
@@ -99,12 +101,12 @@ do
 					case "$EXT" in
 					csv)
 						COMMENT="(csvdiff)"
-						tools/csvdiff -a "$r" -b "$g" -x 1e-10 >/dev/null && R="OK"
+						tools/csvdiff -a "$r" -b "$g" -x 1e-10 -d Walltime >/dev/null && R="OK"
 						;;
 					sha1)
 						COMMENT="(SHA1 checksum)"
-                        sha1sum -c "$g" >> /dev/null && R="OK"
-                        ;;
+						sha1sum -c "$g" >/dev/null 2>&1 && R="OK"
+						;;
 					*)
 						diff "$r" "$g" >/dev/null && R="OK"
 						;;
@@ -115,6 +117,12 @@ do
 						echo "OK $COMMENT"
 					else
 						echo "Different $COMMENT"
+						if test "x$EXT" == "xsha1"
+						then
+							cat $g
+							pat=$(cat $g | sed 's/.*[ ][ ]*//')
+							test -z "$pat" || sha1sum $pat
+						fi
 						RESULT="WRONG"
 					fi
 				else
