@@ -218,7 +218,7 @@ void MainFree( Solver *d);
 */
 	int Solver::writeVTK(const char * nm, name_set * s) {
 		print("writing vtk");
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		outIterFile(nm, ".vti", filename);
 		int ret = vtkWriteLattice(filename, lattice, units, s);
 		return ret;
@@ -233,7 +233,7 @@ void MainFree( Solver *d);
 */
 	int Solver::writeTXT(const char * nm, name_set * s, int type) {
 		print("writing txt");
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		outIterFile(nm, "", filename);
 		int ret = txtWriteLattice(filename, lattice, units, s, type);
 		return ret;
@@ -248,7 +248,7 @@ void MainFree( Solver *d);
 */
 	int Solver::writeBIN(const char * nm) {
 		print("writing bin");
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		outIterFile(nm, "", filename);
 		int ret = binWriteLattice(filename, lattice, units);
 		return ret;
@@ -386,7 +386,7 @@ void MainFree( Solver *d);
 		// Setting global variables
 		initSettings();
 
-		geometry = new Geometry(region, units);
+		geometry = new Geometry(region, mpi.totalregion, units);
 
 		return 0;
 	}

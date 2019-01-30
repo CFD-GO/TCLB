@@ -80,6 +80,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->py = region.dy;
 	container->pz = region.dz;
 	container->iter = 0;
+	container->reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -193,7 +194,7 @@ void Lattice::startRecord()
 		iSnaps[i]= -1;
 	}
 	{
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
 		save(Snaps[Snap], filename);
@@ -401,6 +402,8 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	if (mpi.rank != to) {
 		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
 		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
@@ -482,11 +485,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	from = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
 		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
@@ -784,7 +789,7 @@ void Lattice::IterateTill(int it, int iter_type)
 	if (imx >= nSnaps) {
 		if (reverse_save) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
-			char filename[STRING_LEN];
+			char filename[2*STRING_LEN];
 			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
@@ -807,7 +812,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
-				char filename[STRING_LEN];
+				char filename[2*STRING_LEN];
 				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}
