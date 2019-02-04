@@ -11,7 +11,7 @@ int acObjective::Init () {
 	int zone_number = 0;
 	double * glob = solver->lattice->globals;
 	pugi::xml_attribute attr;
-	solver->lattice->calcGlobals();
+//	solver->lattice->calcGlobals();
 <?R
 	for (g in rows(Globals)) if (! g$adjoint) { ?>
 	#define <?%s g$name ?> glob[<?%s g$Index ?>] <?R
