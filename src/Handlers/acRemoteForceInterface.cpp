@@ -112,7 +112,6 @@ int acRemoteForceInterface::Init () {
                 int nx=1, ny=1, nz=1;
                 {
                         int nx0, ny0, nz0;
-                        int nx1, ny1, nz1;
                         int tot, tot1;
                         
                         //JM 
@@ -144,7 +143,6 @@ int acRemoteForceInterface::Init () {
                                         }
                                 }
                         }
-                        output("%dx%dx%d\n",nx1, ny1, nz1);
                         if (tot == 0) {
                                 output("Error may be due to periodicity in multiple directions calculation");
                                 ERROR("ESYS-P: Cannot find a good division. Requested workers (%d) do not fit well with TCLB division (%dx%dx%d)\n", workers, nx0, ny0, nz0);
