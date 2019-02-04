@@ -3,6 +3,8 @@
 #include <string>
 #include <mpi.h>
 #include <assert.h>
+#include <map> //JM
+#include <string.h> //JM
 
 struct MPMDIntercomm {
    MPI_Comm local;
