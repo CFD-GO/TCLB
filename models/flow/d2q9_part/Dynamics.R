@@ -78,3 +78,6 @@ AddNodeType(name="NSymmetry", group="BOUNDARY")
 AddNodeType(name="SSymmetry", group="BOUNDARY")
 
 AddStage("BaseIteration", "Run", particle=TRUE, load=TRUE, save=TRUE)
+
+AddNodeType(name="Inlet", group="OBJECTIVE")
+AddNodeType(name="Outlet", group="OBJECTIVE")
