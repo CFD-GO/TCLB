@@ -110,7 +110,7 @@ AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
 
-AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
+AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default=90, comment='Contact angle in degrees')
 AddSetting(name='radAngle', comment='Conversion to rads for calcs')
 
 #Domain initialisation (pre-defined set-ups)
@@ -161,7 +161,8 @@ if (Options$OutFlow){
 AddNodeType(name="ENeumann", group="BOUNDARY")
 AddNodeType(name="EConvect", group="BOUNDARY")
 }
-AddGlobal("InterfacePosition",comment='trackPosition')
+AddGlobal("InterfacePositionOne",comment='trackPosition - of low /high density interface')
+AddGlobal("InterfacePositionTwo",comment='trackPosition - of high/low  density interface')
 AddGlobal("Vfront",comment='velocity infront of bubble')
 AddGlobal("Vback",comment='velocity behind bubble')
 AddGlobal("RTISpike", comment='SpikeTracker ')
