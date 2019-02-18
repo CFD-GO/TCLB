@@ -1,2 +1,2 @@
-ADJOINT=1
+ADJOINT=0
 TEST="can fail"
