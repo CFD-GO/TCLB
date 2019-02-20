@@ -1,0 +1,10 @@
+FROM tclb1
+
+COPY . /TCLB
+WORKDIR /TCLB
+
+RUN make configure && ./configure
+
+RUN make d2q9 -j 8
+
+CMD ["bash"]
