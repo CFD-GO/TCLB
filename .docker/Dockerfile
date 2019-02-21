@@ -24,15 +24,16 @@ RUN apt-get update \
 		joe \
 	&& rm -rf /var/lib/apt/lists/*
 
-COPY tools tools
+COPY tools /tools
 
-RUN tools/install.sh r
-RUN tools/install.sh openmpi
-
-RUN tools/install.sh rdep
+RUN /tools/install.sh r
+RUN /tools/install.sh openmpi
 
 COPY --chown=docker:docker .docker/bashrc /home/docker/.bashrc
 
 WORKDIR /home/docker
 USER docker
+
+RUN /tools/install.sh rdep
+
 CMD ["bash"]
