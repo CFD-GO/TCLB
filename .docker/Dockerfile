@@ -1,5 +1,7 @@
 FROM ubuntu:16.04
 
+ENV docker_tag=cpu
+
 RUN useradd docker \
 	&& mkdir /home/docker \
 	&& chown docker:docker /home/docker \
@@ -29,7 +31,7 @@ RUN tools/install.sh openmpi
 
 RUN tools/install.sh rdep
 
-COPY --chown=docker:docker docker/bashrc /home/docker/.bashrc
+COPY --chown=docker:docker .docker/bashrc /home/docker/.bashrc
 
 WORKDIR /home/docker
 USER docker

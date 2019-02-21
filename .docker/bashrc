@@ -29,7 +29,6 @@ function my.prompt.fun {
 	echo -ne "$PR"
 }
 
-#PS1='\e[0m[\t] \e[32m\h:\w \e[31m$(parse_git_describe) $(parse_git_branch_and_add_brackets)\e[0m\n > '
-PS1='\e[0m[\t] \e[32m\h:$(my.prompt.fun)\e[0m\n > '
+PS1='\e[0m[\t] \e[32mTCLB [${docker_tag}]:$(my.prompt.fun)\e[0m\n > '
 PS2="+> "
 export PS1 PS2
