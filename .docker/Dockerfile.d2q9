@@ -36,10 +36,6 @@ USER docker
 
 RUN /tools/install.sh rdep
 
-CMD ["bash"]
-
-FROM base-cpu
-
 COPY --chown=docker:docker . /home/docker/TCLB
 WORKDIR /home/docker/TCLB
 
@@ -48,3 +44,17 @@ RUN make configure && ./configure --disable-cuda
 RUN make d2q9 -j 8
 
 CMD ["bash"]
+
+FROM ubuntu:16.04 as d2q9
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends \
+		openmpi-bin \
+		libopenmpi-dev \
+		ssh \
+	&& rm -rf /var/lib/apt/lists/*
+
+COPY --from=base-cpu /home/docker/TCLB/CLB/d2q9/main /bin/d2q9
+
+CMD ["bash"]
+
