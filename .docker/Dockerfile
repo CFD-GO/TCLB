@@ -1,6 +1,6 @@
 FROM ubuntu:16.04
 
-ENV docker_tag=cpu
+ENV docker_tag=CPU
 
 RUN useradd docker \
 	&& mkdir /home/docker \

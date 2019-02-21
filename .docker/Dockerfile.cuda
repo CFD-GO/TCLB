@@ -1,6 +1,6 @@
 FROM nvidia/cuda:8.0-devel-ubuntu16.04
 
-ENV docker_tag=cpu
+ENV docker_tag=CUDA
 
 RUN useradd docker \
 	&& mkdir /home/docker \
