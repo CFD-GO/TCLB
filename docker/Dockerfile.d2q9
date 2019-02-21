@@ -1,0 +1,10 @@
+FROM cfdgo/tclb:base-cpu
+
+COPY . /TCLB
+WORKDIR /TCLB
+
+RUN make configure && ./configure --disable-cuda
+
+RUN make d2q9 -j 8
+
+CMD ["bash"]

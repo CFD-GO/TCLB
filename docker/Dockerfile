@@ -1,4 +1,4 @@
-FROM nvidia/cuda:8.0-devel-ubuntu16.04
+FROM ubuntu:16.04
 
 RUN useradd docker \
 	&& mkdir /home/docker \
@@ -25,11 +25,12 @@ RUN apt-get update \
 COPY tools tools
 
 RUN tools/install.sh r
-
 RUN tools/install.sh openmpi
 
 RUN tools/install.sh rdep
 
-COPY my.prompt.bash tools
+COPY --chown=docker:docker docker/bashrc /home/docker/.bashrc
 
+WORKDIR /home/docker
+USER docker
 CMD ["bash"]
