@@ -104,8 +104,6 @@ AddSetting(name="CenterX", default="0", comment='Circle center x-coord')
 AddSetting(name="CenterY", default="0", comment='Circle Center y-coord')
 AddSetting(name="BubbleType", default="1", comment='Drop/bubble')
 
-AddSetting(name="diffusion_coeff", default="0.005", comment='Pure diffusion eq is used to smooth out the initial phase field ditribution') # TODO
-
 #	Inputs: For phasefield evolution
 AddSetting(name="Density_h", comment='High density fluid')
 AddSetting(name="Density_l", comment='Low  density fluid')
