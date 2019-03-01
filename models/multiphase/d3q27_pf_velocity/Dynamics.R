@@ -110,7 +110,7 @@ AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
 
-AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default=90, comment='Contact angle in degrees')
+AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default=90, comment='Contact angle in degrees', zonal=T)
 AddSetting(name='radAngle', comment='Conversion to rads for calcs')
 
 #Domain initialisation (pre-defined set-ups)
@@ -147,6 +147,7 @@ AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ
 # Velocity Tracking on Centerline:
 AddSetting(name="xyzTrack", default=1,comment='x<-1, y<-2, z<-3')
 AddNodeType("Centerline",group="ADDITIONALS")
+AddNodeType("Edgeline",group="ADDITIONALS")
 # Allow for smoothing of sharp interface initiation by diffusion
 AddNodeType("Smoothing",group="ADDITIONALS")
 #  For RTI interface tracking

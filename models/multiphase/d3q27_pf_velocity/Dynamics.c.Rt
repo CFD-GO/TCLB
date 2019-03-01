@@ -727,15 +727,42 @@ if (Options$RT) {
 ?>
 	switch (NodeType & NODE_ADDITIONALS) {
 		real_t location;
+		case NODE_Edgeline:
+		    if ( fabs(xyzTrack-1) < 1e-3 )
+		    {  // track along X
+			if (C >0.5 && PhaseF(1,0,0) < 0.5)
+			{
+				location = X + (C-0.5)/(C-PhaseF(1,0,0));
+				AddToInterfacePositionOne(location);
+				AddToVfront(U);
+			}
+		    } else if ( fabs(xyzTrack-2) < 1e-3)
+		    {  // track along Y 	
+			if (C >0.5 && PhaseF(0,1,0) < 0.5)
+			{
+				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+				AddToInterfacePositionOne(location);
+				AddToVfront(V);
+			}
+		    } else if ( fabs(xyzTrack-3) < 1e-3)
+		    { // track along Z
+			if (C >0.5 && PhaseF(0,0,1) < 0.5)
+			{
+				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
+				AddToInterfacePositionOne(location);
+				AddToVfront(W);
+			}
+		    }
+
 		case NODE_Centerline:
 		    if ( fabs(xyzTrack-1) < 1e-3 )
 		    {  // track along X
-			if (C < 0.5 && PhaseF(1,0,0) > 0.5)
+		/*	if (C < 0.5 && PhaseF(1,0,0) > 0.5)
 			{
 				location = X + (C-0.5)/(C-PhaseF(1,0,0));
 				AddToInterfacePositionOne(location);
 				AddToVback(U);
-			}
+			}*/
 			if (C >0.5 && PhaseF(1,0,0) < 0.5)
 			{
 				location = X + (C-0.5)/(C-PhaseF(1,0,0));
@@ -744,12 +771,12 @@ if (Options$RT) {
 			}
 		    } else if ( fabs(xyzTrack-2) < 1e-3)
 		    { // track along Y
-			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+		/*	if (C < 0.5 && PhaseF(0,1,0) > 0.5)
 			{
 				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
 				AddToInterfacePositionOne(location);
 				AddToVback(V);
-			}
+			}*/
 			if (C >0.5 && PhaseF(0,1,0) < 0.5)
 			{
 				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
@@ -758,12 +785,12 @@ if (Options$RT) {
 			}
 		    } else if ( fabs(xyzTrack-3) < 1e-3)
 		    { // track along Z
-			if (C < 0.5 && PhaseF(0,0,1) > 0.5)
+		/*	if (C < 0.5 && PhaseF(0,0,1) > 0.5)
 			{
 				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
 				AddToInterfacePositionOne(location);
 				AddToVback(W);
-			}
+			}*/
 			if (C >0.5 && PhaseF(0,0,1) < 0.5)
 			{
 				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
