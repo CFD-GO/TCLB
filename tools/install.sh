@@ -57,7 +57,6 @@ function get_PMS {
 		if test -z "$PMS"
 		then
 			echo "Unknown type of Package Manager, only apt-get and yum are supported."
-			usage
 			exit 2;
 		fi
 	fi
