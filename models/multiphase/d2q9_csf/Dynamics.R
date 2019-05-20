@@ -131,6 +131,9 @@ AddSetting(name="S2", default="0", comment='MRT Sx')
 AddSetting(name="S3", default="0", comment='MRT Sx')
 AddSetting(name="S4", default="0", comment='MRT Sx')
 AddSetting(name="BrinkmanHeightInv", default=0, zonal=T)
+
+AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer in cumulant collision model')
+
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")

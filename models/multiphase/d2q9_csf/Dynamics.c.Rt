@@ -917,7 +917,11 @@ CudaDeviceFunction void Run() {
     }
     if (NodeType & NODE_MRT)
     {
-		CollisionMRT();
+        <?R if (Options$cumulant ){ ?>
+ 	 	    CollisionCumulant();
+        <?R } else {?>
+    		CollisionMRT();
+        <?R }?>
     }
 }
 
@@ -1127,6 +1131,165 @@ CudaDeviceFunction void CollisionMRT()
 #	C( R, (R + S * (EQ_h$Req-R)));
 #	C( h, R %*% solve(EQ_h$mat), float=F);
 
+    RelaxationRate_ph= PV('omega_ph') 
+    C( h, h - RelaxationRate_ph * ( h - EQ_h$feq ) )
+?>
+
+    
+}
+
+
+
+
+CudaDeviceFunction void CollisionCumulant()
+{
+    real_t pf = <?R C(sum(h)) ?> ;
+
+
+    <?R if (Options$viscstep) { ?>
+        const real_t tl = tanh(-0.5/ViscosityStepWidth);
+        const real_t th = tanh( 0.5/ViscosityStepWidth);
+        real_t gamma =   (omega + (omega_l - omega)*(-tl+tanh(pf/ViscosityStepWidth))/(th-tl));
+    <?R } else { ?>
+	    real_t gamma  =  ( omega_l + (pf - 0.5)/(-1)*(omega - omega_l));
+    <?R } ?>
+//momentum collision
+
+
+
+ real_t c[9],d;
+ <?R C(PV('d'), sum(f)) ?>
+ real_t  w[5] = {gamma,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
+ if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
+
+//First determing moments from density-probability function
+  
+  f[0] = f[3] + f[1] + f[0]; 
+  f[1] = -f[3] + f[1];
+  f[3] = f[1] + f[3]*2.; 
+  f[2] = f[6] + f[5] + f[2];
+  f[5] = -f[6] + f[5];
+  f[6] = f[5] + f[6]*2.; 
+  f[4] = f[7] + f[8] + f[4];
+  f[8] = -f[7] + f[8];
+  f[7] = f[8] + f[7]*2.; 
+  f[0] = f[4] + f[2] + f[0];
+  f[2] = -f[4] + f[2];
+  f[4] = f[2] + f[4]*2.; 
+  f[1] = f[8] + f[5] + f[1];
+  f[5] = -f[8] + f[5];
+  f[8] = f[5] + f[8]*2.; 
+  f[3] = f[7] + f[6] + f[3];
+  f[6] = -f[7] + f[6];
+  f[7] = f[6] + f[7]*2.; 
+  
+//Cumulant calculation from moments
+  c[0] = f[0];
+  c[1] = f[1]/f[0];
+  c[3] = ( -c[1]*f[1] + f[3] )/f[0];
+  c[2] = f[2]/f[0];
+  c[5] = ( -c[1]*f[2] + f[5] )/f[0];
+  c[6] = ( -c[5]*f[1] - c[3]*f[2] - c[1]*f[5] + f[6] )/f[0];
+  c[4] = ( -c[2]*f[2] + f[4] )/f[0];
+  c[8] = ( -c[1]*f[4] + f[8] - c[5]*f[2]*2. )/f[0];
+  c[7] = ( -c[8]*f[1] - c[3]*f[4] - c[1]*f[8] + f[7] + ( -c[6]*f[2] - c[5]*f[5] )*2. )/f[0];
+//Cumulant relaxation:
+ real_t  a = (c[3] + c[4]);
+ real_t  b = (c[3] - c[4]);
+
+ vector_t F = getF();
+ 
+ real_t nu = -(gamma + 1)/(6*gamma - 6) ;
+ real_t K = d * 12. * nu * h_Z * h_Z;
+    
+ c[1] = c[1] + F.x - K*(c[1]+F.x*0.5)/(1. + 0.5 * K) / d;
+ c[2] = c[2] + F.y - K*(c[2]+F.y*0.5)/(1. + 0.5 * K) / d;   
+
+
+//Forcing
+//  c[1] = c[1] + ForceX;
+//  c[2] = c[2] + ForceY;
+//END Forcing
+ 
+ //real_t Dxu = - w[0]*(2*c[3] - c[4])/(2.*d) - w[1]*(c[3] + c[4])/d;
+ //real_t Dyv =  - w[0]*(2*c[4] - c[3])/(2.*d) - w[1]*(c[3] + c[4])/d;
+// c[1] = -c[1];
+  // c[3] = (1 - w[0])*c[3] + w[0]*1./3;
+  c[3] = ((1 - w[1])*a + w[1]*2./3. + (1 - w[0])*b)/2.;
+// c[2] =-c[2];
+  // c[4] = (1 - w[0])*c[4] + w[0]*1./3;
+  c[4] = ((1 - w[1])*a + w[1]*2./3. - (1 - w[0])*b)/2.;
+  c[5] =  (1- w[0])*c[5];
+  c[6] =  (1 - w[2])*c[6];
+  c[7] =  (1 - w[3])*c[7];
+  c[8] = (1 - w[2])*c[8]; 
+
+
+// Moment calculation from cummulants
+
+  f[0] = f[0];
+  f[1] = c[1]*f[0];
+  f[3] = c[3]*f[0] + c[1]*f[1];
+  f[2] = c[2]*f[0];
+  f[5] = c[5]*f[0] + c[1]*f[2];
+  f[6] = c[6]*f[0] + c[5]*f[1] + c[3]*f[2] + c[1]*f[5];
+  f[4] = c[4]*f[0] + c[2]*f[2];
+  f[8] = c[8]*f[0] + c[1]*f[4] + c[5]*f[2]*2.;
+  f[7] = c[7]*f[0] + c[8]*f[1] + c[3]*f[4] + c[1]*f[8] + ( c[6]*f[2] + c[5]*f[5] )*2.;
+ 
+ //Transformation from moment to density distribution function
+
+  f[0] = -f[3] + f[0];
+  f[1] = ( f[3] + f[1] )/2.;
+  f[3] = f[3] - f[1]; 
+  f[2] = -f[6] + f[2];
+  f[5] = ( f[6] + f[5] )/2.;
+  f[6] = f[6] - f[5]; 
+  f[4] = -f[7] + f[4];
+  f[8] = ( f[7] + f[8] )/2.;
+  f[7] = f[7] - f[8]; 
+  f[0] = -f[4] + f[0];
+  f[2] = ( f[4] + f[2] )/2.;
+  f[4] = f[4] - f[2]; 
+  f[1] = -f[8] + f[1];
+  f[5] = ( f[8] + f[5] )/2.;
+  f[8] = f[8] - f[5]; 
+  f[3] = -f[7] + f[3];
+  f[6] = ( f[7] + f[6] )/2.;
+  f[7] = f[7] - f[6]; 
+
+
+//part related to h
+
+
+
+
+    vector_t u = getU();
+    if ( PF_Advection_Switch == 0 ){
+        u.x = 0;
+        u.y = 0;
+    }
+
+    real_t omega_ph =  1./( 3 * Mobility + 0.5); 
+    real_t Bh;
+
+    vector_t n = gradient;
+
+    real_t l = sqrt( n.x * n.x + n.y * n.y);
+    
+    l = sqrt( n.x * n.x + n.y * n.y );
+    if (l != 0){
+      n.x = n.x / l ;
+      n.y = n.y / l ;
+    } else {
+      n.x = 0;
+      n.y = 0;
+    }
+
+
+
+<?R
+    omega_ph=PV("omega_ph")
     RelaxationRate_ph= PV('omega_ph') 
     C( h, h - RelaxationRate_ph * ( h - EQ_h$feq ) )
 ?>
