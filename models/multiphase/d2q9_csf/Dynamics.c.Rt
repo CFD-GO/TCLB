@@ -781,15 +781,15 @@ CudaDeviceFunction void Init() {
 	ux = 0;
     uy = 0;
     
- /* this generates NaN on boundary, don't know why. MD
-   <?R C(c(PV('ux'),PV('uy')), BC_Velocity) ?> 
-  */
+
 	<?R
 
     if ( Options$bcinit ) { 
     	C(PV('C'), PV('BC[0]')) 
 	} else {
-    	C(PV('C'), PV('PhaseField')) 
+    	C(PV('C'), PV('PhaseField'))
+# this generates NaN on boundary, don't know why. MD
+        C(c(PV('ux'),PV('uy')), BC_Velocity) 
 	}
 	?>
 	SetEquilibrum(
