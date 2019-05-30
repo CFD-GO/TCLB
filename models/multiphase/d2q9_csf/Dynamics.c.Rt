@@ -1199,7 +1199,7 @@ CudaDeviceFunction void CollisionCumulant()
 
  vector_t F = getF();
  
- real_t nu = -(gamma + 1)/(6*gamma - 6) ;
+ real_t nu = -(1-gamma + 1)/(6*(1-gamma) - 6) ;
  real_t K = d * 12. * nu * h_Z * h_Z;
     
  c[1] = c[1] + F.x - K*(c[1]+F.x*0.5)/(1. + 0.5 * K) / d;
