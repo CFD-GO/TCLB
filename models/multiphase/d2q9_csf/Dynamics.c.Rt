@@ -496,17 +496,17 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 <?R if (Options$weno) { ?>
         
-        t1 = (1E-12 + y[2]*y[2]*0.0833333 +  y[1]*y[1]*1.0833333 +  y[3]*y[3]*0.0902777); 
+        t1 = (1E-12 + y[0]*y[0] + y[2]*y[2]*0.0833333 +  y[1]*y[1]*0.0833333 +  y[3]*y[3]*0.0902777); 
 	    t1 = 1./(t1*t1);
 
         wx = wx + t1;
-        gradient.x = gradient.x + t1 * y[1] / 2.;
+        gradient.x = gradient.x + t1 * y[1] ;
 
-	    t1 = (1E-12 + y[2]*y[2]*1.0833333 +  y[1]*y[1]*0.0833333 +  y[3]*y[3]*0.0902777); 	
+	    t1 = (1E-12 + y[0]*y[0] + y[2]*y[2]*0.0833333 +  y[1]*y[1]*0.0833333 +  y[3]*y[3]*0.0902777); 	
     	t1 = 1./(t1*t1);
 
         wy = wy + t1; 
-        gradient.y = gradient.y + t1 * y[2] / 2.;
+        gradient.y = gradient.y + t1 * y[2] ;
 
 <?R } else {  ?> //noweno
         gradient.y = gradient.y + y[2] / 2.;
@@ -518,8 +518,8 @@ CudaDeviceFunction void  InitPhisStencil(){
 
 
 <?R if (Options$weno) { ?>
-    gradient.x = gradient.x / wx;
-    gradient.y = gradient.y / wy; 
+    gradient.x = gradient.x / wx * 2.;
+    gradient.y = gradient.y / wy * 2.; 
 <?R }  ?> 
 
 gradient.z = 0;
@@ -1160,7 +1160,11 @@ CudaDeviceFunction void CollisionCumulant()
  real_t c[9],d;
  <?R C(PV('d'), sum(f)) ?>
  real_t  w[5] = {gamma,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
- if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
+ if ((NodeType & NODE_BOUNDARY) != 0) {
+    if ( ( (NodeType & NODE_BOUNDARY) != NODE_NSymmetry ) && ( (NodeType & NODE_BOUNDARY) != NODE_SSymmetry ) ) {
+        w[0] = 1.0/(3*nubuffer+0.5);
+    }
+ }
 
 //First determing moments from density-probability function
   
