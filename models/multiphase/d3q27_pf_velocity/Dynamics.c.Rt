@@ -283,6 +283,10 @@ CudaDeviceFunction void calcWallPhase(){
 		real_t a, h, pf_f;
 
 		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
+		if (pf_f != pf_f){
+			//printf("Check results, phase field in norm dirn is incorrect\n");
+			pf_f = 1.0;
+		}
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 		
 		if (h < 0.001) { 
@@ -295,6 +299,7 @@ CudaDeviceFunction void calcWallPhase(){
 			a = -h * (4.0/IntWidth) * cos(radAngle);
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-8) - pf_f;
 		}
+		if (PhaseF != PhaseF) PhaseF=1.0;
 	} 
 }
 
@@ -483,8 +488,8 @@ CudaDeviceFunction void Init_distributions(){
 // Initialise phase variables:
 	int i;
 	real_t C0 = 0.5*(PhaseField_h - PhaseField_l);
+	
 	PhaseF = PhaseF(0,0,0);
-
 // Gradients and phasefield normals:
 	real_t nx, ny, nz, magnPhi;
 	vector_t gradPhi = calcGradPhi();

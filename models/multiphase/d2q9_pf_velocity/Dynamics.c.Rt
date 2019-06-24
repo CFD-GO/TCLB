@@ -394,10 +394,15 @@ CudaDeviceFunction void Run() {
 		  	break;
 #endif
         }
+if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing){
+	Init_distributions();
+    }
+else{
     if (NodeType & NODE_MRT) {
 		CollisionMRT();
     } else if (NodeType & NODE_BGK) {
 		CollisionBGK();
+    }
     }
 }
 
@@ -572,6 +577,11 @@ for (i=0; i< 9; i++){
 			if (PhaseF < 0.5 && PhaseF(0,1) > 0.5) {
 				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
 				AddToRTIBubble(location);
+			}
+		case NODE_LiquidTrack:
+			if (PhaseF > 0.5 && PhaseF(0,1) < 0.5) {
+				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
+				AddToInterfaceLocation(location);
 			}
 	}
 

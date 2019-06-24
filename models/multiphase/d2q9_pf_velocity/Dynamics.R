@@ -99,7 +99,7 @@ AddSetting(name="W", default=4,    comment='Anti-diffusivity coeff')
 AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
-AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
+AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees', zonal=T)
 AddSetting(name="radAngle", comment='Conversion to rads for calcs')
 
 # 	Inputs: Fluid Properties
@@ -133,6 +133,9 @@ AddNodeType(name="BubbleTrack",group="ADDITIONALS")
 AddGlobal(name="RTIBubble", comment='Bubble Tracker')
 AddGlobal(name="RTISpike",  comment='Spike Tracker')
 
+AddNodeType(name="LiquidTrack",group="ADDITIONALS")
+AddGlobal(name="InterfaceLocation", comment='Interface Tracker')
+
 # Boundary things
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
@@ -144,6 +147,8 @@ AddNodeType(name="NPressure", group="BOUNDARY")
 AddNodeType(name="SPressure", group="BOUNDARY")
 AddNodeType(name="EPressure", group="BOUNDARY")
 AddNodeType(name="WPressure", group="BOUNDARY")
+
+AddNodeType(name="Smoothing", group="ADDITIONALS")
 
 if (Options$Outflow) {
 	AddNodeType(name="Convective_E", group="BOUNDARY")
