@@ -43,17 +43,24 @@ fi
 
 # ------------------- Second, check Package Management System - PMS  ----------------------
 PMS=""
-pms_array=( apt-get yum )
-for i in "${pms_array[@]}"
-do
-	if [ -x "$(command -v $i)" ] ; then 
-	  echo "Discovered Package Manager: $i"
-	  PMS=$i
+function get_PMS {
+	if test -z "$PMS"
+	then
+		pms_array=( apt-get yum )
+		for i in "${pms_array[@]}"
+		do
+			if [ -x "$(command -v $i)" ] ; then 
+				echo "Discovered Package Manager: $i"
+				PMS=$i
+			fi
+		done
+		if test -z "$PMS"
+		then
+			echo "Unknown type of Package Manager, only apt-get and yum are supported."
+			exit 2;
+		fi
 	fi
-done
- 
-test -z "$PMS" && echo "Unknown type of Package Manager, only apt-get and yum are supported." && usage
-
+}
 
 # --------------- First argument is type of install ---------
 test -z "$1" && usage
@@ -119,6 +126,7 @@ dry && echo Running dry install
 
 case "$inst" in
 r)
+	get_PMS
 	CRAN="http://cran.rstudio.com"
 	DIST=$(lsb_release -cs)
 	if lsb_release -sid | grep "Mint"
@@ -171,6 +179,7 @@ rinside)
 	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
+	get_PMS
 	CUDA=$1
 	shift
 	echo "#### Installing CUDA library ####"
@@ -178,6 +187,7 @@ cuda)
 	if test "x$PMS" == "xyum"
 	then
 		echo "The install script doesnt support yum yet, please install CUDA manually."
+		exit 1;
 	fi
 	
 	if test "x$PMS" == "xapt-get"
@@ -192,6 +202,7 @@ cuda)
 	fi
 	;;
 openmpi)
+	get_PMS
 	if test "x$PMS" == "xyum"
 	then
 		try "Installing openmpi from yum" yum install -y openmpi
@@ -207,6 +218,7 @@ openmpi)
 	fi
 	;;
 coveralls)
+	get_PMS
 	if test "x$PMS" == "xyum"	
 	then
 		echo "The install script doesnt support yum yet, please install CUDA manually."
@@ -231,6 +243,7 @@ submodules)
 	try "Loading gitmodules" mv gitmodules ../.gitmodules
 	;;
 python-dev)
+	get_PMS
 	if test "x$PMS" == "xyum"	
 	then
 		try "Installing python-devel from yum" yum install -y python-devel

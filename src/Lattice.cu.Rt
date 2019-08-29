@@ -80,6 +80,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->py = region.dy;
 	container->pz = region.dz;
 	container->iter = 0;
+	container->reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -401,6 +402,8 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	if (mpi.rank != to) {
 		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
 		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
@@ -482,11 +485,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	from = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
 		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;

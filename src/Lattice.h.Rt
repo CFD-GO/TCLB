@@ -104,7 +104,7 @@ public:
   int segment_iterations;
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
-  int reset_iter;
+//  int reset_iter;
   inline void MarkIteration() {
     total_iterations ++;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
