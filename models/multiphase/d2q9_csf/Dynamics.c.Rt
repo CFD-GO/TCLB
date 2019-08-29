@@ -1019,6 +1019,7 @@ CudaDeviceFunction void WVelocity()
 CudaDeviceFunction void CollisionMRT()
 {
     real_t pf = <?R C(sum(h)) ?> ;
+    real_t Usq=0;
 <?R
 	MI = solve(EQ$mat)
 	P = MI %*% diag(1/wi) %*% t(MI)
@@ -1057,7 +1058,36 @@ CudaDeviceFunction void CollisionMRT()
 	    C( R[selR], (R * S)[selR]);
 
 ?>
-    
+   
+        //pressure loss
+        
+
+    switch (NodeType & NODE_OBJECTIVE) {
+        case NODE_Outlet:
+<?R 
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+
+?>
+            AddToOutletFlux(Jx/rho/rho);
+            AddToPressureLoss(-(Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+        break;
+        case NODE_Inlet:
+<?R
+            Usq=PV('Usq')
+            C(Usq,sum(J%*%J) * rho ^-2)
+?>
+           AddToInletFlux(Jx/rho/rho);
+           AddToPressureLoss((Jx/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+       break;
+    }
+
+
+
+        //end pressure loss
+
+
+
         vector_t F = getF();
  
     
@@ -1198,8 +1228,42 @@ CudaDeviceFunction void CollisionCumulant()
   c[8] = ( -c[1]*f[4] + f[8] - c[5]*f[2]*2. )/f[0];
   c[7] = ( -c[8]*f[1] - c[3]*f[4] - c[1]*f[8] + f[7] + ( -c[6]*f[2] - c[5]*f[5] )*2. )/f[0];
 //Cumulant relaxation:
- real_t  a = (c[3] + c[4]);
- real_t  b = (c[3] - c[4]);
+ const real_t  a = (c[3] + c[4]);
+ const real_t  b = (c[3] - c[4]);
+ const real_t rho = c[0];
+ real_t Usq = 0;
+        //pressure loss
+        
+<?R 
+Jc=c(PV("c[1]"),PV("c[2]"))    
+
+?>
+    switch (NodeType & NODE_OBJECTIVE) {
+        case NODE_Outlet:
+<?R 
+            Usq=PV('Usq')
+            C(Usq,sum(Jc%*%Jc) * rho ^-2)
+
+?>
+            AddToOutletFlux(c[1]/rho/rho);
+            AddToPressureLoss(-(c[1]/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+        break;
+        case NODE_Inlet:
+<?R
+            Usq=PV('Usq')
+            C(Usq,sum(Jc%*%Jc) * rho ^-2)
+?>
+           AddToInletFlux(c[1]/rho/rho);
+           AddToPressureLoss((c[1]/rho)/rho*((rho-1.)/3. + Usq/rho/2.));
+       break;
+    }
+
+
+
+        //end pressure loss
+
+
+
 
  vector_t F = getF();
  

@@ -154,5 +154,6 @@ AddNodeType(name="SVelocity",group="BOUNDARY")
 
 
 
-
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")
  
