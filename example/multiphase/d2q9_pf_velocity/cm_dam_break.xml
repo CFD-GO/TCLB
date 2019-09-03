@@ -1,0 +1,47 @@
+
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+    <Geometry nx="256" ny="256"> 
+      <CM><Box /></CM>    
+      <Smoothing><Box /></Smoothing> 
+        <None name="water">
+            <Box ny="96" nx="32"/>
+        </None>        
+        <Wall mask="ALL" name="border" >
+          <Box dx="80" fy="16" nx="2" />
+     
+          <Box nx="2"/>
+          <Box dx="-2"/>
+          <Box ny="2"/>
+          <Box dy="-2"/>
+        </Wall>
+  </Geometry>
+    <Model>
+       <Params Density_h="1.0" Density_l="0.01" />
+    <Params
+        Viscosity_h="0.01666" Viscosity_l="0.01666"
+        PhaseField_h="1.0" PhaseField_l="0.0" 
+
+        ContactAngle="110" 
+      
+        PhaseField_init="0.0"
+        PhaseField_init-water="1.0"
+        W="4" M="0.05" sigma="1E-04"
+        />
+    <Params  />
+     <!-- <Params omega_bulk="1.0"/> -->
+    <Params GravitationY="-1.0E-05" />
+    </Model> 
+    <Solve Iterations="25" output="output/"> <VTK Iterations="10"/> </Solve>
+
+<Geometry>
+  <None mask="ADDITIONALS">
+    <Box nx="256" ny="256"/>
+  </None>
+</Geometry>
+<Solve Iterations="50" output="output/"> <VTK Iterations="10"/> </Solve>
+<Failcheck Iterations="1000" nx="256" ny="256"/>
+<Log Iterations="1000"/>
+<Solve Iterations="30000" output="output/"> <VTK Iterations="500"/> </Solve>
+</CLBConfig>
+
