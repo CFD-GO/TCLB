@@ -299,6 +299,8 @@ CudaDeviceFunction void WVelocityTurbulent() {
 
 CudaDeviceFunction void CollisionMRT()
 {	
+	AddToDensity( getRho()  );
+	AddToFlux(    getU_().x );
  	 real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
  	 if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
