@@ -618,7 +618,7 @@ CudaDeviceFunction void CollisionMRT(){
 
 	if ( C < 0.5 ) 
 	{
-	    AddToGasTotalVelocity( sqrt(U*U + V*V + W*W));
+	   // AddToGasTotalVelocity( sqrt(U*U + V*V + W*W));
 	    AddToGasTotalVelocityX( U );
 	    AddToGasTotalVelocityY( V );
 	    AddToGasTotalVelocityZ( W );
@@ -730,7 +730,16 @@ if (Options$RT) {
 	C(m, m0 - (m0 - EQ$Req + mF*0.5)[selR] * Omega + mF)
 	C(g, invM %*% m)
 ?>
-	switch (NodeType & NODE_ADDITIONALS) {
+// Locate the front of the bubble
+real_t location_X;
+if (C < 0.5 && PhaseF(1,0,0) > 0.5)
+{
+	location_X = X + (C-0.5)/(C-PhaseF(1,0,0));
+	AddToBubbleFront( location_X );
+}
+
+// 09.09.2019 - Comment out of unnecessary globals
+/*	switch (NodeType & NODE_ADDITIONALS) {
 		real_t location;
 		case NODE_Edgeline:
 		    if ( fabs(xyzTrack-1) < 1e-3 )
@@ -767,7 +776,7 @@ if (Options$RT) {
 				location = X + (C-0.5)/(C-PhaseF(1,0,0));
 				AddToInterfacePositionOne(location);
 				AddToVback(U);
-			}*/
+			}* /
 			if (C >0.5 && PhaseF(1,0,0) < 0.5)
 			{
 				location = X + (C-0.5)/(C-PhaseF(1,0,0));
@@ -781,7 +790,7 @@ if (Options$RT) {
 				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
 				AddToInterfacePositionOne(location);
 				AddToVback(V);
-			}*/
+			}* /
 			if (C >0.5 && PhaseF(0,1,0) < 0.5)
 			{
 				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
@@ -795,7 +804,7 @@ if (Options$RT) {
 				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
 				AddToInterfacePositionOne(location);
 				AddToVback(W);
-			}*/
+			}* /
 			if (C >0.5 && PhaseF(0,0,1) < 0.5)
 			{
 				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
@@ -821,7 +830,7 @@ if (Options$RT) {
 				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
 				AddToRTIBubble(location);
 			}
-	}
+	}*/
 }
 #endif
 
