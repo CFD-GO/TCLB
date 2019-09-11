@@ -17,6 +17,7 @@ pipeline {
         }
         stage('Test') {
             steps {
+		sh "git submodule init; git submodule update;"
 		sh "tools/tests.sh d2q9"
             }
         }
