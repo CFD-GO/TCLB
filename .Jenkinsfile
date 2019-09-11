@@ -9,6 +9,7 @@ pipeline {
     stages {
         stage('Build') {
             steps {
+		sh "./tools/install.sh rdep"
 		sh "make configure"
 		sh "./configure"
 		sh "make d2q9"
