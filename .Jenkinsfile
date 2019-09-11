@@ -11,7 +11,7 @@ pipeline {
             steps {
 		sh "./tools/install.sh rdep"
 		sh "make configure"
-		sh "./configure"
+		sh "./configure --with-mpi-include=/usr/include/openmpi-x86_64/"
 		sh "make d2q9"
             }
         }
