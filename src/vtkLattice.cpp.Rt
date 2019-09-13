@@ -19,7 +19,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	size_t size;
 	lbRegion reg = lattice->region;
 	size = reg.size();
-	vtkFileOut vtkFile;
+	vtkFileOut vtkFile(MPMD.local);
 	if (vtkFile.Open(filename)) {return -1;}
 	double spacing = 1/units.alt("m");	
 	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
@@ -86,7 +86,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 
 
 	if (fork() == 0) {
-		vtkFileOut vtkFile;
+		vtkFileOut vtkFile(MPMD.local);
 		if (vtkFile.Open(filename)) {return -1;}
 		double spacing = 1/units.alt("m");	
 		vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
