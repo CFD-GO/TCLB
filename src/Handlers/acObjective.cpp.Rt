@@ -9,9 +9,10 @@ std::string acObjective::xmlname = "Objective";
 
 int acObjective::Init () {
 	int zone_number = 0;
-	double * glob = solver->lattice->globals;
+	double glob[ GLOBALS ];
+	for (size_t i = 0; i < GLOBALS; i++) glob[i] = solver->lattice->globals[i];
+	MPI_Bcast(glob, GLOBALS, MPI_DOUBLE, 0, solver->mpi_comm);
 	pugi::xml_attribute attr;
-	solver->lattice->calcGlobals();
 <?R
 	for (g in rows(Globals)) if (! g$adjoint) { ?>
 	#define <?%s g$name ?> glob[<?%s g$Index ?>] <?R
@@ -40,9 +41,11 @@ int acObjective::Init () {
                 i = which(ZoneSettings$name == paste(c,"InObj",sep=""));
                 s = ZoneSettings[i,,drop=FALSE];
 ?>
+	output("<?%s s$Index?> in zone_number = %lg\n", <?%s c ?>InObj);
         solver->lattice->zSet.set(<?%s s$Index?>, zone_number, <?%s c ?>InObj); <?R
         }
 ?>
+	solver->lattice->globals[ GLOBALS_Objective ] = Objective;
 		return 0;
 	}
 

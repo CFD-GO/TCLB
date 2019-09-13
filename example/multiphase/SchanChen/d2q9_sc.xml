@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/">
+        <Geometry nx="128" ny="128">
+        <MRT><Box/></MRT>
+                <Wall mask="ALL" name="border" >
+                        <Box nx="1"/>
+                        <Box dx="-1"/>
+                        <Box ny="1"/>
+                        <Box dy="-1"/>
+                </Wall>
+                <None name="blobb">
+                        <!-- <Box dx="50" nx="28" dy="50" ny="28"/> -->
+                        <Sphere ny="48" nx="48" dx="40" dy="0" /> 
+                </None>
+        </Geometry>
+        <Model>
+                <Params Density="0.056"/>
+                <Params Density-blobb="2.659"/>
+                <Params G_ff="-6.0"/>
+                <Params G_sf="-2.7"/>
+                
+                <Params viscosity="0.166"/>
+                <!-- <Params GravitationY="-1e-5"/> -->
+        </Model>
+        <Solve Iterations="100" output="output/"> <VTK Iterations="1"/> </Solve> 
+        <Solve Iterations="1000" output="output/"> <VTK Iterations="10"/> </Solve> 
+        <Failcheck Iterations="1000" />
+        <Solve Iterations="10000" output="output/"> <VTK Iterations="500"/> </Solve>
+</CLBConfig>
