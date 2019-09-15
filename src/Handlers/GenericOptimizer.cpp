@@ -14,21 +14,21 @@ int GenericOptimizer::Init () {
 		if (solver->mpi_rank == 0) {
 			ret = OptimizerRun();
                         int msg = -1;
-                        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+                        MPI_Bcast( &msg, 1, MPI_INT, 0, MPMD.local );
 		} else {
 			int msg=0;
 		        while (msg == 0) {
-        		        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+        		        MPI_Bcast( &msg, 1, MPI_INT, 0, MPMD.local );
         		        if (msg != 0) break;
         		        Execute(NULL,NULL,NULL);
                         }
 		}
-		MPI_Bcast( &ret, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		MPI_Bcast( &ret, 1, MPI_INT, 0, MPMD.local );
 		if (ret) {
 			ERROR("Failed to run Optimizer");
 			return -1;
 		}
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(MPMD.local);
 		return 0;
 	}
 
@@ -39,7 +39,7 @@ int GenericOptimizer::Execute (const double * x, double * grad, double * f) {
 		SetParameters(x);
 		int needgrad = -1;
 		if (grad == NULL) needgrad = 0;
-		MPI_Bcast( &needgrad, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		MPI_Bcast( &needgrad, 1, MPI_INT, 0, MPMD.local );
 		int old_iter = solver->iter_type;
 		if (! needgrad)	{
 			output("No need for the gradient\n");
@@ -65,7 +65,7 @@ double FOptimize(unsigned int n, const double * x, double * grad, void * data) {
 	double val = NAN;
         int msg = 0;
         output("------- Optimization iteration %3d -------\n", obj->solver->opt_iter+1);
-        MPI_Bcast( &msg, 1, MPI_INT, 0, MPI_COMM_WORLD );
+        MPI_Bcast( &msg, 1, MPI_INT, 0, MPMD.local );
 	int ret = obj->Execute(x, grad, &val);
 	if (ret) {
 		ERROR("Error while executing calculations in optimize. exiting loop.\n");

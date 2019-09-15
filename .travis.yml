@@ -15,7 +15,6 @@ language: c
 addons:
   apt:
     packages:
-      - libcuinj64-5.5
       - nvidia-profiler
       - nvidia-cuda-dev
       - nvidia-cuda-toolkit
@@ -23,6 +22,8 @@ addons:
       - libopenmpi-dev
       - lcov
       - time
+      - r-base-dev
+      - r-recommended
 
 git:
     submodules: false
@@ -44,7 +45,6 @@ env:
     - MODEL=d3q27_cumulant_AVG_IB_SMAG
 
 before_install:
-    - sudo tools/install.sh r
     - tools/install.sh rdep
     - tools/install.sh rinside
     - sudo tools/install.sh python-dev

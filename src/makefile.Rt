@@ -9,7 +9,7 @@ ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 f
 #CPU=1
 
 
-all:main
+all:main empty
 	@echo "  DONE       $^"
 
 include ../config.mk
@@ -65,6 +65,10 @@ main:main.o $(OBJ)
 #	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
 
 endif
+
+empty:empty.o
+	@echo "  LINKING    $@"
+	@$(CXX) $^ -o $@ $(LD_OPT)
 
 clean:
 	@echo "  RM         ALL"

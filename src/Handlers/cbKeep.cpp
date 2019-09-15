@@ -59,7 +59,7 @@ int cbKeep::DoIt () {
                                 break;
                         }
                 }
-                MPI_Bcast(&s, 1, MPI_INT, 0, MPI_COMM_WORLD);
+                MPI_Bcast(&s, 1, MPI_INT, 0, MPMD.local);
                 solver->lattice->setSetting(whatInObj, s);		
 		return 0;
 	}

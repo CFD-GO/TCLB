@@ -58,7 +58,7 @@ class Solver {
     public:
 	InfoBlock info; ///< Information common among the cores
 	MPIInfo mpi; ///< Information on MPI connectivity
-	MPI_Comm mpi_comm; ///< Solver's MPI_COMM_WORLD
+	MPI_Comm mpi_comm; ///< Solver's MPMD.local
 	pugi::xml_document configfile;
         Lattice * lattice; ///< Main Lattice object
 	Geometry * geometry; ///< Main Geometry object
@@ -79,7 +79,7 @@ class Solver {
 	void print(const char * str);
 	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
 	
-	inline Solver() : mpi_comm(MPI_COMM_WORLD), lattice(NULL) { Init(); };
+	inline Solver() : mpi_comm(MPMD.local), lattice(NULL) { Init(); };
 	~Solver();
 	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_), lattice(NULL) { Init(); };
 	void Init();
