@@ -26,6 +26,7 @@ AddSetting(name="ForceY", default=0, comment='Force force Y')
 AddSetting(name="ForceZ", default=0, comment='Force force Z')
 AddSetting(name="Omega", default=1, comment='relaxation rate for 3rd order cumulants')
 
+AddGlobal(name="Density", comment='system density', unit="kg/m3")
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
 AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")

@@ -145,15 +145,15 @@ AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho_h-rho)*BuoyancyY
 AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ')
 
 # Velocity Tracking on Centerline:
-AddSetting(name="xyzTrack", default=1,comment='x<-1, y<-2, z<-3')
-AddNodeType("Centerline",group="ADDITIONALS")
-AddNodeType("Edgeline",group="ADDITIONALS")
+#AddSetting(name="xyzTrack", default=1,comment='x<-1, y<-2, z<-3')
+#AddNodeType("Centerline",group="ADDITIONALS")
+#AddNodeType("Edgeline",group="ADDITIONALS")
 # Allow for smoothing of sharp interface initiation by diffusion
 AddNodeType("Smoothing",group="ADDITIONALS")
 #  For RTI interface tracking
-AddNodeType("Spiketrack",group="ADDITIONALS")
-AddNodeType("Saddletrack",group="ADDITIONALS")
-AddNodeType("Bubbletrack",group="ADDITIONALS")
+#AddNodeType("Spiketrack",group="ADDITIONALS")
+#AddNodeType("Saddletrack",group="ADDITIONALS")
+#AddNodeType("Bubbletrack",group="ADDITIONALS")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
@@ -162,22 +162,23 @@ if (Options$OutFlow){
 AddNodeType(name="ENeumann", group="BOUNDARY")
 AddNodeType(name="EConvect", group="BOUNDARY")
 }
-AddGlobal("InterfacePositionOne",comment='trackPosition - of low /high density interface')
-AddGlobal("InterfacePositionTwo",comment='trackPosition - of high/low  density interface')
-AddGlobal("Vfront",comment='velocity infront of bubble')
-AddGlobal("Vback",comment='velocity behind bubble')
-AddGlobal("RTISpike", comment='SpikeTracker ')
-AddGlobal("RTIBubble",comment='BubbleTracker')
-AddGlobal("RTISaddle",comment='SaddleTracker')
+#AddGlobal("InterfacePositionOne",comment='trackPosition - of low /high density interface')
+#AddGlobal("InterfacePositionTwo",comment='trackPosition - of high/low  density interface')
+#AddGlobal("Vfront",comment='velocity infront of bubble')
+#AddGlobal("Vback",comment='velocity behind bubble')
+#AddGlobal("RTISpike", comment='SpikeTracker ')
+#AddGlobal("RTIBubble",comment='BubbleTracker')
+#AddGlobal("RTISaddle",comment='SaddleTracker')
 
 # Globals - table of global integrals that can be monitored and optimized
-AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
-AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
-AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+#AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
+#AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
+#AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
+AddGlobal(name="BubbleFront", op="MAX", comment='Maximum location in X direction of interface')
 AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
 AddGlobal(name="KineticEnergy",comment='Measure of kinetic energy', unit="J")
 
-AddGlobal(name="GasTotalVelocity", comment='use to determine avg velocity of bubbles', unit="m/s")
+#AddGlobal(name="GasTotalVelocity", comment='use to determine avg velocity of bubbles', unit="m/s")
 AddGlobal(name="GasTotalVelocityX", comment='use to determine avg velocity of bubbles', unit="m/s")
 AddGlobal(name="GasTotalVelocityY", comment='use to determine avg velocity of bubbles', unit="m/s")
 AddGlobal(name="GasTotalVelocityZ", comment='use to determine avg velocity of bubbles', unit="m/s")
