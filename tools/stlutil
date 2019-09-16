@@ -1,0 +1,120 @@
+#!/usr/bin/env Rscript
+
+library(optparse)
+
+options <- list(
+        make_option(c("-f","--file"), "store", default="", help="Input file", type="character"),
+        make_option(c("-o","--out"), "store", default="", help="Output file", type="character"),
+	make_option(c("-t","--type"), "store", default="", help="Output type: STL or MSH", type="character"),
+	make_option(c("--scale"), "store", default=1.0, help="Scale", type="double"),
+	make_option(c("--dx"), "store", default=0.0, help="X displacement", type="double"),
+	make_option(c("--dy"), "store", default=0.0, help="Y displacement", type="double"),
+	make_option(c("--dz"), "store", default=0.0, help="Z displacement", type="double")
+)
+
+opt <- parse_args(OptionParser(usage="Usage: ADmod -f inputfile [-o outputfile]", options))
+
+if (opt$file == "") stop("Input file not specified\n");
+
+if (! suppressWarnings(require("rgl"))) stop("rgl library not found.\n\nPlease install 'rgl' package with:\n    R > install.packages('rgl')\nor\n    shell > sudo apt install r-cran-rgl\n\n")
+
+fn = opt$file
+o_tp = opt$type
+o_fn = opt$out
+if (o_tp == "") {
+	if (o_fn == "") stop("No output file name provided")
+	if (grepl("stl$", o_fn)) o_tp = "STL"
+	if (grepl("msh$", o_fn)) o_tp = "MSH"
+	if (o_tp == "") stop("Cannot get type from file name")
+}
+
+ext = "eee"
+if (o_tp == "STL") {
+	ext = "b.stl"
+} else if (o_tp == "MSH") {
+	ext = "msh"
+} else {
+	stop("Unknown type",o_tp);
+}
+
+if (o_fn == "") {
+	if (! grepl("stl$",fn)) stop("Input file has a wrong suffix to substitute")
+	o_fn = sub("stl$",ext,fn)
+	if (file.exists(o_fn)) stop("Will not overwrite an auto-generated file name ",o_fn)
+}
+
+if (o_fn == "") stop("Still no output file name")
+
+cat("Input:",fn," Output:",o_fn,"(",o_tp,")\n");
+
+if (! file.exists(fn)) stop("No such file:", fn);
+
+hdr = readChar(fn, 5, useBytes=TRUE)
+
+ascii_stl = (hdr == "solid")
+if (ascii_stl) {
+	cat("Assuming ASCII STL\n");
+} else {
+	cat("Assuming binary STL\n");
+}
+
+if (ascii_stl) {
+	f = pipe(paste("cat", fn, "| sed -n -E 's/^.*(normal|vertex)[ \t]*//p'"))
+	dat = scan(f)
+	if (length(dat) %% 12 != 0) {
+		stop("The number of numeric values in ", fn, " is wrong\n")
+	}
+	dim(dat) = c(12,length(dat)/12)
+	dat = dat[4:12,]
+	dim(dat) = c(3,length(dat)/3)
+	dat = t(dat)
+} else {
+	dat = readSTL(fn,plot=FALSE)
+}
+
+if (nrow(dat) %% 3 != 0) stop("The number of points is not a multiple of 3!")
+
+cat("STL triangles:",nrow(dat)/3,"x",3,"x",ncol(dat),"\n");
+
+dat[,1] = dat[,1] + opt$dx
+dat[,2] = dat[,2] + opt$dy
+dat[,3] = dat[,3] + opt$dz
+dat = dat * opt$scale
+
+if (o_tp == "MSH") {
+	to.int = function(x) as.integer(factor(round(x,4)))
+	tags = paste(to.int(dat[,1]),to.int(dat[,2]),to.int(dat[,3]),sep=".")
+	tags = as.integer(factor(tags))
+	tmp = data.frame(tags=tags,i=1:length(tags))
+	tmp = tmp[order(tmp$tags),]
+	i = tmp$i[!duplicated(tmp$tags)]
+
+	points = dat[i,]
+	triangles = t(matrix(tags,3))
+
+	cat("MSH points:   ",nrow(points),"x",ncol(points),"\n");
+	cat("MSH triangles:",nrow(triangles),"x",ncol(triangles),"\n");
+
+	collapsed = function(x) x[,1] == x[,2] | x[,1] == x[,3] | x[,2] == x[,3]
+	sel = collapsed(triangles)
+	cat("MSH deleted",sum(sel),"triangles\n");	
+	triangles = triangles[!sel,]
+
+	save.msh = function(filename,points,triangles) {
+		f = file(filename,"w")
+		cat("Triangles\n",file=f)
+		cat("3D-Nodes ",nrow(points),"\n",sep="",file=f)
+		i = 1:nrow(points)-1
+		write.table(cbind(i,i,0,points),file=f,row.names=FALSE,col.names=FALSE,sep="\t")
+		cat("\nTri3 ",nrow(triangles),"\n",file=f,sep="")
+		i = 1:nrow(triangles)-1
+		write.table(cbind(i,0,triangles-1),file=f,row.names=FALSE,col.names=FALSE,sep="\t")
+		close(f)
+	}
+	save.msh(o_fn, points, triangles)
+	cat("Done:",o_fn,"\n")
+} else if (o_tp == "STL") {
+	triangles3d(dat)
+	writeSTL(o_fn)
+	cat("Done:",o_fn,"\n")
+}
