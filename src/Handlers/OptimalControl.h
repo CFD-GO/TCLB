@@ -13,6 +13,7 @@ class  OptimalControl  : public  Design  {
 	int old_iter_type;
 	FILE * f;
 	double lower, upper;
+	double * tmptab;
 public:
 	static std::string xmlname;
 int Init ();

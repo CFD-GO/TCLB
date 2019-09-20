@@ -43,17 +43,24 @@ fi
 
 # ------------------- Second, check Package Management System - PMS  ----------------------
 PMS=""
-pms_array=( apt-get yum )
-for i in "${pms_array[@]}"
-do
-	if [ -x "$(command -v $i)" ] ; then 
-	  echo "Discovered Package Manager: $i"
-	  PMS=$i
+function get_PMS {
+	if test -z "$PMS"
+	then
+		pms_array=( apt-get yum )
+		for i in "${pms_array[@]}"
+		do
+			if [ -x "$(command -v $i)" ] ; then 
+				echo "Discovered Package Manager: $i"
+				PMS=$i
+			fi
+		done
+		if test -z "$PMS"
+		then
+			echo "Unknown type of Package Manager, only apt-get and yum are supported."
+			exit 2;
+		fi
 	fi
-done
- 
-test -z "$PMS" && echo "Unknown type of Package Manager, only apt-get and yum are supported." && usage
-
+}
 
 # --------------- First argument is type of install ---------
 test -z "$1" && usage
@@ -68,7 +75,7 @@ trap rm_tmp EXIT
 # --------------- Install functions -------------------------
 function try {
 	comment=$1
-	log=$(echo $comment | sed 's/ /./g').log
+	log=$(echo $comment | sed 's|[ /]|.|g').log
 	shift
 	if dry
 	then
@@ -108,8 +115,50 @@ function normal_install {
 			dir.create(p,recursive=TRUE);
 			.libPaths(p);
 		}
-		install.packages('$name');
+		install.packages('$name', method="wget");
 EOF
+}
+
+function gitdep.cp {
+	echo -n "Copy $1... "
+	if ! test -f "gitdep_repo/$1"
+	then
+		echo "No such file"
+		exit -1;
+	fi
+	if ! test -d "../$2"
+	then
+		echo "Targed directory $2 doesn't exist";
+		exit -1;
+	fi
+	if diff gitdep_repo/$1 ../$2 >/dev/null
+	then
+		echo "Same"
+	else
+		echo "Changed"
+		if dry
+		then
+			echo "cp \"gitdep_repo/$1\" \"../$2\""
+		else
+			cp "gitdep_repo/$1" "../$2"
+		fi
+	fi
+	return 0;
+}
+
+function gitdep {
+	DIR=$1
+	shift
+	REPO=$1
+	shift
+	echo "repo: $REPO dir:$DIR files:$@"
+	try "Clone $REPO" git clone $REPO gitdep_repo
+	for i in "$@"
+	do
+		gitdep.cp "$i" "$DIR"
+	done
+	rm -r gitdep_repo
+	return 0;
 }
 
 # --------------- Main install script -----------------------
@@ -119,6 +168,7 @@ dry && echo Running dry install
 
 case "$inst" in
 r)
+	get_PMS
 	CRAN="http://cran.rstudio.com"
 	DIST=$(lsb_release -cs)
 	if lsb_release -sid | grep "Mint"
@@ -144,12 +194,14 @@ r)
 rdep)
         if test "x$1" == "xgithub"
         then
-	    github_install cran/getopt
-	    github_install cran/optparse
-	    github_install cran/numbers
+                github_install cran/getopt
+                github_install cran/optparse
+                github_install cran/numbers
+                github_install cran/yaml
         else
-	    normal_install optparse
-	    normal_install numbers
+                normal_install optparse
+                normal_install numbers
+                normal_install yaml
         fi
 	github_install llaniewski/rtemplate
 	github_install llaniewski/gvector
@@ -160,10 +212,16 @@ rpython)
 	normal_install rPython
 	;;
 rinside)
-	normal_install RInside
+	if test "x$1" == "xgithub"
+	then
+		github_install eddelbuettel/rinside
+	else
+		normal_install RInside
+	fi
 	;;
 cuda)
 	test -z "$1" && error Version number needed for cuda install
+	get_PMS
 	CUDA=$1
 	shift
 	echo "#### Installing CUDA library ####"
@@ -171,6 +229,7 @@ cuda)
 	if test "x$PMS" == "xyum"
 	then
 		echo "The install script doesnt support yum yet, please install CUDA manually."
+		exit 1;
 	fi
 	
 	if test "x$PMS" == "xapt-get"
@@ -185,6 +244,7 @@ cuda)
 	fi
 	;;
 openmpi)
+	get_PMS
 	if test "x$PMS" == "xyum"
 	then
 		try "Installing openmpi from yum" yum install -y openmpi
@@ -200,6 +260,7 @@ openmpi)
 	fi
 	;;
 coveralls)
+	get_PMS
 	if test "x$PMS" == "xyum"	
 	then
 		echo "The install script doesnt support yum yet, please install CUDA manually."
@@ -223,7 +284,19 @@ submodules)
 	try "Updating \"tests\" submodule" git submodule update --init ../tests
 	try "Loading gitmodules" mv gitmodules ../.gitmodules
 	;;
+gitdep)
+	if ! test -f "../.gitdeps"
+	then
+		echo no .gitdeps file
+		exit 0;
+	fi
+	while read line
+	do
+		gitdep $line
+	done <../.gitdeps
+	;;
 python-dev)
+	get_PMS
 	if test "x$PMS" == "xyum"	
 	then
 		try "Installing python-devel from yum" yum install -y python-devel

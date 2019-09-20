@@ -25,9 +25,16 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void Init() {
 // Initialise the velocity at each node 
-	real_t u[2] = {Velocity, 0.};
-	real_t d    = Density;
-	SetEquilibrium(d,u);
+    vector_t u;
+    u.x = Velocity_x; u.y = Velocity_y;  
+    real_t d = Density;
+	
+    real_t f_eq[9];
+    SetEquilibrium(f_eq, d, u);
+
+    for (int i=0; i< 9; i++) {
+	f[i] = f_eq[i];	
+    }
 }
  
 CudaDeviceFunction void Run() {
@@ -53,44 +60,26 @@ CudaDeviceFunction void Run() {
 //		NVelocity();
 //		break;
     }
-	if (NodeType & NODE_MRT) 
+	if (NodeType & NODE_BGK) 
 	{
-	// Set as if MRT as majority of examples specify
-	// solution zone as MRT box, so avoid changing 
-	// input files.
 		CollisionBGK();
-	}
+	} 
 }
 
 CudaDeviceFunction void CollisionBGK() {
 // Here we perform a single relaxation time collision operation.
-// We save memory here by using a single dummy variable
-
-	real_t u[2], d, f_temp[9];
-	d = getRho();
 	// pu* = pu + rG
-	u[0] = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/d + GravitationX/omega );
-	u[1] = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/d + GravitationY/omega );
-	// feq = f[0]; f new = f_temp[0]
-	f_temp[0] = f[0];
-	f_temp[1] = f[1];
-	f_temp[2] = f[2];
-	f_temp[3] = f[3];
-	f_temp[4] = f[4];
-	f_temp[5] = f[5];
-	f_temp[6] = f[6];
-	f_temp[7] = f[7];
-	f_temp[8] = f[8];
-	SetEquilibrium(d, u);
-	f[0] = f_temp[0] - omega*(f_temp[0]-f[0]);	
-	f[1] = f_temp[1] - omega*(f_temp[1]-f[1]);
-	f[2] = f_temp[2] - omega*(f_temp[2]-f[2]);
-	f[3] = f_temp[3] - omega*(f_temp[3]-f[3]);	
-	f[4] = f_temp[4] - omega*(f_temp[4]-f[4]);
-	f[5] = f_temp[5] - omega*(f_temp[5]-f[5]);
-	f[6] = f_temp[6] - omega*(f_temp[6]-f[6]);	
-	f[7] = f_temp[7] - omega*(f_temp[7]-f[7]);
-	f[8] = f_temp[8] - omega*(f_temp[8]-f[8]);
+	real_t d = getRho();
+	vector_t u;
+	u.x = (( f[8]-f[7]-f[6]+f[5]-f[3]+f[1] )/d + GravitationX/omega );
+	u.y = ((-f[8]-f[7]+f[6]+f[5]-f[4]+f[2] )/d + GravitationY/omega );
+
+	real_t f_eq[9];
+  	SetEquilibrium(f_eq,  d, u); //stores equilibrium distribution in feq[0]-feq[8]
+
+	for (int i=0; i< 9; i++) {
+            f[i] = f[i] + omega*(f_eq[i]-f[i]);	
+	}
 }
 CudaDeviceFunction void BounceBack() {
 // Method to reverse distribution functions along the bounding nodes.
@@ -127,36 +116,23 @@ CudaDeviceFunction vector_t getU() {
 }
 
 
-CudaDeviceFunction void SetEquilibrium(real_t d, real_t u[2])
-{
-f[0] = ( 2. + ( -u[1]*u[1] - u[0]*u[0] )*3. )*d*2./9.;
-f[1] = ( 2. + ( -u[1]*u[1] + ( 1 + u[0] )*u[0]*2. )*3. )*d/18.;
-f[2] = ( 2. + ( -u[0]*u[0] + ( 1 + u[1] )*u[1]*2. )*3. )*d/18.;
-f[3] = ( 2. + ( -u[1]*u[1] + ( -1 + u[0] )*u[0]*2. )*3. )*d/18.;
-f[4] = ( 2. + ( -u[0]*u[0] + ( -1 + u[1] )*u[1]*2. )*3. )*d/18.;
-f[5] = ( 1. + ( ( 1 + u[1] )*u[1] + ( 1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
-f[6] = ( 1. + ( ( 1 + u[1] )*u[1] + ( -1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
-f[7] = ( 1. + ( ( -1 + u[1] )*u[1] + ( -1 + u[0] + u[1]*3. )*u[0] )*3. )*d/36.;
-f[8] = ( 1. + ( ( -1 + u[1] )*u[1] + ( 1 + u[0] - u[1]*3. )*u[0] )*3. )*d/36.;
+
+CudaDeviceFunction void SetEquilibrium(real_t f_eq[9], real_t d, vector_t u){
+    f_eq[0] = ( 2. + ( -u.y*u.y - u.x*u.x )*3. )*d*2./9.;
+    f_eq[1] = ( 2. + ( -u.y*u.y + ( 1 + u.x )*u.x*2. )*3. )*d/18.;
+    f_eq[2] = ( 2. + ( -u.x*u.x + ( 1 + u.y )*u.y*2. )*3. )*d/18.;
+    f_eq[3] = ( 2. + ( -u.y*u.y + ( -1 + u.x )*u.x*2. )*3. )*d/18.;
+    f_eq[4] = ( 2. + ( -u.x*u.x + ( -1 + u.y )*u.y*2. )*3. )*d/18.;
+    f_eq[5] = ( 1. + ( ( 1 + u.y )*u.y + ( 1 + u.x + u.y*3. )*u.x )*3. )*d/36.;
+    f_eq[6] = ( 1. + ( ( 1 + u.y )*u.y + ( -1 + u.x - u.y*3. )*u.x )*3. )*d/36.;
+    f_eq[7] = ( 1. + ( ( -1 + u.y )*u.y + ( -1 + u.x + u.y*3. )*u.x )*3. )*d/36.;
+    f_eq[8] = ( 1. + ( ( -1 + u.y )*u.y + ( 1 + u.x - u.y*3. )*u.x )*3. )*d/36.;
 }
-
-
-CudaDeviceFunction void NVelocity()
-{
-        real_t rho, ru;
-	real_t ux0 = Velocity;
-	rho = ( f[0] + f[1] + f[3] + 2.*(f[6] + f[2] + f[5]) ) / (1. + ux0);
-	ru = rho * ux0;
-	f[4] = f[2] - (2./3.) * ru;
-	f[8] = f[6] - (1./6.) * ru + (1./2.)*(f[3] - f[1]);
-	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[1] - f[3]);
-}
-
 
 CudaDeviceFunction void EVelocity()
 {
-        real_t rho, ru;
-	real_t ux0 = Velocity;
+    real_t rho, ru;
+	real_t ux0 = Velocity_x;
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[1] + f[5] + f[8]) ) / (1. + ux0);
 	ru = rho * ux0;
 	f[3] = f[1] - (2./3.) * ru;
@@ -179,7 +155,7 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void WVelocity()
 {
         real_t rho, ru;
-	real_t u[2] = {Velocity,0.};
+	real_t u[2] = {Velocity_x,0.};
 	rho = ( f[0] + f[2] + f[4] + 2.*(f[3] + f[7] + f[6]) ) / (1. - u[0]);
 	ru = rho * u[0];
 	f[1] = f[3] + (2./3.) * ru;
@@ -198,4 +174,5 @@ CudaDeviceFunction void EPressure()
 	f[7] = f[5] - (1./6.) * ru + (1./2.)*(f[2] - f[4]);
 	f[6] = f[8] - (1./6.) * ru + (1./2.)*(f[4] - f[2]);
 }
+
 

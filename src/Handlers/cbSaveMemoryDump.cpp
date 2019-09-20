@@ -8,7 +8,7 @@ int cbSaveMemoryDump::Init () {
 		if (!attr) {
 			attr = node.attribute("filename");
 			if (!attr) {
-				char filename[STRING_LEN];
+				char filename[2*STRING_LEN];
 				solver->outIterFile("Save", "", filename);
 				fn = filename;
 			} else {

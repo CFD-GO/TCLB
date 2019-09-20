@@ -28,3 +28,7 @@ AddSetting( name="GravitationX",default=0, comment='body/external acceleration',
 AddSetting( name="GravitationY",default=0, comment='body/external acceleration', zonal=TRUE)
 AddSetting( name="Density",default=1, comment='Density')
 
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")

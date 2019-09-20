@@ -19,6 +19,10 @@
 #ifndef GLOBAL_H
     #define BOUNDARY_UX UX_mid
     #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
+    
+    #include "MPMD.hpp"
+    extern MPMDHelper MPMD;
+    
 #define GLOBAL_H 1
 #endif
 
@@ -46,6 +50,7 @@ for (m in Margin) { ?>
         int size; ///< MPI size
         int rank; ///< (My) MPI rank
         int gpu; ///< (My) GPU selected
+	int divx, divy, divz; ///< MPI division
     };
 
     void fillSides(MPIInfo, int, int, int);
@@ -172,6 +177,14 @@ CudaConstantMemory const  real_t 	wf[9] = {4./9., 	1./9., 1./9., 1./9., 1./9., 	
 #define D2Q9_w_and_e
 
 #ifndef D3Q27_w_and_e
+CudaConstantMemory real_t const wtConv[27] = {8./27.,
+                                      2./27., 2./27., 2./27., 2./27., 2./27., 2./27.,
+                                      1./54.,  1./54.,  1./54.,  1./54.,
+                                      1./54.,  1./54.,  1./54.,  1./54.,
+                                      1./54.,  1./54.,  1./54.,  1./54.,
+  				      1./216., 1./216., 1./216., 1./216.,
+                                      1./216., 1./216., 1./216., 1./216.};
+
 
 CudaConstantMemory real_t const wg[27] = {8./27.,
                                       2./27., 2./27., 2./27., 2./27., 2./27., 2./27.,

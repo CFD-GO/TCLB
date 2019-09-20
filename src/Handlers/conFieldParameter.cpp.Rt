@@ -69,7 +69,7 @@ int conFieldParameter::CalculateNumberOfParameters () {
 	Par_size = j;
 	printf("-- %d -- %d --\n",(int)n, (int)j);
 	debug1("Par_size: %d\n",Par_size);
-	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPMD.local);
 	if (mpi_rank == 0) {
 		int i;
 		Par_disp[0] = 0;
@@ -172,10 +172,10 @@ int conFieldParameter::Parameters (int type, double * tab) {
 	case PAR_Z:
 	case PAR_T:
 		LocalParameters(type, ptab);
-		MPI_Gatherv(ptab, Par_size, MPI_DOUBLE, tab, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Gatherv(ptab, Par_size, MPI_DOUBLE, tab, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPMD.local);
 		break;
 	case PAR_SET:
-		MPI_Scatterv(tab, Par_sizes, Par_disp,  MPI_DOUBLE, ptab, Par_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Scatterv(tab, Par_sizes, Par_disp,  MPI_DOUBLE, ptab, Par_size, MPI_DOUBLE, 0, MPMD.local);
 		LocalParameters(type, ptab);
 		break;
 	case PAR_UPPER:

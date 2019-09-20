@@ -1,0 +1,554 @@
+// d3q27-cumulant + d3q7-mrt based thermal model 
+// maintainer: Dmytro Sashko @shkodm
+<?R
+	source("conf.R")
+	c_header();
+
+
+# Creating variables for symbolic computations
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	g = PV(DensityAll$name[DensityAll$group=="g"])
+	rho =  PV("rho")
+	J = PV("J",c("x","y","z"))
+        u = PV(c("ux","uy","uz"))
+	tmp = PV("tmp")
+	rhoT = PV("rhoT")
+# Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	source("lib/boundary.R")
+
+	EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+	geq = MRT_eq(d3q7, rhoT, u*rhoT, order=1);
+?>
+
+CudaDeviceFunction real_t getRho(){
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction real_t getP(){
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+CudaDeviceFunction real_t getT()
+{
+	return (<?R C(sum(g)) ?>)/(<?R C(sum(f)) ?>);
+}
+CudaDeviceFunction vector_t getU(){
+	real_t d = getRho();
+	vector_t u;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+	u.x = (u.x + ForceX/2.)/d;
+	u.y = (u.y + ForceY/2.)/d;
+	u.z = (u.z + ForceZ/2.)/d;
+	return u;
+}
+#ifdef avgUX
+CudaDeviceFunction real_t getaverageP(){
+	return avgP;
+}
+CudaDeviceFunction real_t getDissipation(){
+        real_t diss;
+       	diss = nu*((avgdxu2/average_iter)-(avgUX(1,0,0) - avgUX(-1,0,0))*(avgUX(1,0,0) - avgUX(-1,0,0))/(4*average_iter*average_iter));
+       	diss = diss + nu*((avgdyv2/average_iter) -(avgUY(0,1,0) - avgUY(0,-1,0))*(avgUY(0,1,0) - avgUY(0,-1,0))/(4*average_iter*average_iter));
+       	diss = diss + nu*((avgdzw2/average_iter) - (avgUZ(0,0,1) - avgUZ(0,0,-1))*(avgUZ(0,0,1) - avgUZ(0,0,-1))/(4*average_iter*average_iter));
+        return diss;
+}
+CudaDeviceFunction vector_t getavgU(){
+        vector_t u;
+        u.x = avgUX(0,0,0)/average_iter;  //avgUX(0,0,0) in fact
+        u.y = avgUY(0,0,0)/average_iter;
+        u.z = avgUZ(0,0,0)/average_iter;
+        return u;
+}
+CudaDeviceFunction vector_t getvarU(){
+        vector_t u;
+        u.x = varUX/average_iter - getavgU().x*getavgU().x;
+        u.y = varUY/average_iter - getavgU().y*getavgU().y;
+        u.z = varUZ/average_iter - getavgU().z*getavgU().z;
+        return u;
+}
+CudaDeviceFunction vector_t getReStr(){
+        vector_t st;
+        st.x = varUYUZ/average_iter - getavgU().y*getavgU().z;
+        st.y = varUXUZ/average_iter - getavgU().x*getavgU().z;
+        st.z = varUXUY/average_iter - getavgU().x*getavgU().y;
+        return st;
+}
+CudaDeviceFunction real_t getKinE(){
+	real_t ke;
+	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
+	return ke;
+}
+#endif
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+//        vector_t u = getU();
+//        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+	ret.x = getT();
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHe(EQ, 1, -1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ { 
+<?R paste(C(u,0)) ?> }
+ real_t rhoT = rho*Temperature; 
+ <?R C(g,geq$feq) ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ { 
+<?R paste(C(u,0)) ?> } 
+ real_t rhoT = rho*Temperature;
+ <?R C(g,geq$feq) ?>
+}
+
+CudaDeviceFunction void SVelocity()
+{
+<?R ZouHe(EQ, 2, 1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ { 
+<?R paste(C(u,0)) ?> } 
+ real_t rhoT = rho*Temperature;
+ <?R C(g,geq$feq) ?>
+}
+
+CudaDeviceFunction void NVelocity()
+{
+<?R ZouHe(EQ, 2, -1, "velocity") ?>
+ real_t ux = Jx/rho;
+ real_t uy = Jy/rho;
+ real_t uz = Jz/rho;
+ if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ {
+ <?R paste(C(u,0)) ?> } 
+ real_t rhoT = rho*Temperature;
+ <?R C(g,geq$feq) ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHe(EQ, 1, 1, "pressure") ?>
+  }
+
+CudaDeviceFunction void SPressure()
+{
+<?R ZouHe(EQ, 2, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void NPressure()
+{
+<?R ZouHe(EQ, 2, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHe(EQ, 1, -1, "pressure") ?>
+ real_t ux = Jx/rho;
+ real_t uz = Jz/rho;
+ real_t uy = Jy/rho;
+ real_t rhoT = rho*Temperature;	
+ rho =2*g1 + g0 + g3 + g4 + g5 + g6;
+ rho = rho/(1.+ux);
+ g2 = g1 - rho*ux;
+
+}
+CudaDeviceFunction void NSymmetry()
+{
+//Symmetry on the top of the boundary
+<?R Symmetry(2,-1) ?>
+}
+
+CudaDeviceFunction void SSymmetry()
+{
+//Symmetry on the bottom of the boundary
+<?R Symmetry(2,1) ?>
+}
+CudaDeviceFunction void OSymmetry()
+{
+//Symmetry on a top of "z" boundary
+<?R Symmetry(3,-1) ?>
+}
+
+CudaDeviceFunction void ISymmetry()
+{
+//Symmetry on a bottom of "z" boundary
+<?R Symmetry(3,1) ?>
+}
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_WVelocityTurbulent:
+		WVelocityTurbulent();
+		break;
+	case NODE_NSymmetry:
+		NSymmetry();
+		break;
+	case NODE_SSymmetry:
+               	SSymmetry();
+                break;
+	case NODE_EPressure:
+                EPressure();
+               	break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_SPressure:
+                SPressure();
+                break;
+	case NODE_NPressure:
+                NPressure();
+                break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	 case NODE_NVelocity:
+                NVelocity();
+                break;
+	 case NODE_SVelocity:
+                SVelocity();
+                break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_Wall:
+		BounceBack();
+                break;
+	case NODE_ISymmetry:
+		ISymmetry();
+		break;
+	case NODE_OSymmetry:
+		OSymmetry();
+		break;
+    }
+    switch (NodeType & NODE_COLLISION) {
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz,real_t rhoT)
+{
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+ 	{ 
+	<?R paste(C(J,0)) ?> } 
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+        real_t <?R paste(C(u,sep=",")) ?> ;
+	ux = Jx/rho;
+	uy = Jy/rho;
+	uz = Jz/rho;
+	<?R C(g,geq$feq) ?>
+}
+
+CudaDeviceFunction void Init() {
+	vector_t ST = SyntheticTurbulence(0);
+	ST.x = Turbulence*ST.x;
+	ST.y = Turbulence*ST.y;
+	ST.z = Turbulence*ST.z; 
+	SynthTX = ST.x;
+	SynthTY = ST.y;
+	SynthTZ = ST.z;
+	ST.x = ST.x + Velocity;	
+	SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z,Temperature*1.0);
+}
+
+CudaDeviceFunction void WVelocityTurbulent() {
+        real_t k_aa = exp(-1/constContainer.ST.TimeWN);
+        real_t k_bb =  sqrt(1 - k_aa*k_aa);
+       	vector_t ST = SyntheticTurbulence(0);
+        ST.x = Turbulence*ST.x*k_bb + SynthTX*k_aa;
+        ST.y = Turbulence*ST.y*k_bb + SynthTY*k_aa;
+       	ST.z = Turbulence*ST.z*k_bb + SynthTZ*k_aa; 
+        SynthTX = ST.x;
+        SynthTY = ST.y;
+        SynthTZ = ST.z;
+        ST.x = ST.x + Velocity;
+	<?R ZouHe(EQ, 1, 1, "velocity",V=PV("ST.x"),V3=c(PV("ST.x"),PV("ST.y"),PV("ST.z"))) ?> 
+
+}
+
+CudaDeviceFunction void CollisionMRT()
+{	
+	real_t M[7];
+	real_t rho,ux,uy,uz, rhoT;
+	real_t Jx,Jy,Jz;
+	real_t Q;
+	<?R 
+	C( rho, sum(f) )
+	C( J, f%*% U)
+	C( rhoT, sum(g) )
+	?>	
+	ux = Jx/rho;
+	uy = Jy/rho;
+	uz = Jz/rho; 	
+        Q = 0;
+	real_t omegaT = 1.0 - 1.0/(3*Alpha + 0.5);
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Heater) Q = Temperature*rho - rhoT;
+	if ((NodeType & NODE_BOUNDARY) == NODE_Solid)
+	{ 
+ux = 0;
+uy = 0; 
+uz = 0;
+real_t tmp;
+tmp = f001;
+f001 = f002;
+f002 = tmp;
+tmp = f010;
+f010 = f020;
+f020 = tmp;
+tmp = f011;
+f011 = f022;
+f022 = tmp;
+tmp = f012;
+f012 = f021;
+f021 = tmp;
+tmp = f100;
+f100 = f200;
+f200 = tmp;
+tmp = f101;
+f101 = f202;
+f202 = tmp;
+tmp = f102;
+f102 = f201;
+f201 = tmp;
+tmp = f120;
+f120 = f210;
+f210 = tmp;
+tmp = f110;
+f110 = f220;
+f220 = tmp;
+tmp = f121;
+f121 = f212;
+f212 = tmp;
+tmp = f122;
+f122 = f211;
+f211 = tmp;
+tmp = f111;
+f111 = f222;
+f222 = tmp;
+tmp = f112;
+f112 = f221;
+f221 = tmp;	
+}
+
+else {
+real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
+if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
+f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
+f010 = f210 + f110 + f010; f110 = -f210 + f110; f210 = f110 + f210*2.; 
+f020 = f220 + f120 + f020; f120 = -f220 + f120; f220 = f120 + f220*2.; 
+f001 = f201 + f101 + f001; f101 = -f201 + f101; f201 = f101 + f201*2.; 
+f011 = f211 + f111 + f011; f111 = -f211 + f111; f211 = f111 + f211*2.; 
+f021 = f221 + f121 + f021; f121 = -f221 + f121; f221 = f121 + f221*2.; 
+f002 = f202 + f102 + f002; f102 = -f202 + f102; f202 = f102 + f202*2.; 
+f012 = f212 + f112 + f012; f112 = -f212 + f112; f212 = f112 + f212*2.; 
+f022 = f222 + f122 + f022; f122 = -f222 + f122; f222 = f122 + f222*2.; 
+f000 = f020 + f010 + f000; f010 = -f020 + f010; f020 = f010 + f020*2.; 
+f100 = f120 + f110 + f100; f110 = -f120 + f110; f120 = f110 + f120*2.; 
+f200 = f220 + f210 + f200; f210 = -f220 + f210; f220 = f210 + f220*2.; 
+f001 = f021 + f011 + f001; f011 = -f021 + f011; f021 = f011 + f021*2.; 
+f101 = f121 + f111 + f101; f111 = -f121 + f111; f121 = f111 + f121*2.; 
+f201 = f221 + f211 + f201; f211 = -f221 + f211; f221 = f211 + f221*2.; 
+f002 = f022 + f012 + f002; f012 = -f022 + f012; f022 = f012 + f022*2.; 
+f102 = f122 + f112 + f102; f112 = -f122 + f112; f122 = f112 + f122*2.; 
+f202 = f222 + f212 + f202; f212 = -f222 + f212; f222 = f212 + f222*2.; 
+f000 = f002 + f001 + f000; f001 = -f002 + f001; f002 = f001 + f002*2.; 
+f100 = f102 + f101 + f100; f101 = -f102 + f101; f102 = f101 + f102*2.; 
+f200 = f202 + f201 + f200; f201 = -f202 + f201; f202 = f201 + f202*2.; 
+f010 = f012 + f011 + f010; f011 = -f012 + f011; f012 = f011 + f012*2.; 
+f110 = f112 + f111 + f110; f111 = -f112 + f111; f112 = f111 + f112*2.; 
+f210 = f212 + f211 + f210; f211 = -f212 + f211; f212 = f211 + f212*2.; 
+f020 = f022 + f021 + f020; f021 = -f022 + f021; f022 = f021 + f022*2.; 
+f120 = f122 + f121 + f120; f121 = -f122 + f121; f122 = f121 + f122*2.; 
+f220 = f222 + f221 + f220; f221 = -f222 + f221; f222 = f221 + f222*2.; 
+
+
+<?R
+	cumulants = paste("c",P$x,P$y,P$z,sep="");
+	for (i in cumulants) { ?>
+	real_t <?%s i ?>;
+<?R } ?>	
+
+
+c100 = f100/f000;
+c200 = ( -c100*f100 + f200 )/f000;
+c010 = f010/f000;
+c110 = ( -c100*f010 + f110 )/f000;
+c210 = ( -c110*f100 - c200*f010 - c100*f110 + f210 )/f000;
+c020 = ( -c010*f010 + f020 )/f000;
+c120 = ( -c100*f020 + f120 - c110*f010*2. )/f000;
+c220 = ( -c120*f100 - c200*f020 - c100*f120 + f220 + ( -c210*f010 - c110*f110 )*2. )/f000;
+c001 = f001/f000;
+c101 = ( -c100*f001 + f101 )/f000;
+c201 = ( -c101*f100 - c200*f001 - c100*f101 + f201 )/f000;
+c011 = ( -c010*f001 + f011 )/f000;
+c111 = ( -c101*f010 - c110*f001 - c100*f011 + f111 )/f000;
+c211 = ( -c011*f200 - c210*f001 - c010*f201 + f211 + ( -c111*f100 - c110*f101 )*2. )/f000;
+c021 = ( -c011*f010 - c020*f001 - c010*f011 + f021 )/f000;
+c121 = ( -c101*f020 - c120*f001 - c100*f021 + f121 + ( -c111*f010 - c110*f011 )*2. )/f000;
+c221 = ( -c021*f200 - c201*f020 - c001*f220 + f221 + ( -c121*f100 - c211*f010 - c011*f210 - c101*f120 - c111*f110*2. )*2. )/f000;
+c002 = ( -c001*f001 + f002 )/f000;
+c102 = ( -c100*f002 + f102 - c101*f001*2. )/f000;
+c202 = ( -c102*f100 - c200*f002 - c100*f102 + f202 + ( -c201*f001 - c101*f101 )*2. )/f000;
+c012 = ( -c010*f002 + f012 - c011*f001*2. )/f000;
+c112 = ( -c102*f010 - c110*f002 - c100*f012 + f112 + ( -c111*f001 - c101*f011 )*2. )/f000;
+c212 = ( -c012*f200 - c210*f002 - c010*f202 + f212 + ( -c112*f100 - c211*f001 - c011*f201 - c110*f102 - c111*f101*2. )*2. )/f000;
+c022 = ( -c012*f010 - c020*f002 - c010*f012 + f022 + ( -c021*f001 - c011*f011 )*2. )/f000;
+c122 = ( -c102*f020 - c120*f002 - c100*f022 + f122 + ( -c112*f010 - c121*f001 - c101*f021 - c110*f012 - c111*f011*2. )*2. )/f000;
+c222 = ( -c122*f100 - c202*f020 - c102*f120 - c220*f002 - c120*f102 - c200*f022 - c100*f122 + f222 + ( -c212*f010 - c112*f110 - c221*f001 - c121*f101 - c201*f021 - c101*f121 - c210*f012 - c110*f112 + ( -c211*f011 - c111*f111 )*2. )*2. )/f000;
+
+//Getting the velocity from the cummulants and force term
+
+vector_t u;
+u.x = c100 + ForceX/(2.*f000);
+u.y = c010 + ForceY/(2.*f000);
+u.z = c001 + ForceZ/(2.*f000);
+
+///////
+       real_t dxu,dyv,dzw;
+      // vector_t u = getU();
+       dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
+       dyv = dxu + 3.*w[0]/2.*(c200 - c020);
+       dzw = dxu + 3.*w[0]/2.*(c200 - c002);
+       #ifdef avgUX
+       avgdxu2 = avgdxu2 + dxu*dxu;
+       avgdyv2 = avgdyv2 + dyv*dyv;
+       avgdzw2 = avgdzw2 + dzw*dzw;
+       #endif
+       real_t gcor1 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.y*u.y*dyv);
+       real_t gcor2 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.z*u.z*dzw);
+       real_t gcor3 = 3.*(1 - w[1]/2.)*(u.x*u.x*dxu + u.y*u.y*dyv + u.z*u.z*dzw);
+       real_t a,b,cc;
+       a = (1 - w[0])*(c200 - c020);
+       b = (1 - w[0])*(c200 - c002);
+       cc = w[1] + (1 - w[1])*(c200 + c020 + c002);
+       a = a - gcor1 * GalileanCorrection;
+       b = b - gcor2 * GalileanCorrection;
+       cc = cc - gcor3 * GalileanCorrection;
+
+//Cumulants relation 
+
+ 	c100 = c100 + ForceX;//100 - change only due to force term
+
+        c200 = (a + b + cc)/3.; // 200
+        c020 = (cc - 2*a + b)/3.;//020
+        c002 = (cc - 2*b + a)/3.; 
+
+        c010 = c010 + ForceY + (rhoT/rho-BuoyancyT0)*Buoyancy; //010 - change only due to force term
+        c001 = c001 + ForceZ ; //001 - change only due to force term
+
+	c110 = c110 * (1-w[0]);
+	c011 = c011 * (1-w[0]);
+	c101 = c101 * (1-w[0]);
+	<?R	sel = rowSums(P) > 2
+		for (i in cumulants[sel]) { ?>
+		<?%s i ?> = 0.0;
+	<?R } ?>
+/////////
+f000 = f000;
+f100 = c100*f000;
+f200 = c200*f000 + c100*f100;
+f010 = c010*f000;
+f110 = c110*f000 + c100*f010;
+f210 = c210*f000 + c110*f100 + c200*f010 + c100*f110;
+f020 = c020*f000 + c010*f010;
+f120 = c120*f000 + c100*f020 + c110*f010*2.;
+f220 = c220*f000 + c120*f100 + c200*f020 + c100*f120 + ( c210*f010 + c110*f110 )*2.;
+f001 = c001*f000;
+f101 = c101*f000 + c100*f001;
+f201 = c201*f000 + c101*f100 + c200*f001 + c100*f101;
+f011 = c011*f000 + c010*f001;
+f111 = c111*f000 + c101*f010 + c110*f001 + c100*f011;
+f211 = c211*f000 + c011*f200 + c210*f001 + c010*f201 + ( c111*f100 + c110*f101 )*2.;
+f021 = c021*f000 + c011*f010 + c020*f001 + c010*f011;
+f121 = c121*f000 + c101*f020 + c120*f001 + c100*f021 + ( c111*f010 + c110*f011 )*2.;
+f221 = c221*f000 + c021*f200 + c201*f020 + c001*f220 + ( c121*f100 + c211*f010 + c011*f210 + c101*f120 + c111*f110*2. )*2.;
+f002 = c002*f000 + c001*f001;
+f102 = c102*f000 + c100*f002 + c101*f001*2.;
+f202 = c202*f000 + c102*f100 + c200*f002 + c100*f102 + ( c201*f001 + c101*f101 )*2.;
+f012 = c012*f000 + c010*f002 + c011*f001*2.;
+f112 = c112*f000 + c102*f010 + c110*f002 + c100*f012 + ( c111*f001 + c101*f011 )*2.;
+f212 = c212*f000 + c012*f200 + c210*f002 + c010*f202 + ( c112*f100 + c211*f001 + c011*f201 + c110*f102 + c111*f101*2. )*2.;
+f022 = c022*f000 + c012*f010 + c020*f002 + c010*f012 + ( c021*f001 + c011*f011 )*2.;
+f122 = c122*f000 + c102*f020 + c120*f002 + c100*f022 + ( c112*f010 + c121*f001 + c101*f021 + c110*f012 + c111*f011*2. )*2.;
+f222 = c222*f000 + c122*f100 + c202*f020 + c102*f120 + c220*f002 + c120*f102 + c200*f022 + c100*f122 + ( c212*f010 + c112*f110 + c221*f001 + c121*f101 + c201*f021 + c101*f121 + c210*f012 + c110*f112 + ( c211*f011 + c111*f111 )*2. )*2.;
+
+f000 = -f200 + f000; f100 = ( f200 + f100 )/2.; f200 = f200 - f100; 
+f010 = -f210 + f010; f110 = ( f210 + f110 )/2.; f210 = f210 - f110; 
+f020 = -f220 + f020; f120 = ( f220 + f120 )/2.; f220 = f220 - f120; 
+f001 = -f201 + f001; f101 = ( f201 + f101 )/2.; f201 = f201 - f101; 
+f011 = -f211 + f011; f111 = ( f211 + f111 )/2.; f211 = f211 - f111; 
+f021 = -f221 + f021; f121 = ( f221 + f121 )/2.; f221 = f221 - f121; 
+f002 = -f202 + f002; f102 = ( f202 + f102 )/2.; f202 = f202 - f102; 
+f012 = -f212 + f012; f112 = ( f212 + f112 )/2.; f212 = f212 - f112; 
+f022 = -f222 + f022; f122 = ( f222 + f122 )/2.; f222 = f222 - f122; 
+f000 = -f020 + f000; f010 = ( f020 + f010 )/2.; f020 = f020 - f010; 
+f100 = -f120 + f100; f110 = ( f120 + f110 )/2.; f120 = f120 - f110; 
+f200 = -f220 + f200; f210 = ( f220 + f210 )/2.; f220 = f220 - f210; 
+f001 = -f021 + f001; f011 = ( f021 + f011 )/2.; f021 = f021 - f011; 
+f101 = -f121 + f101; f111 = ( f121 + f111 )/2.; f121 = f121 - f111; 
+f201 = -f221 + f201; f211 = ( f221 + f211 )/2.; f221 = f221 - f211; 
+f002 = -f022 + f002; f012 = ( f022 + f012 )/2.; f022 = f022 - f012; 
+f102 = -f122 + f102; f112 = ( f122 + f112 )/2.; f122 = f122 - f112; 
+f202 = -f222 + f202; f212 = ( f222 + f212 )/2.; f222 = f222 - f212; 
+f000 = -f002 + f000; f001 = ( f002 + f001 )/2.; f002 = f002 - f001; 
+f100 = -f102 + f100; f101 = ( f102 + f101 )/2.; f102 = f102 - f101; 
+f200 = -f202 + f200; f201 = ( f202 + f201 )/2.; f202 = f202 - f201; 
+f010 = -f012 + f010; f011 = ( f012 + f011 )/2.; f012 = f012 - f011; 
+f110 = -f112 + f110; f111 = ( f112 + f111 )/2.; f112 = f112 - f111; 
+f210 = -f212 + f210; f211 = ( f212 + f211 )/2.; f212 = f212 - f211; 
+f020 = -f022 + f020; f021 = ( f022 + f021 )/2.; f022 = f022 - f021; 
+f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
+f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221; 
+}
+if ((NodeType & NODE_ADDITIONALS) == NODE_SamplingPlane) AddToHeatFlux( uz*rhoT );
+<?R RT = PV("M[",1:7-1,"]")
+   OMEGA_T = PV("omegaT");
+    C( RT, (g-geq$feq) %*% geq$mat * OMEGA_T);
+?> 
+   rhoT += Q;
+<?R
+   C(RT, RT + geq$Req);
+   C(RT, RT*(1/diag(t(geq$mat) %*% geq$mat)));
+   C(g, RT %*% t(geq$mat));
+?> 
+#ifdef avgUX
+avgP =  avgP + getP();
+avgUX = avgUX(0,0,0) + getU().x;
+avgUY = avgUY(0,0,0) + getU().y;
+avgUZ = avgUZ(0,0,0) + getU().z;
+varUX = varUX + getU().x*getU().x;
+varUY = varUY + getU().y*getU().y;
+varUZ = varUZ + getU().z*getU().z;
+varUXUY = varUXUY + getU().x*getU().y;
+varUXUZ = varUXUZ + getU().x*getU().z;
+varUYUZ = varUYUZ + getU().y*getU().z;
+#endif
+}
+

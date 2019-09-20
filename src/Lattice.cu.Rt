@@ -16,6 +16,7 @@
 #include "Lattice.h"
 #include "mpi.h"
 #include "assert.h"
+#include "BallTree.hpp"
 
 /// LatticeContainer stored in the GPU const memory
 /**
@@ -80,6 +81,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	container->py = region.dy;
 	container->pz = region.dz;
 	container->iter = 0;
+	container->reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -125,7 +127,13 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 //        zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
 <?R } ?>
         ZoneIter = 0;
-
+	particle_data_size_max = 0;
+	container->particle_data = NULL;
+	container->particle_data_size = 0;
+	container->balltree_data = NULL;
+	balltree_data_size_max = 0;
+	BT.balls = &RFI;
+	RFI.name = "TCLB";
 }
 
 /// Initialization of MPI buffors
@@ -193,7 +201,7 @@ void Lattice::startRecord()
 		iSnaps[i]= -1;
 	}
 	{
-		char filename[STRING_LEN];
+		char filename[2*STRING_LEN];
 		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
 		save(Snaps[Snap], filename);
@@ -319,10 +327,10 @@ inline void Lattice::MPIStream_B(int tag)
                 MPI_Status status;
                 MPI_Request request;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &request);
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPMD.local, &request);
                 }
                 for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
-                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPI_COMM_WORLD, &status);
+                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPMD.local, &status);
                         CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
                 }
         #else
@@ -333,11 +341,11 @@ inline void Lattice::MPIStream_B(int tag)
                 MPI_Request * sendreq = new MPI_Request[bufnumber];
         //	DEBUG_M;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPI_COMM_WORLD, &recvreq[i]);
+                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPMD.local, &recvreq[i]);
                 }
         //	DEBUG_M;
                 for (int i = 0; i < bufnumber; i++) {
-                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPI_COMM_WORLD, &sendreq[i]);
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPMD.local, &sendreq[i]);
                 }
         //	DEBUG_M;
                 #ifdef CROSS_MPI_WAITANY
@@ -401,6 +409,8 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	if (mpi.rank != to) {
 		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
 		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
@@ -408,9 +418,17 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
 <?R
 	}
+?>
+<?R
 	old_stage_level = 0
-	for (s in a) {
-                 stage = Stages[s,,drop=F] ?>
+	action_stages = Stages[a,]
+	sel = which(action_stages$particle)	
+	action_stages$first_particle = FALSE
+	action_stages$first_particle[head(sel,1)] = TRUE
+	action_stages$last_particle = FALSE
+	action_stages$last_particle[tail(sel,1)] = TRUE
+	for (stage in rows(action_stages)) {
+?>
 //---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
                  if (old_stage_level > 0) { 
                 	for (m in NonEmptyMargin) { ?>
@@ -420,6 +438,41 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
                  old_stage_level = old_stage_level + 1 ?>
 
 <?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
+<?R if (stage$first_particle) { ?>
+	RFI.SendSizes();
+
+	RFI.SendParticles();
+	if (RFI.size() > particle_data_size_max) {
+		if (container->particle_data != NULL) CudaFree(container->particle_data);
+		particle_data_size_max = RFI.size();
+		CudaMalloc(&container->particle_data, RFI.mem_size());
+	}
+	container->particle_data_size = RFI.size();
+//		for (int i=0; i<RFI.size(); i++){
+//			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
+//		}
+	if (true) {
+		for (int i=0; i<RFI.size(); i++){
+			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
+		}
+	}
+
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+	}
+		BT.Build();
+		if (BT.size() > balltree_data_size_max) {
+			if (container->balltree_data != NULL) CudaFree(container->balltree_data);
+			balltree_data_size_max = BT.size();
+			CudaMalloc(&container->balltree_data, BT.mem_size());
+		}
+		container->balltree_data_size = BT.size();
+		if (BT.mem_size() > 0) {
+			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+		}
+<?R } ?>
 	container->CopyToConst();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
@@ -449,7 +502,22 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	}	
 	
 	MPIStream_B();
-
+<?R if (stage$last_particle) { ?>
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), cudaMemcpyDeviceToHost, kernelStream);
+	}
+        CudaStreamSynchronize(kernelStream);
+	if (false) {
+//		printf("%d\n", RFI.size());
+		for (int i=0; i<RFI.size(); i++){
+//			printf("Force s: %lg %lg %lg\n",RFI.RawData(i, RFI_DATA_FORCE+0), RFI.RawData(i, RFI_DATA_FORCE+1), RFI.RawData(i, RFI_DATA_FORCE+2));
+			RFI.RawData(i, RFI_DATA_FORCE+0) = 0.05;
+			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
+		}
+	}
+	RFI.SendForces();
+<?R } ?>
         CudaDeviceSynchronize();
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 <?R } ?>
@@ -482,11 +550,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	from = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
 		gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
 		i ++;
 	} else {
 		container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
@@ -565,24 +635,70 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 
 
 /// Function listing all buffers in FTabs
-void Lattice::listTabs(FTabs& tab, int*n, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
+	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
-	*maxsize = 0;
-	*n = <?%d length(NonEmptyMargin) ?>;
-	*size = new size_t[*n];
-	*ptr = new void*[*n];
+	if (maxsize) *maxsize = 0;
+	n = <?%d length(NonEmptyMargin) ?>;
+	if (np) *np = n;
+	if (size) *size = new size_t[n];
+	if (ptr) *ptr = new void*[n];
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	(*size)[j] = (size_t) <?R C(m$Size,float=F) ?> * sizeof(real_t);
-	(*ptr)[j] = (void*) tab.<?%s m$name ?>;
-	if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
+	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
+	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
 	}
 ?>
 }
+
+size_t Lattice::sizeOfTab() {
+<?R
+	totsize = 0
+	for (m in NonEmptyMargin) totsize = m$Size + totsize
+?>
+	int nx = region.nx, ny=region.ny,  nz=region.nz;
+	return <?R C(totsize,float=F) ?>;
+}
+
+void Lattice::saveToTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Save buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+void Lattice::loadFromTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Load buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
 
 /// Save a FTabs
 int Lattice::save(FTabs& tab, const char * filename) {
@@ -654,6 +770,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 */
 Lattice::~Lattice()
 {
+	RFI.Close();
         CudaAllocFreeAll();
 	container->Free();
 	for (int i=0; i<nSnaps; i++) {
@@ -687,9 +804,9 @@ void Lattice::Init()
 	Iter = 0;
 	container->iter = 0;
 	Snap=0;
-   MPI_Barrier(MPI_COMM_WORLD);
+   MPI_Barrier(MPMD.local);
    Action_Init(1,0,ITER_NO);
-   MPI_Barrier(MPI_COMM_WORLD);
+   MPI_Barrier(MPMD.local);
 	Iter = 0;
 	container->iter = 0;
 	clearGlobals();
@@ -738,7 +855,7 @@ void Lattice::IterateTill(int it, int iter_type)
 	if (imx >= nSnaps) {
 		if (reverse_save) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
-			char filename[STRING_LEN];
+			char filename[2*STRING_LEN];
 			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
 			if (load(Snaps[0], filename)) exit(-1);
 		} else {
@@ -761,7 +878,7 @@ void Lattice::IterateTill(int it, int iter_type)
 		if (s2 >= nSnaps){
 			if (reverse_save) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
-				char filename[STRING_LEN];
+				char filename[2*STRING_LEN];
 				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
 				save(Snaps[0], filename);
 			}
@@ -943,7 +1060,7 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 }
 
 <?R
-	for (f in Fields[Fields$parameter]) { 
+	for (f in rows(Fields)[Fields$parameter]) { 
 
 	for (adjoint in c(TRUE,FALSE)) {
 	if (adjoint) {
@@ -1105,7 +1222,7 @@ void Lattice::getGlobals(real_t * tab) {
                         MPI_REAL_T,
                         MPI_<?%s G$op[1] ?>,
                         0,
-                        MPI_COMM_WORLD); <?R
+                        MPMD.local); <?R
         }) ?>
 }
 
@@ -1196,7 +1313,7 @@ void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
 
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;
-        <?R for (f in Fields)  if (f$average) { ?>
+        <?R for (f in rows(Fields))  if (f$average) { ?>
           CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
 	 <?R } ?>
 } 

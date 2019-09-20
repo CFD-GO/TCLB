@@ -51,11 +51,12 @@ const char * vtk_footer       = "</CellData>\n</Piece>\n</ImageData>\n</VTKFile>
 #define FERR 	if (f == NULL) {fprintf(stderr, "Error: vtkOutput tried to write before opening a file\n"); return; } 
 	
 // Class for writing vtk file
-vtkFileOut::vtkFileOut ()
+vtkFileOut::vtkFileOut (MPI_Comm comm_)
 {
 	f= NULL;
 	fp = NULL;
 	size = 0;
+	comm = comm_;
 };
 
 int vtkFileOut::Open(const char* filename) {
@@ -65,7 +66,7 @@ int vtkFileOut::Open(const char* filename) {
 	int s = strlen(filename)+5;
 	name = new char[s];
 	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_rank(comm, &rank);
 	if(rank == 0) {
 		strcpy(name, filename);
 		n=name;
@@ -86,7 +87,7 @@ int vtkFileOut::Open(const char* filename) {
 	}
 	*n = '\0';
 	s = strlen(name)+1;
-	MPI_Allreduce ( &s, &name_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+	MPI_Allreduce ( &s, &name_size, 1, MPI_INT, MPI_MAX, comm );
 	return 0;
 };
 
@@ -126,14 +127,14 @@ void vtkFileOut::Init(lbRegion regiontot, lbRegion region, char* selection, doub
 	}
 	int size;
 	lbRegion reg;
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_size(comm, &size);
 	char * buf = new char[name_size];
 	for (int i=0;i<size;i++)
 	{
 		reg = region;
-		MPI_Bcast(&reg, 6, MPI_INT, i, MPI_COMM_WORLD);
+		MPI_Bcast(&reg, 6, MPI_INT, i, comm);
 		strcpy(buf, name);
-		MPI_Bcast(buf, name_size, MPI_CHAR, i, MPI_COMM_WORLD);
+		MPI_Bcast(buf, name_size, MPI_CHAR, i, comm);
 		if (fp != NULL) {
 			fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s\"/>\n",
 				reg.dx, reg.dx + reg.nx,

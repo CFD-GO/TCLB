@@ -48,3 +48,5 @@ AddSetting(name="S78", default="0", comment='MRT Sx')
 
 AddNodeType(name="BottomSymmetry",group="BOUNDARY")
 AddNodeType(name="TopSymmetry",group="BOUNDARY")
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")

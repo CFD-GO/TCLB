@@ -81,6 +81,7 @@ double RepeatControl::Flip (double v, double l, int j) {
 
 
 int RepeatControl::Parameters (int type, double * tab) {
+	if (solver->mpi_rank == 0) {
 		switch(type) {
 		case PAR_GET:
 			output("Getting the params and making pariodic means\n");
@@ -110,7 +111,10 @@ int RepeatControl::Parameters (int type, double * tab) {
 			ERROR("Unknown type %d in call to Parameters in %s\n", type, node.name());
 			exit(-1);
 		}
-	};
+	} else {
+		return (*hand)->Parameters(type, NULL);
+	}
+};
 
 
 // Register the handler (basing on xmlname) in the Handler Factory

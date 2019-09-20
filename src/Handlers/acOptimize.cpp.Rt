@@ -8,9 +8,11 @@ source("conf.R")
 
 int acOptimize::OptimizerInit () {
 #ifdef WITH_NLOPT
-		start = NULL;
-		nlopt_result res;
-		material=0.0;
+	start = NULL;
+	pugi::xml_attribute attr;
+	nlopt_result res;
+	material=0.0;
+	if (solver->mpi.rank == 0) {
        		if (Pars == 0) {
        			ERROR("Error: No parameters defined!\n");
        			return -1;
@@ -18,11 +20,12 @@ int acOptimize::OptimizerInit () {
 		notice("Parameters in optimization: %d\n", Pars);
 		start = new double[Pars];
 		DEBUG_M;
-		GetParameters(start);
-		DEBUG_M;
-
+	}
+	GetParameters(start);
+	DEBUG_M;
+	if (solver->mpi.rank == 0) {
                 method="MMA";
-                pugi::xml_attribute attr = node.attribute("method");
+                attr = node.attribute("method");
                 if (attr) {
                         method = attr.value();
                 }
@@ -40,18 +43,21 @@ int acOptimize::OptimizerInit () {
                         error("Unknown Method in Optimize: %s\n", method.c_str());
                         return -1;
                 }
-                {
-                        double * bound = new double[Pars];
-                        Parameters(PAR_LOWER, bound);
-                        output("lower set to %lf\n", bound[0]);
-                        nlopt_set_lower_bounds(opt, bound);
-                        for (int i=0;i<Pars;i++) if (start[i] < bound[i]) start[i] = bound[i];
-                        Parameters(PAR_UPPER, bound);
-                        output("upper set to %lf\n", bound[0]);
-                        nlopt_set_upper_bounds(opt, bound);
-                        for (int i=0;i<Pars;i++) if (start[i] > bound[i]) start[i] = bound[i];
-                        delete[] bound;
-                }
+	}
+	double * bound = NULL;
+	if (solver->mpi.rank == 0) bound = new double[Pars];
+	Parameters(PAR_LOWER, bound);
+	if (solver->mpi.rank == 0) {
+		output("lower set to %lf\n", bound[0]);
+                nlopt_set_lower_bounds(opt, bound);
+		for (int i=0;i<Pars;i++) if (start[i] < bound[i]) start[i] = bound[i];
+	}
+	Parameters(PAR_UPPER, bound);
+	if (solver->mpi.rank == 0) {
+		output("upper set to %lf\n", bound[0]);
+		nlopt_set_upper_bounds(opt, bound);
+		for (int i=0;i<Pars;i++) if (start[i] > bound[i]) start[i] = bound[i];
+		delete[] bound;
                 res = nlopt_set_max_objective(opt, FOptimize, this);
                 if (res < 0) {
                         ERROR("Error while appling objective in Optimize: nlopt_set_max_objective = %d\n", res);
@@ -99,12 +105,14 @@ int acOptimize::OptimizerInit () {
                         } <?R
         }
 ?>
-		return 0;
-#else
-		ERROR("No nlopt support at configure\n");
-		return -1;
-#endif
 	}
+	return 0;
+
+#else
+	ERROR("No nlopt support at configure\n");
+	return -1;
+#endif
+}
 
 
 int acOptimize::OptimizerRun () {

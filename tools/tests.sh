@@ -1,5 +1,11 @@
 MODEL=$1
-
+VERBOSE=0
+T=$2
+if [[ "x$2" == "x-v"  ]];
+then
+    VERBOSE=1
+    T=$3
+fi
 function usage {
 	echo "tests.sh MODEL [TESTS]"
 	exit -2
@@ -13,6 +19,10 @@ function try {
 		if env time -f "%e" -o $log.time "$@" >$log 2>&1
 		then
 			echo "OK ($(cat $log.time)s)"
+            if [[ $VERBOSE -eq 1 ]];
+            then
+                cat $log
+            fi
 		else
 			echo "FAILED ($(cat $log.time)s)"
 			echo "----------------- CMD ----------------"
@@ -56,7 +66,7 @@ then
 	exit 0
 fi
 
-if test -z "$1"
+if test -z "$T"
 then
 	TESTS=$(cd tests/$MODEL; ls *.xml 2>/dev/null)
 else

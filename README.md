@@ -70,13 +70,9 @@ Contributors:
 Developed at: [C-CFD Group](https://c-cfd.meil.pw.edu.pl/) at [Warsaw University of Technology](http://pw.edu.pl/) from 2012
 
 ## License
-The software is free to use for non-commercial purposes.
 
-*Any usage should be acknowledged accordingly (at least with a reference to this repository).*
-* Author wanting to use this software in scientific publications should consult the author for the apropriate reference.
-* Any commercial use should be consulted beforehead with the author
-* Any derived code (even if only on a specific model) should be acknowledged
+This software is distributed under the [GPL v3 License](LICENSE).
 
-And, most importantly: if the software proved to be useful for you, please write!
+If you need this software under a different license, please contact the main author.
 
 Contact: llaniewski([monkey](https://en.wikipedia.org/wiki/At_sign#Names_in_other_languages))meil.pw.edu.pl
