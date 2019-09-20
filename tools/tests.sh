@@ -82,7 +82,7 @@ then
 fi
 
 GLOBAL="OK"
-PP=$PYTHONPATH
+PP=$PYTHONPATH:tools/python
 for t in $TESTS
 do
 	name=${t%.*}
