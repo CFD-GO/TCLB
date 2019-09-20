@@ -147,7 +147,7 @@ int MainCallback(int seg, int tot, Solver* solver) {
 		if (steps < 1) steps = 1;
 		if (steps % 2 == 1) steps ++;
 	}
-	MPI_Bcast(&steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&steps, 1, MPI_INT, 0, MPMD.local);
 	solver->EventLoop();
 	CudaEventRecord( start, 0 );
 	CudaEventSynchronize( start );
@@ -176,15 +176,17 @@ int main ( int argc, char * argv[] )
 	// Error handling for scanf
 	#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
 	MPI_Init(&argc, &argv);
+	MPMD.Init(MPI_COMM_WORLD,"TCLB");
+	MPMD.Identify();
 
-	Solver   solver(MPI_COMM_WORLD); // Global data declaration
+	Solver   solver(MPMD.local); // Global data declaration
 
-	MPI_Comm_rank(MPI_COMM_WORLD,  &solver.mpi_rank);
-	MPI_Comm_size(MPI_COMM_WORLD,  &solver.mpi_size);
+	MPI_Comm_rank(MPMD.local,  &solver.mpi_rank);
+	MPI_Comm_size(MPMD.local,  &solver.mpi_size);
 	DEBUG_SETRANK(solver.mpi_rank);
 	DEBUG_M;
 	InitPrint(DEBUG_LEVEL, 6, 8);
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPMD.local);
 
 	global_start = std::clock();
 	if (solver.mpi_rank == 0) {
@@ -193,7 +195,7 @@ int main ( int argc, char * argv[] )
 		NOTICE("-        Model: %25s                               -\n",MODEL);
 		NOTICE("-------------------------------------------------------------------------\n");
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPMD.local);
 	DEBUG_M;
 
 	DEBUG0(
@@ -254,7 +256,7 @@ int main ( int argc, char * argv[] )
 			cudaFree(0);
 		#endif
 	}
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPMD.local);
 	DEBUG_M;
 
 	// Calculating the right number of threads per block
@@ -269,7 +271,7 @@ int main ( int argc, char * argv[] )
 	<?R for (tp in c("size_t","real_t","vector_t","flag_t")) { ?>
 		debug0("sizeof(<?%s tp?>) = %ld\n", sizeof(<?%s tp?>));
 	<?R } ?>
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPMD.local);
 
 	// Reading the config file
 	char* filename = argv[1];

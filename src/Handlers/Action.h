@@ -9,8 +9,6 @@ public:
 int DoIt ();
 int Init ();
 int Finish ();
-int NumberOfParameters ();
-int Parameters (int type, double * tab);
 int Type();
 };
 

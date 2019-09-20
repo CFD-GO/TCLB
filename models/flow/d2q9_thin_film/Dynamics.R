@@ -94,3 +94,5 @@ AddNodeType(name="SSymmetry", group="BOUNDARY")
 
 
 AddNodeType(name="Cumulant", group="COLLISION")
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")

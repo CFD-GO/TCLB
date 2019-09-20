@@ -60,6 +60,7 @@ get.models = function() {
 			present=(m %in% M2), 
 			name=rownames(opts),
 			group=name,
+			in.group=nrow(opts),
 			path=path
 		)
 		ret$opts = lapply(rownames(opts),function(n) as.list(opts[n,,drop=FALSE]))

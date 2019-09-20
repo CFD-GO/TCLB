@@ -10,6 +10,9 @@
 #include "ZoneSettings.h"
 #include "SyntheticTurbulence.h"
 #include "Sampler.h"
+#include "RemoteForceInterface.h"
+#include "BallTree.h"
+
 class lbRegion;
 class LatticeContainer;
 
@@ -71,6 +74,12 @@ public:
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
+  typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t > rfi_t;
+  rfi_t RFI;
+  typedef BallTree< rfi_t > balltree_t;
+  balltree_t BT;
+  size_t particle_data_size_max;
+  size_t balltree_data_size_max;
   char snapFileName[STRING_LEN];
   Lattice (lbRegion region, MPIInfo, int);
   ~Lattice ();
@@ -87,6 +96,12 @@ public:
 //  inline int load(const char * filename){ return load(container->in, filename); }
   void saveSolution(const char * filename);
   void loadSolution(const char * filename);
+  size_t sizeOfTab();
+  void saveToTab(real_t * tab, int snap);
+  inline void saveToTab(real_t * tab) { saveToTab(tab,Snap); };
+  void loadFromTab(real_t * tab, int snap);
+  inline void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); };
+//  inline int save(const char * filename){ return save(container->in, filename); }
   void startRecord();
   void rewindRecord();
   void stopRecord();
@@ -98,7 +113,7 @@ public:
   int segment_iterations;
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
-  int reset_iter;
+//  int reset_iter;
   inline void MarkIteration() {
     total_iterations ++;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);

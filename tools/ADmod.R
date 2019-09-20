@@ -31,7 +31,7 @@ b = sapply(bracer,function(x){sum(x>0)})
 a = cumsum(a-b)
 
 a[a>1]=1
-begins = which(diff(a)==1)+2
+begins = which(diff(a)==1)+1
 
 f = file(opt$out)
 open(f,"wt")

@@ -4,7 +4,7 @@ std::string cbSample::xmlname = "Sample";
 
 int cbSample::Init () {
 		std::string nm="Sampler";
-		char fn[STRING_LEN];
+		char fn[2*STRING_LEN];
 		Callback::Init();
 		if (everyIter == 0) {
                 	error("Iteration value in sampler should not be zero");

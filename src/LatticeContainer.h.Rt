@@ -6,6 +6,7 @@
   File defining LatticeContainer and some additional CUDA functions
 */
 #include "SyntheticTurbulence.h"
+#include "BallTree.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -31,7 +32,7 @@ template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
   LatticeContainer is the container class which
   owns all the data needed by the kernels on device
   like pointers to the global gpu memory etc.
-  It defines push/pull/pop functions allowing access
+  It defines push/pop functions allowing access
   to node data stored in memory.
 */
 class LatticeContainer {
@@ -44,6 +45,10 @@ class LatticeContainer {
 #endif
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
   cut_t* Q; 
+  size_t particle_data_size;
+  real_t* particle_data;
+  size_t balltree_data_size;
+  tr_elem* balltree_data;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
@@ -64,11 +69,9 @@ class LatticeContainer {
 <?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
   ?>
   template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
-  template<class N>  CudaDeviceFunction void pull<?%s s ?>(N & f);
   template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
 #ifdef ADJOINT
   template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pull<?%s s ?>_adj(N & f);
   template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
 #endif
 <?R } ?>
@@ -76,12 +79,28 @@ class LatticeContainer {
   template<class N>  CudaDeviceFunction void getType(N & f);
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
-  for (f in Fields) { ?>
+  for (f in rows(Fields)) {
+    if (! f$big) { ?>
   template <int DX, int DY, int DZ>
-  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z) {
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
     typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
     return 0.0;
-  }; <?R
+  };
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load0_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt);
+  
+  template <int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx);
+  template <int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy);
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+  <?R } else { ?>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
+    return load_<?%s f$nicename ?>(x,y,z,nt,DX,DY,DZ);
+  };
+  <?R }
   } ?>
 //  template <class N> CudaDeviceFunction void push_new(N & node);
 
@@ -121,8 +140,10 @@ class LatticeContainer {
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
+  template<class N> inline void RunParticlesT(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
   
   void CopyToConst();
   void WaitAll();

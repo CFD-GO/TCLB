@@ -13,11 +13,11 @@ int acSolve::Init () {
 				if ((it > 0) && (it < next_it)) next_it = it;
 			}
 			solver->steps = next_it;
-			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPI_COMM_WORLD);
+			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPMD.local);
 			solver->iter += solver->steps;
 			solver->lattice->Iterate(solver->steps, solver->iter_type);
 			CudaThreadSynchronize();
-			MPI_Barrier(MPI_COMM_WORLD);
+			MPI_Barrier(MPMD.local);
 			for (size_t i=0; i<solver->hands.size(); i++) {
 				if (solver->hands[i].Now(solver->iter)) {
 					int ret = solver->hands[i].DoIt();
@@ -34,7 +34,7 @@ int acSolve::Init () {
 			if (stop) break;
 		} while (!Now(solver->iter));
 		CudaThreadSynchronize();
-		MPI_Barrier(MPI_COMM_WORLD);
+		MPI_Barrier(MPMD.local);
 		GenericAction::Unstack();
 		return 0;
 	}
