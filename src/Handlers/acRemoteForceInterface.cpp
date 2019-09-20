@@ -19,6 +19,7 @@ int acRemoteForceInterface::Init () {
         solver->lattice->RFI.setUnits(units[0],units[1],units[2]);
         solver->lattice->RFI.CanCopeWithUnits(false);
 
+        printf("uni:%d - world:%d\n",MPMD.universe_size, MPMD.world_size);
         N = MPMD.universe_size - MPMD.world_size;
 
         inter = MPMD["ESYSPARTICLE"];
@@ -124,19 +125,25 @@ int acRemoteForceInterface::Init () {
                         nx0 = solver->mpi.divx;
                         ny0 = solver->mpi.divy;
                         nz0 = solver->mpi.divz;
+                        if (nx0 <= xper) nx0 = xper + 1;
+                        if (ny0 <= yper) ny0 = yper + 1;
+                        if (nz0 <= zper) nz0 = zper + 1;
                         output("%dx%dx%d\n",nx0, ny0, nz0);
                         //JM *per additions to account for periodicity in multiple directions (hopefully ...)
-                        for (int nx1=(1+xper); nx1<=(nx0+xper); nx1++) if ((nx0+xper) % nx1 == 0) {
-                                for (int ny1=(1+yper); ny1<=(ny0+yper); ny1++) if ((ny0+yper) % ny1 == 0) {
-                                        for (int nz1=(1+zper); nz1<=(nz0+zper); nz1++) if ((nz0+zper) % nz1 == 0) {
+                        for (int nx1=1; nx1<=nx0; nx1++) if (nx0 % nx1 == 0) {
+                                for (int ny1=1; ny1<=ny0; ny1++) if (ny0 % ny1 == 0) {
+                                        for (int nz1=1; nz1<=nz0; nz1++) if (nz0 % nz1 == 0) {
                                                 int tot1 = nx1*ny1*nz1;
                                                 if (tot1 <= workers) {
                                                         if (workers % tot1 == 0) {
-                                                                if (tot1 > tot) {
-                                                                        tot = tot1;
-                                                                        nx = workers / (ny1 * nz1);
-                                                                        ny = ny1;
-                                                                        nz = nz1;
+                                                                int nx_ = workers / (ny1 * nz1);
+                                                                if ((nx_ > xper) && (ny1 > yper) && (nz1 > zper)) {
+                                                                        if (tot1 > tot) {
+                                                                                tot = tot1;
+                                                                                nx = workers / (ny1 * nz1);
+                                                                                ny = ny1;
+                                                                                nz = nz1;
+                                                                        }
                                                                 }
                                                         }
                                                 }
