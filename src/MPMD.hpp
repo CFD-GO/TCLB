@@ -1,11 +1,11 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <vector>
 #include <string>
+#include <map>
 #include <mpi.h>
 #include <assert.h>
-#include <map> //JM
-#include <string.h> //JM
+#include <cstring>
 
 struct MPMDIntercomm {
    MPI_Comm local;
