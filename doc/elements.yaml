@@ -220,11 +220,21 @@ STL:
   attr:
     - name: file
       val: file
-    - side:
-      - out
-      - in
-      - surface
-
+      comment: STL file to import
+    - name: side
+      val:
+        select:
+        - out
+        - in
+        - surface
+      comment: Specifies if to fill the interior (in), exterior (out), or the surface (see description)
+    - name: ray_axis
+      val:
+        select:
+        - x
+        - y
+        - z
+      comment: Specifies the axis along which rays will be cast for in/out filling of STL
 Params:
   type:
     params
