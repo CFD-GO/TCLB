@@ -115,7 +115,7 @@ function normal_install {
 			dir.create(p,recursive=TRUE);
 			.libPaths(p);
 		}
-		install.packages('$name');
+		install.packages('$name', method="wget");
 EOF
 }
 
