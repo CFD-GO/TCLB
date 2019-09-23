@@ -216,6 +216,12 @@ Wedge:
         - BottomRight
 
 STL:
+  comment: >
+    Imports a STL file as geometrical object. The element works in two modes.
+    In the first mode, it fills elements inside or outside of the STL geometry (casting rays along some axis).
+    In the second mode (`side="surface"`) it fills elements touching the geometry (on both sides) and
+    **calculates the cuts* for Interpolated-BounceBack-type conditions.
+  example: <STL file="geometry.stl" scale="1m" x="10" side="out"/>
   type: geom
   attr:
     - name: file
@@ -235,6 +241,10 @@ STL:
         - y
         - z
       comment: Specifies the axis along which rays will be cast for in/out filling of STL
+    - name: scale
+      val:
+        unit: float
+      comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
 Params:
   type:
     params
