@@ -659,10 +659,10 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                 }
 	output("STL: triangle hits: %ld\n", topo_hit[0]);
 	if (topo_hit[1] > 0) {	
-		notice("STL: \_ edge hits: %ld\n", topo_hit[1]);
-		notice("STL:    \_ resolved negatively: %ld\n", topo_hit[2]);
-		notice("STL:    \_ resolved positively: %ld\n", topo_hit[1] - topo_hit[3] - topo_hit[2]);
-		if (topo_hit[3] > 0) NOTICE("STL:    \_ could not be resolved: %ld (this can cause problems!)\n", topo_hit[3]);
+		notice("STL: \\_ edge hits: %ld\n", topo_hit[1]);
+		notice("STL:    \\_ resolved negatively: %ld\n", topo_hit[2]);
+		notice("STL:    \\_ resolved positively: %ld\n", topo_hit[1] - topo_hit[3] - topo_hit[2]);
+		if (topo_hit[3] > 0) NOTICE("STL:    \\_ could not be resolved: %ld (this can cause problems!)\n", topo_hit[3]);
 	}
     }
     free(tri);
