@@ -71,6 +71,9 @@ The documentation (including tutorials) is published at
 [docs.tclb.io](https://docs.tclb.io/). You can contribute at
 [CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
 
+For the `develop` version, most recent documentation can be found at
+[develop.docs.tclb.io](https://develop.docs.tclb.io/).
+
 ## Authors
 
 Author: [Łukasz Łaniewski-Wołłk](https://github.com/llaniewski)
