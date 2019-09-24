@@ -4,7 +4,7 @@ std::string cbCatalyst::xmlname = "Catalyst";
 
 #ifdef WITH_CATALYST
 
-        #include "Catalyst.h"
+        #include "../Catalyst.h"
 
 
 int cbCatalyst::Init () {
