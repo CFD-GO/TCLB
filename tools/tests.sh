@@ -1,77 +1,74 @@
-MODEL=$1
-VERBOSE=0
-T=$2
-if [[ "x$2" == "x-v"  ]];
-then
-    VERBOSE=1
-    T=$3
-fi
+#!/bin/bash
+
 function usage {
-	echo "tests.sh MODEL [TESTS]"
+	echo "tests.sh [-v] MODEL [TESTS]"
 	exit -2
 }
 
 function try {
-	comment=$1
+	comment="$1"
 	log=$(echo $comment | sed 's/ /./g').log
 	shift
-		echo -n "$comment... "
-		if env time -f "%e" -o $log.time "$@" >$log 2>&1
+	echo -n "$comment... "
+	if env time -f "%e" -o $log.time "$@" >$log 2>&1
+	then
+		echo "OK ($(cat $log.time)s)"
+		if $VERBOSE
 		then
-			echo "OK ($(cat $log.time)s)"
-            if [[ $VERBOSE -eq 1 ]];
-            then
-                cat $log
-            fi
-		else
-			echo "FAILED ($(cat $log.time)s)"
-			echo "----------------- CMD ----------------"
-			echo $@
-			echo "----------------- LOG ----------------"
-			cat  $log
-			echo "--------------------------------------"
-			exit -1;
+			cat $log
 		fi
+	else
+		echo "FAILED ($(cat $log.time)s)"
+		echo "----------------- CMD ----------------"
+		echo $@
+		echo "----------------- LOG ----------------"
+		cat  $log
+		echo "--------------------------------------"
+		exit -1;
+	fi
 	return 0;
 }
 
 
-test -z "$MODEL" && usage
+VERBOSE=false
 
-#if ! test -d "src/$MODEL"
-#then
-#	echo \"$MODEL\" is not a model
-#	usage
-#fi
+if [[ "x$1" == "x-v"  ]];
+then
+    VERBOSE=true
+    shift
+fi
+
+test -z "$1" && usage
+MODEL=$1
+shift
 
 if ! test -f "CLB/$MODEL/main"
 then
-	echo \"$MODEL\" is not compiled
+	echo "\"$MODEL\" is not compiled"
 	echo "  run: make $MODEL"
 	exit -1;
 fi
 
-shift
-
 if ! test -f "tests/README.md"
 then
-	echo \"tests\" submodule is not checked out
+	echo "\"tests\" submodule is not checked out"
+	echo "  run: git submodule init"
+	echo "  run: git submodule update"
 	exit -1
 fi
 
 if ! test -d "tests/$MODEL"
 then
-	echo No tests for model $MODEL.
-	echo Exiting with no error.
+	echo "No tests for model $MODEL."
+	echo "Exiting with no error."
 	exit 0
 fi
 
-if test -z "$T"
+if test -z "$*"
 then
 	TESTS=$(cd tests/$MODEL; ls *.xml 2>/dev/null)
 else
-	echo "Running specific tests not yet implemented"
-	exit -1
+	TESTS="$*"
 fi
 
 if test -z "$TESTS"
@@ -82,65 +79,73 @@ then
 fi
 
 GLOBAL="OK"
-PP=$PYTHONPATH:tools/python
+export PYTHONPATH="$PYTHONPATH:tools/python:tests/$MODEL"
+
 for t in $TESTS
 do
-	name=${t%.*}
+	name="${t%.xml}"
+	t="$name.xml"
 	RESULT="FAILED"
-    export PYTHONPATH=$PP:tests/$MODEL
-	if try "Running \"$name\" test" CLB/$MODEL/main "tests/$MODEL/$t"
+	
+	if test -f "tests/$MODEL/$t"
 	then
-		RESULT="OK"
-		RES=$(cd tests/$MODEL; find -name "${name}_*")
-		if ! test -z "$RES"
+		if try "Running \"$name\" test" CLB/$MODEL/main "tests/$MODEL/$t"
 		then
-			for r in $RES
-			do
-				g=tests/$MODEL/$r
-				echo -n " > Checking $r... "
-				EXT=${r##*.}
-				if test -f "$r" || [[ "x$EXT" == "xsha1" ]]
-				then
-					if ! test -f "$g"
+			RESULT="OK"
+			RES=$(cd tests/$MODEL; find -name "${name}_*")
+			if ! test -z "$RES"
+			then
+				for r in $RES
+				do
+					g=tests/$MODEL/$r
+					echo -n " > Checking $r... "
+					EXT=${r##*.}
+					if test -f "$r" || [[ "x$EXT" == "xsha1" ]]
 					then
-						echo "$g not found - this should not happen!"
-						exit -123
-					fi
-					R="WRONG"
-					COMMENT=""
-					case "$EXT" in
-					csv)
-						COMMENT="(csvdiff)"
-						tools/csvdiff -a "$r" -b "$g" -x 1e-10 -d Walltime >/dev/null && R="OK"
-						;;
-					sha1)
-						COMMENT="(SHA1 checksum)"
-						sha1sum -c "$g" >/dev/null 2>&1 && R="OK"
-						;;
-					*)
-						diff "$r" "$g" >/dev/null && R="OK"
-						;;
-					esac
-
-					if test "x$R" == "xOK"
-					then
-						echo "OK $COMMENT"
-					else
-						echo "Different $COMMENT"
-						if test "x$EXT" == "xsha1"
+						if ! test -f "$g"
 						then
-							cat $g
-							pat=$(cat $g | sed 's/.*[ ][ ]*//')
-							test -z "$pat" || sha1sum $pat
+							echo "$g not found - this should not happen!"
+							exit -123
 						fi
+						R="WRONG"
+						COMMENT=""
+						case "$EXT" in
+						csv)
+							COMMENT="(csvdiff)"
+							tools/csvdiff -a "$r" -b "$g" -x 1e-10 -d Walltime >/dev/null && R="OK"
+							;;
+						sha1)
+							COMMENT="(SHA1 checksum)"
+							sha1sum -c "$g" >/dev/null 2>&1 && R="OK"
+							;;
+						*)
+							diff "$r" "$g" >/dev/null && R="OK"
+							;;
+						esac
+
+						if test "x$R" == "xOK"
+						then
+							echo "OK $COMMENT"
+						else
+							echo "Different $COMMENT"
+							if test "x$EXT" == "xsha1"
+							then
+								cat $g
+								pat=$(cat $g | sed 's/.*[ ][ ]*//')
+								test -z "$pat" || sha1sum $pat
+							fi
+							RESULT="WRONG"
+						fi
+					else
+						echo "Not found"
 						RESULT="WRONG"
 					fi
-				else
-					echo "Not found"
-					RESULT="WRONG"
-				fi
-			done
+				done
+			fi
 		fi
+	else
+		echo "$t: test not found"
+		RESULT="NOT FOUND"
 	fi
 	if ! test "x$RESULT" == "xOK"
 	then
