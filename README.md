@@ -52,6 +52,12 @@ This should also work:
 CLB/d2q9/main example/flow/2d/karman.xml
 ```
 
+## Documentation
+
+The documentation (including tutorials) is published at
+[docs.tclb.io](https://docs.tclb.io/). You can contribute at
+[CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
+
 ## Authors
 
 Author: [Łukasz Łaniewski-Wołłk](https://github.com/llaniewski)
