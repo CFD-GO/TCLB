@@ -8,6 +8,19 @@ It provides a clear interface for calculation of complex physics, and implementi
 
 ## Installation
 
+Just clone the repo (or download the [zip file](https://github.com/CFD-GO/TCLB/archive/master.zip)):
+```bash
+git clone https://github.com/CFD-GO/TCLB.git
+cd TCLB
+```
+
+If you want a more recent (but less stable) version, go for:
+
+```bash
+git clone -b develop https://github.com/CFD-GO/TCLB.git
+cd TCLB
+```
+
 ### Dependencies
 
 You'll need:
