@@ -16,7 +16,9 @@
 
 #include "Consts.h"
 #include "cross.h"
+#include "cross.hpp"
 #include "Global.h"
+
 
 class Node;
 class Node_Globs;
@@ -65,6 +67,8 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
+#include "Particle.hpp"
+
 <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")
@@ -84,10 +88,15 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         int x_,y_,z_;
-        CudaDeviceFunction void Pre(){};
-        CudaDeviceFunction void RunElement(){};
-        CudaDeviceFunction void Glob(){};
-	CudaDeviceFunction void OutOfDomain() {};
+        CudaDeviceFunction inline void Pre(){};
+        CudaDeviceFunction inline void ExecElement(){};
+        CudaDeviceFunction inline void LoadElement(){};
+        CudaDeviceFunction inline void SaveElement(){};
+        CudaDeviceFunction inline void RunElement(){};
+        CudaDeviceFunction inline void Glob(){};
+	CudaDeviceFunction inline void OutOfDomain() {};
+        CudaDeviceFunction inline void GlobDiff(){};
+        CudaDeviceFunction inline void GlobDiffOutOfDomain(){};
 };
 
 <?R
@@ -187,7 +196,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 }
         } ?>
 	}
-	CudaDeviceFunction void inline GlobDiff() { 
+	CudaDeviceFunction void inline GlobDiff() {
+	<?R if (any(Globs$zonal)) { ?>
 		int z = NodeType >> ZONE_SHIFT;
 		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
         for (g in rows(Globs)) if (g$zonal) {
@@ -195,14 +205,17 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
         } ?>
 		}
+	<?R } ?>
 	}
 	CudaDeviceFunction void inline GlobDiffOutOfDomain() { 
+	<?R if (any(Globs$zonal)) { ?>
 		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
         for (g in rows(Globs)) if (g$zonal) {
 		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
                 atomicSumDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
         } ?>
 		}
+	<?R } ?> 
 	} <?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
@@ -237,7 +250,18 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 }
         } <?R
 	        } ?>
-	CudaDeviceFunction inline void RunElement() {
+
+
+	<?R
+	if (tp$Stream == "Adj") {
+	        for (d in rows(Density)) if (d$parameter) {
+       		        if (tp$Globals == "Globs") { ?>
+        real_t old_<?%s d$adjoint_name ?>; <?R
+			}
+		}
+	} ?>
+
+	CudaDeviceFunction inline void LoadElement() {
 	   constContainer.getType(*this);
 	   PreDiff();
 		<?R
@@ -246,35 +270,63 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
 		        for (d in rows(Density)) if (d$parameter) {
         		        if (tp$Globals == "Globs") { ?>
-                real_t old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
+                old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
                                 }
 	                        if (tp$zeropar) { ?>
                 <?%s d$adjoint_name ?> = 0.0f; <?R
                                 }
-                        } ?>
-		Run_b(); <?R
+                        }
+		} else if (tp$Stream == "Opt") { ?>
+		constContainer.pop_param(*this);
+		constContainer.pop_param_adj(*this); <?R
+		} else if (tp$Stream == "Init") {
+		} else if (tp$Stream == "No") { ?>
+	        constContainer.pop_<?%s s$name ?>(*this); <?R
+		} else {
+		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
+		} ?>
+	}
+	CudaDeviceFunction inline void SaveElement() {
+		<?R
+		if (tp$Stream == "Adj") {
 		        if (tp$Globals == "Globs") for (d in rows(Density)) if (d$parameter) { ?>
                 old_<?%s d$adjoint_name ?> -= <?%s d$adjoint_name ?>;
                 AddToAdjointRes(old_<?%s d$adjoint_name ?>*old_<?%s d$adjoint_name ?>); <?R
                         } ?>
 		constContainer.push_<?%s s$name ?>_adj(*this); <?R
 		} else if (tp$Stream == "Opt") { ?>
-		constContainer.pop_param(*this);
-		constContainer.pop_param_adj(*this); 
-		Opt();
 		constContainer.push_param(*this); <?R
 		} else if (tp$Stream == "Init") { ?>
-		constContainer.getType(*this);
-		Init();
 		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else if (tp$Stream == "No") { ?>
-	        constContainer.pop_<?%s s$name ?>(*this); 
-		<?%s s$main ?>();
 		constContainer.push_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
 	   GlobDiff();
+	}
+	<?R
+		ExecArgType = ""
+		ExecArg  = ""
+	?>
+	CudaDeviceFunction inline void ExecElement(<?%s ExecArgType ?>) {
+		<?R
+		if (tp$Stream == "Adj") { ?>
+		Run_b(); <?R
+		} else if (tp$Stream == "Opt") { ?>
+		Opt(); <?R
+		} else if (tp$Stream == "Init") { ?>
+		Init();<?R
+		} else if (tp$Stream == "No") { ?>
+		<?%s s$main ?>(<?%s ExecArg ?>); <?R
+		} else {
+		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
+		} ?>
+	}
+	CudaDeviceFunction inline void RunElement(<?%s ExecArgType ?>) {
+		LoadElement();
+		ExecElement(<?%s ExecArg ?>);
+		SaveElement();
 	}
 	CudaDeviceFunction inline void OutOfDomain() {
 	   GlobDiffOutOfDomain();

@@ -312,12 +312,13 @@ AddNodeType("DesignSpace","DESIGNSPACE")
 
 Stages=NULL
 
-AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE) {
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE) {
 	s = data.frame(
 		name = name,
 		main = main,
 		adjoint = FALSE,
-		fixedPoint=fixedPoint
+		fixedPoint=fixedPoint,
+		particle=particle
 	)
 	sel = Stages$name == name
 	if (any(sel)) {
@@ -811,7 +812,7 @@ NonEmptyMargin = Margin[NonEmptyMargin]
 Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
-	eModel=as.character(MODEL),
+	eModel=paste("model",as.character(MODEL),sep="_"),
 	eAction=names(Actions),
 	eStage=c(Stages$name,"Get"),
 	eTape = c("NoTape", "RecordTape")

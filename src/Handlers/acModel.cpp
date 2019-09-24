@@ -3,7 +3,8 @@ std::string acModel::xmlname = "Model";
 #include "../HandlerFactory.h"
 
 int acModel::Init () {
-		GenericContainer::Init();
+		int ret = GenericContainer::Init();
+		if (ret) return ret;
 		solver->lattice->Init();
 		solver->iter = 0;
 		return 0;

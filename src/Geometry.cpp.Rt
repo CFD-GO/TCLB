@@ -336,17 +336,49 @@ inline int inWedge(double x, double y, double z, const char *type)
 {
     if (strcmp(type, "") == 0)
 	type = "UpperLeft";
+/// Original Version
+//    if (strcmp(type, "UpperLeft") == 0) {
+//	// default
+//    } else if (strcmp(type, "UpperRight") == 0) {
+//	x = 1. - x;
+//    } else if (strcmp(type, "LowerLeft") == 0) {
+//	y = 1. - y;
+//    } else if (strcmp(type, "LowerRight") == 0) {
+//	x = 1. - x;
+//	y = 1. - y;
+//    }
+//    return (x - y) < 1e-10;
+
+//JM version to allow x-z plane wedge
+    double delta = 0;
     if (strcmp(type, "UpperLeft") == 0) {
 	// default
+	delta = x-y;
     } else if (strcmp(type, "UpperRight") == 0) {
 	x = 1. - x;
+	delta = x-y;
     } else if (strcmp(type, "LowerLeft") == 0) {
 	y = 1. - y;
+	delta = x-y;
     } else if (strcmp(type, "LowerRight") == 0) {
 	x = 1. - x;
 	y = 1. - y;
+	delta = x-y;
+    } else if (strcmp(type, "UpperLeftXZ") == 0) {
+	// default
+	delta = x-z;
+    } else if (strcmp(type, "UpperRightXZ") == 0) {
+	x = 1. - x;
+	delta = x-z;
+    } else if (strcmp(type, "LowerLeftXZ") == 0) {
+	z = 1. - z;
+	delta = x-z;
+    } else if (strcmp(type, "LowerRightXZ") == 0) {
+	x = 1. - x;
+	z = 1. - z;
+	delta = x-z;
     }
-    return (x - y) < 1e-10;
+    return delta < 1e-10;
 }
 
 /// Transform STL points according to attributes of an XML element
@@ -1046,10 +1078,9 @@ Geometry::~Geometry()
 /// Dumps the Geometry to a vti file
 void Geometry::writeVTI(const char *name)
 {
-	char filename[STRING_LEN];
-	sprintf(filename, "%s_P%02d.vti", name, D_MPI_RANK);
-
-    vtkFileOut vtkFile;
+    vtkFileOut vtkFile(MPMD.local);
+    char filename[STRING_LEN];
+    sprintf(filename, "%s_P%02d.vti", name, D_MPI_RANK);
     if (vtkFile.Open(filename)) {
 	return;
     }

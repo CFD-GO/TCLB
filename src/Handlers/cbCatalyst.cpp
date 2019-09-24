@@ -85,7 +85,7 @@ int cbCatalyst::Init () {
                                 }
                         }
                         nm = fn;                                                                                
-                        MPI_Barrier(MPI_COMM_WORLD);
+                        MPI_Barrier(MPMD.local);
                 }
 //		attr = node.attribute("what");
 //		if (attr) {

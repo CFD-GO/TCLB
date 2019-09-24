@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+        <Geometry nx="1024" ny="128">
+		<MRT><Box/></MRT>
+		<WVelocity name="Inlet"><Inlet/></WVelocity>
+		<EPressure name="Outlet"><Outlet/></EPressure>
+		<Inlet nx='1' dx='5'><Box/></Inlet>
+		<Outlet nx='1' dx='-5'><Box/></Outlet>
+		<Wall mask="ALL">
+			<Channel/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Params VelocityX="0.025"/>
+		<Params Viscosity="0.01"/>
+		<Params GravitationX="-0.00"/>
+		<RemoteForceInterface Iterations="100000" particle="NRotSphere" periodic="x">
+import random
+from math import pi
+R=32
+r=5
+line = CubicBlock(dimCount=[16,1,1], radius=r)
+line.translate(Vec3(R-r,0,0))
+a = pi/10
+line.rotate(Vec3(0,0,a),Vec3(0,0,0))
+line.translate(Vec3(200,64,0))
+i=0;
+rho=2
+for pp in line:
+    if (i == 0):
+	pp.setTag(2)
+    	pp.setRadius(32)
+    	pp.setPos(Vec3(200,64,0))
+    else:
+    	pp.setTag(1)
+    pp.setId(i)
+    #pp.setRadius(1)
+    pp.setMass(rho*4/3*pi*pp.getRadius()*pp.getRadius()*pp.getRadius());
+    i+=1
+    sim.createParticle(pp)
+
+sim.createConnections(
+    ConnectionFinder(
+        maxDist = 0.1,
+        bondTag = 1,
+        pList = line
+    )
+)
+
+bondGrp = sim.createInteractionGroup(
+    NRotBondPrms(
+        name = "sphereBonds",
+        normalK = 1.0,
+        breakDistance = 50.0,
+        tag = 1,
+        scaling = True
+    )
+)
+
+sim.setParticleNonDynamic(2)
+		</RemoteForceInterface>
+	</Model>
+	<VTK Iterations="100"/>
+	<Solve Iterations="100000"/>
+</CLBConfig>

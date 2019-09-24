@@ -332,6 +332,9 @@ void MainFree( Solver *d);
 	                                                        }
 	                                                        dz += zlens[i];
 	                                                }
+						        mpi.divx = 1;
+						        mpi.divy = divy;
+						        mpi.divz = divz;
 	                                                fillSides(mpi, 1, divy, divz);
 	                                        } else {
 	                                                str += sprintf(str, "Mesh too small to divide\n");
@@ -352,7 +355,10 @@ void MainFree( Solver *d);
 	                notice("Max region size: %d. Mesh size %d. Overhead: %2.f%%\n", k, info.region.size(), overhead * 100);
 		}
 	
-	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPI_COMM_WORLD);
+	        MPI_Bcast(mpi.node, mpi_size * sizeof(NodeInfo), MPI_BYTE, 0, MPMD.local);
+	        MPI_Bcast(&mpi.divx, 1, MPI_INT, 0, MPMD.local);
+	        MPI_Bcast(&mpi.divy, 1, MPI_INT, 0, MPMD.local);
+	        MPI_Bcast(&mpi.divz, 1, MPI_INT, 0, MPMD.local);
 	        region = mpi.node[mpi_rank].region;
 	        mpi.totalregion = info.region;
 	        output("Local lattice size: %dx%dx%d\n", region.nx, region.ny,region.nz);
@@ -432,7 +438,7 @@ int Solver::getPars() {
 	}
 	Par_size = j * <?%d sum(Density$parameter==T) ?>;
 	debug1("Par_size: %d\n",Par_size);
-	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPMD.local);
 	if (mpi_rank == 0) {
 		int i;
 		Par_disp[0] = 0;
@@ -465,7 +471,7 @@ int Solver::getPar(double * wb) {
 	}
 <?R } ?>
 	assert(j == Par_size);
-	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPMD.local);
 	delete[] wb_l;
 	delete[] buf;
 	return 0;
@@ -664,7 +670,7 @@ int Solver::getDPar(double * wb) {
 	#endif
 	output("L2 norm of gradient: %lg\n", sqrt(sum));
 	assert(j == Par_size);
-	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPMD.local);
 	delete[] wb_l;
 	delete[] buf;
 	return 0;
@@ -682,7 +688,7 @@ int Solver::setPar(const double * w) {
 	real_t * buf = new real_t[n];
 	double * w_l = new double[Par_size];
 	DEBUG_M;
-	MPI_Scatterv(const_cast<double *>(w), Par_sizes, Par_disp,  MPI_DOUBLE, w_l, Par_size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	MPI_Scatterv(const_cast<double *>(w), Par_sizes, Par_disp,  MPI_DOUBLE, w_l, Par_size, MPI_DOUBLE, 0, MPMD.local);
 	DEBUG_M;
 	int j=0;
 	double sum =0;
