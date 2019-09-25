@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-	echo "tests.sh [-v] MODEL [TESTS]"
+	echo "tests.sh [-r n] [-v] MODEL [TESTS]"
 	exit -2
 }
 
@@ -29,6 +29,18 @@ function try {
 	return 0;
 }
 
+REPEAT=1
+
+if [[ "x$1" == "x-r"  ]];
+then
+    REPEAT=$2
+    if test $REPEAT -le 1;
+    then
+        REPEAT=2
+    fi
+    shift
+    shift
+fi
 
 VERBOSE=false
 
@@ -77,6 +89,9 @@ then
 	echo "Exiting with error. Because I Can."
 	exit -1
 fi
+
+
+function testModel {
 
 GLOBAL="OK"
 export PYTHONPATH="$PYTHONPATH:tools/python:tests/$MODEL"
@@ -154,10 +169,28 @@ do
 	fi
 done
 
-if test "x$GLOBAL" == "xOK"
+
+if test $REPEAT -eq 1
 then
-	exit 0
-else
-	echo "Some tests failed"
-	exit -1
+    if test "x$GLOBAL" == "xOK"
+    then
+    	exit 0
+    else
+    	echo "Some tests failed"
+    	exit -1
+    fi
 fi
+
+}
+echo "Tests are gonna be repeated $REPEAT times, output/ and Running*.log will be moved."
+sleep 5
+echo "Running..."
+
+while test $REPEAT -gt 0
+do
+    echo "$REPEAT to go..."
+    testModel
+    mv -v output output-$REPEAT
+    mv -v Running* output-$REPEAT
+    REPEAT=$(expr $REPEAT - 1)
+done
