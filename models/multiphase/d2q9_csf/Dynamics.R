@@ -134,6 +134,9 @@ AddSetting(name="BrinkmanHeightInv", default=0, zonal=T)
 
 AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer in cumulant collision model')
 
+AddSetting(name="WallSmoothingMagic", default=0.12, comment="Wall normal smoothing parameter, higher - more smoothed")
+
+
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")

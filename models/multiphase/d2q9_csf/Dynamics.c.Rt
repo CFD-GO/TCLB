@@ -599,10 +599,12 @@ CudaDeviceFunction vector_t getNormal(){
 //only for paraview: do not use, inefficient!!
 CudaDeviceFunction vector_t getWallNormal(){
     vector_t nw;
+    nw.x = 0;
+    nw.y = 0;
+    nw.z = 0;
     if (!IamWall) {
         nw.x = nw_x(0,0);
         nw.y = nw_y(0,0);
-        nw.z = 0;
         real_t ln = sqrt(nw.x*nw.x + nw.y*nw.y);    
         if(ln == 0.){
             nw.x = 0.;
@@ -666,7 +668,7 @@ CudaDeviceFunction void CalcNormal(){
 **/
 
 
-    real_t magic = 0.12;
+    real_t magic = WallSmoothingMagic;
     bool has_normal = false;
    <?R
     for (j in 1:9) {
