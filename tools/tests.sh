@@ -190,6 +190,7 @@ while test $REPEAT -gt 0
 do
     echo "$REPEAT to go..."
     testModel
+    #BELOW IS NOT PERFORMED ON LAST/ONLY TEST, testModel ends with exit X
     mv -v output output-$REPEAT
     mv -v Running* output-$REPEAT
     REPEAT=$(expr $REPEAT - 1)
