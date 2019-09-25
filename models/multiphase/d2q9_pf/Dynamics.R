@@ -47,12 +47,11 @@ if (Options$fd) {
          ) 
     AddStage("CalcPhi", 
              save=Fields$name=="phi" ,  
-             load=DensityAll$group == "h"|DensityAll$group == "f"  
-
+             load=DensityAll$group == "h"
          )
     AddStage("BaseInit", "Init",  
-	load=DensityAll$group == "BC",
-        save=Fields$group=="h" | Fields$group == "f" | Fields$group == "BC" 
+	    load=DensityAll$group == "BC",
+        save=Fields$group=="h" | Fields$group == "f" 
  
     )
     AddAction("Iteration", c("BaseIteration","CalcPhi"))

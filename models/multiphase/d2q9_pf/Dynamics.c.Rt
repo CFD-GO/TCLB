@@ -113,6 +113,7 @@ CudaDeviceFunction vector_t getU(){
 CudaDeviceFunction vector_t getNormal(){
     real_t k01, k10;
     vector_t n;
+    n.z = 0;
     <?R
     if (Options$fd){
         ee_x = U[,1] * wi  
