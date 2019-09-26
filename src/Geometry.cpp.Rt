@@ -445,7 +445,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] += v;
 	}
     }
-    const double sm_diff[3] = {0.123e-5, 0.231e-5, 0.312e-5};
+    const double sm_diff[3] = {0.1403e-4, 0.1687e-4, 0.1987e-4};
     for (int i = 0; i < ntri; i++) {
 	for (int j = 0; j < 3; j++) {
 		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
@@ -557,6 +557,9 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 
     debug1("Number of triangles: %d\n", ntri);
     transformSTL(ntri, tri, n);
+	size_t topo_hit[5];
+	for (int i = 0; i < 5; i++) topo_hit[i] = 0;
+	
     for (int i = 0; i < ntri; i++) {
 	int min[3], max[3];
 	for (int j=0; j<3;j++) {
@@ -611,8 +614,26 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                     c2 = v[0] * v2[1] - v[1] * v2[0];
                     c1 /= c0;
                     c2 /= c0;
-                    if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
-                        c3 = 1. - c1 - c2;
+                    c3 = 1. - c1 - c2;
+			int topo=0;
+			const double dv[2] = { -0.5694552,  0.8220224}; // random direction for resolving bad edges
+			double dc1 = (v1[0] * dv[1] - v1[1] * dv[0])/c0;
+			double dc2 = (dv[0] * v2[1] - dv[1] * v2[0])/c0;
+			double dc3 = - dc1 - dc2;
+			if (c1 == 0) {
+				topo_hit[1]++;
+				if (dc1 > 0) topo++; else if (dc1 == 0) topo_hit[3]++; else topo_hit[2]++;
+			} else if (c1 > 0) topo++;
+			if (c2 == 0) {
+				topo_hit[1]++;
+				if (dc2 > 0) topo++; else if (dc2 == 0) topo_hit[3]++; else topo_hit[2]++;
+			} else if (c2 > 0) topo++;
+			if (c3 == 0) {
+				topo_hit[1]++;
+				if (dc3 > 0) topo++; else if (dc3 == 0) topo_hit[3]++; else topo_hit[2]++;
+			} else if (c3 > 0) topo++;
+                    if (topo == 3) {
+			topo_hit[0]++;
                         double h = tri[i].p1[ax1] * c3 + tri[i].p2[ax1] * c2 + tri[i].p3[ax1] * c1;
                         for (int x1 = lx1; x1 <= h; x1++) {
     //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
@@ -627,7 +648,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                 }
 	}
     }
-    if (insideOut != 2)
+    if (insideOut != 2) {
         for (int x = reg.dx; x < reg.dx + reg.nx; x++)
             for (int y = reg.dy; y < reg.dy + reg.ny; y++)
                 for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
@@ -636,6 +657,14 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                         Dot(x, y, z);
                     }
                 }
+	output("STL: triangle hits: %ld\n", topo_hit[0]);
+	if (topo_hit[1] > 0) {	
+		notice("STL: \\_ edge hits: %ld\n", topo_hit[1]);
+		notice("STL:    \\_ resolved negatively: %ld\n", topo_hit[2]);
+		notice("STL:    \\_ resolved positively: %ld\n", topo_hit[1] - topo_hit[3] - topo_hit[2]);
+		if (topo_hit[3] > 0) NOTICE("STL:    \\_ could not be resolved: %ld (this can cause problems!)\n", topo_hit[3]);
+	}
+    }
     free(tri);
     free(lev);
     return 0;
