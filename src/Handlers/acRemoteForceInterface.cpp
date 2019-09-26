@@ -12,6 +12,7 @@ int acRemoteForceInterface::Init () {
 
 
 int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_) {
+        output("Connecting RFI to %s\n",integrator_.c_str());
         pugi::xml_attribute attr;
         double units[3];
         units[0] = solver->units.alt("1m");
@@ -23,7 +24,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
 
         inter = MPMD[integrator_];
         if (! inter) {
-                ERROR("Integrator %s not found in MPMD (that usualy means that you didn't run it)\n");
+                ERROR("Integrator %s not found in MPMD (that usualy means that you didn't run it)\n",integrator_.c_str());
                 return -1;
         }
         integrator = integrator_;
