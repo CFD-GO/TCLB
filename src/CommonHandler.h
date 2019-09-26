@@ -12,7 +12,6 @@
 #include "Lattice.h"
 #include "vtkLattice.h"
 #include "Geometry.h"
-#include "def.h"
 #include "utils.h"
 #include "unit.h"
 #include "spline.h"
