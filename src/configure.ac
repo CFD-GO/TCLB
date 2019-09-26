@@ -55,6 +55,10 @@ AC_ARG_WITH([catalyst],
 	AC_HELP_STRING([--with-catalyst=path],
 		[specify the full path to your paraview source and build]))
 
+AC_ARG_WITH([lammps],
+	AC_HELP_STRING([--with-lammps=path],
+		[specify the full path to your LAMMPS/LIGGGHTS directory]))
+
 AC_ARG_WITH([verbosity_level],
 	AC_HELP_STRING([--with-verbosity-level=level],
 		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
@@ -90,7 +94,6 @@ AC_ARG_WITH([python],
 AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
 		[Set python(2)-config binary to call]))
-
 
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
@@ -446,6 +449,26 @@ then
 	
 fi
 
+if test "x${with_lammps}" != "x"
+then
+	if ! test -d "${with_lammps}"
+	then
+		AC_MSG_ERROR([lammps path ${with_lammps} is not a directory])
+	fi
+	LAMMPS="${with_lammps}"
+	LAMMPS="$(cd $LAMMPS; pwd)"
+	mkdir -p $LAMMPS/install/include/lammps
+	mkdir -p $LAMMPS/install/lib/
+	rm ${LAMMPS}/install/include/lammps/lammps.h ${LAMMPS}/install/include/lammps/library.h ${LAMMPS}/install/lib/liblammps.so 2>/dev/null
+	AC_CHECK_FILE([${LAMMPS}/src/lammps.h], [ln -s ../../../src/lammps.h ${LAMMPS}/install/include/lammps/],[AC_MSG_ERROR([Cannot find lammps.h])])
+	AC_CHECK_FILE([${LAMMPS}/src/library.h], [ln -s ../../../src/library.h ${LAMMPS}/install/include/lammps/],[AC_MSG_ERROR([Cannot find library.h])])
+	AC_CHECK_FILE([${LAMMPS}/src/liblammps.so], [ln -s ../../src/liblammps.so ${LAMMPS}/install/lib/],[AC_MSG_ERROR([Cannot find lammps.h])])
+	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib"
+	CPPFLAGS="${CPPFLAGS} -I${LAMMPS}/install/include"
+	AC_CHECK_HEADERS([lammps/library.h])
+	AC_CHECK_LIB([lammps],[lammps_open])
+	WITH_LAMMPS=1
+fi
 
 if test "x${with_r}" == "x"
 then
@@ -608,6 +631,7 @@ AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
+AC_SUBST(WITH_LAMMPS)
 AC_SUBST(WITH_R)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
