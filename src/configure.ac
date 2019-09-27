@@ -459,11 +459,14 @@ then
 	LAMMPS="$(cd $LAMMPS; pwd)"
 	mkdir -p $LAMMPS/install/include/lammps
 	mkdir -p $LAMMPS/install/lib/
-	rm ${LAMMPS}/install/include/lammps/lammps.h ${LAMMPS}/install/include/lammps/library.h ${LAMMPS}/install/lib/liblammps.so 2>/dev/null
-	AC_CHECK_FILE([${LAMMPS}/src/lammps.h], [ln -s ../../../src/lammps.h ${LAMMPS}/install/include/lammps/],[AC_MSG_ERROR([Cannot find lammps.h])])
-	AC_CHECK_FILE([${LAMMPS}/src/library.h], [ln -s ../../../src/library.h ${LAMMPS}/install/include/lammps/],[AC_MSG_ERROR([Cannot find library.h])])
-	AC_CHECK_FILE([${LAMMPS}/src/liblammps.so], [ln -s ../../src/liblammps.so ${LAMMPS}/install/lib/],[AC_MSG_ERROR([Cannot find lammps.h])])
-	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib"
+	for i in lammps.h library.h input.h modify.h fix.h fix_external.h pointers.h lmptype.h lmpwindows.h atom.h
+	do
+		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
+		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[AC_MSG_ERROR([Cannot find ${i}])])
+	done
+	rm ${LAMMPS}/install/lib/liblammps.so 2>/dev/null
+	AC_CHECK_FILE([${LAMMPS}/src/liblammps.so], [ln -s ../../src/liblammps.so ${LAMMPS}/install/lib/liblammps.so],[AC_MSG_ERROR([Cannot find liblammps.so])])
+	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib -Wl,-rpath=${LAMMPS}/install/lib"
 	CPPFLAGS="${CPPFLAGS} -I${LAMMPS}/install/include"
 	AC_CHECK_HEADERS([lammps/library.h])
 	AC_CHECK_LIB([lammps],[lammps_open])
