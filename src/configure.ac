@@ -105,14 +105,6 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
-
-
-if test "x${COMPILER_BINDIR}" != "x"
-then
-	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
-
-fi
-
 test -z "$CXX" && CXX=mpic++
 test -z "$CC" && CC=mpicc
 
