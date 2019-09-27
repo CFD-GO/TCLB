@@ -8,7 +8,7 @@ int acESYSParticle::Init () {
         bool need_file = true;
         MPMDIntercomm inter_;
         pugi::xml_attribute attr;
-        char fn[STRING_LEN];
+        char fn[2*STRING_LEN];
         std::string filename;
         int N;
         double units[3];
