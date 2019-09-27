@@ -31,7 +31,7 @@ const char* xml_definition = "<Geometry>\
 </Geometry>";
 
 int xml_def_init() {
-	pugi::xml_parse_result result = xml_def.load(xml_definition);
+	pugi::xml_parse_result result = xml_def.load_string(xml_definition);
 	if (!result) {
                         ERROR("Error while parsing in-program default settings xml: %s\n", result.description());
                         return -1;
