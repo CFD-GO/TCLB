@@ -14,7 +14,7 @@
 		<Params VelocityX="0.025"/>
 		<Params Viscosity="0.01"/>
 		<Params GravitationX="-0.00"/>
-		<RemoteForceInterface Iterations="100000" particle="NRotSphere" periodic="x">
+		<ESYSParticle Iterations="100000" particle="NRotSphere" periodic="x">
 import random
 from math import pi
 R=32
@@ -58,7 +58,7 @@ bondGrp = sim.createInteractionGroup(
 )
 
 sim.setParticleNonDynamic(2)
-		</RemoteForceInterface>
+		</ESYSParticle>
 	</Model>
 	<VTK Iterations="100"/>
 	<Solve Iterations="100000"/>

@@ -129,8 +129,10 @@ public:
    inline ~MPMDHelper() {
    };
 
-   MPMDIntercomm& operator[](const std::string& key) {
-      return intercomm[key];
+   MPMDIntercomm operator[](const std::string& key) {
+      intercomm_map::iterator it = intercomm.find(key);
+      if (it != intercomm.end()) return it->second;
+      return MPMDIntercomm();
    };
 
    
@@ -278,7 +280,7 @@ public:
          ret.work_size = 0;
       }
       ret.connected = true;
-      intercomm.insert(make_pair(ret.name, ret));
+      intercomm[ret.name] = ret;
       return ret;
    }
 
