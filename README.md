@@ -4,7 +4,7 @@ CudneLB - the templated version
 
 CudneLB is a MPI+CUDA or MPI+CPU high-performance CFD simulation code, based on Lattice Boltzmann Method.
 
-It provides a clear interface for calculation of complex physics, and implementing new models.
+It provides a clear interface for calculation of complex physics, and the implementation of new models.
 
 ## Installation
 
@@ -14,7 +14,7 @@ git clone https://github.com/CFD-GO/TCLB.git
 cd TCLB
 ```
 
-If you want a more recent (but less stable) version, go for:
+If you want a more recent (but less stable) version, you could try the development branch:
 
 ```bash
 git clone -b develop https://github.com/CFD-GO/TCLB.git
@@ -28,10 +28,10 @@ You'll need:
 - packages for R: [optparse](https://cran.r-project.org/package=optparse), [numbers](https://cran.r-project.org/package=numbers), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra)
 - [nVidia CUDA](https://developer.nvidia.com/cuda-zone) (if you want to use GPU)
 - [python](https://www.python.org/), [numpy](http://www.numpy.org/) (if you want to use the integrated python interpreter)
-- [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython) (if you want to develop a model using python in place or R)
+- [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython) (if you want to develop a model using python instead of R)
 - [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface) (e.g. [OpenMPI](http://www.open-mpi.org/))
 
-You can install lot of these with the tools/install.sh script (if you are not afraid of running a script with sudo):
+You can install many of these with the tools/install.sh script (note it requires sudo):
 
 ```bash
 sudo tools/install.sh cuda 6.5-14 # only if your GPU supports cuda
