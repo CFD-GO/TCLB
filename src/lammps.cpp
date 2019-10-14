@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
      if (n == 0) break;
      MPI_Bcast(line,n,MPI_CHAR,0,MPMD.local);
      if (MPMD.local_rank == 0) {
-      printf("LAMMPS> %s",line);
+      fprintf(stdout,"LAMMPS> %s",line); fflush(stdout);
      }
      
      lammps_command(lmp,line);
@@ -113,7 +113,6 @@ int main(int argc, char *argv[])
    }
    
    lammps_close(lmp);
-   RFI.Close();
    RFI.Close();
    MPI_Finalize();
    return 0;

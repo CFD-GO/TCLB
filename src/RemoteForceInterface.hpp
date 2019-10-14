@@ -332,12 +332,12 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Close() {
    for (int i=0; i<workers; i++) {
     sizes[i] = RFI_FINISHED;
    }
+   ISendSizes();
+  } else {
+    if (sizes_req.size() == 0) ISendSizes();
   }
-  ISendSizes();
   WSendSizes();
-  if (TYPE == ForceIntegrator) {
-   Finish();
-  }
+  Finish();
 }
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
