@@ -6,7 +6,8 @@
 #include <lammps/atom.h>
 #include <lammps/fix.h>
 #include <lammps/fix_external.h>
-#include "RemoteForceInterface.hpp"
+#include "Global.h"
+#include "RemoteForceInterface.h"
 
 using namespace LAMMPS_NS;
 
@@ -48,6 +49,8 @@ int main(int argc, char *argv[])
    MPMDHelper MPMD;
    MPI_Init(&argc, &argv);
    MPMD.Init(MPI_COMM_WORLD, "LAMMPS");
+   DEBUG_SETRANK(MPMD.local_rank);
+   InitPrint(DEBUG_LEVEL, 6, 8);
    MPMD.Identify();
    rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > RFI;
    RFI.name = "LAMMPS";
