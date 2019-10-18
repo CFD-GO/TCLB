@@ -66,6 +66,10 @@ private:
   MPI_Datatype MPI_RFI_REAL_T; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_PARTICLE; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_FORCES; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
+  std::vector<double> sizesStats;
+  size_t sizesStatsNum;
+  std::vector<double> waitStats; 
+  std::vector<size_t> waitStatsNum; 
   bool rot;
   bool active;
   bool connected;
@@ -73,6 +77,7 @@ private:
   int Negotiate();
   void Zero();
   void Finish();
+  bool stats;
   MPI_Aint real_size;
   rfi_real_t base_units[3];
   std::vector< rfi_real_t > unit;
@@ -84,6 +89,9 @@ private:
   void WSendParticles();
   void ISendForces();
   void WSendForces();
+  void allocStats();
+  void saveSizesStats();
+  void saveWaitStats(int index, bool start);
 public:
   int particle_size;
   std::string name;
@@ -97,7 +105,8 @@ public:
   inline const size_t mem_size() const { return ntab * sizeof(rfi_real_t); }
   inline rfi_real_t* Particles() { return &tab[0]; }
   void CanCopeWithUnits(bool ccwu_);
-  void WaitAll(std::vector<MPI_Request>& reqs);
+  void WaitAll(int index, std::vector<MPI_Request>& reqs);
+  void printStats();
   void SendSizes();
   void SendParticles();
   void SendForces();
@@ -107,6 +116,7 @@ public:
   inline int Workers() { return workers; }
   inline size_t& Size(int i) { return sizes[i]; }
   inline bool Rot() { return rot; }
+  void enableStats();
   inline int space_for_workers() { return universe_size - world_size; };
   template <class T> inline T Exchange(T out);
   template <class T> inline std::vector<T> Exchange(std::vector<T> out);
