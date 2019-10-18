@@ -16,11 +16,14 @@ int BallTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
         int tmp = nr[i];
         nr[i] = nr[j];
         nr[j] = tmp;
+        if ((++i) == j) return i;
+        if (i == (--j)) return i;
     }
 }
 
 template <class BALLS>
 tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
+//    printf("tree build(%d %d %d)\n", ind, n, back);
     int node = tree.size();
     tr_elem elem;
     tree.push_back(elem);
