@@ -28,17 +28,6 @@ AddDensity(
 
 for (h in hname) AddField(h,dx=0,dy=0,dz=0) # Make h accessible also in present node (not only streamed)
 
-# # initialisation
-# AddStage("BaseInit"  , "Init_distributions" , save=Fields$group %in% c("f","h","Vel"))
-
-# # iteration
-# AddStage("HydroIter" , "calcHydroIter"    , save=Fields$group %in% c("g","h","Vel","nw") , load=DensityAll$group %in% c("g","h","Vel","nw"))
-# AddStage("HeatIter"  , "calcHeatIter"		, save=Fields$group %in% c("PF")			   , load=DensityAll$group %in% c("g","h","Vel","nw"))
-
-
-# AddAction("Init"     , c("BaseInit"))
-# AddAction("Iteration", c("HydroIter", "HeatIter"))
-
 #	Inputs: Flow Properties
 AddSetting(name="VelocityX", default="0m/s", comment='inlet/outlet/init x-velocity component', zonal=TRUE)
 AddSetting(name="VelocityY", default="0m/s", comment='inlet/outlet/init y-velocity component', zonal=TRUE)
@@ -81,10 +70,6 @@ AddGlobal(name="HeatFluxX",    comment='Heat flux from body in X-direction', uni
 AddGlobal(name="HeatFluxY",    comment='Heat flux from body in Y-direction', unit="W")
 AddGlobal(name="HeatFluxZ",    comment='Heat flux from body in Z-direction', unit="W")
 AddGlobal(name="HeatSource",   comment='Total Heat flux from body', 		 unit="W")
-# AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
-# AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
-# AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
-# AddGlobal(name="TotalTemperature", comment='Energy conservation check', unit="J")
 
 # 	Outputs:
 AddQuantity( name="Rho", unit="kg/m3")
