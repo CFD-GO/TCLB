@@ -1,3 +1,6 @@
+#ifndef MPMD_H
+#define MPMD_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -337,3 +340,4 @@ public:
    }
 };
 
+#endif
