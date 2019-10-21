@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/">
+        <Geometry nx="128" ny="128">
+                <Dirichlet name="border">
+                        <Box nx="1"/>
+                        <Box dx="-1"/>
+                        <Box ny="1"/>
+                        <Box dy="-1"/>
+                </Dirichlet>
+                <None name="box">
+                        <Box dx="60" nx="20" dy="20" ny="30"/>
+                </None>
+    </Geometry>
+    <Model>
+                <Params Value="-1"/>
+                <Params Value-box="1"/>
+                <Params Value-border="-1"/>
+                <Params Speed="0.01"/>
+                <Params Viscosity="0.001"/>
+    </Model>
+    <VTK Iterations="25"/>
+    <Solve Iterations="10000"/>
+</CLBConfig>

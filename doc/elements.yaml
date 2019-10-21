@@ -216,15 +216,35 @@ Wedge:
         - BottomRight
 
 STL:
+  comment: >
+    Imports a STL file as geometrical object. The element works in two modes.
+    In the first mode, it fills elements inside or outside of the STL geometry (casting rays along some axis).
+    In the second mode (`side="surface"`) it fills elements touching the geometry (on both sides) and
+    **calculates the cuts* for Interpolated-BounceBack-type conditions.
+  example: <STL file="geometry.stl" scale="1m" x="10" side="out"/>
   type: geom
   attr:
     - name: file
       val: file
-    - side:
-      - out
-      - in
-      - surface
-
+      comment: STL file to import
+    - name: side
+      val:
+        select:
+        - out
+        - in
+        - surface
+      comment: Specifies if to fill the interior (in), exterior (out), or the surface (see description)
+    - name: ray_axis
+      val:
+        select:
+        - x
+        - y
+        - z
+      comment: Specifies the axis along which rays will be cast for in/out filling of STL
+    - name: scale
+      val:
+        unit: float
+      comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
 Params:
   type:
     params
@@ -545,3 +565,18 @@ SaveMemoryDump:
       val:
         string: file
       comment: full path to the binary file
+
+
+EvalIf:
+  type: action
+  comment: |
+        Evaluate subactions only if opt_present build (d2qg and d2q9_bc, option is *bc* )options are present, or only if opt_missing is missing
+  attr:
+    - name: opt_present
+      val:
+        string: build opts
+      comment:
+    - name: opt_missing
+      val:
+        string: build opt
+      comment: 

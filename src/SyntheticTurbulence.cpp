@@ -63,7 +63,7 @@ void SyntheticTurbulence::Generate() {
     cpuset.data[j*ST_DATA+i] = tab[i];
    cpuset.data[j*ST_DATA+ST_WAVE_L] = WaveLengths[j];
   }
-  MPI_Bcast( cpuset.data, ST_DATA*size, MPI_REAL_T, 0, MPI_COMM_WORLD);
+  MPI_Bcast( cpuset.data, ST_DATA*size, MPI_REAL_T, 0, MPMD.local);
  }
   
 }

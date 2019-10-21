@@ -7,6 +7,7 @@
 */
 #include "SyntheticTurbulence.h"
 #include "Chimera.h"
+#include "BallTree.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -45,6 +46,10 @@ class LatticeContainer {
 #endif
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
   cut_t* Q; 
+  size_t particle_data_size;
+  real_t* particle_data;
+  size_t balltree_data_size;
+  tr_elem* balltree_data;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
@@ -137,8 +142,10 @@ class LatticeContainer {
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
+  template<class N> inline void RunParticlesT(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
   
   void CopyToConst();
   void WaitAll();

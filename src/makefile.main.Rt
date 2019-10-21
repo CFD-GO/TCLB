@@ -21,9 +21,13 @@ SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu
 SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
-SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h
+SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
 SOURCE_PLAN+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
-SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Chimera.h Sampler.h spline.h
+SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Chimera.h Sampler.h spline.h TCLBForceGroupCommon.h
+SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
+SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp
+SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
+
 <?R
 	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")
 	h = sub(".Rt","",h)
@@ -223,7 +227,7 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 <?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -p -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s ropt ?> || rm $@
 	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
