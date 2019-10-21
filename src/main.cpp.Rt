@@ -1,7 +1,3 @@
-<?R
-        source("conf.R")
-	c_header();
-?>
 /*  Main program file                                          */
 /*     Here we have all the initialization and the main loop   */
 /*-------------------------------------------------------------*/
@@ -268,9 +264,11 @@ int main ( int argc, char * argv[] )
 		solver->info.ysdim = 1;
 	#endif
 
-	<?R for (tp in c("size_t","real_t","vector_t","flag_t")) { ?>
-		debug0("sizeof(<?%s tp?>) = %ld\n", sizeof(<?%s tp?>));
-	<?R } ?>
+	debug0("sizeof(size_t) = %ld\n", sizeof(size_t));
+	debug0("sizeof(real_t) = %ld\n", sizeof(real_t));
+	debug0("sizeof(vector_t) = %ld\n", sizeof(vector_t));
+	debug0("sizeof(flag_t) = %ld\n", sizeof(flag_t));
+
 	MPI_Barrier(MPMD.local);
 
 	// Reading the config file
@@ -316,10 +314,6 @@ int main ( int argc, char * argv[] )
 	solver->setOutput("");
 
 	//Setting settings to default
-	<?R for (v in rows(Settings)) {
-	if (is.na(v$derived)) { ?>
-		solver->lattice->setSetting(<?%s v$index ?>,solver->units.alt("<?%s v$default ?>")); <?R
-	}} ?> 
 	// Initializing the CUDA events and setting callback
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );
