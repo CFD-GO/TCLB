@@ -78,6 +78,7 @@ private:
   void Zero();
   void Finish();
   bool stats;
+  std::string stats_filename;
   MPI_Aint real_size;
   rfi_real_t base_units[3];
   std::vector< rfi_real_t > unit;
@@ -91,7 +92,7 @@ private:
   void WSendForces();
   void allocStats();
   void saveSizesStats();
-  void saveWaitStats(int index, bool start);
+  void saveWaitStats(int index);
 public:
   int particle_size;
   std::string name;
@@ -105,7 +106,7 @@ public:
   inline const size_t mem_size() const { return ntab * sizeof(rfi_real_t); }
   inline rfi_real_t* Particles() { return &tab[0]; }
   void CanCopeWithUnits(bool ccwu_);
-  void WaitAll(int index, std::vector<MPI_Request>& reqs);
+  void WaitAll(std::vector<MPI_Request>& reqs);
   void printStats();
   void SendSizes();
   void SendParticles();
@@ -116,7 +117,7 @@ public:
   inline int Workers() { return workers; }
   inline size_t& Size(int i) { return sizes[i]; }
   inline bool Rot() { return rot; }
-  void enableStats();
+  void enableStats(char * filename);
   inline int space_for_workers() { return universe_size - world_size; };
   template <class T> inline T Exchange(T out);
   template <class T> inline std::vector<T> Exchange(std::vector<T> out);

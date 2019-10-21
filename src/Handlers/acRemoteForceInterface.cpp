@@ -23,7 +23,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         solver->lattice->RFI.CanCopeWithUnits(false);
 
         attr = node.attribute("stats");
-        if (attr) if (strcmp(attr.value(), "true") == 0) solver->lattice->RFI.enableStats();
+        if (attr) if (strcmp(attr.value(), "true") == 0) solver->lattice->RFI.enableStats(NULL);
 
         inter = MPMD[integrator_];
         if (! inter) {
