@@ -73,7 +73,7 @@ int cbStop::DoIt () {
                                 score=0;
                         }
                 }
-                MPI_Bcast(&ret, 1, MPI_INT, 0, MPI_COMM_WORLD);
+                MPI_Bcast(&ret, 1, MPI_INT, 0, MPMD.local);
 		return ret;
 	}
 

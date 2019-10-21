@@ -8,6 +8,19 @@ It provides a clear interface for calculation of complex physics, and implementi
 
 ## Installation
 
+Just clone the repo (or download the [zip file](https://github.com/CFD-GO/TCLB/archive/master.zip)):
+```bash
+git clone https://github.com/CFD-GO/TCLB.git
+cd TCLB
+```
+
+If you want a more recent (but less stable) version, go for:
+
+```bash
+git clone -b develop https://github.com/CFD-GO/TCLB.git
+cd TCLB
+```
+
 ### Dependencies
 
 You'll need:
@@ -51,6 +64,15 @@ This should also work:
 ```bash
 CLB/d2q9/main example/flow/2d/karman.xml
 ```
+
+## Documentation
+
+The documentation (including tutorials) is published at
+[docs.tclb.io](https://docs.tclb.io/). You can contribute at
+[CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
+
+For the `develop` version, most recent documentation can be found at
+[develop.docs.tclb.io](https://develop.docs.tclb.io/).
 
 ## Authors
 

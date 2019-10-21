@@ -105,6 +105,14 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
+
+
+if test "x${COMPILER_BINDIR}" != "x"
+then
+	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
+
+fi
+
 test -z "$CXX" && CXX=mpic++
 test -z "$CC" && CC=mpicc
 
@@ -219,12 +227,18 @@ then
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
 		CUDA_SUFF="30"
+	elif test "$CUDA_ARCH" == "sm_35"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+		CUDA_SUFF="35"
 	elif test "$CUDA_ARCH" == "sm_60"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
-		CUDA_SUFF="60"
+    CUDA_SUFF="60"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi

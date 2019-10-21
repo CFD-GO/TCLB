@@ -1,0 +1,365 @@
+<?R
+	source("conf.R")
+	c_header();
+
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	rho =  PV("rho")
+	J = PV("J",c("x","y","z"))
+
+# Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+
+C = function (x, y, ..., eq = " = ", sep) 
+{
+    x = ToC(x, ...)
+    if (missing(y)) {
+        if (missing(sep)) 
+            sep = ""
+        cat(x, sep = sep)
+    }
+    else {
+        if (missing(sep)) 
+            sep = ";\n"
+        y = ToC(y, ...)
+        sel = y != x
+        if (any(sel)) cat(paste0(x[sel], eq, y[sel], sep), sep = "")
+    }
+}
+
+
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	source("lib/boundary.R")
+	source("lib/FMT.R")
+
+	EQ_NO = MRT_eq(U, rho, J, ortogonal=FALSE, order=12);
+	
+	get.M.matrix = function(a) {
+	  an = lapply(a@vec,names)
+	  an = unique(do.call(c,an))
+	  an = setdiff(an,".M")
+	  ret = lapply(a@vec,function(p) { nan = setdiff(an,names(p)); p[,nan] = 0; p})
+	  n = length(ret)
+	  for (i in seq_len(n)) names(ret[[i]])[names(ret[[i]]) == ".M"] = paste0(".M",i)
+	  m=ret[[1]]
+	  for (i in seq_len(n-1)+1) m = merge(x=m,y=ret[[i]],all=TRUE,suffixes = c("a","b"))
+	  m[is.na(m)] = 0
+	  as.matrix(m[,paste0(".M",1:n)])
+	}
+	
+	M = EQ_NO$mat
+	  if (Options$TRT) {
+	  } else if (Options$BGK) {
+	  	M = diag(nrow(M))
+	  } else if (Options$WMRT) {
+		A = get.M.matrix(EQ_NO$Req)
+		R = diag(nrow = ncol(A))
+		R[1:nrow(A),] = qr.R(qr(A))
+		R = R / diag(R)
+		M = EQ_NO$mat %*% solve(R)
+	  } else {
+	  }
+
+	
+	if (Options$HiOrd) {
+		EQ = MRT_eq(U, rho, J, ortogonal=FALSE, order=12,mat=M);
+	} else {
+		EQ = MRT_eq(U, rho, J, ortogonal=FALSE, mat=M);
+	}
+?>
+
+<?R if (Options$part) { ?>
+CudaDeviceFunction void CalcF(Particle & p){
+	if ((NodeType & NODE_BOUNDARY) == 0) {
+	real_t d = getRho();
+        vector_t u;
+	vector_t force;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+	if (p.dist < p.rad) {
+		force.x = u.x - d*p.cvel.x;
+		force.y = u.y - d*p.cvel.y;
+		force.z = u.z - d*p.cvel.z;
+		p.force.x += +force.x;
+		fx         = -force.x;
+		p.force.y += +force.y;
+		fy         = -force.y;
+		p.force.z += +force.z;
+		fz         = -force.z;
+		sol = p.dist;
+	}
+	}
+}
+<?R } ?>
+
+CudaDeviceFunction real_t getRho() {
+	return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction real_t getP() {
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+
+CudaDeviceFunction vector_t getU() {
+        real_t d = getRho();
+        vector_t u;
+<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+	u.x = (u.x + fx/2.)/d;
+        u.y = (u.y + fy/2.)/d;
+        u.z = (u.z + fz/2.)/d;
+        return u;
+}
+
+CudaDeviceFunction vector_t getF(){
+	vector_t f;
+	f.x=fx;
+	f.y=fy;
+	f.z=fz;
+	return f;
+}
+
+CudaDeviceFunction real_t getSolid(){
+	return sol;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+	ret.y = 1.0-sol;
+        return ret;
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+CudaDeviceFunction void EVelocity()
+{
+<?R ZouHe(EQ, 1, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void WVelocity()
+{
+<?R ZouHe(EQ, 1, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void SVelocity()
+{
+<?R ZouHe(EQ, 2, 1, "velocity") ?>
+}
+
+CudaDeviceFunction void NVelocity()
+{
+<?R ZouHe(EQ, 2, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHe(EQ, 1, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void SPressure()
+{
+<?R ZouHe(EQ, 2, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void NPressure()
+{
+<?R ZouHe(EQ, 2, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHe(EQ, 1, -1, "pressure") ?>
+}
+
+<?R if (Options$part) { ?>
+CudaDeviceFunction void InterpolatedBounceBack()
+{
+	real_t q;
+	vector_t F;
+	F.x = F.y = F.z = 0.0;
+<?R
+        bounce = Bounce(U);
+        sel = DensityAll$group=="f"
+        attach(DensityAll[sel,])
+        f = PV(name)
+        fold = PV(name,"(0,0,0)")
+        fpre = PV(name,"(",-dx,",",-dy,",",-dz,")")
+        QU = cbind(dx,dy,dz)
+        detach()
+        Qw = PV( paste("Q",P$x,P$y,P$z,sep=""))
+        Q = PV( "q")
+	F = PV("F.",c("x","y","z"))
+        for (i in 2:length(Qw)) {
+                C(Q,Qw[i]);
+?>
+        if (q != NO_CUT) {
+                real_t p = ((real_t)q) * 0.01; // q * 0.005 * 2 <?R p = PV("p"); op = p^(-1); ?>
+                real_t fa = <?R C(fold[i]) ?>; <?R fa = PV("fa"); ?>
+                if (p > 1.0) { <?R
+			C(f[bounce[i]],fa*op + fold[bounce[i]]*(p-1)*op) ?>
+                } else { <?R
+			C(f[bounce[i]],fa*p + f[i]*(1-p)) ?>
+                }
+	<?R
+                        v = (f[bounce[i]] - fa) * QU[i,]
+                        for (j in 1:3) if (! is.zero(v[j])) C(F[j],F[j] + v[j]) ?>
+	}
+	<?R
+	}
+	?>
+	if((NodeType & NODE_BODY) == NODE_Body) { <?R
+	for (j in 1:3) { ?>
+		AddTo<?%s c("Drag","Lateral","Lift")[j] ?>(<?R C(F[j]) ?>); <?R
+	} ?>
+	}
+}
+<?R } ?>
+
+CudaDeviceFunction void RunBoundaries() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_WVelocityTurbulent:
+		WVelocityTurbulent();
+		break;
+	case NODE_EPressure:
+        EPressure();
+        break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_SPressure:
+        SPressure();
+        break;
+	case NODE_NPressure:
+        NPressure();
+        break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	 case NODE_NVelocity:
+        NVelocity();
+        break;
+	 case NODE_SVelocity:
+        SVelocity();
+        break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_Wall:
+		BounceBack();
+        break;
+    }
+}
+
+CudaDeviceFunction void Run() {
+    RunBoundaries();
+    switch (NodeType & NODE_COLLISION) {
+	case NODE_MRT:
+		CollisionMRT();
+		break;
+    }
+	fx=ForceX;
+	fy=ForceY;
+	fz=ForceZ;
+	sol=0;
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+{
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+}
+
+CudaDeviceFunction void Init() {
+	vector_t ST = SyntheticTurbulence(X,Y,Z);
+	ST.x = Turbulence*ST.x + Velocity;
+	ST.y = Turbulence*ST.y;
+	ST.z = Turbulence*ST.z;
+
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+	    SetEquilibrum(1.0,0,0,0);}
+	else SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
+	fx=ForceX;
+        fy=ForceY;
+        fz=ForceZ;
+        sol=0;
+}
+
+CudaDeviceFunction void WVelocityTurbulent() {
+      	vector_t ST = SyntheticTurbulence(X-Time*Velocity,Y,Z);
+	ST.x = Turbulence*ST.x + Velocity;
+	ST.y = Turbulence*ST.y;
+	ST.z = Turbulence*ST.z; 
+	<?R ZouHe(EQ, 1, 1, "velocity",V=PV("ST.x"),V3=c(PV("ST.x"),PV("ST.y"),PV("ST.z"))) ?> 
+}
+
+CudaDeviceFunction void CollisionMRT()
+{	
+<?R
+	
+	get.M.matrix = function(a) {
+	  an = lapply(a@vec,names)
+	  an = unique(do.call(c,an))
+	  an = setdiff(an,".M")
+	  ret = lapply(a@vec,function(p) { nan = setdiff(an,names(p)); p[,nan] = 0; p})
+	  n = length(ret)
+	  for (i in seq_len(n)) names(ret[[i]])[names(ret[[i]]) == ".M"] = paste0(".M",i)
+	  m=ret[[1]]
+	  for (i in seq_len(n-1)+1) m = merge(x=m,y=ret[[i]],all=TRUE,suffixes = c("a","b"))
+	  m[is.na(m)] = 0
+	  as.matrix(m[,paste0(".M",1:n)])
+	}
+
+
+  Omega = PV(rep("omega",nrow(U)))
+  if (Options$TRT) {
+	Omega[EQ$order %% 2 == 1] = PV("omega2")
+  } else if (Options$BGK) {
+  
+  } else if (Options$WMRT) {
+
+  } else {
+  	Omega[EQ$order > 2] = PV(1)
+  }
+
+  if (any(EQ$order < 2)) Omega[EQ$order < 2] = PV(1)
+  
+
+  meq = EQ$Req
+  
+  if (Options$FMT) {
+	I = do.call(expand.grid,list(0:2,0:2,0:2))
+	M = do.call(PV,c("f",unclass(I)))
+	sel = ToC(M) %in% ToC(f)
+	FMT(I, M, sel)
+	m = M[sel]
+	m = m[EQ_NO$canonical]
+	C(m, m %*% solve(EQ_NO$mat) %*% EQ$mat)
+  } else {
+  	m = PV("m",1:ncol(EQ$mat)-1)
+  	cat("real_t",paste(ToC(m),collapse=","),";\n")
+  	C(m, f %*% EQ$mat)
+  }
+?>
+	real_t omega = 1/(3*Viscosity+0.5);
+	real_t omega2 = (2.0 - omega)/(1 + 2*(Magic-0.25)*omega);
+	real_t rho, Jx, Jy, Jz;
+<?R
+	C(PV(c("rho","Jx","Jy","Jz")), m %*% solve(EQ$mat) %*% cbind(1,U))
+  C(m, m - meq)
+  C(m, m*(1-Omega))
+  C(m, m + meq)
+
+  if (Options$FMT) {
+	C(m, m %*% solve(EQ$mat) %*% EQ_NO$mat)
+	FMT(I, M, sel, inverse = TRUE)
+  } else {
+  	C(f, m %*% solve(EQ$mat))
+  }
+?>
+
+}
+
