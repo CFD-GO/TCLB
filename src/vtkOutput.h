@@ -15,7 +15,7 @@ class vtkFileOut {
 	MPI_Comm comm;
 public:
 	vtkFileOut (MPI_Comm comm_=MPI_COMM_WORLD);
-	vtkFileOut (leOut (MPI_Comm comm_=MPI_COM, int);
+	vtkFileOut (int, MPI_Comm comm_=MPI_COMM_WORLD);
 	int Open(const char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, char* selection);

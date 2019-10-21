@@ -60,7 +60,7 @@ vtkFileOut::vtkFileOut (MPI_Comm comm_)
 	comm = comm_;
 };
 
-vtkFileOut::vtkFileOut (MPI_Comm comm_, int rank_0_)
+vtkFileOut::vtkFileOut (int rank_0_, MPI_Comm comm_)
 {
 	f= NULL;
 	fp = NULL;
