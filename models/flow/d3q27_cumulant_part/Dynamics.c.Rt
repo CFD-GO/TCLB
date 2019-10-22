@@ -44,7 +44,7 @@ CudaDeviceFunction void CalcF(){
 		fy         = -force.y;
 //		p.force.z += +force.z;
 		fz         = -force.z;
-		sol = p.dist;
+		sol += 1;
 	}
 	}
 	}
