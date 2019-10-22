@@ -1,5 +1,6 @@
 #include "MPMD.hpp"
 #include <lammps/lammps.h>
+#include <lammps/domain.h>
 #include <lammps/library.h>
 #include <lammps/input.h>
 #include <lammps/modify.h>
@@ -8,6 +9,7 @@
 #include <lammps/fix_external.h>
 #include "Global.h"
 #include "RemoteForceInterface.h"
+#include <vector>
 
 using namespace LAMMPS_NS;
 
@@ -18,6 +20,8 @@ struct Info {
    Memory *memory;
    LAMMPS *lmp;
    rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > * RFI;
+   std::vector<size_t> wsize;
+   std::vector<size_t> windex;
 };
 
 
@@ -110,6 +114,8 @@ int main(int argc, char *argv[])
        info.memory = NULL;
        info.lmp = lmp;
        info.RFI = &RFI;
+       info.wsize.resize(RFI.Workers());
+       info.windex.resize(RFI.Workers());
 
        fix->set_callback(quest_callback,&info);
      }
@@ -122,51 +128,82 @@ int main(int argc, char *argv[])
 }
 
 
-void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x, double **f)
+void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x_, double **f)
 {
    Info *info = (Info *) ptr;
    if (! info->RFI->Active()) return;
-   for (int j = 0; j < info->RFI->Workers(); j++) {
-     info->RFI->Size(j) = nlocal;
-   }
    
-   info->RFI->Alloc();
-   int i=0;
    double ** v = info->lmp->atom->v;
+   double ** x = info->lmp->atom->x;
    double * r = info->lmp->atom->radius;
-   for (int j = 0; j < info->RFI->Workers(); j++) {
-    for (size_t k = 0; k < nlocal; k++) {
-     info->RFI->setData(i, RFI_DATA_R,      r[k]);
-     info->RFI->setData(i, RFI_DATA_POS+0,  x[k][0]);
-     info->RFI->setData(i, RFI_DATA_POS+1,  x[k][1]);
-     info->RFI->setData(i, RFI_DATA_POS+2,  x[k][2]);
-     info->RFI->setData(i, RFI_DATA_VEL+0,  v[k][0]);
-     info->RFI->setData(i, RFI_DATA_VEL+1,  v[k][1]);
-     info->RFI->setData(i, RFI_DATA_VEL+2,  v[k][2]);
-     if (info->RFI->Rot()) {
-       info->RFI->setData(i, RFI_DATA_ANGVEL+0,  0.0);
-       info->RFI->setData(i, RFI_DATA_ANGVEL+1,  0.0);
-       info->RFI->setData(i, RFI_DATA_ANGVEL+2,  0.0);
-     }
-     i++;
+
+   for (int phase = 0; phase < 3; phase++) {
+    if (phase == 0) {
+     for (int i = 0; i < info->RFI->Workers(); i++) info->wsize[i] = 0;
+    } else {
+     for (int i = 0; i < info->RFI->Workers(); i++) info->windex[i] = 0;
     }
-   }
-   
-   info->RFI->SendSizes();
-   info->RFI->SendParticles();
-   info->RFI->SendForces();
-   for (size_t k = 0; k < nlocal; k++) {
-    f[k][0] = 0;
-    f[k][1] = 0;
-    f[k][2] = 0;
-   }
-   i=0;
-   for (int j = 0; j < info->RFI->Workers(); j++) {
+    
     for (size_t k = 0; k < nlocal; k++) {
-     f[k][0] += info->RFI->getData(i, RFI_DATA_FORCE+0);
-     f[k][1] += info->RFI->getData(i, RFI_DATA_FORCE+1);
-     f[k][2] += info->RFI->getData(i, RFI_DATA_FORCE+2);
-     i++;
+     if (phase == 2) {
+      f[k][0] = 0;
+      f[k][1] = 0;
+      f[k][2] = 0;
+     }
+     int minper[3], maxper[3], d[3];
+     for (int j=0; j<3; j++) {
+      if (info->lmp->domain->periodicity[j]) {
+        maxper[j] = floor((x[k][j] + r[k]) / info->lmp->domain->prd[j]);
+        minper[j] = floor((x[k][j] - r[k]) / info->lmp->domain->prd[j]);
+      } else { minper[j] = 0; maxper[j] = 0; }
+     }
+     int copies = (maxper[0]-minper[0]+1)*(maxper[1]-minper[1]+1)*(maxper[2]-minper[2]+1);
+//     if (copies > 1) printf("particle %ld is copied %d times (%d %d)x(%d %d)x(%d %d)\n", k, copies, minper[0], maxper[0], minper[1], maxper[1], minper[2], maxper[2]);
+     for (d[0]=minper[0]; d[0]<=maxper[0]; d[0]++) {
+      for (d[1]=minper[1]; d[1]<=maxper[1]; d[1]++) {
+       for (d[2]=minper[2]; d[2]<=maxper[2]; d[2]++) {
+        double px[3];
+        for (int j=0; j<3; j++) px[j] = x[k][j] - d[j] * info->lmp->domain->prd[j];
+        size_t offset = 0;
+        for (int worker = 0; worker < info->RFI->Workers(); worker++) {
+         if (phase == 0) {
+          info->wsize[worker]++;
+         } else {
+          size_t i = offset + info->windex[worker];
+          if (phase == 1) {
+           info->RFI->setData(i, RFI_DATA_R,      r[k]);
+           info->RFI->setData(i, RFI_DATA_POS+0,  px[0]);
+           info->RFI->setData(i, RFI_DATA_POS+1,  px[1]);
+           info->RFI->setData(i, RFI_DATA_POS+2,  px[2]);
+           info->RFI->setData(i, RFI_DATA_VEL+0,  v[k][0]);
+           info->RFI->setData(i, RFI_DATA_VEL+1,  v[k][1]);
+           info->RFI->setData(i, RFI_DATA_VEL+2,  v[k][2]);
+           if (info->RFI->Rot()) {
+            info->RFI->setData(i, RFI_DATA_ANGVEL+0,  0.0);
+            info->RFI->setData(i, RFI_DATA_ANGVEL+1,  0.0);
+            info->RFI->setData(i, RFI_DATA_ANGVEL+2,  0.0);
+           }         
+          } else {
+           f[k][0] += info->RFI->getData(i, RFI_DATA_FORCE+0);
+           f[k][1] += info->RFI->getData(i, RFI_DATA_FORCE+1);
+           f[k][2] += info->RFI->getData(i, RFI_DATA_FORCE+2);
+          }
+          info->windex[worker]++;
+          offset += info->wsize[worker];
+         }
+        }
+       }
+      }
+     }
+    }
+    if (phase == 0) {
+     for (int worker = 0; worker < info->RFI->Workers(); worker++) info->RFI->Size(worker) = info->wsize[worker];
+     info->RFI->SendSizes();
+     info->RFI->Alloc();
+    } else if (phase == 1) {
+     info->RFI->SendParticles();
+     info->RFI->SendForces();
+    } else {
     }
    }
 }
