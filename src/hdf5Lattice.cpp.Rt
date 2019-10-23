@@ -216,8 +216,10 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool wri
 
 
 	if (write_xdmf) {
-	    solver->outIterCollectiveFile(nm, ".xmf", filename);
-	    xdmf_doc.save_file(filename);
+		if (lattice->mpi.rank == 0) {
+		    solver->outIterCollectiveFile(nm, ".xmf", filename);
+		    xdmf_doc.save_file(filename);
+		}
 	}
 
 	return 0;
