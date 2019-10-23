@@ -14,7 +14,40 @@
 #endif
 
 
-int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
+char xdmf_string[STRING_LEN*10];
+
+void xdmf_str_val(char* str, double val) { sprintf(str, "%lf", val); }
+void xdmf_str_val(char* str, float val) { sprintf(str, "%f", val); }
+void xdmf_str_val(char* str, int val) { sprintf(str, "%d", val); }
+void xdmf_str_val(char* str, long int val) { sprintf(str, "%ld", val); }
+void xdmf_str_val(char* str, long long int val) { sprintf(str, "%lld", val); }
+void xdmf_str_val(char* str, unsigned long long int val) { sprintf(str, "%llu", val); }
+void xdmf_str_val(char* str, char* val) { sprintf(str, "%s", val); }
+
+template <typename T>
+void xdmf_str_val(char* str, int len, T* tab, char sep) {
+	for (int i=0; i<len; i++) {
+		xdmf_str_val(str, tab[i]);
+		if (i == len - 1) break;
+		str += strlen(str);
+		str[0] = sep;
+		str++;
+	}
+}
+
+template <typename T>
+char* xdmf_val(int len, T* tab, char sep) {
+	xdmf_str_val<T>(xdmf_string, len, tab, sep);
+	return xdmf_string;
+}
+
+template <typename T>
+char* xdmf_val(int len, T* tab) {
+	return xdmf_val<T>(len, tab, ' ');
+}
+
+
+int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool write_xdmf)
 {
 #ifdef WITH_HDF5
 	Lattice * lattice = solver->lattice;
@@ -22,8 +55,46 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
 
 	solver->print("writing hdf5");
 	char filename[2*STRING_LEN];
+	char * basename;
 	solver->outIterCollectiveFile(nm, ".h5", filename);
 
+	basename = filename;
+	for (char * n = filename; n[0] != '\0'; n++) {
+		if (n[0] == '/') basename = n+1;
+	}		
+
+	pugi::xml_document xdmf_doc;
+	pugi::xml_node xdmf_main = xdmf_doc.append_child("Xdmf");
+	xdmf_main.append_attribute("xmlns:xi") = "http://www.w3.org/2001/XInclude";
+	xdmf_main.append_attribute("Version") = "3.0";
+	pugi::xml_node xdmf_domain = xdmf_main.append_child("Domain");
+	pugi::xml_node xdmf_grid = xdmf_domain.append_child("Grid");
+	xdmf_grid.append_attribute("Name") = "Lattice";
+	pugi::xml_node xdmf_time = xdmf_grid.append_child("Time");
+	xdmf_time.append_attribute("Value") = solver->iter;
+	pugi::xml_node xdmf_geometry = xdmf_grid.append_child("Geometry");
+	xdmf_geometry.append_attribute("Origin") = "";
+	xdmf_geometry.append_attribute("Type") = "ORIGIN_DXDYDZ";
+	pugi::xml_node xdmf_dataitem;
+	xdmf_dataitem = xdmf_geometry.append_child("DataItem");
+	xdmf_dataitem.append_attribute("DataType") = "Float";
+	xdmf_dataitem.append_attribute("Dimensions") = "3";
+	xdmf_dataitem.append_attribute("Format") = "XML";
+	xdmf_dataitem.append_attribute("Precision") = 8;
+	{
+		double origin[3] = {0,0,0};
+		xdmf_dataitem.append_child(pugi::node_pcdata).set_value(xdmf_val(3,origin));
+	}
+	xdmf_dataitem = xdmf_geometry.append_child("DataItem");
+	xdmf_dataitem.append_attribute("DataType") = "Float";
+	xdmf_dataitem.append_attribute("Dimensions") = "3";
+	xdmf_dataitem.append_attribute("Format") = "XML";
+	xdmf_dataitem.append_attribute("Precision") = 8;
+	{
+		double spacing[3] = {0.015625, 0.015625, 0.015625};
+		xdmf_dataitem.append_child(pugi::node_pcdata).set_value(xdmf_val(3,spacing));
+	}
+	
 	size_t size;
 	lbRegion reg = lattice->region;
 	lbRegion totalreg = lattice->mpi.totalregion;
@@ -32,6 +103,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
     hid_t       file_id, dset_id;         /* file and dataset identifiers */
     hsize_t     totaldim[4];                 /* dataset dimensions */
     hsize_t     dim[4];            /* chunk dimensions */
+    hsize_t     totalpointdim[4];            /* point dimensions */
     hsize_t	offset[4];
     int         *data;                    /* pointer to data buffer to write */
     hsize_t	ones[4];	         
@@ -57,6 +129,17 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
     offset[2] = reg.dx;
     offset[3] = 0;
 
+    totalpointdim[0] = totalreg.nz+1;
+    totalpointdim[1] = totalreg.ny+1;
+    totalpointdim[2] = totalreg.nx+1;
+
+
+	pugi::xml_node xdmf_topology = xdmf_grid.append_child("Topology");
+	xdmf_topology.append_attribute("Dimensions") = xdmf_val(3,totalpointdim);
+	xdmf_topology.append_attribute("Type") = "3DCoRectMesh";
+
+	pugi::xml_node xdmf_attribute;
+
 	debug1("[%2d] %s dim: %lldx%lldx%lld (%lldx%lldx%lld+%lld,%lld,%lld)\n", lattice->mpi.rank,
 		filename,
 		totaldim[0], totaldim[1], totaldim[2],
@@ -75,6 +158,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
 	{
 		if (what->in("<?%s q$name ?>")) {
 			hid_t       filespace, memspace;
+			char * fieldname = "<?%s q$name ?>";
 			bool vector = <?%s ifelse(q$vector, "true", "false") ?>;
 #ifndef CALC_DOUBLE_PRECISION
 			hid_t type = H5T_NATIVE_FLOAT;
@@ -86,7 +170,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
 			filespace = H5Screate_simple(rank, totaldim, NULL); 
 			memspace  = H5Screate_simple(rank, dim, NULL); 
 			plist_id = H5Pcreate(H5P_DATASET_CREATE);
-	                    	dset_id = H5Dcreate(file_id, "<?%s q$name ?>", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+	                    	dset_id = H5Dcreate(file_id, fieldname, H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 			H5Pclose(plist_id);
 
                     	status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, ones, ones, dim);
@@ -107,11 +191,35 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
 			H5Dclose(dset_id);
 
 			delete[] tmp;
+			xdmf_attribute = xdmf_grid.append_child("Attribute");
+			xdmf_attribute.append_attribute("Center") = "Cell";
+			xdmf_attribute.append_attribute("ElementCell") = "";
+			xdmf_attribute.append_attribute("ElementDegree") = 0;
+			xdmf_attribute.append_attribute("ElementFamily") = "";
+			xdmf_attribute.append_attribute("ItemType") = "";
+			xdmf_attribute.append_attribute("Name") = fieldname;
+			xdmf_attribute.append_attribute("Type") = "None";
+			xdmf_dataitem = xdmf_attribute.append_child("DataItem");
+			xdmf_dataitem.append_attribute("DataType") = "Float";
+			xdmf_dataitem.append_attribute("Dimensions") = xdmf_val(rank,totaldim);
+			xdmf_dataitem.append_attribute("Format") = "HDF";
+			xdmf_dataitem.append_attribute("Precision") = 8;
+			{
+				char * str[2] = {basename, fieldname};
+				xdmf_dataitem.append_child(pugi::node_pcdata).set_value(xdmf_val(2,str,':'));
+			}
 		}
 	}
 	<?R }; ifdef(); ?>
 
     H5Fclose(file_id);
+
+
+	if (write_xdmf) {
+	    solver->outIterCollectiveFile(nm, ".xmf", filename);
+	    xdmf_doc.save_file(filename);
+	}
+
 	return 0;
 #else
 	return -1;
