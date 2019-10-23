@@ -4,7 +4,8 @@ std::string cbHDF5::xmlname = "HDF5";
 #include "../hdf5Lattice.h"
 
 int cbHDF5::Init () {
-		Callback::Init();
+	Callback::Init();
+#ifdef WITH_HDF5
 		pugi::xml_attribute attr = node.attribute("name");
 		nm = "HDF5";
 		if (attr) nm = attr.value();
@@ -14,13 +15,21 @@ int cbHDF5::Init () {
                 } else {
                         s.add_from_string("all",',');
                 }
-		return 0;
+                return 0;
+#else
+		ERROR("No hdf5 support at configure\n");
+		return -1;
+#endif
 	}
 
 
 int cbHDF5::DoIt () {
+#ifdef WITH_HDF5
 		Callback::DoIt();
 		return hdf5WriteLattice(nm.c_str(), solver->lattice, solver->units, &s);
+#else
+		return -1;
+#endif
 };
 
 
