@@ -27,6 +27,10 @@ AC_ARG_WITH([mpi-lib],
 		[specify the full path to your mpi shared libraries, e.g. /usr/lib/openmpi/]),
 	[MPI_LIB="$withval"])
 
+AC_ARG_WITH([hdf5],
+	AC_HELP_STRING([--with-hdf5=hdf5],
+		[specify the full path to your hdf5 installation]))
+
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
 		[make a GUI version]))
@@ -283,10 +287,6 @@ else
 fi
 CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
-
-
-
-
 AC_MSG_CHECKING([MPI library path])
 if test -z "${MPI_LIB}"; then
 	if test -z "${MPI}"; then
@@ -305,6 +305,23 @@ AC_CHECK_LIB([mpi], [MPI_Recv],[],[
 		AC_MSG_ERROR([Didn't find MPI Library])
 	])
 ])
+
+
+AC_MSG_CHECKING([HDF5 path])
+if test "x${with_hdf5}" != "xno"; then
+	if test "x${with_hdf5}" != "x"; then
+		if test -d "${with_hdf5}"; then
+			LDFLAGS="${LDFLAGS} -L${with_hdf5}/lib"
+			CPPFLAGS="${CPPFLAGS} -I${with_hdf5}/include"
+			AC_MSG_RESULT([${with_hdf5}])
+		else
+			AC_MSG_ERROR([${with_hdf5}: path not found])
+		fi
+	fi
+	AC_CHECK_HEADERS([hdf5.h],[],[AC_MSG_ERROR([Didn't find hdf5.h])])
+	AC_CHECK_LIB([hdf5], [H5Pset_fapl_mpio],[],[AC_MSG_ERROR([Didn't find hdf5])])
+	AC_DEFINE([WITH_HDF5], [1], [Using HDF5])
+fi
 
 
 if  test "x${with_python}" == "xyes"; then

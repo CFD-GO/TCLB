@@ -1,0 +1,116 @@
+<?R
+	source("conf.R")
+	c_header();
+?>
+#include <stdio.h>
+#include <assert.h>
+#include <mpi.h>
+#include "cross.h"
+#include "vtkLattice.h"
+#include "Global.h"
+
+#ifdef WITH_HDF5
+
+#include <hdf5.h>
+
+int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, name_set * what)
+{
+	size_t size;
+	lbRegion reg = lattice->region;
+	lbRegion totalreg = lattice->mpi.totalregion;
+	size = reg.size();
+
+    hid_t       file_id, dset_id;         /* file and dataset identifiers */
+    hid_t       filespace, memspace;      /* file and memory dataspace identifiers */
+    hsize_t     dimsf[3];                 /* dataset dimensions */
+    hsize_t     chunk_dims[3];            /* chunk dimensions */
+    int         *data;                    /* pointer to data buffer to write */
+    hsize_t	count[2];	          /* hyperslab selection parameters */
+    hsize_t	stride[2];
+    hsize_t	block[2];
+    hsize_t	offset[3];
+    int         i;
+    herr_t	status;
+
+
+    MPI_Comm comm  = MPMD.local;
+    MPI_Info info  = MPI_INFO_NULL;
+
+	hid_t plist_id;
+
+	plist_id = H5Pcreate(H5P_FILE_ACCESS);
+		H5Pset_fapl_mpio(plist_id, comm, info);
+	    	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    	H5Pclose(plist_id);
+
+    dimsf[0] = totalreg.nz;
+    dimsf[1] = totalreg.ny;
+    dimsf[2] = totalreg.nx;
+    chunk_dims[0] = reg.nz;   
+    chunk_dims[1] = reg.ny;   
+    chunk_dims[2] = reg.nx;
+    offset[0] = reg.dz;
+    offset[1] = reg.dy;
+    offset[2] = reg.dx;
+
+	printf("[%d] dim: %lldx%lldx%lld (%lldx%lldx%lld+%lld,%lld,%lld)\n", lattice->mpi.rank,
+		dimsf[0], dimsf[1], dimsf[2],
+		chunk_dims[0], chunk_dims[1], chunk_dims[2],
+		offset[0], offset[1], offset[2]);
+
+    filespace = H5Screate_simple(3, dimsf, NULL); 
+    memspace  = H5Screate_simple(3, chunk_dims, NULL); 
+
+    count[0] = 1;
+    count[1] = 1;
+    count[2] = 1;
+    stride[0] = 1;
+    stride[1] = 1;
+    stride[2] = 1;
+    block[0] =  chunk_dims[0];
+    block[1] =  chunk_dims[1];
+    block[2] =  chunk_dims[2];
+
+	<?R for (q in rows(Quantities)[1]) { ifdef(q$adjoint); ?>
+	{
+		if (what->in("<?%s q$name ?>")) {
+			plist_id = H5Pcreate(H5P_DATASET_CREATE);
+	                    	dset_id = H5Dcreate(file_id, "<?%s q$name ?>", H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+			H5Pclose(plist_id);
+
+			hid_t filespace_ = H5Dget_space(dset_id);
+    
+                    	status = H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset, stride, count, block);
+                    	if (status < 0) return H5Eprint1(stderr);
+
+			double v = units.alt("<?%s q$unit ?>");
+	                <?%s q$type ?>* tmp = new <?%s q$type ?>[size];
+                        lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
+
+			printf("filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace_), H5Sget_select_npoints(memspace));
+			plist_id = H5Pcreate(H5P_DATASET_XFER);
+				H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
+				status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace_, plist_id, tmp);
+			
+			H5Pclose(plist_id);
+			H5Sclose(filespace_);
+			H5Dclose(dset_id);
+
+			delete[] tmp;
+		}
+	}
+	<?R }; ifdef(); ?>
+
+    H5Sclose(filespace);
+    H5Sclose(memspace);
+    H5Fclose(file_id);
+
+	return 0;
+}
+#else
+
+int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, name_set * what) {
+	return -1;
+}
+
+#endif
