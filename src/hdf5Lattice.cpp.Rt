@@ -193,12 +193,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool wri
 			delete[] tmp;
 			xdmf_attribute = xdmf_grid.append_child("Attribute");
 			xdmf_attribute.append_attribute("Center") = "Cell";
-			xdmf_attribute.append_attribute("ElementCell") = "";
-			xdmf_attribute.append_attribute("ElementDegree") = 0;
-			xdmf_attribute.append_attribute("ElementFamily") = "";
-			xdmf_attribute.append_attribute("ItemType") = "";
 			xdmf_attribute.append_attribute("Name") = fieldname;
-			xdmf_attribute.append_attribute("Type") = "None";
 			xdmf_dataitem = xdmf_attribute.append_child("DataItem");
 			xdmf_dataitem.append_attribute("DataType") = "Float";
 			xdmf_dataitem.append_attribute("Dimensions") = xdmf_val(rank,totaldim);
