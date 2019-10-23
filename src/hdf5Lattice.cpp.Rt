@@ -6,16 +6,24 @@
 #include <assert.h>
 #include <mpi.h>
 #include "cross.h"
-#include "vtkLattice.h"
+#include "hdf5Lattice.h"
 #include "Global.h"
 
 #ifdef WITH_HDF5
+	#include <hdf5.h>
+#endif
 
-#include <hdf5.h>
 
-
-int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, name_set * what)
+int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what)
 {
+#ifdef WITH_HDF5
+	Lattice * lattice = solver->lattice;
+	UnitEnv * units = &solver->units;
+
+	solver->print("writing hdf5");
+	char filename[2*STRING_LEN];
+	solver->outIterCollectiveFile(nm, ".h5", filename);
+
 	size_t size;
 	lbRegion reg = lattice->region;
 	lbRegion totalreg = lattice->mpi.totalregion;
@@ -29,21 +37,12 @@ int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, na
     hsize_t	ones[4];	         
     int         i;
     herr_t	status;
+    hid_t plist_id;
 
 	ones[0] = 1;
 	ones[1] = 1;
 	ones[2] = 1;
 	ones[3] = 1;
-
-    MPI_Comm comm  = MPMD.local;
-    MPI_Info info  = MPI_INFO_NULL;
-
-	hid_t plist_id;
-
-	plist_id = H5Pcreate(H5P_FILE_ACCESS);
-		H5Pset_fapl_mpio(plist_id, comm, info);
-	    	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
-    	H5Pclose(plist_id);
 
     totaldim[0] = totalreg.nz;
     totaldim[1] = totalreg.ny;
@@ -58,10 +57,19 @@ int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, na
     offset[2] = reg.dx;
     offset[3] = 0;
 
-	printf("[%d] dim: %lldx%lldx%lld (%lldx%lldx%lld+%lld,%lld,%lld)\n", lattice->mpi.rank,
+	debug1("[%2d] %s dim: %lldx%lldx%lld (%lldx%lldx%lld+%lld,%lld,%lld)\n", lattice->mpi.rank,
+		filename,
 		totaldim[0], totaldim[1], totaldim[2],
 		dim[0], dim[1], dim[2],
 		offset[0], offset[1], offset[2]);
+
+    MPI_Comm comm  = MPMD.local;
+    MPI_Info info  = MPI_INFO_NULL;
+
+	plist_id = H5Pcreate(H5P_FILE_ACCESS);
+		H5Pset_fapl_mpio(plist_id, comm, info);
+	    	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+    	H5Pclose(plist_id);
 
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	{
@@ -84,11 +92,11 @@ int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, na
                     	status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, ones, ones, dim);
                     	if (status < 0) return H5Eprint1(stderr);
 
-			double v = units.alt("<?%s q$unit ?>");
+			double v = units->alt("<?%s q$unit ?>");
 	                <?%s q$type ?>* tmp = new <?%s q$type ?>[size];
                         lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
 
-			printf("filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
+			debug0("filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
 			plist_id = H5Pcreate(H5P_DATASET_XFER);
 				H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
 				status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, tmp);
@@ -104,13 +112,8 @@ int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, na
 	<?R }; ifdef(); ?>
 
     H5Fclose(file_id);
-
 	return 0;
-}
 #else
-
-int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv units, name_set * what) {
 	return -1;
-}
-
 #endif
+}

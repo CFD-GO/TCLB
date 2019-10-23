@@ -26,7 +26,7 @@ int cbHDF5::Init () {
 int cbHDF5::DoIt () {
 #ifdef WITH_HDF5
 		Callback::DoIt();
-		return hdf5WriteLattice(nm.c_str(), solver->lattice, solver->units, &s);
+		return hdf5WriteLattice(nm.c_str(), solver, &s);
 #else
 		return -1;
 #endif

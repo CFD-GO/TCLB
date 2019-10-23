@@ -2,10 +2,10 @@
 
 	#include "Global.h"
 //	#include "LatticeContainer.h"
-	#include "Lattice.h"
+	#include "Solver.h"
 	#include "unit.h"
 
-	int hdf5WriteLattice(const char * filename, Lattice * lattice, UnitEnv, name_set * s);
+	int hdf5WriteLattice(const char * filename, Solver * solver, name_set * s);
 
 #endif
 #define HDF5LATTICE_H 1
