@@ -62,7 +62,7 @@ std::string NameXPath(const pugi::xml_node& node) {
 	return path;
 }
 
-int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool write_xdmf)
+int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned long int * chunkdim_, bool write_xdmf, bool deflate)
 {
 #ifdef WITH_HDF5
 	Glue glue;
@@ -115,7 +115,8 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool wri
 
     hid_t       file_id, dset_id;         /* file and dataset identifiers */
     hsize_t     totaldim[4];                 /* dataset dimensions */
-    hsize_t     dim[4];            /* chunk dimensions */
+    hsize_t     dim[4];            /* local dimensions */
+    hsize_t     chunkdim[4];            /* local dimensions */
     hsize_t     totalpointdim[4];            /* point dimensions */
     hsize_t	offset[4];
     int         *data;                    /* pointer to data buffer to write */
@@ -123,6 +124,8 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool wri
     int         i;
     herr_t	status;
     hid_t plist_id;
+
+
 
 	ones[0] = 1;
 	ones[1] = 1;
@@ -147,20 +150,33 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool wri
     totalpointdim[2] = totalreg.nx+1;
 
 
+    MPI_Comm comm  = MPMD.local;
+    MPI_Info info  = MPI_INFO_NULL;
+
+	if (chunkdim_ != NULL) {
+	    chunkdim[0] = chunkdim_[0];
+	    chunkdim[1] = chunkdim_[1];
+	    chunkdim[2] = chunkdim_[2];
+	    chunkdim[3] = 3;
+	} else {
+	    chunkdim[0] = 1;
+	    chunkdim[1] = 1;
+	    chunkdim[2] = totaldim[3];
+	    chunkdim[3] = totaldim[3];
+	}					
+
 	pugi::xml_node xdmf_topology = xdmf_grid.append_child("Topology");
 	xdmf_topology.append_attribute("Dimensions") = glue(" ") << std::make_pair(totalpointdim,3);
 	xdmf_topology.append_attribute("Type") = "3DCoRectMesh";
 
 	pugi::xml_node xdmf_attribute;
 
-	debug1("[%2d] %s dim: %lldx%lldx%lld (%lldx%lldx%lld+%lld,%lld,%lld)\n", lattice->mpi.rank,
+	debug3("hdf5 file: %s\n   domain: %lldx%lldx%lld chunks: %lldx%lldx%lld local: %lldx%lldx%lld+%lld,%lld,%lld\n",
 		filename,
 		totaldim[0], totaldim[1], totaldim[2],
+		chunkdim[0], chunkdim[1], chunkdim[2],
 		dim[0], dim[1], dim[2],
 		offset[0], offset[1], offset[2]);
-
-    MPI_Comm comm  = MPMD.local;
-    MPI_Info info  = MPI_INFO_NULL;
 
 	plist_id = H5Pcreate(H5P_FILE_ACCESS);
 		H5Pset_fapl_mpio(plist_id, comm, info);
@@ -183,7 +199,12 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, bool wri
 			filespace = H5Screate_simple(rank, totaldim, NULL); 
 			memspace  = H5Screate_simple(rank, dim, NULL); 
 			plist_id = H5Pcreate(H5P_DATASET_CREATE);
-	                    	dset_id = H5Dcreate(file_id, fieldname, H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+			
+			status = H5Pset_chunk (plist_id, rank, chunkdim);
+			if (status < 0) return H5Eprint1(stderr);
+			if (deflate) status = H5Pset_deflate (plist_id, 6);
+			if (status < 0) return H5Eprint1(stderr);
+	                    	dset_id = H5Dcreate2(file_id, fieldname, H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 			H5Pclose(plist_id);
 
                     	status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, ones, ones, dim);

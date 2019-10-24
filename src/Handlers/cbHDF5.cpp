@@ -15,6 +15,58 @@ int cbHDF5::Init () {
                 } else {
                         s.add_from_string("all",',');
                 }
+
+                deflate = true;
+		attr = node.attribute("compress");
+		if (attr) {
+			if (strcmp(attr.value(),"true") == 0) {
+				deflate = true;
+			} else if (strcmp(attr.value(),"false") == 0) {
+				deflate = false;
+			} else {
+				ERROR("compress attribute should be true or false (not '%s')\n", attr.value());
+			}
+		}
+		write_xdmf = true;
+		attr = node.attribute("write_xdmf");
+		if (attr) {
+			if (strcmp(attr.value(),"true") == 0) {
+				write_xdmf = true;
+			} else if (strcmp(attr.value(),"false") == 0) {
+				write_xdmf = false;
+			} else {
+				ERROR("write_xdmf attribute should be true or false (not '%s')\n", attr.value());
+			}
+		}
+                
+		attr = node.attribute("chunk");
+		if (attr) {
+			ERROR("Supplying chunk size is not yet supported");
+			return -1;
+                } else { // Negotiate optimal chunk dimenstions
+                	unsigned long int dim[3];
+			dim[0] = solver->lattice->region.nz;
+			dim[1] = solver->lattice->region.ny;
+			dim[2] = solver->lattice->region.nx;
+			for (int i = 0; i < 3; i++) {
+				unsigned long int GCD, minGCD, maxGCD;
+				GCD = dim[i];
+				for (int j = 0; j < 500; j++) { // This is just a safty limit of iterations
+					MPI_Allreduce(&GCD, &minGCD, 1, MPI_UNSIGNED_LONG, MPI_MIN, solver->mpi_comm);
+					MPI_Allreduce(&GCD, &maxGCD, 1, MPI_UNSIGNED_LONG, MPI_MAX, solver->mpi_comm);
+					debug1("%d %d GCD: %ld (%ld-%ld)\n", i, j,	GCD, minGCD, maxGCD);
+					if (maxGCD == minGCD) break;
+					GCD = GCD % minGCD;
+					if (GCD == 0) GCD = minGCD;
+				}
+				if (maxGCD != minGCD) {
+					ERROR("Parallel GCD did not work\n");
+					return -1;
+				}
+				chunkdim[i] = GCD;
+			}
+			output("Negotiated HDF5 chunks: %ldx%ldx%ld[x3]\n", chunkdim[0], chunkdim[1], chunkdim[2]);
+		}                
                 return 0;
 #else
 		ERROR("No hdf5 support at configure\n");
@@ -26,7 +78,7 @@ int cbHDF5::Init () {
 int cbHDF5::DoIt () {
 #ifdef WITH_HDF5
 		Callback::DoIt();
-		return hdf5WriteLattice(nm.c_str(), solver, &s, true);
+		return hdf5WriteLattice(nm.c_str(), solver, &s, chunkdim, write_xdmf, deflate);
 #else
 		return -1;
 #endif
