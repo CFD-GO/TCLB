@@ -289,7 +289,8 @@ int main ( int argc, char * argv[] )
 	XMLCHILD(config, solver->configfile, "CLBConfig");
 	
 	if (argc > 2) {
-		xpath_modify(config, argc-2, argv+2);
+		int status = xpath_modify(config, argc-2, argv+2);
+		if (status != 0) return status;
 	}
 	
 	XMLCHILD(geom, config, "Geometry");

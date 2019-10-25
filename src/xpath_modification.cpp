@@ -108,6 +108,7 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                     return -1;
             }
     }
+    return 0;
 }
 
 
