@@ -4,6 +4,7 @@
 int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
     for (int i = 0; i < argc; i++) {
             try {
+                    char * add_attribute = NULL;
                     output("XPATH: %s\n",argv[i]);
                     pugi::xpath_node_set found = config.select_nodes(argv[i]);
                     output("XPATH: %ld things found\n", found.size());
@@ -11,7 +12,12 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                     if (i >= argc) {
                             ERROR("no operator in xpath evaluation\n");
                             return -1;
-                    } else if (strcmp(argv[i], "=") == 0) {
+                    }
+                    if (argv[i][0] == '@') {
+                            add_attribute = argv[i] + 1;
+                            i++;
+                    }
+                    if (strcmp(argv[i], "=") == 0) {
                             i++;
                             if (i >= argc) {
                                     ERROR("XPATH: No value supplied to = operator\n");
@@ -20,17 +26,37 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                                     ERROR("XPATH: Nothing selected for substitution\n");
                                     return -1;
                             } else for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
-                                    if (it->attribute()) {
-                                            it->attribute().set_value(argv[i]);
-                                            output("XPATH: Set attr %s to \"%s\"\n", it->attribute().name(), it->attribute().value());
+                                    bool error = false;
+                                    pugi::xml_attribute attr = it->attribute();
+                                    if (add_attribute == NULL) {
+                                            if (attr) {
+                                                    attr.set_value(argv[i]);
+                                                    output("XPATH: Set attr %s to \"%s\"\n", attr.name(), attr.value());
+                                            } else error = true;
                                     } else {
+                                            pugi::xml_node node = it->node();
+                                            if (node) {
+                                                    attr = node.attribute(add_attribute);
+                                                    if (attr) {
+                                                            attr.set_value(argv[i]);
+                                                            output("XPATH: Set attr %s to \"%s\" in <%s />\n", attr.name(), attr.value(), node.name());
+                                                    } else {
+                                                            attr = node.append_attribute(add_attribute);
+                                                            attr.set_value(argv[i]);
+                                                            output("XPATH: Adding attr %s = \"%s\" to <%s />\n", attr.name(), attr.value(), node.name());
+                                                    }
+                                            } else error = true;
+                                    }
+                                    if (error) {
                                             ERROR("XPATH: Operator = can only be used for attributes\n");
+                                            ERROR(" eg. Model/Params/@Viscosity = 0 - change attribute\n");
+                                            ERROR("     Model/Params @Viscosity = 0 - add or change attribute\n");
                                             return -1;
                                     }
                             }
                     } else if ((strcmp(argv[i], "inject") == 0) || (strcmp(argv[i], "insert") == 0)) {
                             i++;
-                            int type = 0;	// 0 - last   - at the end of node
+                            int type = 0;   // 0 - last   - at the end of node
                                             // 1 - first  - at the begining of node
                                             // 2 - after  - after a node
                                             // 3 - before - before a node
