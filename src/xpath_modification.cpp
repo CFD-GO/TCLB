@@ -28,7 +28,7 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                                             return -1;
                                     }
                             }
-                    } else if (strcmp(argv[i], "inject") == 0) {
+                    } else if ((strcmp(argv[i], "inject") == 0) || (strcmp(argv[i], "insert") == 0)) {
                             i++;
                             int type = 0;	// 0 - last   - at the end of node
                                             // 1 - first  - at the begining of node
