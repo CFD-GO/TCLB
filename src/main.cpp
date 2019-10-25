@@ -225,7 +225,7 @@ int main ( int argc, char * argv[] )
 	{
 		int count, dev;
 		CudaGetDeviceCount( &count );
-		if (argc >= 3) {
+/*		if (argc >= 3) {
                 	if (argc < 2 + solver->mpi.size) {
 				error("Not enough device numbers");
 				notice("Usage: program configfile [device number]\n");
@@ -240,10 +240,10 @@ int main ( int argc, char * argv[] )
 			#ifdef GRAPHICS
 				if (dev != 0) { error("Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
 			#endif
-		} else {
+		} else { */
 			CudaGetDeviceCount( &count );
 			dev = solver->mpi.rank % count;
-		}
+/*		} */
 		debug2("Selecting device %d/%d\n", dev, count);
 		CudaSetDevice( dev );
 		solver->mpi.gpu = dev;
