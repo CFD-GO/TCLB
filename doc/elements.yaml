@@ -81,6 +81,23 @@ VTK:
         string: outname
       comment: Name of the VTK file. 
 
+HDF5:
+  comment: Export HDF5 data file and Xdmf description
+  example: <HDF5 Iterations="1000" what="U,Rho"/>
+  type: callback
+  attr:
+    - name: what
+      optional: true
+      val:
+        list:
+        - special: Quantities
+        - special: GeometryComponents
+      comment: List of Quantities and Geometry Components to export.
+    - name: name
+      val:
+        string: outname
+      comment: Name of the HDF5 and Xdmf file.
+
 TXT:
   comment: Export data to TXT file
   type: callback
