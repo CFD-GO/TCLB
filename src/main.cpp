@@ -282,6 +282,61 @@ int main ( int argc, char * argv[] )
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
 	}
+	
+	if (argc > 2) {
+		for (int i = 2; i < argc; i++) {
+			try {
+				output("XPATH: %s\n",argv[i]);
+				pugi::xpath_node_set found = solver->configfile.select_nodes(argv[i]);
+				output("XPATH: %ld things found\n", found.size());
+				i++;
+				if (i < argc) {
+					if (strcmp(argv[i], "=") == 0) {
+						i++;
+						if (i < argc) {
+							if (found.size() == 0) {
+								ERROR("XPATH: Nothing selected for substitution\n");
+								return -1;
+							}
+							for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+								if (it->attribute()) {
+									it->attribute().set_value(argv[i]);
+									output("XPATH: Set attr %s to \"%s\"\n", it->attribute().name(), it->attribute().value());
+								} else {
+									ERROR("XPATH: Node selected. Can only substitute attributes\n");
+									return -1;
+								}
+							}
+						} else {
+							ERROR("XPATH: No value supplied to = operator\n");
+							return -1;
+						}
+					} else if (strcmp(argv[i], "print") == 0) {
+						for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+							if (it->node()) {
+								output("XPATH: Node: %s\n", it->node().name());
+							} else if (it->attribute()) {
+								output("XPATH: Attr: %s=\"%s\"\n", it->attribute().name(), it->attribute().value());
+							}
+						}
+					} else {
+						ERROR("Unknown operator in xpath evaluation: %s\n",argv[i]);
+						ERROR("Currently supported: =, print\n");
+						return -1;
+					}
+				} else {
+					ERROR("no operator in xpath evaluation\n");
+					return -1;
+				}
+			} catch (pugi::xpath_exception& err) {
+				ERROR("XPATH: parsing error: %s\n", err.what());
+				ERROR("XPATH: Syntax: .../main file.xml XPATH = value (spaces are important)");
+				return -1;
+			}
+		}
+	}
+	
+	
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
 	XMLCHILD(config, solver->configfile, "CLBConfig");
