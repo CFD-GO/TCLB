@@ -155,10 +155,19 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			char * fieldname = "<?%s q$name ?>";
 			bool vector = <?%s ifelse(q$vector, "true", "false") ?>;
 #ifndef CALC_DOUBLE_PRECISION
-			hid_t type = H5T_NATIVE_FLOAT;
+			hid_t input_type = H5T_NATIVE_FLOAT;
 #else
-			hid_t type = H5T_NATIVE_DOUBLE;
+			hid_t input_type = H5T_NATIVE_DOUBLE;
 #endif
+			hid_t output_type;
+			int output_precision;
+			if (options & HDF5_WRITE_DOUBLE) {
+				output_type = H5T_NATIVE_DOUBLE;
+				output_precision = 8;
+			} else {
+				output_type = H5T_NATIVE_FLOAT;
+				output_precision = 4;
+			}
 			int rank = 3;
 			if (vector) rank = 4;
 			filespace = H5Screate_simple(rank, totaldim, NULL); 
@@ -169,7 +178,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			if (status < 0) return H5Eprint1(stderr);
 			if (options & HDF5_DEFLATE) status = H5Pset_deflate (plist_id, 6);
 			if (status < 0) return H5Eprint1(stderr);
-	                    	dset_id = H5Dcreate2(file_id, fieldname, H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
+	                    	dset_id = H5Dcreate2(file_id, fieldname, output_type, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 			H5Pclose(plist_id);
 
                     	status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, ones, ones, dim);
@@ -182,7 +191,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			debug0("filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
 			plist_id = H5Pcreate(H5P_DATASET_XFER);
 				H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-				status = H5Dwrite(dset_id, H5T_NATIVE_DOUBLE, memspace, filespace, plist_id, tmp);
+				status = H5Dwrite(dset_id, input_type, memspace, filespace, plist_id, tmp);
 			
 			H5Pclose(plist_id);
 			H5Sclose(filespace);
@@ -198,19 +207,21 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			xdmf_dataitem.append_attribute("DataType") = "Float";
 			xdmf_dataitem.append_attribute("Dimensions") = glue(" ") << std::make_pair(totaldim, rank);
 			xdmf_dataitem.append_attribute("Format") = "HDF";
-			xdmf_dataitem.append_attribute("Precision") = 8;
+			xdmf_dataitem.append_attribute("Precision") = output_precision;
 			xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(":") << basename << fieldname);
 			std::string xdmf_dataitem_path = NameXPath(xdmf_dataitem);
-			xdmf_attribute = xdmf_grid.append_child("Attribute");
-			xdmf_attribute.append_attribute("Center") = "Cell";
-			if (vector) xdmf_attribute.append_attribute("AttributeType") = "Vector";
-			xdmf_attribute.append_attribute("Name") = glue("_") << fieldname << "LB";
-			xdmf_dataitem = xdmf_attribute.append_child("DataItem");
-			xdmf_dataitem.append_attribute("ItemType") = "Function";
-			xdmf_dataitem.append_attribute("Function") = glue(" ") << unit << "*" << "$0";
-			xdmf_dataitem.append_attribute("Dimensions") = glue(" ") << std::make_pair(totaldim, rank);
-			xdmf_dataitem = xdmf_dataitem.append_child("DataItem");
-			xdmf_dataitem.append_attribute("Reference") = xdmf_dataitem_path.c_str();
+			if (options & HDF5_WRITE_LBM) {
+				xdmf_attribute = xdmf_grid.append_child("Attribute");
+				xdmf_attribute.append_attribute("Center") = "Cell";
+				if (vector) xdmf_attribute.append_attribute("AttributeType") = "Vector";
+				xdmf_attribute.append_attribute("Name") = glue("_") << fieldname << "LB";
+				xdmf_dataitem = xdmf_attribute.append_child("DataItem");
+				xdmf_dataitem.append_attribute("ItemType") = "Function";
+				xdmf_dataitem.append_attribute("Function") = glue(" ") << unit << "*" << "$0";
+				xdmf_dataitem.append_attribute("Dimensions") = glue(" ") << std::make_pair(totaldim, rank);
+				xdmf_dataitem = xdmf_dataitem.append_child("DataItem");
+				xdmf_dataitem.append_attribute("Reference") = xdmf_dataitem_path.c_str();
+			}
 		}
 	}
 	<?R }; ifdef(); ?>
