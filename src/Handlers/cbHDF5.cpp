@@ -4,6 +4,7 @@ std::string cbHDF5::xmlname = "HDF5";
 #include "../hdf5Lattice.h"
 
 int cbHDF5::Init () {
+	options = 0;
 	Callback::Init();
 #ifdef WITH_HDF5
 		pugi::xml_attribute attr = node.attribute("name");
@@ -16,7 +17,7 @@ int cbHDF5::Init () {
                         s.add_from_string("all",',');
                 }
 
-                deflate = true;
+                bool deflate = true;
 		attr = node.attribute("compress");
 		if (attr) {
 			if (strcmp(attr.value(),"true") == 0) {
@@ -27,7 +28,8 @@ int cbHDF5::Init () {
 				ERROR("compress attribute should be true or false (not '%s')\n", attr.value());
 			}
 		}
-		write_xdmf = true;
+		if (deflate) options = options | HDF5_DEFLATE;
+		bool write_xdmf = true;
 		attr = node.attribute("write_xdmf");
 		if (attr) {
 			if (strcmp(attr.value(),"true") == 0) {
@@ -38,7 +40,7 @@ int cbHDF5::Init () {
 				ERROR("write_xdmf attribute should be true or false (not '%s')\n", attr.value());
 			}
 		}
-                
+                if (write_xdmf) options = options | HDF5_WRITE_XDMF;
 		attr = node.attribute("chunk");
 		if (attr) {
 			ERROR("Supplying chunk size is not yet supported");
@@ -78,7 +80,7 @@ int cbHDF5::Init () {
 int cbHDF5::DoIt () {
 #ifdef WITH_HDF5
 		Callback::DoIt();
-		return hdf5WriteLattice(nm.c_str(), solver, &s, chunkdim, write_xdmf, deflate);
+		return hdf5WriteLattice(nm.c_str(), solver, &s, chunkdim, options);
 #else
 		return -1;
 #endif

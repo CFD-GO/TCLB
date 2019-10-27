@@ -10,8 +10,7 @@ class  cbHDF5  : public  Callback  {
 	std::string nm;
 	name_set s;
 	unsigned long int chunkdim[3];
-	bool write_xdmf;
-	bool deflate;
+	unsigned int options;
 public:
 	static std::string xmlname;
 	int Init ();

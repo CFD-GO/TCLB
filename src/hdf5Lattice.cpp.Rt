@@ -27,7 +27,7 @@ std::string NameXPath(const pugi::xml_node& node) {
 	return path;
 }
 
-int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned long int * chunkdim_, bool write_xdmf, bool deflate)
+int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned long int * chunkdim_, unsigned int options)
 {
 #ifdef WITH_HDF5
 	Glue glue;
@@ -167,7 +167,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			
 			status = H5Pset_chunk (plist_id, rank, chunkdim);
 			if (status < 0) return H5Eprint1(stderr);
-			if (deflate) status = H5Pset_deflate (plist_id, 6);
+			if (options & HDF5_DEFLATE) status = H5Pset_deflate (plist_id, 6);
 			if (status < 0) return H5Eprint1(stderr);
 	                    	dset_id = H5Dcreate2(file_id, fieldname, H5T_NATIVE_DOUBLE, filespace, H5P_DEFAULT, plist_id, H5P_DEFAULT);
 			H5Pclose(plist_id);
@@ -218,7 +218,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	H5Fclose(file_id);
 
 
-	if (write_xdmf) {
+	if (options & HDF5_WRITE_XDMF) {
 		if (lattice->mpi.rank == 0) {
 		    solver->outIterCollectiveFile(nm, ".xmf", filename);
 		    xdmf_doc.save_file(filename);
