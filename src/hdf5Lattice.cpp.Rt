@@ -14,41 +14,6 @@
 	#include <hdf5.h>
 #endif
 
-/*
-char xdmf_string[STRING_LEN*10];
-
-void xdmf_str_val(char* str, double val) { sprintf(str, "%lf", val); }
-void xdmf_str_val(char* str, float val) { sprintf(str, "%f", val); }
-void xdmf_str_val(char* str, int val) { sprintf(str, "%d", val); }
-void xdmf_str_val(char* str, long int val) { sprintf(str, "%ld", val); }
-void xdmf_str_val(char* str, long long int val) { sprintf(str, "%lld", val); }
-void xdmf_str_val(char* str, unsigned long long int val) { sprintf(str, "%llu", val); }
-void xdmf_str_val(char* str, char* val) { sprintf(str, "%s", val); }
-
-template <typename T>
-void xdmf_str_val(char* str, int len, T* tab, char sep) {
-	for (int i=0; i<len; i++) {
-		xdmf_str_val(str, tab[i]);
-		if (i == len - 1) break;
-		str += strlen(str);
-		str[0] = sep;
-		str++;
-	}
-}
-
-template <typename T>
-char* xdmf_val(int len, T* tab, char sep) {
-	xdmf_str_val<T>(xdmf_string, len, tab, sep);
-	return xdmf_string;
-}
-
-template <typename T>
-char* xdmf_val(int len, T* tab) {
-	return xdmf_val<T>(len, tab, ' ');
-}
-*/
-
-
 std::string NameXPath(const pugi::xml_node& node) {
 	std::string path;
 	if (node.parent()) {
