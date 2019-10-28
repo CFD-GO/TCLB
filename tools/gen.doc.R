@@ -106,8 +106,8 @@ for (n in t$ofthistype){
 	  comment = a$comment
 	  if (is.null(a$val)) {
 	    val = ""
-	  } else if (! is.null(a$val["unit"])) {
-	    val = paste("Value with unit (",a$val["unit"],")",sep="")
+	  } else if (! is.null(a$val$unit)) {
+	    val = paste("Value with unit (",a$val$unit,")",sep="")
 	  } else if (! is.null(a$val$numeric)) {
 	    val = paste("Numeric (",a$val$numeric,")",sep="")
 	  } else if (! is.null(a$val$list)) {
