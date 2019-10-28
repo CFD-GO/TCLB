@@ -41,7 +41,7 @@ AC_ARG_ENABLE([double],
 
 AC_ARG_ENABLE([cpp11],
 	AC_HELP_STRING([--enable-cpp11],
-		[enable C++ 11 standard (default)]))
+		[enable C++ 11 standard]))
 
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
@@ -563,9 +563,9 @@ then
 fi
 
 
-if test "x${enable_cpp11}" != "xno"
+if test "x${enable_cpp11}" == "xyes"
 then
-	CPP_OPT="${CPP_OPT} -std=c++11"  # -D_MWAITXINTRIN_H_INCLUDED -D__STRICT_ANSI__
+	CPP_OPT="${CPP_OPT} -std=c++11"
 	NVFLAGS="${NVFLAGS} -std=c++11"
 fi
 
