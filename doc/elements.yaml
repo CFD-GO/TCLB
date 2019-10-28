@@ -97,6 +97,34 @@ HDF5:
       val:
         string: outname
       comment: Name of the HDF5 and Xdmf file.
+    - name: compress
+      val: 
+        select:
+          - true
+          - false
+      comment: Use ZLIB deflation filter to compress output
+    - name: write_xdmf
+      val: 
+        select:
+          - true
+          - false
+      comment: Write Xdmf accompaning file describing the data for visualisation
+    - name: point_data
+      val:
+        select:
+          - true
+          - false
+      comment: Write Xdmf that described the data as Point Data and not Cell Data
+    - name: chunk
+      val:
+        string: 3int
+      comment: HDF5 Chunk size (not supported yet)
+    - name: precision
+      val:
+        select:
+          - float
+          - double
+      comment: "Select the precision of the HDF5 data. If this doesn't match the calculation type, this can conflict with compression."
 
 TXT:
   comment: Export data to TXT file
