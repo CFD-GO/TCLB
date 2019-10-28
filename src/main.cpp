@@ -1,7 +1,3 @@
-<?R
-        source("conf.R")
-	c_header();
-?>
 /*  Main program file                                          */
 /*     Here we have all the initialization and the main loop   */
 /*-------------------------------------------------------------*/
@@ -30,6 +26,7 @@
 //#include <unistd.h>
 
 #include "Solver.h"
+#include "xpath_modification.h"
 
 // Reads units from configure file and applies them to the solver
 void readUnits(pugi::xml_node config, Solver* solver) {
@@ -229,7 +226,7 @@ int main ( int argc, char * argv[] )
 	{
 		int count, dev;
 		CudaGetDeviceCount( &count );
-		if (argc >= 3) {
+/*		if (argc >= 3) {
                 	if (argc < 2 + solver->mpi.size) {
 				error("Not enough device numbers");
 				notice("Usage: program configfile [device number]\n");
@@ -244,10 +241,10 @@ int main ( int argc, char * argv[] )
 			#ifdef GRAPHICS
 				if (dev != 0) { error("Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
 			#endif
-		} else {
+		} else { */
 			CudaGetDeviceCount( &count );
 			dev = solver->mpi.rank % count;
-		}
+/*		} */
 		debug2("Selecting device %d/%d\n", dev, count);
 		CudaSetDevice( dev );
 		solver->mpi.gpu = dev;
@@ -268,9 +265,11 @@ int main ( int argc, char * argv[] )
 		solver->info.ysdim = 1;
 	#endif
 
-	<?R for (tp in c("size_t","real_t","vector_t","flag_t")) { ?>
-		debug0("sizeof(<?%s tp?>) = %ld\n", sizeof(<?%s tp?>));
-	<?R } ?>
+	debug0("sizeof(size_t) = %ld\n", sizeof(size_t));
+	debug0("sizeof(real_t) = %ld\n", sizeof(real_t));
+	debug0("sizeof(vector_t) = %ld\n", sizeof(vector_t));
+	debug0("sizeof(flag_t) = %ld\n", sizeof(flag_t));
+
 	MPI_Barrier(MPMD.local);
 
 	// Reading the config file
@@ -284,9 +283,16 @@ int main ( int argc, char * argv[] )
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
 	}
+	
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
 	XMLCHILD(config, solver->configfile, "CLBConfig");
+	
+	if (argc > 2) {
+		int status = xpath_modify(config, argc-2, argv+2);
+		if (status != 0) return status;
+	}
+	
 	XMLCHILD(geom, config, "Geometry");
 	readUnits(config, solver);
 
@@ -316,10 +322,6 @@ int main ( int argc, char * argv[] )
 	solver->setOutput("");
 
 	//Setting settings to default
-	<?R for (v in rows(Settings)) {
-	if (is.na(v$derived)) { ?>
-		solver->lattice->setSetting(<?%s v$index ?>,solver->units.alt("<?%s v$default ?>")); <?R
-	}} ?> 
 	// Initializing the CUDA events and setting callback
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );
