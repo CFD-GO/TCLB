@@ -27,6 +27,9 @@ SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
 SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp
 SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
+SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
+SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
+SOURCE_PLAN+=glue.hpp
 
 <?R
 	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")

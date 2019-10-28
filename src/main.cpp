@@ -1,7 +1,3 @@
-<?R
-        source("conf.R")
-	c_header();
-?>
 /*  Main program file                                          */
 /*     Here we have all the initialization and the main loop   */
 /*-------------------------------------------------------------*/
@@ -30,6 +26,7 @@
 //#include <unistd.h>
 
 #include "Solver.h"
+#include "xpath_modification.h"
 
 // Reads units from configure file and applies them to the solver
 void readUnits(pugi::xml_node config, Solver* solver) {
@@ -171,7 +168,7 @@ bool find_adjoint(pugi::xml_node node)
 // Main program function
 int main ( int argc, char * argv[] )
 {
-
+	Solver * solver;
 
 	// Error handling for scanf
 	#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
@@ -179,17 +176,17 @@ int main ( int argc, char * argv[] )
 	MPMD.Init(MPI_COMM_WORLD,"TCLB");
 	MPMD.Identify();
 
-	Solver   solver(MPMD.local); // Global data declaration
+	solver = new Solver(MPMD.local); // Global data declaration
 
-	MPI_Comm_rank(MPMD.local,  &solver.mpi_rank);
-	MPI_Comm_size(MPMD.local,  &solver.mpi_size);
-	DEBUG_SETRANK(solver.mpi_rank);
+	MPI_Comm_rank(MPMD.local,  &solver->mpi_rank);
+	MPI_Comm_size(MPMD.local,  &solver->mpi_size);
+	DEBUG_SETRANK(solver->mpi_rank);
 	DEBUG_M;
 	InitPrint(DEBUG_LEVEL, 6, 8);
 	MPI_Barrier(MPMD.local);
 
 	global_start = std::clock();
-	if (solver.mpi_rank == 0) {
+	if (solver->mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
 		NOTICE("-        Model: %25s                               -\n",MODEL);
@@ -211,11 +208,11 @@ int main ( int argc, char * argv[] )
 	ERROR("fatal error");
 	)
 	//Prepare MPI solver-structure
-	solver.mpi.node = new NodeInfo[solver.mpi_size];
-	solver.mpi.size = solver.mpi_size;
-	solver.mpi.rank = solver.mpi_rank;
-	solver.mpi.gpu = 0;
-	for (int i=0;i < solver.mpi_size; i++) solver.mpi.node[i].rank = i;
+	solver->mpi.node = new NodeInfo[solver->mpi_size];
+	solver->mpi.size = solver->mpi_size;
+	solver->mpi.rank = solver->mpi_rank;
+	solver->mpi.gpu = 0;
+	for (int i=0;i < solver->mpi_size; i++) solver->mpi.node[i].rank = i;
 
 	// Reading arguments
 	// At least one argument
@@ -229,28 +226,28 @@ int main ( int argc, char * argv[] )
 	{
 		int count, dev;
 		CudaGetDeviceCount( &count );
-		if (argc >= 3) {
-                	if (argc < 2 + solver.mpi.size) {
+/*		if (argc >= 3) {
+                	if (argc < 2 + solver->mpi.size) {
 				error("Not enough device numbers");
 				notice("Usage: program configfile [device number]\n");
-				notice(" Provide device number for each processor (%d processors)\n", solver.mpi.size);
+				notice(" Provide device number for each processor (%d processors)\n", solver->mpi.size);
 				return 0;
 			}
-			HANDLE_IOERR( sscanf(argv[2+solver.mpi.rank], "%d", &dev) );
+			HANDLE_IOERR( sscanf(argv[2+solver->mpi.rank], "%d", &dev) );
 			if (dev < 0) {
-				error("Wrong device number: %s\n", argv[2+solver.mpi.rank]);
+				error("Wrong device number: %s\n", argv[2+solver->mpi.rank]);
 				return -1;
 			}
 			#ifdef GRAPHICS
 				if (dev != 0) { error("Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
 			#endif
-		} else {
+		} else { */
 			CudaGetDeviceCount( &count );
-			dev = solver.mpi.rank % count;
-		}
+			dev = solver->mpi.rank % count;
+/*		} */
 		debug2("Selecting device %d/%d\n", dev, count);
 		CudaSetDevice( dev );
-		solver.mpi.gpu = dev;
+		solver->mpi.gpu = dev;
 		#ifdef CROSS_GPU
 			debug2("Initializing device\n");
 			cudaFree(0);
@@ -261,45 +258,54 @@ int main ( int argc, char * argv[] )
 
 	// Calculating the right number of threads per block
 	#ifdef CROSS_CPU
-		solver.info.xsdim = 1;
-		solver.info.ysdim = 1;
+		solver->info.xsdim = 1;
+		solver->info.ysdim = 1;
 	#else
-		solver.info.xsdim = 32;
-		solver.info.ysdim = 1;
+		solver->info.xsdim = 32;
+		solver->info.ysdim = 1;
 	#endif
 
-	<?R for (tp in c("size_t","real_t","vector_t","flag_t")) { ?>
-		debug0("sizeof(<?%s tp?>) = %ld\n", sizeof(<?%s tp?>));
-	<?R } ?>
+	debug0("sizeof(size_t) = %ld\n", sizeof(size_t));
+	debug0("sizeof(real_t) = %ld\n", sizeof(real_t));
+	debug0("sizeof(vector_t) = %ld\n", sizeof(vector_t));
+	debug0("sizeof(flag_t) = %ld\n", sizeof(flag_t));
+
 	MPI_Barrier(MPMD.local);
 
 	// Reading the config file
 	char* filename = argv[1];
 //	pugi::xml_document configfile;
         if (xml_def_init()) { error("Error in xml_def_init. It should work!\n"); return -1; }
-	strcpy(solver.info.conffile, filename);
-	solver.setOutput("");
-	pugi::xml_parse_result result = solver.configfile.load_file(filename);
+	strcpy(solver->info.conffile, filename);
+	solver->setOutput("");
+	pugi::xml_parse_result result = solver->configfile.load_file(filename);
 	if (!result) {
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
 	}
+	
 	#define XMLCHILD(x,y,z) { x = y.child(z); if (!x) { error(" in %s: No \"%s\" element\n",filename,z); return -1; }}
 	pugi::xml_node config, geom, units;
-	XMLCHILD(config, solver.configfile, "CLBConfig");
+	XMLCHILD(config, solver->configfile, "CLBConfig");
+	
+	if (argc > 2) {
+		int status = xpath_modify(config, argc-2, argv+2);
+		if (status != 0) return status;
+	}
+	
 	XMLCHILD(geom, config, "Geometry");
-	readUnits(config, &solver);
+	readUnits(config, solver);
 
 	// Reading the size of mesh
 	int nx, ny, nz, ns = 2;
-	nx = myround(solver.units.alt(geom.attribute("nx").value(),1));
-	ny = myround(solver.units.alt(geom.attribute("ny").value(),1));
-	nz = myround(solver.units.alt(geom.attribute("nz").value(),1));
+	nx = myround(solver->units.alt(geom.attribute("nx").value(),1));
+	ny = myround(solver->units.alt(geom.attribute("ny").value(),1));
+	nz = myround(solver->units.alt(geom.attribute("nz").value(),1));
 	notice("Mesh size in config file: %dx%dx%d\n",nx,ny,nz);
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
-	adj = solver.configfile.find_node(find_adjoint);
+	adj = solver->configfile.find_node(find_adjoint);
 	if (adj) {
 		pugi::xml_attribute attr = adj.attribute("NumberOfSnaps");
 		if (attr) {
@@ -312,22 +318,18 @@ int main ( int argc, char * argv[] )
 	}
 
 	// Initializing the lattice of a specific size
-	if (solver.setSize(nx,ny,nz,ns)) return -1;
-	solver.setOutput("");
+	if (solver->setSize(nx,ny,nz,ns)) return -1;
+	solver->setOutput("");
 
 	//Setting settings to default
-	<?R for (v in rows(Settings)) {
-	if (is.na(v$derived)) { ?>
-		solver.lattice->setSetting(<?%s v$index ?>,solver.units.alt("<?%s v$default ?>")); <?R
-	}} ?> 
 	// Initializing the CUDA events and setting callback
 	CudaEventCreate( &start );
 	CudaEventCreate( &stop );
 	CudaEventRecord( start, 0 );
-	solver.lattice->Callback((int(*)(int, int, void*)) MainCallback, (void*) &solver);
+	solver->lattice->Callback((int(*)(int, int, void*)) MainCallback, (void*) solver);
 
 	// Running main handler (it makes all the magic)
-	Handler hand(config, &solver);
+	Handler hand(config, solver);
 	if (!hand) {
 		error("Something went wrong in xml run!\n");
 		return -1;
@@ -341,10 +343,11 @@ int main ( int argc, char * argv[] )
 	CudaEventDestroy( start );
 	CudaEventDestroy( stop );
 
-	if (solver.mpi_rank == 0) {
+	if (solver->mpi_rank == 0) {
 		double duration = (std::clock() - global_start) / (double)CLOCKS_PER_SEC;
 		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
 	}
+	delete solver;
 	MPI_Finalize();
 	return 0;
 }
