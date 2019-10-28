@@ -144,7 +144,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 
 	pugi::xml_node xdmf_attribute;
 
-	debug3("hdf5 file: %s\n   domain: %lldx%lldx%lld chunks: %lldx%lldx%lld local: %lldx%lldx%lld+%lld,%lld,%lld\n",
+	debug2("hdf5 file: %s\n   domain: %lldx%lldx%lld chunks: %lldx%lldx%lld local: %lldx%lldx%lld+%lld,%lld,%lld\n",
 		filename,
 		totaldim[0], totaldim[1], totaldim[2],
 		chunkdim[0], chunkdim[1], chunkdim[2],
