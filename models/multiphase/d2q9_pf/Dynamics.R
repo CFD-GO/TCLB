@@ -27,16 +27,17 @@ AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
-# THIS DENSITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
-# COMMENT OUT FOR PERFORMANCE
-# If present thei are used:
-# As VelocityX/Y for Boundary conditions
-# As mass force (+ GravitationX/Y) in fluid
-# If OverwriteVelocityField==1, this will be used to overwrite velocity
 
-AddDensity( name="BC[0]", group="BC", parameter=TRUE)
-AddDensity( name="BC[1]", group="BC", parameter=TRUE)
+if (Options$no_bc == FALSE) {
+    # If present they are used:
+    # As VelocityX/Y for Boundary conditions
+    # As mass force (+ GravitationX/Y) in fluid
+    # If OverwriteVelocityField==1, this will be used to overwrite velocity
 
+    AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+    AddDensity( name="BC[1]", group="BC", parameter=TRUE)
+
+}
 
 if (Options$fd) {
     AddField("phi"      ,stencil2d=1 );

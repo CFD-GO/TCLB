@@ -1,3 +1,3 @@
 ADJOINT=0
 TEST=TRUE
-OPT="fd"
+OPT="no_bc+fd"
