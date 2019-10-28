@@ -31,7 +31,7 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                                     if (add_attribute == NULL) {
                                             if (attr) {
                                                     attr.set_value(argv[i]);
-                                                    output("XPATH: Set attr %s to \"%s\"\n", attr.name(), attr.value());
+                                                    output("XPATH: Set attr %s to \"%s\" in <%s />\n", attr.name(), attr.value(), it->parent().name());
                                             } else error = true;
                                     } else {
                                             pugi::xml_node node = it->node();
@@ -115,6 +115,16 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                                             return -1;
                                     }
                             }
+                    } else if (strcmp(argv[i], "delete") == 0) {
+                            for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+                                    if (it->node()) {
+                                            output("XPATH: Removed node: <%s />\n", it->node().name());
+                                            it->parent().remove_child(it->node());
+                                    } else if (it->attribute()) {
+                                            output("XPATH: Removed attribute: %s = %s\n", it->attribute().name(), it->attribute().value());
+                                            it->parent().remove_attribute(it->attribute());
+                                    }
+                            }
                     } else if (strcmp(argv[i], "print") == 0) {
                             for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
                                     if (it->node()) {
@@ -125,7 +135,7 @@ int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
                             }
                     } else {
                             ERROR("Unknown operator in xpath evaluation: %s\n",argv[i]);
-                            ERROR("Currently supported: =, print, insert\n");
+                            ERROR("Currently supported: =, print, insert/inject, delete\n");
                             return -1;
                     }
             } catch (pugi::xpath_exception& err) {
