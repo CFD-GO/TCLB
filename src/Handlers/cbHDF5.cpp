@@ -41,6 +41,18 @@ int cbHDF5::Init () {
 			}
 		}
                 if (write_xdmf) options = options | HDF5_WRITE_XDMF;
+		bool point_data = false;
+		attr = node.attribute("point_data");
+		if (attr) {
+			if (strcmp(attr.value(),"true") == 0) {
+				point_data = true;
+			} else if (strcmp(attr.value(),"false") == 0) {
+				point_data = false;
+			} else {
+				ERROR("point_data attribute should be true or false (not '%s')\n", attr.value());
+			}
+		}
+                if (point_data) options = options | HDF5_WRITE_POINT;
 		attr = node.attribute("chunk");
 		bool calc_double;
 #ifdef CALC_DOUBLE_PRECISION

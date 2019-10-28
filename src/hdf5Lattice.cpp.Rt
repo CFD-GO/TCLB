@@ -59,18 +59,22 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	xdmf_geometry.append_attribute("Origin") = "";
 	xdmf_geometry.append_attribute("Type") = "ORIGIN_DXDYDZ";
 	pugi::xml_node xdmf_dataitem;
-	xdmf_dataitem = xdmf_geometry.append_child("DataItem");
-	xdmf_dataitem.append_attribute("DataType") = "Float";
-	xdmf_dataitem.append_attribute("Dimensions") = "3";
-	xdmf_dataitem.append_attribute("Format") = "XML";
-	xdmf_dataitem.append_attribute("Precision") = 8;
-	xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(" ") << 0 << 0 << 0);
-	xdmf_dataitem = xdmf_geometry.append_child("DataItem");
-	xdmf_dataitem.append_attribute("DataType") = "Float";
-	xdmf_dataitem.append_attribute("Dimensions") = "3";
-	xdmf_dataitem.append_attribute("Format") = "XML";
-	xdmf_dataitem.append_attribute("Precision") = 8;
 	unit = units->alt("1m");
+	xdmf_dataitem = xdmf_geometry.append_child("DataItem");
+	xdmf_dataitem.append_attribute("DataType") = "Float";
+	xdmf_dataitem.append_attribute("Dimensions") = "3";
+	xdmf_dataitem.append_attribute("Format") = "XML";
+	xdmf_dataitem.append_attribute("Precision") = 8;
+	if (options & HDF5_WRITE_POINT) {
+		xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(" ") << 0.5/unit << 0.5/unit << 0.5/unit);
+	} else {
+		xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(" ") << 0 << 0 << 0);
+	}
+	xdmf_dataitem = xdmf_geometry.append_child("DataItem");
+	xdmf_dataitem.append_attribute("DataType") = "Float";
+	xdmf_dataitem.append_attribute("Dimensions") = "3";
+	xdmf_dataitem.append_attribute("Format") = "XML";
+	xdmf_dataitem.append_attribute("Precision") = 8;
 	xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(" ") << 1/unit << 1/unit << 1/unit);
 	
 	size_t size;
@@ -131,7 +135,11 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	}					
 
 	pugi::xml_node xdmf_topology = xdmf_grid.append_child("Topology");
-	xdmf_topology.append_attribute("Dimensions") = glue(" ") << std::make_pair(totalpointdim,3);
+	if (options & HDF5_WRITE_POINT) {
+		xdmf_topology.append_attribute("Dimensions") = glue(" ") << std::make_pair(totaldim,3);
+	} else {
+		xdmf_topology.append_attribute("Dimensions") = glue(" ") << std::make_pair(totalpointdim,3);
+	}
 	xdmf_topology.append_attribute("Type") = "3DCoRectMesh";
 
 	pugi::xml_node xdmf_attribute;
@@ -200,7 +208,11 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 
 			delete[] tmp;
 			xdmf_attribute = xdmf_grid.append_child("Attribute");
-			xdmf_attribute.append_attribute("Center") = "Cell";
+			if (options & HDF5_WRITE_POINT) {
+				xdmf_attribute.append_attribute("Center") = "Node";
+			} else {
+				xdmf_attribute.append_attribute("Center") = "Cell";
+			}
 			if (vector) xdmf_attribute.append_attribute("AttributeType") = "Vector";
 			xdmf_attribute.append_attribute("Name") = fieldname;
 			xdmf_dataitem = xdmf_attribute.append_child("DataItem");
@@ -212,7 +224,11 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			std::string xdmf_dataitem_path = NameXPath(xdmf_dataitem);
 			if (options & HDF5_WRITE_LBM) {
 				xdmf_attribute = xdmf_grid.append_child("Attribute");
-				xdmf_attribute.append_attribute("Center") = "Cell";
+				if (options & HDF5_WRITE_POINT) {
+					xdmf_attribute.append_attribute("Center") = "Node";
+				} else {
+					xdmf_attribute.append_attribute("Center") = "Cell";
+				}
 				if (vector) xdmf_attribute.append_attribute("AttributeType") = "Vector";
 				xdmf_attribute.append_attribute("Name") = glue("_") << fieldname << "LB";
 				xdmf_dataitem = xdmf_attribute.append_child("DataItem");
