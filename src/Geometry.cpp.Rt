@@ -880,14 +880,25 @@ int Geometry::Draw(pugi::xml_node & node)
 	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
 	    DEBUG1(reg.print();)
-            for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-		for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
-		   for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
-			 if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
-				Dot(x,y,z);
-			}
-		   }
-	} 
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+                for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+                    if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
+				        Dot(x,y,z);
+                    }
+                }
+	}
+    else if (strcmp(n.name(),"Cylinder") == 0) {
+        debug1("Filling cylinder with flag %d (&d)\n",fg,fg_mask);
+        DEBUG1(reg.print();)
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+                for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+                    if (inSphere((.5 + x - reg.dx) / reg.nx, (.5 + y - reg.dy) / reg.ny, 0.5)) {
+                        Dot(x,y,z);
+                    }
+                }
+    }
     else if (strcmp(n.name(), "Wedge") == 0) {
 //                      reg = region.intersect(reg);
 	    debug1("Filling wedge with flag %d (%d)\n", fg, fg_mask);
@@ -1077,7 +1088,7 @@ int Geometry::load(pugi::xml_node & node)
 	E(Draw(n));
     }
     if (node.attribute("save")) {
-	writeVTI(node.attribute("save").value());
+		writeVTI(node.attribute("save").value());
     }
     return 0;
 }
@@ -1089,7 +1100,15 @@ Geometry::~Geometry()
     if (Q != NULL) delete[] Q;
 }
 
+
 /// Dumps the Geometry to a vti file
+// use to check values of cuts in the interpolated bounce back scheme
+// <Geometry nx="32" ny="32"  nz="3" save="geometry_ibb_output">  // output path goues here
+//      <BGK><Box/></BGK>
+// 		<IBB name="border" >
+// 			<STL file="path_to_geometry_file.stl" scale="1" Xrot="0d" x="0" y="0" z="0" side="surface"/>
+// 		</IBB>
+// </Geometry>
 void Geometry::writeVTI(const char *name)
 {
     vtkFileOut vtkFile(MPMD.local);
@@ -1101,11 +1120,34 @@ void Geometry::writeVTI(const char *name)
     vtkFile.Init(region, "");
     vtkFile.WriteField("geom", geom);
     if (Q != NULL) {
-        size_t regsize = region.size();
-        for (int d=0;d<26;d++) {
+        size_t regsize = region.sizeL();
+
+		real_t *  Qnorm = new real_t[regsize*26];
+
+		// src/types.h.Rt:19:  #define NO_CUT 65535
+		// src/types.h.Rt:20:  #define CUT_MAX 65000
+		// src/types.h.Rt:17:  typedef unsigned short int cut_t; - contains at least [0, 65535]
+
+		for (size_t i = 0; i < regsize*26; ++i)  // normalize the cuts to 0-1 range
+		{
+			Qnorm[i]=real_t(Q[i])/CUT_MAX;
+			// if (Qnorm[i] > 1.)
+			// 	Qnorm[i] = 0; // means no cut
+		}
+
+        for (int d = 0; d < 26; d++) {
             char nm[20];
-//            sprintf(nm,"Q(%2d,%2d,%2d)",d3q27_vec[(d+1)+3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
-            sprintf(nm,"Q_%d",d);
+			sprintf(nm,"Qnorm%d%d%d",d3q27_vec[(d+1)*3+0],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+			// sprintf(nm,"Q_%d",d);
+            // vtkFile.WriteField(nm, Q + regsize*d);
+			vtkFile.WriteField(nm, Qnorm + regsize*d);
+        }
+	 	delete[] Qnorm;
+
+		for (int d = 0 ; d < 26; d++) {
+            char nm[20];
+			sprintf(nm,"Q%d%d%d",d3q27_vec[(d+1)*3+0],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+			// sprintf(nm,"Q_%d",d);
             vtkFile.WriteField(nm, Q + regsize*d);
         }
     }

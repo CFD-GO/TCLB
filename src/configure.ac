@@ -39,6 +39,10 @@ AC_ARG_ENABLE([double],
 	AC_HELP_STRING([--enable-double],
 		[make a double precision version]))
 
+AC_ARG_ENABLE([cpp11],
+	AC_HELP_STRING([--enable-cpp11],
+		[enable C++ 11 standard]))
+
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
 		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30/sm_60)]))
@@ -557,6 +561,14 @@ then
 	CPPFLAGS="${CPPFLAGS} -g"
 	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
 fi
+
+
+if test "x${enable_cpp11}" == "xyes"
+then
+	CPP_OPT="${CPP_OPT} -std=c++11"
+	NVFLAGS="${NVFLAGS} -std=c++11"
+fi
+
 
 if test "x${CONF_CPPFLAGS}" == "x"
 then
