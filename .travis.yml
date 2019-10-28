@@ -57,7 +57,7 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
+    - ./configure --enable-double --with-cuda-arch=sm_30 --enable-marklines --with-python --enable-paranoid
     - make $MODEL/source
     - make $MODEL
     - make $MODEL/clean
