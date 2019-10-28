@@ -58,11 +58,11 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_30 --enable-marklines --with-python --enable-paranoid
+    - ./configure --enable-double --with-cuda-arch=sm_30 --enable-marklines --with-python --enable-paranoid --enable-cpp11 CPPFLAGS="-D_MWAITXINTRIN_H_INCLUDED -D__STRICT_ANSI__"
     - make $MODEL/source
     - make $MODEL
     - make $MODEL/clean
-    - ./configure --enable-double --disable-cuda --enable-marklines --enable-coverage --with-python --enable-paranoid
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-coverage --with-python --enable-paranoid --enable-cpp11
     - make $MODEL
     - tools/tests.sh $MODEL
 
