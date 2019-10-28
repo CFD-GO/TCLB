@@ -154,10 +154,10 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			hid_t       filespace, memspace;
 			char * fieldname = "<?%s q$name ?>";
 			bool vector = <?%s ifelse(q$vector, "true", "false") ?>;
-#ifndef CALC_DOUBLE_PRECISION
-			hid_t input_type = H5T_NATIVE_FLOAT;
-#else
+#ifdef CALC_DOUBLE_PRECISION
 			hid_t input_type = H5T_NATIVE_DOUBLE;
+#else
+			hid_t input_type = H5T_NATIVE_FLOAT;
 #endif
 			hid_t output_type;
 			int output_precision;

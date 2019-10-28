@@ -42,6 +42,33 @@ int cbHDF5::Init () {
 		}
                 if (write_xdmf) options = options | HDF5_WRITE_XDMF;
 		attr = node.attribute("chunk");
+		bool calc_double;
+#ifdef CALC_DOUBLE_PRECISION
+                        calc_double = true;
+#else
+                        calc_double = false;
+#endif
+		bool write_double;
+		write_double = calc_double;
+		attr = node.attribute("precision");
+		if (attr) {
+			if (strcmp(attr.value(),"double") == 0) {
+				write_double = true;
+			} else if (strcmp(attr.value(),"float") == 0) {
+	                        write_double = false;
+			} else {
+				ERROR("write_double attribute should be double of false\n", attr.value());
+			}
+		}
+		if (write_double != calc_double) {
+			if (deflate) {
+				NOTICE("Writing a different type then type you calculate, probably cannot be combined with deflate");
+			} else {
+				notice("Writing a different type then type you calculate");
+			}
+		}		
+                if (write_double) options = options | HDF5_WRITE_DOUBLE;
+		attr = node.attribute("chunk");
 		if (attr) {
 			ERROR("Supplying chunk size is not yet supported");
 			return -1;
