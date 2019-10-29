@@ -23,8 +23,8 @@ AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="P", unit="Pa");
 AddQuantity(name="F", unit="N", vector=T);
 
-AddSetting(name="omega", comment='relaxation factor')
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', default=0.16666666, comment='viscosity')
+AddSetting(name="omega", comment='relaxation factor', default=1)
+AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', comment='viscosity')
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')

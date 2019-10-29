@@ -1,2 +1,3 @@
 ADJOINT=0
 TEST=TRUE
+OPT="no_bc+fd"
