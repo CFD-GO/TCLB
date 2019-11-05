@@ -288,11 +288,6 @@ int main ( int argc, char * argv[] )
 	pugi::xml_node config, geom, units;
 	XMLCHILD(config, solver->configfile, "CLBConfig");
 	
-	if (argc > 2) {
-		int status = xpath_modify(config, argc-2, argv+2);
-		if (status != 0) return status;
-	}
-	
 	// Treatment of depreciated Params element:
 	{
 		pugi::xpath_node_set found = config.select_nodes("//Params");
@@ -319,14 +314,25 @@ int main ( int argc, char * argv[] )
 					param.append_attribute("value").set_value(attr.value());
 					if (zone != "") param.append_attribute("zone").set_value(zone.c_str());
 					if (gauge != "") param.append_attribute("gauge").set_value(gauge.c_str());
-					node.parent().remove_child(node);
 				}
+				node.parent().remove_child(node);
 			}
 		}
 	}	
+
+
+	if (argc > 2) {
+		int status = xpath_modify(solver->configfile, config, argc-2, argv+2);
+		if (status == -444) { // Graceful exit
+			readUnits(config, solver);
+			return 0;
+		}
+		if (status != 0) return status;
+	}
 	
-	XMLCHILD(geom, config, "Geometry");
 	readUnits(config, solver);
+
+	XMLCHILD(geom, config, "Geometry");
 
 	// Reading the size of mesh
 	int nx, ny, nz, ns = 2;
