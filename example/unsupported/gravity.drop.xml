@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="128" ny="128">
-		<MRT><Box/></MRT>
+	<Geometry nx="128" ny="128">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wet>
 			<Sphere dx="32" dy="32" nx="64" ny="64"/>
 		</Wet>
@@ -9,27 +11,20 @@
 			<Wedge direction="LowerRight" nx="20" ny="20" dy="44"/>
 			<Wedge direction="LowerLeft" nx="20" ny="20" dy="44" dx="20"/>
 			<Wedge direction="LowerRight" nx="20" ny="20" dy="108" dx="64"/>
-			<Wedge direction="LowerLeft" nx="20" ny="20" dy="108"
-			dx="84"/>
-		</Wall> 
-		<Obj1><Box dx="64" dy="64" nx="1" ny="1"/></Obj1>
-		<Obj2><Box dx="0" dy="0" nx="1" ny="1"/></Obj2>
+			<Wedge direction="LowerLeft" nx="20" ny="20" dy="108" dx="84"/>
+		</Wall>
+		<Obj1>
+			<Box dx="64" dy="64" nx="1" ny="1"/>
+		</Obj1>
+		<Obj2>
+			<Box dx="0" dy="0" nx="1" ny="1"/>
+		</Obj2>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.1178511"/>
-		<Params InitDensity="0.04"
-			WetDensity="2.931"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.66666666666666"
-			WallDensity="2.0"
-			GravitationY="-0.0001"
-			GravitationX="0.000"
-		/>
+		<Params InitDensity="0.04" WetDensity="2.931" Temperature="0.65" FAcc="1" Magic="0.01" MagicA="-0.152" MagicF="-0.66666666666666" WallDensity="2.0" GravitationY="-0.0001" GravitationX="0.000"/>
 	</Model>
 	<Solve Iterations="5000" output="output/">
 		<VTK Iterations="100"/>

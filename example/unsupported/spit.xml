@@ -1,63 +1,56 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="512" ny="200" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="512" ny="200" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<None name="Wet">
-			<Box nx="20" dy="90" ny="20"/> 
+			<Box nx="20" dy="90" ny="20"/>
 		</None>
-		<WPressure name="Inlet"><Box nx="1"/></WPressure>
+		<WPressure name="Inlet">
+			<Box nx="1"/>
+		</WPressure>
 		<Wall mask="ALL" name="Wall">
 			<Wedge direction="UpperRight" dy="105" ny="5" nx="20"/>
 			<Wedge direction="LowerRight" dy="90" ny="5" nx="20"/>
-			<Box dx="-1"/> 
-			<Box nx="10" fy="90"/> 
+			<Box dx="-1"/>
+			<Box nx="10" fy="90"/>
 			<Box nx="10" dy="110"/>
 			<Channel/>
-		</Wall>  
+		</Wall>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.0"/>
 		<Params Density-Inlet="1.00"/>
 		<Params nu="0.166666"/>
-		<Params Density="0.04"
-			Density-Wall="1.0"
-			Density-Wet="2.9"
-			Density-Inlet="3.4"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.02"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			MovingWallVelocity="0.1"
-			GravitationX="-0.0001"
-		/>
+		<Params Density="0.04" Density-Wall="1.0" Density-Wet="2.9" Density-Inlet="3.4" Temperature="0.65" FAcc="1" Magic="0.02" MagicA="-0.152" MagicF="-0.6666666666666" MovingWallVelocity="0.1" GravitationX="-0.0001"/>
 	</Model>
 	<Solve Iterations="500" output="output/">
-		<Params	Density-Inlet="2.9"/>
+		<Params Density-Inlet="2.9"/>
 		<VTK Iterations="50"/>
 	</Solve>
 	<Solve Iterations="300" output="output/">
 		<VTK Iterations="50"/>
-		<Params	Density-Inlet="3.4"/>
+		<Params Density-Inlet="3.4"/>
 	</Solve>
 	<Solve Iterations="1500" output="output/">
 		<VTK Iterations="50"/>
-		<Params	Density-Inlet="2.9"/>
+		<Params Density-Inlet="2.9"/>
 	</Solve>
 	<Solve Iterations="300" output="output/">
 		<VTK Iterations="50"/>
-		<Params	Density-Inlet="3.4"/>
+		<Params Density-Inlet="3.4"/>
 	</Solve>
 	<Solve Iterations="1500" output="output/">
 		<VTK Iterations="50"/>
-		<Params	Density-Inlet="2.9"/>
+		<Params Density-Inlet="2.9"/>
 	</Solve>
 	<Solve Iterations="300" output="output/">
 		<VTK Iterations="50"/>
-		<Params	Density-Inlet="3.4"/>
+		<Params Density-Inlet="3.4"/>
 	</Solve>
 	<Solve Iterations="2000" output="output/">
 		<VTK Iterations="50"/>
-		<Params	Density-Inlet="2.9"/>
+		<Params Density-Inlet="2.9"/>
 	</Solve>
 </CLBConfig>

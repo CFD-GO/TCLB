@@ -1,23 +1,30 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="320" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="320" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WVelocity zone="Inlet"/>
 		<EPressure zone="Outlet"/>
-		<Inlet nx='1' dx='5'><Box/></Inlet>
-		<Outlet nx='1' dx='-5'><Box/></Outlet>
-		<DesignSpace fx='-10' dx='10'><Box/></DesignSpace>
-		<Heater nx='10' ny='10' dx='50' dy='50'><Box/></Heater>
+		<Inlet nx="1" dx="5">
+			<Box/>
+		</Inlet>
+		<Outlet nx="1" dx="-5">
+			<Box/>
+		</Outlet>
+		<DesignSpace fx="-10" dx="10">
+			<Box/>
+		</DesignSpace>
+		<Heater nx="10" ny="10" dx="50" dy="50">
+			<Box/>
+		</Heater>
 		<Wall zone="Channel" mask="ALL"/>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.01"/>
 		<Params InletDensity="1.03"/>
 		<Params nu="0.005"/>
-		<Params InletTemperature="0" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.01" EOSScale="0.05" PressDiffInObj="10000"
-		Smooth='0.0' Penalty='200' nuT='2' HeaterTemperature='5'/>
+		<Params InletTemperature="0" InitTemperature="0" FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001" Tension="0.01" EOSScale="0.05" PressDiffInObj="10000" Smooth="0.0" Penalty="200" nuT="2" HeaterTemperature="5"/>
 	</Model>
 	<Solve Iterations="1000" output="output/">
 		<VTK Iterations="100"/>

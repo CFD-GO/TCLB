@@ -4,8 +4,8 @@
 		<Params nu="0.001sPa" gauge="0.015"/>
 		<Params InletVelocity=".5cm/s" gauge="0.1"/>
 		<Params rho="1000kg/m3" gauge="1"/>
-	</Units>	
-        <Geometry nx="1m" ny="10cm+2">
+	</Units>
+	<Geometry nx="1m" ny="10cm+2">
 		<MRT>
 			<Box/>
 		</MRT>
@@ -18,8 +18,8 @@
 		<Inlet>
 			<Box dx="5" nx="1"/>
 		</Inlet>
-        	<Wall mask="ALL">
-        		<Channel/>
+		<Wall mask="ALL">
+			<Channel/>
 			<Wedge dx="12cm" nx="2cm" dy="5cm+1" ny="2cm" direction="LowerRight"/>
 			<Wedge dx="12cm" nx="2cm" dy="3cm+1" ny="2cm" direction="UpperRight"/>
 			<Wedge dx="14cm" nx="2cm" dy="5cm+1" ny="2cm" direction="LowerLeft"/>
@@ -29,6 +29,6 @@
 	<Model>
 		<Params PressDiffInObj="1" Gravity="0.66666666" Smag="0.16"/>
 	</Model>
-<!--	<VTK Iterations="1s"/> -->
+	<!--	<VTK Iterations="1s"/> -->
 	<Solve Iterations="10000s"/>
 </CLBConfig>

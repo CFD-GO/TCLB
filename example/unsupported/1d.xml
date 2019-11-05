@@ -1,17 +1,20 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="100" ny="1" nz="1" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="100" ny="1" nz="1" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WPressure zone="Inlet"/>
 		<EPressure zone="Outlet"/>
-		<Solid><Box dx="50" fx="-2"/></Solid>
+		<Solid>
+			<Box dx="50" fx="-2"/>
+		</Solid>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.1"/>
 		<Params InletDensity="1.03"/>
 		<Params nu="0.2"/>
-		<Params InletTemperature="1" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"/>
+		<Params InletTemperature="1" InitTemperature="0" FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"/>
 	</Model>
 	<Solve Iterations="100000" output="output/">
 		<VTK Iterations="1000"/>

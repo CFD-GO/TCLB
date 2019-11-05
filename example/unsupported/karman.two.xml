@@ -1,27 +1,27 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="1024" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="1024" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WVelocity zone="Inlet"/>
 		<EPressure zone="Outlet"/>
-        	<Wall mask="ALL">
-			<Text file="example/karman.plb" nx="1000" ny="100"
-			nz="1"/>
+		<Wall mask="ALL">
+			<Text file="example/karman.plb" nx="1000" ny="100" nz="1"/>
 		</Wall>
-		<Inlet nx='1' dx='5'><Box/></Inlet>
-		<Outlet nx='1' dx='-5'><Box/></Outlet>
+		<Inlet nx="1" dx="5">
+			<Box/>
+		</Inlet>
+		<Outlet nx="1" dx="-5">
+			<Box/>
+		</Outlet>
 		<Wall zone="Channel" mask="ALL"/>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.01"/>
 		<Params InletDensity="1.03"/>
 		<Params nu="0.02"/>
-		<Params InletTemperature="1" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.01" EOSScale="0.05" PressDiffInObj="1"
-		InitDensity="1.0"
-		Temperature="0.95" FAcc="1" Magic="0.1" MagicA="1"
-		MagicF="0.1"/>
+		<Params InletTemperature="1" InitTemperature="0" FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001" Tension="0.01" EOSScale="0.05" PressDiffInObj="1" InitDensity="1.0" Temperature="0.95" FAcc="1" Magic="0.1" MagicA="1" MagicF="0.1"/>
 	</Model>
 	<Solve Iterations="1000" output="output/">
 		<VTK Iterations="100"/>

@@ -1,39 +1,33 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="512" ny="40" predef="none" model="MRT">
-		<MRT><Box/></MRT>
-		<WPressure><Box nx="1"/></WPressure>
-		<EPressure><Box dx="-1"/></EPressure>
-		<Wet><Box nx="10"/></Wet>
+	<Geometry nx="512" ny="40" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
+		<WPressure>
+			<Box nx="1"/>
+		</WPressure>
+		<EPressure>
+			<Box dx="-1"/>
+		</EPressure>
+		<Wet>
+			<Box nx="10"/>
+		</Wet>
 		<MovingWall mask="ALL">
 			<Box ny="1"/>
 		</MovingWall>
 		<Wall mask="ALL">
 			<Box dy="-1"/>
 			<Box dy="20" nx="30"/>
-		</Wall>  
+		</Wall>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.05"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.16666"/>
-		<Params InitDensity="0.3"
-			WetDensity="2.5"
-			WallDensity="1.0"
-			OutletDensity="2.5"
-			InletDensity="2.5"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			GravitationY="0.000"
-			GravitationX="0.0000"
-			MovingWallVelocity="0.1"
-		/>
+		<Params InitDensity="0.3" WetDensity="2.5" WallDensity="1.0" OutletDensity="2.5" InletDensity="2.5" Temperature="0.65" FAcc="1" Magic="0.01" MagicA="-0.152" MagicF="-0.6666666666666" GravitationY="0.000" GravitationX="0.0000" MovingWallVelocity="0.1"/>
 	</Model>
-        <Log Iterations="100"/> 
-        <VTK Iterations="1000"/>
-	<Solve Iterations="10000" output="output/">
-	</Solve>
+	<Log Iterations="100"/>
+	<VTK Iterations="1000"/>
+	<Solve Iterations="10000" output="output/"/>
 </CLBConfig>

@@ -1,24 +1,23 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0" output="output/">
-        <Geometry nx="100" ny="50" nz="50">
-		<MRT><Box/></MRT>
+	<Geometry nx="100" ny="50" nz="50">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WVelocity zone="Inlet"/>
 		<EPressure zone="Outlet"/>
 		<Zone name="heater">
 			<Box dx="20" nx="5" ny="40" dy="30" nz="40" dz="30"/>
 		</Zone>
-<!--		<Heater zone="heater"/>-->
+		<!--		<Heater zone="heater"/>-->
 		<Solid zone="heater"/>
 		<None zone="heater" mask="DESIGNSPACE"/>
-		<Wall zone="Tunnel" mask="ALL">
-		</Wall>
+		<Wall zone="Tunnel" mask="ALL"/>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.05" InletDensity="1.09" nu="0.005"
-		InletTemperature="0.0" HeaterTemperature="1.0"
-		InitTemperature="0.0" FluidAlpha="0.006" SolidAlpha="2.0"/>
+		<Params InletVelocity="0.05" InletDensity="1.09" nu="0.005" InletTemperature="0.0" HeaterTemperature="1.0" InitTemperature="0.0" FluidAlpha="0.006" SolidAlpha="2.0"/>
 	</Model>
 	<Solve Iterations="5000">
 		<VTK Iterations="100"/>
- 	</Solve>
+	</Solve>
 </CLBConfig>
