@@ -281,7 +281,7 @@ int main ( int argc, char * argv[] )
         if (xml_def_init()) { error("Error in xml_def_init. It should work!\n"); return -1; }
 	strcpy(solver->info.conffile, filename);
 	solver->setOutput("");
-	pugi::xml_parse_result result = solver->configfile.load_file(filename);
+	pugi::xml_parse_result result = solver->configfile.load_file(filename, pugi::parse_default | pugi::parse_comments);
 	if (!result) {
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
@@ -335,6 +335,23 @@ int main ( int argc, char * argv[] )
 		}
 		if (status != 0) return status;
 	}
+
+	// Delete comments:
+	{
+		pugi::xpath_node_set found = config.select_nodes("//comment()");
+		if (found.size() > 0) {
+                    	output("Discarding %ld comments\n", found.size());
+                    	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+				pugi::xml_node node = it->node();
+				if (node) {
+					node.parent().remove_child(node);
+				} else {
+					ERROR("Comment is not a node (this should not happen)\n");
+				}
+			}
+		}
+	}
+
 	
 	if (readUnits(config, solver)) {
 		ERROR("Wrong Units\n");
