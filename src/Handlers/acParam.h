@@ -1,15 +1,15 @@
-#ifndef ACPARAMS_H
-#define ACPARAMS_H
+#ifndef ACPARAM_H
+#define ACPARAM_H
 
 #include "../CommonHandler.h"
 
 #include "vHandler.h"
 #include "Action.h"
 
-class  acParams  : public  Action  {
+class  acParam  : public  Action  {
 	public:
 	static std::string xmlname;
 int Init ();
 };
 
-#endif // ACPARAMS_H
+#endif // ACPARAM_H

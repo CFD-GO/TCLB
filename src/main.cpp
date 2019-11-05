@@ -298,6 +298,7 @@ int main ( int argc, char * argv[] )
 		pugi::xpath_node_set found = config.select_nodes("//Params");
 		if (found.size() > 0) {
                     	WARNING("%ld depreciated Params elements found. Changing them to Param:\n", found.size());
+                    	config.append_attribute("permissive").set_value("true");
                     	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
 				pugi::xml_node node = it->node();
 				std::string gauge = "";
