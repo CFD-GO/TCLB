@@ -1,12 +1,16 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="96" ny="96" predef="none" model="MRT">
-		<MRT><Box/></MRT>
-		<WPressure><Box nx="1"/></WPressure>
+	<Geometry nx="96" ny="96" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
+		<WPressure>
+			<Box nx="1"/>
+		</WPressure>
 		<Wall mask="ALL">
-			<Outlet/> 
+			<Outlet/>
 			<Channel/>
-		</Wall>  
+		</Wall>
 		<Wet>
 			<Box fx="-5"/>
 			<Box fy="-5"/>
@@ -16,17 +20,7 @@
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.166666"/>
-		<Params
-			WallDensity="1.0"
-			InitDensity="2.9"
-			WetDensity="2.9"
-			InletDensity="2.9"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-		/>
+		<Params WallDensity="1.0" InitDensity="2.9" WetDensity="2.9" InletDensity="2.9" Temperature="0.65" FAcc="1" Magic="0.01" MagicA="-0.152" MagicF="-0.6666666666666"/>
 	</Model>
 	<Solve Iterations="9000" output="output/">
 		<VTK Iterations="2"/>

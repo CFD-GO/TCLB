@@ -1,19 +1,25 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="512" ny="256" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="512" ny="256" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wet>
-			<Box nx="20"/> 
+			<Box nx="20"/>
 		</Wet>
-		<WPressure><Box nx="1"/></WPressure>
-		<EPressure><Box dx="-1"/></EPressure>
+		<WPressure>
+			<Box nx="1"/>
+		</WPressure>
+		<EPressure>
+			<Box dx="-1"/>
+		</EPressure>
 		<Wall mask="ALL">
 			<Box nx="20" fy="-40"/>
 			<Box nx="20" dy="-20"/>
 			<Box dx="-1" fy="-10"/>
 			<Box dx="-10" dy="-15" fy="-10"/>
 			<Channel/>
-		</Wall>  
+		</Wall>
 		<Dry>
 			<Box dx="-10" dy="-13"/>
 		</Dry>
@@ -22,21 +28,7 @@
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.05"/>
-		<Params InitDensity="0.04"
-			WallDensity="0.1"
-			WetDensity="2.7"
-			DryDensity="0.04"
-			InletDensity="2.98"
-			OutletDensity="0.04"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.02"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			MovingWallVelocity="0.1"
-			GravitationY="-0.00005"
-			Wetting="0.5"
-		/>
+		<Params InitDensity="0.04" WallDensity="0.1" WetDensity="2.7" DryDensity="0.04" InletDensity="2.98" OutletDensity="0.04" Temperature="0.65" FAcc="1" Magic="0.02" MagicA="-0.152" MagicF="-0.6666666666666" MovingWallVelocity="0.1" GravitationY="-0.00005" Wetting="0.5"/>
 	</Model>
 	<Solve Iterations="100" output="output/">
 		<VTK Iterations="100"/>
@@ -45,5 +37,4 @@
 		<VTK Iterations="100"/>
 		<Params Wetting="0.0"/>
 	</Solve>
-		
 </CLBConfig>

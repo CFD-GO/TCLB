@@ -3,38 +3,29 @@
 	<Units>
 		<Params L="1x" gauge="64"/>
 	</Units>
-        <Geometry nx="1x" ny="1x">
-		<BGK><Box/></BGK> 
+	<Geometry nx="1x" ny="1x">
+		<BGK>
+			<Box/>
+		</BGK>
 		<Wet>
-			<Sphere nx="0.5x" ny="0.5x"/> 
+			<Sphere nx="0.5x" ny="0.5x"/>
 		</Wet>
-<!--		<Wall mask="ALL">
+		<!--		<Wall mask="ALL">
 			<Box nx="5"/>
 			<Box ny="5"/>
 			<Box dx="-5"/>
 			<Box dy="-5"/>
 		</Wall> -->
-<!--		<Wall mask="ALL"><Box dx="5" dy="10" nx="1" ny="1"/></Wall>
+		<!--		<Wall mask="ALL"><Box dx="5" dy="10" nx="1" ny="1"/></Wall>
 		-->
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.16666666"/>
-		<Params InitDensity="0.1"
-			WetDensity="1.0"
-			WallDensity="0.55"
-			LiquidDensity="1.0"
-			VaporDensity="0.1"
-			GravitationY="0.000"
-			GravitationX="0.00"
-			Beta="0.01"
-			Kappa="0.0162"
-		/>
+		<Params InitDensity="0.1" WetDensity="1.0" WallDensity="0.55" LiquidDensity="1.0" VaporDensity="0.1" GravitationY="0.000" GravitationX="0.00" Beta="0.01" Kappa="0.0162"/>
 	</Model>
-	
 	<VTK/>
 	<VTK Iterations="1"/>
-	<Solve Iterations="500000">
-	</Solve>
+	<Solve Iterations="500000"/>
 </CLBConfig>

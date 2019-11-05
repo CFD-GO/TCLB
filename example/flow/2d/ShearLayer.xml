@@ -5,19 +5,16 @@
 		<Params SL_U="1m/s" gauge="0.04"/>
 		<Params Re="10000000" gauge="1m2/sx"/>
 	</Units>
-
-        <Geometry nx="1m" ny="1m">
-		<MRT><Box/></MRT>
-<!--		<Smagorinsky><Box/></Smagorinsky>-->
+	<Geometry nx="1m" ny="1m">
+		<MRT>
+			<Box/>
+		</MRT>
+		<!--		<Smagorinsky><Box/></Smagorinsky>-->
 	</Geometry>
 	<Model>
 		<Params Velocity="0"/>
 		<Params nu="1x"/>
-		<Params
-			SL_L="1m"
-			SL_lambda="40"
-			SL_delta="0.05"
-		/>
+		<Params SL_L="1m" SL_lambda="40" SL_delta="0.05"/>
 		<Params Smag="0.16"/>
 	</Model>
 	<VTK/>

@@ -1,55 +1,47 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="128" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="128" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wet>
-			<Box nx="20" dy="40" ny="20"/> 
+			<Box nx="20" dy="40" ny="20"/>
 		</Wet>
-		<WPressure><Box nx="1"/></WPressure>
+		<WPressure>
+			<Box nx="1"/>
+		</WPressure>
 		<Wall mask="ALL">
 			<Wedge direction="UpperRight" dy="55" ny="5" nx="20"/>
 			<Wedge direction="LowerRight" dy="40" ny="5" nx="20"/>
-			<Box dx="-1"/> 
-			<Box nx="10" fy="40"/> 
+			<Box dx="-1"/>
+			<Box nx="10" fy="40"/>
 			<Box nx="10" dy="60"/>
 			<Channel/>
-		</Wall>  
+		</Wall>
 		<Wet>
-<!--			<Box nx="30" dy="-45" fy="-25"/>-->
+			<!--			<Box nx="30" dy="-45" fy="-25"/>-->
 		</Wet>
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.1178511"/>
-		<Params InitDensity="0.04"
-			WallDensity="1.0"
-			WetDensity="2.9"
-			InletDensity="3.4"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			MovingWallVelocity="0.1"
-			GravitationX="-0.00005"
-			Wetting="0.5"
-		/>
+		<Params InitDensity="0.04" WallDensity="1.0" WetDensity="2.9" InletDensity="3.4" Temperature="0.65" FAcc="1" Magic="0.01" MagicA="-0.152" MagicF="-0.6666666666666" MovingWallVelocity="0.1" GravitationX="-0.00005" Wetting="0.5"/>
 	</Model>
 	<Solve Iterations="200" output="output/">
-		<Params	InletDensity="2.9"/>
+		<Params InletDensity="2.9"/>
 		<VTK Iterations="50"/>
 	</Solve>
 	<Solve Iterations="800" output="output/">
-		<Params	Wetting="1.0"/>
+		<Params Wetting="1.0"/>
 		<VTK Iterations="50"/>
 	</Solve>
 	<Solve Iterations="600" output="output/">
 		<VTK Iterations="50"/>
-		<Params	InletDensity="3.4"/>
+		<Params InletDensity="3.4"/>
 	</Solve>
 	<Solve Iterations="3000" output="output/">
 		<VTK Iterations="50"/>
-		<Params	InletDensity="2.9"/>
+		<Params InletDensity="2.9"/>
 	</Solve>
 </CLBConfig>

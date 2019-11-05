@@ -4,16 +4,24 @@
 		<Params x="1x" gauge="64"/>
 		<Params y="1y" gauge="0.2x"/>
 	</Units>
-        <Geometry nx="1x" ny="1x" nz="1x">
-		<MRT><Box/></MRT>
+	<Geometry nx="1x" ny="1x" nz="1x">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wall mask="ALL">
 			<Box dx="0.5x-0.5y" nx="1y" dy="0.5x-0.5y" ny="1y"/>
 			<Box dx="0.5x-0.5y" nx="1y" dz="0.5x-0.5y" nz="1y"/>
 			<Box dz="0.5x-0.5y" nz="1y" dy="0.5x-0.5y" ny="1y"/>
 		</Wall>
-                <XYslice><Box dz="1" nz="1"/></XYslice>
-                <XZslice><Box dy="1" ny="1"/></XZslice>
-                <YZslice><Box dx="1" nx="1"/></YZslice>
+		<XYslice>
+			<Box dz="1" nz="1"/>
+		</XYslice>
+		<XZslice>
+			<Box dy="1" ny="1"/>
+		</XZslice>
+		<YZslice>
+			<Box dx="1" nx="1"/>
+		</YZslice>
 	</Geometry>
 	<Model>
 		<Params nu="0.05" Smag="0.16"/>

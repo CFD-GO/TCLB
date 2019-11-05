@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="512" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="512" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WPressure zone="Inlet"/>
 		<EPressure zone="Outlet"/>
 		<Wall zone="Channel" mask="ALL"/>
@@ -14,15 +16,12 @@
 	</Geometry>
 	<Model>
 		<Params InletVelocity="0.00"/>
-		<Params InletDensity="1.01" OutletDensity="1.00"
-		InitDensity="1.00" SolidDensity="0.3"/>
+		<Params InletDensity="1.01" OutletDensity="1.00" InitDensity="1.00" SolidDensity="0.3"/>
 		<Params nu="0.02"/>
-		<Params InletTemperature="1" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.00" EOSScale="1.0"/>
+		<Params InletTemperature="1" InitTemperature="0" FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001" Tension="0.00" EOSScale="1.0"/>
 	</Model>
 	<Checkpoint Iterations="1000"/>
 	<Solve Iterations="400000" output="output/">
-	<VTK Iterations="1000"/>
+		<VTK Iterations="1000"/>
 	</Solve>
 </CLBConfig>

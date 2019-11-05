@@ -1,20 +1,18 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="32" ny="32" nz="32" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="32" ny="32" nz="32" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WVelocity zone="Inlet"/>
 		<EPressure zone="Outlet"/>
 		<Outlet>
 			<Box dx="-3" nx="1"/>
 		</Outlet>
-		<Wall zone="Tunnel" mask="ALL">
-			
-		</Wall>
+		<Wall zone="Tunnel" mask="ALL"/>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.02" InletDensity="1.03" nu="0.02"
-		InletTemperature="20" HeaterTemperature="100"
-		InitTemperature="0" FluidAlpha="0.003" SolidAlfa="0.166" />
+		<Params InletVelocity="0.02" InletDensity="1.03" nu="0.02" InletTemperature="20" HeaterTemperature="100" InitTemperature="0" FluidAlpha="0.003" SolidAlfa="0.166"/>
 	</Model>
 	<Solve Iterations="1" output="output/">
 		<VTK Iterations="100" fields="all"/>

@@ -1,12 +1,14 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0">
-        <Geometry nx="1024" ny="20" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+	<Geometry nx="1024" ny="20" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Zone name="UpperWall" dy="10">
-		        <Box nx="300"/>
-                        <Box dx="400"/>
+			<Box nx="300"/>
+			<Box dx="400"/>
 			<Box dy="-1"/>
-                </Zone>
+		</Zone>
 		<Wall mask="ALL">
 			<UpperWall/>
 		</Wall>
@@ -18,17 +20,7 @@
 		<Params InletVelocity="0.0"/>
 		<Params InletDensity="1.00"/>
 		<Params nu="0.14"/>
-		<Params InitDensity="2.0"
-			WallDensity="2.0"
-			Temperature="0.7"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.66666666666666"
-			GravitationY="0.000"
-			GravitationX="0.0000"
-			MovingWallVelocity="0.1"
-		/>
+		<Params InitDensity="2.0" WallDensity="2.0" Temperature="0.7" FAcc="1" Magic="0.01" MagicA="-0.152" MagicF="-0.66666666666666" GravitationY="0.000" GravitationX="0.0000" MovingWallVelocity="0.1"/>
 	</Model>
 	<Solve Iterations="10000" output="output/">
 		<VTK Iterations="1000"/>
