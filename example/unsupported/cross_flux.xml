@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Units>
-		<Params x="1x" gauge="64"/>
-		<Params y="1y" gauge="0.2x"/>
+		<Param name="x" value="1x" gauge="64"/>
+		<Param name="y" value="1y" gauge="0.2x"/>
 	</Units>
 	<Geometry nx="1x" ny="1x" nz="1x">
 		<MRT>
@@ -24,13 +24,14 @@
 		</YZslice>
 	</Geometry>
 	<Model>
-		<Params nu="0.05" Smag="0.16"/>
-		<Params ForceX="1e-4"/>
-		<Params ForceY="0.5e-4"/>
+		<Param name="Smag" value="0.16"/>
+		<Param name="nu" value="0.05"/>
+		<Param name="ForceX" value="1e-4"/>
+		<Param name="ForceY" value="0.5e-4"/>
 	</Model>
 	<VTK Iterations="1000"/>
 	<Log Iterations="20"/>
 	<Solve Iterations="100000"/>
-	<Params ForceY="0.7e-4"/>
+	<Param name="ForceY" value="0.7e-4"/>
 	<Solve Iterations="100000"/>
 </CLBConfig>

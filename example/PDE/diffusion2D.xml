@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig output="output/">
+<CLBConfig output="output/" permissive="true">
 	<Geometry nx="128" ny="128">
 		<Dirichlet name="border">
 			<Box nx="1"/>
@@ -12,10 +12,10 @@
 		</None>
 	</Geometry>
 	<Model>
-		<Params Value="-1"/>
-		<Params Value-box="1"/>
-		<Params Value-border="-1"/>
-		<Params diff_coeff="0.01"/>
+		<Param name="Value" value="-1"/>
+		<Param name="Value" value="1" zone="box"/>
+		<Param name="Value" value="-1" zone="border"/>
+		<Param name="diff_coeff" value="0.01"/>
 	</Model>
 	<VTK Iterations="25"/>
 	<Solve Iterations="10000"/>

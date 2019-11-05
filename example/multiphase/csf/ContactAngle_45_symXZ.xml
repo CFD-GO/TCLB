@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<!-- MODEL: d3q27_pf_velocity_autosym
           Solid contact angle example to test out symmetry
      in two planes.
@@ -30,7 +30,18 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params Density_h="1" Density_l="0.001" ContactAngle="45" IntWidth="4" M="0.05" sigma="5e-5" Viscosity_l="0.0166" Viscosity_h="0.166" Radius="24" CenterX="64" CenterY="0" CenterZ="64"/>
+		<Param name="CenterZ" value="64"/>
+		<Param name="CenterY" value="0"/>
+		<Param name="CenterX" value="64"/>
+		<Param name="Radius" value="24"/>
+		<Param name="Viscosity_h" value="0.166"/>
+		<Param name="Viscosity_l" value="0.0166"/>
+		<Param name="sigma" value="5e-5"/>
+		<Param name="M" value="0.05"/>
+		<Param name="IntWidth" value="4"/>
+		<Param name="ContactAngle" value="45"/>
+		<Param name="Density_l" value="0.001"/>
+		<Param name="Density_h" value="1"/>
 	</Model>
 	<VTK/>
 	<Failcheck Iterations="1000"/>

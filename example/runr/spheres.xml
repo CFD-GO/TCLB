@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="512" ny="256">
 		<MRT>
 			<Box/>
@@ -20,8 +20,8 @@
 		Solver$Geometry$COLLISION[sel] = "None"
 	</RunR>
 	<Model>
-		<Params VelocityX="0.0"/>
-		<Params Viscosity="0.02"/>
+		<Param name="VelocityX" value="0.0"/>
+		<Param name="Viscosity" value="0.02"/>
 	</Model>
 	<RunR>
 		Fx = rep(0, length(X))

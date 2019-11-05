@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="1024" ny="100">
 		<BGK>
 			<Box/>
@@ -20,8 +20,8 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params Velocity="0.01"/>
-		<Params nu="0.02"/>
+		<Param name="Velocity" value="0.01"/>
+		<Param name="nu" value="0.02"/>
 	</Model>
 	<VTK Iterations="1000"/>
 	<Solve Iterations="10000"/>

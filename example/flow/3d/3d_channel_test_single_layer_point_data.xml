@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="64" ny="16" nz="32">
 		<MRT>
 			<Box/>
@@ -18,10 +18,11 @@
 		</YZslice1>
 	</Geometry>
 	<Model>
-		<Params nu="0.001"/>
+		<Param name="nu" value="0.001"/>
 		<!-- X-force and Z-force defined so that the flow will be skew wrt to the orientation axes  -->
 		<!-- Channel walls are parallel to Y- plane  -->
-		<Params ForceX="0.0000001" ForceZ="-0.000003"/>
+		<Param name="ForceZ" value="-0.000003"/>
+		<Param name="ForceX" value="0.0000001"/>
 	</Model>
 	<VTK Iterations="1000"/>
 	<Log Iterations="100"/>

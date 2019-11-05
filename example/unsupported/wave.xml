@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="300" ny="300">
 		<MRT>
 			<Box/>
@@ -24,9 +24,11 @@
 		</Obj1>
 	</Geometry>
 	<Model>
-		<Params nu="0.166666" Gravity=".1"/>
-		<Params Height="1.0" Height-high="1.01"/>
-		<Params TotalDiffInObj="1e6"/>
+		<Param name="Gravity" value=".1"/>
+		<Param name="nu" value="0.166666"/>
+		<Param name="Height" value="1.01" zone="high"/>
+		<Param name="Height" value="1.0"/>
+		<Param name="TotalDiffInObj" value="1e6"/>
 	</Model>
 	<VTK Iterations="2000"/>
 	<Log Iterations="1000"/>
