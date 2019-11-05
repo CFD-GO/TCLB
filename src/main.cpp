@@ -293,6 +293,37 @@ int main ( int argc, char * argv[] )
 		if (status != 0) return status;
 	}
 	
+	// Treatment of depreciated Params element:
+	{
+		pugi::xpath_node_set found = config.select_nodes("//Params");
+		if (found.size() > 0) {
+                    	WARNING("%ld depreciated Params elements found. Changing them to Param:\n", found.size());
+                    	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+				pugi::xml_node node = it->node();
+				std::string gauge = "";
+				pugi::xml_attribute gauge_attr = node.attribute("gauge");
+				if (gauge_attr) gauge = gauge_attr.value();
+				for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) if (strcmp(attr.name(),"gauge") != 0) {
+				        std::string par, zone;
+			                par = attr.name();
+		                        size_t i = par.find_first_of('-');
+		                        if (i == string::npos) {
+		                        	zone = "";
+		                        } else {
+                		                zone = par.substr(i+1);
+		                                par = par.substr(0,i);
+					}
+					pugi::xml_node param = node.parent().insert_child_after("Param", node);
+					param.append_attribute("name").set_value(par.c_str());
+					param.append_attribute("value").set_value(attr.value());
+					if (zone != "") param.append_attribute("zone").set_value(zone.c_str());
+					if (gauge != "") param.append_attribute("gauge").set_value(gauge.c_str());
+					node.parent().remove_child(node);
+				}
+			}
+		}
+	}	
+	
 	XMLCHILD(geom, config, "Geometry");
 	readUnits(config, solver);
 
