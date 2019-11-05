@@ -10,9 +10,7 @@ types:
       - name: mask
         val:
           select:
-            special: NodeTypeGroup
-          example:
-            ALL
+            - special: NodeTypeGroup
       - type: geom
   geom:
     name: Geometry Primitive
@@ -51,7 +49,6 @@ types:
       - name: output
         val:
           string: path
-          example: output/
   design:
     name: Optimization and Optimal Control
 
@@ -73,8 +70,8 @@ VTK:
       optional: true
       val:
         list:
-        - special: Quantities
-        - special: GeometryComponents
+          - special: Quantities
+          - special: GeometryComponents
       comment: List of Quantities and Geometry Components to export.
     - name: name
       val: 
@@ -90,8 +87,8 @@ HDF5:
       optional: true
       val:
         list:
-        - special: Quantities
-        - special: GeometryComponents
+          - special: Quantities
+          - special: GeometryComponents
       comment: List of Quantities and Geometry Components to export.
     - name: name
       val:
@@ -190,7 +187,7 @@ Stop:
   type: callback
   attr:
     - name:
-        special: Globals
+        - special: Globals
       val:
         numeric: float
       comment: Limit on change of a specific Global
@@ -206,13 +203,14 @@ PID:
   type: callback
   attr:
     - name:
-        special: Globals
+        - special: Globals
       val:
         numeric: float
       comment: Target value for a specified Global
     - name: control
       val:
-        special: Settings
+        select:
+          - special: Settings
       comment: The setting to control (currently only zonal settings are supported)
     - name: scale
       val:
@@ -232,15 +230,11 @@ Sample:
   example: <Sample Iterations="1000" what="U,P" ><Point dx="10" dy="20"/></Sample>
   type: callback
   attr:
-    - name: Iterations
-      val:
-        numeric: int
-      comment: Iteration period after which the sampled data will be written to a file
     - name: what
       optional: true
       val:
         list:
-        - special: Quantities
+          - special: Quantities
       comment: List of Quantities to be sampled. By default all are sampled.
 
 Box:
@@ -291,12 +285,15 @@ STL:
       val:
         unit: float
       comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
-Params:
+Param:
   type:
     params
   attr:
-    - name:
-        special: Settings
+    - name: name
+      val:
+        select:
+          - special: Settings
+    - name: value
       val:
         unit: float
     - name: gauge
@@ -361,7 +358,7 @@ OptimalControl:
     - name: what
       val:
         select:
-          special: SettingInZone
+          - special: SettingInZone
       comment: Select a time-dependent setting to optimize
 
 OptimalControlSecond:
@@ -375,7 +372,7 @@ OptimalControlSecond:
     - name: what
       val:
         select:
-          special: SettingInZone
+          - special: SettingInZone
       comment: Select a time-dependent setting to optimize
     - name: lower
       val:
@@ -566,7 +563,7 @@ LoadBinary:
     - name: comp
       val:
         select:
-          special: Fields
+          - special: Fields
       comment: Field to load from the binary file
 
 SaveBinary:
@@ -584,7 +581,7 @@ SaveBinary:
     - name: comp
       val:
         select:
-          special: Fields
+          - special: Fields
       comment: Field to save to the binary file
 
 
