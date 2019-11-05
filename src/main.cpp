@@ -29,33 +29,36 @@
 #include "xpath_modification.h"
 
 // Reads units from configure file and applies them to the solver
-void readUnits(pugi::xml_node config, Solver* solver) {
+int readUnits(pugi::xml_node config, Solver* solver) {
 	pugi::xml_node set = config.child("Units");
 	if (!set) {
 		warning("No \"Units\" element in config file\n");
-		return;
+		return 0;
 	}
-	for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
-		std::string nm="", val="", gauge="1";
-		for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
-		{
-			if (((std::string) attr.name()) == "gauge") {
-				gauge = attr.value();
-			} else {
-				if (nm != "") {
-					error("Only one variable allowed in a Params element in Units (%s)\n", nm.c_str());
-				}
-				nm = attr.name();
-				val= attr.value();
-			}
+	for (pugi::xml_node node = set.child("Param"); node; node = node.next_sibling("Param")) {
+	        std::string par, value, gauge;
+		pugi::xml_attribute attr;
+		attr = node.attribute("value");
+		if (attr) {
+			value = attr.value();
+		} else {
+			ERROR("Value not provided in Param in Units\n");
+			return -1;
 		}
-		if (nm == "") {
-			error("No variable in a Params element in Units\n");
+		attr = node.attribute("gauge");
+		if (attr) {
+			gauge = attr.value();
+		} else {
+			ERROR("Gauge not provided in Param in Units\n");
+			return -1;
 		}
-		debug2("Units: %s = %s = %s\n", nm.c_str(), val.c_str(), gauge.c_str());
-		solver->setUnit(nm, val, gauge);
+		attr = node.attribute("name");
+		if (attr) par = attr.value(); else par = "unnamed";
+		debug2("Units: %s = %s = %s\n", par.c_str(), val.c_str(), gauge.c_str());
+		solver->setUnit(par, value, gauge);
 	}
 	solver->Gauge();
+	return 0;
 };
 
 CudaEvent_t     start, stop; // CUDA events to measure time
@@ -324,13 +327,19 @@ int main ( int argc, char * argv[] )
 	if (argc > 2) {
 		int status = xpath_modify(solver->configfile, config, argc-2, argv+2);
 		if (status == -444) { // Graceful exit
-			readUnits(config, solver);
+			if (readUnits(config, solver)) {
+				ERROR("Wrong Units\n");
+				return -1;
+			}
 			return 0;
 		}
 		if (status != 0) return status;
 	}
 	
-	readUnits(config, solver);
+	if (readUnits(config, solver)) {
+		ERROR("Wrong Units\n");
+		return -1;
+	}
 
 	XMLCHILD(geom, config, "Geometry");
 
