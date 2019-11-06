@@ -7,41 +7,39 @@ source("conf.R")
 #include "conControl.h"
 std::string conControl::xmlname = "Control";
 
-int conControl::Params (pugi::xml_node n) {
-	        std::string par, zone;
-	        int zone_number = -1;
-	        for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
-	                debug0("Params %s = %s (only saying that it exists - see below to know if it is used\n",attr.name(),attr.value());
-	                par = attr.name();
-                        size_t i = par.find_first_of('-');
-                        if (i == string::npos) {
-                                zone = "";
-                                zone_number = -1;
-                        } else {
-                                zone = par.substr(i+1);
-                                par = par.substr(0,i);
-                                if (solver->geometry->SettingZones.count(zone) > 0) { 
-                                        zone_number = solver->geometry->SettingZones[zone];
-                                } else {
-                                        WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
-                                        zone_number = -2;
-                                        zone = "";
-                                }
-                        }
-                        if (zone_number > -2) {
-                        debug2("%s set in zone %s (%d)\n", par.c_str(), zone.c_str(), zone_number);
-		<?R for (v in rows(ZoneSettings)) { ?>
-		        if (par == "<?%s v$name?>") {
-				//double val = solver->units.alt(attr.value());
-				std::vector<double> val;
-				get( context, attr.value(), 1, val);
-				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
-			}
-		<?R } ?>
-		        }
-                }
-                return 0;
+int conControl::Param (pugi::xml_node n) {
+        std::string par, zone, value;
+        bool permissive = false;
+        int zone_number = -1;
+        Action::Init();
+        pugi::xml_attribute attr;
+        attr = n.attribute("name");
+        if (attr) par = attr.value();
+        attr = n.attribute("zone");
+        if (attr) zone = attr.value();
+        attr = n.attribute("value");
+        if (attr) {
+		value = attr.value();
+	} else {
+                ERROR("Setting value not specified in Param element\n");
+                return -2;
 	}
+
+        if (par == "") {
+                ERROR("Setting name not specified in Param element\n");
+                return -2;
+        <?R for (v in rows(ZoneSettings)) { ?>
+        } else if (par == "<?%s v$name?>") {
+                std::vector<double> val;
+                get( context, value.c_str(), 1, val);
+                solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
+        <?R } ?>
+        } else {
+                ERROR("Unknown setting %s\n", par.c_str());
+                return -3;
+        }
+        return 0;
+}
 
 
 int conControl::get (Context& cont, const char * svar, double scale, std::vector<double>& fill) {
@@ -205,11 +203,11 @@ int conControl::Internal (pugi::xml_node n) {
                 }
 	        for (pugi::xml_node n2 = n.first_child(); n2; n2 = n2.next_sibling()) {
                         std::string name2 = n2.name();
-                        if (name2 == "Params") {
-                                debug0("Params in CSV\n");
-                                Params(n2);
+                        if (name2 == "Param") {
+                                debug0("Param in CSV\n");
+                                if (Param(n2)) return -1;
                         } else {
-        		        error("Only Params allowed in %s in Control sub-element in config\n",n.name());
+        		        error("Only Param allowed in %s in Control sub-element in config\n",n.name());
         		        return -1;
                         }
                 }
@@ -229,9 +227,9 @@ int conControl::Init () {
                 solver->lattice->zSet.setLen(iter);
                 for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
                         std::string name = n.name();
-                        if (name == "Params") {
-                	        debug2("Params in Control\n");
-                                if (Params(n)) return -1;
+                        if (name == "Param") {
+                	        debug2("Param in Control\n");
+                                if (Param(n)) return -1;
                         } else if (name == "CSV") {
                                 debug2("CSV in Control\n");
                                 if (Internal(n)) return -1;
