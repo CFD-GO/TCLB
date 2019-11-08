@@ -10,7 +10,7 @@ types:
       - name: mask
         val:
           select:
-            - special: NodeTypeGroup
+            - special: NodeTypeGroups
       - type: geom
   geom:
     name: Geometry Primitive
@@ -71,7 +71,7 @@ VTK:
       val:
         list:
           - special: Quantities
-          - special: GeometryComponents
+          - special: NodeTypeGroups
       comment: List of Quantities and Geometry Components to export.
     - name: name
       val: 
@@ -88,7 +88,7 @@ HDF5:
       val:
         list:
           - special: Quantities
-          - special: GeometryComponents
+          - special: NodeTypeGroups
       comment: List of Quantities and Geometry Components to export.
     - name: name
       val:
@@ -96,21 +96,15 @@ HDF5:
       comment: Name of the HDF5 and Xdmf file.
     - name: compress
       val: 
-        select:
-          - true
-          - false
+        bool:
       comment: Use ZLIB deflation filter to compress output
     - name: write_xdmf
       val: 
-        select:
-          - true
-          - false
+        bool:
       comment: Write Xdmf accompaning file describing the data for visualisation
     - name: point_data
       val:
-        select:
-          - true
-          - false
+        bool:
       comment: Write Xdmf that described the data as Point Data and not Cell Data
     - name: chunk
       val:
@@ -133,9 +127,7 @@ TXT:
       comment: Name of the TXT file. 
     - name: gzip
       val: 
-        select:
-          - Yes
-          - No
+        bool:
       comment: If to compress the TXT output
 
 Catalyst:
@@ -155,10 +147,8 @@ Catalyst:
       comment: Catalyst co-processing Python script
     - name: preprocess
       val:
-        select:
-          - yes
-          - no
-      default: yes
+        bool:
+      default: true
       comment: If active, the Python script will be modified so that the files will be placed in the output directory
 
 
@@ -203,7 +193,6 @@ PID:
   type: callback
   attr:
     - name: integral
-        - special: Globals
       val:
         select:
         - special: Globals
@@ -283,9 +272,9 @@ STL:
     - name: ray_axis
       val:
         select:
-        - x
-        - y
-        - z
+        - "x"
+        - "y"
+        - "z"
       comment: Specifies the axis along which rays will be cast for in/out filling of STL
     - name: scale
       val:
@@ -427,9 +416,7 @@ BSpline:
       comment: Number of degrees of freedom (parameters) of the b-spline
     - name: periodic
       val:
-        select:
-          - yes
-          - no
+        bool:
       comment: If the b-spline should be periotic in the control period
     - name: lower
       val:
