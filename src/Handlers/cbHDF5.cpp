@@ -19,39 +19,15 @@ int cbHDF5::Init () {
 
                 bool deflate = true;
 		attr = node.attribute("compress");
-		if (attr) {
-			if (strcmp(attr.value(),"true") == 0) {
-				deflate = true;
-			} else if (strcmp(attr.value(),"false") == 0) {
-				deflate = false;
-			} else {
-				ERROR("compress attribute should be true or false (not '%s')\n", attr.value());
-			}
-		}
+		if (attr) deflate = attr.as_bool();
 		if (deflate) options = options | HDF5_DEFLATE;
 		bool write_xdmf = true;
 		attr = node.attribute("write_xdmf");
-		if (attr) {
-			if (strcmp(attr.value(),"true") == 0) {
-				write_xdmf = true;
-			} else if (strcmp(attr.value(),"false") == 0) {
-				write_xdmf = false;
-			} else {
-				ERROR("write_xdmf attribute should be true or false (not '%s')\n", attr.value());
-			}
-		}
+		if (attr) write_xdmf = attr.as_bool()
                 if (write_xdmf) options = options | HDF5_WRITE_XDMF;
 		bool point_data = false;
 		attr = node.attribute("point_data");
-		if (attr) {
-			if (strcmp(attr.value(),"true") == 0) {
-				point_data = true;
-			} else if (strcmp(attr.value(),"false") == 0) {
-				point_data = false;
-			} else {
-				ERROR("point_data attribute should be true or false (not '%s')\n", attr.value());
-			}
-		}
+		if (attr) point_data = attr.as_bool();
                 if (point_data) options = options | HDF5_WRITE_POINT;
 		attr = node.attribute("chunk");
 		bool calc_double;
