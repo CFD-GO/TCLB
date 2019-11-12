@@ -29,7 +29,7 @@ int acUSAdjoint::Init () {
                             MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPMD.local);
                             solver->iter -= solver->steps;
                             solver->lattice->Iterate(solver->steps, solver->iter_type);
-                            CudaThreadSynchronize();
+                            CudaDeviceSynchronize();
                             MPI_Barrier(MPMD.local);
                             for (size_t i=0; i<solver->hands.size(); i++) {
                                     if (solver->hands[i].Now(solver->iter)) {
@@ -40,7 +40,7 @@ int acUSAdjoint::Init () {
 		}
 		solver->lattice->stopRecord();
 		solver->iter += everyIter*2;
-		CudaThreadSynchronize();
+		CudaDeviceSynchronize();
 		MPI_Barrier(MPMD.local);
 		GenericAction::Unstack();
 		solver->iter_type = old_iter_type;
