@@ -1,4 +1,3 @@
-
 types:
   nodetypes:
     name: Node Type Brush
@@ -29,6 +28,7 @@ types:
       - name: Iterations
         val:
           unit: int
+        use: required
   setup:
     name: Setup Elements
   callback:
@@ -49,9 +49,32 @@ types:
       - name: output
         val:
           string: path
+  clbconfig:
+    name: CLBConfig
+    attr:
+      - name: output
+        val:
+          string: path
+        use: required
+        default: output/
+  units:
+    name: units
+    children:
+      - type: params
   design:
     name: Optimization and Optimal Control
 
+CLBConfig:
+  type: clbconfig
+  children:
+    - type: units
+    - type: geometry
+    - type: action
+    - type: callback
+    - type: container
+    - type: params
+    - type: setup
+  
 
 Geometry:
   type: geometry
@@ -145,24 +168,12 @@ Catalyst:
       val: 
         string: file
       comment: Catalyst co-processing Python script
+      use: required
     - name: preprocess
       val:
         bool:
       default: true
       comment: If active, the Python script will be modified so that the files will be placed in the output directory
-
-
-
-
-CLBConfig:
-  type: container
-  children:
-    - type: geometry
-    - type: action
-    - type: callback
-    - type: container
-    - type: params
-    - type: setup
 
 Log:
   type: callback
@@ -186,7 +197,6 @@ Stop:
         numeric: int
       comment: Numer of times the change have to be below the limit to stop the computation.
 
-
 PID:
   comment: PID controller. Allows to achive a specified value of an Global, with tweaking of a Setting
   example: <PID Flux="10.0" control="ForceX" scale="0.01" DerivativeTime="100" IntegrationTime="10000" Iterations="10"/>
@@ -197,11 +207,13 @@ PID:
         select:
         - special: Globals
       comment: Target value for a specified Global
+      use: required
     - name: control
       val:
         select:
           - special: Settings
       comment: The setting to control (currently only zonal settings are supported)
+      use: required
     - name: zone
       val:
         select:
@@ -248,6 +260,7 @@ Wedge:
         - UpperRight
         - BottomLeft
         - BottomRight
+      use: required
 
 STL:
   comment: >
@@ -262,6 +275,7 @@ STL:
       val:
         file: "*.stl"
       comment: STL file to import
+      use: required
     - name: side
       val:
         select:
@@ -269,6 +283,7 @@ STL:
         - in
         - surface
       comment: Specifies if to fill the interior (in), exterior (out), or the surface (see description)
+      default: in
     - name: ray_axis
       val:
         select:
@@ -280,6 +295,7 @@ STL:
       val:
         unit: float
       comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
+
 Param:
   type:
     params
@@ -291,6 +307,7 @@ Param:
     - name: value
       val:
         unit: float
+      use: required
     - name: gauge
       val:
         unit: float
@@ -301,6 +318,8 @@ Model:
     - type: params
     - type: setup
 
+Units:
+  type: units
 
 Adjoint:
   type: action
@@ -346,7 +365,6 @@ Optimize:
         numeric: int
       comment: Maximal number of evalulations (optimizer iterations)
 
-
 OptimalControl:
   type: design
   attr:
@@ -355,6 +373,7 @@ OptimalControl:
         select:
           - special: SettingInZone
       comment: Select a time-dependent setting to optimize
+      use: required
 
 OptimalControlSecond:
   comment: >
@@ -577,7 +596,6 @@ SaveBinary:
           - special: Fields
       comment: Field to save to the binary file
 
-
 LoadMemoryDump:
   type: action
   comment: Load all fields from a dump created by Save element
@@ -601,7 +619,6 @@ SaveMemoryDump:
       val:
         string: file
       comment: full path to the binary file
-
 
 EvalIf:
   type: action
