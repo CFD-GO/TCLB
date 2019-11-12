@@ -508,7 +508,12 @@ then
 	do
 		touch ${LAMMPS}/install/include/lammps/${i}
 	done
-
+	if test -L ${LAMMPS}/src/libliggghts.so
+	then
+		echo "It's LIGGGHTS we're working with"
+		rm ${LAMMPS}/src/liblammps.so 2>/dev/null
+		ln -s $(readlink ${LAMMPS}/src/libliggghts.so) ${LAMMPS}/src/liblammps.so
+	fi
 	rm ${LAMMPS}/install/lib/liblammps.so 2>/dev/null
 	AC_CHECK_FILE([${LAMMPS}/src/liblammps.so], [ln -s ../../src/liblammps.so ${LAMMPS}/install/lib/liblammps.so],[AC_MSG_ERROR([Cannot find liblammps.so])])
 	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib -Wl,-rpath=${LAMMPS}/install/lib"
