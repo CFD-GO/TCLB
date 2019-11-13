@@ -15,7 +15,7 @@
 
 namespace rfi {
 
-const int version = 0x000102;
+const int version = 0x000104;
 
 #define safe_MPI_Type_free(datatype) { if ((*datatype) != NULL) MPI_Type_free(datatype); }
 
@@ -59,6 +59,22 @@ template <class T> inline std::vector<T> RemoteForceInterface< TYPE, ROT, STORAG
    return in;
 };
 
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+template <class T> inline std::basic_string<T> RemoteForceInterface< TYPE, ROT, STORAGE, rfi_real_t >::Exchange(std::basic_string<T> out) {
+   std::basic_string<T> in;
+   size_t in_size = Exchange(out.size());
+   in.resize(in_size);
+   MPI_Request request; MPI_Status status;
+   MPI_Datatype datatype = MPI_dt<T>();
+   if (rank == 0) {
+      MPI_Isend(&out[0], out.size(), datatype, 0, 124, intercomm, &request);
+      MPI_Recv(&in[0], in.size(), datatype, 0, 124, intercomm, &status);
+      MPI_Wait(&request,  &status);
+   }
+   MPI_Bcast(&in[0], in.size(), datatype, 0, comm);
+   return in;
+};
+
 
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
@@ -72,6 +88,7 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::RemoteForceInterface() 
    active = false;
    my_type = TYPE;
    stats = false;
+   stats_iter = 0;
    if (TYPE == ForceIntegrator) {
      name = "ForceIntegrator";
    } else if (TYPE == ForceCalculator) {
@@ -107,13 +124,14 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::~RemoteForceInterface()
 }
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
-void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::enableStats(char * filename) {
+void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::enableStats(const char * filename, int iter) {
   stats = true;
   if (filename == NULL) {
-    stats_filename = "";
+    stats_prefix = "";
   } else {
-    stats_filename = filename;
+    stats_prefix = filename;
   }
+  stats_iter = iter;
   if (connected) allocStats();
 }
 
@@ -123,12 +141,12 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::allocStats() {
    sizesStatsNum = 0;
    waitStats.resize(12, 0);
    waitStatsNum.resize(12, 0);
+   char fn[STRING_LEN];
    
-   if (stats_filename == "") {
-     char fn[STRING_LEN];
-     sprintf(fn, "RFI_stats_%s_%03d.txt", name.c_str(), rank);
-     stats_filename = fn;
-   }
+   if (stats_prefix == "") stats_prefix = "RFI";
+   sprintf(fn, "%s_%s_P%02d.txt", stats_prefix.c_str(), name.c_str(), rank);
+   stats_filename = fn;
+
    FILE * f = fopen(stats_filename.c_str(), "w");
    fprintf(f,"size_iter");
    for (int i=0; i<workers; i++) fprintf(f,", size_%03d", i);
@@ -158,12 +176,7 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::saveWaitStats(int 
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
 void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::printStats() {
-  if (sizesStatsNum == 100) {
-   output("RFI: %s(%2d): avg. sizes:", name.c_str(), rank);
-   for (int i=0; i<workers; i++) output("%lf4.1, ", sizesStats[i] / sizesStatsNum);
-   output("avg. waittimes:");
-   for (int i=0; i<12; i++) output("%lg, ", waitStats[i] / waitStatsNum[i]);
-   output("\n");
+  if (sizesStatsNum == stats_iter) {
    char fn[STRING_LEN];
    sprintf(fn, "RFI_stats_%s_%d.txt", name.c_str(), rank);
    FILE * f = fopen(stats_filename.c_str(), "a");
@@ -348,10 +361,26 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
   int my_stats = stats;
   int other_stats = Exchange(my_stats);
   stats = my_stats || other_stats;
+  
+  std::string my_stats_prefix = stats_prefix;
+  std::string other_stats_prefix = Exchange(my_stats_prefix);
+  
+  if (my_stats_prefix == "") {
+    stats_prefix = other_stats_prefix;
+  }
+
+  int my_stats_iter = stats_iter;
+  int other_stats_iter = Exchange(my_stats_iter);
+  
+  if (my_stats_iter == 0) {
+    stats_iter = other_stats_iter;
+  }
+
+
 
   if (stats) {
-   allocStats();
-   output("RFI: %s: Decided to calculate with statistics\n",name.c_str());
+    allocStats();
+    output("RFI: %s: Decided to calculate with statistics\n",name.c_str());
   }
   
   MPI_Barrier(intercomm);

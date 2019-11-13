@@ -78,7 +78,9 @@ private:
   void Zero();
   void Finish();
   bool stats;
+  std::string stats_prefix;
   std::string stats_filename;
+  int stats_iter;
   MPI_Aint real_size;
   rfi_real_t base_units[3];
   std::vector< rfi_real_t > unit;
@@ -117,10 +119,11 @@ public:
   inline int Workers() { return workers; }
   inline size_t& Size(int i) { return sizes[i]; }
   inline bool Rot() { return rot; }
-  void enableStats(char * filename);
+  void enableStats(const char * filename, int iter);
   inline int space_for_workers() { return universe_size - world_size; };
   template <class T> inline T Exchange(T out);
   template <class T> inline std::vector<T> Exchange(std::vector<T> out);
+  template <class T> inline std::basic_string<T> Exchange(std::basic_string<T> out);
   void setUnits(rfi_real_t meter, rfi_real_t second, rfi_real_t kilogram);
   inline rfi_real_t& RawData(size_t i, int j) {
     if (STORAGE == ArrayOfStructures) {
