@@ -50,6 +50,7 @@ int match_pattern(char* str, char* pattern) {
 int main(int argc, char *argv[])
 {
    int ret;
+   Info info;
    MPMDHelper MPMD;
    MPI_Init(&argc, &argv);
    MPMD.Init(MPI_COMM_WORLD, "LAMMPS");
@@ -58,14 +59,6 @@ int main(int argc, char *argv[])
    MPMD.Identify();
    rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > RFI;
    RFI.name = "LAMMPS";
-   MPMDIntercomm inter = MPMD["TCLB"];
-   if (!inter) {
-     fprintf(stderr,"Didn't find TCLB in MPMD\n");
-     return -1;
-   }
-   ret = RFI.Connect(MPMD.work,inter.work);
-   if (ret) return ret;
-   assert(RFI.Connected());
 
    if (argc != 2) {
      printf("Syntax: lammps in.lammps\n");
@@ -104,12 +97,20 @@ int main(int argc, char *argv[])
      
      if (match_pattern(line, " fix tclb * external")) {
        printf("LAMMPS: Added fix tclb external! (%s) Adding callback.\n", line);
+       MPMDIntercomm inter = MPMD["TCLB"];
+       if (!inter) {
+         fprintf(stderr,"Didn't find TCLB in MPMD\n");
+         return -1;
+       }
+       ret = RFI.Connect(MPMD.work,inter.work);
+       if (ret) return ret;
+       assert(RFI.Connected());
+
        int ifix = lmp->modify->find_fix("tclb");
        printf("ifix: %d\n",ifix);
        FixExternal *fix = (FixExternal *) lmp->modify->fix[ifix];
        printf("fix: %p\n",fix);
        
-       Info info;
        info.MPMD = &MPMD;
        info.memory = NULL;
        info.lmp = lmp;
@@ -122,8 +123,10 @@ int main(int argc, char *argv[])
    }
    
    lammps_close(lmp);
-   RFI.Close();
-   MPI_Finalize();
+   if (RFI.Connected()) {   
+    RFI.Close();
+    MPI_Finalize();
+   }
    return 0;
 }
 
