@@ -131,6 +131,7 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::enableStats(const 
   } else {
     stats_prefix = filename;
   }
+  if (iter < 1) iter = 1;
   stats_iter = iter;
   if (connected) allocStats();
 }

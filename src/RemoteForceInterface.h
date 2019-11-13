@@ -80,7 +80,7 @@ private:
   bool stats;
   std::string stats_prefix;
   std::string stats_filename;
-  int stats_iter;
+  unsigned int stats_iter;
   MPI_Aint real_size;
   rfi_real_t base_units[3];
   std::vector< rfi_real_t > unit;
