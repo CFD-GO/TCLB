@@ -63,6 +63,7 @@ private:
   std::vector<MPI_Request> sizes_req; ///< Array of MPI requests for non-blocking calls
   std::vector<MPI_Request> forces_req; ///< Array of MPI requests for non-blocking calls
   std::vector<MPI_Request> particles_req; ///< Array of MPI requests for non-blocking calls
+  std::vector<MPI_Request> death_req; ///< Array of MPI requests for non-blocking calls
   MPI_Datatype MPI_RFI_REAL_T; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_PARTICLE; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
   MPI_Datatype MPI_FORCES; ///< The MPI datatype handle for rfi_real_t (either MPI_FLOAT or MPI_DOUBLE)
@@ -76,7 +77,6 @@ private:
   int my_type;
   int Negotiate();
   void Zero();
-  void Finish();
   bool stats;
   std::string stats_prefix;
   std::string stats_filename;
@@ -95,6 +95,12 @@ private:
   void allocStats();
   void saveSizesStats();
   void saveWaitStats(int index);
+  std::vector<int> death_flag;
+  int kill_flag;
+  void Death();
+  void WaitForDeath();
+  void KillEverybody();
+  bool alreadyKilledEverybody;
 public:
   int particle_size;
   std::string name;
