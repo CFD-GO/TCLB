@@ -26,23 +26,38 @@ AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
 
 AddDensity( name="h_Z", dx=0, dy=0, group="HZ")
+
+if (Options$bc) {
+    AddSetting(name="OverwriteVelocityField", default="0")
+    AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+    AddDensity( name="BC[1]", group="BC", parameter=TRUE)
+}
+
+if (Options$bcinit) {
+    AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+}
+
+
+
 AddField( name="nw_x", stencil2d=1, group="nw")
 AddField( name="nw_y", stencil2d=1, group="nw")
-
 
 
 
 AddField("phi"      ,stencil2d=1 );
 
 AddStage("BaseIteration", "Run", 
-         load=DensityAll$group == "f" | DensityAll$group == "h"| DensityAll$group == "HZ",  
-         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw" | Fields$group == "HZ"
+         load=DensityAll$group == "f" | DensityAll$group == "h"| DensityAll$group == "HZ" | DensityAll$group == "BC",  
+         save=Fields$group=="f" | Fields$group=="h" | Fields$group=="nw" | Fields$group == "HZ" 
          ) 
 AddStage("CalcPhi", 
          save=Fields$name=="phi" ,  
          load=DensityAll$group == "h"
          )
-AddStage("BaseInit", "Init",  save=Fields$group=="f" | Fields$group=="h"| Fields$group == "HZ") 
+AddStage("BaseInit", "Init",  
+    load=DensityAll$group == "BC",  
+    save=Fields$group=="f" | Fields$group=="h"| Fields$group == "HZ"
+) 
 AddStage("CalcWallNormall", "CalcNormal",   
          save=Fields$group=="nw",
          fixedPoint=TRUE
@@ -73,6 +88,8 @@ AddQuantity(name="Curvature",unit="1")
 AddQuantity(name="InterfaceForce", unit="1", vector=T)
 
 AddQuantity(name="DEBUG", vector=T)
+AddQuantity(name="WallNormal", vector=T)
+
 #AddQuantity(name="BoundaryForcing", unit="1", vector=T)
 #
 # Settings - table of settings (constants) that are taken from a .xml file
@@ -82,16 +99,26 @@ AddQuantity(name="DEBUG", vector=T)
 AddSetting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
 
 AddSetting(name="omega", comment='one over relaxation time')
+AddSetting(name="omega2_ph", default="1", comment='one over relaxation time - second for phase field')
+
 AddSetting(name="omega_l", comment='one over relaxation time, light phase')
 AddSetting(name="Viscosity", omega='1.0/(3*Viscosity + 0.5)', default=0.16666666, comment='viscosity')
 AddSetting(name="Viscosity_l", omega_l='1.0/(3*Viscosity_l + 0.5)', default=0.16666666, comment='viscosity')
-AddSetting(name="Velocity", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="VelocityX", default=0, comment='inlet/outlet/init velocity', zonal=T)
+AddSetting(name="VelocityY", default=0, comment='inlet/outlet/init velocity', zonal=T)
 AddSetting(name="Pressure", default=0, comment='inlet/outlet/init density', zonal=T)
-AddSetting(name="IntWidth", default=0.1, comment='Anty-diffusivity coeff')
 AddSetting(name="Mobility", default=0.05, comment='Mobility')
 AddSetting(name="PhaseField", default=0.5, comment='Phase Field marker scalar', zonal=T)
 AddSetting(name="GravitationX", default=0)
 AddSetting(name="GravitationY", default=0)
+
+
+if (Options$viscstep) {
+    AddSetting(name="ViscosityStepWidth", default=1)
+    AddSetting(name="IntWidth", comment='Viscous step width wrt interface width')
+} else {
+    AddSetting(name="IntWidth", default=0.333, comment='1/(PF interface width)')
+}
 
 AddSetting(name="GravitationX_l", default=0)
 AddSetting(name="GravitationY_l", default=0)
@@ -100,8 +127,16 @@ AddSetting(name="SurfaceTensionDecay", default=0.248)
 AddSetting(name="SurfaceTensionRate", default=0.1)
 AddSetting(name="WettingAngle", default=0, zonal=T)
 AddSetting(name="WallAdhesionDecay", default=0, zonal=T)
-
+AddSetting(name="S2", default="0", comment='MRT Sx')
+AddSetting(name="S3", default="0", comment='MRT Sx')
+AddSetting(name="S4", default="0", comment='MRT Sx')
 AddSetting(name="BrinkmanHeightInv", default=0, zonal=T)
+
+AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer in cumulant collision model')
+
+AddSetting(name="WallSmoothingMagic", default=0.12, comment="Wall normal smoothing parameter, higher - more smoothed")
+
+
 # Globals - table of global integrals that can be monitored and optimized
 
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
@@ -117,6 +152,11 @@ AddNodeType(name="WPressure",group="BOUNDARY")
 AddNodeType(name="EVelocity",group="BOUNDARY")
 AddNodeType(name="WVelocity",group="BOUNDARY")
 
+AddNodeType(name="NVelocity",group="BOUNDARY")
+AddNodeType(name="SVelocity",group="BOUNDARY")
 
 
+
+AddNodeType("Inlet","OBJECTIVE")
+AddNodeType("Outlet","OBJECTIVE")
  

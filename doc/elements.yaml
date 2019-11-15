@@ -1,4 +1,3 @@
-
 types:
   nodetypes:
     name: Node Type Brush
@@ -10,9 +9,7 @@ types:
       - name: mask
         val:
           select:
-            special: NodeTypeGroup
-          example:
-            ALL
+            - special: NodeTypeGroups
       - type: geom
   geom:
     name: Geometry Primitive
@@ -31,6 +28,7 @@ types:
       - name: Iterations
         val:
           unit: int
+        use: required
   setup:
     name: Setup Elements
   callback:
@@ -51,10 +49,32 @@ types:
       - name: output
         val:
           string: path
-          example: output/
+  clbconfig:
+    name: CLBConfig
+    attr:
+      - name: output
+        val:
+          string: path
+        use: required
+        default: output/
+  units:
+    name: units
+    children:
+      - type: params
   design:
     name: Optimization and Optimal Control
 
+CLBConfig:
+  type: clbconfig
+  children:
+    - type: units
+    - type: geometry
+    - type: action
+    - type: callback
+    - type: container
+    - type: params
+    - type: setup
+  
 
 Geometry:
   type: geometry
@@ -73,8 +93,8 @@ VTK:
       optional: true
       val:
         list:
-        - special: Quantities
-        - special: GeometryComponents
+          - special: Quantities
+          - special: NodeTypeGroups
       comment: List of Quantities and Geometry Components to export.
     - name: name
       val: 
@@ -90,8 +110,8 @@ HDF5:
       optional: true
       val:
         list:
-        - special: Quantities
-        - special: GeometryComponents
+          - special: Quantities
+          - special: NodeTypeGroups
       comment: List of Quantities and Geometry Components to export.
     - name: name
       val:
@@ -99,21 +119,15 @@ HDF5:
       comment: Name of the HDF5 and Xdmf file.
     - name: compress
       val: 
-        select:
-          - true
-          - false
+        bool:
       comment: Use ZLIB deflation filter to compress output
     - name: write_xdmf
       val: 
-        select:
-          - true
-          - false
+        bool:
       comment: Write Xdmf accompaning file describing the data for visualisation
     - name: point_data
       val:
-        select:
-          - true
-          - false
+        bool:
       comment: Write Xdmf that described the data as Point Data and not Cell Data
     - name: chunk
       val:
@@ -136,9 +150,7 @@ TXT:
       comment: Name of the TXT file. 
     - name: gzip
       val: 
-        select:
-          - Yes
-          - No
+        bool:
       comment: If to compress the TXT output
 
 Catalyst:
@@ -156,26 +168,12 @@ Catalyst:
       val: 
         string: file
       comment: Catalyst co-processing Python script
+      use: required
     - name: preprocess
       val:
-        select:
-          - yes
-          - no
-      default: yes
+        bool:
+      default: true
       comment: If active, the Python script will be modified so that the files will be placed in the output directory
-
-
-
-
-CLBConfig:
-  type: container
-  children:
-    - type: geometry
-    - type: action
-    - type: callback
-    - type: container
-    - type: params
-    - type: setup
 
 Log:
   type: callback
@@ -190,7 +188,7 @@ Stop:
   type: callback
   attr:
     - name:
-        special: Globals
+        - special: Globals
       val:
         numeric: float
       comment: Limit on change of a specific Global
@@ -199,20 +197,27 @@ Stop:
         numeric: int
       comment: Numer of times the change have to be below the limit to stop the computation.
 
-
 PID:
   comment: PID controller. Allows to achive a specified value of an Global, with tweaking of a Setting
   example: <PID Flux="10.0" control="ForceX" scale="0.01" DerivativeTime="100" IntegrationTime="10000" Iterations="10"/>
   type: callback
   attr:
-    - name:
-        special: Globals
+    - name: integral
       val:
-        numeric: float
+        select:
+        - special: Globals
       comment: Target value for a specified Global
+      use: required
     - name: control
       val:
-        special: Settings
+        select:
+          - special: Settings
+      comment: The setting to control (currently only zonal settings are supported)
+      use: required
+    - name: zone
+      val:
+        select:
+          - special: Zones
       comment: The setting to control (currently only zonal settings are supported)
     - name: scale
       val:
@@ -232,15 +237,11 @@ Sample:
   example: <Sample Iterations="1000" what="U,P" ><Point dx="10" dy="20"/></Sample>
   type: callback
   attr:
-    - name: Iterations
-      val:
-        numeric: int
-      comment: Iteration period after which the sampled data will be written to a file
     - name: what
       optional: true
       val:
         list:
-        - special: Quantities
+          - special: Quantities
       comment: List of Quantities to be sampled. By default all are sampled.
 
 Box:
@@ -259,6 +260,7 @@ Wedge:
         - UpperRight
         - BottomLeft
         - BottomRight
+      use: required
 
 STL:
   comment: >
@@ -273,6 +275,7 @@ STL:
       val:
         file: "*.stl"
       comment: STL file to import
+      use: required
     - name: side
       val:
         select:
@@ -280,25 +283,31 @@ STL:
         - in
         - surface
       comment: Specifies if to fill the interior (in), exterior (out), or the surface (see description)
+      default: in
     - name: ray_axis
       val:
         select:
-        - x
-        - y
-        - z
+        - "x"
+        - "y"
+        - "z"
       comment: Specifies the axis along which rays will be cast for in/out filling of STL
     - name: scale
       val:
         unit: float
       comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
-Params:
+
+Param:
   type:
     params
   attr:
-    - name:
-        special: Settings
+    - name: name
+      val:
+        select:
+          - special: Settings
+    - name: value
       val:
         unit: float
+      use: required
     - name: gauge
       val:
         unit: float
@@ -309,6 +318,8 @@ Model:
     - type: params
     - type: setup
 
+Units:
+  type: units
 
 Adjoint:
   type: action
@@ -354,15 +365,15 @@ Optimize:
         numeric: int
       comment: Maximal number of evalulations (optimizer iterations)
 
-
 OptimalControl:
   type: design
   attr:
     - name: what
       val:
         select:
-          special: SettingInZone
+          - special: SettingInZone
       comment: Select a time-dependent setting to optimize
+      use: required
 
 OptimalControlSecond:
   comment: >
@@ -375,7 +386,7 @@ OptimalControlSecond:
     - name: what
       val:
         select:
-          special: SettingInZone
+          - special: SettingInZone
       comment: Select a time-dependent setting to optimize
     - name: lower
       val:
@@ -424,9 +435,7 @@ BSpline:
       comment: Number of degrees of freedom (parameters) of the b-spline
     - name: periodic
       val:
-        select:
-          - yes
-          - no
+        bool:
       comment: If the b-spline should be periotic in the control period
     - name: lower
       val:
@@ -566,7 +575,7 @@ LoadBinary:
     - name: comp
       val:
         select:
-          special: Fields
+          - special: Fields
       comment: Field to load from the binary file
 
 SaveBinary:
@@ -584,9 +593,8 @@ SaveBinary:
     - name: comp
       val:
         select:
-          special: Fields
+          - special: Fields
       comment: Field to save to the binary file
-
 
 LoadMemoryDump:
   type: action
@@ -611,7 +619,6 @@ SaveMemoryDump:
       val:
         string: file
       comment: full path to the binary file
-
 
 EvalIf:
   type: action

@@ -41,18 +41,8 @@ int cbCatalyst::Init () {
                         return -1;
                 }
                 attr = node.attribute("preprocess");
-                int preprocess = 1;
-                if (attr) {
-                        std::string val = attr.value();
-                        if (val == "yes") {
-                                preprocess = 1;
-                        } else if (val == "no") {
-                                preprocess = 0;
-                        } else {
-                                error("Unknown preprocess value in Catalyst xml element: %s. Can be yes or no\n",val.c_str());
-                                return -1;
-                        }
-                }
+                bool preprocess = true;
+                if (attr) preprocess = attr.as_bool()
                 if (preprocess) {
                         char fn[STRING_LEN];
                         char short_nm[STRING_LEN];

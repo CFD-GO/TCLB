@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="128" ny="128" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="128" ny="128" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wall mask="ALL">
 			<Box dy="-1"/>
 			<Inlet/>
@@ -12,20 +14,19 @@
 		</MovingWall>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.0"/>
-		<Params InletDensity="1.00"/>
-		<Params nu="0.14"/>
-		<Params InitDensity="2.0"
-			WallDensity="2.0"
-			Temperature="0.7"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.66666666666666"
-			GravitationY="0.000"
-			GravitationX="0.0000"
-			MovingWallVelocity="0.03"
-		/>
+		<Param name="InletVelocity" value="0.0"/>
+		<Param name="InletDensity" value="1.00"/>
+		<Param name="nu" value="0.14"/>
+		<Param name="MovingWallVelocity" value="0.03"/>
+		<Param name="GravitationX" value="0.0000"/>
+		<Param name="GravitationY" value="0.000"/>
+		<Param name="MagicF" value="-0.66666666666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="Magic" value="0.01"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.7"/>
+		<Param name="WallDensity" value="2.0"/>
+		<Param name="InitDensity" value="2.0"/>
 	</Model>
 	<Solve Iterations="1000" output="output/">
 		<VTK Iterations="100"/>

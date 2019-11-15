@@ -1,27 +1,40 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="1024" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="1024" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WVelocity zone="Inlet"/>
 		<EPressure zone="Outlet"/>
-        	<Wall mask="ALL">
-			<Text file="example/karman.plb" nx="1000" ny="100"
-			nz="1"/>
+		<Wall mask="ALL">
+			<Text file="example/karman.plb" nx="1000" ny="100" nz="1"/>
 		</Wall>
-		<Inlet nx='1' dx='5'><Box/></Inlet>
-		<Outlet nx='1' dx='-5'><Box/></Outlet>
+		<Inlet nx="1" dx="5">
+			<Box/>
+		</Inlet>
+		<Outlet nx="1" dx="-5">
+			<Box/>
+		</Outlet>
 		<Wall zone="Channel" mask="ALL"/>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.01"/>
-		<Params InletDensity="1.03"/>
-		<Params nu="0.02"/>
-		<Params InletTemperature="1" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.01" EOSScale="0.05" PressDiffInObj="1"
-		InitDensity="1.0"
-		Temperature="0.95" FAcc="1" Magic="0.1" MagicA="1"
-		MagicF="0.1"/>
+		<Param name="InletVelocity" value="0.01"/>
+		<Param name="InletDensity" value="1.03"/>
+		<Param name="nu" value="0.02"/>
+		<Param name="MagicF" value="0.1"/>
+		<Param name="MagicA" value="1"/>
+		<Param name="Magic" value="0.1"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.95"/>
+		<Param name="InitDensity" value="1.0"/>
+		<Param name="PressDiffInObj" value="1"/>
+		<Param name="EOSScale" value="0.05"/>
+		<Param name="Tension" value="0.01"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="1"/>
 	</Model>
 	<Solve Iterations="1000" output="output/">
 		<VTK Iterations="100"/>

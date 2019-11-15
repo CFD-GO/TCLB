@@ -1,58 +1,46 @@
-<CLBConfig version="2.0" output="output/">
-        <Geometry nx="2560" ny="256" predef="none" model="MRT">
-        <MRT><Box/></MRT>
-        <None name="zdry">
-            <Box   dy="-200" dx="512" nx="1000"  />
-        </None>   
-        <Wall mask="ALL" name="zwall">
-                <Box dy="-3"/>
-                <Box dx="-512" dy="-200"/>
-                <Box nx="512" dy="-200"/>
-        </Wall>
-
-
-        <MovingWall mask="ALL">
-            <Box ny="1" />
-        </MovingWall>
-       
-
-
-        
-    </Geometry>
-
-
-    <Model>
-        <Params
-            Density="3.26"
-            Density-zdry=".026"
-            Density-zwall="1"
-            Temperature="0.56"
-            FAcc="1"
-            Magic="0.001" 
-            MagicA="-0.152" 
-            MagicF="-0.6666666666666" 
-            GravitationY="0.000000"
-            GravitationX="0.0"
-            MovingWallVelocity="0.005"
-            S0="0"
-            S1="0"
-            S2="0"
-            S3="-0.333333333"
-            S4="0"
-            S5="0"
-            S6="0"
-            S7="0."
-            S8="0"
-        />
-    </Model>
-
-
-
-    <Solve Iterations="1" output="output/"></Solve>
-    <VTK/>
-    <Solve Iterations="150000" output="output/">
-        <VTK Iterations="5000"/>
-    </Solve>
-
-
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="2560" ny="256" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="zdry">
+			<Box dy="-200" dx="512" nx="1000"/>
+		</None>
+		<Wall mask="ALL" name="zwall">
+			<Box dy="-3"/>
+			<Box dx="-512" dy="-200"/>
+			<Box nx="512" dy="-200"/>
+		</Wall>
+		<MovingWall mask="ALL">
+			<Box ny="1"/>
+		</MovingWall>
+	</Geometry>
+	<Model>
+		<Param name="S8" value="0"/>
+		<Param name="S7" value="0."/>
+		<Param name="S6" value="0"/>
+		<Param name="S5" value="0"/>
+		<Param name="S4" value="0"/>
+		<Param name="S3" value="-0.333333333"/>
+		<Param name="S2" value="0"/>
+		<Param name="S1" value="0"/>
+		<Param name="S0" value="0"/>
+		<Param name="MovingWallVelocity" value="0.005"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="GravitationY" value="0.000000"/>
+		<Param name="MagicF" value="-0.6666666666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="Magic" value="0.001"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.56"/>
+		<Param name="Density" value="1" zone="zwall"/>
+		<Param name="Density" value=".026" zone="zdry"/>
+		<Param name="Density" value="3.26"/>
+	</Model>
+	<Solve Iterations="1" output="output/"/>
+	<VTK/>
+	<Solve Iterations="150000" output="output/">
+		<VTK Iterations="5000"/>
+	</Solve>
 </CLBConfig>

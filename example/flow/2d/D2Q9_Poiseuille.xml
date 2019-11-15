@@ -1,20 +1,22 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Units>
-		<Params size="0.0005m" gauge="1"/>
-		<Params nu="1e-5m2/s" gauge="0.1666666666"/>
+		<Param name="size" value="0.0005m" gauge="1"/>
+		<Param name="nu" value="1e-5m2/s" gauge="0.1666666666"/>
 	</Units>
-        <Geometry nx="0.02m" ny="0.0105m">
-		<MRT><Box/></MRT>
+	<Geometry nx="0.02m" ny="0.0105m">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wall mask="ALL">
 			<Channel/>
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params Velocity="0.0"/>
-		<Params omega="1.0"/>
-		<Params GravitationX="0.000311634m/s2"/>
-		<Params Density="1000kg/m3"/>
+		<Param name="Velocity" value="0.0"/>
+		<Param name="omega" value="1.0"/>
+		<Param name="GravitationX" value="0.000311634m/s2"/>
+		<Param name="Density" value="1000kg/m3"/>
 	</Model>
 	<VTK/>
 	<VTK Iterations="50000"/>

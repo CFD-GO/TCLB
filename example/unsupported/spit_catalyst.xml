@@ -1,54 +1,57 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
-        <Geometry nx="512" ny="200" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="512" ny="200" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<None name="Wet">
-			<Box nx="20" dy="90" ny="20"/> 
+			<Box nx="20" dy="90" ny="20"/>
 		</None>
-		<WPressure name="Inlet"><Box nx="1"/></WPressure>
+		<WPressure name="Inlet">
+			<Box nx="1"/>
+		</WPressure>
 		<Wall mask="ALL" name="Walls">
 			<Wedge direction="UpperRight" dy="105" ny="5" nx="20"/>
 			<Wedge direction="LowerRight" dy="90" ny="5" nx="20"/>
-			<Box dx="-1"/> 
-			<Box nx="10" fy="90"/> 
+			<Box dx="-1"/>
+			<Box nx="10" fy="90"/>
 			<Box nx="10" dy="110"/>
 			<Channel/>
-		</Wall>  
+		</Wall>
 		<None>
-<!--			<Box nx="30" dy="-45" fy="-25"/>-->
+			<!--			<Box nx="30" dy="-45" fy="-25"/>-->
 		</None>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.0"/>
-		<Params Density-Inlet="1.00"/>
-		<Params nu="0.166666"/>
-		<Params Density="0.04"
-			Density-Walls="1.0"
-			Density-Wet="2.9"
-			Density-Inlet="3.4"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.02"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			MovingWallVelocity="0.1"
-			GravitationX="-0.0001"
-		/>
+		<Param name="InletVelocity" value="0.0"/>
+		<Param name="Density" value="1.00" zone="Inlet"/>
+		<Param name="nu" value="0.166666"/>
+		<Param name="GravitationX" value="-0.0001"/>
+		<Param name="MovingWallVelocity" value="0.1"/>
+		<Param name="MagicF" value="-0.6666666666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="Magic" value="0.02"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.65"/>
+		<Param name="Density" value="3.4" zone="Inlet"/>
+		<Param name="Density" value="2.9" zone="Wet"/>
+		<Param name="Density" value="1.0" zone="Walls"/>
+		<Param name="Density" value="0.04"/>
 	</Model>
 	<Catalyst script="example/feslicescript.py" Iterations="100"/>
 	<VTK Iterations="100"/>
-	<Params	Density-Inlet="2.9"/>
-	<Solve Iterations="500" />
-	<Params	Density-Inlet="3.4"/>
-	<Solve Iterations="300" />
-	<Params	Density-Inlet="2.9"/>
-	<Solve Iterations="1500" />
-	<Params	Density-Inlet="3.4"/>
-	<Solve Iterations="300" />
-	<Params	Density-Inlet="2.9"/>
-	<Solve Iterations="1500" />
-	<Params	Density-Inlet="3.4"/>
-	<Solve Iterations="300" />
-	<Params	Density-Inlet="2.9"/>
-	<Solve Iterations="2000" />
+	<Param name="Density" value="2.9" zone="Inlet"/>
+	<Solve Iterations="500"/>
+	<Param name="Density" value="3.4" zone="Inlet"/>
+	<Solve Iterations="300"/>
+	<Param name="Density" value="2.9" zone="Inlet"/>
+	<Solve Iterations="1500"/>
+	<Param name="Density" value="3.4" zone="Inlet"/>
+	<Solve Iterations="300"/>
+	<Param name="Density" value="2.9" zone="Inlet"/>
+	<Solve Iterations="1500"/>
+	<Param name="Density" value="3.4" zone="Inlet"/>
+	<Solve Iterations="300"/>
+	<Param name="Density" value="2.9" zone="Inlet"/>
+	<Solve Iterations="2000"/>
 </CLBConfig>

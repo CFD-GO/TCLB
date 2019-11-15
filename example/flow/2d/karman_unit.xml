@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Units>
-		<Params nu="0.001sPa" gauge="0.015"/>
-		<Params InletVelocity=".5cm/s" gauge="0.1"/>
-		<Params rho="1000kg/m3" gauge="1"/>
-	</Units>	
-        <Geometry nx="1m" ny="10cm+2">
+		<Param name="nu" value="0.001sPa" gauge="0.015"/>
+		<Param name="InletVelocity" value=".5cm/s" gauge="0.1"/>
+		<Param name="rho" value="1000kg/m3" gauge="1"/>
+	</Units>
+	<Geometry nx="1m" ny="10cm+2">
 		<MRT>
 			<Box/>
 		</MRT>
@@ -18,8 +18,8 @@
 		<Inlet>
 			<Box dx="5" nx="1"/>
 		</Inlet>
-        	<Wall mask="ALL">
-        		<Channel/>
+		<Wall mask="ALL">
+			<Channel/>
 			<Wedge dx="12cm" nx="2cm" dy="5cm+1" ny="2cm" direction="LowerRight"/>
 			<Wedge dx="12cm" nx="2cm" dy="3cm+1" ny="2cm" direction="UpperRight"/>
 			<Wedge dx="14cm" nx="2cm" dy="5cm+1" ny="2cm" direction="LowerLeft"/>
@@ -27,8 +27,10 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params PressDiffInObj="1" Gravity="0.66666666" Smag="0.16"/>
+		<Param name="Smag" value="0.16"/>
+		<Param name="Gravity" value="0.66666666"/>
+		<Param name="PressDiffInObj" value="1"/>
 	</Model>
-<!--	<VTK Iterations="1s"/> -->
+	<!--	<VTK Iterations="1s"/> -->
 	<Solve Iterations="10000s"/>
 </CLBConfig>

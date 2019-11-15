@@ -34,5 +34,8 @@ class CallPythonHelper:
         for y in range(shape[1]):
             Y[y,:] =  self.offsets[1] + y
         return X,Y
+    
+    def getTime(self):
+        return self.time
 
 

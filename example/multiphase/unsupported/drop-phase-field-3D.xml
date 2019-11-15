@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" version="2.0" permissive="true">
+	<Units>
+		<Param name="x" value="1m" gauge="128"/>
+	</Units>
+	<Geometry nx="1m" ny="1m" nz="1m">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="drop">
+			<Sphere dx="0.25m" dy="0.25m" dz="0.25m" nx="0.5m" ny="0.5m" nz="0.5m"/>
+		</None>
+		<None name="clean">
+			<Box dx="0.375m" nx="0.25m" ny="0.5m"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Param name="MagicA" value="100"/>
+		<Param name="Mobility" value="0.001"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="IntWidth" value=".33333333"/>
+		<Param name="Velocity" value="0.0"/>
+		<Param name="GravitationX_l" value="0.0"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="GravitationX_h" value="0.0"/>
+	</Model>
+	<Solve Iterations="6400">
+		<VTK Iterations="100"/>
+	</Solve>
+</CLBConfig>

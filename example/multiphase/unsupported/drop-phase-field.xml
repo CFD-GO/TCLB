@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" version="2.0" permissive="true">
+	<!--Created using CLBConfigWriter-->
+	<Geometry model="MRT" nx="256" ny="256" predef="none">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="drop">
+			<Sphere dx="64" dy="64" nx="128" ny="128"/>
+		</None>
+		<WPressure name="inlet">
+			<Inlet/>
+		</WPressure>
+		<EPressure name="inlet">
+			<Outlet/>
+		</EPressure>
+	</Geometry>
+	<Model>
+		<Param name="MagicA" value="100"/>
+		<Param name="Pressure" value=".0" zone="drop"/>
+		<Param name="M" value="0.1"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="-0.5" zone="inlet"/>
+		<Param name="W" value=".05"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="omega" value="1"/>
+		<Param name="MagicA" value="100"/>
+		<Param name="Fscale" value="0.001"/>
+		<Param name="omega_l" value="1"/>
+	</Model>
+	<Control Iterations="6000">
+		<CSV file="example/sin.csv" Time="x*1500">
+			<Param name="Pressure" value="Sin*0.00" zone="inlet"/>
+		</CSV>
+	</Control>
+	<Solve Iterations="6000">
+		<VTK Iterations="500"/>
+	</Solve>
+	<Control Iterations="1500">
+		<CSV file="example/sin.csv" Time="x*1500">
+			<Param name="Pressure" value="Sin*0.001" zone="inlet"/>
+		</CSV>
+	</Control>
+	<Solve Iterations="1500">
+		<VTK Iterations="25"/>
+	</Solve>
+	<Control Iterations="1500">
+		<CSV file="example/sin.csv" Time="x*1500">
+			<Param name="Pressure" value="Sin*0.00" zone="inlet"/>
+		</CSV>
+	</Control>
+	<Solve Iterations="80000">
+		<VTK Iterations="50"/>
+	</Solve>
+</CLBConfig>

@@ -1,20 +1,19 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
-        <Geometry nx="1920" ny="192" predef="none" model="MRT">
-		<MRT><Box/></MRT>
-	<!--	<WPressure><Box nx="1"/></WPressure>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="1920" ny="192" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
+		<!--	<WPressure><Box nx="1"/></WPressure>
 		<EPressure><Box dx="-1"/></EPressure>-->
-
 		<Wet>
 			<Box dy="-95"/>
 		</Wet>
-
-
 		<Zone name="UpperWall" dy="96">
-		        <Box fx="480"/>
-                <Box dx="1440"/>
-                <Box dy="-1"/>
-        </Zone>
+			<Box fx="480"/>
+			<Box dx="1440"/>
+			<Box dy="-1"/>
+		</Zone>
 		<Wall mask="ALL">
 			<Box dy="-1"/>
 			<UpperWall/>
@@ -24,36 +23,30 @@
 		</MovingWall>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.05"/>
-		<Params InletDensity="3.258"/>
-		<Params omega="0.916918604084"/>
-		<Params InitDensity="3.258"
-			WallDensity="2.5"
-			OutletDensity="3.258"
-			InletDensity="3.258"
-			Temperature="0.56"
-			WetDensity="0.1"
-			FAcc="1"
-			Magic="0.005"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			GravitationY="0.0"
-			GravitationX="0.0"
-			MovingWallVelocity="0.00357945058753"
-		/>
+		<Param name="InletVelocity" value="0.05"/>
+		<Param name="InletDensity" value="3.258"/>
+		<Param name="omega" value="0.916918604084"/>
+		<Param name="MovingWallVelocity" value="0.00357945058753"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="MagicF" value="-0.6666666666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="Magic" value="0.005"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="WetDensity" value="0.1"/>
+		<Param name="Temperature" value="0.56"/>
+		<Param name="InletDensity" value="3.258"/>
+		<Param name="OutletDensity" value="3.258"/>
+		<Param name="WallDensity" value="2.5"/>
+		<Param name="InitDensity" value="3.258"/>
 	</Model>
-
-	<Solve Iterations="1" output="output/"></Solve>
+	<Solve Iterations="1" output="output/"/>
 	<VTK/>
-
-
-	<Params Wetting="0"/>
-	<Solve Iterations="1000" output="output/"></Solve>
-
-	<Params Wetting="0.8"/>
+	<Param name="Wetting" value="0"/>
+	<Solve Iterations="1000" output="output/"/>
+	<Param name="Wetting" value="0.8"/>
 	<Solve Iterations="1000000" output="output/">
 		<Log Iterations="500"/>
 		<VTK Iterations="2000"/>
 	</Solve>
-
 </CLBConfig>

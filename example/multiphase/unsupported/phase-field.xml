@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="128" ny="128">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="disc">
+			<Sphere ny="64" nx="64" dx="32" dy="32"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="0.5" zone="disc"/>
+		<Param name="W" value="0.33333"/>
+		<Param name="M" value="0.001"/>
+		<Param name="Velocity" value="0.01"/>
+	</Model>
+	<VTK/>
+	<Solve Iterations="30000" output="output/">
+		<VTK Iterations="100"/>
+	</Solve>
+</CLBConfig>

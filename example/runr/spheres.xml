@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
-        <Geometry nx="512" ny="256">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="512" ny="256">
+		<MRT>
+			<Box/>
+		</MRT>
 	</Geometry>
 	<RunR>
 		rad = 20
@@ -12,14 +14,14 @@
 		sel = rep(FALSE, length(X))
 		for (i in 1:nrow(tab)) {
 			R = sqrt((X - tab$x[i]) ^ 2 + (Y - tab$y[i]) ^ 2)
-			sel = sel |  (rad > R)
+			sel = sel |  (rad &gt; R)
 		}
 		Solver$Geometry$BOUNDARY[sel] = "Wall"
 		Solver$Geometry$COLLISION[sel] = "None"
 	</RunR>
 	<Model>
-		<Params VelocityX="0.0"/>
-		<Params Viscosity="0.02"/>
+		<Param name="VelocityX" value="0.0"/>
+		<Param name="Viscosity" value="0.02"/>
 	</Model>
 	<RunR>
 		Fx = rep(0, length(X))

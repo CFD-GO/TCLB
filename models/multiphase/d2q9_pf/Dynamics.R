@@ -27,6 +27,50 @@ AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
 
+
+if (Options$no_bc == FALSE) {
+    # If present they are used:
+    # As VelocityX/Y for Boundary conditions
+    # As mass force (+ GravitationX/Y) in fluid
+    # If OverwriteVelocityField==1, this will be used to overwrite velocity
+
+    AddDensity( name="BC[0]", group="BC", parameter=TRUE)
+    AddDensity( name="BC[1]", group="BC", parameter=TRUE)
+
+}
+
+if (Options$fd) {
+    AddField("phi"      ,stencil2d=1 );
+
+    AddStage("BaseIteration", "Run", 
+             load=DensityAll$group == "h" | DensityAll$group == "f" | DensityAll$group == "BC",
+             save=Fields$group=="h" | Fields$group=="f"  
+         ) 
+    AddStage("CalcPhi", 
+             save=Fields$name=="phi" ,  
+             load=DensityAll$group == "h"
+         )
+    AddStage("BaseInit", "Init",  
+	    load=DensityAll$group == "BC",
+        save=Fields$group=="h" | Fields$group == "f" 
+ 
+    )
+    AddAction("Iteration", c("BaseIteration","CalcPhi"))
+    AddAction("Init", c("BaseInit","CalcPhi"))
+
+}
+# Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
+#  name - name of the field
+#  type - C type of the field, "real_t" - for single/double float, and "vector_t" for 3D vector single/double float
+# Every field must correspond to a function in "Dynamics.c".
+# If one have filed [something] with type [type], one have to define a function: 
+# [type] get[something]() { return ...; }
+
+AddQuantity(name="Rho",unit="kg/m3")
+AddQuantity(name="U",unit="m/s",vector=T)
+
+AddQuantity(name="DEBUG",vector=T)
+
 AddQuantity(name="Normal",unit="1/m",vector=T)
 AddQuantity(name="PhaseField",unit="1")
 
@@ -41,31 +85,9 @@ AddSetting(name="PhaseField",
 
 
 AddSetting(name="OverwriteVelocityField", default="0")
+AddSetting(name="PF_Advection_Switch", default=1., comment='Parameter to turn on/off advection of phase field - usefull for initialisation')
+
 #########################################################
-
-
-# THIS QUANTITIES ARE NEEDED FOR PYTHON INTEGRATION EXAMPLE
-# COMMENT OUT FOR PERFORMANCE
-# If present thei are used:
-# As VelocityX/Y for Boundary conditions
-# As mass force (+ GravitationX/Y) in fluid
-# If OverwriteVelocityField==1, this will be used to overwrite velocity
-AddDensity( name="BC[0]", group="BC", parameter=TRUE)
-AddDensity( name="BC[1]", group="BC", parameter=TRUE)
-
-
-
-
-
-# Quantities - table of fields that can be exported from the LB lattice (like density, velocity etc)
-#  name - name of the field
-#  type - C type of the field, "real_t" - for single/double float, and "vector_t" for 3D vector single/double float
-# Every field must correspond to a function in "Dynamics.c".
-# If one have filed [something] with type [type], one have to define a function: 
-# [type] get[something]() { return ...; }
-
-AddQuantity(name="Rho",unit="kg/m3")
-AddQuantity(name="U",unit="m/s",vector=T)
 
 
 
