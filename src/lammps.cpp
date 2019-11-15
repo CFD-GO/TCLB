@@ -92,9 +92,9 @@ int main(int argc, char *argv[])
      if (MPMD.local_rank == 0) {
       fprintf(stdout,"LAMMPS> %s",line); fflush(stdout);
      }
-     
+
      lammps_command(lmp,line);
-     
+
      if (match_pattern(line, " fix tclb * external")) {
        printf("LAMMPS: Added fix tclb external! (%s) Adding callback.\n", line);
        MPMDIntercomm inter = MPMD["TCLB"];
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
        printf("ifix: %d\n",ifix);
        FixExternal *fix = (FixExternal *) lmp->modify->fix[ifix];
        printf("fix: %p\n",fix);
-       
+
        info.MPMD = &MPMD;
        info.memory = NULL;
        info.lmp = lmp;
@@ -121,9 +121,9 @@ int main(int argc, char *argv[])
        fix->set_callback(quest_callback,&info);
      }
    }
-   
+
    lammps_close(lmp);
-   if (RFI.Connected()) {   
+   if (RFI.Connected()) {
     RFI.Close();
     MPI_Finalize();
    }
@@ -135,7 +135,7 @@ void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x
 {
    Info *info = (Info *) ptr;
    if (! info->RFI->Active()) return;
-   
+
    double ** v = info->lmp->atom->v;
    double ** x = info->lmp->atom->x;
    double * r = info->lmp->atom->radius;
@@ -146,7 +146,7 @@ void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x
     } else {
      for (int i = 0; i < info->RFI->Workers(); i++) info->windex[i] = 0;
     }
-    
+
     for (size_t k = 0; k < nlocal; k++) {
      if (phase == 2) {
       f[k][0] = 0;
@@ -154,26 +154,42 @@ void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x
       f[k][2] = 0;
      }
      int minper[3], maxper[3], d[3];
-     for (int j=0; j<3; j++) {
-      if (info->lmp->domain->periodicity[j]) {
-        maxper[j] = floor((x[k][j] + r[k]) / info->lmp->domain->prd[j]);
-        minper[j] = floor((x[k][j] - r[k]) / info->lmp->domain->prd[j]);
-      } else { minper[j] = 0; maxper[j] = 0; }
-     }
-     int copies = (maxper[0]-minper[0]+1)*(maxper[1]-minper[1]+1)*(maxper[2]-minper[2]+1);
-//     if (copies > 1) printf("particle %ld is copied %d times (%d %d)x(%d %d)x(%d %d)\n", k, copies, minper[0], maxper[0], minper[1], maxper[1], minper[2], maxper[2]);
-     for (d[0]=minper[0]; d[0]<=maxper[0]; d[0]++) {
-      for (d[1]=minper[1]; d[1]<=maxper[1]; d[1]++) {
-       for (d[2]=minper[2]; d[2]<=maxper[2]; d[2]++) {
-        double px[3];
-        for (int j=0; j<3; j++) px[j] = x[k][j] - d[j] * info->lmp->domain->prd[j];
-        size_t offset = 0;
-        for (int worker = 0; worker < info->RFI->Workers(); worker++) {
+     size_t offset = 0;
+     for (int worker = 0; worker < info->RFI->Workers(); worker++) {
+      for (int j=0; j<3; j++) {
+       double prd = info->lmp->domain->prd[j];
+       double lower = 0;
+       double upper = info->lmp->domain->prd[j];
+       if (info->RFI->WorkerBox(worker).declared) {
+         lower = info->RFI->WorkerBox(worker).lower[j];
+         upper = info->RFI->WorkerBox(worker).upper[j];
+       }
+       if (info->lmp->domain->periodicity[j]) {
+         maxper[j] = floor((upper - x[k][j] + r[k]) / prd);
+         minper[j] =  ceil((lower - x[k][j] - r[k]) / prd);
+       } else {
+         if ((x[k][j] + r[k] >= lower) && (x[k][j] - r[k] <= upper)) {
+           minper[j] = 0; maxper[j] = 0;
+         } else {
+           minper[j] = 0; maxper[j] = -1; // no balls
+         }
+       }
+//       printf("particle %ld dimenstion %d in %d worker interval [%lg %lg] and periodicity %lg: %lg copied %d:%d\n", k, j, worker, lower, upper, prd, x[k][j], minper[j], maxper[j]);
+      }
+      
+      int copies = (maxper[0]-minper[0]+1)*(maxper[1]-minper[1]+1)*(maxper[2]-minper[2]+1);
+ //     if (copies > 1) printf("particle %ld is copied %d times (%d %d)x(%d %d)x(%d %d)\n", k, copies, minper[0], maxper[0], minper[1], maxper[1], minper[2], maxper[2]);
+      for (d[0]=minper[0]; d[0]<=maxper[0]; d[0]++) {
+       for (d[1]=minper[1]; d[1]<=maxper[1]; d[1]++) {
+        for (d[2]=minper[2]; d[2]<=maxper[2]; d[2]++) {
+         double px[3];
+         for (int j=0; j<3; j++) px[j] = x[k][j] + d[j] * info->lmp->domain->prd[j];
          if (phase == 0) {
           info->wsize[worker]++;
          } else {
           size_t i = offset + info->windex[worker];
           if (phase == 1) {
+           //printf("particle %ld sent %d at index %ld\n", k, worker, i);
            info->RFI->setData(i, RFI_DATA_R,      r[k]);
            info->RFI->setData(i, RFI_DATA_POS+0,  px[0]);
            info->RFI->setData(i, RFI_DATA_POS+1,  px[1]);
@@ -185,25 +201,27 @@ void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x
             info->RFI->setData(i, RFI_DATA_ANGVEL+0,  0.0);
             info->RFI->setData(i, RFI_DATA_ANGVEL+1,  0.0);
             info->RFI->setData(i, RFI_DATA_ANGVEL+2,  0.0);
-           }         
+           }
           } else {
            f[k][0] += info->RFI->getData(i, RFI_DATA_FORCE+0);
            f[k][1] += info->RFI->getData(i, RFI_DATA_FORCE+1);
            f[k][2] += info->RFI->getData(i, RFI_DATA_FORCE+2);
           }
           info->windex[worker]++;
-          offset += info->wsize[worker];
          }
         }
        }
       }
+      offset += info->wsize[worker];
      }
     }
     if (phase == 0) {
      for (int worker = 0; worker < info->RFI->Workers(); worker++) info->RFI->Size(worker) = info->wsize[worker];
+     //printf("sizes:"); for (int worker = 0; worker < info->RFI->Workers(); worker++) printf(" %ld", (size_t) info->wsize[worker]); printf("\n");
      info->RFI->SendSizes();
      info->RFI->Alloc();
     } else if (phase == 1) {
+     //printf("indexes:"); for (int worker = 0; worker < info->RFI->Workers(); worker++) printf(" %ld", (size_t) info->windex[worker]); printf("\n");
      info->RFI->SendParticles();
      info->RFI->SendForces();
     } else {

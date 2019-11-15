@@ -94,6 +94,7 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::RemoteForceInterface() 
    stats_iter = 0;
    kill_flag = 666;
    alreadyKilledEverybody = false;
+   myBox.declared = false;
    if (TYPE == ForceIntegrator) {
      name = "ForceIntegrator";
    } else if (TYPE == ForceCalculator) {
@@ -382,13 +383,11 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Negotiate() {
     stats_iter = other_stats_iter;
   }
 
-
-
   if (stats) {
     allocStats();
     output("RFI: %s: Decided to calculate with statistics\n",name.c_str());
   }
-  
+
   MPI_Barrier(intercomm);
   output("RFI: %s: Finished negotiations\n",name.c_str());
   MPI_Barrier(intercomm);
@@ -441,8 +440,23 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Connect(MPI_Comm co
        death_i++;
      }
    }
+   ExchangeBoxes();
    return 0;
 }
+
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::ExchangeBoxes() {
+  std::vector< MPI_Request > reqs;
+  MPI_Request req;
+  workerBoxes.resize(workers);
+  for (int i = 0; i < workers; i++) {
+    MPI_Isend(&myBox,          sizeof(Box), MPI_BYTE, i, 0xC0, intercomm, &req);
+    MPI_Irecv(&workerBoxes[i], sizeof(Box), MPI_BYTE, i, 0xC0, intercomm, &req);
+    reqs.push_back(req);
+  }
+  WaitAll(reqs);
+}
+
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
 void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::Alloc() {
@@ -662,7 +676,19 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::SendParticles() {
     debug1("RFI: %s: } // SendParticles\n", name.c_str());
 }
 
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t >
+void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t >::DeclareSimpleBox(rfi_real_t x0, rfi_real_t x1, rfi_real_t y0, rfi_real_t y1, rfi_real_t z0, rfi_real_t z1) {
+  myBox.declared = true;
+  myBox.lower[0] = x0 / base_units[0];
+  myBox.lower[1] = y0 / base_units[0];
+  myBox.lower[2] = z0 / base_units[0];
+  myBox.upper[0] = x1 / base_units[0];
+  myBox.upper[1] = y1 / base_units[0];
+  myBox.upper[2] = z1 / base_units[0];
+}
+
 };
+
 
 #ifdef RFI_DEF_ERROR
  #undef ERROR

@@ -51,7 +51,15 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
                 return -1;
         }
         integrator = integrator_;
+
+        bool use_box = true;
+        attr = node.attribute("use_box");
+        if (attr) use_box = attr.as_bool();
         
+        if (use_box) {
+          lbRegion reg = solver->lattice->region;
+          solver->lattice->RFI.DeclareSimpleBox(reg.dx, reg.dx+reg.nx, reg.dy, reg.dy+reg.ny, reg.dz, reg.dz+reg.nz);
+        }
         MPI_Barrier(MPMD.local);
         solver->lattice->RFI.Connect(MPMD.work,inter.work);
         

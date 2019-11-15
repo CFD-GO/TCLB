@@ -47,6 +47,12 @@ enum rfi_storage_t {
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE = ArrayOfStructures, typename rfi_real_t = double >
 class RemoteForceInterface {
+public:
+  struct Box {
+    bool declared;
+    rfi_real_t lower[3];
+    rfi_real_t upper[3];
+  };
 private:
   int world_size; ///< Size of current program world
   int universe_size; ///< Size of the universe (both integrated programs)
@@ -101,12 +107,13 @@ private:
   void WaitForDeath();
   void KillEverybody();
   bool alreadyKilledEverybody;
+  Box myBox;
+  std::vector<Box> workerBoxes;
 public:
   int particle_size;
   std::string name;
   RemoteForceInterface();
   ~RemoteForceInterface();
-
   void MakeTypes(bool,bool);  
   int Connect(MPI_Comm comm_, MPI_Comm intercomm_);
   void Alloc();  
@@ -120,9 +127,12 @@ public:
   void SendParticles();
   void SendForces();
   void Close();
+  void DeclareSimpleBox(rfi_real_t x0, rfi_real_t x1, rfi_real_t y0, rfi_real_t y1, rfi_real_t z0, rfi_real_t z1);
+  void ExchangeBoxes();
   inline bool Active() { return active; }
   inline bool Connected() { return connected; }
   inline int Workers() { return workers; }
+  inline const Box& WorkerBox(const int i) { return workerBoxes[i]; }
   inline size_t& Size(int i) { return sizes[i]; }
   inline bool Rot() { return rot; }
   void enableStats(const char * filename, int iter);

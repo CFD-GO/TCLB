@@ -33,7 +33,7 @@ tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
         elem.right = nr[ind];
     } else {
         tr_real_t sum=0.0;
-        tr_real_t max_span=0;;
+        tr_real_t max_span=-1;
         int dir = 0;
         for (int ndir =0; ndir < 3; ndir++) {
             tr_real_t nsum = 0;
@@ -55,6 +55,9 @@ tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
         tr_real_t v_max, v_min, v0, v1;
 //        printf("in dir %d: %lg %lg \n", dir, sum, max_span);
         int d = half(ind, n, dir, sum);
+        if (!(ind < d)) {
+            printf("Something is wrong in ball tree build: %d = half(%d, %d, %d, %lg); // max_span = %lg\n", d, ind, n, dir, sum, max_span);
+        }
         assert(ind<d);
         assert(d<n);
         {
