@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig output="output/" version="2.0">
+<CLBConfig output="output/" version="2.0" permissive="true">
 	<!--Created using CLBConfigWriter-->
 	<Geometry model="MRT" nx="256" ny="256" predef="none">
 		<MRT>
@@ -16,24 +16,24 @@
 		</EPressure>
 	</Geometry>
 	<Model>
-		<Params MagicA="100"/>
-		<Params Pressure-drop=".0"/>
-		<Params M="0.1"/>
-		<Params PhaseField="-0.5"/>
-		<Params PhaseField-inlet="-0.5"/>
-		<Params W=".05"/>
-		<Params Velocity="0."/>
-		<Params GravitationX="0.0"/>
-		<Params PhaseField-drop="0.5"/>
-		<Params GravitationX="0.0"/>
-		<Params omega="1"/>
-		<Params MagicA="100"/>
-		<Params Fscale="0.001"/>
-		<Params omega_l="1"/>
+		<Param name="MagicA" value="100"/>
+		<Param name="Pressure" value=".0" zone="drop"/>
+		<Param name="M" value="0.1"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="-0.5" zone="inlet"/>
+		<Param name="W" value=".05"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="omega" value="1"/>
+		<Param name="MagicA" value="100"/>
+		<Param name="Fscale" value="0.001"/>
+		<Param name="omega_l" value="1"/>
 	</Model>
 	<Control Iterations="6000">
 		<CSV file="example/sin.csv" Time="x*1500">
-			<Params Pressure-inlet="Sin*0.00"/>
+			<Param name="Pressure" value="Sin*0.00" zone="inlet"/>
 		</CSV>
 	</Control>
 	<Solve Iterations="6000">
@@ -41,7 +41,7 @@
 	</Solve>
 	<Control Iterations="1500">
 		<CSV file="example/sin.csv" Time="x*1500">
-			<Params Pressure-inlet="Sin*0.001"/>
+			<Param name="Pressure" value="Sin*0.001" zone="inlet"/>
 		</CSV>
 	</Control>
 	<Solve Iterations="1500">
@@ -49,7 +49,7 @@
 	</Solve>
 	<Control Iterations="1500">
 		<CSV file="example/sin.csv" Time="x*1500">
-			<Params Pressure-inlet="Sin*0.00"/>
+			<Param name="Pressure" value="Sin*0.00" zone="inlet"/>
 		</CSV>
 	</Control>
 	<Solve Iterations="80000">

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
+<CLBConfig version="2.0" permissive="true">
 	<Geometry ny="128" nx="256" predef="none" model="MRT">
 		<MRT>
 			<Box/>
@@ -16,8 +16,9 @@
 		</WPressure>
 	</Geometry>
 	<Model>
-		<Params nu="0.16666666666"/>
-		<Params Density-inlet="1.000001" Density-outlet="1."/>
+		<Param name="nu" value="0.16666666666"/>
+		<Param name="Density" value="1." zone="outlet"/>
+		<Param name="Density" value="1.000001" zone="inlet"/>
 	</Model>
 	<!--
      module.py must be in pythonpath

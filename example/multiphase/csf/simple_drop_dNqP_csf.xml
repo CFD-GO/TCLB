@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig output="output/" version="2.0">
+<CLBConfig output="output/" version="2.0" permissive="true">
 	<!--
      
 This sample is intended to work with:
@@ -21,22 +21,22 @@ models.
     -->
 	</Geometry>
 	<Model>
-		<Params Pressure=".0"/>
-		<Params Mobility="0.1"/>
-		<Params PhaseField="-0.5"/>
-		<Params PhaseField-drop="0.5"/>
-		<Params IntWidth=".05"/>
-		<Params Velocity="0."/>
-		<Params GravitationX="0.0"/>
-		<Params GravitationY="0.0"/>
-		<Params Viscosity="1"/>
-		<Params Viscosity_l="1"/>
-		<Params SurfaceTensionDecay="0.248"/>
-		<Params SurfaceTensionRate="0.0"/>
-		<Params WettingAngle="0"/>
-		<Params WallAdhesionDecay="0"/>
-		<Params BrinkmanHeightInv="0"/>
-		<Params PF_Advection_Switch="0"/>
+		<Param name="Pressure" value=".0"/>
+		<Param name="Mobility" value="0.1"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="IntWidth" value=".05"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="Viscosity" value="1"/>
+		<Param name="Viscosity_l" value="1"/>
+		<Param name="SurfaceTensionDecay" value="0.248"/>
+		<Param name="SurfaceTensionRate" value="0.0"/>
+		<Param name="WettingAngle" value="0"/>
+		<Param name="WallAdhesionDecay" value="0"/>
+		<Param name="BrinkmanHeightInv" value="0"/>
+		<Param name="PF_Advection_Switch" value="0"/>
 	</Model>
 	<Solve Iterations="1500">
 		<VTK Iterations="250"/>

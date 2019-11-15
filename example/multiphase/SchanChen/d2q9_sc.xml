@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig output="output/">
+<CLBConfig output="output/" permissive="true">
 	<Geometry nx="128" ny="128">
 		<MRT>
 			<Box/>
@@ -16,11 +16,11 @@
 		</None>
 	</Geometry>
 	<Model>
-		<Params Density="0.056"/>
-		<Params Density-blobb="2.659"/>
-		<Params G_ff="-6.0"/>
-		<Params G_sf="-2.7"/>
-		<Params viscosity="0.166"/>
+		<Param name="Density" value="0.056"/>
+		<Param name="Density" value="2.659" zone="blobb"/>
+		<Param name="G_ff" value="-6.0"/>
+		<Param name="G_sf" value="-2.7"/>
+		<Param name="viscosity" value="0.166"/>
 		<!-- <Params GravitationY="-1e-5"/> -->
 	</Model>
 	<Solve Iterations="100" output="output/">

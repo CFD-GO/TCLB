@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="200" ny="200">
 		<MRT>
 			<Box/>
@@ -9,9 +9,24 @@
 		</None>
 	</Geometry>
 	<Model>
-		<Params Density_h="1" Density_l="0.001" PhaseField_h="1.0" PhaseField_l="0.0" PhaseField="1.0" PhaseField-disc="0.0"/>
-		<Params W="4" M="1" sigma="0.000001"/>
-		<Params omega_l="33.33333" omega_h="0.33333" S0="1.0" S1="1.0" S2="1.0" S3="1.0" S4="1.0" S5="1.0" S6="1.0"/>
+		<Param name="PhaseField" value="0.0" zone="disc"/>
+		<Param name="PhaseField" value="1.0"/>
+		<Param name="PhaseField_l" value="0.0"/>
+		<Param name="PhaseField_h" value="1.0"/>
+		<Param name="Density_l" value="0.001"/>
+		<Param name="Density_h" value="1"/>
+		<Param name="sigma" value="0.000001"/>
+		<Param name="M" value="1"/>
+		<Param name="W" value="4"/>
+		<Param name="S6" value="1.0"/>
+		<Param name="S5" value="1.0"/>
+		<Param name="S4" value="1.0"/>
+		<Param name="S3" value="1.0"/>
+		<Param name="S2" value="1.0"/>
+		<Param name="S1" value="1.0"/>
+		<Param name="S0" value="1.0"/>
+		<Param name="omega_h" value="0.33333"/>
+		<Param name="omega_l" value="33.33333"/>
 	</Model>
 	<VTK/>
 	<Solve Iterations="50000" output="output/">

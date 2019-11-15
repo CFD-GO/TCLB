@@ -5,13 +5,13 @@
 	D = 0.5 m
 	Re = 7853
 -->
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Units>
-		<Params Velocity="2m/s" gauge="0.04"/>
-		<Params nu="0.0002m2/s" gauge="0.001"/>
-		<Params D="1y" gauge="0.3m"/>
-		<Params L="1x" gauge="1m"/>
-		<Params U="1z" gauge="5m"/>
+		<Param name="Velocity" value="2m/s" gauge="0.04"/>
+		<Param name="nu" value="0.0002m2/s" gauge="0.001"/>
+		<Param name="D" value="1y" gauge="0.3m"/>
+		<Param name="L" value="1x" gauge="1m"/>
+		<Param name="U" value="1z" gauge="5m"/>
 	</Units>
 	<Geometry nx="2m" ny="2m">
 		<MRT>
@@ -25,16 +25,20 @@
 	</Geometry>
 	<Model>
 		<!-- Smagorynsky constant for LES -->
-		<Params Smag="0.16"/>
+		<Param name="Smag" value="0.16"/>
 		<!-- Main flow velocity -->
-		<Params Velocity="0"/>
+		<Param name="Velocity" value="0"/>
 		<!-- Flaping plate geometry -->
-		<Params PDX="0.5m" PDY="0.1m" PX="1m" PY="1m" PR="0.0"/>
+		<Param name="PR" value="0.0"/>
+		<Param name="PY" value="1m"/>
+		<Param name="PX" value="1m"/>
+		<Param name="PDY" value="0.1m"/>
+		<Param name="PDX" value="0.5m"/>
 		<!-- Movement of the plate -->
 		<Control Iterations="1s">
 			<CSV file="example/sin.csv" Time="x*1s">
-				<Params PY="Sin*0.5m+1m"/>
-				<Params PR="Cos*2+1"/>
+				<Param name="PY" value="Sin*0.5m+1m"/>
+				<Param name="PR" value="Cos*2+1"/>
 			</CSV>
 		</Control>
 	</Model>

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="1024" ny="128">
 		<MRT>
 			<Box/>
@@ -21,9 +21,9 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params VelocityX="0.025"/>
-		<Params Viscosity="0.01"/>
-		<Params GravitationX="-0.00"/>
+		<Param name="VelocityX" value="0.025"/>
+		<Param name="Viscosity" value="0.01"/>
+		<Param name="GravitationX" value="-0.00"/>
 		<ESYSParticle Iterations="100000" particle="NRotSphere" periodic="x">
 import random
 from math import pi

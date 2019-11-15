@@ -13,12 +13,11 @@ int cbTXT::Init () {
                 } else {
                         s.add_from_string("all",',');
                 }
-		txt_type = 0;
+		gzip = false;
 		attr = node.attribute("gzip");
-		if (attr) {
-		        txt_type = 1;
-                } else {
-                }
+		if (attr) gzip = attr.as_bool();
+		txt_type = 0;
+		if (gzip) txt_type = 1;
 		return 0;
 	}
 

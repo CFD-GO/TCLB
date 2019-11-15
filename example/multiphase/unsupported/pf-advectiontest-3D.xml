@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<CLBConfig output="output/" version="2.0">
+<CLBConfig output="output/" version="2.0" permissive="true">
 	<Units>
-		<Params x="1m" gauge="128"/>
+		<Param name="x" value="1m" gauge="128"/>
 	</Units>
 	<Geometry nx="1m" ny="0.5m" nz="0.5m">
 		<MRT>
@@ -21,23 +21,23 @@
     </None>-->
 	</Geometry>
 	<Model>
-		<Params Mobility="0.01"/>
-		<Params PhaseField="-0.5"/>
-		<Params IntWidth="0.125"/>
-		<Params PhaseField-drop="0.5"/>
-		<Params PhaseField-drop2="0.5"/>
-		<Params Velocity="0.00"/>
-		<Params Velocity-drop2="-0.005"/>
-		<Params SurfaceTensionRate="0.00"/>
-		<Params SurfaceTensionDecay="0.24"/>
-		<Params omega_l="1"/>
-		<Params omega_h="1"/>
+		<Param name="Mobility" value="0.01"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="IntWidth" value="0.125"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="PhaseField" value="0.5" zone="drop2"/>
+		<Param name="Velocity" value="0.00"/>
+		<Param name="Velocity" value="-0.005" zone="drop2"/>
+		<Param name="SurfaceTensionRate" value="0.00"/>
+		<Param name="SurfaceTensionDecay" value="0.24"/>
+		<Param name="omega_l" value="1"/>
+		<Param name="omega_h" value="1"/>
 	</Model>
 	<VTK/>
 	<Solve Iterations="8000">
 		<VTK Iterations="2000"/>
 	</Solve>
-	<Params SurfaceTensionRate="0.0001"/>
+	<Param name="SurfaceTensionRate" value="0.0001"/>
 	<Solve Iterations="200000">
 		<VTK Iterations="2500"/>
 	</Solve>

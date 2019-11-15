@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<CLBConfig output="output/" version="2.0">
+<CLBConfig output="output/" version="2.0" permissive="true">
 	<Units>
-		<Params x="1m" gauge="128"/>
+		<Param name="x" value="1m" gauge="128"/>
 	</Units>
 	<Geometry nx="1m" ny="1m" nz="1m">
 		<MRT>
@@ -15,14 +15,14 @@
 		</None>
 	</Geometry>
 	<Model>
-		<Params MagicA="100"/>
-		<Params Mobility="0.001"/>
-		<Params PhaseField="-0.5"/>
-		<Params IntWidth=".33333333"/>
-		<Params Velocity="0.0"/>
-		<Params GravitationX_l="0.0"/>
-		<Params PhaseField-drop="0.5"/>
-		<Params GravitationX_h="0.0"/>
+		<Param name="MagicA" value="100"/>
+		<Param name="Mobility" value="0.001"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="IntWidth" value=".33333333"/>
+		<Param name="Velocity" value="0.0"/>
+		<Param name="GravitationX_l" value="0.0"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="GravitationX_h" value="0.0"/>
 	</Model>
 	<Solve Iterations="6400">
 		<VTK Iterations="100"/>
