@@ -27,6 +27,7 @@
 
 #include "Solver.h"
 #include "xpath_modification.h"
+#include "mpitools.hpp"
 
 // Reads units from configure file and applies them to the solver
 int readUnits(pugi::xml_node config, Solver* solver) {
@@ -225,40 +226,6 @@ int main ( int argc, char * argv[] )
 		return 0;
 	}
 
-	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
-	{
-		int count, dev;
-		CudaGetDeviceCount( &count );
-/*		if (argc >= 3) {
-                	if (argc < 2 + solver->mpi.size) {
-				error("Not enough device numbers");
-				notice("Usage: program configfile [device number]\n");
-				notice(" Provide device number for each processor (%d processors)\n", solver->mpi.size);
-				return 0;
-			}
-			HANDLE_IOERR( sscanf(argv[2+solver->mpi.rank], "%d", &dev) );
-			if (dev < 0) {
-				error("Wrong device number: %s\n", argv[2+solver->mpi.rank]);
-				return -1;
-			}
-			#ifdef GRAPHICS
-				if (dev != 0) { error("Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
-			#endif
-		} else { */
-			CudaGetDeviceCount( &count );
-			dev = solver->mpi.rank % count;
-/*		} */
-		debug2("Selecting device %d/%d\n", dev, count);
-		CudaSetDevice( dev );
-		solver->mpi.gpu = dev;
-		#ifdef CROSS_GPU
-			debug2("Initializing device\n");
-			cudaFree(0);
-		#endif
-	}
-	MPI_Barrier(MPMD.local);
-	DEBUG_M;
-
 	// Calculating the right number of threads per block
 	#ifdef CROSS_CPU
 		solver->info.xsdim = 1;
@@ -351,6 +318,41 @@ int main ( int argc, char * argv[] )
 			}
 		}
 	}
+
+	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
+	{
+		int count, dev;
+		CudaGetDeviceCount( &count );
+		{
+			MPI_Comm comm = MPMD.local;
+			std::string nodename = mpitools::MPI_Nodename(comm);
+			MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
+			dev = mpitools::MPI_Rank(nodecomm);
+			MPI_Comm_free(&nodecomm);
+		}
+		if (dev >= count) {
+			bool oversubscribe = false;
+			pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
+			if (attr) oversubscribe = attr.as_bool();
+			if (!oversubscribe) {
+				ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
+				return -1;
+			} else {
+				WARNING("Oversubscribing GPUs.");
+			}
+			dev = dev % count;
+		}
+
+		debug2("Selecting device %d/%d\n", dev, count);
+		CudaSetDevice( dev );
+		solver->mpi.gpu = dev;
+		#ifdef CROSS_GPU
+			debug2("Initializing device\n");
+			cudaFree(0);
+		#endif
+	}
+	MPI_Barrier(MPMD.local);
+	DEBUG_M;
 
 	
 	if (readUnits(config, solver)) {
