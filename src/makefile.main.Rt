@@ -191,6 +191,11 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@$(MKPATH) $@
 	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w wiki/ -o $@ <?%s ropt ?> || rm $@
 
+wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <?%s model_path ?>/*
+	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
+	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w ./ -o $@ <?%s ropt ?> || rm $@
+
 # for model <?%s m ?> and destination <?%s d ?>
 
 <?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run

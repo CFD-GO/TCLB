@@ -3,6 +3,7 @@ types:
     name: Node Type Brush
     children:
       - type: geom
+      - type: predefined
       - type: bool
       - special: blocks
     attr:
@@ -11,10 +12,15 @@ types:
           select:
             - special: NodeTypeGroups
       - type: geom
+      - name: name
+        val:
+          string: zonename
   geom:
     name: Geometry Primitive
     attr:
       - type: geom
+  predefined:
+    name: Predefined geometry shapes
   bool:
     name: Geometry Boolean Operation
     children:
@@ -74,10 +80,26 @@ CLBConfig:
     - type: container
     - type: params
     - type: setup
-  
+  attr:
+    - name: permissive
+      val:
+        bool:
+    - name: version
+      val:
+        string: version 
 
 Geometry:
   type: geometry
+  attr:
+  - name: nx
+    val:
+      unit: int
+  - name: ny
+    val:
+      unit: int
+  - name: nz
+    val:
+      unit: int
 
 Solve:
   comment: >
@@ -258,8 +280,8 @@ Wedge:
         select:
         - UpperLeft
         - UpperRight
-        - BottomLeft
-        - BottomRight
+        - LowerLeft
+        - LowerRight
       use: required
 
 STL:
@@ -295,6 +317,19 @@ STL:
       val:
         unit: float
       comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
+
+Inlet:
+  type: predefined
+
+Outlet:
+  type: predefined
+
+Channel:
+  type: predefined
+
+Tunnel:
+  type: predefined
+
 
 Param:
   type:
