@@ -83,7 +83,7 @@ int cbFailcheck::DoIt () {
                     for (int k = 0; k < reg.size(); k++){  
     	       		    cond = cond || (std::isnan(tmp[k]));
                     }
-    
+    			delete[] tmp;
         		<?R } ?>
                 if(cond ){ notice("Checking <?%s q$name ?> discovered NaN"); }
             }
