@@ -12,6 +12,7 @@
 #include "Sampler.h"
 #include "RemoteForceInterface.h"
 #include "BallTree.h"
+#include "pinned_allocator.hpp"
 
 class lbRegion;
 class LatticeContainer;
@@ -74,7 +75,7 @@ public:
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
-  typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t > rfi_t;
+  typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t, pinned_allocator<real_t> > rfi_t;
   rfi_t RFI;
   typedef BallTree< rfi_t > balltree_t;
   balltree_t BT;
