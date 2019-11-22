@@ -21,7 +21,7 @@
 #include <assert.h>
 
 #include <ctime>
-
+#include "glue.hpp"
 // for isatty
 //#include <unistd.h>
 
@@ -36,6 +36,7 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 		warning("No \"Units\" element in config file\n");
 		return 0;
 	}
+	int i=1;
 	for (pugi::xml_node node = set.child("Param"); node; node = node.next_sibling("Param")) {
 	        std::string par, value, gauge;
 		pugi::xml_attribute attr;
@@ -54,9 +55,10 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 			return -1;
 		}
 		attr = node.attribute("name");
-		if (attr) par = attr.value(); else par = "unnamed";
+		if (attr) par = attr.value(); else par = (Glue() << "unnamed" << i).str();
 		debug2("Units: %s = %s = %s\n", par.c_str(), val.c_str(), gauge.c_str());
 		solver->setUnit(par, value, gauge);
+		i++;
 	}
 	solver->Gauge();
 	return 0;
