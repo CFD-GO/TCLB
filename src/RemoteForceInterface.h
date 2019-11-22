@@ -45,7 +45,7 @@ enum rfi_storage_t {
 };
 
 
-template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE = ArrayOfStructures, typename rfi_real_t = double >
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE = ArrayOfStructures, typename rfi_real_t = double, typename tab_allocator = std::allocator<rfi_real_t> >
 class RemoteForceInterface {
 public:
   struct Box {
@@ -63,7 +63,7 @@ private:
   MPI_Comm comm;
   size_t ntab; ///< Length of tab
   size_t totsize; ///< Total number of particles
-  std::vector<rfi_real_t> tab; ///< Array storing all the data of particles
+  std::vector<rfi_real_t, tab_allocator> tab; ///< Array storing all the data of particles
   std::vector<size_t> sizes; ///< Array of sizes of data recieved from each slave/master 
   std::vector<size_t> offsets; ///< Array of offsets of data recieved from each slave/master
   std::vector<MPI_Request> sizes_req; ///< Array of MPI requests for non-blocking calls
