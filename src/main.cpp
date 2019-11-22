@@ -414,6 +414,7 @@ int main ( int argc, char * argv[] )
 		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
 	}
 	delete solver;
+	CudaDeviceReset();
 	MPI_Finalize();
 	return 0;
 }
