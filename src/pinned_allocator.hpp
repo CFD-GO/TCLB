@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <stdio.h>
+#include "cross.h"
 
         template <typename T>
         class pinned_allocator: public std::allocator<T>
@@ -20,14 +21,15 @@ public:
 
                 pointer allocate(size_type n, const void *hint=0)
                 {
-                        fprintf(stderr, "Alloc %ld bytes.\n", n*sizeof(T));
-                        return std::allocator<T>::allocate(n, hint);
+                        pointer ptr;
+        		CudaMallocHost(&ptr, n*sizeof(T));
+                        return ptr;
                 }
 
-                void deallocate(pointer p, size_type n)
+                void deallocate(pointer ptr, size_type n)
                 {
-                        fprintf(stderr, "Dealloc %ld bytes (%p).\n", n*sizeof(T), p);
-                        return std::allocator<T>::deallocate(p, n);
+                        CudaFreeHost(ptr);
+                        return;
                 }
 
                 pinned_allocator() throw(): std::allocator<T>() { fprintf(stderr, "Hello allocator!\n"); }
