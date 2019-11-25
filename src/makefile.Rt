@@ -70,7 +70,7 @@ empty:empty.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 
-lammps:Global.o RemoteForceInterface.o lammps.o
+lammps:Global.o lammps.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 

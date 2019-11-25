@@ -8,7 +8,7 @@
 #include <lammps/fix.h>
 #include <lammps/fix_external.h>
 #include "Global.h"
-#include "RemoteForceInterface.h"
+#include "RemoteForceInterface.hpp"
 #include <vector>
 
 using namespace LAMMPS_NS;
