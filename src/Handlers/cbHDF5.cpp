@@ -23,7 +23,7 @@ int cbHDF5::Init () {
 		if (deflate) options = options | HDF5_DEFLATE;
 		bool write_xdmf = true;
 		attr = node.attribute("write_xdmf");
-		if (attr) write_xdmf = attr.as_bool()
+		if (attr) write_xdmf = attr.as_bool();
                 if (write_xdmf) options = options | HDF5_WRITE_XDMF;
 		bool point_data = false;
 		attr = node.attribute("point_data");
