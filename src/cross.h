@@ -26,13 +26,10 @@
       #define CudaConstantMemory __constant__
       #define CudaSharedMemory __shared__
       #define CudaSyncThreads __syncthreads
-    #if __CUDA_ARCH__ < 200
-      #define CudaSyncThreadsOr(x__) (__syncthreads(),true)
-    #else
+
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
       #define WARP_MASK 0xFFFFFFFF
       #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, b);
-    #endif
     
       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
