@@ -229,7 +229,19 @@
     {
       sum[0] += val;
     }
-    
+
+    template <typename T>
+    inline void atomicSumWarp(T * sum, T val)
+    {
+      sum[0] += val;
+    }
+
+    template <typename T>
+    inline void atomicSumWarpArr(T * sum, T * val, char len)
+    {
+      for (char i = 0; i < len; i ++) sum[i] += val[i];
+    }
+
 //    template <typename T>
     inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
       {

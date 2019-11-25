@@ -99,6 +99,56 @@
               atomicSum_f(sum);
       }
 
+
+__device__ inline void atomicSumWarp(real_t * sum, real_t val)
+{
+	#define FULL_MASK 0xffffffff
+	if (__any_sync(FULL_MASK, val != 0)) {
+		for (int offset = 16; offset > 0; offset /= 2)
+		    val += __shfl_down_sync(FULL_MASK, val, offset);
+		if (threadIdx.x == 0) atomicAddP(sum,val);
+	}
+}
+
+__device__ inline void atomicSumWarp6(real_t * sum, real_t v1, real_t v2, real_t v3, real_t v4, real_t v5, real_t v6)
+{
+	#define FULL_MASK 0xffffffff
+	bool pred = (v1 != 0.0) || (v2 != 0.0) || (v3 != 0.0) || (v4 != 0.0) || (v5 != 0.0) || (v6 != 0.0);
+	if (__any_sync(FULL_MASK, pred)) {
+		for (int offset = 16; offset > 0; offset /= 2) {
+		    v1 += __shfl_down_sync(FULL_MASK, v1, offset);
+		    v2 += __shfl_down_sync(FULL_MASK, v2, offset);
+		    v3 += __shfl_down_sync(FULL_MASK, v3, offset);
+		    v4 += __shfl_down_sync(FULL_MASK, v4, offset);
+		    v5 += __shfl_down_sync(FULL_MASK, v5, offset);
+		    v6 += __shfl_down_sync(FULL_MASK, v6, offset);
+		}
+		if (threadIdx.x == 0) {
+			atomicAddP(sum  ,v1);
+			atomicAddP(sum+1,v2);
+			atomicAddP(sum+2,v3);
+			atomicAddP(sum+3,v4);
+			atomicAddP(sum+4,v5);
+			atomicAddP(sum+5,v6);
+		}
+	}
+}
+
+__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, char len)
+{
+	#define FULL_MASK 0xffffffff
+	bool pred = true;
+	for (char i=0; i<len; i++) pred = val[i] != 0.0;
+	if (__any_sync(FULL_MASK, pred)) {
+		for (int offset = 16; offset > 0; offset /= 2) {
+			for (char i=0; i<len; i++) val[i] += __shfl_down_sync(FULL_MASK, val[i], offset);
+		}
+		if (threadIdx.x < len) {
+			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
+		}
+	}
+}
+
 /*      __device__ inline void atomicSum(real_t * sum, real_t val) {
         typedef cub::BlockReduce<real_t, 32, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 20> BlockReduce;
         __shared__ typename BlockReduce::TempStorage temp_storage;
