@@ -30,7 +30,10 @@
       #define CudaSyncThreadsOr(x__) (__syncthreads(),true)
     #else
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
+      #define WARP_MASK 0xFFFFFFFF
+      #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, b);
     #endif
+    
       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
@@ -156,6 +159,7 @@
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
     #define CudaSyncThreadsOr(x__) x__
+    #define CudaSyncWarpOr(x__) x__
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
       #define CudaKernelRun(a__,b__,c__,d__) \

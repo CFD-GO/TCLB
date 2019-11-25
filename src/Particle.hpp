@@ -58,7 +58,7 @@ struct ParticleS : ParticleI {
 #if PARTICLE_SYNC == NO_SYNC
 	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return b; }
 #elif PARTICLE_SYNC == WARP_SYNC
-	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return __any_sync(WARP_MASK, b); }
+	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return CudaSyncWarpOr(b); }
 #elif PARTICLE_SYNC == BLOCK_SYNC
 	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return CudaSyncThreadsOr(b); }
 #else
