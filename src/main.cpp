@@ -325,7 +325,7 @@ int main ( int argc, char * argv[] )
 
 	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
 	{
-		#ifdef CROSS_GPU
+		#ifndef CROSS_CPU
 			int count, dev;
 			CudaGetDeviceCount( &count );
 			{
