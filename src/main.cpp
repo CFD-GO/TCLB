@@ -56,7 +56,7 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 		}
 		attr = node.attribute("name");
 		if (attr) par = attr.value(); else par = (Glue() << "unnamed" << i).str();
-		debug2("Units: %s = %s = %s\n", par.c_str(), val.c_str(), gauge.c_str());
+		debug2("Units: %s = %s = %s\n", par.c_str(), value.c_str(), gauge.c_str());
 		solver->setUnit(par, value, gauge);
 		i++;
 	}
@@ -323,34 +323,36 @@ int main ( int argc, char * argv[] )
 
 	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
 	{
-		int count, dev;
-		CudaGetDeviceCount( &count );
-		{
-			MPI_Comm comm = MPMD.local;
-			std::string nodename = mpitools::MPI_Nodename(comm);
-			MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
-			dev = mpitools::MPI_Rank(nodecomm);
-			MPI_Comm_free(&nodecomm);
-		}
-		if (dev >= count) {
-			bool oversubscribe = false;
-			pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
-			if (attr) oversubscribe = attr.as_bool();
-			if (!oversubscribe) {
-				ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
-				return -1;
-			} else {
-				WARNING("Oversubscribing GPUs.");
-			}
-			dev = dev % count;
-		}
-
-		debug2("Selecting device %d/%d\n", dev, count);
-		CudaSetDevice( dev );
-		solver->mpi.gpu = dev;
 		#ifdef CROSS_GPU
+			int count, dev;
+			CudaGetDeviceCount( &count );
+			{
+				MPI_Comm comm = MPMD.local;
+				std::string nodename = mpitools::MPI_Nodename(comm);
+				MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
+				dev = mpitools::MPI_Rank(nodecomm);
+				MPI_Comm_free(&nodecomm);
+			}
+			if (dev >= count) {
+				bool oversubscribe = false;
+				pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
+				if (attr) oversubscribe = attr.as_bool();
+				if (!oversubscribe) {
+					ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
+					return -1;
+				} else {
+					WARNING("Oversubscribing GPUs.");
+				}
+				dev = dev % count;
+			}
+			debug2("Selecting device %d/%d\n", dev, count);
+			CudaSetDevice( dev );
+			solver->mpi.gpu = dev;
 			debug2("Initializing device\n");
 			cudaFree(0);
+		#else
+			CudaSetDevice(0);
+			solver->mpi.gpu = 0;
 		#endif
 	}
 	MPI_Barrier(MPMD.local);
