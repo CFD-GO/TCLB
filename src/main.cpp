@@ -347,12 +347,13 @@ int main ( int argc, char * argv[] )
 				}
 				dev = dev % count;
 			}
-			debug2("Selecting device %d/%d\n", dev, count);
+			output_all("Selecting device %d/%d\n", dev, count);
 			CudaSetDevice( dev );
 			solver->mpi.gpu = dev;
 			debug2("Initializing device\n");
 			cudaFree(0);
 		#else
+			output_all("Running on CPU\n");
 			CudaSetDevice(0);
 			solver->mpi.gpu = 0;
 		#endif
