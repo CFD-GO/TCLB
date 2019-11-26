@@ -161,7 +161,7 @@ public:
 
       {
          int *universe_sizep, flag;
-         MPI_Attr_get(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
+         MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
          if (!flag) { 
            universe_size = 0; // LCOV_EXCL_LINE
          } else universe_size = *universe_sizep;
