@@ -110,14 +110,14 @@ __device__ inline void atomicSumWarp(real_t * sum, real_t val)
 	}
 }
 
-__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, char len)
+__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
 {
 	#define FULL_MASK 0xffffffff
 	bool pred = true;
-	for (char i=0; i<len; i++) pred = val[i] != 0.0;
+	for (unsigned char i=0; i<len; i++) pred = val[i] != 0.0;
 	if (__any_sync(FULL_MASK, pred)) {
 		for (int offset = 16; offset > 0; offset /= 2) {
-			for (char i=0; i<len; i++) val[i] += __shfl_down_sync(FULL_MASK, val[i], offset);
+			for (unsigned char i=0; i<len; i++) val[i] += __shfl_down_sync(FULL_MASK, val[i], offset);
 		}
 		if (threadIdx.x < len) {
 			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
@@ -137,14 +137,14 @@ __device__ inline void atomicSumWarp(real_t * sum, real_t val)
 	}
 }
 
-__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, char len)
+__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
 {
 	#define FULL_MASK 0xffffffff
 	bool pred = true;
-	for (char i=0; i<len; i++) pred = val[i] != 0.0;
+	for (unsigned char i=0; i<len; i++) pred = val[i] != 0.0;
 	if (__any(pred)) {
 		for (int offset = 16; offset > 0; offset /= 2) {
-			for (char i=0; i<len; i++) val[i] += __shfl_down(val[i], offset);
+			for (unsigned char i=0; i<len; i++) val[i] += __shfl_down(val[i], offset);
 		}
 		if (threadIdx.x < len) {
 			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);

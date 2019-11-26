@@ -245,9 +245,9 @@
     }
 
     template <typename T>
-    inline void atomicSumWarpArr(T * sum, T * val, char len)
+    inline void atomicSumWarpArr(T * sum, T * val, unsigned char len)
     {
-      for (char i = 0; i < len; i ++) sum[i] += val[i];
+      for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
     }
 
 //    template <typename T>
