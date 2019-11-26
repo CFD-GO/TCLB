@@ -268,6 +268,7 @@ int main ( int argc, char * argv[] )
                     	config.append_attribute("permissive").set_value("true");
                     	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
 				pugi::xml_node node = it->node();
+				pugi::xml_node after = node;
 				std::string gauge = "";
 				pugi::xml_attribute gauge_attr = node.attribute("gauge");
 				if (gauge_attr) gauge = gauge_attr.value();
@@ -281,7 +282,8 @@ int main ( int argc, char * argv[] )
                 		                zone = par.substr(i+1);
 		                                par = par.substr(0,i);
 					}
-					pugi::xml_node param = node.parent().insert_child_after("Param", node);
+					pugi::xml_node param = node.parent().insert_child_after("Param", after);
+					after = param;
 					param.append_attribute("name").set_value(par.c_str());
 					param.append_attribute("value").set_value(attr.value());
 					if (zone != "") param.append_attribute("zone").set_value(zone.c_str());
@@ -323,7 +325,7 @@ int main ( int argc, char * argv[] )
 
 	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
 	{
-		#ifdef CROSS_GPU
+		#ifndef CROSS_CPU
 			int count, dev;
 			CudaGetDeviceCount( &count );
 			{
@@ -345,12 +347,13 @@ int main ( int argc, char * argv[] )
 				}
 				dev = dev % count;
 			}
-			debug2("Selecting device %d/%d\n", dev, count);
+			output_all("Selecting device %d/%d\n", dev, count);
 			CudaSetDevice( dev );
 			solver->mpi.gpu = dev;
 			debug2("Initializing device\n");
 			cudaFree(0);
 		#else
+			output_all("Running on CPU\n");
 			CudaSetDevice(0);
 			solver->mpi.gpu = 0;
 		#endif
