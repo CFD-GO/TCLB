@@ -28,8 +28,15 @@
       #define CudaSyncThreads __syncthreads
 
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
+#if CUDART_VERSION >= 9000
       #define WARP_MASK 0xFFFFFFFF
       #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, b);
+#elif CUDART_VERSION >= 7000
+      #define CudaSyncWarpOr(x__) __any(b);
+#else
+      #warning "no atomicSumWarp for this CUDA version"
+#endif
+
     
       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
