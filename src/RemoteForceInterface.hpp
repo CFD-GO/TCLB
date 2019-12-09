@@ -223,8 +223,8 @@ inline void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t, typename tab_allocator >
 void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::MakeTypes(bool particle_size_change, bool totsize_change) {
   bool commit_types = false;
-  int parti_size = RFI_DATA_VOL - RFI_DATA_R;
-  int force_size = RFI_DATA_SIZE - RFI_DATA_VOL;
+  int parti_size = RFI_DATA_IN - RFI_DATA_START;
+  int force_size = RFI_DATA_SIZE - RFI_DATA_IN;
   MPI_Datatype tmp;
   MPI_Aint lb=0;
   if (STORAGE == ArrayOfStructures) {
@@ -354,7 +354,7 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::Nego
       kilogram = other_units[2]/my_units[2];
       output("RFI: %s: Unit conversion: m:%lg, s:%lg, kg:%lg\n",name.c_str(), meter, second, kilogram);
       unit[RFI_DATA_R] = meter;
-      unit[RFI_DATA_VOL] = meter*meter*meter;
+//      unit[RFI_DATA_VOL] = meter*meter*meter;
       for (int i=0;i<3;i++) {
         unit[RFI_DATA_POS+i] = meter;
         unit[RFI_DATA_VEL+i] = meter/second;

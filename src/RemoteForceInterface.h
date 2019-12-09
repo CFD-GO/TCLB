@@ -17,16 +17,18 @@ namespace rfi {
 
 #define RFI_FINISHED ((size_t) -1)
 
+#define RFI_DATA_START 0
 #define RFI_DATA_R 0
 #define RFI_DATA_POS 1
 #define RFI_DATA_VEL 4
 #define RFI_DATA_ANGVEL 7
+#define RFI_DATA_IN 10
+// #define RFI_DATA_VOL 10
+#define RFI_DATA_FORCE 10
+#define RFI_DATA_MOMENT 13
+#define RFI_DATA_OUT 6
 
-#define RFI_DATA_VOL 10
-#define RFI_DATA_FORCE 11
-#define RFI_DATA_MOMENT 14
-
-#define RFI_DATA_SIZE 17
+#define RFI_DATA_SIZE 16
 
 #define MPI_SIZE_T MPI_UNSIGNED_LONG
 
