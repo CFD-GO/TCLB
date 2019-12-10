@@ -111,7 +111,7 @@ AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility'
 AddSetting(name="sigma", default=1e-5, comment='surface tension')
 
 AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default=90, comment='Contact angle in degrees', zonal=T)
-AddSetting(name="radAngle", comment='Conversion to rads for calcs')
+AddSetting(name="radAngle", comment='Conversion to rads for calcs',zonal=T)
 
 #Domain initialisation (pre-defined set-ups)
 AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
