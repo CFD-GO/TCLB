@@ -31,9 +31,9 @@
     #else
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
     #endif
-      #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() )
+      #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
-        #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
+        #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
       #else
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
       #endif
@@ -82,10 +82,11 @@
     #define CudaStreamCreate(a__) HANDLE_ERROR( cudaStreamCreate( a__ ) )
     #define CudaStreamSynchronize(a__) HANDLE_ERROR( cudaStreamSynchronize( a__ ) );  HANDLE_ERROR( cudaGetLastError() )
 
-    #define CudaThreadSynchronize() HANDLE_ERROR( cudaThreadSynchronize() )
+    #define CudaDeviceSynchronize() HANDLE_ERROR( cudaDeviceSynchronize() )
 
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
+    #define CudaDeviceReset() HANDLE_ERROR( cudaDeviceReset( ) )
 
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
@@ -196,17 +197,18 @@
     #endif
     #define CudaEventQuery(a__) CudaSuccess
     #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (c__ -  b__)
-    #define CudaThreadSynchronize()
+    #define CudaDeviceSynchronize()
     #define CudaDeviceSynchronize()
 
     #define CudaStream_t int
     #define CudaStreamCreate(a__)
     #define CudaStreamSynchronize(a__)
 
-    #define CudaThreadSynchronize()
+    #define CudaDeviceSynchronize()
 
     #define CudaSetDevice(a__) CpuSize.x=1;CpuSize.y=1;CpuSize.z=1;
     #define CudaGetDeviceCount(a__) *a__ = 1;
+    #define CudaDeviceReset()
 
     #define RunKernelMaxThreads 1
     extern uint3 CpuBlock;

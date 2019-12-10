@@ -20,7 +20,7 @@ AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 # If present thei are used:
 # As VelocityX/Y for Boundary conditions
 # As mass force (+ GravitationX/Y) in fluid
-if (Options$BC) {
+if (Options$bc) {
 	AddDensity( name="BC[0]", group="BC", parameter=TRUE)
 	AddDensity( name="BC[1]", group="BC", parameter=TRUE)
 }

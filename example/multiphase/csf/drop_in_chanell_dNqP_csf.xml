@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" version="2.0" permissive="true">
+	<!--
+     
+This sample is intended to work with:
+  * d2q9_csf 
+  * d3q19_csf
+models.
+    
+-->
+	<Units>
+		<Param name="x" value="1m" gauge="75"/>
+	</Units>
+	<Geometry model="MRT" nx="4m" ny="1m" predef="none">
+		<MRT>
+			<Box/>
+		</MRT>
+		<Wall name="wall" mask="ALL">
+			<Box dy="-1"/>
+			<Box ny="1"/>
+		</Wall>
+		<None name="drop">
+			<Sphere dx="0.15m" dy="0.15m" nx="0.7m" ny="0.7m"/>
+		</None>
+		<!--
+        <WPressure name="inlet"><Inlet/></WPressure>
+        <EPressure name="inlet"><Outlet/></EPressure>
+    -->
+	</Geometry>
+	<Model>
+		<Param name="Pressure" value=".0"/>
+		<Param name="Mobility" value="0.0001"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="IntWidth" value=".5"/>
+		<Param name="Velocity" value="0.0"/>
+		<Param name="GravitationX" value="0.00001"/>
+		<Param name="GravitationX_l" value="0.00001"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="Viscosity" value="0.1666667"/>
+		<Param name="Viscosity_l" value="0.1666667"/>
+		<Param name="SurfaceTensionDecay" value="0.248"/>
+		<Param name="SurfaceTensionRate" value="0.0"/>
+		<Param name="WettingAngle" value="0.5"/>
+		<Param name="WallAdhesionDecay" value="0"/>
+		<Param name="BrinkmanHeightInv" value="0"/>
+		<Param name="PF_Advection_Switch" value="0"/>
+		<Param name="omega2_ph" value="1."/>
+	</Model>
+	<Solve Iterations="20m">
+		<VTK Iterations="5m"/>
+		<!--        <SaveBinary Iterations="1m" />-->
+	</Solve>
+	<Param name="SurfaceTensionRate" value="0.01"/>
+	<Param name="PF_Advection_Switch" value="1"/>
+	<Solve Iterations="1000m">
+		<VTK Iterations="10m"/>
+		<!-- <SaveBinary Iterations="1m" />-->
+	</Solve>
+</CLBConfig>

@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="128" ny="128" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="128" ny="128" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<NMovingWall>
 			<Box dy="-1"/>
 		</NMovingWall>
@@ -9,22 +11,20 @@
 			<Box ny="1"/>
 		</SWall>
 		<None name="Blobb">
-		<Box nx="25" ny="25" dx="50" dy="50"  />
+			<Box nx="25" ny="25" dx="50" dy="50"/>
 		</None>
 		<Wall mask="ALL">
 			<!-- <Box ny="1"/> -->
 		</Wall>
-		
 	</Geometry>
 	<Model>
-		<Params InletDensity="1.00"/>
-		<Params nu="0.1"/>
-		<Params K="0.01"/>
-		<Params InitDensity="1.0"
-			Temperature="0.7"
-			Temperature-Blobb="1"
-			MovingWallVelocity="0.1"
-		/>
+		<Param name="InletDensity" value="1.00"/>
+		<Param name="nu" value="0.1"/>
+		<Param name="K" value="0.01"/>
+		<Param name="MovingWallVelocity" value="0.1"/>
+		<Param name="Temperature" value="1" zone="Blobb"/>
+		<Param name="Temperature" value="0.7"/>
+		<Param name="InitDensity" value="1.0"/>
 	</Model>
 	<Solve Iterations="50000" output="output/">
 		<VTK Iterations="2000"/>

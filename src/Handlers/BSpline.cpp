@@ -34,12 +34,9 @@ int BSpline::Init () {
 		tab2 = new double[Pars2];
 		output("Lenght of b-spline control: %d\n", Pars);
 
+		per = false;
 		attr = node.attribute("periodic");
-		if (attr) {
-			per=true;
-		} else {
-			per=false;
-		}
+		if (attr) per = attr.as_bool();
 
 		attr = node.attribute("order");
 		if (attr) {

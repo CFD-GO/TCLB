@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="1024" ny="256">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="disc">
+			<!--<Box  ny="64"  dy="32" />-->
+			<Box ny="200" nx="400" dx="28" dy="28"/>
+		</None>
+		<Wall mask="ALL">
+			<Box ny="1"/>
+			<Box dy="-1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="0.5" zone="disc"/>
+		<Param name="W" value=".05"/>
+		<Param name="M" value="0.1"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="MagicA" value="100"/>
+		<Param name="Fscale" value="0.0"/>
+		<Param name="omega" value="1"/>
+		<Param name="omega_l" value="1"/>
+		<Param name="GravitationX" value="0.000001"/>
+	</Model>
+	<VTK/>
+	<Solve Iterations="5000" output="output/">
+		<VTK Iterations="1000"/>
+	</Solve>
+	<Param name="omega" value="1"/>
+	<Param name="omega_l" value="0.5"/>
+	<Param name="Fscale" value="0.02"/>
+	<Solve Iterations="150000" output="output/">
+		<VTK Iterations="5000"/>
+	</Solve>
+</CLBConfig>

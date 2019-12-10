@@ -72,7 +72,20 @@ CudaDeviceFunction real_t getRho(){
 CudaDeviceFunction real_t getPhaseField(){
 	return <?R C(sum(h)) ?> ;
 }
-    
+<?R if (Options$fd) { ?>
+CudaDeviceFunction void CalcPhi(){
+    phi = getPhaseField();
+}
+<?R } ?>
+
+//only for paraview: do not use, inefficient!!
+CudaDeviceFunction vector_t getDEBUG(){
+    return getNormal();
+
+}
+
+
+
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
@@ -100,22 +113,39 @@ CudaDeviceFunction vector_t getU(){
 CudaDeviceFunction vector_t getNormal(){
     real_t k01, k10;
     vector_t n;
-    vector_t u = getU();
+    n.z = 0;
     <?R
-    ee_x = U[,1] - u[1]
-    ee_y = U[,2] - u[2]
-
-    C(k10, sum(h%*%ee_x) )
-    C(k01, sum(h%*%ee_y) )
+    if (Options$fd){
+        ee_x = U[,1] * wi  
+        ee_y = U[,2] * wi
     
+        C(k10, 3*sum(phis%*%ee_x) )
+        C(k01, 3*sum(phis%*%ee_y) )
+    } else {
+
+        ?> 
+        
+        vector_t u = getU();
+        if ( PF_Advection_Switch == 0 ){
+            u.x = 0;
+            u.y = 0;
+        }       
+        
+        <?R
+        ee_x = u[1] - U[,1]
+        ee_y = u[2] - U[,2]
+    
+        C(k10, sum(h%*%ee_x) )
+        C(k01, sum(h%*%ee_y) )
+    }
     ?>
     real_t ln = sqrt(k10*k10 + k01*k01);    
     if (ln == 0.){
         n.x = 0.;
         n.y = 0.;
     } else {
-        n.x = - k10 / ln;
-        n.y = - k01 / ln;
+        n.x = k10 / ln;
+        n.y = k01 / ln;
     }
     return n;
 
@@ -383,7 +413,10 @@ CudaDeviceFunction void CollisionMRT()
   
     real_t pf = getPhaseField();
     vector_t u = getU();
-     
+    if ( PF_Advection_Switch == 0 ){
+        u.x = 0;
+        u.y = 0;
+    }
 <?R
     RelaxationRate_ph= PV('RelaxationRate_ph') 
 	?>

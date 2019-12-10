@@ -1,7 +1,9 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="512" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="512" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WPressure zone="Inlet"/>
 		<EPressure zone="Outlet"/>
 		<Wall zone="Channel" mask="ALL"/>
@@ -13,16 +15,22 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.00"/>
-		<Params InletDensity="1.01" OutletDensity="1.00"
-		InitDensity="1.00" SolidDensity="0.3"/>
-		<Params nu="0.02"/>
-		<Params InletTemperature="1" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.00" EOSScale="1.0"/>
+		<Param name="InletVelocity" value="0.00"/>
+		<Param name="SolidDensity" value="0.3"/>
+		<Param name="InitDensity" value="1.00"/>
+		<Param name="OutletDensity" value="1.00"/>
+		<Param name="InletDensity" value="1.01"/>
+		<Param name="nu" value="0.02"/>
+		<Param name="EOSScale" value="1.0"/>
+		<Param name="Tension" value="0.00"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="1"/>
 	</Model>
 	<Checkpoint Iterations="1000"/>
 	<Solve Iterations="400000" output="output/">
-	<VTK Iterations="1000"/>
+		<VTK Iterations="1000"/>
 	</Solve>
 </CLBConfig>

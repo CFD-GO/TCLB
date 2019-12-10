@@ -1,23 +1,41 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="320" ny="100" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="320" ny="100" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<WVelocity zone="Inlet"/>
 		<EPressure zone="Outlet"/>
-		<Inlet nx='1' dx='5'><Box/></Inlet>
-		<Outlet nx='1' dx='-5'><Box/></Outlet>
-		<DesignSpace fx='-10' dx='10'><Box/></DesignSpace>
-		<Heater nx='10' ny='10' dx='50' dy='50'><Box/></Heater>
+		<Inlet nx="1" dx="5">
+			<Box/>
+		</Inlet>
+		<Outlet nx="1" dx="-5">
+			<Box/>
+		</Outlet>
+		<DesignSpace fx="-10" dx="10">
+			<Box/>
+		</DesignSpace>
+		<Heater nx="10" ny="10" dx="50" dy="50">
+			<Box/>
+		</Heater>
 		<Wall zone="Channel" mask="ALL"/>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.01"/>
-		<Params InletDensity="1.03"/>
-		<Params nu="0.005"/>
-		<Params InletTemperature="0" InitTemperature="0"
-		FluidAlfa="0.01" SolidAlfa="0.166" Coriolis="0.001"
-		Tension="0.01" EOSScale="0.05" PressDiffInObj="10000"
-		Smooth='0.0' Penalty='200' nuT='2' HeaterTemperature='5'/>
+		<Param name="InletVelocity" value="0.01"/>
+		<Param name="InletDensity" value="1.03"/>
+		<Param name="nu" value="0.005"/>
+		<Param name="HeaterTemperature" value="5"/>
+		<Param name="nuT" value="2"/>
+		<Param name="Penalty" value="200"/>
+		<Param name="Smooth" value="0.0"/>
+		<Param name="PressDiffInObj" value="10000"/>
+		<Param name="EOSScale" value="0.05"/>
+		<Param name="Tension" value="0.01"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="0"/>
 	</Model>
 	<Solve Iterations="1000" output="output/">
 		<VTK Iterations="100"/>

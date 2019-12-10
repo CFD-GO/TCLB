@@ -445,7 +445,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] += v;
 	}
     }
-    const double sm_diff[3] = {0.123e-5, 0.231e-5, 0.312e-5};
+    const double sm_diff[3] = {0.1403e-4, 0.1687e-4, 0.1987e-4};
     for (int i = 0; i < ntri; i++) {
 	for (int j = 0; j < 3; j++) {
 		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
@@ -499,6 +499,7 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     int ntri;
     int ret;
     int insideOut=0;
+    int axis = 1;
     if (!n.attribute("file")) {
 	error("No 'file' attribute in 'STL' element in xml conf\n");
 	return -1;
@@ -513,6 +514,23 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
             insideOut=2;
         } else {
 	    error("'side' in 'STL' element have to be 'in', 'out' or 'surface'\n");
+	    return -1;
+	}
+    }
+    if (n.attribute("ray_axis")) {
+	if (insideOut > 1) {
+		error("the 'ray_axis' setting in 'STL' makes sens only with 'in' or 'out' side\n");
+		return -1;
+	}
+        std::string ray_axis=n.attribute("ray_axis").value();
+        if (ray_axis == "x") {
+	    axis=0;
+        } else if (ray_axis == "y") {
+            axis=1;
+        } else if (ray_axis == "z") {
+            axis=2;
+        } else {
+	    error("'ray_axis' in 'STL' element have to be 'x', 'y' or 'z'\n");
 	    return -1;
 	}
     }
@@ -539,6 +557,9 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 
     debug1("Number of triangles: %d\n", ntri);
     transformSTL(ntri, tri, n);
+	size_t topo_hit[5];
+	for (int i = 0; i < 5; i++) topo_hit[i] = 0;
+	
     for (int i = 0; i < ntri; i++) {
 	int min[3], max[3];
 	for (int j=0; j<3;j++) {
@@ -555,12 +576,6 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 		min[j] -= 1;
 		max[j] += 1;
 	}
-	double v[2], v1[2], v2[2], c0, c1, c2, c3;
-	v1[0] = tri[i].p2[0] - tri[i].p1[0];
-	v1[1] = tri[i].p2[2] - tri[i].p1[2];
-	v2[0] = tri[i].p3[0] - tri[i].p1[0];
-	v2[1] = tri[i].p3[2] - tri[i].p1[2];
-	c0 = v1[0] * v2[1] - v1[1] * v2[0];
 	if (insideOut == 2) {
             size_t regsize = region.sizeL();
             for (int x = min[0]; x <= max[0]; x++)
@@ -578,27 +593,62 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                             }
                     }
 	} else {
-            for (int x = min[0]; x <= max[0]; x++)
-                for (int z = min[2]; z <= max[2]; z++) {
-                    v[0] = x - tri[i].p1[0];
-                    v[1] = z - tri[i].p1[2];
+		int ax1 = axis;
+		int ax2 = (axis+1) % 3;
+		int ax3 = (axis+2) % 3;
+		int lx1 = 0;
+		if (ax1 == 0) lx1 = reg.dx;
+		if (ax1 == 1) lx1 = reg.dy;
+		if (ax1 == 2) lx1 = reg.dz;
+		double v[2], v1[2], v2[2], c0, c1, c2, c3;
+		v1[0] = tri[i].p2[ax2] - tri[i].p1[ax2];
+		v1[1] = tri[i].p2[ax3] - tri[i].p1[ax3];
+		v2[0] = tri[i].p3[ax2] - tri[i].p1[ax2];
+		v2[1] = tri[i].p3[ax3] - tri[i].p1[ax3];
+		c0 = v1[0] * v2[1] - v1[1] * v2[0];
+            for (int x2 = min[ax2]; x2 <= max[ax2]; x2++)
+                for (int x3 = min[ax3]; x3 <= max[ax3]; x3++) {
+                    v[0] = x2 - tri[i].p1[ax2];
+                    v[1] = x3 - tri[i].p1[ax3];
                     c1 = v1[0] * v[1] - v1[1] * v[0];
                     c2 = v[0] * v2[1] - v[1] * v2[0];
                     c1 /= c0;
                     c2 /= c0;
-                    if ((c1 >= 0) && (c2 >= 0) && (c1 + c2 <= 1)) {
-                        c3 = 1. - c1 - c2;
-                        double h = tri[i].p1[1] * c3 + tri[i].p2[1] * c2 + tri[i].p3[1] * c1;
-                        for (int y = reg.dy; y <= h; y++) {
+                    c3 = 1. - c1 - c2;
+			int topo=0;
+			const double dv[2] = { -0.5694552,  0.8220224}; // random direction for resolving bad edges
+			double dc1 = (v1[0] * dv[1] - v1[1] * dv[0])/c0;
+			double dc2 = (dv[0] * v2[1] - dv[1] * v2[0])/c0;
+			double dc3 = - dc1 - dc2;
+			if (c1 == 0) {
+				topo_hit[1]++;
+				if (dc1 > 0) topo++; else if (dc1 == 0) topo_hit[3]++; else topo_hit[2]++;
+			} else if (c1 > 0) topo++;
+			if (c2 == 0) {
+				topo_hit[1]++;
+				if (dc2 > 0) topo++; else if (dc2 == 0) topo_hit[3]++; else topo_hit[2]++;
+			} else if (c2 > 0) topo++;
+			if (c3 == 0) {
+				topo_hit[1]++;
+				if (dc3 > 0) topo++; else if (dc3 == 0) topo_hit[3]++; else topo_hit[2]++;
+			} else if (c3 > 0) topo++;
+                    if (topo == 3) {
+			topo_hit[0]++;
+                        double h = tri[i].p1[ax1] * c3 + tri[i].p2[ax1] * c2 + tri[i].p3[ax1] * c1;
+                        for (int x1 = lx1; x1 <= h; x1++) {
     //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
-                            if (reg.isIn(x, y, z))
-                                lev[reg.offset(x, y, z)]++;
+				int x,y,z;
+				if (axis == 0) { x = x1; y = x2; z = x3; }
+				if (axis == 1) { x = x3; y = x1; z = x2; }
+				if (axis == 2) { x = x2; y = x3; z = x1; }
+	                        if (reg.isIn(x, y, z))
+        	                        lev[reg.offset(x, y, z)]++;
                         }
                     }
                 }
 	}
     }
-    if (insideOut != 2)
+    if (insideOut != 2) {
         for (int x = reg.dx; x < reg.dx + reg.nx; x++)
             for (int y = reg.dy; y < reg.dy + reg.ny; y++)
                 for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
@@ -607,6 +657,14 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                         Dot(x, y, z);
                     }
                 }
+	output("STL: triangle hits: %ld\n", topo_hit[0]);
+	if (topo_hit[1] > 0) {	
+		notice("STL: \\_ edge hits: %ld\n", topo_hit[1]);
+		notice("STL:    \\_ resolved negatively: %ld\n", topo_hit[2]);
+		notice("STL:    \\_ resolved positively: %ld\n", topo_hit[1] - topo_hit[3] - topo_hit[2]);
+		if (topo_hit[3] > 0) NOTICE("STL:    \\_ could not be resolved: %ld (this can cause problems!)\n", topo_hit[3]);
+	}
+    }
     free(tri);
     free(lev);
     return 0;
@@ -666,7 +724,7 @@ inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
 		}
 	    }
 
-	return 0;	
+    return 0;	
 }
 
 
@@ -966,6 +1024,17 @@ int Geometry::Draw(pugi::xml_node & node)
 			}
 		   }
 	} 
+    else if (strcmp(n.name(),"Cylinder") == 0) {
+        debug1("Filling cylinder with flag %d (&d)\n",fg,fg_mask);
+        DEBUG1(reg.print();)
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+                for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+                    if (inSphere((.5 + x - reg.dx) / reg.nx, (.5 + y - reg.dy) / reg.ny, 0.5)) {
+                        Dot(x,y,z);
+                    }
+                }
+    }
     else if (strcmp(n.name(), "Wedge") == 0) {
 //                      reg = region.intersect(reg);
 	    debug1("Filling wedge with flag %d (%d)\n", fg, fg_mask);
@@ -1155,7 +1224,7 @@ int Geometry::load(pugi::xml_node & node)
 	E(Draw(n));
     }
     if (node.attribute("save")) {
-	writeVTI(node.attribute("save").value());
+		writeVTI(node.attribute("save").value());
     }
     return 0;
 }
@@ -1167,7 +1236,15 @@ Geometry::~Geometry()
     if (Q != NULL) delete[] Q;
 }
 
+
 /// Dumps the Geometry to a vti file
+// use to check values of cuts in the interpolated bounce back scheme
+// <Geometry nx="32" ny="32"  nz="3" save="geometry_ibb_output">  // output path goues here
+//      <BGK><Box/></BGK>
+// 		<IBB name="border" >
+// 			<STL file="path_to_geometry_file.stl" scale="1" Xrot="0d" x="0" y="0" z="0" side="surface"/>
+// 		</IBB>
+// </Geometry>
 void Geometry::writeVTI(const char *name)
 {
     vtkFileOut vtkFile(MPMD.local);
@@ -1179,11 +1256,34 @@ void Geometry::writeVTI(const char *name)
     vtkFile.Init(region, "");
     vtkFile.WriteField("geom", geom);
     if (Q != NULL) {
-        size_t regsize = region.size();
-        for (int d=0;d<26;d++) {
+        size_t regsize = region.sizeL();
+
+		real_t *  Qnorm = new real_t[regsize*26];
+
+		// src/types.h.Rt:19:  #define NO_CUT 65535
+		// src/types.h.Rt:20:  #define CUT_MAX 65000
+		// src/types.h.Rt:17:  typedef unsigned short int cut_t; - contains at least [0, 65535]
+
+		for (size_t i = 0; i < regsize*26; ++i)  // normalize the cuts to 0-1 range
+		{
+			Qnorm[i]=real_t(Q[i])/CUT_MAX;
+			// if (Qnorm[i] > 1.)
+			// 	Qnorm[i] = 0; // means no cut
+		}
+
+        for (int d = 0; d < 26; d++) {
             char nm[20];
-//            sprintf(nm,"Q(%2d,%2d,%2d)",d3q27_vec[(d+1)+3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
-            sprintf(nm,"Q_%d",d);
+			sprintf(nm,"Qnorm%d%d%d",d3q27_vec[(d+1)*3+0],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+			// sprintf(nm,"Q_%d",d);
+            // vtkFile.WriteField(nm, Q + regsize*d);
+			vtkFile.WriteField(nm, Qnorm + regsize*d);
+        }
+	 	delete[] Qnorm;
+
+		for (int d = 0 ; d < 26; d++) {
+            char nm[20];
+			sprintf(nm,"Q%d%d%d",d3q27_vec[(d+1)*3+0],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
+			// sprintf(nm,"Q_%d",d);
             vtkFile.WriteField(nm, Q + regsize*d);
         }
     }

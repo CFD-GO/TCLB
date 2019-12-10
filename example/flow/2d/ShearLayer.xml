@@ -1,24 +1,23 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Units>
-		<Params D="1m" gauge="512"/>
-		<Params SL_U="1m/s" gauge="0.04"/>
-		<Params Re="10000000" gauge="1m2/sx"/>
+		<Param name="D" value="1m" gauge="512"/>
+		<Param name="SL_U" value="1m/s" gauge="0.04"/>
+		<Param name="Re" value="10000000" gauge="1m2/sx"/>
 	</Units>
-
-        <Geometry nx="1m" ny="1m">
-		<MRT><Box/></MRT>
-<!--		<Smagorinsky><Box/></Smagorinsky>-->
+	<Geometry nx="1m" ny="1m">
+		<MRT>
+			<Box/>
+		</MRT>
+		<!--		<Smagorinsky><Box/></Smagorinsky>-->
 	</Geometry>
 	<Model>
-		<Params Velocity="0"/>
-		<Params nu="1x"/>
-		<Params
-			SL_L="1m"
-			SL_lambda="40"
-			SL_delta="0.05"
-		/>
-		<Params Smag="0.16"/>
+		<Param name="Velocity" value="0"/>
+		<Param name="nu" value="1x"/>
+		<Param name="SL_delta" value="0.05"/>
+		<Param name="SL_lambda" value="40"/>
+		<Param name="SL_L" value="1m"/>
+		<Param name="Smag" value="0.16"/>
 	</Model>
 	<VTK/>
 	<VTK Iterations="0.2s"/>

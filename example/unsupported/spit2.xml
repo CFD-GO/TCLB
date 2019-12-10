@@ -1,49 +1,52 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="256" ny="200" predef="none" model="MRT">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="256" ny="200" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Wet>
-			<Box nx="40" dy="80" ny="40"/> 
+			<Box nx="40" dy="80" ny="40"/>
 		</Wet>
-		<WPressure><Box nx="1"/></WPressure>
+		<WPressure>
+			<Box nx="1"/>
+		</WPressure>
 		<Wall mask="ALL">
 			<Wedge direction="UpperRight" dy="110" ny="10" nx="40"/>
 			<Wedge direction="LowerRight" dy="80" ny="10" nx="40"/>
-			<Box dx="-2"/> 
-			<Box nx="20" fy="80"/> 
+			<Box dx="-2"/>
+			<Box nx="20" fy="80"/>
 			<Box nx="20" dy="120"/>
 			<Channel/>
-		</Wall>  
+		</Wall>
 		<Wet>
-<!--			<Box nx="30" dy="-45" fy="-25"/>-->
+			<!--			<Box nx="30" dy="-45" fy="-25"/>-->
 		</Wet>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.0"/>
-		<Params InletDensity="1.00"/>
-		<Params nu="0.166666"/>
-		<Params InitDensity="0.03"
-			WallDensity="1.0"
-			WetDensity="2.931"
-			InletDensity="3.4"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.02"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			GravitationX="-0.0000"
-		/>
+		<Param name="InletVelocity" value="0.0"/>
+		<Param name="InletDensity" value="1.00"/>
+		<Param name="nu" value="0.166666"/>
+		<Param name="GravitationX" value="-0.0000"/>
+		<Param name="MagicF" value="-0.6666666666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="Magic" value="0.02"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.65"/>
+		<Param name="InletDensity" value="3.4"/>
+		<Param name="WetDensity" value="2.931"/>
+		<Param name="WallDensity" value="1.0"/>
+		<Param name="InitDensity" value="0.03"/>
 	</Model>
 	<Solve Iterations="300" output="output/">
-		<Params	InletDensity="2.931"/>
+		<Param name="InletDensity" value="2.931"/>
 		<VTK Iterations="142"/>
 	</Solve>
 	<Solve Iterations="1000" output="output/">
 		<VTK Iterations="142"/>
-<!--		<Params	InletDensity="3.2"/>-->
+		<!--		<Params	InletDensity="3.2"/>-->
 	</Solve>
 	<Solve Iterations="8520" output="output/">
 		<VTK Iterations="142"/>
-		<Params	InletDensity="2.931"/>
+		<Param name="InletDensity" value="2.931"/>
 	</Solve>
 </CLBConfig>

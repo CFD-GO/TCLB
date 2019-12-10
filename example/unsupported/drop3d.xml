@@ -1,49 +1,38 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="128" ny="128" nz="128">
-		<MRT><Box/></MRT>
-        <!--		<Wet name="zwet">-->
-			<Sphere dx="48" nx="32"  dy="48" ny="32" dz="48" nz="32" name="zwet"/>
-            <!--		</Wet>-->
-
-<!--        <Geometry nx="128" ny="128">-->
-<!--		<MRT><Box/></MRT>-->
-<!--		<Wet name="zwet">-->
-<!--			<Box dx="64" dy="64"/>-->
-<!--		</Wet>-->
-
-
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="128" ny="128" nz="128">
+		<MRT>
+			<Box/>
+		</MRT>
+		<!--		<Wet name="zwet">-->
+		<Sphere dx="48" nx="32" dy="48" ny="32" dz="48" nz="32" name="zwet"/>
+		<!--		</Wet>-->
+		<!--        <Geometry nx="128" ny="128">-->
+		<!--		<MRT><Box/></MRT>-->
+		<!--		<Wet name="zwet">-->
+		<!--			<Box dx="64" dy="64"/>-->
+		<!--		</Wet>-->
 	</Geometry>
 	<Model>
-		<Params nu="0.16666666"/>
-		<Params InletVelocity="0.0"/>
-		<Params InletDensity="0.0"/>
-		<Params nu="0.16666666"/>
-		<Params
-
-            Density="0.1"
-			Density-zwet="3"
-
-
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.0005"
-			GravitationY="0.000"
-			GravitationX="0.00"
-			MagicA="-0.152"
-		/>
-
-<!--			MagicA="-0.152"-->
-<!--			MagicF="-0.666666666666"-->
-
-<!--			MagicA="-0.152"-->
-<!--			MagicF="-0.333333333333"-->
+		<Param name="nu" value="0.16666666"/>
+		<Param name="InletVelocity" value="0.0"/>
+		<Param name="InletDensity" value="0.0"/>
+		<Param name="nu" value="0.16666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="GravitationX" value="0.00"/>
+		<Param name="GravitationY" value="0.000"/>
+		<Param name="Magic" value="0.0005"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.65"/>
+		<Param name="Density" value="3" zone="zwet"/>
+		<Param name="Density" value="0.1"/>
+		<!--			MagicA="-0.152"-->
+		<!--			MagicF="-0.666666666666"-->
+		<!--			MagicA="-0.152"-->
+		<!--			MagicF="-0.333333333333"-->
 	</Model>
-
-	<Solve Iterations="1" output="output/"></Solve>
-    <VTK/>
-
-
+	<Solve Iterations="1" output="output/"/>
+	<VTK/>
 	<Solve Iterations="10000" output="output/">
 		<VTK Iterations="1000"/>
 	</Solve>

@@ -1,5 +1,5 @@
-#ifndef ACSYNTHETICTURBULENCE_H
-#define ACSYNTHETICTURBULENCE_H
+#ifndef ACREMOTEFORCEINTERFACE_H
+#define ACREMOTEFORCEINTERFACE_H
 
 #include "../CommonHandler.h"
 
@@ -7,16 +7,12 @@
 #include "Action.h"
 
 class  acRemoteForceInterface  : public  Action  {
+        MPMDIntercomm inter;
+        std::string integrator;
 	public:
 	static std::string xmlname;
-	std::string particle_type;
-	std::string sim;
-	double gridSpacing;
-	double verletDist;
-	bool xcirc;
-	bool ycirc; //JM
-	bool zcirc; //JM
 	int Init ();
+	int ConnectRemoteForceInterface(std::string);
 };
 
-#endif // ACSYNTHETICTURBULENCE_H
+#endif // ACREMOTEFORCEINTERFACE_H
