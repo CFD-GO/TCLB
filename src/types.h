@@ -1,4 +1,3 @@
-<?R source("conf.R") ?>
 #ifndef TYPES_H
   #define TYPES_H
 
@@ -9,10 +8,6 @@
     typedef float real_t;
   #endif
   typedef struct {real_t x,y,z;} vector_t;
-//  typedef struct {real_t x,y,z;} vector_t_b;
-
-//  typedef char flag_t;
-  typedef <?%s FlagT ?> flag_t;
 
   typedef unsigned short int cut_t;
   

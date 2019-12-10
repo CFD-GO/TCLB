@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" version="2.0" permissive="true">
+	<!--
+     
+This sample is intended to work with:
+  * d2q9_csf 
+  * d3q19_csf
+models.
+    
+-->
+	<Geometry model="MRT" nx="256" ny="256" predef="none">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="drop">
+			<Sphere dx="64" dy="64" nx="128" ny="128"/>
+		</None>
+		<!--
+        <WPressure name="inlet"><Inlet/></WPressure>
+        <EPressure name="inlet"><Outlet/></EPressure>
+    -->
+	</Geometry>
+	<Model>
+		<Param name="Pressure" value=".0"/>
+		<Param name="Mobility" value="0.1"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="IntWidth" value=".05"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="Viscosity" value="1"/>
+		<Param name="Viscosity_l" value="1"/>
+		<Param name="SurfaceTensionDecay" value="0.248"/>
+		<Param name="SurfaceTensionRate" value="0.0"/>
+		<Param name="WettingAngle" value="0"/>
+		<Param name="WallAdhesionDecay" value="0"/>
+		<Param name="BrinkmanHeightInv" value="0"/>
+		<Param name="PF_Advection_Switch" value="0"/>
+	</Model>
+	<Solve Iterations="1500">
+		<VTK Iterations="250"/>
+	</Solve>
+</CLBConfig>

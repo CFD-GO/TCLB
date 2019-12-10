@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry ny="256" nx="256" predef="none" model="MRT" output="output/">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="disc">
+			<Sphere nx="64" ny="64" dx="96" dy="96"/>
+		</None>
+		<None name="plain">
+			<Box nx="16" dx="120" ny="128"/>
+		</None>
+		<EVelocity>
+			<Box nx="1"/>
+			<Box ny="1"/>
+			<Box dx="-1" nx="1"/>
+			<Box dy="-1" ny="1"/>
+		</EVelocity>
+	</Geometry>
+	<Model>
+		<Param name="Pressure" value=".0"/>
+		<Param name="Mobility" value="0.001"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="PhaseField" value="0.5" zone="disc"/>
+		<Param name="IntWidth" value=".25"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="Viscosity" value="1"/>
+		<Param name="Viscosity_l" value="1"/>
+		<Param name="SurfaceTensionDecay" value="0.248"/>
+		<Param name="SurfaceTensionRate" value="0.0"/>
+		<Param name="WettingAngle" value="0"/>
+		<Param name="WallAdhesionDecay" value="0"/>
+		<Param name="BrinkmanHeightInv" value="0"/>
+		<Param name="PF_Advection_Switch" value="0"/>
+		<Param name="OverwriteVelocityField" value="1"/>
+	</Model>
+	<!--
+     module.py must be in pythonpath
+     the "." is added to pythonpath automaticly
+     you could use system properties or add via xml arg
+     PYTHONPATH=$PYTHONPATH:./example mpirun -np 2 ./CLB/d2q9/main example/runexternal.xml 
+-->
+	<!-- for nice result let phase field equalibrate BEFORE move
+    <Solve Iterations="2000" output="output/">
+        <VTK Iterations="500"/>
+    </Solve> 
+    -->
+	<EvalIf opt_present="bc">
+		<CallPython module="zalesak" function="setSwirl" densities="BC[0],BC[1]" pythonpath="./example/multiphase/csf"/>
+		<Solve Iterations="1"/>
+		<!-- -we need to call it twice to fill both buffers-->
+		<CallPython module="zalesak" function="setSwirl" densities="BC[0],BC[1]" pythonpath="./example/multiphase/csf"/>
+		<VTK/>
+	</EvalIf>
+	<!---prepared for full round in 5000 steps
+    <VTK/>
+    <Solve Iterations="1"/>
+
+    <Andersen Directions="10" Eps="1e-4" Times="30">
+      <Solve Iterations="10"/>
+    </Andersen>
+    <Solve Iterations="1"/>
+    <VTK/>
+    i-->
+	<Param name="PF_Advection_Switch" value="1"/>
+	<Solve Iterations="10000">
+		<VTK Iterations="500"/>
+	</Solve>
+</CLBConfig>

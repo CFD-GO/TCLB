@@ -37,71 +37,44 @@ add.include.dir = function(dir) {
 }
 linemark=function(...) {invisible(NULL)}
 
-MODEL='d2q9_pf'
+MODEL='d3q27_csf'
+BASE='multiphase'
+#BASE='flow'
 
+MPATH=paste('./models' ,BASE, MODEL, sep="/")
 add.include.dir('./tools/')
 add.include.dir('./src/')
-add.include.dir(paste('./src/',MODEL, sep=''))
+add.include.dir(MPATH)
+
 
 source('conf.R')
-source('Dynamics.R')
-source('lib/feq.R')
-
-
-source("lib/boundary.R")
-source("lib/feq.R")
-
+#source('Dynamics.R')
 
 
 ##########################################################################################
 ### EXAMPLE: MRT generation
-
-U = t(as.matrix(   rbind( Density$dx[Density$group=='f'], Density$dy[Density$group=='f'] ) ))
-EQ = MRT_eq(U, ortogonal=FALSE)
-wi = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
-wi = subst(wi, rho=1)
-wi = gapply(wi,function(x) x$.M, simplify=TRUE)
-wi = wi %*% solve(EQ$mat)
-wi = as.vector(wi)
-
-W0 = solve(EQ$mat) %*% diag(1/wi) %*% solve(t(EQ$mat))
-i = rev(1:nrow(W0))
-H = chol(W0[i,i])[i,i]
-H = H * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
-B = EQ$mat %*% t(H)
-
-EQ = MRT_eq(U, mat=B)
+source("conf.R")
+c_header();
 
 
+# Creating variables for symbolic computations
+f = PV(DensityAll$name[DensityAll$group=="f"])
+rho =  PV("rho")
+J = PV("J",c("x","y","z"))
+tmp = PV("tmp")
 
-f = PV(Density$name[Density$group=='f'])
-rho = PV("rho")
-J = PV("J",c("x","y"))
-u = PV(c("u.x","u.y"))
+# Extracting velocity set
+U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
 
+# Calculating equlibrium density set
+source("lib/feq.R")
+source("lib/boundary.R")
 
-# things related to h
-h = PV(Density$name[Density$group=='h'])
-pf = PV("pf")
-#  phi = PV(paste("phi(",-U[,1],",",-U[,2],")"))
-n = PV(c("n.x","n.y"))
-c_sq = 1/3.
-Bh = PV('Bh')
-W = PV("W")	
-n = c(PV('n.x'),PV('n.y'))
-
-EQ_h = MRT_eq(U,mat=B)
-EQ_h$feq = ( subst( subst(EQ_h$feq, Jx = rho*PV('u.x'), Jy = rho*PV('u.y')), rho=pf ) )
-
-mob = PV("M")
-Bh = 3*mob * (1.-4.*pf*pf)*W 
-
-EQ_h$feq = EQ_h$feq +  Bh * wi * n %*% t(U)
-EQ_h$Req = EQ_h$feq %*% EQ_h$mat  
-UN = t(U[1:9,])
-phis = PV(paste('phi(',UN[1,],',',UN[2,],')'))   
+EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+#	EQ = MRT_eq(U, rho, J);
 
 
-k01 = PV("k01")
-k10 = PV("k10")
+
+
+
 

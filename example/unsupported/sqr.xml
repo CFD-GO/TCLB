@@ -1,18 +1,25 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="128" ny="128" predef="none" model="MRT">
-		<MRT><Box/></MRT>
-		<Solid><Box dx="15" nx="15" dy="15" ny="30"/></Solid>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="128" ny="128" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
+		<Solid>
+			<Box dx="15" nx="15" dy="15" ny="30"/>
+		</Solid>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.0"/>
-		<Params InletDensity="1.03"/>
-		<Params InitDensity="0.3" SolidDensity="1.7"/>
-		<Params nu="0.02"/>
-		<Params Tension="0.01" EOSScale="0.1" ULimit="0.01"/>
+		<Param name="InletVelocity" value="0.0"/>
+		<Param name="InletDensity" value="1.03"/>
+		<Param name="SolidDensity" value="1.7"/>
+		<Param name="InitDensity" value="0.3"/>
+		<Param name="nu" value="0.02"/>
+		<Param name="ULimit" value="0.01"/>
+		<Param name="EOSScale" value="0.1"/>
+		<Param name="Tension" value="0.01"/>
 	</Model>
 	<Checkpoint Iterations="1000"/>
 	<Solve Iterations="1000" output="output/">
-	<VTK Iterations="1"/>
+		<VTK Iterations="1"/>
 	</Solve>
 </CLBConfig>

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" version="2.0" permissive="true">
+	<Units>
+		<Param name="x" value="1m" gauge="128"/>
+	</Units>
+	<Geometry nx="1m" ny="0.5m" nz="0.5m">
+		<MRT>
+			<Box/>
+		</MRT>
+		<None name="drop">
+			<OffgridSphere x="0.25m" y="0.25m" z="0.25m" R="0.125m"/>
+			<!--        <Box dx="0.25m" dy="0.25m" nx="0.5m" ny="0.5m"  /> -->
+		</None>
+		<None name="drop2">
+			<OffgridSphere x="0.75m" y="0.25m" z="0.25m" R="0.100m"/>
+			<!--        <Box dx="0.25m" dy="0.25m" nx="0.5m" ny="0.5m"  /> -->
+		</None>
+		<!--  <None name="clean">
+	    <Box dx="0.375m"  nx="0.25m" ny="0.5m" />
+    
+    </None>-->
+	</Geometry>
+	<Model>
+		<Param name="Mobility" value="0.01"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="IntWidth" value="0.125"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="PhaseField" value="0.5" zone="drop2"/>
+		<Param name="Velocity" value="0.00"/>
+		<Param name="Velocity" value="-0.005" zone="drop2"/>
+		<Param name="SurfaceTensionRate" value="0.00"/>
+		<Param name="SurfaceTensionDecay" value="0.24"/>
+		<Param name="omega_l" value="1"/>
+		<Param name="omega_h" value="1"/>
+	</Model>
+	<VTK/>
+	<Solve Iterations="8000">
+		<VTK Iterations="2000"/>
+	</Solve>
+	<Param name="SurfaceTensionRate" value="0.0001"/>
+	<Solve Iterations="200000">
+		<VTK Iterations="2500"/>
+	</Solve>
+</CLBConfig>

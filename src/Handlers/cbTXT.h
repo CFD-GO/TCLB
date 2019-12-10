@@ -9,6 +9,7 @@
 class  cbTXT  : public  Callback  {
 	std::string nm;
 	name_set s;
+	bool gzip;
 	int txt_type;
 	public:
 	static std::string xmlname;

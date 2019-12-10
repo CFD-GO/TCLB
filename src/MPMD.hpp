@@ -1,11 +1,11 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <vector>
 #include <string>
+#include <map>
 #include <mpi.h>
 #include <assert.h>
-#include <map> //JM
-#include <string.h> //JM
+#include <cstring>
 
 struct MPMDIntercomm {
    MPI_Comm local;
@@ -129,8 +129,10 @@ public:
    inline ~MPMDHelper() {
    };
 
-   MPMDIntercomm& operator[](const std::string& key) {
-      return intercomm[key];
+   MPMDIntercomm operator[](const std::string& key) {
+      intercomm_map::iterator it = intercomm.find(key);
+      if (it != intercomm.end()) return it->second;
+      return MPMDIntercomm();
    };
 
    
@@ -156,7 +158,7 @@ public:
 
       {
          int *universe_sizep, flag;
-         MPI_Attr_get(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
+         MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);  
          if (!flag) { 
            universe_size = 0; // LCOV_EXCL_LINE
          } else universe_size = *universe_sizep;
@@ -278,7 +280,7 @@ public:
          ret.work_size = 0;
       }
       ret.connected = true;
-      intercomm.insert(make_pair(ret.name, ret));
+      intercomm[ret.name] = ret;
       return ret;
    }
 

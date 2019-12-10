@@ -1,73 +1,59 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-
-
-    <!--- WARNING -->
-    <!--- USE s as second in N-S related parameters -->
-    <!--- USE t as second in Nerst-Planck related parameters -->
-    <!-- DO NOT MIX in stady state sims, t_to_s unit is necessary to corelate time units properly -->
-
-    <Units>
-
-        <Params D="0.00000001m2/t" gauge="0.1666666666666"/>        
-        <Params nu="0.001sPa" gauge="0.1666666666"/>
-        <Params epsilon = "0.000000000695C/Vm" gauge="1" />
-        <Params rho0="1000kg/m3" gauge="1"/>
-
-        <Params x = "9.5e-8m" gauge="4"/>
-
-    </Units>    
-    <Geometry nx="15.2e-6m" ny="15.2um">
-
-		<MRT><Box /></MRT>
-
-   		<Wall mask="ALL" name="wall">
-            <!--<Box  ny="1" />
+<CLBConfig version="2.0" permissive="true">
+	<!--- WARNING -->
+	<!--- USE s as second in N-S related parameters -->
+	<!--- USE t as second in Nerst-Planck related parameters -->
+	<!-- DO NOT MIX in stady state sims, t_to_s unit is necessary to corelate time units properly -->
+	<Units>
+		<Param name="D" value="0.00000001m2/t" gauge="0.1666666666666"/>
+		<Param name="nu" value="0.001sPa" gauge="0.1666666666"/>
+		<Param name="epsilon" value="0.000000000695C/Vm" gauge="1"/>
+		<Param name="rho0" value="1000kg/m3" gauge="1"/>
+		<Param name="x" value="9.5e-8m" gauge="4"/>
+	</Units>
+	<Geometry nx="15.2e-6m" ny="15.2um">
+		<MRT>
+			<Box/>
+		</MRT>
+		<Wall mask="ALL" name="wall">
+			<!--<Box  ny="1" />
             <Box dy="-1" ny="1" />-->
-            <!--<Box dx="10um" nx="2um" dy="3um" ny="2um"/>-->
-            <Sphere dx="6.6um" nx="4um" ny="4um"/>
+			<!--<Box dx="10um" nx="2um" dy="3um" ny="2um"/>-->
+			<Sphere dx="6.6um" nx="4um" ny="4um"/>
 		</Wall>
-
-		<WPressure name="Inlet"><Box nx="1" dx="1"/></WPressure>
-        <EPressure name="Outlet"><Box nx="1" dx="-1"/></EPressure>
-
-        <!--        <Wall mask="ALL" name="wall2">
+		<WPressure name="Inlet">
+			<Box nx="1" dx="1"/>
+		</WPressure>
+		<EPressure name="Outlet">
+			<Box nx="1" dx="-1"/>
+		</EPressure>
+		<!--        <Wall mask="ALL" name="wall2">
             <Box  ny="1" dx="600nm" nx="800um"/>
             <Box dy="50" ny="28" dx="230" nx="28"/>
         </Wall>-->
-
-
 	</Geometry>
-    <Model>
-        <!-- general settings and phycical constants, rather to stay -->
-        <Params tau_psi="1."/>
-        <Params tau_phi="1."/>
-        <Params el_kbT = "39.6058682145/V"/>
-        <Params el = "0.0000000000000000001602176565C"/>
-        <Params ez = "1" />
-        <!-- helper unit for stady state, for unstady put into with gauge 1, time scale WILL BE SHORT-->
-        <Params t_to_s="1t/s"/>
-        <Params dt="1" />
-
-
-        <!-- case specific settings-->
-        <Params n_inf_0="0.01An/m3"/>      
-        <Params n_inf_1="0.01An/m3"/>
-
-        <Params rho0="1000kg/m3" />
-        
-        <Params psi0="0.00V" />
-        <Params psi_bc-wall="0.001V"/>
-
-        <Params phi0="0V"/>       
-        <Params phi_bc-Inlet="0V"/>
-        <Params phi_bc-Outlet=".008V"/>
-    
-    </Model>
-    	<VTK />
+	<Model>
+		<!-- general settings and phycical constants, rather to stay -->
+		<Param name="tau_psi" value="1."/>
+		<Param name="tau_phi" value="1."/>
+		<Param name="el_kbT" value="39.6058682145/V"/>
+		<Param name="el" value="0.0000000000000000001602176565C"/>
+		<Param name="ez" value="1"/>
+		<!-- helper unit for stady state, for unstady put into with gauge 1, time scale WILL BE SHORT-->
+		<Param name="t_to_s" value="1t/s"/>
+		<Param name="dt" value="1"/>
+		<!-- case specific settings-->
+		<Param name="n_inf_0" value="0.01An/m3"/>
+		<Param name="n_inf_1" value="0.01An/m3"/>
+		<Param name="rho0" value="1000kg/m3"/>
+		<Param name="psi0" value="0.00V"/>
+		<Param name="psi_bc" value="0.001V" zone="wall"/>
+		<Param name="phi0" value="0V"/>
+		<Param name="phi_bc" value="0V" zone="Inlet"/>
+		<Param name="phi_bc" value=".008V" zone="Outlet"/>
+	</Model>
+	<VTK/>
 	<Solve Iterations="3000000" output="output/">
 		<VTK Iterations="50000"/>
 	</Solve>
 </CLBConfig>
-
-

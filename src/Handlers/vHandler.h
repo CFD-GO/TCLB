@@ -48,6 +48,18 @@ class vHandler {
 	inline  int GetParameters(double * data) { return this->Parameters(PAR_GET, data); };
 	inline  int SetParameters(const double *data) {return this->Parameters(PAR_SET, const_cast<double *>(data));}; ///< Return the type of the Handler
 	inline  int GetGradient(double * data) { return this->Parameters(PAR_GRAD, data); }; ///< Return the type of the Handler
+	
+	inline pugi::xml_attribute context_attribute(const char* name) {
+		pugi::xml_node n = node;
+		pugi::xml_attribute a;
+		while(n) {
+			a = n.attribute(name);
+			if (a) return a;
+			n = n.parent();
+		}
+		return a;
+	}
+		
 /// Check if Now is the time to run this Handler
 /**
 	Checks if now is the time to DoIt for this Handler
