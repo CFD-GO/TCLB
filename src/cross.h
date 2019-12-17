@@ -86,6 +86,7 @@
 
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
+    #define CudaDeviceReset() HANDLE_ERROR( cudaDeviceReset( ) )
 
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
@@ -207,6 +208,7 @@
 
     #define CudaSetDevice(a__) CpuSize.x=1;CpuSize.y=1;CpuSize.z=1;
     #define CudaGetDeviceCount(a__) *a__ = 1;
+    #define CudaDeviceReset()
 
     #define RunKernelMaxThreads 1
     extern uint3 CpuBlock;

@@ -21,7 +21,7 @@
 #include <assert.h>
 
 #include <ctime>
-
+#include "glue.hpp"
 // for isatty
 //#include <unistd.h>
 
@@ -36,6 +36,7 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 		warning("No \"Units\" element in config file\n");
 		return 0;
 	}
+	int i=1;
 	for (pugi::xml_node node = set.child("Param"); node; node = node.next_sibling("Param")) {
 	        std::string par, value, gauge;
 		pugi::xml_attribute attr;
@@ -54,9 +55,10 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 			return -1;
 		}
 		attr = node.attribute("name");
-		if (attr) par = attr.value(); else par = "unnamed";
-		debug2("Units: %s = %s = %s\n", par.c_str(), val.c_str(), gauge.c_str());
+		if (attr) par = attr.value(); else par = (Glue() << "unnamed" << i).str();
+		debug2("Units: %s = %s = %s\n", par.c_str(), value.c_str(), gauge.c_str());
 		solver->setUnit(par, value, gauge);
+		i++;
 	}
 	solver->Gauge();
 	return 0;
@@ -266,6 +268,7 @@ int main ( int argc, char * argv[] )
                     	config.append_attribute("permissive").set_value("true");
                     	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
 				pugi::xml_node node = it->node();
+				pugi::xml_node after = node;
 				std::string gauge = "";
 				pugi::xml_attribute gauge_attr = node.attribute("gauge");
 				if (gauge_attr) gauge = gauge_attr.value();
@@ -279,7 +282,8 @@ int main ( int argc, char * argv[] )
                 		                zone = par.substr(i+1);
 		                                par = par.substr(0,i);
 					}
-					pugi::xml_node param = node.parent().insert_child_after("Param", node);
+					pugi::xml_node param = node.parent().insert_child_after("Param", after);
+					after = param;
 					param.append_attribute("name").set_value(par.c_str());
 					param.append_attribute("value").set_value(attr.value());
 					if (zone != "") param.append_attribute("zone").set_value(zone.c_str());
@@ -321,34 +325,37 @@ int main ( int argc, char * argv[] )
 
 	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
 	{
-		int count, dev;
-		CudaGetDeviceCount( &count );
-		{
-			MPI_Comm comm = MPMD.local;
-			std::string nodename = mpitools::MPI_Nodename(comm);
-			MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
-			dev = mpitools::MPI_Rank(nodecomm);
-			MPI_Comm_free(&nodecomm);
-		}
-		if (dev >= count) {
-			bool oversubscribe = false;
-			pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
-			if (attr) oversubscribe = attr.as_bool();
-			if (!oversubscribe) {
-				ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
-				return -1;
-			} else {
-				WARNING("Oversubscribing GPUs.");
+		#ifndef CROSS_CPU
+			int count, dev;
+			CudaGetDeviceCount( &count );
+			{
+				MPI_Comm comm = MPMD.local;
+				std::string nodename = mpitools::MPI_Nodename(comm);
+				MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
+				dev = mpitools::MPI_Rank(nodecomm);
+				MPI_Comm_free(&nodecomm);
 			}
-			dev = dev % count;
-		}
-
-		debug2("Selecting device %d/%d\n", dev, count);
-		CudaSetDevice( dev );
-		solver->mpi.gpu = dev;
-		#ifdef CROSS_GPU
+			if (dev >= count) {
+				bool oversubscribe = false;
+				pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
+				if (attr) oversubscribe = attr.as_bool();
+				if (!oversubscribe) {
+					ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
+					return -1;
+				} else {
+					WARNING("Oversubscribing GPUs.");
+				}
+				dev = dev % count;
+			}
+			output_all("Selecting device %d/%d\n", dev, count);
+			CudaSetDevice( dev );
+			solver->mpi.gpu = dev;
 			debug2("Initializing device\n");
 			cudaFree(0);
+		#else
+			output_all("Running on CPU\n");
+			CudaSetDevice(0);
+			solver->mpi.gpu = 0;
 		#endif
 	}
 	MPI_Barrier(MPMD.local);
@@ -414,6 +421,7 @@ int main ( int argc, char * argv[] )
 		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
 	}
 	delete solver;
+	CudaDeviceReset();
 	MPI_Finalize();
 	return 0;
 }
