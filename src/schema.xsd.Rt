@@ -50,51 +50,6 @@ rep = function(l) { if (is.list(l)) {
   lapply(ret,rep)
 } else l }
 data = rep(data)
-# 
-# res = list()
-# for (name in names(data)) if (name != "types") {
-#   el = data[[name]]  
-#   if (is.character(el$type)) {
-#     tp = data$types[[el$type]]
-#     el$children = c(el$children,tp$children)
-#     el$attr = c(el$attr,tp$attr)
-#   }
-#   resel = list()
-#   ret = NULL
-#   for (i in el$children) {
-#     if (names(i) == "type") {
-#       ret = c(ret,get.by.type(i$type))
-#     }
-#   }
-#   resel[["children"]] = as.character(names(ret))
-#   ret = list()
-#   for (i in el$attr) {
-#     val = NA
-#     type = NA
-#     if (is.list(i$val)) {
-#       if ("select" %in% names(i$val)) {
-#         val = i$val$select
-#         type="select"
-#       }
-#       if ("list" %in% names(i$val)) {
-#         val = i$val$list
-#         type="list"
-#       }
-#     }
-#     if (is.character(i$name)) ret[[i$name]] = list(value=val,comment=i$comment,type=type)
-#   }
-#   resel[["attrs"]] = ret
-#   resel[["comment"]] = el$comment
-#   res[[name]] = resel
-# }
-# 
-# res[["!top"]] = "CLBConfig"
-# res[["!attrs"]] = list()
-# 
-# result = jsonlite::toJSON(res, pretty=TRUE)
-# result = gsub("\\[null\\]","null",result)
-# writeLines(paste0("var tclb_xml_scheme = ",result,";"))
-
 
 node = function(...) {
   x = newXMLNode(...)
