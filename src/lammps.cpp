@@ -25,7 +25,7 @@ struct Info {
 };
 
 
-void quest_callback(void *, bigint, int, int *, double **, double **);
+void tclb_callback(void *, bigint, int, int *, double **, double **);
 
 int match_pattern(char* str, char* pattern) {
        bool fit = true;
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
        info.wsize.resize(RFI.Workers());
        info.windex.resize(RFI.Workers());
 
-       fix->set_callback(quest_callback,&info);
+       fix->set_callback(tclb_callback,&info);
      }
    }
 
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 }
 
 
-void quest_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x_, double **f)
+void tclb_callback(void *ptr, bigint ntimestep, int nlocal, int *id, double **x_, double **f)
 {
    Info *info = (Info *) ptr;
    if (! info->RFI->Active()) return;
