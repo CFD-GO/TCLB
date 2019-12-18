@@ -588,8 +588,10 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                                     nq = calcCut(tri[i],x,y,z,d3q27_vec[(d+1)*3],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
                                     if (nq < Q[regsize*d+k]) {
                                             Q[regsize*d+k] = nq;
-                                            Dot(x, y, z);
-                                    }
+									}								
+									if (nq != NO_CUT){
+										Dot(x, y, z);
+									}
                             }
                     }
 	} else {
@@ -1134,7 +1136,6 @@ void Geometry::writeVTI(const char *name)
 			// if (Qnorm[i] > 1.)
 			// 	Qnorm[i] = 0; // means no cut
 		}
-
         for (int d = 0; d < 26; d++) {
             char nm[20];
 			sprintf(nm,"Qnorm%d%d%d",d3q27_vec[(d+1)*3+0],d3q27_vec[(d+1)*3+1],d3q27_vec[(d+1)*3+2]);
