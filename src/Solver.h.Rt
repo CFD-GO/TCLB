@@ -1,7 +1,3 @@
-<?R
-        source("conf.R")
-	c_header();
-?>
 #ifndef SOLVER_H
 #define SOLVER_H
 
@@ -42,12 +38,6 @@ using namespace std;
 struct InfoBlock {
 	char conffile[STRING_LEN]; ///< Path to the config file
 	lbRegion region; ///< Global region of the lattice
-<?R
-        for (v in rows(Settings)) { ?>
-	real_t setting_<?%s v$name ?>; ///< Value of [<?%s v$comment ?>]
-	int ifset_<?%s v$name ?>; ///< True if [<?%s v$comment ?>] was set<?R
-	}
-?>
 	int xsdim,ysdim; ///< X and Y thread divisions
         char outpath[STRING_LEN]; ///< Output prefix
 };
