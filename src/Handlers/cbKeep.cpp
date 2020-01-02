@@ -6,12 +6,12 @@ int cbKeep::Init () {
 		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("What");
 		if (attr) {
-			what = GlobalByName(attr.value());
+			what = solver->lattice->GlobalByName(attr.value());
 			if (what < 0) {
         			error("Unknown Global %s in %s\n", attr.value(), node.name());
         			return -1;
                         }
-			whatInObj = GlobalInObj(what);
+			whatInObj = solver->lattice->GlobalInObj(what);
 		} else {
 			error("No What attribute in %s\n", node.name());
 			return -1;

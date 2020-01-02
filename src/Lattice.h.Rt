@@ -182,6 +182,39 @@ public:
 	void <?%s v$FunName ?>(real_t);<?R
     } ?>
   void GenerateST();
+
+
+/// Gets a Global index by name
+/**
+ Gets the index of a Global by it's name
+ \param str Name of the Global
+ \return Index of the Global requested
+*/
+inline int GlobalByName(const char * str) { <?R
+ for (v in rows(Globals)) { ?>
+  if (strcmp("<?%s v$name?>",str) == 0) return <?%s v$Index ?>; <?R
+ } ?>
+ return -1;
+}
+
+
+/// Gets the index of the Setting related to a weight of a Global in the objective
+/**
+ Gets the index of the Setting for the weight of some Global in the objective
+ \param i Index of the Global
+ \return Index of the Setting related to the Global
+*/
+inline int GlobalInObj(int i) { <?R 
+   i = which(Settings$name == paste(Globals$name[1],"InObj",sep=""));
+   if (length(i) != 1) { ?>
+// Probably no adjoint
+   return -1; <?R
+   } else { ?>
+   return i + <?%s Settings$Index[i] ?>; <?R
+   } ?>
+}
+
+
 };
 
 #define LATTICE_H 1
