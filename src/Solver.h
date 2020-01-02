@@ -133,13 +133,6 @@ class Solver {
 	int RunMainLoop();
 	int EventLoop();
 
-	int Par_size; ///< Parameter space dimension
-	int *Par_sizes; ///< Parameter space dimensions on all the processors
-	int *Par_disp; ///< Offsets in the Parameter vector for all the processors
-	int getPars();
-	int getDPar(double * wb);
-	int getPar(double * wb);
-	int setPar(const double * w);
 	int saveComp(const char*, const char*);
 	int loadComp(const char*, const char*);
     int getComponentIntoBuffer(const char*, real_t *&, long int* , long int* );
