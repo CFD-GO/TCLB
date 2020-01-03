@@ -128,17 +128,12 @@ public:
     segment_iterations = segiter;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
   }
-  void BeforeIt();
-  void AfterIt();
   int getSnap(int );
   void        MPIStream_A();
   void        MPIStream_B(int );
   inline void MPIStream_B() { MPIStream_B(0); };
   
   void        Iterate(int, int);
-  inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
-//  void        Iteration_Adj(int, int, int);
-//  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
   void        IterateTill(int,int);
 <?R for (n in names(Actions)) {
         a = Actions[[n]]
@@ -151,9 +146,6 @@ public:
         void <?%s FunName ?>_Opt(int, int, int, int, int); 
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
-  void inline Iterate()  { IterateT(ITER_NORM);   };
-  void inline IterateG() { IterateT(ITER_GLOBS);  };
-  void inline Stream()   { IterateT(ITER_STREAM); };
   void GetFlags(lbRegion, flag_t *);
 <?R for (d in rows(DensityAll)) { ?>
   void Get_<?%s d$nicename ?>(real_t * tab);

@@ -839,10 +839,6 @@ void Lattice::Init()
 //   Stream();
 }
 
-void Lattice::BeforeIt()
-{
-}
-
 void Lattice::GenerateST() {
 	ST.Generate();
 	ST.CopyToGPU(container->ST);
@@ -1010,26 +1006,6 @@ void Lattice::Iterate(int niter, int iter_type)
 	}
 	FinalIteration();
 };
-
-void Lattice::AfterIt()
-{
-	float t;
-	for (int i=0; i < 4; i++) {
-		HANDLE_ERROR(CudaEventQuery(kernelEv[i]));
-		CudaEventElapsedTime(&t, kernelEv[0], kernelEv[i]);
-		debug2("[%d] kernelEv[%d] --> %f\n", D_MPI_RANK, i, t);
-	}
-	for (int i = 0; i < bufnumber; i++) {
-<?R
-	for (Ev in c("outEv","mpiEv","inEv")) {
-?>
-		HANDLE_ERROR(CudaEventQuery( <?%s Ev ?>[i] ));
-		CudaEventElapsedTime(&t, kernelEv[0], <?%s Ev ?>[i]);
-		debug2("[%d] <?%s Ev ?>[%d] --> %f\n", D_MPI_RANK, i, t);
-<?R } ?>
-	}
-
-}
 
 /// Overwrite NodeType in a region
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
