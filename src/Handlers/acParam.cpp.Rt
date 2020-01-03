@@ -39,26 +39,27 @@ int acParam::Init () {
 				ERROR("Setting name not specified in Param element\n");
 				return -2;
 			}
-		<?R for (v in rows(Settings)) { ?>
-		} else if (par == "<?%s v$name?>") {
-                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
-			solver->lattice-><?%s v$FunName ?>(val);
-		<?R }
-		    for (v in rows(ZoneSettings)) { ?>
-		} else if (par == "<?%s v$name?>") {
-                        output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
-			solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
-		<?R } ?>
 		} else {
-			if (permissive) {
-				if (gauge != "") {
-					notice("Unknown setting %s with gauge\n", par.c_str());
-				} else {
-					WARNING("Unknown setting %s\n", par.c_str());
-				}
+			int idx = solver->lattice->settings->IdxFromString(par);
+			if (idx != LIST_INVALID) {
+	                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
+				solver->lattice->SetSetting(idx, val);
+			<?R for (v in rows(ZoneSettings)) { ?>
+			} else if (par == "<?%s v$name?>") {
+				output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
+				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
+			<?R } ?>
 			} else {
-				ERROR("Unknown setting %s\n", par.c_str());
-				return -3;
+				if (permissive) {
+					if (gauge != "") {
+						notice("Unknown setting %s with gauge\n", par.c_str());
+					} else {
+						WARNING("Unknown setting %s\n", par.c_str());
+					}
+				} else {
+					ERROR("Unknown setting %s\n", par.c_str());
+					return -3;
+				}
 			}
 		}
 		return 0;
