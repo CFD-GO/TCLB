@@ -1,0 +1,42 @@
+<?R source("conf.R"); ?>
+#include "Lists.h"
+#include "Consts.h"
+
+int SomethingList::IdxFromString (const std::string& str) const
+{
+    return LIST_INVALID;
+}
+
+const char* SomethingList::CStringFromIdx (int i) const {
+    return "";
+}
+
+int SomethingList::size () const
+{
+    return 0;
+}
+
+std::string SomethingList::StringFromIdx (int i) const
+{
+    return std::string(CStringFromIdx(i));
+}
+
+int SettingsList::IdxFromString (const std::string& str) const { <?R
+    for (v in rows(Settings)) { ?>
+    if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
+    } ?>
+    return LIST_INVALID;
+}
+
+const char* SettingsList::CStringFromIdx (int i) const { <?R
+    for (v in rows(Settings)) { ?>
+    if (i == <?%s v$Index ?>) return "<?%s v$name?>"; <?R
+    } ?>
+    return "";
+}
+
+int SettingsList::size () const
+{
+    return <?%d nrow(Settings) ?>;
+}
+
