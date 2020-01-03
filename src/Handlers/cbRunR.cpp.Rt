@@ -85,14 +85,13 @@ public:
 	  <?R for (v in rows(ZoneSettings)) { ?>
 	          if (name == "<?%s v$name?>") return;
 	  <?R } ?>
-	  <?R for (v in rows(Settings)) { ?>
-	          if (name == "<?%s v$name?>") {
-			  Rcpp::NumericVector v(v_);
-	                solver->lattice-><?%s v$FunName ?>(v[0]);
-			return;
-	          }
-	  <?R } ?>
-	  ERROR("R: Unknown setting");
+		int idx = solver->lattice->settings->IdxFromString(name);
+		if (idx != LIST_INVALID) {
+			Rcpp::NumericVector v(v_);
+	                solver->lattice->SetSetting(idx, v[0]);
+		} else {
+			ERROR("R: Unknown setting");
+		}
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;

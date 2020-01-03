@@ -1275,28 +1275,7 @@ void Lattice::setSetting(int i, real_t tmp) {
 	setConstSetting(i,tmp);
 }
 
-<?R
-        for (v in rows(Settings)) {
-                if (is.na(v$derived)) {
-                        tmp = paste(v$name,"_",sep="");
-                } else {
-                        tmp = v$name;
-                }
-        ?>
-/// Set [<?%s v$comment ?>]
-/**
-        Set <?%s v$name ?> Setting (<?%s v$comment ?>). <?R
-if (!is.na(v$derived)) { ?>
-        <?%s v$name ?> is a dummy setting. It sets <?%s v$derived ?>
-        with the equation <?%s v$derived ?> = <?%s v$equation ?><?R
-} ?>
-*/
-void Lattice::<?%s v$FunName ?>(real_t val) {
-        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, val);
-	int idx = <?%s v$Index ?>;
-	SetSetting(idx, val);
-}
-<?R } ?>
+
 
 void Lattice::SetSetting(int idx, real_t val) {
 	if (reverse_save) push_setting(idx, settings_val[idx], val);

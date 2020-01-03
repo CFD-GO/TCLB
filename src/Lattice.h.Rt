@@ -168,9 +168,6 @@ public:
   void resetAverage();
   void setSetting(int i, real_t tmp);
   void SetSetting(int i, real_t val);
-<?R for (v in rows(Settings)) { ?>
-	void <?%s v$FunName ?>(real_t);<?R
-    } ?>
   void GenerateST();
 
 
