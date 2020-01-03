@@ -75,6 +75,7 @@ int Lattice::Offset(int x, int y, int z)
 Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
 	DEBUG_M;
+	settings = &model_settings;
 	reverse_save=0;
 	Record_Iter = 0;
 	Iter = 0;
@@ -1289,18 +1290,22 @@ if (!is.na(v$derived)) { ?>
         with the equation <?%s v$derived ?> = <?%s v$equation ?><?R
 } ?>
 */
-void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
-	if (reverse_save) push_setting(<?%s v$Index ?>, settings_val[<?%s v$Index ?>], <?%s tmp ?>);
-        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
-	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
-                if (!is.na(v$derived)) {
-                        i = which(as.character(Settings$name) == as.character(v$derived));
-                        if (is.null(i)) stop(paste(v$derived, "was declared as derived of",v$name,". But", v$derived, "doesn't exist\n"));
-                        sel = Settings[i[1],]; ?>
-        <?%s sel$FunName ?>(<?%s v$equation ?>); <?R
-                } ?>
-} <?R
-        } ?>
+void Lattice::<?%s v$FunName ?>(real_t val) {
+        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, val);
+	int idx = <?%s v$Index ?>;
+	SetSetting(idx, val);
+}
+<?R } ?>
+
+void Lattice::SetSetting(int idx, real_t val) {
+	if (reverse_save) push_setting(idx, settings_val[idx], val);
+	setSetting(idx, val);
+	int der = model_settings.DerivedFromIdx(idx);
+	if (der != LIST_INVALID) {
+		double der_val = model_settings.DerivedValueFromIdx(idx,val);
+		SetSetting(der, der_val);
+	}
+}
 
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;

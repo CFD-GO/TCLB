@@ -2,21 +2,21 @@
 #include "Lists.h"
 #include "Consts.h"
 
-int SomethingList::IdxFromString (const std::string& str) const
+int ListBase::IdxFromString (const std::string& str) const
 {
     return LIST_INVALID;
 }
 
-const char* SomethingList::CStringFromIdx (int i) const {
+const char* ListBase::CStringFromIdx (int i) const {
     return "";
 }
 
-int SomethingList::size () const
+int ListBase::size () const
 {
     return 0;
 }
 
-std::string SomethingList::StringFromIdx (int i) const
+std::string ListBase::StringFromIdx (int i) const
 {
     return std::string(CStringFromIdx(i));
 }
@@ -39,4 +39,34 @@ int SettingsList::size () const
 {
     return <?%d nrow(Settings) ?>;
 }
+
+int SettingsList::DerivedFromIdx(int i) const { <?R
+    for (v in rows(Settings)) { ?>
+    if (i == <?%s v$Index ?>) <?R
+	if (!is.na(v$derived)) {
+		i = which(as.character(Settings$name) == as.character(v$derived));
+		sel = Settings[i[1],] ?>
+		return <?%s sel$Index ?>; <?R
+	} else { ?>
+		return LIST_INVALID; <?R
+	}
+    } ?>
+    return LIST_INVALID;
+}
+
+double SettingsList::DerivedValueFromIdx(int i, double val) const { <?R
+    for (v in rows(Settings)) { ?>
+    if (i == <?%s v$Index ?>) <?R
+	if (!is.na(v$derived)) {
+		i = which(as.character(Settings$name) == as.character(v$derived));
+		sel = Settings[i[1],] ?> {
+		double <?%s v$name ?> = val;
+       		return <?%s v$equation ?>; }<?R
+	} else { ?>
+		return LIST_INVALID; <?R
+	}
+    } ?>
+    return LIST_INVALID;
+}
+
 

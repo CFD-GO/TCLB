@@ -13,6 +13,7 @@
 #include "RemoteForceInterface.h"
 #include "BallTree.h"
 #include "pinned_allocator.hpp"
+#include "Lists.h"
 
 class lbRegion;
 class LatticeContainer;
@@ -56,6 +57,8 @@ private:
   CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
   int reverse_save; ///< Flag stating if recording (Now)
 public:
+  SettingsListBase * settings;
+  SettingsList model_settings;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
   Sampler *sample; //initializing sampler with zero size
@@ -162,6 +165,7 @@ public:
   double getObjective();
   void resetAverage();
   void setSetting(int i, real_t tmp);
+  void SetSetting(int i, real_t val);
 <?R for (v in rows(Settings)) { ?>
 	void <?%s v$FunName ?>(real_t);<?R
     } ?>
