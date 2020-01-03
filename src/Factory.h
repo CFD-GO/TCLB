@@ -1,6 +1,7 @@
 #ifndef FACTORY_H
 #define FACTORY_H
 
+#include <stddef.h>
 #include <vector>
 
 // Uncomment this if you want to see what it registered
