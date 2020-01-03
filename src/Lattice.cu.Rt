@@ -122,14 +122,6 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
         CudaStreamCreate(&kernelStream);
         CudaStreamCreate(&inStream);
         CudaStreamCreate(&outStream);
-	for (int i=0; i < 4; i++)
-	        CudaEventCreate( &kernelEv[i] );
-	for (int i=0; i < 28; i++)
-	        CudaEventCreate( &outEv[i] );
-	for (int i=0; i < 28; i++)
-	        CudaEventCreate( &inEv[i] );
-	for (int i=0; i < 28; i++)
-	        CudaEventCreate( &mpiEv[i] );
         container->ZoneSettings = zSet.gpuTab;
         container->ConstZoneSettings = zSet.gpuConst;
         container->ZoneIndex = 0;
