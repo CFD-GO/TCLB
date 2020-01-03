@@ -126,14 +126,16 @@ void MainFree( Solver *d);
                     assert( f != NULL );
 			
                     fprintf(f,"\"Iteration\",\"Time_si\",\"Walltime\",\"Optimization\"");
-		    <?R for (v in Settings$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
-		    <?R } ?>
-		    <?R for (v in ZoneSettings$name) { ?>
+		for (int i=0; i<lattice->settings->size(); i++) {
+			const char * nm = lattice->settings->CStringFromIdx(i);
+			fprintf(f,",\"%s\",\"%s_si\"", nm, nm);
+		}
+		for (int i=0; i<lattice->settings->size(); i++) {
+			const char * nm = lattice->settings->CStringFromIdx(i);
 		    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
-	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"",it->first.c_str(), it->first.c_str());
+	                	fprintf(f,",\"%s-%s\",\"%s-%s_si\"", nm, it->first.c_str(), nm, it->first.c_str());
 	                }
-		    <?R } ?>
+		}
 		    <?R for (v in Globals$name) { ?>
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
@@ -143,13 +145,9 @@ void MainFree( Solver *d);
                     fprintf(f,"\n");
 
                     fclose(f);
+		for (int i=0; i<lattice->settings->size(); i++) LogScales[i] = 1/units.alt(lattice->settings->UnitFromIdx(i));
+		for (int i=0; i<lattice->zonesettings->size(); i++) LogScales[SETTINGS + i] = 1/units.alt(lattice->zonesettings->UnitFromIdx(i));
 	    <?R 
-		for (v in rows(Settings)) { ?>
-                    LogScales[<?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
-		for (v in rows(ZoneSettings)) { ?>
-                    LogScales[SETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
 		for (v in rows(Globals)) { ?>
                     LogScales[SETTINGS + ZONESETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
 		}

@@ -21,6 +21,10 @@ std::string ListBase::StringFromIdx (int i) const
     return std::string(CStringFromIdx(i));
 }
 
+std::string UnitListBase::UnitFromIdx(int i) const {
+	return "1";
+}
+
 int SettingsList::IdxFromString (const std::string& str) const { <?R
     for (v in rows(Settings)) { ?>
     if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
@@ -69,6 +73,13 @@ double SettingsList::DerivedValueFromIdx(int i, double val) const { <?R
     return LIST_INVALID;
 }
 
+std::string SettingsList::UnitFromIdx(int i) const { <?R
+    for (v in rows(Settings)) { ?>
+    if (i == <?%s v$Index ?>) return "<?%s v$unit ?>"; <?R
+    } ?>
+    return "1";
+}
+
 int ZoneSettingsList::IdxFromString (const std::string& str) const { <?R
     for (v in rows(ZoneSettings)) { ?>
     if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
@@ -88,3 +99,9 @@ int ZoneSettingsList::size () const
     return <?%d nrow(ZoneSettings) ?>;
 }
 
+std::string ZoneSettingsList::UnitFromIdx(int i) const { <?R
+    for (v in rows(ZoneSettings)) { ?>
+    if (i == <?%s v$Index ?>) return "<?%s v$unit ?>"; <?R
+    } ?>
+    return "1";
+}
