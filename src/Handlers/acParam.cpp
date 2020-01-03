@@ -40,7 +40,7 @@ int acParam::Init () {
 			if (idx != LIST_INVALID) {
 	                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
 				solver->lattice->SetSetting(idx, val);
-			} else if (idx != LIST_INVALID) {
+			} else if (zoneidx != LIST_INVALID) {
 				output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
 				solver->lattice->zSet.set(zoneidx, zone_number, val);
 			} else {
