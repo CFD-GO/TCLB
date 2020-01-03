@@ -30,7 +30,7 @@ int acThresholdNow::Init () {
 		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
-	        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(level);
+	        solver->lattice->SetSetting(SETTINGS_Threshold, level);
 	        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>level ? 1.0 : 0.0;
 //       		solver->setPar(slice);
 		SetParameters(slice);

@@ -38,7 +38,7 @@ int acThreshold::Init () {
 		
 		for (int i=0; i < levels; i++) {
 		        double th = (1.0 * i)/(levels-1);
-		        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(th);
+		        solver->lattice->SetSetting(SETTINGS_Threshold, th);
 		        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>th ? 1.0 : 0.0;
 //        		solver->setPar(slice);
 			SetParameters(slice);
