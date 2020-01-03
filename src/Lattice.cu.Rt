@@ -117,7 +117,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 #endif
 	aSnap = 0;
 	for (int i=0; i < SETTINGS; i++) {
-		settings[i] = 0.0;
+		settings_val[i] = 0.0;
 	}
         CudaStreamCreate(&kernelStream);
         CudaStreamCreate(&inStream);
@@ -1231,7 +1231,7 @@ void Lattice::calcGlobals() {
 		i = which(Settings$name == paste(m$name,"InObj",sep=""));
 		if (length(i) == 1) {
 			s = Settings[Settings$name == paste(m$name,"InObj",sep=""),]; ?>
-	obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
+	obj += settings_val[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
 		}
 	}
 ?>	
@@ -1268,7 +1268,7 @@ double Lattice::getObjective() {
         \param tmp Value of the Setting
 */
 void Lattice::setSetting(int i, real_t tmp) {
-	settings[i] = tmp;
+	settings_val[i] = tmp;
         debug1("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
 	setConstSetting(i,tmp);
 }
@@ -1290,7 +1290,7 @@ if (!is.na(v$derived)) { ?>
 } ?>
 */
 void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
-	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
+	if (reverse_save) push_setting(<?%s v$Index ?>, settings_val[<?%s v$Index ?>], <?%s tmp ?>);
         output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
 	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
                 if (!is.na(v$derived)) {

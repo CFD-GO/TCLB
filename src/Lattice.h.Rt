@@ -67,7 +67,7 @@ public:
   int Record_Iter; ///< Recorded iteration number (Now)
   int Iter; ///< Iteration (Now) - "real" time of the simulation
   int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
-  real_t settings[SETTINGS];  ///< Table of Settings (Now)
+  real_t settings_val[SETTINGS];  ///< Table of Settings (Now)
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
