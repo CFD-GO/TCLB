@@ -75,17 +75,18 @@ class rSettings : public rWrapper {
 public:
 	std::string print() { return "Settings"; }
 	SEXP Dollar(std::string name) {
-		<?R for (v in rows(ZoneSettings)) { ?>
-			return rWrap(new rZoneSetting(name.c_str(),<?%s v$Index?>));
-		<?R } ?>
-	  return 0;
+		int idx = solver->lattice->zonesettings->IdxFromString(name);
+		if (idx != LIST_INVALID) return rWrap(new rZoneSetting(name.c_str(),idx));
+		return 0;
 	}
 
 	void DollarAssign(std::string name, SEXP v_) {
-	  <?R for (v in rows(ZoneSettings)) { ?>
-	          if (name == "<?%s v$name?>") return;
-	  <?R } ?>
-		int idx = solver->lattice->settings->IdxFromString(name);
+		int idx;
+		idx = solver->lattice->zonesettings->IdxFromString(name);
+		if (idx != LIST_INVALID) {
+			ERROR("R: ZoneSetting not supported in rSetting");
+		}
+		idx = solver->lattice->settings->IdxFromString(name);
 		if (idx != LIST_INVALID) {
 			Rcpp::NumericVector v(v_);
 	                solver->lattice->SetSetting(idx, v[0]);
@@ -95,12 +96,8 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		<?R for (v in rows(Settings)) { ?>
-		ret.push_back("<?%s v$name ?>");
-		<?R } ?>
-		<?R for (v in rows(ZoneSettings)) { ?>
-		ret.push_back("<?%s v$name ?>");
-		<?R } ?>
+		for (int i=0; i<solver->lattice->settings->size(); i++) ret.push_back(solver->lattice->settings->StringFromIdx(i));
+		for (int i=0; i<solver->lattice->zonesettings->size(); i++) ret.push_back(solver->lattice->zonesettings->StringFromIdx(i));
 		return ret;
 	}
 };
