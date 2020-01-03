@@ -69,4 +69,22 @@ double SettingsList::DerivedValueFromIdx(int i, double val) const { <?R
     return LIST_INVALID;
 }
 
+int ZoneSettingsList::IdxFromString (const std::string& str) const { <?R
+    for (v in rows(ZoneSettings)) { ?>
+    if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
+    } ?>
+    return LIST_INVALID;
+}
+
+const char* ZoneSettingsList::CStringFromIdx (int i) const { <?R
+    for (v in rows(ZoneSettings)) { ?>
+    if (i == <?%s v$Index ?>) return "<?%s v$name?>"; <?R
+    } ?>
+    return "";
+}
+
+int ZoneSettingsList::size () const
+{
+    return <?%d nrow(ZoneSettings) ?>;
+}
 

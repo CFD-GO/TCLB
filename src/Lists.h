@@ -26,4 +26,15 @@ public:
     virtual int size () const;
 };
 
+class ZoneSettingsListBase : public ListBase {
+public:
+};
+
+class ZoneSettingsList : public ZoneSettingsListBase {
+public:
+    virtual int IdxFromString (const std::string& str) const;
+    virtual const char* CStringFromIdx (int i) const;
+    virtual int size () const;
+};
+
 #endif

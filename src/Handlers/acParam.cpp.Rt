@@ -41,14 +41,13 @@ int acParam::Init () {
 			}
 		} else {
 			int idx = solver->lattice->settings->IdxFromString(par);
+			int zoneidx = solver->lattice->zonesettings->IdxFromString(par);
 			if (idx != LIST_INVALID) {
 	                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
 				solver->lattice->SetSetting(idx, val);
-			<?R for (v in rows(ZoneSettings)) { ?>
-			} else if (par == "<?%s v$name?>") {
+			} else if (idx != LIST_INVALID) {
 				output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
-				solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
-			<?R } ?>
+				solver->lattice->zSet.set(zoneidx, zone_number, val);
 			} else {
 				if (permissive) {
 					if (gauge != "") {

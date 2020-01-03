@@ -76,6 +76,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 {
 	DEBUG_M;
 	settings = &model_settings;
+	zonesettings = &model_zonesettings;
 	reverse_save=0;
 	Record_Iter = 0;
 	Iter = 0;
