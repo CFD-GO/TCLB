@@ -1,9 +1,4 @@
-<?R
 #include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "acParam.h"
 std::string acParam::xmlname = "Param";
 
