@@ -1,9 +1,3 @@
-<?R
-#include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "acThresholdNow.h"
 std::string acThresholdNow::xmlname = "ThresholdNow";
 
