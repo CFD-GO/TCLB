@@ -4,10 +4,7 @@
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #endif
 
-<?R
- library(gvector,quiet=TRUE,warn.conflicts=FALSE)
- library(polyAlgebra,quiet=TRUE,warn.conflicts=FALSE)
-?>
+
 
 
 #include <stdlib.h>
@@ -27,11 +24,8 @@
 #include <assert.h>
 
 
-<?R
-				x = c(0,1,-1);
-				U = expand.grid(x,x,x)
-?>
-const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
+
+const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1,-1,0,0,0,1,1,0,1,-1,0,1,0,1,1,1,1,1,-1,1,1,0,-1,1,1,-1,1,-1,-1,1,0,0,-1,1,0,-1,-1,0,-1,0,1,-1,1,1,-1,-1,1,-1,0,-1,-1,1,-1,-1,-1,-1,-1 };
 
 /// Main constructor
 /**
@@ -466,20 +460,27 @@ inline cut_t smaller(cut_t a,cut_t b) {
 
 cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, double dz) {
 	double mat[16],b[4],r[4];
-	<?R
-		M = PV("mat[",1:16-1,"]")
-		dim(M) = c(4,4)
-		W = M
-		xyz = c("x","y","z");
-		W[1:3,1] = PV(xyz) - PV("tri.p1[",1:3-1,"]")
-		W[1:3,2] = PV(xyz) - PV("tri.p2[",1:3-1,"]")
-		W[1:3,3] = PV(xyz) - PV("tri.p3[",1:3-1,"]")
-		W[1:3,4] = PV("d",xyz)
-		W[4,1:4] = c(1,1,1,0)
-		b = c(0,0,0,1)
-		C(M,W)
-		C(PV("b[",1:4-1,"]"),c(0,0,0,1))
-	?>
+	mat[0] = -tri.p1[0] + x;
+mat[1] = -tri.p1[1] + y;
+mat[2] = -tri.p1[2] + z;
+mat[3] = 1;
+mat[4] = -tri.p2[0] + x;
+mat[5] = -tri.p2[1] + y;
+mat[6] = -tri.p2[2] + z;
+mat[7] = 1;
+mat[8] = -tri.p3[0] + x;
+mat[9] = -tri.p3[1] + y;
+mat[10] = -tri.p3[2] + z;
+mat[11] = 1;
+mat[12] = dx;
+mat[13] = dy;
+mat[14] = dz;
+mat[15] = 0;
+b[0] = 0;
+b[1] = 0;
+b[2] = 0;
+b[3] = 1;
+
 //	return 0;
 	GaussSolve(mat,b,r,4);
 	if (r[0] < 0) return NO_CUT;
