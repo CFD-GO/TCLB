@@ -92,7 +92,7 @@ AddNodeType(name="MovingWall_S", group="BOUNDARY")
 
 AddStage("BaseInit", "Init", save=Fields$group %in% c("f","Force"), load = DensityAll$group %in% c("f","Force"))
 AddStage("BaseIteration", "Run", save=Fields$group %in% c("f","Force"), load = DensityAll$group %in% c("f","Force"))
-AddStage("CalcF", save=Fields$group == "Force", load = DensityAll$group %in% c("f","Force"))
+AddStage("CalcF", save=Fields$group == "Force", load = DensityAll$group %in% c("f","Force"), particle=TRUE)
 
 AddAction("Iteration", c("BaseIteration", "CalcF"))
 AddAction("Init", c("BaseInit", "CalcF"))
