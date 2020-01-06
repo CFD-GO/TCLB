@@ -61,6 +61,8 @@ public:
   SettingsList model_settings;
   ZoneSettingsListBase * zonesettings;
   ZoneSettingsList model_zonesettings;
+  QuantitiesListBase * quantities;
+  QuantitiesList model_quantities;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
   Sampler *sample; //initializing sampler with zero size
@@ -151,8 +153,9 @@ public:
   void Get_<?%s d$nicename ?>_Adj(real_t * tab);
   void Clear_<?%s d$nicename ?>_Adj();
   void Set_<?%s d$nicename ?>_Adj(real_t * tab);
-<?R }
-    for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+<?R } ?>
+void GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale);
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
   void GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* tab);
   inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };

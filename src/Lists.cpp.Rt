@@ -105,3 +105,47 @@ std::string ZoneSettingsList::UnitFromIdx(int i) const { <?R
     } ?>
     return "1";
 }
+
+
+int QuantitiesList::IdxFromString (const std::string& str) const { <?R
+    for (v in rows(Quantities)) { ?>
+    if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
+    } ?>
+    return LIST_INVALID;
+}
+
+const char* QuantitiesList::CStringFromIdx (int i) const { <?R
+    for (v in rows(Quantities)) { ?>
+    if (i == <?%s v$Index ?>) return "<?%s v$name?>"; <?R
+    } ?>
+    return "";
+}
+
+int QuantitiesList::size () const
+{
+    return <?%d nrow(Quantities) ?>;
+}
+
+std::string QuantitiesList::UnitFromIdx(int i) const { <?R
+    for (v in rows(Quantities)) { ?>
+    if (i == <?%s v$Index ?>) return "<?%s v$unit ?>"; <?R
+    } ?>
+    return "1";
+}
+
+bool QuantitiesList::IsVectorFromIdx(int i) const { <?R
+    for (v in rows(Quantities)) { ?>
+    if (i == <?%s v$Index ?>) return <?%s if (v$vector) "true" else "false" ?>; <?R
+    } ?>
+    return false;
+}
+
+bool QuantitiesList::IsAdjointFromIdx(int i) const { <?R
+    for (v in rows(Quantities)) { ?>
+    if (i == <?%s v$Index ?>) return <?%s if (v$adjoint) "true" else "false" ?>; <?R
+    } ?>
+    return false;
+}
+
+
+

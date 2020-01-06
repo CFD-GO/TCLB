@@ -45,18 +45,17 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		delete[] NodeType;
 	}
 
-	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-	{
-		if (what->in("<?%s q$name ?>")) {
-			double v = units.alt("<?%s q$unit ?>");
-	                <?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-                        lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
-			vtkFile.WriteField("<?%s q$name ?>",tmp);
+	for (int q = 0; q < lattice->quantities->size(); q++) {
+		if (what->in(lattice->quantities->StringFromIdx(q))) {
+			double v = units.alt(lattice->quantities->UnitFromIdx(q));
+			int comp = 1;
+			if (lattice->quantities->IsVectorFromIdx(q)) comp = 3;
+	                real_t* tmp = new real_t[size*comp];
+                        lattice->GetQuantity(q, reg, tmp, 1/v);
+			vtkFile.WriteField(lattice->quantities->CStringFromIdx(q), tmp, comp);
 			delete[] tmp;
 		}
 	}
-	<?R }; ifdef(); ?>
-
 	
 	vtkFile.Finish();
 	vtkFile.Close();

@@ -45,4 +45,21 @@ public:
     virtual int size () const;
 };
 
+class QuantitiesListBase : public UnitListBase {
+public:
+    virtual bool IsVectorFromIdx(int i) const = 0;
+    virtual bool IsAdjointFromIdx(int i) const = 0;
+};
+
+class QuantitiesList : public QuantitiesListBase {
+public:
+    virtual bool IsVectorFromIdx(int i) const;
+    virtual bool IsAdjointFromIdx(int i) const;
+    virtual std::string UnitFromIdx(int i) const;
+    virtual int IdxFromString (const std::string& str) const;
+    virtual const char* CStringFromIdx (int i) const;
+    virtual int size () const;
+};
+
+
 #endif
