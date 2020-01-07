@@ -46,7 +46,19 @@ Model_m::Model_m() {
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>";
 		set.isVector = <?%s if (v$vector) "true" else "false" ?>;
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
 		quantities.push_back(set);
+<?R	} ?>
+	}
+	{
+		Global set;
+<?R	for (v in rows(Globals)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>";
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		set.operation = MPI_<?%s v$op ?>;
+		globals.push_back(set);
 <?R	} ?>
 	}
 	{

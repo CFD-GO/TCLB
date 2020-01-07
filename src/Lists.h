@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include "Consts.h"
-
+#include "mpi.h"
 #define LIST_INVALID -1
 
 template <class T>
@@ -49,6 +49,12 @@ struct NodeTypeGroupFlag : Thing {
     int shift;
 };
 
+struct Global : UnitThing {
+    bool isAdjoint;
+    MPI_Op operation;
+};
+
+
 class ModelBase {
     template <class T>
     class Things : public std::vector<T> {
@@ -68,6 +74,8 @@ public:
     NodeTypeFlags nodetypeflags;
     typedef Things<NodeTypeGroupFlag> NodeTypeGroupFlags;
     NodeTypeGroupFlags nodetypegroupflags;
+    typedef Things<Global> Globals;
+    Globals globals;
 };
 
 class Model_m : public ModelBase {
