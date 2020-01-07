@@ -1,13 +1,8 @@
-<?R
-	source("conf.R")
-	c_header();
-?>
 #include <stdio.h>
 #include <assert.h>
 #include <mpi.h>
 #include "cross.h"
 #include "vtkLattice.h"
-//#include <unistd.h>
 #include "Global.h"
 
 int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what)
