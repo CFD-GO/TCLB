@@ -1,9 +1,4 @@
-<?R
 #include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "conControl.h"
 std::string conControl::xmlname = "Control";
 
@@ -28,16 +23,17 @@ int conControl::Param (pugi::xml_node n) {
         if (par == "") {
                 ERROR("Setting name not specified in Param element\n");
                 return -2;
-        <?R for (v in rows(ZoneSettings)) { ?>
-        } else if (par == "<?%s v$name?>") {
-                std::vector<double> val;
-                get( context, value.c_str(), 1, val);
-                solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
-        <?R } ?>
-        } else {
-                ERROR("Unknown setting %s\n", par.c_str());
-                return -3;
-        }
+	} else {
+		ModelBase::ZoneSettings::const_iterator it = solver->lattice->model->zonesettings.ByName(par);
+		if (it != solver->lattice->model->zonesettings.end()) {
+                        std::vector<double> val;
+                        get( context, value.c_str(), 1, val);
+                        solver->lattice->zSet.set(it->id, zone_number, val);
+                } else {
+                        ERROR("Unknown setting %s\n", par.c_str());
+                        return -3;
+                }
+	}
         return 0;
 }
 
