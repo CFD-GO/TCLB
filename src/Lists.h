@@ -2,15 +2,16 @@
 #define LISTS_H
 #include <string>
 #include <vector>
+#include "Consts.h"
 
 #define LIST_INVALID -1
 
 template <class T>
-int FindByName(const T& cont, std::string str) {
+typename T::const_iterator FindByName(const T& cont, const std::string& str) {
     for (typename T::const_iterator it = cont.begin(); it != cont.end(); it++) {
-        if (it->name == str) return it->id;
+        if (it->name == str) return it;
     }
-    return LIST_INVALID;
+    return cont.end();
 }
 
 typedef double (*DerivedFunction)(double);
@@ -38,11 +39,20 @@ struct Quantity : UnitThing {
     bool isAdjoint;
 };
 
+struct NodeTypeFlag : Thing {
+    flag_t flag;
+    int group_id;
+};
+
+struct NodeTypeGroupFlag : Thing {
+    flag_t flag;
+};
+
 class ModelBase {
     template <class T>
     class Things : public std::vector<T> {
     public:
-        int ByName(const std::string& str) const {
+        typename Things::const_iterator ByName(const std::string& str) const {
             return FindByName(*this, str);
         }
     };        
@@ -53,6 +63,10 @@ public:
     ZoneSettings zonesettings;
     typedef Things<Quantity> Quantities;
     Quantities quantities;
+    typedef Things<NodeTypeFlag> NodeTypeFlags;
+    NodeTypeFlags nodetypeflags;
+    typedef Things<NodeTypeGroupFlag> NodeTypeGroupFlags;
+    NodeTypeGroupFlags nodetypegroupflags;
 };
 
 class Model_m : public ModelBase {

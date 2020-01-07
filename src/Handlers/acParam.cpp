@@ -35,14 +35,14 @@ int acParam::Init () {
 				return -2;
 			}
 		} else {
-			int idx = solver->lattice->model->settings.ByName(par);
-			int zoneidx = solver->lattice->model->zonesettings.ByName(par);
-			if (idx != LIST_INVALID) {
+			ModelBase::Settings::const_iterator it = solver->lattice->model->settings.ByName(par);
+			ModelBase::ZoneSettings::const_iterator zoneit = solver->lattice->model->zonesettings.ByName(par);
+			if (it != solver->lattice->model->settings.end()) {
 	                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
-				solver->lattice->SetSetting(idx, val);
-			} else if (zoneidx != LIST_INVALID) {
+				solver->lattice->SetSetting(it->id, val);
+			} else if (zoneit != solver->lattice->model->zonesettings.end()) {
 				output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
-				solver->lattice->zSet.set(zoneidx, zone_number, val);
+				solver->lattice->zSet.set(zoneit->id, zone_number, val);
 			} else {
 				if (permissive) {
 					if (gauge != "") {
