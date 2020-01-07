@@ -1126,10 +1126,11 @@ ifdef()
 void Lattice::GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale)
 {
 	switch(quant) {	<?R
-		for (q in rows(Quantities)) {
+		for (q in rows(Quantities)) { ifdef(q$adjoint);
 	?>
 		case <?%s q$Index ?>: return Get<?%s q$name ?>(over, (<?%s q$type ?> *) tab, scale); <?R
 		}
+		ifdef();
 	?>
 	}
 }
