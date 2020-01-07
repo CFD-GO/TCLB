@@ -46,6 +46,7 @@ struct NodeTypeFlag : Thing {
 
 struct NodeTypeGroupFlag : Thing {
     flag_t flag;
+    int shift;
 };
 
 class ModelBase {

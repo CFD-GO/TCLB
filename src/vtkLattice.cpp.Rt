@@ -30,17 +30,14 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 			vtkFile.WriteField("flag",NodeType);
 		}
 		unsigned char * small = new unsigned char[size];
-		<?R
-		i = !duplicated(NodeTypes$group)
-		for (n in rows(NodeTypes[i,])) {
-		?>
-			if (what->in("<?%s n$group ?>")) {
+		for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
+			if (what->in(it->name)) {
 				for (size_t i=0;i<size;i++) {
-					small[i] = (NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>;
+					small[i] = (NodeType[i] & it->flag) >> it->shift;
 				}
-				vtkFile.WriteField("<?%s n$group ?>",small);
+				vtkFile.WriteField(it->name.c_str(),small);
 			}
-		<?R } ?>
+		}
 		delete[] small;
 		delete[] NodeType;
 	}

@@ -49,6 +49,27 @@ Model_m::Model_m() {
 		quantities.push_back(set);
 <?R	} ?>
 	}
+	{
+		NodeTypeFlag set;
+<?R	for (v in rows(NodeTypes)) { ?>
+		set.id = NODE_<?%s v$name ?>;
+		set.flag = NODE_<?%s v$name ?>;
+		set.group_id = NODE_<?%s v$group ?>;
+		set.name = "<?%s v$name ?>";
+		nodetypeflags.push_back(set);
+<?R	} ?>
+	}
+	{
+		NodeTypeGroupFlag set;
+<?R	i = !duplicated(NodeTypes$group)
+	for (v in rows(NodeTypes[i,])) { ?>
+		set.id = NODE_<?%s v$group ?>;
+		set.flag = NODE_<?%s v$group ?>;
+		set.name = "<?%s v$group ?>";
+		set.shift = <?%s v$shift ?>;
+		nodetypegroupflags.push_back(set);
+<?R	} ?>
+	}
 }
 
 
