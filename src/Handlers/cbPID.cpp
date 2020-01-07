@@ -1,9 +1,4 @@
-<?R
 #include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "cbPID.h"
 std::string cbPID::xmlname = "PID";
 
@@ -28,13 +23,14 @@ int cbPID::Init () {
 		if (glob == "") {	
 			ERROR("Name of the global not provided in the PID element");
 			return -1;
-		<?R for (g in rows(Globals)) { ?>
-		} else if (glob == "<?%s g$name ?>") {
-			what = <?%s g$Index ?>;
-		<?R } ?>
 		} else {
-			ERROR("Uknown global name in the PID element");
-			return -1;			
+			ModelBase::Globals::const_iterator it = solver->lattice->model->globals.ByName(glob);
+			if (it != solver->lattice->model->globals.end()) {
+				what = it->id;
+			} else {
+				ERROR("Uknown global name in the PID element");
+				return -1;			
+			}
 		}
 		std::string par,zone;
 		attr = node.attribute("control");
@@ -55,12 +51,13 @@ int cbPID::Init () {
 		if (par == "") {
 			error("No zonal setting supplied for control in %s\n", node.name());
 			return -1;
-		<?R for (v in rows(ZoneSettings)) { ?>
-		} else if (par == "<?%s v$name?>") {
-			setting = <?%s v$Index?>;
-		<?R } ?>
 		} else {
-			error("%s is not a valid zonal setting supplied for control in %s\n", par.c_str(), node.name());
+			ModelBase::ZoneSettings::const_iterator it = solver->lattice->model->zonesettings.ByName(par);
+			if (it != solver->lattice->model->zonesettings.end()) {
+				setting = it->id;
+			} else {
+				error("%s is not a valid zonal setting supplied for control in %s\n", par.c_str(), node.name());
+			}
 		}
 
 		attr = node.attribute("IntegrationTime");
