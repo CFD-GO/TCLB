@@ -54,6 +54,10 @@ struct Global : UnitThing {
     MPI_Op operation;
 };
 
+struct Option : Thing {
+    bool isActive;
+};
+
 
 class ModelBase {
     template <class T>
@@ -76,6 +80,8 @@ public:
     NodeTypeGroupFlags nodetypegroupflags;
     typedef Things<Global> Globals;
     Globals globals;
+    typedef Things<Option> Options;
+    Options options;
 };
 
 class Model_m : public ModelBase {

@@ -62,6 +62,15 @@ Model_m::Model_m() {
 <?R	} ?>
 	}
 	{
+		Option set;
+<?R	for (i in seq_along(Options)) { ?>
+		set.id = <?%d i ?>;
+		set.name = "<?%s names(Options)[i] ?>";
+		set.isActive = <?%s if (Options[[i]]) "true" else "false" ?>;
+		options.push_back(set);
+<?R	} ?>
+	}
+	{
 		NodeTypeFlag set;
 <?R	for (v in rows(NodeTypes)) { ?>
 		set.id = NODE_<?%s v$name ?>;
