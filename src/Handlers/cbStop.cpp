@@ -1,9 +1,4 @@
-<?R
 #include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "cbStop.h"
 std::string cbStop::xmlname = "Stop";
 
@@ -11,16 +6,16 @@ int cbStop::Init () {
 		Callback::Init();
 		double stop;
 		pugi::xml_attribute attr;
-		<?R 
-		        for (g in rows(Globals)) { ?>
-		attr = node.attribute("<?%s g$name ?>Change");
-		if (attr) {
-			stop = attr.as_double();
-			what.push_back(<?%s g$Index ?>);
-			change.push_back(stop);
-			old.push_back(-12341234);
-		} <?R
-		        } ?>
+		for (ModelBase::Globals::const_iterator it = solver->lattice->model->globals.begin(); it != solver->lattice->model->globals.end(); it++) {
+			std::string nm = it->name + "Change";
+			attr = node.attribute(nm.c_str());
+			if (attr) {
+				stop = attr.as_double();
+				what.push_back(it->id);
+				change.push_back(stop);
+				old.push_back(-12341234);
+			}
+		}
 		if (what.size() < 1) {
 			error("No *Change attribute in %s\n", node.name());
 			return -1;
