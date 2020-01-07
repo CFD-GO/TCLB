@@ -130,8 +130,8 @@ void MainFree( Solver *d);
 			const char * nm = lattice->settings->CStringFromIdx(i);
 			fprintf(f,",\"%s\",\"%s_si\"", nm, nm);
 		}
-		for (int i=0; i<lattice->settings->size(); i++) {
-			const char * nm = lattice->settings->CStringFromIdx(i);
+		for (int i=0; i<lattice->zonesettings->size(); i++) {
+			const char * nm = lattice->zonesettings->CStringFromIdx(i);
 		    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
 	                	fprintf(f,",\"%s-%s\",\"%s-%s_si\"", nm, it->first.c_str(), nm, it->first.c_str());
 	                }
