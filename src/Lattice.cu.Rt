@@ -75,9 +75,7 @@ int Lattice::Offset(int x, int y, int z)
 Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
 {
 	DEBUG_M;
-	settings = &model_settings;
-	zonesettings = &model_zonesettings;
-	quantities = &model_quantities;
+	model = &current_model;
 	reverse_save=0;
 	Record_Iter = 0;
 	Iter = 0;
@@ -1300,9 +1298,10 @@ void Lattice::setSetting(int i, real_t tmp) {
 void Lattice::SetSetting(int idx, real_t val) {
 	if (reverse_save) push_setting(idx, settings_val[idx], val);
 	setSetting(idx, val);
-	int der = model_settings.DerivedFromIdx(idx);
-	if (der != LIST_INVALID) {
-		double der_val = model_settings.DerivedValueFromIdx(idx,val);
+	Setting& set = model->settings[idx];
+	if(set.isDerived) {
+		int der = set.derivedSetting;
+		double der_val = set.derivedValue(val);
 		SetSetting(der, der_val);
 	}
 }

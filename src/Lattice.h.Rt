@@ -57,12 +57,8 @@ private:
   CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
   int reverse_save; ///< Flag stating if recording (Now)
 public:
-  SettingsListBase * settings;
-  SettingsList model_settings;
-  ZoneSettingsListBase * zonesettings;
-  ZoneSettingsList model_zonesettings;
-  QuantitiesListBase * quantities;
-  QuantitiesList model_quantities;
+  ModelBase * model;
+  Model_m current_model;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
   Sampler *sample; //initializing sampler with zero size

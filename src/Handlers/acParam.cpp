@@ -35,8 +35,8 @@ int acParam::Init () {
 				return -2;
 			}
 		} else {
-			int idx = solver->lattice->settings->IdxFromString(par);
-			int zoneidx = solver->lattice->zonesettings->IdxFromString(par);
+			int idx = solver->lattice->model->settings.ByName(par);
+			int zoneidx = solver->lattice->model->zonesettings.ByName(par);
 			if (idx != LIST_INVALID) {
 	                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
 				solver->lattice->SetSetting(idx, val);

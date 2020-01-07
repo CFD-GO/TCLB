@@ -75,18 +75,18 @@ class rSettings : public rWrapper {
 public:
 	std::string print() { return "Settings"; }
 	SEXP Dollar(std::string name) {
-		int idx = solver->lattice->zonesettings->IdxFromString(name);
+		int idx = solver->lattice->model->zonesettings.ByName(name);
 		if (idx != LIST_INVALID) return rWrap(new rZoneSetting(name.c_str(),idx));
 		return 0;
 	}
 
 	void DollarAssign(std::string name, SEXP v_) {
 		int idx;
-		idx = solver->lattice->zonesettings->IdxFromString(name);
+		idx = solver->lattice->model->zonesettings.ByName(name);
 		if (idx != LIST_INVALID) {
 			ERROR("R: ZoneSetting not supported in rSetting");
 		}
-		idx = solver->lattice->settings->IdxFromString(name);
+		idx = solver->lattice->model->settings.ByName(name);
 		if (idx != LIST_INVALID) {
 			Rcpp::NumericVector v(v_);
 	                solver->lattice->SetSetting(idx, v[0]);
@@ -96,8 +96,12 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		for (int i=0; i<solver->lattice->settings->size(); i++) ret.push_back(solver->lattice->settings->StringFromIdx(i));
-		for (int i=0; i<solver->lattice->zonesettings->size(); i++) ret.push_back(solver->lattice->zonesettings->StringFromIdx(i));
+		for (ModelBase::Settings::const_iterator it=solver->lattice->model->settings.begin(); it !=solver->lattice->model->settings.end(); it++) {
+			ret.push_back(it->name);
+		}
+		for (ModelBase::ZoneSettings::const_iterator it=solver->lattice->model->zonesettings.begin(); it !=solver->lattice->model->zonesettings.end(); it++) {
+			ret.push_back(it->name);
+		}
 		return ret;
 	}
 };

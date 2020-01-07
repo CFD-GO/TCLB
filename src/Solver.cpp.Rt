@@ -126,14 +126,14 @@ void MainFree( Solver *d);
                     assert( f != NULL );
 			
                     fprintf(f,"\"Iteration\",\"Time_si\",\"Walltime\",\"Optimization\"");
-		for (int i=0; i<lattice->settings->size(); i++) {
-			const char * nm = lattice->settings->CStringFromIdx(i);
+		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
+			const char * nm = it->name.c_str();
 			fprintf(f,",\"%s\",\"%s_si\"", nm, nm);
 		}
-		for (int i=0; i<lattice->zonesettings->size(); i++) {
-			const char * nm = lattice->zonesettings->CStringFromIdx(i);
-		    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
-	                	fprintf(f,",\"%s-%s\",\"%s-%s_si\"", nm, it->first.c_str(), nm, it->first.c_str());
+		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
+			const char * nm = it->name.c_str();
+		    	for (std::map<std::string,int>::iterator it2 = geometry->SettingZones.begin(); it2 != geometry->SettingZones.end(); it2++) {
+	                	fprintf(f,",\"%s-%s\",\"%s-%s_si\"", nm, it2->first.c_str(), nm, it2->first.c_str());
 	                }
 		}
 		    <?R for (v in Globals$name) { ?>
@@ -145,8 +145,12 @@ void MainFree( Solver *d);
                     fprintf(f,"\n");
 
                     fclose(f);
-		for (int i=0; i<lattice->settings->size(); i++) LogScales[i] = 1/units.alt(lattice->settings->UnitFromIdx(i));
-		for (int i=0; i<lattice->zonesettings->size(); i++) LogScales[SETTINGS + i] = 1/units.alt(lattice->zonesettings->UnitFromIdx(i));
+		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
+			LogScales[it->id] = 1/units.alt(it->unit);
+		}
+		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
+			LogScales[SETTINGS + it->id] = 1/units.alt(it->unit);
+		}
 	    <?R 
 		for (v in rows(Globals)) { ?>
                     LogScales[SETTINGS + ZONESETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R

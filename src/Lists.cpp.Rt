@@ -2,149 +2,53 @@
 #include "Lists.h"
 #include "Consts.h"
 
-int ListBase::IdxFromString (const std::string& str) const
-{
-    return LIST_INVALID;
-}
 
-const char* ListBase::CStringFromIdx (int i) const {
-    return "";
-}
-
-int ListBase::size () const
-{
-    return 0;
-}
-
-std::string ListBase::StringFromIdx (int i) const
-{
-    return std::string(CStringFromIdx(i));
-}
-
-std::string UnitListBase::UnitFromIdx(int i) const {
-	return "1";
-}
-
-int SettingsList::IdxFromString (const std::string& str) const { <?R
-    for (v in rows(Settings)) { ?>
-    if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
-    } ?>
-    return LIST_INVALID;
-}
-
-const char* SettingsList::CStringFromIdx (int i) const { <?R
-    for (v in rows(Settings)) { ?>
-    if (i == <?%s v$Index ?>) return "<?%s v$name?>"; <?R
-    } ?>
-    return "";
-}
-
-int SettingsList::size () const
-{
-    return <?%d nrow(Settings) ?>;
-}
-
-int SettingsList::DerivedFromIdx(int i) const { <?R
-    for (v in rows(Settings)) { ?>
-    if (i == <?%s v$Index ?>) <?R
-	if (!is.na(v$derived)) {
+<?R
+	for (v in rows(Settings)) if (!is.na(v$derived)) {
 		i = which(as.character(Settings$name) == as.character(v$derived));
 		sel = Settings[i[1],] ?>
-		return <?%s sel$Index ?>; <?R
-	} else { ?>
-		return LIST_INVALID; <?R
+double DF_<?%s v$name ?> (double <?%s v$name ?>) { return <?%s v$equation ?>;} <?R
 	}
-    } ?>
-    return LIST_INVALID;
-}
+?>
 
-double SettingsList::DerivedValueFromIdx(int i, double val) const { <?R
-    for (v in rows(Settings)) { ?>
-    if (i == <?%s v$Index ?>) <?R
-	if (!is.na(v$derived)) {
-		i = which(as.character(Settings$name) == as.character(v$derived));
-		sel = Settings[i[1],] ?> {
-		double <?%s v$name ?> = val;
-       		return <?%s v$equation ?>; }<?R
-	} else { ?>
-		return LIST_INVALID; <?R
+Model_m::Model_m() {
+	{
+		Setting set;
+<?R	for (v in rows(Settings)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>"; <?R
+		if (!is.na(v$derived)) {
+			i = which(as.character(Settings$name) == as.character(v$derived));
+			sel = Settings[i[1],] ?>
+		set.isDerived = true;
+		set.derivedSetting = <?%s sel$Index ?>;
+		set.derivedValue = DF_<?%s v$name ?>; <?R
+		} else { ?>
+		set.isDerived = false; <?R
+		} ?>
+		settings.push_back(set);
+<?R	} ?>
 	}
-    } ?>
-    return LIST_INVALID;
-}
-
-std::string SettingsList::UnitFromIdx(int i) const { <?R
-    for (v in rows(Settings)) { ?>
-    if (i == <?%s v$Index ?>) return "<?%s v$unit ?>"; <?R
-    } ?>
-    return "1";
-}
-
-int ZoneSettingsList::IdxFromString (const std::string& str) const { <?R
-    for (v in rows(ZoneSettings)) { ?>
-    if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
-    } ?>
-    return LIST_INVALID;
-}
-
-const char* ZoneSettingsList::CStringFromIdx (int i) const { <?R
-    for (v in rows(ZoneSettings)) { ?>
-    if (i == <?%s v$Index ?>) return "<?%s v$name?>"; <?R
-    } ?>
-    return "";
-}
-
-int ZoneSettingsList::size () const
-{
-    return <?%d nrow(ZoneSettings) ?>;
-}
-
-std::string ZoneSettingsList::UnitFromIdx(int i) const { <?R
-    for (v in rows(ZoneSettings)) { ?>
-    if (i == <?%s v$Index ?>) return "<?%s v$unit ?>"; <?R
-    } ?>
-    return "1";
-}
-
-
-int QuantitiesList::IdxFromString (const std::string& str) const { <?R
-    for (v in rows(Quantities)) { ?>
-    if (str == "<?%s v$name?>") return <?%s v$Index ?>; <?R
-    } ?>
-    return LIST_INVALID;
-}
-
-const char* QuantitiesList::CStringFromIdx (int i) const { <?R
-    for (v in rows(Quantities)) { ?>
-    if (i == <?%s v$Index ?>) return "<?%s v$name?>"; <?R
-    } ?>
-    return "";
-}
-
-int QuantitiesList::size () const
-{
-    return <?%d nrow(Quantities) ?>;
-}
-
-std::string QuantitiesList::UnitFromIdx(int i) const { <?R
-    for (v in rows(Quantities)) { ?>
-    if (i == <?%s v$Index ?>) return "<?%s v$unit ?>"; <?R
-    } ?>
-    return "1";
-}
-
-bool QuantitiesList::IsVectorFromIdx(int i) const { <?R
-    for (v in rows(Quantities)) { ?>
-    if (i == <?%s v$Index ?>) return <?%s if (v$vector) "true" else "false" ?>; <?R
-    } ?>
-    return false;
-}
-
-bool QuantitiesList::IsAdjointFromIdx(int i) const { <?R
-    for (v in rows(Quantities)) { ?>
-    if (i == <?%s v$Index ?>) return <?%s if (v$adjoint) "true" else "false" ?>; <?R
-    } ?>
-    return false;
+	{
+		ZoneSetting set;
+<?R	for (v in rows(ZoneSettings)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>"; 
+		zonesettings.push_back(set);
+<?R	} ?>
+	}
+	{
+		Quantity set;
+<?R	for (v in rows(Quantities)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>";
+		set.isVector = <?%s if (v$vector) "true" else "false" ?>;
+		quantities.push_back(set);
+<?R	} ?>
+	}
 }
 
 

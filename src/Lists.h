@@ -1,64 +1,63 @@
 #ifndef LISTS_H
 #define LISTS_H
 #include <string>
+#include <vector>
 
 #define LIST_INVALID -1
 
-class ListBase {
-public: 
-    virtual int IdxFromString (const std::string& str) const;
-    virtual std::string StringFromIdx (int i) const;
-    virtual const char* CStringFromIdx (int i) const;
-    virtual int size () const;
+template <class T>
+int FindByName(const T& cont, std::string str) {
+    for (typename T::const_iterator it = cont.begin(); it != cont.end(); it++) {
+        if (it->name == str) return it->id;
+    }
+    return LIST_INVALID;
+}
+
+typedef double (*DerivedFunction)(double);
+
+struct Thing {
+    int id;
+    std::string name;
 };
 
-class UnitListBase : public ListBase {
-public:
-    virtual std::string UnitFromIdx(int i) const;
+struct UnitThing : Thing {
+    std::string unit;
 };
 
-class SettingsListBase : public UnitListBase {
-public:
-    virtual int DerivedFromIdx(int i) const = 0;
-    virtual double DerivedValueFromIdx(int i, double val) const = 0;
+struct Setting : UnitThing {
+    bool isDerived;
+    int derivedSetting;
+    DerivedFunction derivedValue;
 };
 
-class SettingsList : public SettingsListBase {
-public:
-    virtual int DerivedFromIdx(int i) const;
-    virtual double DerivedValueFromIdx(int i, double val) const;
-    virtual std::string UnitFromIdx(int i) const;
-    virtual int IdxFromString (const std::string& str) const;
-    virtual const char* CStringFromIdx (int i) const;
-    virtual int size () const;
+struct ZoneSetting : UnitThing {
 };
 
-class ZoneSettingsListBase : public UnitListBase {
-public:
+struct Quantity : UnitThing {
+    bool isVector;
+    bool isAdjoint;
 };
 
-class ZoneSettingsList : public ZoneSettingsListBase {
+class ModelBase {
+    template <class T>
+    class Things : public std::vector<T> {
+    public:
+        int ByName(const std::string& str) const {
+            return FindByName(*this, str);
+        }
+    };        
 public:
-    virtual std::string UnitFromIdx(int i) const;
-    virtual int IdxFromString (const std::string& str) const;
-    virtual const char* CStringFromIdx (int i) const;
-    virtual int size () const;
+    typedef Things<Setting> Settings;
+    Settings settings;
+    typedef Things<ZoneSetting> ZoneSettings;
+    ZoneSettings zonesettings;
+    typedef Things<Quantity> Quantities;
+    Quantities quantities;
 };
 
-class QuantitiesListBase : public UnitListBase {
+class Model_m : public ModelBase {
 public:
-    virtual bool IsVectorFromIdx(int i) const = 0;
-    virtual bool IsAdjointFromIdx(int i) const = 0;
-};
-
-class QuantitiesList : public QuantitiesListBase {
-public:
-    virtual bool IsVectorFromIdx(int i) const;
-    virtual bool IsAdjointFromIdx(int i) const;
-    virtual std::string UnitFromIdx(int i) const;
-    virtual int IdxFromString (const std::string& str) const;
-    virtual const char* CStringFromIdx (int i) const;
-    virtual int size () const;
+    Model_m();
 };
 
 
