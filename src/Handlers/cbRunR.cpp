@@ -1,7 +1,3 @@
-<?R
-	source("conf.R");
-	c_header();
-?>
 #include "cbRunR.h"
 
 #ifdef WITH_R
