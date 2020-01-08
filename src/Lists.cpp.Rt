@@ -119,6 +119,28 @@ Model_m::Model_m() {
 		nodetypegroupflags.push_back(set);
 <?R	} ?>
 	}
+	{
+		Stage set;
+<?R	for (v in rows(Stages)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		set.isParticle = <?%s if (v$particle) "true" else "false" ?>;
+		set.mainFun = "<?%s v$main ?>";
+		stages.push_back(set);
+<?R	} ?>
+	}
+	{
+		Action set;
+<?R	for (i in seq_along(Actions)) { ?>
+		set.id = <?%s i-1 ?>;
+		set.name = "<?%s names(Actions)[i] ?>"; <?R
+		for (v in Actions[[i]]) { ?>
+		set.stages.push_back(<?%s Stages$Index[which( Stages$name == v )] ?>); <?R
+		} ?>
+		actions.push_back(set);
+<?R	} ?>
+	}
 }
 
 

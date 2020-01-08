@@ -1317,7 +1317,7 @@ void Lattice::setSetting(int i, real_t tmp) {
 void Lattice::SetSetting(int idx, real_t val) {
 	if (reverse_save) push_setting(idx, settings_val[idx], val);
 	setSetting(idx, val);
-	Setting& set = model->settings[idx];
+	ModelBase::Setting& set = model->settings[idx];
 	if(set.isDerived) {
 		int der = set.derivedSetting;
 		double der_val = set.derivedValue(val);

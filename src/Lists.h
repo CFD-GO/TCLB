@@ -16,67 +16,6 @@ typename T::const_iterator FindByName(const T& cont, const std::string& str) {
 
 typedef double (*DerivedFunction)(double);
 
-struct Thing {
-    int id;
-    std::string name;
-};
-
-struct UnitThing : Thing {
-    std::string unit;
-};
-
-struct Setting : UnitThing {
-    bool isDerived;
-    int derivedSetting;
-    DerivedFunction derivedValue;
-    std::string defaultValue;
-};
-
-struct ZoneSetting : UnitThing {
-    std::string defaultValue;
-};
-
-struct Quantity : UnitThing {
-    bool isVector;
-    bool isAdjoint;
-};
-
-struct NodeTypeFlag : Thing {
-    flag_t flag;
-    flag_t group_flag;
-    int group_id;
-};
-
-struct NodeTypeGroupFlag : Thing {
-    flag_t flag;
-    int shift;
-};
-
-struct Global : UnitThing {
-    bool isAdjoint;
-    MPI_Op operation;
-};
-
-struct Option : Thing {
-    bool isActive;
-};
-
-struct Scale : UnitThing {
-};
-
-struct Field : Thing {
-    bool isAdjoint;
-    bool isParameter;
-    bool isAverage;
-    std::string adjointName;
-    std::string tangentName;
-    int accessArea;
-    bool simpleAccess;
-    std::string niceName;
-};
-
-
-
 class ModelBase {
     template <class T>
     class Things : public std::vector<T> {
@@ -85,7 +24,79 @@ class ModelBase {
             return FindByName(*this, str);
         }
     };        
+
+    struct Thing {
+        int id;
+        std::string name;
+    };
+
+    struct UnitThing : Thing {
+        std::string unit;
+    };
+
 public:
+
+    struct Setting : UnitThing {
+        bool isDerived;
+        int derivedSetting;
+        DerivedFunction derivedValue;
+        std::string defaultValue;
+    };
+
+    struct ZoneSetting : UnitThing {
+        std::string defaultValue;
+    };
+
+    struct Quantity : UnitThing {
+        bool isVector;
+        bool isAdjoint;
+    };
+
+    struct NodeTypeFlag : Thing {
+        flag_t flag;
+        flag_t group_flag;
+        int group_id;
+    };
+
+    struct NodeTypeGroupFlag : Thing {
+        flag_t flag;
+        int shift;
+    };
+
+    struct Global : UnitThing {
+        bool isAdjoint;
+        MPI_Op operation;
+    };
+
+    struct Option : Thing {
+        bool isActive;
+    };
+
+    struct Scale : UnitThing {
+    };
+
+    struct Field : Thing {
+        bool isAdjoint;
+        bool isParameter;
+        bool isAverage;
+        std::string adjointName;
+        std::string tangentName;
+        int accessArea;
+        bool simpleAccess;
+        std::string niceName;
+    };
+
+    struct Action : Thing {
+        std::vector<int> stages;
+    };
+
+    struct Stage : Thing {
+        bool isAdjoint;
+        bool isParticle;
+        std::string mainFun;
+    };
+
+
     typedef Things<Setting> Settings;
     Settings settings;
     typedef Things<ZoneSetting> ZoneSettings;
@@ -104,6 +115,10 @@ public:
     Scales scales;
     typedef Things<Field> Fields;
     Fields fields;
+    typedef Things<Action> Actions;
+    Actions actions;
+    typedef Things<Stage> Stages;
+    Stages stages;
 };
 
 class Model_m : public ModelBase {
