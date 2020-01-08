@@ -1056,10 +1056,12 @@ void Lattice::Get_Field(int id, real_t * tab) { <?R
 	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>(tab); <?R
 	} ?>
 }	
-void Lattice::Get_Field_Adj(int id, real_t * tab) { <?R
+void Lattice::Get_Field_Adj(int id, real_t * tab) {
+#ifdef ADJOINT <?R
 	for (f in rows(Fields)) if (f$parameter) { ?>
 	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>_Adj(tab); <?R
 	} ?>
+#endif
 }	
 void Lattice::Set_Field(int id, real_t * tab) { <?R
 	for (f in rows(Fields)) if (f$parameter) { ?>
