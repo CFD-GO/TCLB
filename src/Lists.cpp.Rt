@@ -102,6 +102,7 @@ Model_m::Model_m() {
 <?R	for (v in rows(NodeTypes)) { ?>
 		set.id = NODE_<?%s v$name ?>;
 		set.flag = NODE_<?%s v$name ?>;
+		set.group_flag = NODE_<?%s v$group ?>;
 		set.group_id = NODE_<?%s v$group ?>;
 		set.name = "<?%s v$name ?>";
 		nodetypeflags.push_back(set);

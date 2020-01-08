@@ -43,6 +43,7 @@ struct Quantity : UnitThing {
 
 struct NodeTypeFlag : Thing {
     flag_t flag;
+    flag_t group_flag;
     int group_id;
 };
 
