@@ -1,7 +1,3 @@
-<?R
-        source("conf.R")
-	c_header();
-?>
 #include "Consts.h"
 //#include "cuda.h"
 #include "pugixml.hpp"
