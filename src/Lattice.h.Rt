@@ -142,7 +142,10 @@ public:
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
   void GetFlags(lbRegion, flag_t *);
-<?R for (d in rows(DensityAll)) { ?>
+  void Get_Field(int, real_t * tab);
+  void Set_Field(int, real_t * tab);
+  void Get_Field_Adj(int, real_t * tab);
+<?R for (d in rows(Fields)) if (d$parameter) { ?>
   void Get_<?%s d$nicename ?>(real_t * tab);
   void Clear_<?%s d$nicename ?>();
   void Set_<?%s d$nicename ?>(real_t * tab);

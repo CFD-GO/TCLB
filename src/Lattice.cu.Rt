@@ -1051,6 +1051,23 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 
 }
 
+void Lattice::Get_Field(int id, real_t * tab) { <?R
+	for (f in rows(Fields)) if (f$parameter) { ?>
+	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>(tab); <?R
+	} ?>
+}	
+void Lattice::Get_Field_Adj(int id, real_t * tab) { <?R
+	for (f in rows(Fields)) if (f$parameter) { ?>
+	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>_Adj(tab); <?R
+	} ?>
+}	
+void Lattice::Set_Field(int id, real_t * tab) { <?R
+	for (f in rows(Fields)) if (f$parameter) { ?>
+	if (id == <?%s f$Index ?>) return Set_<?%s f$nicename ?>(tab); <?R
+	} ?>
+}	
+
+
 <?R
 	for (f in rows(Fields)[Fields$parameter]) { 
 
