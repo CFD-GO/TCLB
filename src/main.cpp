@@ -126,7 +126,7 @@ int MainCallback(int seg, int tot, Solver* solver) {
 				sprintf(left,  "%dh %2dm", left_h, left_m);
 			}
 		}
-		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * solver->lattice->model->fields.size() * sizeof(real_t) + sizeof(flag_t))) / 1e6);
 		int per_len = 20;
 		{
 			int i=0;
