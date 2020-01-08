@@ -133,11 +133,5 @@ class Solver {
 	int RunMainLoop();
 	int EventLoop();
 
-	int saveComp(const char*, const char*);
-	int loadComp(const char*, const char*);
-    int getComponentIntoBuffer(const char*, real_t *&, long int* , long int* );
-    int loadComponentFromBuffer(const char*, real_t*);
-    int getQuantityIntoBuffer(const char*, real_t*&, long int*, long int*);
-
 };
 #endif

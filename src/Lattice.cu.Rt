@@ -1338,3 +1338,168 @@ void Lattice::updateAllSamples(){
 }
 
 
+/// Save component/density
+/**
+	Saves a component/density in a binary file
+	\param filename Path/prefix of the file to save
+	\param comp Density name to save
+*/
+int Lattice::saveComp(const char* filename, const char* comp) {
+	int n = region.size();
+	char fn[STRING_LEN];
+	real_t * buf = new real_t[n];
+	sprintf(fn,"%s_%s_%d.comp", filename, comp, D_MPI_RANK);
+	output("Saving component %s to file %s\n", comp, fn);
+    bool somethingWritten = false;
+<?R 
+    for (d in rows(DensityAll)) if (d$parameter) { 
+?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) {
+        Get_<?%s d$nicename ?>(buf); 
+        somethingWritten = true; 
+    }
+<?R
+} 
+?>
+    if (somethingWritten) {
+    	FILE * f = fopen(fn,"wb");
+    	assert(f != NULL);
+//	for (int i=0; i<n;i ++) buf[i]=1.23;
+    	fwrite(buf, sizeof(real_t), n, f);
+	    fclose(f);
+    	delete[] buf;     	
+        output("...saved %s\n", comp);
+    } else {
+     	output("...not saved %s\n", comp);
+    }
+	return 0;
+} 
+
+int Lattice::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
+	int n = region.size();
+
+	dim[0] = region.nx;
+	dim[1] = region.ny;
+	dim[2] = region.nz;
+
+    
+    offsets[0] = region.dx;
+    offsets[1] = region.dy;
+    offsets[2] = region.dz;
+
+    buf = new real_t[n];
+	
+	output("Providing component %s to buffer..\n", comp);
+    bool somethingWritten = false;
+<?R 
+    for (d in rows(DensityAll)) if (d$parameter){ 
+?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) {
+        Get_<?%s d$nicename ?>(buf); 
+        somethingWritten = true; 
+    }
+<?R
+} 
+?>
+    if (!somethingWritten){
+        output("Possible densities:\n");
+    <?R
+        for (d in rows(DensityAll)) if (d$parameter){ 
+            ?> output("-> <?%s d$name ?>\n") ; <?R
+        }
+    ?>
+    }
+    assert(somethingWritten);
+    if (somethingWritten) {
+        output("...provided %s\n", comp);
+    } else { 
+     	output("...not saved %s\n", comp);
+    }
+//    int sizes[7] = { n, region.dx, region.dy, region.dz, region.nx, region.ny, region.nz };
+	return n;
+} 
+int Lattice::getQuantityIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
+	int n = region.size();
+
+	dim[0] = region.nx;
+	dim[1] = region.ny;
+	dim[2] = region.nz;
+    dim[3] = 1;
+
+    
+    offsets[0] = region.dx;
+    offsets[1] = region.dy;
+    offsets[2] = region.dz;
+
+	output("Providing quantity %s to buffer..\n", comp);
+    bool somethingWritten = false;
+<?R 
+for (q in rows(Quantities)){ ifdef(q$adjoint); 
+?>
+	if (strcmp(comp, "<?%s q$name ?>") == 0) {
+    	<?%s q$type ?>* tmp_<?%s q$name ?> = new <?%s q$type ?>[n];
+        <?R if (q$type == 'vector_t') { ?>
+            dim[3] = 3;
+        <?R } ?>
+    	Get<?%s q$name ?>(region, tmp_<?%s q$name ?>, 1);
+        buf = (real_t*)tmp_<?%s q$name ?>;
+        somethingWritten = true; 
+    }
+<?R
+} 
+ifdef();
+?>
+    if (!somethingWritten){
+        output("Possible quantities:\n");
+    <?R
+        for (d in rows(Quantities)) { 
+            ?> output("-> <?%s d$name ?>\n") ; <?R
+        }
+    ?>
+    }
+    assert(somethingWritten);
+    if (somethingWritten) {
+        output("...provided %s\n", comp);
+    } else { 
+     	output("...not saved %s\n", comp);
+    }
+//    int sizes[7] = { n, region.dx, region.dy, region.dz, region.nx, region.ny, region.nz };
+	return n;
+} 
+
+
+int Lattice::loadComponentFromBuffer(const char* comp,  real_t* buf) {
+	int n = region.size();
+<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) Set_<?%s d$nicename ?>(buf); <?R
+} ?>
+    delete [] buf;
+	return 0;
+} 
+
+
+/// Load component/density
+/**
+	Loades a compoment/density from a binary file
+	\param filename Path/prefix of the file to save
+	\param comp Density name to load
+*/
+int Lattice::loadComp(const char* filename, const char* comp) {
+	int n = region.size();
+	char fn[STRING_LEN];
+	real_t * buf = new real_t[n];
+	sprintf(fn,"%s_%d.comp", filename, D_MPI_RANK);
+	output("Loading component %s from file %s\n", comp, fn);
+	FILE * f = fopen(fn,"rb");
+	assert(f != NULL);
+	int nn = fread(buf, sizeof(real_t), n, f);
+	assert(n == nn);
+	fclose(f);
+//	for (int i=0; i<n;i ++) buf[i]=1.23;
+<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
+	if (strcmp(comp, "<?%s d$name ?>") == 0) Set_<?%s d$nicename ?>(buf); <?R
+} ?>
+
+	delete[] buf;
+	return 0;
+} 
