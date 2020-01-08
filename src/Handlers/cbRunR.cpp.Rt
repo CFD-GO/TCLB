@@ -323,19 +323,12 @@ public:
 	rAction(const char* name_): name(name_) {};
 	SEXP Call(Rcpp::List args) {
 		int Snap = solver->lattice->Snap;
-		<?R for (n in names(Actions)) {
-	        a = Actions[[n]]
-	        if (n == "Iteration") {
-	                FunName = "Iteration"
-	        } else {
-	                FunName = paste("Action",n,sep="_")
-	        } ?>
-		if (name == "<?%s n ?>") {
-			solver->lattice-><?%s FunName ?>(Snap, (Snap+1) % 2, solver->iter_type);
-			return rNull;
+		ModelBase::Actions::const_iterator it = solver->lattice->model->actions.ByName(name);
+		if (it == solver->lattice->model->actions.end()) {
+			ERROR("R: Unknown Action");
+			return rNull;		
 		}
-		<?R } ?>
-		ERROR("R: Unknown Action");
+		solver->lattice->RunAction(it->id, solver->iter_type);
 		return rNull;
 	}
 };
@@ -348,9 +341,9 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		<?R for (n in names(Actions)) { ?>
-		ret.push_back("<?%s n ?>");
-		<?R } ?>
+		for (ModelBase::Actions::const_iterator it = solver->lattice->model->actions.begin(); it != solver->lattice->model->actions.end(); it++) {
+			ret.push_back(it->name);
+		}
 		return ret;
 	}
 };
