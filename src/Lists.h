@@ -29,9 +29,11 @@ struct Setting : UnitThing {
     bool isDerived;
     int derivedSetting;
     DerivedFunction derivedValue;
+    std::string defaultValue;
 };
 
 struct ZoneSetting : UnitThing {
+    std::string defaultValue;
 };
 
 struct Quantity : UnitThing {
@@ -58,6 +60,9 @@ struct Option : Thing {
     bool isActive;
 };
 
+struct Scale : UnitThing {
+};
+
 
 class ModelBase {
     template <class T>
@@ -82,6 +87,8 @@ public:
     Globals globals;
     typedef Things<Option> Options;
     Options options;
+    typedef Things<Scale> Scales;
+    Scales scales;
 };
 
 class Model_m : public ModelBase {

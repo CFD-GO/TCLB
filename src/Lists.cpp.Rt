@@ -27,6 +27,7 @@ Model_m::Model_m() {
 		} else { ?>
 		set.isDerived = false; <?R
 		} ?>
+		set.defaultValue = "<?%s v$default ?>";
 		settings.push_back(set);
 <?R	} ?>
 	}
@@ -36,6 +37,7 @@ Model_m::Model_m() {
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>"; 
+		set.defaultValue = "<?%s v$default ?>";
 		zonesettings.push_back(set);
 <?R	} ?>
 	}
@@ -68,6 +70,15 @@ Model_m::Model_m() {
 		set.name = "<?%s names(Options)[i] ?>";
 		set.isActive = <?%s if (Options[[i]]) "true" else "false" ?>;
 		options.push_back(set);
+<?R	} ?>
+	}
+	{
+		Scale set;
+<?R	for (v in rows(Scales)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>";
+		scales.push_back(set);
 <?R	} ?>
 	}
 	{
