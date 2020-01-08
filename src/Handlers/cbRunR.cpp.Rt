@@ -113,6 +113,11 @@ class rFields : public rWrapper {
 public:
 	std::string print() { return "Fields"; }
 	SEXP Dollar(std::string name) {
+		ModelBase::Fields::const_iterator it = solver->lattice->model->fields.ByName(name);
+		if (it ==  solver->lattice->model->fields.end()) {
+			ERROR("R: Unknown parameter");
+			return Rcpp::NumericVector(0);
+		}
 		lbRegion reg = solver->lattice->region;
 		Rcpp::NumericVector ret(reg.size());
 		Rcpp::IntegerVector retdim(3);
@@ -120,43 +125,30 @@ public:
 		retdim[1] = reg.ny;
 		retdim[2] = reg.nz;
 		ret.attr("dim") = retdim;
-	<?R 
-	    for (d in rows(DensityAll)) if (d$parameter){ 
-	?>
-	    if (name == "<?%s d$nicename ?>") {
-	        solver->lattice->Get_<?%s d$nicename ?>(&ret[0]); 
+
+	        solver->lattice->Get_Field(it->id, &ret[0]); 
 		return ret;
-	    }
-	<?R
-	} 
-	?>
-		ERROR("R: Unknown parameter");
-		return Rcpp::NumericVector(0);
 	}
 
 	void DollarAssign(std::string name, SEXP v_) {
+		ModelBase::Fields::const_iterator it = solver->lattice->model->fields.ByName(name);
+		if (it ==  solver->lattice->model->fields.end()) {
+			ERROR("R: Unknown parameter");
+			return;
+		}
 		Rcpp::NumericVector v(v_);
 		if (v.size() != solver->region.size()) {
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
-	<?R 
-	    for (d in rows(DensityAll)) if (d$parameter){ 
-	?>
-	    if (name == "<?%s d$nicename ?>") {
-	        solver->lattice->Set_<?%s d$nicename ?>(&v[0]); 
+	        solver->lattice->Set_Field(it->id,&v[0]); 
 		return;
-	    }
-	<?R
-	} 
-	?>
-		ERROR("R: Unknown parameter");
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		<?R for (d in rows(DensityAll)) if (d$parameter){ ?>
-		ret.push_back("<?%s d$nicename ?>");
-		<?R } ?>
+		for (ModelBase::Fields::const_iterator it = solver->lattice->model->fields.begin(); it != solver->lattice->model->fields.end(); it++) {
+			ret.push_back(it->name);
+		}
 		return ret;
 	}
 };
@@ -225,56 +217,57 @@ public:
 	SEXP Dollar(std::string name) {
 		lbRegion reg = solver->lattice->region;
 		Rcpp::NumericVector ret;
-	<?R 
-		for (q in rows(Quantities)) { ifdef(q$adjoint);
-	?>
-	    if (name == "<?%s q$name ?>" || name == "<?%s q$name ?>.si") {
+		bool si = false;
+		std::string quant = name;
+		size_t last_index = name.find_last_not_of(".");
+		if (last_index != std::string::npos) {
+			std::string result = name.substr(last_index + 1);
+			if (result == "si") {
+				si = true;
+				quant = name.substr(0, last_index);
+			}
+		}
+		ModelBase::Quantities::const_iterator it = solver->lattice->model->quantities.ByName(quant);
+		if (it == solver->lattice->model->quantities.end()) {
+			ERROR("R: Unknown Quantity");
+			return Rcpp::NumericVector(0);
+		}
 		double v = 1;
-		if (name == "<?%s q$name ?>.si") v = solver->units.alt("<?%s q$unit ?>");
-		<?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
-                solver->lattice->Get<?%s q$name ?>(reg, tmp, 1/v);
-	<?R 	if (q$vector) { ?>
-		ret = Rcpp::NumericVector(reg.size()*3);
-		Rcpp::IntegerVector retdim(4);
-		retdim[0] = 3;
-		retdim[1] = reg.nx;
-		retdim[2] = reg.ny;
-		retdim[3] = reg.nz;
-		ret.attr("dim") = retdim;
-	<?R	} else { ?>
-		ret = Rcpp::NumericVector(reg.size());
-		Rcpp::IntegerVector retdim(3);
-		retdim[0] = reg.nx;
-		retdim[1] = reg.ny;
-		retdim[2] = reg.nz;
-		ret.attr("dim") = retdim;
-	<?R	} ?>
-		for (size_t i=0; i<reg.sizeL(); i++) {
-	<?R 	if (q$vector) { ?>
-			ret[i*3+0]=tmp[i].x;
-			ret[i*3+1]=tmp[i].y;
-			ret[i*3+2]=tmp[i].z;
-	<?R	} else { ?>
-			ret[i]=tmp[i];
-	<?R	}?>
+		if (si) v = solver->units.alt(it->unit);
+		int comp = 1;
+		if (it->isVector) comp = 3;
+		real_t* tmp = new real_t[reg.size()*comp];
+                solver->lattice->GetQuantity(it->id, reg, tmp, 1/v);
+		ret = Rcpp::NumericVector(reg.size()*comp);
+		if (comp == 1) {
+			Rcpp::IntegerVector retdim(4);
+			retdim[0] = 3;
+			retdim[1] = reg.nx;
+			retdim[2] = reg.ny;
+			retdim[3] = reg.nz;
+			ret.attr("dim") = retdim;
+		} else {
+			Rcpp::IntegerVector retdim(3);
+			retdim[0] = reg.nx;
+			retdim[1] = reg.ny;
+			retdim[2] = reg.nz;
+			ret.attr("dim") = retdim;
+		}
+		for (size_t i=0; i<reg.sizeL()*comp; i++) {
+			ret[i] = tmp[i];
 		}
 		delete[] tmp;
 		return ret;
-	    }
-	<?R
-	}
-	ifdef();
-	?>
-		ERROR("R: Unknown quantity");
-		return Rcpp::NumericVector(0);
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-		ret.push_back("<?%s q$name ?>");
-		ret.push_back("<?%s q$name ?>.si");
-		<?R }
-		ifdef(); ?>
+		for (ModelBase::Quantities::const_iterator it = solver->lattice->model->quantities.begin(); it != solver->lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+			if (it->isAdjoint) continue;
+#endif
+			ret.push_back(it->name);
+			ret.push_back(it->name + ".si");
+		}
 		return ret;
 	}
 };
