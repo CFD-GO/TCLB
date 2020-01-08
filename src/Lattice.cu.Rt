@@ -376,6 +376,18 @@ inline void Lattice::MPIStream_B(int tag)
         }
 }
 
+void Lattice::RunAction(int act, int iter_type) {
+<?R for (i in seq_along(Actions)) {
+	n = names(Actions)[i]
+        a = Actions[[i]]
+        if (n == "Iteration") {
+                FunName = "Iteration"
+        } else {
+                FunName = paste("Action",n,sep="_")
+        } ?>
+	if (act == <?%d i-1 ?>) return <?%s FunName ?>(Snap, (Snap+1) % 2, iter_type);
+<?R } ?>
+}
 
 <?R for (n in names(Actions)) {
         a = Actions[[n]]

@@ -130,6 +130,7 @@ public:
   
   void        Iterate(int, int);
   void        IterateTill(int,int);
+  void	RunAction(int, int);
 <?R for (n in names(Actions)) {
         a = Actions[[n]]
         if (n == "Iteration") {
