@@ -276,30 +276,37 @@ class rGlobals : public rWrapper {
 public:
 	std::string print() { return "Globals"; }
 	SEXP Dollar(std::string name) {
+		bool si = false;
+		std::string glob = name;
+		size_t last_index = name.find_last_not_of(".");
+		if (last_index != std::string::npos) {
+			std::string result = name.substr(last_index + 1);
+			if (result == "si") {
+				si = true;
+				glob = name.substr(0, last_index);
+			}
+		}
+		ModelBase::Globals::const_iterator it = solver->lattice->model->globals.ByName(glob);
+		if (it == solver->lattice->model->globals.end()) {
+			ERROR("R: Unknown global");
+			return Rcpp::NumericVector(0);
+		}
+
 		Rcpp::NumericVector ret(1);
-	<?R 
-		for (q in rows(Globals)) { ifdef(q$adjoint);
-	?>
-	    if (name == "<?%s q$name ?>" || name == "<?%s q$name ?>.si") {
 		double v = 1;
-		if (name == "<?%s q$name ?>.si") v = solver->units.alt("<?%s q$unit ?>");
-		ret[0] = v * solver->lattice->globals[<?%s q$Index ?>];
+		if (si) v = solver->units.alt(it->unit);
+		ret[0] = v * solver->lattice->globals[it->id];
 		return ret;
-	    }
-	<?R
-	}
-	ifdef();
-	?>
-		ERROR("R: Unknown global");
-		return Rcpp::NumericVector(0);
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		<?R for (q in rows(Globals)) { ifdef(q$adjoint); ?>
-		ret.push_back("<?%s q$name ?>");
-		ret.push_back("<?%s q$name ?>.si");
-		<?R }
-		ifdef(); ?>
+		for (ModelBase::Globals::const_iterator it = solver->lattice->model->globals.begin(); it != solver->lattice->model->globals.end(); it++) {
+#ifndef ADJOINT
+			if (it->isAdjoint) continue;
+#endif
+			ret.push_back(it->name);
+			ret.push_back(it->name + ".si");
+		}
 		return ret;
 	}
 };
@@ -355,24 +362,19 @@ public:
 		{
 			flag_t * NodeType = new flag_t[size];
 			solver->lattice->GetFlags(reg, NodeType);
-			<?R
-			i = !duplicated(NodeTypes$group)
-			for (n in rows(NodeTypes[i,])) {
-			?>
-			if (name == "<?%s n$group ?>") {
+			for (ModelBase::NodeTypeGroupFlags::const_iterator it = solver->lattice->model->nodetypegroupflags.begin(); it != solver->lattice->model->nodetypegroupflags.end(); it++) {
 				bool some_na = false;
 				for (size_t i=0;i<size;i++) {
 					if (Rcpp::IntegerVector::is_na(v[i])) {
 						some_na = true;
 					} else {
-						NodeType[i] = (NodeType[i] - (NodeType[i] & NODE_<?%s n$group ?>)) + ((v[i] - 1) << <?%d n$shift ?>);
+						NodeType[i] = (NodeType[i] - (NodeType[i] & it->flag)) + ((v[i] - 1) << it->shift);
 					}
 				}
 				if (some_na) {
-					ERROR("Some NA in Geometry (<?%s n$group ?>) assignment");
+					ERROR("Some NA in Geometry (%s) assignment", it->name);
 				}
 			}
-			<?R } ?>
 			solver->lattice->FlagOverwrite(NodeType, reg);
 			delete[] NodeType;
 		}
@@ -417,33 +419,29 @@ SEXP Dollar(std::string name) {
 	}
 
 	{ // Geometry components
+		ModelBase::NodeTypeGroupFlags::const_iterator it = solver->lattice->model->nodetypegroupflags.ByName(name);
+		if (it == solver->lattice->model->nodetypegroupflags.end()) {
+			ERROR("R: Unknown component of Geometry");
+			return Rcpp::IntegerVector(0);
+		}
 		flag_t * NodeType = new flag_t[size];
 		solver->lattice->GetFlags(reg, NodeType);
 		Rcpp::IntegerVector small(size);
 		small.attr("dim") = retdim;
-		<?R
-		i = !duplicated(NodeTypes$group)
-		for (n in rows(NodeTypes[i,])) {
-		?>
-		if (name == "<?%s n$group ?>") {
-			for (size_t i=0;i<size;i++) {
-				small[i] = 1 + ((NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>);
-			}
-			Rcpp::CharacterVector levels;
-			levels.push_back("None"); <?R
-			for (m in rows(NodeTypes[NodeTypes$group == n$group,])) { ?>
-				levels.push_back("<?%s m$name ?>"); <?R
-			} ?>
-			small.attr("levels") = levels;
-			small.attr("class") = "factor";
-			delete[] NodeType;
-			return small;
+		for (size_t i=0;i<size;i++) {
+			small[i] = 1 + ((NodeType[i] & it->flag) >> it->shift);
 		}
-		<?R } ?>
+		Rcpp::CharacterVector levels;
+		for (ModelBase::NodeTypeFlags::const_iterator it2 = solver->lattice->model->nodetypeflags.begin(); it2 != solver->lattice->model->nodetypeflags.end(); it2++) {
+			if ((it2->flag & it->flag) != it2->flag) {
+				levels.push_back(it2->name);
+			}
+		}
+		small.attr("levels") = levels;
+		small.attr("class") = "factor";
 		delete[] NodeType;
+		return small;
 	}
-	ERROR("R: Unknown component of Geometry");
-	return Rcpp::IntegerVector(0);
 }
 	virtual Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
@@ -455,12 +453,9 @@ SEXP Dollar(std::string name) {
 		ret.push_back("Z");
 		ret.push_back("size");
 		ret.push_back("dim");
-		<?R
-		i = !duplicated(NodeTypes$group)
-		for (n in rows(NodeTypes[i,])) {
-		?>
-		ret.push_back("<?%s n$group ?>");
-		<?R } ?>
+		for (ModelBase::NodeTypeFlags::const_iterator it = solver->lattice->model->nodetypeflags.begin(); it != solver->lattice->model->nodetypeflags.end(); it++) {
+			ret.push_back(it->name);
+		}
 		return ret;
 	}
 
