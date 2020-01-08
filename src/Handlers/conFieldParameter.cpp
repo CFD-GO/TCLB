@@ -1,4 +1,3 @@
-<?R source("conf.R") ?>
 #include "conFieldParameter.h"
 std::string conFieldParameter::xmlname = "FieldParameter";
 #include "../HandlerFactory.h"
@@ -8,28 +7,34 @@ int conFieldParameter::Init () {
 		mpi_rank = solver->mpi_rank;
 		Par_sizes = new int[mpi_size];
 		Par_disp = new int[mpi_size];
-		field="";
 		pugi::xml_attribute attr = node.attribute("field");
 		if (!attr) {
 			ERROR("No \"field\" attribute in GeometryParameter\n");
 			return -1;
 		}
-		field = attr.value();
-		bool good=false;
-		<?R for (d in rows(Density)) if (d$parameter) { ?>
-		if (field == "<?%s d$name ?>") 	good = true;
-		<?R } ?>
-		if (! good) {
-			ERROR("No \"%s\" is not a valid parameter field\n", field.c_str());
-			field = "";
-			return -1;
+		{
+			std::string field = attr.value();
+			ModelBase::Fields::const_iterator it = solver->lattice->model->fields.ByName(field);
+			if (it ==  solver->lattice->model->fields.end()) {
+				ERROR("\"%s\" is not a field\n", field.c_str());
+				return -1;
+			}
+			if (! it->isParameter) {
+				ERROR("\"%s\" is not a valid parameter field\n", field.c_str());
+				return -1;
+			}
+			field_id = it->id;
 		}
 		attr = node.attribute("where");
 		if (attr) {
 			std::string where = attr.value();
-			<?R for (n in rows(NodeTypes)) { ?>
-			if (where == "<?%s n$name ?>") { flag_value = NODE_<?%s n$name ?>; flag_mask = NODE_<?%s n$group ?>; }
-			<?R } ?>
+			ModelBase::NodeTypeFlags::const_iterator it = solver->lattice->model->nodetypeflags.ByName(where);
+			if (it == solver->lattice->model->nodetypeflags.end()) {
+				ERROR("No \"%s\" is not a valid node type\n", where.c_str());
+				return -1;
+			}
+			flag_value = it->flag;
+			flag_mask = it->group_flag;
 		} else {
 			flag_value = NODE_None;
 			flag_mask = NODE_NONE;
@@ -90,18 +95,16 @@ int conFieldParameter::NumberOfParameters () {
 int conFieldParameter::LocalParameters(int type, double * tab) {
 	size_t n = solver->region.sizeL();
 	real_t * buf = new real_t[n];
-<?R for (d in rows(Density)) if (d$parameter) { ?>
-	if (field == "<?%s d$name ?>") {
-		if ((type == PAR_GET) || (type == PAR_SET)) solver->lattice->Get_<?%s d$nicename ?>(buf);
+
+		if ((type == PAR_GET) || (type == PAR_SET)) solver->lattice->Get_Field(field_id, buf);
 		if ( type == PAR_GRAD ) {
 		#ifdef ADJOINT
-			solver->lattice->Get_<?%s d$nicename ?>_Adj(buf);
+			solver->lattice->Get_Field_Adj(field_if,buf);
 		#else
 			ERROR("Cannot get gradient of Field Parameter without adjoint\n");
 		#endif // ADJOINT
 		}
-	}
-<?R } ?>
+
 	int j=0;
 	double sum=0;
 	switch(type) {
@@ -152,11 +155,7 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 		}
 		break;
 	}
-<?R for (d in rows(Density)) if (d$parameter) { ?>
-	if (field == "<?%s d$name ?>") {
-		if ( type == PAR_SET ) solver->lattice->Set_<?%s d$nicename ?>(buf);
-	}
-<?R } ?>
+	if ( type == PAR_SET ) solver->lattice->Set_Field(field_id, buf);
 	assert(j == Par_size);
 	delete[] buf;
 	return 0;
