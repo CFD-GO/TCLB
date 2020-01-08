@@ -129,38 +129,29 @@ void MainFree( Solver *d);
 		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
 			const char * nm = it->name.c_str();
 			fprintf(f,",\"%s\",\"%s_si\"", nm, nm);
+			LogScales[it->id] = 1/units.alt(it->unit);
 		}
 		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
 			const char * nm = it->name.c_str();
 		    	for (std::map<std::string,int>::iterator it2 = geometry->SettingZones.begin(); it2 != geometry->SettingZones.end(); it2++) {
 	                	fprintf(f,",\"%s-%s\",\"%s-%s_si\"", nm, it2->first.c_str(), nm, it2->first.c_str());
 	                }
-		}
-		    <?R for (v in Globals$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
-		    <?R } ?>
-		    <?R for (v in Scales$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>_si\"");
-		    <?R } ?>
-                    fprintf(f,"\n");
-
-                    fclose(f);
-		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
-			LogScales[it->id] = 1/units.alt(it->unit);
-		}
-		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
 			LogScales[SETTINGS + it->id] = 1/units.alt(it->unit);
 		}
-	    <?R 
-		for (v in rows(Globals)) { ?>
-                    LogScales[SETTINGS + ZONESETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		for (ModelBase::Globals::const_iterator it=lattice->model->globals.begin(); it != lattice->model->globals.end(); it++) {
+			const char * nm = it->name.c_str();
+                        fprintf(f,",\"%s\",\"%s_si\"", nm, nm);
+			LogScales[SETTINGS + ZONESETTINGS + it->id] = 1/units.alt(it->unit);
 		}
-		for (v in rows(Scales)) { ?>
-                    LogScales[SETTINGS + ZONESETTINGS + GLOBALS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+		for (ModelBase::Scales::const_iterator it=lattice->model->scales.begin(); it != lattice->model->scales.end(); it++) {
+			const char * nm = it->name.c_str();
+                        fprintf(f,",\"%s_si\"", nm);
+                        LogScales[SETTINGS + ZONESETTINGS + GLOBALS + it->id] = 1/units.alt(it->unit);
 		}
- ?>
-		}
+		fprintf(f,"\n");
+		fclose(f);
                 return 0;
+		}
 	}
 
 /// Writes to the csv Log file.
@@ -277,10 +268,11 @@ void MainFree( Solver *d);
 		MPIDivision();
 		InitAll(ns);
 		// Setting settings to default
-		<?R for (v in rows(Settings)) {
-		if (is.na(v$derived)) { ?>
-			lattice->setSetting(<?%s v$index ?>,units.alt("<?%s v$default ?>")); <?R
-		}} ?> 
+		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
+			if (! it->isDerived) {
+				lattice->setSetting(it->id, units.alt(it->defaultValue));
+			}
+		}
 		return 0;
 	}
 
@@ -390,9 +382,9 @@ void MainFree( Solver *d);
 		lattice = new Lattice(region, mpi, ns);
 	   	debug0("Lattice done");
 
-<?R for (s in rows(ZoneSettings)) { ?>
-		lattice->zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
-<?R } ?>
+		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
+			lattice->zSet.set(it->id, -1, units.alt(it->defaultValue));
+		}
 
 		// Setting global variables
 		initSettings();
