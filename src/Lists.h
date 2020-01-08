@@ -63,6 +63,18 @@ struct Option : Thing {
 struct Scale : UnitThing {
 };
 
+struct Field : Thing {
+    bool isAdjoint;
+    bool isParameter;
+    bool isAverage;
+    std::string adjointName;
+    std::string tangentName;
+    int accessArea;
+    bool simpleAccess;
+    std::string niceName;
+};
+
+
 
 class ModelBase {
     template <class T>
@@ -89,6 +101,8 @@ public:
     Options options;
     typedef Things<Scale> Scales;
     Scales scales;
+    typedef Things<Field> Fields;
+    Fields fields;
 };
 
 class Model_m : public ModelBase {

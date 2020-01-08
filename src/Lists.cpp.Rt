@@ -82,6 +82,22 @@ Model_m::Model_m() {
 <?R	} ?>
 	}
 	{
+		Field set;
+<?R	for (v in rows(Fields)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		set.isParameter = <?%s if (v$parameter) "true" else "false" ?>;
+		set.isAverage = <?%s if (v$average) "true" else "false" ?>;
+		set.adjointName = "<?%s v$adjoint_name ?>";
+		set.tangentName = "<?%s v$tangent_name ?>";
+		set.accessArea = <?%d v$area ?>;
+		set.simpleAccess = <?%s if (v$simple_access) "true" else "false" ?>;
+		set.niceName = "<?%s v$nicename ?>";
+		fields.push_back(set);
+<?R	} ?>
+	}
+	{
 		NodeTypeFlag set;
 <?R	for (v in rows(NodeTypes)) { ?>
 		set.id = NODE_<?%s v$name ?>;
