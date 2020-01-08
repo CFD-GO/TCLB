@@ -146,8 +146,8 @@ void MainFree( Solver *d);
 		}
 		fprintf(f,"\n");
 		fclose(f);
-                return 0;
 		}
+                return 0;
 	}
 
 /// Writes to the csv Log file.
