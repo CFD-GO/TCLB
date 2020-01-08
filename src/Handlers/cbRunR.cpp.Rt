@@ -75,9 +75,13 @@ class rSettings : public rWrapper {
 public:
 	std::string print() { return "Settings"; }
 	SEXP Dollar(std::string name) {
+		printf("R: settings dollars: %s\n", name.c_str());
 		ModelBase::ZoneSettings::const_iterator it = solver->lattice->model->zonesettings.ByName(name);
-		if (it != solver->lattice->model->zonesettings.end()) return rWrap(new rZoneSetting(name.c_str(),it->id));
-		return 0;
+		if (it != solver->lattice->model->zonesettings.end()) {
+			printf("R: settings dollars found: %d (zone setting)\n", it->id);
+			return rWrap(new rZoneSetting(name.c_str(),it->id));
+		}
+		return Rcpp::NumericVector(0);
 	}
 
 	void DollarAssign(std::string name, SEXP v_) {
@@ -433,7 +437,7 @@ SEXP Dollar(std::string name) {
 		}
 		Rcpp::CharacterVector levels;
 		for (ModelBase::NodeTypeFlags::const_iterator it2 = solver->lattice->model->nodetypeflags.begin(); it2 != solver->lattice->model->nodetypeflags.end(); it2++) {
-			if ((it2->flag & it->flag) != it2->flag) {
+			if ((it2->flag & it->flag) == it2->flag) {
 				levels.push_back(it2->name);
 			}
 		}
@@ -453,7 +457,7 @@ SEXP Dollar(std::string name) {
 		ret.push_back("Z");
 		ret.push_back("size");
 		ret.push_back("dim");
-		for (ModelBase::NodeTypeFlags::const_iterator it = solver->lattice->model->nodetypeflags.begin(); it != solver->lattice->model->nodetypeflags.end(); it++) {
+		for (ModelBase::NodeTypeGroupFlags::const_iterator it = solver->lattice->model->nodetypegroupflags.begin(); it != solver->lattice->model->nodetypegroupflags.end(); it++) {
 			ret.push_back(it->name);
 		}
 		return ret;
