@@ -1,7 +1,3 @@
-<?R
-	source("conf.R")
-	c_header();
-?>
 #include <stdio.h>
 #include <assert.h>
 #include <mpi.h>
@@ -156,12 +152,14 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	    	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
     	H5Pclose(plist_id);
 
-	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-	{
-		if (what->in("<?%s q$name ?>")) {
+	for (ModelBase::Quantities::const_iterator it = lattice->model->quantities.begin(); it != lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+		if(it->isAdjoint) continue;
+#endif
+		if (what->in(it->name)) {
 			hid_t       filespace, memspace;
-			char * fieldname = "<?%s q$name ?>";
-			bool vector = <?%s ifelse(q$vector, "true", "false") ?>;
+			const char * fieldname = it->name.c_str();
+			bool vector = it->isVector;
 #ifdef CALC_DOUBLE_PRECISION
 			hid_t input_type = H5T_NATIVE_DOUBLE;
 #else
@@ -192,9 +190,11 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
                     	status = H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, ones, ones, dim);
                     	if (status < 0) return H5Eprint1(stderr);
 
-			unit = units->alt("<?%s q$unit ?>");
-	                <?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-                        lattice->Get<?%s q$name ?>(reg, tmp, 1/unit);
+			unit = units->alt(it->unit);
+			int comp = 1;
+			if (vector) comp = 3;
+	                real_t* tmp = new real_t[size*comp];
+                        lattice->GetQuantity(it->id, reg, tmp, 1/unit);
 
 			debug0("filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
 			plist_id = H5Pcreate(H5P_DATASET_XFER);
@@ -240,7 +240,6 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			}
 		}
 	}
-	<?R }; ifdef(); ?>
 
 	H5Fclose(file_id);
 
