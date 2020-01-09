@@ -7,6 +7,13 @@ source("conf.R")
 #include "cbStop.h"
 std::string cbStop::xmlname = "Stop";
 
+void cbStop::AddStop(int what_, int stop_type_, double limit_) {
+	what.push_back(what_);
+	stop_type.push_back(stop_type_);
+	limit.push_back(limit_);
+	old.push_back(-12341234);
+}
+
 int cbStop::Init () {
 		Callback::Init();
 		double stop;
@@ -14,12 +21,12 @@ int cbStop::Init () {
 		<?R 
 		        for (g in rows(Globals)) { ?>
 		attr = node.attribute("<?%s g$name ?>Change");
-		if (attr) {
-			stop = attr.as_double();
-			what.push_back(<?%s g$Index ?>);
-			change.push_back(stop);
-			old.push_back(-12341234);
-		} <?R
+		if (attr) AddStop(<?%s g$Index ?>, STOP_CHANGE, attr.as_double());
+		attr = node.attribute("<?%s g$name ?>Above");
+		if (attr) AddStop(<?%s g$Index ?>, STOP_ABOVE, attr.as_double());
+		attr = node.attribute("<?%s g$name ?>Below");
+		if (attr) AddStop(<?%s g$Index ?>, STOP_BELOW, attr.as_double());
+		<?R
 		        } ?>
 		if (what.size() < 1) {
 			error("No *Change attribute in %s\n", node.name());
@@ -50,10 +57,21 @@ int cbStop::DoIt () {
                         output("Stop criterium:");
                         for (size_t i=0;i<what.size();i++) {
                                 double v = solver->lattice->globals[ what[i] ];
-                                if (fabs(old[i] - v) > change[i]) any++;
-                                if (D_MPI_RANK == 0) {
-                                        output("                 %4lg / %4lg", fabs(old[i] - v), change[i]);
-                                }
+				double value = 0;
+				switch (stop_type[i]) {
+				case STOP_CHANGE:
+					if (fabs(old[i] - v) > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    change:      %4lg < %4lg", fabs(old[i] - v), limit[i]);
+					break;
+				case STOP_ABOVE:
+					if (v < limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    limit:       %4lg > %4lg", v, limit[i]);
+					break;
+				case STOP_BELOW:
+					if (v > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    limit:       %4lg < %4lg", v, limit[i]);
+					break;
+				}
                                 old[i] = v;
                         }
                         if (!any) {
