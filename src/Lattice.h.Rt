@@ -34,6 +34,9 @@ class LatticeContainer;
 #define ITER_SKIPGRAD 0x100
 const int maxSnaps=33;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic error "-Wshadow"
+
 /// Class for computations
 /**
   Class for all the memory allocation, storage, calculation
@@ -56,7 +59,6 @@ public:
   rfi_t RFI;
   char snapFileName[STRING_LEN];
   virtual ~LatticeBase ();
-  virtual void MPIInit (MPIInfo) = 0;
   virtual void Color(uchar4 *) = 0;
   virtual void FlagOverwrite(flag_t *, lbRegion) = 0;
   virtual void CutsOverwrite(cut_t * Q, lbRegion over) = 0;
@@ -152,7 +154,6 @@ public:
   int Iter; ///< Iteration (Now) - "real" time of the simulation
   int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
   real_t settings_val[SETTINGS];  ///< Table of Settings (Now)
-  double globals[GLOBALS]; ///< Table of Globals
   typedef BallTree< rfi_t > balltree_t;
   balltree_t BT;
   size_t particle_data_size_max;
@@ -181,22 +182,7 @@ public:
   void stopRecord();
   void clearAdjoint();
   void clearDPar();
-  int segment_iterations;
   int total_iterations; ///< Total iteration number counter
-  int callback_iter;
-  inline void MarkIteration() {
-    total_iterations ++;
-    if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
-  }
-  inline void FinalIteration() { 
-	total_iterations = segment_iterations;
-    if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
-  }
-  inline void InitialIteration(int segiter) {
-    total_iterations = 0;
-    segment_iterations = segiter;
-    if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
-  }
   int getSnap(int );
   void        MPIStream_A();
   void        MPIStream_B(int );
@@ -287,6 +273,8 @@ inline int GlobalInObj(int i) { <?R
 
 
 };
+
+#pragma GCC diagnostic pop
 
 #define LATTICE_H 1
 #endif
