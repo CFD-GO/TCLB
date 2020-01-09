@@ -1,6 +1,8 @@
 #ifndef TYPES_H
   #define TYPES_H
 
+  typedef unsigned int big_flag_t;
+
   #define STRING_LEN 1024
   #ifdef CALC_DOUBLE_PRECISION
     typedef double real_t;

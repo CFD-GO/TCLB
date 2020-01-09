@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "ModelConsts.h"
+
 #ifndef ZONESETTINGS_H
 #define ZONESETTINGS_H
 

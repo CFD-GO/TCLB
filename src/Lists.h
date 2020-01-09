@@ -3,7 +3,9 @@
 #include <string>
 #include <vector>
 #include "Consts.h"
+#include "types.h"
 #include "mpi.h"
+
 #define LIST_INVALID -1
 
 template <class T>
@@ -53,13 +55,13 @@ public:
     };
 
     struct NodeTypeFlag : Thing {
-        flag_t flag;
-        flag_t group_flag;
+        big_flag_t flag;
+        big_flag_t group_flag;
         int group_id;
     };
 
     struct NodeTypeGroupFlag : Thing {
-        flag_t flag;
+        big_flag_t flag;
         int shift;
     };
 

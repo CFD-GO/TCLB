@@ -3,6 +3,9 @@
 
 #include "unit.h"
 #include <map>
+
+#include "ModelConsts.h"
+
 /// STL triangle structure
 #ifdef _WIN32
   struct STL_tri {
