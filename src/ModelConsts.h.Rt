@@ -1,0 +1,47 @@
+<?R
+  source("conf.R")
+  c_header();
+
+ big_hex = function(x,bits=16) {
+    ret = ""
+    while (x > 0 | bits > 0) {
+      a = x %% 16
+      ret = sprintf("%01x%s",a,ret)
+      x = (x-a) / 16
+      bits = bits - 4
+    }
+    ret
+  }
+
+
+?>
+
+#ifndef MODELCONSTS_H
+#define MODELCONSTS_H 
+
+<?R
+  for (n in names(Node)) { ?>
+#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node[n]) ?> <?R
+  }
+  for (n in names(Node_Group)) { ?>
+#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node_Group[n]) ?> <?R
+  }
+  for (v in rows(Consts)) { ?>
+#define <?%-40s v$name ?> <?%5d v$value ?> <?R
+  }
+?>
+
+typedef <?%s FlagT ?> flag_t;
+
+<?R for (e in names(Enums)) { ?>
+enum <?%s e ?> { <?%s paste(Enums[[e]],collapse=",") ?> }; <?R
+} ?>
+
+<?R for (n in names(Options)) {
+	if (Options[[n]]) { ?>
+#define OPTIONS_<?%s n ?> 1
+<?R } else { ?>
+#undef OPTIONS_<?%s n ?>
+<?R }} ?>
+
+#endif
