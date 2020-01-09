@@ -6,12 +6,23 @@ int cbKeep::Init () {
 		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("What");
 		if (attr) {
-			what = solver->lattice->GlobalByName(attr.value());
-			if (what < 0) {
-        			error("Unknown Global %s in %s\n", attr.value(), node.name());
-        			return -1;
-                        }
-			whatInObj = solver->lattice->GlobalInObj(what);
+			std::string nm = attr.value();
+			{
+				ModelBase::Globals::const_iterator it = solver->lattice->model->globals.ByName(nm);
+				if (it ==  solver->lattice->model->globals.end()) {
+	        			error("Unknown Global %s in %s\n", nm.c_str(), node.name());
+	        			return -1;
+	                        }
+	                        what = it->id;
+			}
+			{
+				ModelBase::ZoneSettings::const_iterator it = solver->lattice->model->zonesettings.ByName(nm + "InObj");
+	                        if (it == solver->lattice->model->zonesettings.end()) {
+	        			error("Didn't find corresponding *InObj setting to the global %s in %s\n", nm.c_str(), node.name());
+	        			return -1;
+				}	
+				whatInObj = it->id;
+			}
 		} else {
 			error("No What attribute in %s\n", node.name());
 			return -1;
@@ -60,7 +71,7 @@ int cbKeep::DoIt () {
                         }
                 }
                 MPI_Bcast(&s, 1, MPI_INT, 0, MPMD.local);
-                solver->lattice->setSetting(whatInObj, s);		
+                solver->lattice->SetSetting(whatInObj, s);		
 		return 0;
 	}
 

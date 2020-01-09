@@ -53,7 +53,7 @@ class Solver {
 	MPIInfo mpi; ///< Information on MPI connectivity
 	MPI_Comm mpi_comm; ///< Solver's MPMD.local
 	pugi::xml_document configfile;
-        Lattice * lattice; ///< Main Lattice object
+        LatticeBase * lattice; ///< Main Lattice object
 	Geometry * geometry; ///< Main Geometry object
 	lbRegion region; ///< Global region
         int iter; ///< Iteration (Now)

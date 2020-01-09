@@ -5,7 +5,7 @@
 #include "vtkLattice.h"
 #include "Global.h"
 
-int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what)
+int vtkWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_set * what)
 {
 	size_t size;
 	lbRegion reg = lattice->region;
@@ -51,7 +51,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 }
 
 
-int binWriteLattice(char * filename, Lattice * lattice, UnitEnv units)
+int binWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units)
 {
 	int size;
 	lbRegion reg = lattice->region;
@@ -103,7 +103,7 @@ template <typename T> int txtWriteField(FILE * f, T * tmp, int stop, int n)
 }
 
 
-int txtWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set * what, int type)
+int txtWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_set * what, int type)
 {
 	int size;
 	char fn[STRING_LEN];

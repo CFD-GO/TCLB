@@ -165,7 +165,7 @@ void MainFree( Solver *d);
 	                assert( f != NULL );
 			fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, get_walltime(), opt_iter);
 			for (int i=0; i< SETTINGS; i++) {
-				v = lattice->settings_val[i];
+				v = lattice->GetSetting(i);
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
@@ -266,7 +266,7 @@ void MainFree( Solver *d);
 		// Setting settings to default
 		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
 			if (! it->isDerived) {
-				lattice->setSetting(it->id, units.alt(it->defaultValue));
+				lattice->SetSetting(it->id, units.alt(it->defaultValue));
 			}
 		}
 		return 0;

@@ -28,6 +28,20 @@
 #endif
 
 
+LatticeBase::~LatticeBase() {
+
+}
+
+/// Set monitor callback
+/**
+        Sets the monitor callback which will be called every second or frame
+*/
+void LatticeBase::Callback(int(*cb)(int,int, void*), void* data) {
+	callback = cb;
+	callback_data = data;
+}
+
+
 /// LatticeContainer stored in the GPU const memory
 /**
         This is the main container that is stored in the GPU const memory.
@@ -72,8 +86,10 @@ int Lattice::Offset(int x, int y, int z)
         \param mpi_ MPI Information
         \param ns Number of Snapshots
 */
-Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns)
 {
+	region = _region;
+	mpi = mpi_;
 	DEBUG_M;
 	model = &current_model;
 	reverse_save=0;
@@ -300,15 +316,6 @@ void Lattice::stopRecord()
 	}
 	reverse_save = 0;
 	debug2("Stop recording\n");
-}
-
-/// Set monitor callback
-/**
-        Sets the monitor callback which will be called every second or frame
-*/
-void Lattice::Callback(int(*cb)(int,int, void*), void* data) {
-	callback = cb;
-	callback_data = data;
 }
 
 /// Copy GPU to CPU memory
@@ -1335,6 +1342,10 @@ void Lattice::SetSetting(int idx, real_t val) {
 		double der_val = set.derivedValue(val);
 		SetSetting(der, der_val);
 	}
+}
+
+real_t Lattice::GetSetting(int idx) {
+	return settings_val[idx];
 }
 
 void Lattice::resetAverage() {
