@@ -625,7 +625,7 @@ fi
 CP=cp
 if test "x${enable_marklines}" == "xyes"
 then
-	RTOPT="${RTOPT} --mark-lines"
+	RTOPT="${RTOPT} --mark-lines -i linemark.R"
 	CP=./tools/cp_line
 fi
 
