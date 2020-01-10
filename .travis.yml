@@ -81,7 +81,7 @@ jobs:
           - tools/deploy.docs.sh
 
 after_success:
-    - bash <(curl -s https://codecov.io/bash)
+    - bash <(curl -s https://codecov.io/bash) -y .codecov.yaml
 
 after_failure:
     - dmesg
