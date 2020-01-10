@@ -625,14 +625,8 @@ fi
 CP=cp
 if test "x${enable_marklines}" == "xyes"
 then
-	if test "x${enable_coverage}" == "xyes"
-	then
-		RTOPT="${RTOPT} --mark-lines --relative-to dummy -i linemark.R"
-		CP="./tools/cp_line HERE"
-	else	
-		RTOPT="${RTOPT} --mark-lines -i linemark.R"
-		CP=./tools/cp_line
-	fi
+	RTOPT="${RTOPT} --mark-lines -i linemark.R"
+	CP=./tools/cp_line
 fi
 
 if test "x${enable_paranoid}" == "xyes"

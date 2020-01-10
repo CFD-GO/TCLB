@@ -81,7 +81,7 @@ jobs:
           - tools/deploy.docs.sh
 
 after_success:
-    - tools/coveralls.sh
+    - bash <(curl -s https://codecov.io/bash)
 
 after_failure:
     - dmesg
