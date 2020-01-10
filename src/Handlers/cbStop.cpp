@@ -2,19 +2,28 @@
 #include "cbStop.h"
 std::string cbStop::xmlname = "Stop";
 
+void cbStop::AddStop(int what_, int stop_type_, double limit_) {
+	what.push_back(what_);
+	stop_type.push_back(stop_type_);
+	limit.push_back(limit_);
+	old.push_back(-12341234);
+}
+
 int cbStop::Init () {
 		Callback::Init();
 		double stop;
 		pugi::xml_attribute attr;
 		for (ModelBase::Globals::const_iterator it = solver->lattice->model->globals.begin(); it != solver->lattice->model->globals.end(); it++) {
-			std::string nm = it->name + "Change";
+			std::string nm;
+			nm = it->name + "Change";
 			attr = node.attribute(nm.c_str());
-			if (attr) {
-				stop = attr.as_double();
-				what.push_back(it->id);
-				change.push_back(stop);
-				old.push_back(-12341234);
-			}
+			if (attr) AddStop(it->id, STOP_CHANGE, attr.as_double());
+			nm = it->name + "Above";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it->id, STOP_ABOVE, attr.as_double());
+			nm = it->name + "Below";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it->id, STOP_BELOW, attr.as_double());
 		}
 		if (what.size() < 1) {
 			error("No *Change attribute in %s\n", node.name());
@@ -45,10 +54,21 @@ int cbStop::DoIt () {
                         output("Stop criterium:");
                         for (size_t i=0;i<what.size();i++) {
                                 double v = solver->lattice->globals[ what[i] ];
-                                if (fabs(old[i] - v) > change[i]) any++;
-                                if (D_MPI_RANK == 0) {
-                                        output("                 %4lg / %4lg", fabs(old[i] - v), change[i]);
-                                }
+				double value = 0;
+				switch (stop_type[i]) {
+				case STOP_CHANGE:
+					if (fabs(old[i] - v) > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    change:      %4lg < %4lg", fabs(old[i] - v), limit[i]);
+					break;
+				case STOP_ABOVE:
+					if (v < limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    limit:       %4lg > %4lg", v, limit[i]);
+					break;
+				case STOP_BELOW:
+					if (v > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    limit:       %4lg < %4lg", v, limit[i]);
+					break;
+				}
                                 old[i] = v;
                         }
                         if (!any) {
