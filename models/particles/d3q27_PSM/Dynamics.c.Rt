@@ -897,6 +897,10 @@ CudaDeviceFunction void CollisionBGK_PSM() {
     uP[1] = uPy;
     uP[2] = uPz;
 
+    AddToTotalFluidVelocityX(u[0]);
+    AddToTotalFluidVelocityY(u[1]);
+    AddToTotalFluidVelocityZ(u[2]); 
+
     <?R
 
       a = PV(c("(AccelX + GravitationX)", "(AccelY + localGravitationY)", "(AccelZ + GravitationZ)"))
