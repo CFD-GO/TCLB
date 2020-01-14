@@ -104,6 +104,8 @@ struct Tab : public TabBase {
 	void read_piece(int pdx, int pdy, int pdz, int pnx, int pny, int pnz, pugi::xml_node node) {
 		assert(fname == node.attribute("Name").value());
 		assert(ftype == node.attribute("type").value());
+		assert(std::string("binary") == node.attribute("format").value());
+		assert(std::string("base64") == node.attribute("encoding").value());
 		size_t psize = 1L * (pnx - pdx) * (pny - pdy) * (pnz - pdz) * comp;
 		T *ptr;
 		b64.decode64(node.child_value(), (void **)&ptr, psize * sizeof(T));
@@ -243,7 +245,23 @@ int main(int argc, char *argv[]) {
 			exit(-1);
 		}
 		double diff = tabs1.tab[name]->compare(tabs2.tab[name].get());
-		printf("%s: Max difference: %lg\n", name.c_str(), diff);
+		printf("%s: Max difference: %lg", name.c_str(), diff);
+		double auto_eps;
+		if (tabs1.tab[name]->ftype == "Float64") {
+			auto_eps = 2.22e-16;
+		} else if (tabs1.tab[name]->ftype == "Float32") {
+			auto_eps = 1.19e-07;
+		} else {
+			auto_eps = 0;
+		}
+		if (auto_eps != 0) {
+			printf(" = %.1lf * %lg", diff / auto_eps, auto_eps);
+		}
+		if (diff > auto_eps * eps) {
+			printf(" --- WRONG\n");
+			exit(-1);
+		} else {
+			printf(" --- OK\n");
+		}		
 	}
-	
 }
