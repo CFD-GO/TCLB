@@ -38,6 +38,9 @@ int cbPythonCall::Init () {
 
             Py_Initialize();
             _import_array();
+            #else
+                ERROR("No Python support at compile time (./configure ... --enable-python)");
+                return -1;
             #endif
         }
 		return 0;
@@ -213,7 +216,8 @@ int cbPythonCall::DoIt () {
 //	    Py_Finalize();
 //END PYTHON HANDLING
 #else
-        output("Python support disabled at compile time, nothing to do");
+                ERROR("No Python support at compile time (./configure ... --enable-python)");
+                return -1;
 #endif
 
 
