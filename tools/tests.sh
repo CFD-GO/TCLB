@@ -26,11 +26,23 @@ function comment_fail {
 
 function try {
 	comment="$1"
-	mkdir -p output/
-	log=output/$(echo $comment | sed 's|[ /\t]|.|g').log
 	shift
+	mkdir -p output/
+	log=$(echo $comment | sed 's|[ /\t]|.|g').log
 	comment_wait "$comment"
-	if env time -f "%e" -o $log.time "$@" >$log 2>&1
+	NEG=false
+	if test "x$1" == 'x!'
+	then
+		NEG=true
+		shift
+	fi
+	if env time --quiet -f "%e" -o $log.time "$@" >$log 2>&1
+	then
+		RES=true
+	else
+		RES=false
+	fi
+	if test $NEG != $RES
 	then
 		comment_ok "$comment - $(cat $log.time)s"
 		if $VERBOSE
@@ -148,14 +160,15 @@ function runline {
 			then
 				cp $SRC $i
 			else
-				comment_fail ""
-				echo "$i" not found;
+				comment_fail "copy $@"
+				echo "         $i not found"
 				return -1;
 			fi
 		done
-		comment_ok ""
+		comment_ok "copy $@"
 		;;
 	run) try "running solver" "$@" ;;
+	fail) try "running solver" '!' "$@" ;;
 	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
 	diff) try "checking $R" diff "$R" "$G" ;;
 	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
@@ -179,14 +192,14 @@ function testModel {
 		then
 			echo -e "\n\e[1mRunning $name test...\e[0m"
 			mkdir -p $TDIR		
-			while read line
+			while read -r -u 3 line
 			do
 				if ! (cd $TDIR && runline $(eval echo $line))
 				then
 					RESULT="FAILED"
 					break
 				fi
-			done < "tests/$MODEL/$t"
+			done 3< "tests/$MODEL/$t"
 		else
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
