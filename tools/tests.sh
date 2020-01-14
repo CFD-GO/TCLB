@@ -15,7 +15,7 @@ function usage {
 function try {
 	comment="$1"
 	mkdir -p output/
-	log=output/$(echo $comment | sed 's/ /./g').log
+	log=output/$(echo $comment | sed 's|[ /\t]|.|g').log
 	shift
 	echo -n "$comment... "
 	if env time -f "%e" -o $log.time "$@" >$log 2>&1
@@ -26,7 +26,8 @@ function try {
 			cat $log
 		fi
 	else
-		echo "FAILED ($(cat $log.time)s)"
+		echo "FAILED"
+		echo "Time: $(cat $log.time)s"
 		echo "----------------- CMD ----------------"
 		echo $@
 		echo "----------------- LOG ----------------"
@@ -97,7 +98,7 @@ fi
 
 if test -z "$*"
 then
-	TESTS=$(cd tests/$MODEL; ls *.xml 2>/dev/null)
+	TESTS=$(cd tests/$MODEL; ls *.test 2>/dev/null)
 else
 	TESTS="$*"
 fi
@@ -111,71 +112,58 @@ fi
 
 
 GLOBAL="OK"
-export PYTHONPATH="$PYTHONPATH:tools/python:tests/$MODEL"
+export PYTHONPATH="$PYTHONPATH:$PWD/tools/python"
+
+function runline {
+	CMD=$1
+	R=$2
+	G=$TEST_DIR/$R
+	shift
+	case $CMD in
+	need)
+		for i in "$@"
+		do
+			SRC=$TEST_DIR/$i
+			if test -f "$SRC"
+			then
+				cp $SRC $i
+			else
+				echo "$i" not found;
+				return -1;
+			fi
+		done
+		echo "  copied $@"
+		;;
+	run) try "  running solver" "$@" ;;
+	csvdiff) try "    checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
+	diff) try "    checking $R" diff "$R" "$G" ;;
+	sha1) try "    checking $R (sha1)" sha1sum -c "$G.sha1" ;;
+	*) echo "unknown: $CMD"; return -1;;
+	esac
+	return 0;
+}
 
 function testModel {
 	for t in $TESTS
-	do
-		name="${t%.xml}"
-		t="$name.xml"
+	do		
+		name="${t%.test}"
+		t="$name.test"
+		TDIR="test-$MODEL-$name-$1"
+		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="FAILED"
-		
+		TCLB=".."
+		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
-			if try "Running \"$name\" test" CLB/$MODEL/main "tests/$MODEL/$t"
-			then
-				RESULT="OK"
-				RES=$(cd tests/$MODEL; find -name "${name}_*")
-				if ! test -z "$RES"
-				then
-					for r in $RES
-					do
-						g=tests/$MODEL/$r
-						echo -n " > Checking $r... "
-						EXT=${r##*.}
-						if test -f "$r" || [[ "x$EXT" == "xsha1" ]]
-						then
-							if ! test -f "$g"
-							then
-								echo "$g not found - this should not happen!"
-								exit -123
-							fi
-							R="WRONG"
-							COMMENT=""
-							case "$EXT" in
-							csv)
-								COMMENT="(csvdiff)"
-								tools/csvdiff -a "$r" -b "$g" -x 1e-10 -d Walltime >/dev/null && R="OK"
-								;;
-							sha1)
-								COMMENT="(SHA1 checksum)"
-								sha1sum -c "$g" >/dev/null 2>&1 && R="OK"
-								;;
-							*)
-								diff "$r" "$g" >/dev/null && R="OK"
-								;;
-							esac
-
-							if test "x$R" == "xOK"
-							then
-								echo "OK $COMMENT"
-							else
-								echo "Different $COMMENT"
-								if test "x$EXT" == "xsha1"
-								then
-									cat $g
-									pat=$(cat $g | sed 's/.*[ ][ ]*//')
-									test -z "$pat" || sha1sum $pat
-								fi
-								RESULT="WRONG"
-							fi
-						else
-							echo "Not found"
-							RESULT="WRONG"
-						fi
-					done
-				fi
-			fi
+			echo "Running $name test..."
+			cat "tests/$MODEL/$t" | (
+				mkdir -p $TDIR
+				cd $TDIR
+				while read line
+				do
+					runline $(eval echo $line) || break
+				done
+			)
 		else
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
@@ -194,7 +182,7 @@ REPEAT=1
 while test "$REPEAT" -le "$REPEATS"
 do
 	test "$REPEATS" -gt "1" && echo "############ repeat: $REPEAT ################"
-	testModel
+	testModel $REPEAT
 	mv -v output/ "output-$MODEL-$REPEAT"
 	REPEAT=$(expr $REPEAT + 1)
 done
