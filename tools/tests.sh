@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 function usage {
 	echo "tests.sh [-h] [-r n] [-v] MODEL [TESTS]"
 	if test "x$1" == "xhelp"
@@ -12,27 +14,44 @@ function usage {
 	fi
 }
 
+function comment_wait {
+	echo -ne "[      ] $1\r"
+}
+function comment_ok {
+	echo -e "[\e[92m  OK  \e[0m] $1"
+}
+function comment_fail {
+	echo -e "[\e[91m FAIL \e[0m] $1"
+}
+
 function try {
 	comment="$1"
 	mkdir -p output/
 	log=output/$(echo $comment | sed 's|[ /\t]|.|g').log
 	shift
-	echo -n "$comment... "
+	comment_wait "$comment"
 	if env time -f "%e" -o $log.time "$@" >$log 2>&1
 	then
-		echo "OK ($(cat $log.time)s)"
+		comment_ok "$comment - $(cat $log.time)s"
 		if $VERBOSE
 		then
-			cat $log
+			(
+				echo "----------------  LOG  ---------------"
+				cat  $log
+				echo "--------------------------------------"
+			) | sed 's|^|         |'
 		fi
 	else
-		echo "FAILED"
-		echo "Time: $(cat $log.time)s"
-		echo "----------------- CMD ----------------"
-		echo $@
-		echo "----------------- LOG ----------------"
-		cat  $log
-		echo "--------------------------------------"
+		comment_fail ""
+		(
+			echo "----------------  CMD  ---------------"
+			echo $@
+			echo "----------------  TIME ---------------"
+			echo "Time: $(cat $log.time)s"
+			echo "----------------  LOG  ---------------"
+			cat  $log
+			echo "--------------------------------------"
+		) | sed 's|^|         |'
 		exit -1;
 	fi
 	return 0;
@@ -120,7 +139,8 @@ function runline {
 	G=$TEST_DIR/$R
 	shift
 	case $CMD in
-	need)
+	need) 
+		comment_wait "copy $@"
 		for i in "$@"
 		do
 			SRC=$TEST_DIR/$i
@@ -128,16 +148,18 @@ function runline {
 			then
 				cp $SRC $i
 			else
+				comment_fail ""
 				echo "$i" not found;
 				return -1;
 			fi
 		done
-		echo "  copied $@"
+		comment_ok ""
 		;;
-	run) try "  running solver" "$@" ;;
-	csvdiff) try "    checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
-	diff) try "    checking $R" diff "$R" "$G" ;;
-	sha1) try "    checking $R (sha1)" sha1sum -c "$G.sha1" ;;
+	run) try "running solver" "$@" ;;
+	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
+	diff) try "checking $R" diff "$R" "$G" ;;
+	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
+	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" 8;;
 	*) echo "unknown: $CMD"; return -1;;
 	esac
 	return 0;
@@ -155,7 +177,7 @@ function testModel {
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
-			echo "Running $name test..."
+			echo -e "\n\e[1mRunning $name test...\e[0m"
 			mkdir -p $TDIR		
 			while read line
 			do
@@ -169,9 +191,12 @@ function testModel {
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
 		fi
-		if ! test "x$RESULT" == "xOK"
+#		echo -n "         Test \"$name\" returned:"
+		if test "x$RESULT" == "xOK"
 		then
-			echo " > Test \"$name\" returned: $RESULT"
+			comment_ok   "\"$name\" test"
+		else
+			comment_fail "\"$name\" test"
 			GLOBAL="FAILED"
 		fi
 	done
