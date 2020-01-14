@@ -150,20 +150,21 @@ function testModel {
 		t="$name.test"
 		TDIR="test-$MODEL-$name-$1"
 		test -d "$TDIR" && rm -r "$TDIR"
-		RESULT="FAILED"
+		RESULT="OK"
 		TCLB=".."
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
 			echo "Running $name test..."
-			cat "tests/$MODEL/$t" | (
-				mkdir -p $TDIR
-				cd $TDIR
-				while read line
-				do
-					runline $(eval echo $line) || break
-				done
-			)
+			mkdir -p $TDIR		
+			while read line
+			do
+				if ! (cd $TDIR && runline $(eval echo $line))
+				then
+					RESULT="FAILED"
+					break
+				fi
+			done < "tests/$MODEL/$t"
 		else
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
@@ -176,14 +177,11 @@ function testModel {
 	done
 }
 
-rm -r output-$MODEL-*/ 2>/dev/null || true
-
 REPEAT=1
 while test "$REPEAT" -le "$REPEATS"
 do
 	test "$REPEATS" -gt "1" && echo "############ repeat: $REPEAT ################"
 	testModel $REPEAT
-	mv -v output/ "output-$MODEL-$REPEAT"
 	REPEAT=$(expr $REPEAT + 1)
 done
 
