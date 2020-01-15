@@ -15,13 +15,16 @@ function usage {
 }
 
 function comment_wait {
-	echo -ne "[      ] $1\r"
+#       echo -ne "[      ] $1\r"
+        printf   "[      ] %-70s %4s\r" "$1" "$2"
 }
 function comment_ok {
-	echo -e "[\e[92m  OK  \e[0m] $1"
+#       echo -e "[\e[92m  OK  \e[0m] $1"
+        printf  "[\e[92m  OK  \e[0m] %-70s %6s\n" "$1" "$2"
 }
 function comment_fail {
-	echo -e "[\e[91m FAIL \e[0m] $1"
+#       echo -e "[\e[91m FAIL \e[0m] $1"
+        printf  "[\e[91m FAIL \e[0m] %-70s %6s\n" "$1" "$2"
 }
 
 function try {
@@ -44,7 +47,7 @@ function try {
 	fi
 	if test $NEG != $RES
 	then
-		comment_ok "$comment - $(cat $log.time)s"
+		comment_ok "$comment" "$(cat $log.time)s"
 		if $VERBOSE
 		then
 			(
@@ -54,7 +57,7 @@ function try {
 			) | sed 's|^|         |'
 		fi
 	else
-		comment_fail ""
+		comment_fail "$comment"
 		(
 			echo "----------------  CMD  ---------------"
 			echo $@
@@ -187,6 +190,7 @@ function testModel {
 		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="OK"
 		TCLB=".."
+		SOLVER="$TCLB/CLB/$MODEL/main"
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
@@ -207,9 +211,9 @@ function testModel {
 #		echo -n "         Test \"$name\" returned:"
 		if test "x$RESULT" == "xOK"
 		then
-			comment_ok   "\"$name\" test"
+			comment_ok   "$name test finished" "-----"
 		else
-			comment_fail "\"$name\" test"
+			comment_fail "$name test finished" "-----"
 			GLOBAL="FAILED"
 		fi
 	done
