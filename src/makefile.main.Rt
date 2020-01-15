@@ -48,7 +48,6 @@ SOURCE_PLAN+=SUMMARY
 SOURCE_PLAN+=conf.doxygen
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
-ADDITIONALS=README.md dictionary.h
 
 SOURCE_PLAN+=Catalyst.cpp
 SOURCE_PLAN+=Catalyst.h
@@ -137,8 +136,6 @@ for (d in destinations) {
 		src = paste("$(addprefix ",dest,",",src,")",sep="");
 		src_all = paste("$(addprefix ",dest,",",src_all,")",sep="");
 		src_all = paste(dest,src_all)
-		add = paste("$(addprefix ",dest,"/,$(ADDITIONALS))",sep="")
-		src_all = paste(src_all,add)
 		rtopt = NULL
 		if (adjoint) rtopt = c(rtopt, "MODEL=TRUE")
 		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
