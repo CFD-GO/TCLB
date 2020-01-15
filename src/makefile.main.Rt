@@ -43,6 +43,7 @@ SOURCE_PLAN+=CommonHandler.h Handlers.h
 SOURCE_PLAN+=Factory.h HandlerFactory.h
 SOURCE_PLAN+=SUMMARY
 SOURCE_PLAN+=conf.doxygen
+SOURCE_PLAN+=CMakeLists.txt
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 ADDITIONALS=README.md dictionary.h
@@ -183,6 +184,9 @@ for (d in destinations) {
 
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
+
+<?%s m ?>/cmake:<?%s src_all ?>
+	@cd <?%s d ?>/<?%s m ?>; cmake . && $(MAKE) -f Makefile
 
 <?%s d ?>/<?%s m ?>/ :
 	@$(MKPATH) $@
