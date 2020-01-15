@@ -190,6 +190,7 @@ function testModel {
 		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="OK"
 		TCLB=".."
+		SOLVER="$TCLB/CLB/$MODEL/main"
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
