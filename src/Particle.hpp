@@ -149,6 +149,10 @@ struct ParticleS : ParticleI {
 template < class P >
 struct AllParticleIterator : P {
 	CudaDeviceFunction AllParticleIterator(real_t x, real_t y, real_t z) : P(x,y,z) {
+	        if (constContainer.particle_data_size == 0) {
+	        	nodei = -1;
+	        	return;
+		}
 		safe_pull_all();
 	}
 	CudaDeviceFunction void operator++ () {
