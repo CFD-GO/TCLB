@@ -41,3 +41,4 @@ for i in keys1:
         sys.exit(1)
 
 print("No differences greater than tolerance %f found..." % (tol))
+sys.exit(0)
