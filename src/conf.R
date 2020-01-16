@@ -19,8 +19,6 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 options(stringsAsFactors=FALSE)
 format.list = function(x,...) sapply(x, class)
 
-#source("fun_v3.R")
-
 if (! SYMALGEBRA) {
 	library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 } else {
