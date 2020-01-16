@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython|module [VERSION]"
+	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|module [VERSION]"
 	exit -2
 }
 
@@ -259,7 +259,7 @@ openmpi)
 		try "Clean APT" apt-get clean
 	fi
 	;;
-coveralls)
+cover)
 	get_PMS
 	if test "x$PMS" == "xyum"	
 	then
@@ -270,7 +270,6 @@ coveralls)
 	then
 		try "Installing lcov" apt-get install -y lcov
 		try "Installing time" apt-get install -y time
-	#	try "Installing coveralls-lcov" gem install coveralls-lcov
 	fi
 	;;
 submodules)
