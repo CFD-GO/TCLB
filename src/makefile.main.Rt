@@ -179,8 +179,15 @@ for (d in destinations) {
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
 
-<?%s m ?>/cmake:<?%s src_all ?>
-	@cd <?%s d ?>/<?%s m ?>; cmake . && $(MAKE) -f Makefile
+<?%s m ?>/cmake: $(addprefix CLB/d2q9/,$(SOURCE_ALL))
+	@echo "  DONE       $@"
+
+<?%s m ?>/windows: <?%s m ?>/cmake
+	@echo "  CMAKE      $@"
+	@cd <?%s d ?>/<?%s m ?>; cmake .
+	@echo "  MSBuild    $@"
+	@cd <?%s d ?>/<?%s m ?>; MSBuild.exe main.vcxproj
+
 
 <?%s d ?>/<?%s m ?>/ :
 	@$(MKPATH) $@

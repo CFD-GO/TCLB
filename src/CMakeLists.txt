@@ -11,8 +11,6 @@ include_directories(${CUDA_INCLUDE_DIRS})
 set(CMAKE_CXX_COMPILE_FLAGS ${CMAKE_CXX_COMPILE_FLAGS} ${CUDA_COMPILE_FLAGS})
 set(CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS} ${CUDA_LINK_FLAGS})
 
-add_compile_options ( -O3 -Wno-write-strings )
-
 #cuda_add_executable
 cuda_add_executable(main
   RemoteForceInterface.cpp
