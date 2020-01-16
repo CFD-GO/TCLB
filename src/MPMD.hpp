@@ -45,6 +45,9 @@ template <> inline MPI_Datatype MPI_Auto_datatype< int >() { return MPI_INT; }
 template <> inline MPI_Datatype MPI_Auto_datatype< unsigned int >() { return MPI_UNSIGNED; }
 template <> inline MPI_Datatype MPI_Auto_datatype< long int >() { return MPI_LONG; }
 template <> inline MPI_Datatype MPI_Auto_datatype< unsigned long int >() { return MPI_UNSIGNED_LONG; }
+#if defined(_WIN32)
+	template <> inline MPI_Datatype MPI_Auto_datatype< unsigned __int64 >() { return MPI_UNSIGNED_LONG; } 
+#endif
 template <> inline MPI_Datatype MPI_Auto_datatype< char >() { return MPI_CHAR; }
 
 template <class T> inline T MPI_Exchange(T& out, MPI_Comm intercomm, MPI_Comm comm) {

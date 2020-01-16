@@ -24,6 +24,9 @@ template <> inline MPI_Datatype MPI_dt< int >() { return MPI_INT; }
 template <> inline MPI_Datatype MPI_dt< unsigned int >() { return MPI_UNSIGNED; }
 template <> inline MPI_Datatype MPI_dt< long int >() { return MPI_LONG; }
 template <> inline MPI_Datatype MPI_dt< unsigned long int >() { return MPI_UNSIGNED_LONG; }
+#if defined(_WIN32)
+	template <> inline MPI_Datatype MPI_dt< unsigned __int64 >() { return MPI_UNSIGNED_LONG; }
+#endif
 template <> inline MPI_Datatype MPI_dt< char >() { return MPI_CHAR; }
 template <> inline MPI_Datatype MPI_dt< float >() { return MPI_FLOAT; }
 template <> inline MPI_Datatype MPI_dt< double >() { return MPI_DOUBLE; }

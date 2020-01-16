@@ -1,5 +1,6 @@
 #include "acSAdjoint.h"
 #include "../HandlerFactory.h"
+#include <algorithm>
 
 int acSAdjoint::Init () {
 		GenericAction::Init();

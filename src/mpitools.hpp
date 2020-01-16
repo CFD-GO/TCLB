@@ -9,10 +9,10 @@ namespace mpitools {
 
 inline std::string MPI_Bcast(const std::string& str, int root, MPI_Comm comm) {
         size_t size = str.size();
-        MPI_Bcast(&size, 1, MPI_UNSIGNED_LONG, root, comm);
+        ::MPI_Bcast(&size, 1, MPI_UNSIGNED_LONG, root, comm);
         char * buf = new char[size+1];
         strcpy(buf, str.c_str());
-        MPI_Bcast(buf, size+1, MPI_CHAR, root, comm);
+        ::MPI_Bcast(buf, size+1, MPI_CHAR, root, comm);
         std::string ret(buf,size);
         delete[] buf;
         return ret;

@@ -71,6 +71,13 @@ class name_set {
         }
 };
 
+#if defined(_WIN32)
+	#include <direct.h>
+	typedef int mode_t;
+	inline int mkdir(char * str, mode_t m) {
+		return _mkdir(str);
+	}
+#endif
 
 // This function creates the full path to a file (creates all the directories)
 inline int mkpath(char* file_path_, mode_t mode) {

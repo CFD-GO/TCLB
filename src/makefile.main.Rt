@@ -133,7 +133,7 @@ for (d in destinations) {
 		src_all = paste(src_all,add)
 		rtopt = NULL
 		if (adjoint) rtopt = c(rtopt, "MODEL=TRUE")
-		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
+		rtopt = c(rtopt, paste0("\"MODEL='",m,"'\""))
 		if (length(opts) > 0) {
 			opts = ifelse(opts==0,"FALSE","TRUE")
 			opts = paste0(names(opts),"=",opts,collapse=",")
