@@ -132,7 +132,7 @@ struct Tabs {
 	std::string path;
 	int dx, dy, dz, nx, ny, nz;
 	size_t size;
-	typedef std::shared_ptr<TabBase> TabBasePtr;
+	typedef TabBase* TabBasePtr;
 	typedef std::map<std::string, TabBasePtr> TabMap;
 	TabMap tab;
 	
@@ -159,13 +159,13 @@ struct Tabs {
 			std::string fname = it.attribute("Name").value();
 			int fcomp = it.attribute("NumberOfComponents").as_int();
 			if (ftype == "Float64") {
-				tab[fname] = std::make_shared< Tab<double> >(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
+				tab[fname] = new Tab<double>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "Float32") {
-				tab[fname] = std::make_shared< Tab<float> >(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
+				tab[fname] = new Tab<float>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "UInt16") {
-				tab[fname] = std::make_shared< Tab<unsigned short int> >(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
+				tab[fname] = new Tab<unsigned short int>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "UInt8") {
-				tab[fname] = std::make_shared< Tab<unsigned char> >(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
+				tab[fname] = new Tab<unsigned char>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else {
 				printf("Unknown field type: %s\n", ftype.c_str());
 				exit(-1);
