@@ -244,7 +244,7 @@ int main(int argc, char *argv[]) {
 			printf("%s not in second file\n", name.c_str());
 			exit(-1);
 		}
-		double diff = tabs1.tab[name]->compare(tabs2.tab[name].get());
+		double diff = tabs1.tab[name]->compare(tabs2.tab[name]);
 		printf("%s: Max difference: %lg", name.c_str(), diff);
 		double auto_eps;
 		if (tabs1.tab[name]->ftype == "Float64") {
