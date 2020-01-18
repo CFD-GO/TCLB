@@ -9,25 +9,55 @@ AddDensity( name="f6", dx=-1, dy= 1, group="f")
 AddDensity( name="f7", dx=-1, dy=-1, group="f")
 AddDensity( name="f8", dx= 1, dy=-1, group="f")
 
-AddField("phi",stencil2d=1);
+if (Options$wallNormalBC) {
+ 
+    AddField( name="nw_x", stencil2d=1, group="nw")
+    AddField( name="nw_y", stencil2d=1, group="nw")
+}
 
-AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
-AddStage("CalcPhi", save="phi",load=DensityAll$group == "f")
-AddStage("BaseInit", "Init", save=Fields$group == "f", load=DensityAll$group == "f")
+AddField("rho_n",stencil2d=1, group="rho_n");
 
-AddAction("Iteration", c("BaseIteration","CalcPhi"))
-AddAction("Init", c("BaseInit","CalcPhi"))
+AddStage("BaseIteration", "Run", save=Fields$group == "f"| Fields$group=="nw" , load=DensityAll$group == "f")
+AddStage("CalcRhoSC", save=Fields$group == "rho_n",load=DensityAll$group == "f")
+AddStage("BaseInit", "Init", save=Fields$group == "f" | Fields$group == "rho_n" , load=DensityAll$group == "f")
+
+if (Options$wallNormalBC) {
+    AddStage("CalcWallNormall", "CalcNormal",   
+             save=Fields$group=="nw",
+             fixedPoint=TRUE
+             ) 
+    AddAction("Init", c("BaseInit","CalcWallNormall"))
+    AddQuantity(name="WallNormal", vector=T);
+
+} else {
+    AddAction("Init", c("BaseInit"))
+}
+AddAction("Iteration", c("BaseIteration","CalcRhoSC"))
+
+
+
 
 AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="P", unit="Pa");
 AddQuantity(name="F", unit="N", vector=T);
 
+
+AddQuantity(name="DEBUG", vector=T);
+
 AddSetting(name="omega", comment='relaxation factor', default=1)
 AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', comment='viscosity')
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')
+
+AddSetting(name="LVRho_phi_dr", default=1, , zonal=TRUE, comment="(wa < 90 <-> LVRho_phi_dr>=1) |  (wa > 90 <-> LVRho_phi_dr>=0) Wetting toning parameter, see DOI: 10.1103/PhysRevE.100.053313")
+
+AddSetting(name="LVRho_ulimit", default=0.01, , zonal=TRUE, comment="Upper limiting value of rho_w see DOI: 10.1103/PhysRevE.100.053313")
+AddSetting(name="LVRho_llimit", default=3.2, , zonal=TRUE,  comment="Lower limiting value of rho_w see DOI: 10.1103/PhysRevE.100.053313")
+
+
+AddSetting(name="WallSmoothingMagic", default=0.12, comment="Wall normal smoothing parameter, higher - more smoothed")
 
 AddSetting(name="Magic", comment='K', default="0.01")
 AddSetting(name="MagicA", comment='A in force calculation', default="-0.152")
