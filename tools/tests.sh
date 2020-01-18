@@ -16,15 +16,15 @@ function usage {
 
 function comment_wait {
 #       echo -ne "[      ] $1\r"
-        printf   "[      ] %-70s %4s\r" "$1" "$2"
+        printf   "[      ] %-70s %6s" "$1" "$2"
 }
 function comment_ok {
 #       echo -e "[\e[92m  OK  \e[0m] $1"
-        printf  "[\e[92m  OK  \e[0m] %-70s %6s\n" "$1" "$2"
+        printf  "\r[\e[92m  OK  \e[0m] %-70s %6s\n" "$1" "$2"
 }
 function comment_fail {
 #       echo -e "[\e[91m FAIL \e[0m] $1"
-        printf  "[\e[91m FAIL \e[0m] %-70s %6s\n" "$1" "$2"
+        printf  "\r[\e[91m FAIL \e[0m] %-70s %6s\n" "$1" "$2"
 }
 
 function try {
