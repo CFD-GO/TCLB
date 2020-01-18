@@ -14,10 +14,10 @@
           ADTools.c (adjoint)
 */
 
-#include "Consts.h"
-#include "cross.h"
-#include "cross.hpp"
-#include "Global.h"
+#include "../Consts.h"
+#include "../cross.h"
+#include "../../cross.hpp"
+#include "../Global.h"
 
 
 class Node;
@@ -27,7 +27,7 @@ class Node_Globs;
 CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 
 #ifdef ADJOINT
-	#include "ADTools.cu"
+	#include "../ADTools.cu"
 #endif
 
 <?R
@@ -67,7 +67,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
-#include "Particle.hpp"
+#include "../Particle.hpp"
 
 <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)

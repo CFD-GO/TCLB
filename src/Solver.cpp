@@ -8,9 +8,8 @@
 #endif
 #include "cross.h"
 #include "Region.h"
-//#include "LatticeContainer.h"
 class LatticeContainer;
-#include "Lattice.h"
+#include "templates/Lattice.h"
 #include "vtkLattice.h"
 #include "Geometry.h"
 #include "def.h"
@@ -381,9 +380,6 @@ void MainFree( Solver *d);
 		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
 			lattice->zSet.set(it->id, -1, units.alt(it->defaultValue));
 		}
-
-		// Setting global variables
-		initSettings();
 
 		geometry = new Geometry(region, mpi.totalregion, units);
 

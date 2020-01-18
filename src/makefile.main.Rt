@@ -17,23 +17,24 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
 
-SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
+SOURCE_PLAN+=Global.cpp templates/Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu templates/cuda.cu templates/LatticeContainer.inc.cpp templates/LatticeAccess.inc.cpp
 SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
-SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
-SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
+SOURCE_PLAN+=Global.h gpu_anim.h templates/LatticeContainer.h templates/Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
+SOURCE_PLAN+=gl_helper.h templates/Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
 SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
 SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
 SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
 SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
+SOURCE_PLAN+=LatticeBase.cpp LatticeBase.h
 SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
 SOURCE_PLAN+=glue.hpp
 SOURCE_PLAN+=mpitools.hpp
 SOURCE_PLAN+=pinned_allocator.hpp
-SOURCE_PLAN+=Lists.h Lists.cpp
-SOURCE_PLAN+=ModelConsts.h
+SOURCE_PLAN+=Lists.h templates/Lists.cpp
+SOURCE_PLAN+=templates/ModelConsts.h
 SOURCE_PLAN+=compare.cpp
 
 <?R
@@ -192,7 +193,7 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 
 .INTERMEDIATE : tapenade.run
 
-<?%s d ?>/<?%s m ?>/tapenade.run : tools/makeAD <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh <?%s d ?>/<?%s m ?>/ADpost.sed
+<?%s d ?>/<?%s m ?>/tapenade.run : tools/makeAD <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/templates/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh <?%s d ?>/<?%s m ?>/ADpost.sed
 	@echo "  TAPENADE   $<"
 	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD)
 
@@ -205,6 +206,11 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || mv $@ $@~
 
+
+<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"

@@ -1,7 +1,6 @@
 #ifndef HDF5LATTICE_H
 
 	#include "Global.h"
-//	#include "LatticeContainer.h"
 	#include "Solver.h"
 	#include "unit.h"
 

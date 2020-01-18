@@ -14,7 +14,7 @@ AC_ARG_WITH([gcc],
 	[COMPILER_BINDIR="$withval"])
 
 AC_ARG_ENABLE([cuda],
-	AC_HELP_STRING([--enable-cuda=cuda_home],
+	AC_HELP_STRING([--enable-templates/cuda.cuda_home],
 		[specify the root of your cuda install, e.g. /usr/local/cuda]))
 
 AC_ARG_WITH([mpi-include],

@@ -4,7 +4,7 @@
 #include "unit.h"
 #include <map>
 
-#include "ModelConsts.h"
+#include "templates/ModelConsts.h"
 
 /// STL triangle structure
 #ifdef _WIN32

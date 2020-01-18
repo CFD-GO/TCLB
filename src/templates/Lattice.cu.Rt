@@ -7,16 +7,7 @@
 /*       of Adjoint LBM solver. It realizes all the LBM        */
 /*       calculations and data transfer                        */
 /*-------------------------------------------------------------*/
-
-#include "Consts.h"
-#include "cross.h"
-#include "types.h"
-#include "Global.h"
-#include "LatticeContainer.h"
-#include "Lattice.h"
-#include <mpi.h>
-#include <assert.h>
-#include "BallTree.hpp"
+#include "../LatticeBase.h"
 
 #ifdef ENABLE_NVPROF
 	#include <nvToolsExt.h>
@@ -26,21 +17,6 @@
 	#define DEBUG_PROF_PUSH(x__)
 	#define DEBUG_PROF_POP()
 #endif
-
-
-LatticeBase::~LatticeBase() {
-
-}
-
-/// Set monitor callback
-/**
-        Sets the monitor callback which will be called every second or frame
-*/
-void LatticeBase::Callback(int(*cb)(int,int, void*), void* data) {
-	callback = cb;
-	callback_data = data;
-}
-
 
 /// LatticeContainer stored in the GPU const memory
 /**
@@ -153,6 +129,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns)
 	balltree_data_size_max = 0;
 	BT.balls = &RFI;
 	RFI.name = "TCLB";
+	initSettings();
 }
 
 /// Initialization of MPI buffors
