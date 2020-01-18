@@ -22,7 +22,7 @@ SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
 SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
-SOURCE_PLAN+=gl_helper.h Dynamics.h Dynamics.hp types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
+SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
 SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
 SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp
@@ -43,7 +43,7 @@ SOURCE_PLAN+=CommonHandler.h Handlers.h
 SOURCE_PLAN+=Factory.h HandlerFactory.h
 SOURCE_PLAN+=SUMMARY
 SOURCE_PLAN+=conf.doxygen
-SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.hp Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
+SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 ADDITIONALS=README.md dictionary.h
 
@@ -67,21 +67,15 @@ rm:rm-files configure
 
 clean: <?%s paste(Models$name, "clean", sep="/", collapse=" ") ?>
 	
-$(MAKEHEADERS):tools/makeheaders.c
-	gcc -o $@ $<
-
-
 wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
-	@$(INDENT) $@
 
 wiki/% : src/%.Rt
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ || rm $@
-	@$(INDENT) $@
 
 
 travis : .travis.yml
@@ -216,13 +210,11 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
-	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
-	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  CP         $@"
@@ -233,13 +225,11 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || rm $@
-	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || rm $@
-	@$(INDENT) $@
 
 <?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%
 	@echo "  CP         $@ (model)"
@@ -265,23 +255,8 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS) -w $(SRC)/ -o $@ || rm $@
-	@$(INDENT) $@
 
 <?R } ?>
-
-
-
-%.hp:%.c $(MAKEHEADERS)
-	@echo "  MKHEADERS  $<"
-	@$(MKPATH) $@
-	@$(CP) $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
-	@rm $<.cpp $<.hpp
-
-%.hp:%.cpp $(MAKEHEADERS)
-	@echo "  MKHEADERS  $<"
-	@$(MKPATH) $@
-	@$(CP) $< $<.cpp; $(MAKEHEADERS) $<.cpp && sed 's/extern//' $<.hpp > $@
-	@rm $<.cpp $<.hpp
 
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
