@@ -7,7 +7,7 @@
 #include <mpi.h>
 #include "cross.h"
 #include "Region.h"
-#include "templates/Lattice.h"
+#include "LatticeBase.h"
 #include "vtkLattice.h"
 #include "Geometry.h"
 #include "def.h"
