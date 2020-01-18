@@ -59,6 +59,32 @@ make configure
 make d2q9
 ```
 
+### Windows
+You can run TCLB on windows on Windows Subsystem for Linux, but with no
+CUDA/GPU support.
+
+Windows (native) is not our target architecture (at least for now), but TCLB
+can be compiled on windows. You need to install:
+- MS Build tools, or if you have access, Visual Studio (includes cmake)
+- R
+- CUDA
+- git for windows (including git bash console)
+- [wget and make](https://gist.github.com/evanwill/0207876c3243bbb6863e65ec5dc3f058) for bash console
+
+Then in git bash console, you need to add proper paths to PATH variable:
+- Path to R
+- Path to MSBuild.exe
+- Path to cmake.exe
+
+After all the prerequisits, you can compile TCLB with:
+```bash
+git clone https://github.com/CFD-GO/TCLB.git
+cd TCLB
+export PATH=$PATH:...:...:... # paths to R, MSBuild, cmake
+./configure_win
+make d2q9/windows
+```
+
 ## Usage
 
 This should also work:
