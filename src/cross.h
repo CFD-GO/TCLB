@@ -1,6 +1,6 @@
 #include "Consts.h"
 #include "types.h"
-#include "stdio.h"
+#include <stdio.h>
 
 #ifndef __CUDACC__
   #define CROSS_CPP
@@ -10,7 +10,7 @@
 
   #ifndef CROSS_CPU
     #ifdef CROSS_CPP
-      #include "cuda_runtime.h"
+      #include <cuda_runtime.h>
       #define CudaDeviceFunction
       #define CudaHostFunction
       #define CudaGlobalFunction
