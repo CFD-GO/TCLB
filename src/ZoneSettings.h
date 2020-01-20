@@ -1,3 +1,4 @@
+#include "Global.h"
 #include "Consts.h"
 #include "cross.h"
 #include <stdlib.h>

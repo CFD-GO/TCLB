@@ -7,7 +7,15 @@
 /*       of Adjoint LBM solver. It realizes all the LBM        */
 /*       calculations and data transfer                        */
 /*-------------------------------------------------------------*/
-#include "../LatticeBase.h"
+#include "../Consts.h"
+#include "../cross.h"
+#include "../types.h"
+#include "../Global.h"
+#include "LatticeContainer.h"
+#include "Lattice.h"
+#include <mpi.h>
+#include <assert.h>
+#include "../BallTree.hpp"
 
 #ifdef ENABLE_NVPROF
 	#include <nvToolsExt.h>

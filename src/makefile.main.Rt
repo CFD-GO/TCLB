@@ -18,7 +18,7 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 
 SOURCE_PLAN+=Global.cpp templates/Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu templates/cuda.cu templates/LatticeContainer.inc.cpp templates/LatticeAccess.inc.cpp
-SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
+SOURCE_PLAN+=templates/Dynamics.c templates/Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
 SOURCE_PLAN+=Global.h gpu_anim.h templates/LatticeContainer.h templates/Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
@@ -47,7 +47,7 @@ SOURCE_PLAN+=CommonHandler.h Handlers.h
 SOURCE_PLAN+=Factory.h HandlerFactory.h
 SOURCE_PLAN+=SUMMARY
 SOURCE_PLAN+=conf.doxygen
-SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
+SOURCE_ADJ =templates/Dynamics_b.c ADTools.cu templates/Dynamics_adj.c templates/Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 
 SOURCE_PLAN+=Catalyst.cpp
@@ -227,17 +227,17 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@$(MKPATH) $@
 	@$(CP) $< $@
 
-<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/templates/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || rm $@
 
-<?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/templates/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || rm $@
 
-<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%
+<?%s d ?>/<?%s m ?>/templates/%:<?%s model_path ?>/%
 	@echo "  CP         $@ (model)"
 	@$(MKPATH) $@
 	@$(CP) $< $@
