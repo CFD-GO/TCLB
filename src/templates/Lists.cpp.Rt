@@ -116,8 +116,14 @@ Model_m::Model_m() {
 		set.flag = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.shift = <?%s v$shift ?>;
+		set.max = <?%d v$max ?>;
+		set.capacity = <?%d v$capacity ?>;
+		set.bits = <?%d v$bits ?>;
 		nodetypegroupflags.push_back(set);
-<?R	} ?>
+<?R		if (v$name == "SETTINGZONE") { ?>
+		settingzones = set; <?R
+		}
+	} ?>
 	}
 	{
 		Stage set;
@@ -141,10 +147,6 @@ Model_m::Model_m() {
 		actions.push_back(set);
 <?R	} ?>
 	}
-	settingzones.id = NODE_SETTINGZONE;
-	settingzones.flag = NODE_SETTINGZONE;
-	settingzones.name = "Zone Settings";
-	settingzones.shift = ZONE_SHIFT;
 }
 
 

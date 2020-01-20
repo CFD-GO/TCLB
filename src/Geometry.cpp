@@ -23,7 +23,6 @@
 #include "spline.h"
 #include <assert.h>
 
-#include "templates/ModelConsts.h"
 #define NoneFlag ((big_flag_t) 0)
 
 const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1,-1,0,0,0,1,1,0,1,-1,0,1,0,1,1,1,1,1,-1,1,1,0,-1,1,1,-1,1,-1,-1,1,0,0,-1,1,0,-1,-1,0,-1,0,1,-1,1,1,-1,-1,1,-1,0,-1,-1,1,-1,-1,-1,-1,-1 };
@@ -198,7 +197,7 @@ int Geometry::setZone(const pugi::char_t * name)
         debug1("Setting new zone: %s -> %d\n", name, ZoneNumber);
         SettingZones[name] = ZoneNumber;
     }
-    assert(ZoneNumber < ZONE_MAX);
+    assert(ZoneNumber < model->settingzones.capacity);
     fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift);
     fg_mask =  fg_mask |   model->settingzones.flag;
     return 0;
