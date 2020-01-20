@@ -390,7 +390,7 @@ void MainFree( Solver *d);
 			lattice->zSet.set(it->id, -1, units.alt(it->defaultValue));
 		}
 
-		geometry = new Geometry(region, mpi.totalregion, units);
+		geometry = new Geometry(region, mpi.totalregion, units, lattice->model);
 
 		return 0;
 	}

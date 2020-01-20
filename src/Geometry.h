@@ -4,6 +4,8 @@
 #include "unit.h"
 #include <map>
 
+#include "Lists.h"
+
 /// STL triangle structure
 #ifdef _WIN32
   struct STL_tri {
@@ -25,13 +27,14 @@ enum draw_mode {
 
 /// Class responsible for constructing the table of flags/NodeTypes
 class Geometry {
+  ModelBase * model;
 public:
   big_flag_t * geom; ///< Main table of flags/NodeType's
   cut_t * Q;
   lbRegion region; ///< Lattive region
   lbRegion totalregion; ///< Global Lattive region
   UnitEnv units; ///< Units object for unit calculations
-  Geometry(const lbRegion& r, const lbRegion& tr, const UnitEnv& units_);
+  Geometry(const lbRegion& r, const lbRegion& tr, const UnitEnv& units_, ModelBase * model_);
   ~Geometry();
   int load(pugi::xml_node&);
   void writeVTI(const char * filename);

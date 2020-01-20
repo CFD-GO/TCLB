@@ -63,6 +63,8 @@ public:
     struct NodeTypeGroupFlag : Thing {
         big_flag_t flag;
         int shift;
+        int max;
+        int capacity;
     };
 
     struct Global : UnitThing {

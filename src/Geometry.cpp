@@ -24,7 +24,7 @@
 #include <assert.h>
 
 #include "templates/ModelConsts.h"
-
+#define NoneFlag ((big_flag_t) 0)
 
 const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1,-1,0,0,0,1,1,0,1,-1,0,1,0,1,1,1,1,1,-1,1,1,0,-1,1,1,-1,1,-1,-1,1,0,0,-1,1,0,-1,-1,0,-1,0,1,-1,1,1,-1,-1,1,-1,0,-1,-1,1,-1,-1,-1,-1,-1 };
 
@@ -34,7 +34,7 @@ const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, ModelBase * model_):region(r), totalregion(tr), units(units_), model(model_)
 {
     geom = new big_flag_t[region.sizeL()];
     Q = NULL;
@@ -199,8 +199,8 @@ int Geometry::setZone(const pugi::char_t * name)
         SettingZones[name] = ZoneNumber;
     }
     assert(ZoneNumber < ZONE_MAX);
-    fg      = (fg      &(~ NODE_SETTINGZONE )) |  (ZoneNumber << ZONE_SHIFT);
-    fg_mask =  fg_mask |   NODE_SETTINGZONE;
+    fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift);
+    fg_mask =  fg_mask |   model->settingzones.flag;
     return 0;
 }
 
@@ -308,13 +308,13 @@ inline big_flag_t Geometry::Dot(int x, int y, int z)
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);
 	if (geom[i] & fg_mask) {
-		if (fg_mode == MODE_FILL) return NODE_None;
+		if (fg_mode == MODE_FILL) return NoneFlag;
 	} else {
-		if (fg_mode == MODE_CHANGE) return NODE_None;
+		if (fg_mode == MODE_CHANGE) return NoneFlag;
 	}
 	return geom[i] = (geom[i] & (~fg_mask)) | fg;
     } else 
-    return NODE_None;
+    return NoneFlag;
 }
 
 /// Check if a point is inside a sphere
