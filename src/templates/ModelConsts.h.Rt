@@ -20,16 +20,17 @@
 #define MODELCONSTS_H 
 
 <?R
-  for (n in names(Node)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node[n]) ?> <?R
-  }
-  for (n in names(Node_Group)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node_Group[n]) ?> <?R
-  }
-  for (v in rows(Consts)) { ?>
+	for (v in rows(Consts)) { ?>
 #define <?%-40s v$name ?> <?%5d v$value ?> <?R
-  }
+	}
+	for (v in rows(NodeTypes)) { ?>
+#define <?%-20s v$Index ?> 0x<?%s big_hex(v$value) ?> <?R
+	}
+	for (v in rows(NodeTypeGroups)) { ?>
+#define <?%-20s v$Index ?> 0x<?%s big_hex(v$mask) ?> <?R
+	}
 ?>
+
 
 typedef <?%s FlagT ?> flag_t;
 

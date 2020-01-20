@@ -485,6 +485,7 @@ NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	tab$bits     = l
 	tab$capacity = 2^l
 	tab$shift = NodeShiftNum
+	tab$groupIndex = paste("NODE",tab$group,sep="_")
 	NodeShift    <<- NodeShift * (2^l)
 	NodeShiftNum <<- NodeShiftNum + l
 	tab
@@ -512,7 +513,8 @@ NodeTypes = rbind(NodeTypes,data.frame(
         bits=ZoneBits,
         capacity=ZoneMax,
         mask=(ZoneMax-1)*NodeShift,
-        shift=NodeShiftNum
+        shift=NodeShiftNum,
+        groupIndex = "NODE_SETTINGZONE"
 ))
 NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
@@ -531,7 +533,7 @@ if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds size of flag_t"
 
 NodeTypeGroups = unique(data.frame(
         name=NodeTypes$group,
-        Index=paste("NODE",NodeTypes$group,sep="_"),
+        Index=NodeTypes$groupIndex,
         max=NodeTypes$max,
         bits=NodeTypes$bits,
         capacity=NodeTypes$capacity,

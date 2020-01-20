@@ -100,21 +100,21 @@ Model_m::Model_m() {
 	{
 		NodeTypeFlag set;
 <?R	for (v in rows(NodeTypes)) { ?>
-		set.id = NODE_<?%s v$name ?>;
-		set.flag = NODE_<?%s v$name ?>;
-		set.group_flag = NODE_<?%s v$group ?>;
-		set.group_id = NODE_<?%s v$group ?>;
+		set.id = <?%s v$Index ?>;
+		set.flag = <?%s v$Index ?>;
+		set.group_flag = <?%s v$groupIndex ?>;
+		set.group_id = <?%s v$groupIndex ?>;
 		set.name = "<?%s v$name ?>";
 		nodetypeflags.push_back(set);
 <?R	} ?>
 	}
 	{
 		NodeTypeGroupFlag set;
-<?R	i = !duplicated(NodeTypes$group)
-	for (v in rows(NodeTypes[i,])) { ?>
-		set.id = NODE_<?%s v$group ?>;
-		set.flag = NODE_<?%s v$group ?>;
-		set.name = "<?%s v$group ?>";
+<?R
+	for (v in rows(NodeTypeGroups)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.flag = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
 		set.shift = <?%s v$shift ?>;
 		nodetypegroupflags.push_back(set);
 <?R	} ?>
