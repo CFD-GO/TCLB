@@ -70,7 +70,7 @@ int Lattice::Offset(int x, int y, int z)
         \param mpi_ MPI Information
         \param ns Number of Snapshots
 */
-Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns) : LatticeBase(ZONESETTINGS, ZONE_MAX)
 {
 	region = _region;
 	mpi = mpi_;
@@ -85,6 +85,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns)
 	nSnaps = ns;
 	container = new LatticeContainer;
 	sample = new Sampler;
+	globals = new double[GLOBALS];
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
@@ -1005,19 +1006,18 @@ void Lattice::Iterate(int niter, int iter_type)
 };
 
 /// Overwrite NodeType in a region
-void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
+void Lattice::FlagOverwrite(big_flag_t * mask_, lbRegion over)
 {
-//	debug1("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
-//	CudaMemcpy2D(container->NodeType, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
 	lbRegion inter = region.intersect(over);
-//        debug1("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
+	flag_t * mask;
+	mask = new flag_t[inter.nx];
         for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-                CudaMemcpy2D(&container->NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
+	        for (int x = inter.dx; x<inter.dx+inter.nx; x++) mask[x-inter.dx] = mask_[over.offsetL(x,y,z)];
+                CudaMemcpy2D(&container->NodeType[region.offsetL(inter.dx,y,z)], sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
         }
-
+	delete[] mask;
 }
 
 void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
@@ -1038,21 +1038,18 @@ void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
 }
 
 /// Get NodeType's from a region
-void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
+void Lattice::GetFlags(lbRegion over, big_flag_t * mask_)
 {
-//	debug1("Pulling region %dx%d+%d,%d\n",w,h,x,y);
-	size_t offset;
 	lbRegion inter = region.intersect(over);
-//        debug1("Getting flags region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
+	flag_t * mask;
+	mask = new flag_t[inter.nx];
         for (int y = inter.dy; y<inter.dy+inter.ny; y++)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {
-//		debug1("GetRegion: %d %d %d\n", x,y,z);
-		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+		CudaMemcpy2D(mask, sizeof(flag_t), &container->NodeType[region.offsetL(inter.dx,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+	        for (int x = inter.dx; x<inter.dx+inter.nx; x++) mask_[over.offsetL(x,y,z)] = mask[x-inter.dx];
 	}
-
+	delete[] mask;
 }
 
 void Lattice::Get_Field(int id, real_t * tab) { <?R

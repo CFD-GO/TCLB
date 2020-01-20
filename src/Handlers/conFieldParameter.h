@@ -15,10 +15,10 @@ class  conFieldParameter  : public Design  {
 	int *Par_disp; ///< Offsets in the Parameter vector for all the processors
 	int mpi_size, mpi_rank;
 	int CalculateNumberOfParameters ();
-	bool FlagInDesignSpace(flag_t);
+	bool FlagInDesignSpace(big_flag_t);
 	bool InDesignSpace(size_t);
 	int LocalParameters (int type, double * tab);
-	flag_t flag_mask, flag_value;
+	big_flag_t flag_mask, flag_value;
 public:
 	static std::string xmlname;
 	int Init ();

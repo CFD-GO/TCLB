@@ -46,7 +46,7 @@ public:
   int ZoneIter;
   int Iter; ///< Iteration (Now) - "real" time of the simulation
   int Snap, aSnap; ///< Snapshot and Adjoint Snapshot number (Now)
-  double globals[GLOBALS]; ///< Table of Globals
+  double* globals; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
   typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t, pinned_allocator<real_t> > rfi_t;
@@ -54,7 +54,7 @@ public:
   char snapFileName[STRING_LEN];
   virtual ~LatticeBase ();
   virtual void Color(uchar4 *) = 0;
-  virtual void FlagOverwrite(flag_t *, lbRegion) = 0;
+  virtual void FlagOverwrite(big_flag_t *, lbRegion) = 0;
   virtual void CutsOverwrite(cut_t * Q, lbRegion over) = 0;
   virtual void Init() = 0;
   virtual void saveSolution(const char * filename) = 0;
@@ -75,6 +75,8 @@ public:
   int segment_iterations;
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
+
+  inline LatticeBase(int zonesettings_, int zones_) : zSet(zonesettings_, zones_) {};
   inline void MarkIteration() {
     total_iterations ++;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
@@ -91,7 +93,7 @@ public:
   virtual void        Iterate(int, int) = 0;
   virtual void        IterateTill(int,int) = 0;
   virtual void	RunAction(int, int) = 0;
-  virtual void GetFlags(lbRegion, flag_t *) = 0;
+  virtual void GetFlags(lbRegion, big_flag_t *) = 0;
   virtual void Get_Field(int, real_t * tab) = 0;
   virtual void Set_Field(int, real_t * tab) = 0;
   virtual void Get_Field_Adj(int, real_t * tab) = 0;

@@ -353,7 +353,7 @@ public:
 		lbRegion reg = solver->lattice->region;
 		size_t size = reg.sizeL();
 		{
-			flag_t * NodeType = new flag_t[size];
+			big_flag_t * NodeType = new big_flag_t[size];
 			solver->lattice->GetFlags(reg, NodeType);
 			for (ModelBase::NodeTypeGroupFlags::const_iterator it = solver->lattice->model->nodetypegroupflags.begin(); it != solver->lattice->model->nodetypegroupflags.end(); it++) {
 				bool some_na = false;
@@ -417,7 +417,7 @@ SEXP Dollar(std::string name) {
 			ERROR("R: Unknown component of Geometry");
 			return Rcpp::IntegerVector(0);
 		}
-		flag_t * NodeType = new flag_t[size];
+		big_flag_t * NodeType = new big_flag_t[size];
 		solver->lattice->GetFlags(reg, NodeType);
 		Rcpp::IntegerVector small(size);
 		small.attr("dim") = retdim;

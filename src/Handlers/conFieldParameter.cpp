@@ -57,7 +57,7 @@ int conFieldParameter::Init () {
 		return Design::Init();
 	}
 
-bool conFieldParameter::FlagInDesignSpace(flag_t flag) {
+bool conFieldParameter::FlagInDesignSpace(big_flag_t flag) {
 //	return (flag  & NODE_DesignSpace) != 0;
 	return (flag & flag_mask) == flag_value;
 }

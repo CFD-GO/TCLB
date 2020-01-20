@@ -35,7 +35,7 @@ const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1
 */
 Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
 {
-    geom = new flag_t[region.sizeL()];
+    geom = new big_flag_t[region.sizeL()];
     Q = NULL;
     for (size_t i = 0; i < region.sizeL(); i++) {
 	geom[i] = 0;
@@ -302,7 +302,7 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 }
 
 /// Fill a node with foreground flag
-inline flag_t Geometry::Dot(int x, int y, int z)
+inline big_flag_t Geometry::Dot(int x, int y, int z)
 {
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);

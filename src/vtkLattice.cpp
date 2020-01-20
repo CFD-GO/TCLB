@@ -15,7 +15,7 @@ int vtkWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_
 	double spacing = 1/units.alt("m");	
 	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
-	{	flag_t * NodeType = new flag_t[size];
+	{	big_flag_t * NodeType = new big_flag_t[size];
 		lattice->GetFlags(reg, NodeType);
 		if (what->in("flag")) {
 			vtkFile.WriteField("flag",NodeType);

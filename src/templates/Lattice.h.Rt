@@ -4,6 +4,7 @@
 ?>
 #ifndef LATTICE_H
 #include "../LatticeBase.h"
+#include "ModelConsts.h"
 
 /// Class for computations
 /**
@@ -45,7 +46,7 @@ public:
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
   int Offset(int,int,int);
-  void FlagOverwrite(flag_t *, lbRegion);
+  void FlagOverwrite(big_flag_t *, lbRegion);
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();
   void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
@@ -82,7 +83,7 @@ public:
         void <?%s FunName ?>_Opt(int, int, int, int, int); 
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
-  void GetFlags(lbRegion, flag_t *);
+  void GetFlags(lbRegion, big_flag_t *);
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
   void Get_Field_Adj(int, real_t * tab);

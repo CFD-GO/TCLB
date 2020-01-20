@@ -422,7 +422,7 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 		data->region.ny - y - 1,
 		0,
 	1,1,1);
-	flag_t NodeType = NODE_Wall;
+	big_flag_t NodeType = NODE_Wall;
 	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
 }
 
