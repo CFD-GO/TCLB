@@ -162,6 +162,8 @@ struct Tabs {
 				tab[fname] = new Tab<double>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "Float32") {
 				tab[fname] = new Tab<float>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
+			} else if (ftype == "UInt32") {
+				tab[fname] = new Tab<unsigned int>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "UInt16") {
 				tab[fname] = new Tab<unsigned short int>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "UInt8") {

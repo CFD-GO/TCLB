@@ -69,7 +69,7 @@ class Solver {
 	GPUAnimBitmap * bitmap; ///< Maybe we have a bitmap for animation
 #endif
 	void print(const char * str);
-	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
+	double *LogScales;
 	
 	inline Solver() : mpi_comm(MPMD.local), lattice(NULL) { Init(); };
 	~Solver();

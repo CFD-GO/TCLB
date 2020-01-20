@@ -36,8 +36,8 @@ int conFieldParameter::Init () {
 			flag_value = it->flag;
 			flag_mask = it->group_flag;
 		} else {
-			flag_value = NODE_None;
-			flag_mask = NODE_NONE;
+			flag_value = 0;
+			flag_mask = 0;
 		}
 		attr = node.attribute("zone");
 		if (attr) {
@@ -49,8 +49,8 @@ int conFieldParameter::Init () {
 				ERROR("Unknown zone %s in %s\n", zone.c_str(), node.name());
 				return -1;
 			}
-			flag_mask = flag_mask | NODE_SETTINGZONE;
-			flag_value = flag_value | (zone_number << ZONE_SHIFT);
+			flag_mask = flag_mask | solver->lattice->model->settingzones.flag;
+			flag_value = flag_value | (zone_number << solver->lattice->model->settingzones.shift);
 		}
 		Pars = CalculateNumberOfParameters ();
 		output("FieldParameter with %d parameters\n",Pars);

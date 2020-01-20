@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-//#include "templates/ModelConsts.h"
-
 #ifndef ZONESETTINGS_H
 #define ZONESETTINGS_H
 

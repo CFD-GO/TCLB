@@ -57,7 +57,7 @@ class name_set {
 		inline name_set() {
 		}
 		inline bool in(std::string what) {
-		        if (myset.count("all") > 0) return true;
+		        if (myset.count("all") > 0) return what != "flag";
 			return myset.count(what) > 0;
 		}
         inline int size(){

@@ -121,6 +121,7 @@ public:
     Actions actions;
     typedef Things<Stage> Stages;
     Stages stages;
+    NodeTypeGroupFlag settingzones;
 };
 
 class Model_m : public ModelBase {

@@ -36,9 +36,14 @@ int acThreshold::Init () {
 		DEBUG_M;
 		int msg=0;
 		
+		ModelBase::Settings::const_iterator it = solver->lattice->model->settings.ByName("Threshold");
+		if (it == solver->lattice->model->settings.end()) {
+			ERROR("'Threshold' is not a setting");
+			return -1;
+		}
 		for (int i=0; i < levels; i++) {
 		        double th = (1.0 * i)/(levels-1);
-		        solver->lattice->SetSetting(SETTINGS_Threshold, th);
+		        solver->lattice->SetSetting(it->id, th);
 		        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>th ? 1.0 : 0.0;
 //        		solver->setPar(slice);
 			SetParameters(slice);

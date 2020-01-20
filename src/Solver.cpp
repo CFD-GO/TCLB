@@ -45,6 +45,7 @@ void MainFree( Solver *d);
 		saveI = 0;
 		saveFile = NULL;
 		info.outpath[0] ='\0';
+		LogScales = NULL;
 	}
 
 /// Solver destructor. Deletes most of the stuff
@@ -54,6 +55,7 @@ void MainFree( Solver *d);
 		if (bitmap) delete bitmap;
 #endif
 		if (geometry) delete geometry;
+		if (LogScales) delete LogScales;
 	}
 
 
@@ -376,6 +378,13 @@ void MainFree( Solver *d);
 		debug0("Creating Lattice object ...");
 		lattice = new Lattice(region, mpi, ns);
 	   	debug0("Lattice done");
+
+	   	LogScales = new double[
+	   		lattice->model->globals.size() +
+	   		lattice->model->settings.size() +
+	   		lattice->model->zonesettings.size() +
+	   		lattice->model->scales.size()
+		];
 
 		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
 			lattice->zSet.set(it->id, -1, units.alt(it->defaultValue));
