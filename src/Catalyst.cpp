@@ -1,8 +1,3 @@
-<?R
-  source("conf.R")
-  c_header();
-?>
-
 #include <iostream>
 #include "Catalyst.h"
 #include "Solver.h"
@@ -123,53 +118,49 @@ namespace
     if(numberOf == 0)
     {
       debug2("Creating Catalyst VTK objects\n");
-      <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-      {
-        debug1("Creating Catalyst VTK object for <?%s q$name ?>\n");
-        vtkIdType size = static_cast<vtkIdType> (reg.size());
-        vtkNew<vtkRealTArray> myArray;
-        myArray->SetName("<?%s q$name ?>");
-        <?R if (q$vector) { ?>
-        myArray->SetNumberOfComponents(3);
-        myArray->SetNumberOfTuples(size);
-        <?R } else { ?>
-        myArray->SetNumberOfComponents(1);
-        myArray->SetNumberOfValues(size);
-        <?R } ?>
-        if (exportCellData) {
-          VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
-        } else {
-          VTKGrid->GetPointData()->AddArray(myArray.GetPointer());
-        }        
-      }
-      <?R
-	};
-	ifdef();
-	?>
-
+	for (ModelBase::Quantities::const_container it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+	  if (it->isAdjoint) continue;
+#endif
+          debug1("Creating Catalyst VTK object for %s\n", it->name);
+          vtkIdType size = static_cast<vtkIdType> (reg.size());
+          vtkNew<vtkRealTArray> myArray;
+          myArray->SetName(it->name.c_str());
+	  int comp = 1;
+	  if (it->isVector) comp = 3;
+          myArray->SetNumberOfComponents(comp);
+          myArray->SetNumberOfTuples(size);
+          if (exportCellData) {
+            VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
+          } else {
+            VTKGrid->GetPointData()->AddArray(myArray.GetPointer());
+          }        
+	}
     }
-    <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-    {
-      debug2("Filling Catalyst VTK object for <?%s q$name ?>\n");
+	for (ModelBase::Quantities::const_container it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+	  if (it->isAdjoint) continue;
+#endif
+	  int comp = 1;
+	  if (it->isVector) comp = 3;
+      debug2("Filling Catalyst VTK object for %s\n", it->name);
       vtkIdType size = reg.size();
       vtkRealTArray* myArray;
       if (exportCellData) {
-        myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("<?%s q$name ?>"));
+        myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray(it->name.c_str()));
       } else {
-        myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetPointData()->GetArray("<?%s q$name ?>"));
+        myArray = vtkRealTArray::SafeDownCast(VTKGrid->GetPointData()->GetArray(it->name.c_str()));
       }      
       vtkIdType numTuples = myArray->GetNumberOfComponents();
       real_t * myArrayData = myArray->WritePointer(0,size * numTuples);
-      double myUnit = solver.units.alt("<?%s q$unit ?>");
+      double myUnit = solver.units.alt(it->unit);
       lbRegion old = solver.lattice->region;      
-      solver.lattice->Get<?%s q$name ?>(old, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
+      solver.lattice->GetQuantity(old, myArrayData, 1/myUnit);
       
       if (! exportCellData) {
-        fixPointData(old, reg, myArrayData, sizeof(<?%s q$type ?>));
+        fixPointData(old, reg, myArrayData, sizeof(real_t) * comp);
       }      
-//      solver.lattice->Get<?%s q$name ?>(reg, (<?%s q$type ?>*)(myArrayData), 1/myUnit);
     }
-    <?R }; ifdef(); ?>
   }
 
   void BuildVTKDataStructures(Solver& solver)
