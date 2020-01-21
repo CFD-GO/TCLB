@@ -33,7 +33,7 @@ const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, ModelBase * model_):region(r), totalregion(tr), units(units_), model(model_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, ModelBase * model_):model(model_), region(r), totalregion(tr), units(units_)
 {
     geom = new big_flag_t[region.sizeL()];
     Q = NULL;
