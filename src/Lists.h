@@ -65,6 +65,7 @@ public:
         int shift;
         int max;
         int capacity;
+        int bits;
     };
 
     struct Global : UnitThing {
