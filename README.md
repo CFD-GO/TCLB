@@ -80,9 +80,14 @@ After all the prerequisits, you can compile TCLB with:
 ```bash
 git clone https://github.com/CFD-GO/TCLB.git
 cd TCLB
-export PATH=$PATH:...:...:... # paths to R, MSBuild, cmake
+# example PATH:
+export PATH=$PATH:/c/Program\ Files/R/R-3.6.1/bin/
+export PATH=$PATH:/c/Program\ Files\ \(x86\)/Microsoft\ Visual\ Studio/2019/BuildTools/MSBuild/Current/Bin/
+export PATH=$PATH:/c/Program\ Files\ \(x86\)/Microsoft\ Visual\ Studio/2019/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/
+tools/install.sh rdep
 ./configure_win
 make d2q9/windows
+CLB/d2q9/Debug/main example/flow/2d/karman.xml # MS Build puts the executable in Debug/ or Release/ directory
 ```
 
 ## Usage
