@@ -31,6 +31,13 @@ class LatticeContainer;
 #define ITER_SKIPGRAD 0x100
 const int maxSnaps=33;
 
+class LatticePromise {
+public:
+  lbRegion region;
+  MPIInfo mpi;
+  int ns;
+};
+
 /// Class for computations
 /**
   Class for all the memory allocation, storage, calculation
@@ -115,5 +122,8 @@ public:
   virtual int loadComponentFromBuffer(const char*, real_t*) = 0;
   virtual int getQuantityIntoBuffer(const char*, real_t*&, long int*, long int*) = 0;
 };
+
+#include "Factory.h"
+typedef Factory < LatticeBase, LatticePromise > LatticeFactory;
 
 #endif

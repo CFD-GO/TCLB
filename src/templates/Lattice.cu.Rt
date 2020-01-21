@@ -1527,3 +1527,11 @@ int Lattice::loadComp(const char* filename, const char* comp) {
 	delete[] buf;
 	return 0;
 } 
+
+LatticeBase * Ask_For_Lattice(const LatticePromise& prom) {
+	printf(" ----- Hello!");
+  return new Lattice(prom.region, prom.mpi, prom.ns);
+}
+
+// Register this function in the Handler Factory
+template class LatticeFactory::Register< Ask_For_Lattice >;

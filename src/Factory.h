@@ -1,6 +1,7 @@
 #ifndef FACTORY_H
 #define FACTORY_H
 
+#include <stdio.h>
 #include <stddef.h>
 #include <vector>
 
@@ -34,17 +35,21 @@ class Factory {
 	public:
 		inline RegisterMe() {
 // Uncomment this if you want to see what it registered
-//			printf("Registering < %s >!\n",typeid(T).name());
-			Staff.push_back(new T);
+//			printf("Registering < %s > for < %s > from < %s >\n", typeid(T).name(), typeid(Product).name(), typeid(Input).name());
+			Staff()->push_back(new T);
 		};
 	};
         // All the workers are kept here
-	static Workers Staff;
+        static Workers * Staff() {
+		static Workers Staff_;
+		return &Staff_;
+	}
 public:
         // Main function for executing the production process
 	static Product* Produce(const Input& input) {
 		Product* ret;
-		for (typename Workers::iterator it=Staff.begin(); it != Staff.end(); it++) {
+//		printf("Producing < %s > from < %s > (%ld)!\n", typeid(Product).name(), typeid(Input).name(), Staff()->size());
+		for (typename Workers::iterator it=Staff()->begin(); it != Staff()->end(); it++) {
 			ret = (*it)->Produce(input);
 			if (ret) return ret;
 		}
@@ -63,9 +68,9 @@ public:
 
 // Definition of the static members:
 //   All the workers ...
-template <class Product, class Input>
-typename Factory<Product, Input>::Workers
-         Factory<Product, Input>::Staff;
+//template <class Product, class Input>
+//typename Factory<Product, Input>::Workers
+//         Factory<Product, Input>::Staff;
 //   All the Dummies
 template <class Product, class Input>
 template <Product* (*T)(const Input&)>

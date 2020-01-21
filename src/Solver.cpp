@@ -9,7 +9,6 @@
 #include "cross.h"
 #include "Region.h"
 class LatticeContainer;
-#include "templates/Lattice.h"
 #include "vtkLattice.h"
 #include "Geometry.h"
 #include "def.h"
@@ -133,17 +132,17 @@ void MainFree( Solver *d);
 		    	for (std::map<std::string,int>::iterator it2 = geometry->SettingZones.begin(); it2 != geometry->SettingZones.end(); it2++) {
 	                	fprintf(f,",\"%s-%s\",\"%s-%s_si\"", nm, it2->first.c_str(), nm, it2->first.c_str());
 	                }
-			LogScales[SETTINGS + it->id] = 1/units.alt(it->unit);
+			LogScales[lattice->model->settings.size() + it->id] = 1/units.alt(it->unit);
 		}
 		for (ModelBase::Globals::const_iterator it=lattice->model->globals.begin(); it != lattice->model->globals.end(); it++) {
 			const char * nm = it->name.c_str();
                         fprintf(f,",\"%s\",\"%s_si\"", nm, nm);
-			LogScales[SETTINGS + ZONESETTINGS + it->id] = 1/units.alt(it->unit);
+			LogScales[lattice->model->settings.size() + lattice->model->zonesettings.size() + it->id] = 1/units.alt(it->unit);
 		}
 		for (ModelBase::Scales::const_iterator it=lattice->model->scales.begin(); it != lattice->model->scales.end(); it++) {
 			const char * nm = it->name.c_str();
                         fprintf(f,",\"%s_si\"", nm);
-                        LogScales[SETTINGS + ZONESETTINGS + GLOBALS + it->id] = 1/units.alt(it->unit);
+                        LogScales[lattice->model->settings.size() + lattice->model->zonesettings.size() + lattice->model->globals.size() + it->id] = 1/units.alt(it->unit);
 		}
 		fprintf(f,"\n");
 		fclose(f);
@@ -164,13 +163,13 @@ void MainFree( Solver *d);
 			int j=0;
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
-			fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, get_walltime(), opt_iter);
-			for (int i=0; i< SETTINGS; i++) {
+			fprintf(f,"%d, %.13le, %.13le, %d",iter, 1.0/units.alt("1s") * iter, get_walltime(), opt_iter);
+			for (int i=0; i< lattice->model->settings.size(); i++) {
 				v = lattice->GetSetting(i);
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
-			for (int i=0; i< ZONESETTINGS; i++) {
+			for (int i=0; i< lattice->model->zonesettings.size(); i++) {
 			    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
 			    		int ind = lattice->ZoneIter;
 			    		int zone = it->second;
@@ -180,12 +179,12 @@ void MainFree( Solver *d);
 		                }
 				j++;
 			}
-			for (int i=0; i< GLOBALS; i++) {
+			for (int i=0; i< lattice->model->globals.size(); i++) {
 				v = glob[i];
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
-			for (int i=0; i< SCALES; i++) {
+			for (int i=0; i< lattice->model->scales.size(); i++) {
 				fprintf(f,", %.13le",LogScales[j]);
 				j++;
 			}
@@ -376,7 +375,16 @@ void MainFree( Solver *d);
 	
 		// Creating Lattice (GPU allocation is here)
 		debug0("Creating Lattice object ...");
-		lattice = new Lattice(region, mpi, ns);
+		LatticePromise prom;
+		prom.region = region;
+		prom.mpi = mpi;
+		prom.ns = ns;
+//		lattice = new Lattice(region, mpi, ns);
+		lattice = LatticeFactory::Produce(prom);
+		if (lattice == 0) {
+			ERROR("Could not find Lattice to produce\n");
+			return -1;
+		}
 	   	debug0("Lattice done");
 
 	   	LogScales = new double[
@@ -431,7 +439,7 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 		data->region.ny - y - 1,
 		0,
 	1,1,1);
-	big_flag_t NodeType = NODE_Wall;
+	big_flag_t NodeType = data->lattice->model->nodetypeflags.ByName("Wall")->flag;
 	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
 }
 
