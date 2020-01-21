@@ -3,6 +3,8 @@
 #include "../Consts.h"
 #include "ModelConsts.h"
 
+#define UNKNOWN_INOBJ -1
+
 <?R
 	for (v in rows(Settings)) if (!is.na(v$derived)) {
 		i = which(as.character(Settings$name) == as.character(v$derived));
@@ -10,6 +12,27 @@
 double DF_<?%s v$name ?> (double <?%s v$name ?>) { return <?%s v$equation ?>;} <?R
 	}
 ?>
+
+<?R
+	for (objname in names(Objectives)) {
+		obj = Objectives[[objname]]
+?>
+void OF_<?%s objname ?>(double *glob, double *obj, double *grad) { <?R
+	for (i in names(obj)) {
+		if (i != ".M") {
+			v = Globals[i == Globals$name,,drop=FALSE]
+			if (nrow(v) == 1) { ?>
+	double <?%s v$name ?> = glob[<?%s v$Index ?>]; <?R
+			}
+		}
+	} ?>
+	obj[0] = <?R C(obj) ?>; <?R
+	for (v in rows(Globals)) {
+		der = deriv(obj, v$name) ?>
+	grad[<?%s v$Index ?>] = <?R C(der) ?>; <?R
+	} ?>
+}
+<?R } ?>
 
 Model_m::Model_m() {
 	{
@@ -60,6 +83,7 @@ Model_m::Model_m() {
 		set.unit = "<?%s v$unit ?>";
 		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
 		set.operation = MPI_<?%s v$op ?>;
+		set.inObjId = <?%s v$IndexInObj ?>;
 		globals.push_back(set);
 <?R	} ?>
 	}
@@ -145,6 +169,17 @@ Model_m::Model_m() {
 		set.stages.push_back(<?%s Stages$Index[which( Stages$name == v )] ?>); <?R
 		} ?>
 		actions.push_back(set);
+<?R	} ?>
+	}
+	{
+		Objective set;
+<?R	for (i in seq_along(Objectives)) {
+		obj = Objectives[[i]]
+		objname = names(Objectives)[i]
+?>
+		set.id = <?%s i-1 ?>;
+		set.name = "<?%s objname ?>";
+		set.fun = OF_<?%s objname ?>;
 <?R	} ?>
 	}
 }

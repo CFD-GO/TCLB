@@ -17,6 +17,7 @@ typename T::const_iterator FindByName(const T& cont, const std::string& str) {
 }
 
 typedef double (*DerivedFunction)(double);
+typedef void (*ObjectiveFunction)(double*, double*, double*);
 
 class ModelBase {
     template <class T>
@@ -71,6 +72,7 @@ public:
     struct Global : UnitThing {
         bool isAdjoint;
         MPI_Op operation;
+        int inObjId;
     };
 
     struct Option : Thing {
@@ -101,6 +103,10 @@ public:
         std::string mainFun;
     };
 
+    struct Objective : Thing {
+        ObjectiveFunction fun;
+    };
+
 
     typedef Things<Setting> Settings;
     Settings settings;
@@ -125,6 +131,8 @@ public:
     typedef Things<Stage> Stages;
     Stages stages;
     NodeTypeGroupFlag settingzones;
+    typedef Things<Objective> Objectives;
+    Objectives objectives;
 };
 
 class Model_m : public ModelBase {

@@ -724,6 +724,17 @@ Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettin
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
+
+Globals$IndexInObj = sapply(Globals$name, function(x) {
+  sel = ZoneSettings$name == paste(x, "InObj",sep="")
+  if (sum(sel) == 1) {
+    ZoneSettings$Index[sel]
+  } else {
+    " UNKNOWN_INOBJ "
+  }
+})
+
+
 offsets = function(d2=FALSE, cpu=FALSE) {
   def.cpu = cpu
   mw = PV(c("nx","ny","nz"))
