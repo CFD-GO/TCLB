@@ -164,12 +164,12 @@ void MainFree( Solver *d);
 	                f = fopen(filename, "at");  
 	                assert( f != NULL );
 			fprintf(f,"%d, %.13le, %.13le, %d",iter, 1.0/units.alt("1s") * iter, get_walltime(), opt_iter);
-			for (int i=0; i< lattice->model->settings.size(); i++) {
+			for (size_t i=0; i< lattice->model->settings.size(); i++) {
 				v = lattice->GetSetting(i);
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
-			for (int i=0; i< lattice->model->zonesettings.size(); i++) {
+			for (size_t i=0; i< lattice->model->zonesettings.size(); i++) {
 			    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
 			    		int ind = lattice->ZoneIter;
 			    		int zone = it->second;
@@ -179,12 +179,12 @@ void MainFree( Solver *d);
 		                }
 				j++;
 			}
-			for (int i=0; i< lattice->model->globals.size(); i++) {
+			for (size_t i=0; i< lattice->model->globals.size(); i++) {
 				v = glob[i];
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
-			for (int i=0; i< lattice->model->scales.size(); i++) {
+			for (size_t i=0; i< lattice->model->scales.size(); i++) {
 				fprintf(f,", %.13le",LogScales[j]);
 				j++;
 			}
