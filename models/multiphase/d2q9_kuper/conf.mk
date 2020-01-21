@@ -1,3 +1,3 @@
 ADJOINT=0
 TEST=TRUE
-OPT="wallNormalBC+localVirtualRhoBC"
+OPT="(wallNormalBC+localVirtualRhoBC)*viscstep*cumulant"

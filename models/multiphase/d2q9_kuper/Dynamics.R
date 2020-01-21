@@ -1,13 +1,13 @@
 
-AddDensity( name="f0", dx= 0, dy= 0, group="f")
-AddDensity( name="f1", dx= 1, dy= 0, group="f")
-AddDensity( name="f2", dx= 0, dy= 1, group="f")
-AddDensity( name="f3", dx=-1, dy= 0, group="f")
-AddDensity( name="f4", dx= 0, dy=-1, group="f")
-AddDensity( name="f5", dx= 1, dy= 1, group="f")
-AddDensity( name="f6", dx=-1, dy= 1, group="f")
-AddDensity( name="f7", dx=-1, dy=-1, group="f")
-AddDensity( name="f8", dx= 1, dy=-1, group="f")
+AddDensity( name="f[0]", dx= 0, dy= 0, group="f")
+AddDensity( name="f[1]", dx= 1, dy= 0, group="f")
+AddDensity( name="f[2]", dx= 0, dy= 1, group="f")
+AddDensity( name="f[3]", dx=-1, dy= 0, group="f")
+AddDensity( name="f[4]", dx= 0, dy=-1, group="f")
+AddDensity( name="f[5]", dx= 1, dy= 1, group="f")
+AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
+AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
+AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
 
 if (Options$wallNormalBC) {
  
@@ -45,8 +45,12 @@ AddQuantity(name="F", unit="N", vector=T);
 
 AddQuantity(name="DEBUG", vector=T);
 
-AddSetting(name="omega", comment='relaxation factor', default=1)
-AddSetting(name="nu", omega='1.0/(3*nu + 0.5)', comment='viscosity')
+AddSetting(name="omega_l", comment='relaxation factor', default=1)
+AddSetting(name="omega_v", comment='relaxation factor', default=1)
+
+AddSetting(name="nu_l", omega_l='1.0/(3*nu_l + 0.5)', comment='viscosity')
+AddSetting(name="nu_v", omega_v='1.0/(3*nu_v + 0.5)', comment='viscosity')
+
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')
 AddSetting(name="FAcc", comment='Multiplier of potential')
@@ -69,6 +73,11 @@ AddSetting(name="MovingWallVelocity", comment='Velocity of the MovingWall')
 AddSetting(name="Density", comment='zonal density', zonal=TRUE)
 AddSetting(name="Wetting", comment='wetting factor')
 
+AddSetting(name="density_l", comment='density for omega= omega_l')
+AddSetting(name="density_v", comment='density for omega= omega_l')
+AddSetting(name="nubuffer", comment='Wall buffer density for cumulant')
+
+
 
 #AddGlobal(name="MovingWallForceX", comment='force x')
 #AddGlobal(name="MovingWallForceY", comment='force y')
@@ -82,8 +91,16 @@ AddGlobal(name="Density2",         comment='density at Obj2')
 AddGlobal(name="Density3",         comment='density at Obj3')
 
 AddGlobal(name="SumUsqr",         comment='Sumo o U**2')
-AddGlobal(name="WallForceX", comment='force x')
-AddGlobal(name="WallForceY", comment='force y')
+
+AddGlobal(name="WallForce1X", comment='force x')
+AddGlobal(name="WallForce1Y", comment='force y')
+
+AddGlobal(name="WallForce2X", comment='force x')
+AddGlobal(name="WallForce2Y", comment='force y')
+
+AddGlobal(name="WallForce3X", comment='force x')
+AddGlobal(name="WallForce3Y", comment='force y')
+
 
 
 AddNodeType(name="NMovingWall", group="BOUNDARY")
@@ -91,3 +108,7 @@ AddNodeType(name="MovingWall", group="BOUNDARY")
 AddNodeType(name="ESymmetry",group="BOUNDARY")
 AddNodeType(name="NSymmetry",group="BOUNDARY")
 AddNodeType(name="SSymmetry",group="BOUNDARY")
+
+AddNodeType("SolidBoundary1","OBJECTIVE")
+AddNodeType("SolidBoundary2","OBJECTIVE")
+AddNodeType("SolidBoundary3","OBJECTIVE")

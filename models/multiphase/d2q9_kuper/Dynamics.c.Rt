@@ -283,8 +283,7 @@ CudaDeviceFunction void BounceBack()
 	
    }
 ?>
-    AddToWallForceX(<?%s ToC(f %*% U[,1]) ?>);
-	AddToWallForceY(<?%s ToC(f %*% U[,2]) ?>);
+
 }
 
 //CudaDeviceFunction void MovingWall()
@@ -489,6 +488,7 @@ CudaDeviceFunction void initPhi(){
     ?>
     } else {
         <?R C(ph, PV("rho_n(",-U[,1],",",-U[,2],") > 0 ? realCalcPhi(rho_n(",-U[,1],",",-U[,2],")) : realCalcPhi(rho_n(0,0))")) ?>
+        
     }
 }
 
@@ -506,13 +506,52 @@ CudaDeviceFunction real_t realCalcPhi(const real_t& rho2_ ) {
 	return sqrt( -p + rho2/(3.) );
 }
 
+CudaDeviceFunction real_t getFObjX() { 
+        vector_t F;
+        if ( inWall == 0 )    {
+            F = realGetF();
+            F.x = F.x +  <?%s ToC(((2.*(1 - phnb)* f) %*%U[,1])) ?>;            
+        } else {
+            F.x = 0;
+        }
+        return F.x;
+}        
+
+CudaDeviceFunction real_t getFObjY() { 
+        vector_t F;
+        if ( inWall == 0 )    {
+            F = realGetF();
+            F.y = F.y +  <?%s ToC(((2.*(1 - phnb)* f) %*%U[,2])) ?>;            
+        } else {
+            F.y = 0;
+        }
+        return F.y;
+}        
+
 CudaDeviceFunction void Run() {
     initPhi();
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Solid:
-		break;
 	case NODE_Wall:
+
+        switch (NodeType & NODE_OBJECTIVE) {
+            case NODE_SolidBoundary1:
+                AddToWallForce1X(getFObjX());
+                AddToWallForce1Y(getFObjY());
+            break;
+            case NODE_SolidBoundary2:
+                AddToWallForce2X(getFObjX());
+                AddToWallForce2Y(getFObjY());          
+            break;
+            case NODE_SolidBoundary3:
+                AddToWallForce3X(getFObjX());
+                AddToWallForce3Y(getFObjY());               
+            break;
+        };
+
 		BounceBack();
+
+
 		break;
 	case NODE_MovingWall:
 		MovingWall();
@@ -546,7 +585,11 @@ CudaDeviceFunction void Run() {
     switch (NodeType & NODE_COLLISION) {
         case NODE_BGK:
         case NODE_MRT:
+                <?R if (Options$cumulant) { ?>
+                CollisionCumulant();
+                <?R } else { ?>
                 CollisionMRT();
+                <?R }?>                
                 break;
     }
 //	CalcPhi();
@@ -689,9 +732,12 @@ CudaDeviceFunction void CollisionMRT()
 	C( rho, sum(f) )
 	C( u, f %*% U * ( rho^(-1) ) )
 ?>
+<?R if (Options$viscstep) { ?>
+    real_t omega = rho > 1 ? omega_l : omega_v;
+<?R } else { ?>
+    real_t omega  =  ( omega_l + (omega - omega_l) * (rho - density_v)/(density_l - density_v));
+<?R } ?>
 
-//	real_t omega = 1.0-1.0/(3*nu + 0.5);
-//	real_t omega2 = omega;
 <?R
 	C( R, (f-feq) %*% M * OMEGA );
 ?>
@@ -706,6 +752,139 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 
 }
+
+
+CudaDeviceFunction void CollisionCumulant()
+{
+//First determing moments from density-probability function
+real_t c[9],d;
+<?R C(PV('d'), sum(f)) ?>
+
+ const real_t rho = d;
+
+ 
+ real_t Usq = 0;
+    <?R if (Options$viscstep) { ?>
+        real_t gamma = rho > 1 ? omega_l : omega_v;
+    <?R } else { ?>
+	    real_t gamma  =  ( omega_l + (omega - omega_l) * (rho - density_v)/(density_l - density_v));
+    <?R } ?>
+//momentum collision
+
+
+
+
+ real_t  w[5] = {gamma,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
+ if ((NodeType & NODE_BOUNDARY) != 0) {
+    if ( ( (NodeType & NODE_BOUNDARY) != NODE_NSymmetry ) && ( (NodeType & NODE_BOUNDARY) != NODE_SSymmetry ) ) {
+        w[0] = 1.0/(3*nubuffer+0.5);
+    }
+ }
+
+  f[0] = f[3] + f[1] + f[0]; 
+  f[1] = -f[3] + f[1];
+  f[3] = f[1] + f[3]*2.; 
+  f[2] = f[6] + f[5] + f[2];
+  f[5] = -f[6] + f[5];
+  f[6] = f[5] + f[6]*2.; 
+  f[4] = f[7] + f[8] + f[4];
+  f[8] = -f[7] + f[8];
+  f[7] = f[8] + f[7]*2.; 
+  f[0] = f[4] + f[2] + f[0];
+  f[2] = -f[4] + f[2];
+  f[4] = f[2] + f[4]*2.; 
+  f[1] = f[8] + f[5] + f[1];
+  f[5] = -f[8] + f[5];
+  f[8] = f[5] + f[8]*2.; 
+  f[3] = f[7] + f[6] + f[3];
+  f[6] = -f[7] + f[6];
+  f[7] = f[6] + f[7]*2.; 
+  
+//Cumulant calculation from moments
+  c[0] = f[0];
+  c[1] = f[1]/f[0];
+  c[3] = ( -c[1]*f[1] + f[3] )/f[0];
+  c[2] = f[2]/f[0];
+  c[5] = ( -c[1]*f[2] + f[5] )/f[0];
+  c[6] = ( -c[5]*f[1] - c[3]*f[2] - c[1]*f[5] + f[6] )/f[0];
+  c[4] = ( -c[2]*f[2] + f[4] )/f[0];
+  c[8] = ( -c[1]*f[4] + f[8] - c[5]*f[2]*2. )/f[0];
+  c[7] = ( -c[8]*f[1] - c[3]*f[4] - c[1]*f[8] + f[7] + ( -c[6]*f[2] - c[5]*f[5] )*2. )/f[0];
+
+//Cumulant relaxation:
+ const real_t  a = (c[3] + c[4]);
+ const real_t  b = (c[3] - c[4]);
+        
+<?R 
+Jc=c(PV("c[1]"),PV("c[2]"))    
+
+?>
+
+ vector_t F = realGetF();
+ F.x = F.x/rho + (GravitationX * rho );
+ F.y = F.y/rho + (GravitationY * rho); 
+
+ 
+    
+ c[1] = c[1] + F.x;
+ c[2] = c[2] + F.y;
+
+
+//Forcing
+//  c[1] = c[1] + ForceX;
+//  c[2] = c[2] + ForceY;
+//END Forcing
+ 
+ //real_t Dxu = - w[0]*(2*c[3] - c[4])/(2.*d) - w[1]*(c[3] + c[4])/d;
+ //real_t Dyv =  - w[0]*(2*c[4] - c[3])/(2.*d) - w[1]*(c[3] + c[4])/d;
+// c[1] = -c[1];
+  // c[3] = (1 - w[0])*c[3] + w[0]*1./3;
+  c[3] = ((1 - w[1])*a + w[1]*2./3. + (1 - w[0])*b)/2.;
+// c[2] =-c[2];
+  // c[4] = (1 - w[0])*c[4] + w[0]*1./3;
+  c[4] = ((1 - w[1])*a + w[1]*2./3. - (1 - w[0])*b)/2.;
+  c[5] =  (1- w[0])*c[5];
+  c[6] =  (1 - w[2])*c[6];
+  c[7] =  (1 - w[3])*c[7];
+  c[8] = (1 - w[2])*c[8]; 
+
+
+// Moment calculation from cummulants
+
+  f[0] = f[0];
+  f[1] = c[1]*f[0];
+  f[3] = c[3]*f[0] + c[1]*f[1];
+  f[2] = c[2]*f[0];
+  f[5] = c[5]*f[0] + c[1]*f[2];
+  f[6] = c[6]*f[0] + c[5]*f[1] + c[3]*f[2] + c[1]*f[5];
+  f[4] = c[4]*f[0] + c[2]*f[2];
+  f[8] = c[8]*f[0] + c[1]*f[4] + c[5]*f[2]*2.;
+  f[7] = c[7]*f[0] + c[8]*f[1] + c[3]*f[4] + c[1]*f[8] + ( c[6]*f[2] + c[5]*f[5] )*2.;
+ 
+ //Transformation from moment to density distribution function
+
+  f[0] = -f[3] + f[0];
+  f[1] = ( f[3] + f[1] )/2.;
+  f[3] = f[3] - f[1]; 
+  f[2] = -f[6] + f[2];
+  f[5] = ( f[6] + f[5] )/2.;
+  f[6] = f[6] - f[5]; 
+  f[4] = -f[7] + f[4];
+  f[8] = ( f[7] + f[8] )/2.;
+  f[7] = f[7] - f[8]; 
+  f[0] = -f[4] + f[0];
+  f[2] = ( f[4] + f[2] )/2.;
+  f[4] = f[4] - f[2]; 
+  f[1] = -f[8] + f[1];
+  f[5] = ( f[8] + f[5] )/2.;
+  f[8] = f[8] - f[5]; 
+  f[3] = -f[7] + f[3];
+  f[6] = ( f[7] + f[6] )/2.;
+  f[7] = f[7] - f[6]; 
+
+}
+
+
 
 
 <?R if (Options$wallNormalBC) { ?>
