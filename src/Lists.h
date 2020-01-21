@@ -107,7 +107,7 @@ public:
         ObjectiveFunction fun;
     };
 
-
+    std::string name;
     typedef Things<Setting> Settings;
     Settings settings;
     typedef Things<ZoneSetting> ZoneSettings;

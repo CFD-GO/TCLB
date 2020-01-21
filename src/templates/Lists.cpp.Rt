@@ -35,6 +35,7 @@ void OF_<?%s objname ?>(double *glob, double *obj, double *grad) { <?R
 <?R } ?>
 
 Model_m::Model_m() {
+	name = "<?%s MODEL ?>";
 	{
 		Setting set;
 <?R	for (v in rows(Settings)) { ?>

@@ -195,7 +195,6 @@ int main ( int argc, char * argv[] )
 	if (solver->mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
-		NOTICE("-        Model: %25s                               -\n",MODEL);
 		NOTICE("-------------------------------------------------------------------------\n");
 	}
 	MPI_Barrier(MPMD.local);

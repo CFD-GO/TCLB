@@ -8,7 +8,7 @@ int MainContainer::Init () {
 
 		solver->outIterFile("config", ".xml", filename);
 		pugi::xml_node n = solver->configfile.child("CLBConfig").append_child("Run");
-		n.append_attribute("model").set_value(MODEL);
+		n.append_attribute("model").set_value(solver->lattice->model->name.c_str());
 		pugi::xml_node c = n.append_child("Code");
 		c.append_attribute("version").set_value(VERSION);
 		#ifdef CALC_DOUBLE_PRECISION
