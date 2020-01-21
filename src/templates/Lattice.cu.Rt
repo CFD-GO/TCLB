@@ -84,7 +84,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns) : LatticeBase(ZONESETTI
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
-	sample = new Sampler;
+	sample = new Sampler(this);
 	globals = new double[GLOBALS];
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];

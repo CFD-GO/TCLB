@@ -118,7 +118,7 @@ namespace
     if(numberOf == 0)
     {
       debug2("Creating Catalyst VTK objects\n");
-	for (ModelBase::Quantities::const_container it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
+	for (ModelBase::Quantities::const_iterator it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
 #ifndef ADJOINT
 	  if (it->isAdjoint) continue;
 #endif
@@ -137,7 +137,7 @@ namespace
           }        
 	}
     }
-	for (ModelBase::Quantities::const_container it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
+	for (ModelBase::Quantities::const_iterator it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
 #ifndef ADJOINT
 	  if (it->isAdjoint) continue;
 #endif
