@@ -17,12 +17,12 @@ int vtkWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_
 
 	{	big_flag_t * NodeType = new big_flag_t[size];
 		lattice->GetFlags(reg, NodeType);
-		if (what->in("flag")) {
+		if (what->explicitlyIn("flag")) {
 			vtkFile.WriteField("flag",NodeType);
 		}
 		unsigned char * small = new unsigned char[size];
 		for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
-			if (what->in(it->name)) {
+			if ((what->all && it->isSave) || what->explicitlyIn(it->name)) {
 				for (size_t i=0;i<size;i++) {
 					small[i] = (NodeType[i] & it->flag) >> it->shift;
 				}

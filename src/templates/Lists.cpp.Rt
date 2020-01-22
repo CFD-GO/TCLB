@@ -144,6 +144,7 @@ Model_m::Model_m() {
 		set.max = <?%d v$max ?>;
 		set.capacity = <?%d v$capacity ?>;
 		set.bits = <?%d v$bits ?>;
+		set.isSave = <?%s if (v$save) "true" else "false" ?>;
 		nodetypegroupflags.push_back(set);
 <?R		if (v$name == "SETTINGZONE") { ?>
 		settingzones = set; <?R

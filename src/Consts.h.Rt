@@ -1,7 +1,3 @@
-<?R
-  source("conf.R")
-  c_header(); ?>
-
 #ifndef CONFIG_H
   #include "../config.h"
   #define CONFIG_H 
@@ -9,7 +5,7 @@
 
 #ifndef CONSTS_H
 #define CONSTS_H 
-
+<?R git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v} ?>
 #define VERSION "<?%s git_version() ?>"
 
 #ifdef CROSS_CPU

@@ -78,6 +78,7 @@ public:
         int max;
         int capacity;
         int bits;
+        bool isSave;
     };
 
     struct Global : UnitThing {

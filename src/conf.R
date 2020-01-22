@@ -527,9 +527,24 @@ ALLBits = ZoneShift
 ALLMax = 2^ZoneShift
 NodeTypes = rbind(NodeTypes,data.frame(
         name="None",
-        group="ALL",
+        group="NONE",
         index=1,
         Index="NODE_None",
+        value=0,
+        max=0,
+        bits=0,
+        capacity=0,
+        mask=0,
+        shift=0,
+        groupIndex = "NODE_NONE",
+        save = FALSE
+))
+
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="Clear",
+        group="ALL",
+        index=1,
+        Index="NODE_Clear",
         value=0,
         max=ALLMax,
         bits=ALLBits,
@@ -547,7 +562,8 @@ NodeTypeGroups = unique(data.frame(
         bits=NodeTypes$bits,
         capacity=NodeTypes$capacity,
         mask=NodeTypes$mask,
-        shift=NodeTypes$shift
+        shift=NodeTypes$shift,
+        save=NodeTypes$save
 ))
 
 Node=NodeTypes$value
