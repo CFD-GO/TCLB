@@ -1529,7 +1529,6 @@ int Lattice::loadComp(const char* filename, const char* comp) {
 } 
 
 LatticeBase * Ask_For_Lattice(const LatticePromise& prom) {
-	printf(" ----- Hello!");
   return new Lattice(prom.region, prom.mpi, prom.ns);
 }
 
