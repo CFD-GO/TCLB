@@ -138,15 +138,15 @@ double Geometry::val_d(pugi::xml_attribute attr)
 */
 int Geometry::setFlag(const pugi::char_t * name)
 {
-    pugi::xml_node node = fg_xml.find_child_by_attribute("Type", "name", name);
-    if (!node) {
-	ERROR("Unknown flag (in xml): %s\n", name);
-	return -1;
-    }
-    fg = node.attribute("value").as_int();
-    E(setMask(node.attribute("mask").value()));
-    fg_mode = MODE_OVERWRITE;
-    return 0;
+	ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.ByName(name);
+	if (it == model->nodetypeflags.end()) {
+		ERROR("Unknown flag (in xml): %s\n", name);
+		return -1;
+	}
+	fg = it->flag;
+	fg_mask = it->group_flag;
+	fg_mode = MODE_OVERWRITE;
+	return 0;
 }
 
 /// Set the forground flag mask
@@ -158,13 +158,13 @@ int Geometry::setFlag(const pugi::char_t * name)
 */
 int Geometry::setMask(const pugi::char_t * name)
 {
-    pugi::xml_node node = fg_xml.find_child_by_attribute("Mask", "name", name);
-    if (!node) {
-	error("Unknown mask (in xml): %s\n", name);
-	return -1;
-    }
-    fg_mask = node.attribute("value").as_int(-1);
-    return 0;
+	ModelBase::NodeTypeGroupFlags::const_iterator it = model->nodetypegroupflags.ByName(name);
+	if (it == model->nodetypegroupflags.end()) {
+		error("Unknown mask (in xml): %s\n", name);
+		return -1;
+	}
+	fg_mask = it->flag;
+	return 0;
 }
 
 /// Set the forground flag mode

@@ -1,4 +1,3 @@
-<?R source("conf.R"); c_header(); ?>
 #include <iostream>
 #include "pugixml.hpp"
 #include "def.h"
@@ -22,12 +21,6 @@ const char* xml_definition = "<Geometry>\
 	</Zone>\
 	<Zone name='Tunnel'> <Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
 	<Zone name='Inlet'><Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
-<?R for (i in 1:length(Node_Group)) {
-?>	<Mask name='<?%s names(Node_Group)[i]?>' value='<?%f Node_Group[i]?>'/>\
-<?R }
-    for (i in 1:length(Node)) { x = Node_Group; x = x[x >= Node[i]];
-?>	<Type name='<?%s names(Node)[i]?>' value='<?%d Node[i]?>' mask='<?%s names(x)[which.min(x)]?>'/>\
-<?R } ?>\
 </Geometry>";
 
 int xml_def_init() {

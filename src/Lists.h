@@ -16,6 +16,14 @@ typename T::const_iterator FindByName(const T& cont, const std::string& str) {
     return cont.end();
 }
 
+template <class T>
+typename T::const_iterator FindById(const T& cont, const int& id) {
+    for (typename T::const_iterator it = cont.begin(); it != cont.end(); it++) {
+        if (it->id == id) return it;
+    }
+    return cont.end();
+}
+
 typedef double (*DerivedFunction)(double);
 typedef void (*ObjectiveFunction)(double*, double*, double*);
 
@@ -25,6 +33,9 @@ class ModelBase {
     public:
         typename Things::const_iterator ByName(const std::string& str) const {
             return FindByName(*this, str);
+        }
+        typename Things::const_iterator ById(const int& id) const {
+            return FindById(*this, id);
         }
     };        
 
