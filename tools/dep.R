@@ -24,7 +24,7 @@ w[,1] = resolve.path(w[,1])
 w[,2] = resolve.path(w[,2])
 
 # create the makefile-style dependency lines
-dep = do.call(c,as.list(by(w,w$file,function(x) paste(x[1,1],paste(x[,2],collapse=" "),sep=" : ") )))
+dep = do.call(c,as.list(by(w,w$file,function(x) paste(x[1,1],paste(unique(x[,2]),collapse=" "),sep=" : ") )))
 
 # write dep.mk
 f=file("dep.mk")
