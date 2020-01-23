@@ -228,7 +228,7 @@ function runline {
 			VTIS=$(cat $R  | sed -n "s|.*Source=\"\([^\"]*\)\".*|$RPATH/\1|p")
 			trycp $R $VTIS $GPATH/
 		else
-			try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" 8
+			try "checking $R (pvtidiff)" $TCLB/CLB/compare "$R" "$G" 8
 		fi ;;
 	skip)
 		case "$R" in

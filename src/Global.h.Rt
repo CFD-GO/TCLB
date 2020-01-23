@@ -1,7 +1,3 @@
-<?R
-        source("conf.R")
-	c_header()
-?>
 /**
     \file Global.h
     Declaration of global variables and functions. Including MPI connectivity info.
@@ -37,8 +33,8 @@
     struct NodeInfo {
         lbRegion region; ///< Local Lattice region
         int rank; ///< MPI rank of the processor <?R
-for (m in Margin) { ?>
-        int <?%s m$side ?>; ///< MPI rank of the processor on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] side <?R
+for (i in 1:27) { ?>
+        int <?%s paste0("side",i) ?>; ///< MPI rank of the processor on <?%d i ?> side <?R
 } ?>
     };
 

@@ -37,7 +37,6 @@ SOURCE_PLAN += Lists.h
 SOURCE_PLAN += compare.cpp
 SOURCE_PLAN += CommonHandler.h Handlers.h
 SOURCE_PLAN += Factory.h HandlerFactory.h
-SOURCE_PLAN += SUMMARY
 SOURCE_PLAN += conf.doxygen
 <?R
 	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")
@@ -49,19 +48,20 @@ SOURCE_PLAN+=<?R cat(h,sep=" ") ?>
 SOURCE_MODEL += Lattice.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
 SOURCE_MODEL += Dynamics.c Dynamics_sp.c LatticeContainer.h Lattice.h
 SOURCE_MODEL += Dynamics.h ModelConsts.h Lists.cpp
-
-SOURCE_PLAN += $(addprefix templates/,$(SOURCE_MODEL))
+SOURCE_MODEL += makefile dep.mk
 
 SOURCE_ADJ =templates/Dynamics_b.c ADTools.cu templates/Dynamics_adj.c templates/Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
-SOURCE_REST=makefile dep.mk
+SOURCE_REST=
 
 SOURCE_PLAN+=Catalyst.cpp
 SOURCE_PLAN+=Catalyst.h
 
 ifdef CPU
-	SOURCE_ALL=$(SOURCE_PLAN:.cu=.cpp)
+	SOURCE_PLAN_C=$(SOURCE_PLAN:.cu=.cpp)
+	SOURCE_MODEL_C=$(SOURCE_MODEL:.cu=.cpp)
 else
-	SOURCE_ALL=$(SOURCE_PLAN)
+	SOURCE_PLAN_C=$(SOURCE_PLAN)
+	SOURCE_MODEL_C=$(SOURCE_MODEL)
 endif
 
 AOUT=main
@@ -124,17 +124,40 @@ travis : .travis.yml
 
 <?R
 for (d in destinations) {
+?>
+
+<?%s d ?>/%:$(SRC)/%
+	@echo "  CP         $@"
+	@$(MKPATH) $@
+	@$(CP) $< $@
+
+<?%s d ?>/%:$(SRC)/%.Rt
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w <?%s d ?>/ -o $@ $(RTOPT) || mv $@ $@~
+
+<?%s d ?>/%.cpp:$(SRC)/%.cu.Rt
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w <?%s d ?>/ -o $@ $(RTOPT) || mv $@ $@~
+
+<?%s d ?>/%.cpp:$(SRC)/%.cu
+	@echo "  CP         $@"
+	@$(MKPATH) $@
+	@$(CP) $< $@
+
+<?R
 	for (i in 1:nrow(Models)) {
 		m = Models$name[i];
 		model_path = Models$path[i];
 		adjoint = Models$adjoint[i]
 		opts = Models$opts[[i]]
 		dest = paste(d,"/",m,"/",sep="")
-		src = "$(SOURCE_ALL)"
+		src = paste0("$(SOURCE_PLAN_C) $(addprefix ", m, "/,$(SOURCE_MODEL_C))")
 		if (adjoint) src = paste(src, "$(SOURCE_ADJ)")
 		src_all = paste(src, "$(SOURCE_REST)")
-		src = paste("$(addprefix ",dest,",",src,")",sep="");
-		src_all = paste("$(addprefix ",dest,",",src_all,")",sep="");
+		src = paste("$(addprefix ",d,"/,",src,")",sep="");
+		src_all = paste("$(addprefix ",d,"/,",src_all,")",sep="");
 		src_all = paste(dest,src_all)
 		rtopt = NULL
 		if (adjoint) rtopt = c(rtopt, "MODEL=TRUE")
@@ -179,7 +202,7 @@ for (d in destinations) {
 	@echo "  DONE       $@"
 
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
-	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
+	@cd <?%s d ?>; $(MAKE) -f <?%s m ?>/makefile
 
 <?%s d ?>/<?%s m ?>/ :
 	@$(MKPATH) $@
@@ -208,37 +231,32 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  RT         $@"
+<?%s d ?>/<?%s m ?>/%:$(SRC)/templates/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  RT         $@"
+<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/templates/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  CP         $@"
-	@$(MKPATH) $@
-	@$(CP) $< $@
-
-<?%s d ?>/<?%s m ?>/templates/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/templates/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+<?%s d ?>/<?%s m ?>/%.cpp:<?%s model_path ?>/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/templates/%:<?%s model_path ?>/%
+<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%
 	@echo "  CP         $@ (model)"
 	@$(MKPATH) $@
 	@$(CP) $< $@
 
-<?%s d ?>/<?%s m ?>/%:$(SRC)/%
+<?%s d ?>/<?%s m ?>/%:$(SRC)/templates/%
 	@echo "  CP         $@"
 	@$(MKPATH) $@
 	@$(CP) $< $@

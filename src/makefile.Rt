@@ -1,6 +1,7 @@
 <?R source("conf.R"); hash_header(); ?>
 
-MODEL=<?%s MODEL ?>       # model (directory) to use
+MODEL=<?%s MODEL ?>
+       # model (directory) to use
 ADJOINT=<?%s ADJOINT ?>   # calculate adjoint: 1-on, 0-off
 GRAPHICS=0 # GLUT graphics: 1-on, 0-off
 DOUBLE=0     # precision: 1-double, 0-float
@@ -8,12 +9,12 @@ GRID3D=0                  # use 3D block grid (only avaliable on capability 2.x)
 ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 
 #CPU=1
 
-include ../config.mk
+include config.mk
 
-all : $(AOUT)
+all : $(MODEL)/main compare empty
 	@echo "  DONE       $^"
 
-include dep.mk
+#include $(addprefix $(MODEL)/,dep.mk)
 
 <?R
 	h = dir("../../src/Handlers","[.](cpp)(|.Rt)$")
@@ -23,10 +24,8 @@ include dep.mk
 OBJ+=<?R cat(h,sep=" ") ?>
 
 
-#../config.mk:../config.mk.in ../configure
-#	cd ..; ./configure
 
-../config.mk:
+config.mk:
 	@echo "!---------------------------!"
 	@echo "!  Run configure            !"
 	@echo "!---------------------------!"
@@ -38,14 +37,11 @@ source:Dynamics.R conf.R $(SOURCE) $(HEADERS)
 
 ifdef CPU
 
-%.cpp:%.cu
-	cp $< $@
-
 %.o:%.cpp
 	@echo "  G++        $<"
 	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
-main:main.o $(OBJ)
+$(MODEL)/main:main.o $(OBJ) $(addprefix $(MODEL)/, $(OBJ_MODEL))
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 
@@ -59,7 +55,7 @@ else
 	@echo "  NVCC       $<"
 	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
 
-main:main.o $(OBJ)
+$(MODEL)/main:main.o $(OBJ) $(addprefix $(MODEL)/, $(OBJ_MODEL))
 	@echo "  LINKING    $@ (nvcc)"
 	@$(CXX) $^  -lcudart -o $@ $(LD_OPT)
 #	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
