@@ -19,7 +19,7 @@ std::string getPath (const std::string& str)
 }
 
 struct base64decoder {
-	const char *base64char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static const char *base64char;
 	int rev64[256];
 	base64decoder() {
 		for (int i = 0; i < 256; i++)
@@ -63,6 +63,8 @@ struct base64decoder {
 	}
 };
 
+const char *base64decoder::base64char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 struct TabBase {
 	static base64decoder b64;
 	int dx, dy, dz, nx, ny, nz, comp;
@@ -75,7 +77,6 @@ struct TabBase {
 		size = 1L * (nx - dx) * (ny - dy) * (nz - dz);
 		totsize = size * comp;
 	}; 
-	virtual std::string getType() = 0;
 	virtual double compare(TabBase * other) = 0;
 	virtual void read_piece(int pdx, int pdy, int pdz, int pnx, int pny, int pnz, pugi::xml_node node) = 0;
 };
@@ -85,7 +86,6 @@ base64decoder TabBase::b64;
 template <typename T>
 struct Tab : public TabBase {
 	std::vector<T> tab;
-	std::string getType() { return typeid(T).name(); }
 	double compare(TabBase * other_) {
 		double diff=0;
 		assert(ftype == other_->ftype);
