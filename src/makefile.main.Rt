@@ -17,36 +17,41 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
 
-SOURCE_PLAN+=Global.cpp templates/Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu templates/cuda.cu templates/LatticeContainer.inc.cpp templates/LatticeAccess.inc.cpp
-SOURCE_PLAN+=templates/Dynamics.c templates/Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
-SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
-SOURCE_PLAN+=main.cpp
-SOURCE_PLAN+=Global.h gpu_anim.h templates/LatticeContainer.h templates/Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
-SOURCE_PLAN+=gl_helper.h templates/Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
-SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
-SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
-SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
-SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
-SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
-SOURCE_PLAN+=LatticeBase.cpp LatticeBase.h
-SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
-SOURCE_PLAN+=glue.hpp
-SOURCE_PLAN+=mpitools.hpp
-SOURCE_PLAN+=pinned_allocator.hpp
-SOURCE_PLAN+=Lists.h templates/Lists.cpp
-SOURCE_PLAN+=templates/ModelConsts.h
-SOURCE_PLAN+=compare.cpp
-
+SOURCE_PLAN += Global.cpp vtkLattice.cpp vtkOutput.cpp cross.cu
+SOURCE_PLAN += Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
+SOURCE_PLAN += ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
+SOURCE_PLAN += main.cpp
+SOURCE_PLAN += Global.h gpu_anim.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
+SOURCE_PLAN += gl_helper.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
+SOURCE_PLAN += Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
+SOURCE_PLAN += RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
+SOURCE_PLAN += TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
+SOURCE_PLAN += BallTree.h BallTree.hpp BallTree.cpp
+SOURCE_PLAN += xpath_modification.cpp xpath_modification.h
+SOURCE_PLAN += LatticeBase.cpp LatticeBase.h
+SOURCE_PLAN += hdf5Lattice.cpp hdf5Lattice.h
+SOURCE_PLAN += glue.hpp
+SOURCE_PLAN += mpitools.hpp
+SOURCE_PLAN += pinned_allocator.hpp
+SOURCE_PLAN += Lists.h
+SOURCE_PLAN += compare.cpp
+SOURCE_PLAN += CommonHandler.h Handlers.h
+SOURCE_PLAN += Factory.h HandlerFactory.h
+SOURCE_PLAN += SUMMARY
+SOURCE_PLAN += conf.doxygen
 <?R
 	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")
 	h = sub(".Rt","",h)
 	h = paste("Handlers",h,sep="/");
 ?>
 SOURCE_PLAN+=<?R cat(h,sep=" ") ?>
-SOURCE_PLAN+=CommonHandler.h Handlers.h
-SOURCE_PLAN+=Factory.h HandlerFactory.h
-SOURCE_PLAN+=SUMMARY
-SOURCE_PLAN+=conf.doxygen
+
+SOURCE_MODEL += Lattice.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
+SOURCE_MODEL += Dynamics.c Dynamics_sp.c LatticeContainer.h Lattice.h
+SOURCE_MODEL += Dynamics.h ModelConsts.h Lists.cpp
+
+SOURCE_PLAN += $(addprefix templates/,$(SOURCE_MODEL))
+
 SOURCE_ADJ =templates/Dynamics_b.c ADTools.cu templates/Dynamics_adj.c templates/Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 
@@ -148,9 +153,6 @@ for (d in destinations) {
 <?%s m ?>: <?%s d ?>/<?%s m ?>/main
 	@echo "  DONE       $@"
 
-<?%s m ?>/kernel_stats_20:
-	ptxas -v --gpu-name=sm_20 <?%s d ?>/<?%s m ?>/cuda.ptx 
-
 <?%s m ?>/source: <?%s src_all ?>
 	@echo "  DONE       $@"
 
@@ -205,12 +207,6 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || mv $@ $@~
-
-
-<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  RT         $@"
-	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@"
