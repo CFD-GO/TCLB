@@ -420,13 +420,14 @@ CudaDeviceFunction void BC_Switcher ()
 }
 
 CudaDeviceFunction void calcHydroIter() {
-	log_data_from_special_nodes();
 	if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing){
 		Init_distributions();
 	}
 	else{
-		real_t myPhaseF = PhaseF(0,0);
+		PhaseF = PhaseF(0,0);
+		real_t myPhaseF = PhaseF;
 		real_t rho = calcRho(myPhaseF);
+		log_data_from_special_nodes();
 		#ifdef OPTIONS_debug	
 			AddToMomentumX(U*rho);
 			AddToMomentumY(V*rho);
@@ -458,7 +459,7 @@ CudaDeviceFunction void log_data_from_special_nodes ()
 		real_t location;
 		case NODE_SpikeTrack:
 			if (PhaseF < 0.5 && PhaseF(0,1) > 0.5 ) {
-				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
+				location =4.0*Period - (Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) ));
 				AddToRTISpike(location);
 			}
 		case NODE_BubbleTrack:
