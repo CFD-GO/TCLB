@@ -266,6 +266,7 @@ then
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
 	fi
+	LDFLAGS="${LDFLAGS} -lcudart"
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
 	CROSS_CPU=1

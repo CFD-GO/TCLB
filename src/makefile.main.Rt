@@ -18,6 +18,7 @@ DEST=CLB
 SRC=src
 BIN=bin
 
+.PRECIOUS: CLB/%.cpp CLB/%.h CLB/%.hpp CLB/%.cu CLB/%.o
 
 $(DEST)/dep.mk : tools/dep.R
 	@echo "  AUTO-DEP   $@"
@@ -148,19 +149,19 @@ $(DEST)/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w $(DEST)/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
 $(DEST)/<?%s m ?>/%:<?%s model_path ?>/%
-	@echo "  CP         $@ (model)"
+#	@echo "  CP         $@ (model)"
 	@$(MKPATH) $@
 	@$(CP) $< $@
 
 $(DEST)/<?%s m ?>/%:$(SRC)/templates/%
-	@echo "  CP         $@"
+#	@echo "  CP         $@"
 	@$(MKPATH) $@
 	@$(CP) $< $@
 
 <?R } ?>
 
 $(DEST)/%:$(SRC)/%
-	@echo "  CP         $@"
+#	@echo "  CP         $@"
 	@$(MKPATH) $@
 	@$(CP) $< $@
 
@@ -185,25 +186,28 @@ define compile_cu =
 	@$(CXX) -c $<.cpp -o $@ $(CPP_OPT) $(OPT); rm $<.cpp
 endef
 
+else
+
+define compile =
+	@echo "  G++        $<"
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
+endef
+
+define compile_cu =
+	@echo "  NVCC       $<"
+	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
+endef
+
+endif
+
 %.o : %.cpp
 	$(compile)
 %.o : %.cu
 	$(compile_cu)
 
-else
-
-%.o:%.cpp
-	@echo "  G++        $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
-
-%.o:%.cu
-	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
-
-endif
-
 CLB/%/Dynamics_sp.c CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
 	@echo "  MISSING    $@"
+	@$(MKPATH) $@
 	@touch $@
 
 
