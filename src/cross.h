@@ -19,7 +19,7 @@
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
       inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     #else
-//      #include "../../cub/cub/cub.cuh"
+//      #include <../../cub/cub/cub.cuh>
       #define CudaDeviceFunction __device__
       #define CudaHostFunction __host__
       #define CudaGlobalFunction __global__

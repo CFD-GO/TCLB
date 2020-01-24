@@ -12,8 +12,8 @@
       #pragma comment (lib, "glut64.lib")
    #endif
    #ifdef _WIN32
-      #include "GL/glut.h"
-      #include "GL/glext.h"
+      #include <GL/glut.h>
+      #include <GL/glext.h>
       #define GET_PROC_ADDRESS( str ) wglGetProcAddress( str )
    #else
       #include <GL/glut.h>

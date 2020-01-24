@@ -1,4 +1,3 @@
-
 OPT = @CPPFLAGS@
 CPP_OPT = @CPP_OPT@
 LD_OPT = @LDFLAGS@ @LIBS@
@@ -14,66 +13,27 @@ EMBEDED_PYTHON = @EMBEDED_PYTHON@
 
 WITH_LAMMPS = @WITH_LAMMPS@
 
-SOURCE_CU=Global.cu templates/Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu templates/cuda.cu LatticeContainer.cu Dynamics.c LatticeBase.cpp
-SOURCE=$(SOURCE_CU)
-HEADERS=Global.h gpu_anim.h templates/LatticeContainer.h templates/Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h templates/Dynamics.h types.h pugixml.hpp pugiconfig.hpp
+TOOLS = tools
+RT = $(TOOLS)/RT -b
+MKPATH = $(TOOLS)/mkpath
+RS = R --slave --quiet --vanilla -f
+ADMOD = tools/ADmod.R
 
-OBJ  = vtkOutput.o Global.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o SyntheticTurbulence.o Sampler.o ZoneSettings.o RemoteForceInterface.o hdf5Lattice.o xpath_modification.o LatticeBase.o
-OBJ_MODEL = cuda.o Lattice.o Lists.o
+RTOPT=@RTOPT@
+RTOPT_ADJ=ADJOINT=1
+SRC=src
+DEST=CLB
 
-
-AOUT = main empty compare
-
-ifeq '$(strip $(WITH_LAMMPS))' '1'
- AOUT += lammps
-endif
+CP=@CP@
 
 NVCC=nvcc
 CCTXT=NVCC
 CC=@CC@
 CXX=@CXX@
 
-ifeq '$(strip $(ADJOINT))' '1'
- OPT+=-D ADJOINT
- SOURCE_CU+=Dynamics_b.c ADTools.cu
+AOUT = main empty compare
+
+ifeq '$(strip $(WITH_LAMMPS))' '1'
+ AOUT += lammps
 endif
-
-ifeq '$(strip $(WITH_CATALYST))' '1'
- PV_LIBS += vtkPVPythonCatalyst
- PV_LIBS += vtkPVCatalyst
- PV_LIBS += vtkCommonDataModel
- PV_LIBS += vtkCommonCore
- PV_INCLUDES += VTK/Common/DataModel
- PV_INCLUDES += VTK/Common/Core
- PV_INCLUDES += CoProcessing/Catalyst
- PV_INCLUDES += ParaViewCore/ServerManager/SMApplication
- PV_INCLUDES += ParaViewCore/ServerManager/Core
- PV_INCLUDES += ParaViewCore/ServerImplementation/Core
- PV_INCLUDES += ParaViewCore/ClientServerCore/Core
- PV_INCLUDES += VTK/Filters/Extraction
- PV_INCLUDES += VTK/Filters/Core
- PV_INCLUDES += VTK/Filters/General
- PV_INCLUDES += VTK/Filters/Statistics
- PV_INCLUDES += VTK/Filters/Parallel
- PV_INCLUDES += VTK/Filters/Geometry
- PV_INCLUDES += VTK/Filters/Modeling
- PV_INCLUDES += VTK/Filters/Sources
- PV_INCLUDES += VTK/Rendering/Core
- PV_INCLUDES += VTK/Utilities/KWIML
- PV_INCLUDES += ParaViewCore/VTKExtensions/Core
- PV_INCLUDES += CoProcessing/PythonCatalyst
- PV_CPPFLAGS += $(addprefix -I $(PV_BUILD_INC)/, $(PV_INCLUDES))
- PV_CPPFLAGS += $(addprefix -I $(PV_SOURCE)/, $(PV_INCLUDES)) -I $(PV_SOURCE)
- PV_CPPFLAGS += -D WITH_CATALYST
- PV_LDFLAGS  += $(addprefix -l, $(addsuffix -$(PV_VERSION),$(PV_LIBS)))
- PV_LDFLAGS  += -Wl,-rpath,$(PV_BUILD)
- PV_LDFLAGS  += -L$(PV_BUILD)
-
- OPT += $(PV_CPPFLAGS)
- LD_OPT += $(PV_LDFLAGS)
- SOURCE_CU += Catalyst.cpp
- OBJ += Catalyst.o
- HEADERS += Catalyst.h
-endif
-
 

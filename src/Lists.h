@@ -4,7 +4,7 @@
 #include <vector>
 #include "Consts.h"
 #include "types.h"
-#include "mpi.h"
+#include <mpi.h>
 
 #define LIST_INVALID -1
 

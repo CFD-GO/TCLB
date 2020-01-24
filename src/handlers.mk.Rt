@@ -1,0 +1,9 @@
+<?R
+	h = dir("../src/Handlers","[.](h|cpp)(|.Rt)$")
+	h = sub(".Rt","",h)
+	h = paste("Handlers",h,sep="/");
+	sel = grepl("[.]cpp$",h)
+?>
+SRC_MAIN__CPP_PRM+=<?R cat(h[ sel],sep=" ") ?>
+SRC_MAIN__INC_PRM+=<?R cat(h[!sel],sep=" ") ?>
+SRC_MAIN__OBJ_PRM+=<?R cat(gsub("[.]cpp$",".o",h[sel]),sep=" ") ?>
