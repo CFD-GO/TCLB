@@ -12,9 +12,18 @@
 
 #######################################################################################################################
 
+
+
 DEST=CLB
 SRC=src
 BIN=bin
+
+
+$(DEST)/dep.mk : tools/dep.R
+	@echo "  AUTO-DEP   $@"
+	@$(RS) $<
+
+
 include $(DEST)/config.mk
 include src/lists.mk
 include $(DEST)/handlers.mk
