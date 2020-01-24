@@ -125,7 +125,7 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 
 # for model <?%s m ?> and destination $(DEST)
 
-$(DEST)/<?%s m ?>/Dynamics_b.c $(DEST)/<?%s m ?>/Dynamics_b.h $(DEST)/<?%s m ?>/types_b.h $(DEST)/<?%s m ?>/ADpre_.h $(DEST)/<?%s m ?>/ADpre__b.h : $(DEST)/<?%s m ?>/tapenade.run
+#  $(DEST)/<?%s m ?>/Dynamics_b.c $(DEST)/<?%s m ?>/Dynamics_b.h $(DEST)/<?%s m ?>/types_b.h $(DEST)/<?%s m ?>/ADpre_.h $(DEST)/<?%s m ?>/ADpre__b.h : $(DEST)/<?%s m ?>/tapenade.run
 
 .INTERMEDIATE : tapenade.run
 
@@ -203,7 +203,7 @@ else
 endif
 
 CLB/%/Dynamics_sp.c CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
-	@echo "  MISSING    $@
+	@echo "  MISSING    $@"
 	@touch $@
 
 
