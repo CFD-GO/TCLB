@@ -9,7 +9,7 @@ ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 f
 #CPU=1
 
 
-all:main empty
+all:main empty compare
 	@echo "  DONE       $^"
 
 include ../config.mk
@@ -67,6 +67,10 @@ main:main.o $(OBJ)
 endif
 
 empty:empty.o
+	@echo "  LINKING    $@"
+	@$(CXX) $^ -o $@ $(LD_OPT)
+
+compare : compare.o pugixml.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 

@@ -69,6 +69,62 @@ CudaDeviceFunction real_t getRho(){
 	return rho;
 }
 
+CudaDeviceFunction real_t getP_fluctuations(){
+	return (getRho()-material_density)/3.0;
+}
+
+
+CudaDeviceFunction vector_t getU(){	
+	// Use this function is only for vtk output.
+	// Nodes are created using streamed, post-collision DF.
+	// RunBoundaries are called in orded to assign the desired value at the boundary.
+	// It can make a difference in convergence study and nicer preview.
+
+	RunBoundariesHydrodynamics();
+	RunBoundariesHeat();	
+	RunHOBoundaries();
+
+	vector_t u;
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+		u.x = 0;
+		u.y = 0;
+		u.z = 0;
+	}
+    else{
+		u = getRawU();
+		real_t localTemperature = getT();
+		real_t rho = getRho();
+		vector_t Force = getForce(localTemperature, rho);
+		u.x += Force.x/(2*rho);
+		u.y += Force.y/(2*rho);
+		u.z += Force.z/(2*rho);
+    }
+	return u;
+}
+
+CudaDeviceFunction vector_t getU_()
+{
+	real_t localTemperature = getT_();
+	vector_t u = getRawU();
+	real_t rho = getRho();
+	vector_t Force = getForce(localTemperature, rho);
+	u.x += Force.x/(2*rho);
+	u.y += Force.y/(2*rho);
+	u.z += Force.z/(2*rho);
+	return u;
+}
+ 
+CudaDeviceFunction vector_t getRawU(){
+	real_t d = getRho();
+	vector_t u;
+	<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+	return u;
+}
+
+
 CudaDeviceFunction real_t getT(){
 	// Use this function is only for vtk output.
 	// Nodes are created using streamed, post-collision DF.
@@ -84,27 +140,7 @@ CudaDeviceFunction real_t getT(){
 	return m00_H/(rho*cp);
 }
 
-CudaDeviceFunction vector_t getU(){	
-	// Use this function is only for vtk output.
-	// Nodes are created using streamed, post-collision DF.
-	// RunBoundaries are called in orded to assign the desired value at the boundary.
-	// It can make a difference in convergence study and nicer preview.
-
-	RunBoundariesHydrodynamics();
-	RunBoundariesHeat();	
-	RunHOBoundaries();
-
-	real_t localTemperature = getT();
-	vector_t u = getRawU();
-	real_t rho = getRho();
-	vector_t Force = getForce(localTemperature, rho);
-	u.x += Force.x/(2*rho);
-	u.y += Force.y/(2*rho);
-	u.z += Force.z/(2*rho);
-	return u;
-}
-
-CudaDeviceFunction real_t _getT(){
+CudaDeviceFunction real_t getT_(){
 	real_t rho = getRho();
 	real_t m00_H = <?R C(sum(h)) ?>;
 	return m00_H/(rho*cp);
@@ -112,28 +148,6 @@ CudaDeviceFunction real_t _getT(){
 
 CudaDeviceFunction real_t getH(){
 	return <?R C(sum(h)) ?>;
-}
-    
-CudaDeviceFunction vector_t getRawU(){
-	real_t d = getRho();
-	vector_t u;
-	<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
-	u.x /= d;
-	u.y /= d;
-	u.z /= d;
-	return u;
-}
-
-CudaDeviceFunction vector_t _getU()
-{
-	real_t localTemperature = _getT();
-	vector_t u = getRawU();
-	real_t rho = getRho();
-	vector_t Force = getForce(localTemperature, rho);
-	u.x += Force.x/(2*rho);
-	u.y += Force.y/(2*rho);
-	u.z += Force.z/(2*rho);
-	return u;
 }
 
 CudaDeviceFunction vector_t get_fDarcyStoper(real_t rho, vector_t u)
@@ -148,7 +162,7 @@ CudaDeviceFunction vector_t get_fDarcyStoper(real_t rho, vector_t u)
 CudaDeviceFunction float2 Color() {
 	float2 ret;
 	
-	ret.x = _getT();
+	ret.x = getT_();
 	ret.x -= 10;  // hack for better preview.
 	ret.y = ret.x;
 
@@ -159,7 +173,7 @@ CudaDeviceFunction float2 Color() {
 		ret.y = 1;
 	}
 
-	// vector_t u = _getU();
+	// vector_t u = getU_();
 	// // ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
 	// ret.x = u.x;
 	// ret.y = u.y;
@@ -167,6 +181,50 @@ CudaDeviceFunction float2 Color() {
 	return ret;
 }
 
+#ifdef OPTIONS_AVG
+CudaDeviceFunction real_t getaverageT(){
+	return avgT/average_iter;
+}
+CudaDeviceFunction real_t getaverageP(){
+	return avgP/average_iter;
+}
+CudaDeviceFunction real_t getDissipation(){
+        real_t diss;
+       	diss = nu*((avgdxu2/average_iter)-(avgUX(1,0,0) - avgUX(-1,0,0))*(avgUX(1,0,0) - avgUX(-1,0,0))/(4*average_iter*average_iter));
+       	diss = diss + nu*((avgdyv2/average_iter) -(avgUY(0,1,0) - avgUY(0,-1,0))*(avgUY(0,1,0) - avgUY(0,-1,0))/(4*average_iter*average_iter));
+       	diss = diss + nu*((avgdzw2/average_iter) - (avgUZ(0,0,1) - avgUZ(0,0,-1))*(avgUZ(0,0,1) - avgUZ(0,0,-1))/(4*average_iter*average_iter));
+        return diss;
+}
+CudaDeviceFunction vector_t getaverageU(){
+        vector_t u;
+        u.x = avgUX(0,0,0)/average_iter;  //avgUX(0,0,0) in fact
+        u.y = avgUY(0,0,0)/average_iter;
+        u.z = avgUZ(0,0,0)/average_iter;
+        return u;
+}
+CudaDeviceFunction vector_t getvarU(){
+		vector_t u_avg = getaverageU();
+
+		vector_t u;
+        u.x = varUX/average_iter - u_avg.x*u_avg.x;
+        u.y = varUY/average_iter - u_avg.y*u_avg.y;
+        u.z = varUZ/average_iter - u_avg.z*u_avg.z;
+        return u;
+}
+CudaDeviceFunction vector_t getReStr(){
+		vector_t u_avg = getaverageU();
+        vector_t st;
+        st.x = varUYUZ/average_iter - u_avg.y*u_avg.z;
+        st.y = varUXUZ/average_iter - u_avg.x*u_avg.z;
+        st.z = varUXUY/average_iter - u_avg.x*u_avg.y;
+        return st;
+}
+CudaDeviceFunction real_t getKinE(){
+	real_t ke;
+	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
+	return ke;
+}
+#endif
 
 CudaDeviceFunction void Init() {
 	real_t pressure = Pressure;
@@ -222,7 +280,7 @@ CudaDeviceFunction void ThermalBounceBack()
 CudaDeviceFunction void WPressure()
 {
 	real_t Jx, Jy, Jz, rho;
-	rho = (1 + Pressure*3.)*material_density;
+	rho = (material_density + Pressure*3.);
 	Jx  = ( -f022 - f012 - f002 - f021 - f011 - f001 - f020 - f010 + rho - f000 + ( -f221 - f212 - f211 - f222 - f201 - f202 - f210 - f220 - f200 )*2. ) / ( 1 );
 	Jy  = ( f022 - f012 + f021 - f011 + f020 - f010 ) / ( 1/3. );
 	Jz  = ( f022 + f012 + f002 - f021 - f011 - f001 )*3. ;
@@ -235,6 +293,17 @@ CudaDeviceFunction void WPressure()
 	f102 = f201 + ( -Jz + Jx )/9.;
 	f112 = f221 + ( -Jz + Jy + Jx )/36.;
 	f122 = f211 + ( -Jz - Jy + Jx )/36.;
+
+	// equilibrium scheme for Heat-BC - don't care and impose rho*Teq
+	// see chapter 5.3.4.2, eq 5.34, p191 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+
+	real_t T = InitTemperature;
+	vector_t u;
+	u.x=Jx/rho; u.y=Jy/rho; u.z=Jz/rho;
+
+	real_t H = rho*cp*T;
+	SetEquilibriumHeat(H, rho, u); 	
 }
 
 CudaDeviceFunction void WVelocity()
@@ -371,11 +440,16 @@ CudaDeviceFunction void ImposeHeatFlux(vector_t n)
 		ThermalBounceBack();
 	}
 
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	real_t rho = getRho();
 	real_t imposed_heat_flux = InitHeatFlux;
 	real_t first_order_cm = -2*imposed_heat_flux*h_stability_enhancement;
-	real_t third_order_cm = first_order_cm *1/3.*h_stability_enhancement/(rho*cp);
-	real_t fifth_order_cm = third_order_cm *1/3.*h_stability_enhancement/(rho*cp);
+	real_t third_order_cm = first_order_cm*Sigma2;
+	real_t fifth_order_cm = third_order_cm*Sigma2;
 
 	// real_t third_order_cm = -2*1/3.*imposed_heat_flux*h_stability_enhancement*h_stability_enhancement/(rho*cp);
 	// real_t fifth_order_cm = -2*1/9.*imposed_heat_flux*h_stability_enhancement*h_stability_enhancement*h_stability_enhancement/(cp*cp*rho*rho);
@@ -446,16 +520,17 @@ CudaDeviceFunction void HeaterSource()
 {
 	real_t T = InitTemperature;
 	real_t rho = getRho();
-	vector_t u = _getU();
+	vector_t u = getU_();
 
-	// TCLB is smart enough to distiguish values prescribed it batch.xml like
-	// InitTemperature-dirichlet_region="123"
-	// InitTemperature-neumann_heater_region="456"
 	real_t H = rho*cp*T;  
 
-	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -520,7 +595,6 @@ CudaDeviceFunction void HeaterSource()
 	h022 += 1/4.*temp011 - 1/4.*temp012 - 1/4.*temp021 + 1/4.*temp022 - 1/4.*temp211 + 1/4.*temp212 + 1/4.*temp221 - 1/4.*temp222;
 	h122 += 1/8.*temp111 - 1/8.*temp112 - 1/8.*temp121 + 1/8.*temp122 + 1/8.*temp211 - 1/8.*temp212 - 1/8.*temp221 + 1/8.*temp222;
 	h222 += -1/8.*temp111 + 1/8.*temp112 + 1/8.*temp121 - 1/8.*temp122 + 1/8.*temp211 - 1/8.*temp212 - 1/8.*temp221 + 1/8.*temp222;
-
 }
 
 CudaDeviceFunction void HeatDirichletEquilibriumScheme()
@@ -530,9 +604,8 @@ CudaDeviceFunction void HeatDirichletEquilibriumScheme()
 	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
 	real_t T = InitTemperature;
 	real_t rho = getRho();
-	// vector_t u = _getU();
 
-	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = _getU(); 
+	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = getU_(); 
 	real_t H = rho*cp*T;
 	SetEquilibriumHeat(H, rho, u); 
 }
@@ -552,11 +625,16 @@ CudaDeviceFunction void HeatDirichletAntiBounceBackScheme()
 
 	real_t T = InitTemperature;
 	real_t rho = getRho();
-	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = _getU(); 
+	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = getU_(); 
 	real_t H = rho*cp*T;
 
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -648,7 +726,6 @@ CudaDeviceFunction void HeatDirichletAntiBounceBackScheme()
 	h212 = -h212 + 2 * heq212;
 	h221 = -h221 + 2 * heq221;
 	h222 = -h222 + 2 * heq222;
-
 }
 
 #ifdef OPTIONS_IBB
@@ -701,7 +778,7 @@ CudaDeviceFunction void HydroInterpolatedBounceBack()
 
 
 	// force measurment takes place in Run()
-	// if((NodeType & NODE_BODY) == NODE_MeasurmentArea) { 
+	// if((NodeType & NODE_BODY) == NODE_ForceMeasurmentZone) { 
 	// 	AddToFDrag(F.x); 
 	// 	AddToFLateral(F.y); 
 	// 	AddToFLift(F.z); 
@@ -764,11 +841,15 @@ CudaDeviceFunction void HeaterDirichletTemperatureInterpolatedAntiBounceBack()
 	
 	real_t T = InitTemperature;
 	real_t rho = getRho();
-	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = _getU(); 
+	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = getU_(); 
 	real_t H = rho*cp*T;
 	
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -933,60 +1014,71 @@ CudaDeviceFunction void RunBoundariesHydrodynamics()
 
 CudaDeviceFunction void RunBoundariesHeat()
 {	
-	real_t h1 = <?R C(sum(h)) ?>;   
-
+	real_t h1, h2;
 	switch (NodeType & NODE_ADDITIONALS_HEAT) {
-		case NODE_HeaterDirichletTemperatureEQ:		
+		case NODE_HeaterDirichletTemperatureEQ:
+			h1 = <?R C(sum(h)) ?>;   		
 			HeatDirichletEquilibriumScheme();
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
 			break;
-		case NODE_HeaterDirichletTemperatureABB:		
+		case NODE_HeaterDirichletTemperatureABB:	
+			h1 = <?R C(sum(h)) ?>;   		
 			HeatDirichletAntiBounceBackScheme();
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
 			break;
 		case NODE_HeaterSource:
+			h1 = <?R C(sum(h)) ?>;   		
 			HeaterSource();
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
 			break;
 		case NODE_HeaterNeumannHeatFluxCylinder:
+			h1 = <?R C(sum(h)) ?>;   		
 			ImposeHeatFlux(get_n_cylinder());
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
 			break;
 		case NODE_HeaterNeumannHeatFluxEast:
+			h1 = <?R C(sum(h)) ?>;   		
 			vector_t n{-1.,0,0};
 			ImposeHeatFlux(n);
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
 			break;
 	}
-
-	real_t h2 = <?R C(sum(h)) ?>;
-	AddToHeatSource(h2-h1);   // TODO: this is called in each node...
 }
 
 CudaDeviceFunction void RunHOBoundaries()
 {	
+	// I(A)BB's are wet node BC. They are stored in separate HO_BOUNDARY group,
+	// because the regular wet BOUNDARY nodes have a limiter.
 
 	#ifdef OPTIONS_IBB
-		real_t h1 = <?R C(sum(h)) ?>;
-
-		// This is a wet node BC. It is stored in separate HO_BOUNDARY group,
-		// because the regular wet BOUNDARY nodes have a limiter.
-		switch (NodeType & NODE_HO_BOUNDARY) {
-			case NODE_IBB:
-				HydroInterpolatedBounceBack();
-				ThermalInterpolatedBounceBack();
-				break;
+		if ((NodeType & NODE_HO_BOUNDARY_HYDRO) == NODE_HydroIBB){
+			HydroInterpolatedBounceBack();
+		}
+	
+		switch (NodeType & NODE_HO_BOUNDARY_HEAT) {
 			case NODE_HeaterDirichletTemperatureIABB:
-				HydroInterpolatedBounceBack();
+				real_t h1 = <?R C(sum(h)) ?>;
 				HeaterDirichletTemperatureInterpolatedAntiBounceBack();
+				real_t h2 = <?R C(sum(h)) ?>;
+				AddToHeatSource(h2-h1); 
+				break;
+			case NODE_ThermalIBB:
+				ThermalInterpolatedBounceBack();
 				break;
 		}
 
-
-		real_t h2 = <?R C(sum(h)) ?>;
-		AddToHeatSource(h2-h1); 
 	#endif
 }
 
 
 CudaDeviceFunction void Run() {
 	vector_t p1 {0,0,0};
-	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurment) {
+	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurmentZone) {
 		<?R C(PV(c("p1.x","p1.y", "p1.z")), f %*% U) ?>
 	}
 
@@ -998,14 +1090,11 @@ CudaDeviceFunction void Run() {
 		case NODE_CM_HIGHER:
 			CollisionCM_HIGHER();
 			break;
-		case NODE_CM_HIGHER_NONLINEAR:
-			CollisionCM_HIGHER_NONLINEAR();
-			break;
 		case NODE_Cumulants:
 			CollisionCumulants();
 			break;
-		case NODE_Cumulants_Higher:
-			CollisionCumulants_Higher();
+		case NODE_CM_HIGHER_NONLINEAR:
+			CollisionCM_HIGHER_NONLINEAR();
 			break;
 		case NODE_CM:
 			CollisionCM();
@@ -1015,7 +1104,7 @@ CudaDeviceFunction void Run() {
 			break;
 	}
 
-	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurment) {
+	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurmentZone) {
 		vector_t p2;
 		<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
 		//Summing the difference in momentum before/after collision
@@ -1024,13 +1113,13 @@ CudaDeviceFunction void Run() {
 		AddToFLift(-(p2.z-p1.z));
 	}
 
-	if((NodeType & NODE_OBJECTIVEFLUX) == NODE_FluxMeasurment) {
+	if((NodeType & NODE_OBJECTIVEFLUX) == NODE_FluxMeasurmentZone1) {
 		vector_t p2;
 		<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
 		//Summing the momentum flux through the boundary.
-		AddToXHydroFLux(-(p2.x));
-		AddToYHydroFLux(-(p2.y));
-		AddToZHydroFLux(-(p2.z));
+		AddToXHydroFLux(-p2.x);
+		AddToYHydroFLux(-p2.y);
+		AddToZHydroFLux(-p2.z);
 
 		vector_t h2;
 		<?R C(PV(c("h2.x","h2.y", "h2.z")), h %*% UforHeat) ?>
@@ -1042,6 +1131,29 @@ CudaDeviceFunction void Run() {
 		AddToHeatFluxY(-h2.y);
 		AddToHeatFluxZ(-h2.z);
 	}
+
+	if((NodeType & NODE_OBJECTIVEFLUX) == NODE_FluxMeasurmentZone2) {
+		vector_t p2;
+		<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+		//Summing the momentum flux through the boundary.
+		AddToXHydroFLux2(-p2.x);
+		AddToYHydroFLux2(-p2.y);
+		AddToZHydroFLux2(-p2.z);
+
+		vector_t h2;
+		<?R C(PV(c("h2.x","h2.y", "h2.z")), h %*% UforHeat) ?>
+		// Summing the heat flux (both convective and diffusive) through the boundary.
+		// convective flux - eq part of h distributions
+		// diffusive flux - neq part of h distributions
+
+		AddToHeatFluxX2(-h2.x);
+		AddToHeatFluxY2(-h2.y);
+		AddToHeatFluxZ2(-h2.z);
+	}
+
+	#ifdef OPTIONS_AVG
+		avgT += getT_();
+	#endif
 }
 
 CudaDeviceFunction vector_t get_n_cylinder()
@@ -1066,8 +1178,14 @@ CudaDeviceFunction void SetEquilibriumHydro(real_t rho, real_t Jx, real_t Jy, re
 
 CudaDeviceFunction void SetEquilibriumHeat(real_t H, real_t rho, vector_t u) 
 {
+
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	//real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -1164,8 +1282,12 @@ CudaDeviceFunction void SetEquilibriumHeat(real_t H, real_t rho, vector_t u)
 
 CudaDeviceFunction void relax_and_collide_ADE_Cumulants(real_t rho, real_t omega_ade, vector_t u)
 {
-	real_t Sigma2 = (h_stability_enhancement*1./3.)/(cp*rho);
- 	real_t w[10] = {omega_ade,1.,1.,1.,1.,1.,1.,1.,1.,1.};
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
+ 	real_t w[2] = {omega_ade,1.,};
 
 	// calculate cumulants 
 	h000 = h200 + h100 + h000; h100 = -h200 + h100; h200 = h100 + h200*2.; 
@@ -1231,15 +1353,16 @@ CudaDeviceFunction void relax_and_collide_ADE_Cumulants(real_t rho, real_t omega
 
 	#ifdef OPTIONS_SMAG
 		//Calculating turbulent viscosity for Smagorinsky  turbulence model
-		real_t tau_0 = 1./omega_ade;
-		real_t tau_t;
-		real_t q;
+		// real_t tau_0 = 1./omega_ade;
+		// real_t tau_t;
+		// real_t q;
 
-		q = sqrt((c200-1.0/3)*(c200-1.0/3)+(c020-1.0/3)*(c020-1.0/3)+(c002-1.0/3)*(c002-1.0/3)+2*(c110*c110)+2*(c101*c101)+2*(c011*c011));
-		tau_t = 0.5 * (sqrt( tau_0 * tau_0 + 18 * Smag * Smag * q) - tau_0);
-		w[0] = 1.0 / (tau_0 + tau_t);
+		// TODO: shall hydro cumulants be used here?
+		// q = sqrt((c200-1.0/3)*(c200-1.0/3)+(c020-1.0/3)*(c020-1.0/3)+(c002-1.0/3)*(c002-1.0/3)+2*(c110*c110)+2*(c101*c101)+2*(c011*c011));
+		// tau_t = 0.5 * (sqrt( tau_0 * tau_0 + 18 * Smag * Smag * q) - tau_0);
+		// w[0] = 1.0 / (tau_0 + tau_t);
 
-		if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*conductivity_buffer+0.5);
+		// if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*conductivity_buffer+0.5);
 	#endif
 
 	// Galilean Correction
@@ -1342,207 +1465,16 @@ CudaDeviceFunction void relax_and_collide_ADE_Cumulants(real_t rho, real_t omega
 	h020 = -h022 + h020; h021 = ( h022 + h021 )/2.; h022 = h022 - h021; 
 	h120 = -h122 + h120; h121 = ( h122 + h121 )/2.; h122 = h122 - h121; 
 	h220 = -h222 + h220; h221 = ( h222 + h221 )/2.; h222 = h222 - h221;
-}
 
-CudaDeviceFunction void relax_and_collide_ADE_Cumulants_Higher(real_t rho, real_t omega_ade, vector_t u)
-{
-	real_t Sigma2 = (h_stability_enhancement*1./3.)/(cp*rho);
- 	real_t w[10] = {omega_ade,1.,1.,1.,1.,1.,1.,1.,1.,1.};
-
-	// calculate cumulants 
-	h000 = h200 + h100 + h000; h100 = -h200 + h100; h200 = h100 + h200*2.; 
-	h010 = h210 + h110 + h010; h110 = -h210 + h110; h210 = h110 + h210*2.; 
-	h020 = h220 + h120 + h020; h120 = -h220 + h120; h220 = h120 + h220*2.; 
-	h001 = h201 + h101 + h001; h101 = -h201 + h101; h201 = h101 + h201*2.; 
-	h011 = h211 + h111 + h011; h111 = -h211 + h111; h211 = h111 + h211*2.; 
-	h021 = h221 + h121 + h021; h121 = -h221 + h121; h221 = h121 + h221*2.; 
-	h002 = h202 + h102 + h002; h102 = -h202 + h102; h202 = h102 + h202*2.; 
-	h012 = h212 + h112 + h012; h112 = -h212 + h112; h212 = h112 + h212*2.; 
-	h022 = h222 + h122 + h022; h122 = -h222 + h122; h222 = h122 + h222*2.; 
-	h000 = h020 + h010 + h000; h010 = -h020 + h010; h020 = h010 + h020*2.; 
-	h100 = h120 + h110 + h100; h110 = -h120 + h110; h120 = h110 + h120*2.; 
-	h200 = h220 + h210 + h200; h210 = -h220 + h210; h220 = h210 + h220*2.; 
-	h001 = h021 + h011 + h001; h011 = -h021 + h011; h021 = h011 + h021*2.; 
-	h101 = h121 + h111 + h101; h111 = -h121 + h111; h121 = h111 + h121*2.; 
-	h201 = h221 + h211 + h201; h211 = -h221 + h211; h221 = h211 + h221*2.; 
-	h002 = h022 + h012 + h002; h012 = -h022 + h012; h022 = h012 + h022*2.; 
-	h102 = h122 + h112 + h102; h112 = -h122 + h112; h122 = h112 + h122*2.; 
-	h202 = h222 + h212 + h202; h212 = -h222 + h212; h222 = h212 + h222*2.; 
-	h000 = h002 + h001 + h000; h001 = -h002 + h001; h002 = h001 + h002*2.; 
-	h100 = h102 + h101 + h100; h101 = -h102 + h101; h102 = h101 + h102*2.; 
-	h200 = h202 + h201 + h200; h201 = -h202 + h201; h202 = h201 + h202*2.; 
-	h010 = h012 + h011 + h010; h011 = -h012 + h011; h012 = h011 + h012*2.; 
-	h110 = h112 + h111 + h110; h111 = -h112 + h111; h112 = h111 + h112*2.; 
-	h210 = h212 + h211 + h210; h211 = -h212 + h211; h212 = h211 + h212*2.; 
-	h020 = h022 + h021 + h020; h021 = -h022 + h021; h022 = h021 + h022*2.; 
-	h120 = h122 + h121 + h120; h121 = -h122 + h121; h122 = h121 + h122*2.; 
-	h220 = h222 + h221 + h220; h221 = -h222 + h221; h222 = h221 + h222*2.; 
-
-	<?R
-		cumulants = paste("c",P$x,P$y,P$z,sep="");
-		for (i in cumulants) { ?>
-		real_t <?%s i ?>;
-	<?R } ?>	
- 
-	c100 = h100/h000;
-	c200 = ( -c100*h100 + h200 )/h000;
-	c010 = h010/h000;
-	c110 = ( -c100*h010 + h110 )/h000;
-	c210 = ( -c110*h100 - c200*h010 - c100*h110 + h210 )/h000;
-	c020 = ( -c010*h010 + h020 )/h000;
-	c120 = ( -c100*h020 + h120 - c110*h010*2. )/h000;
-	c220 = ( -c120*h100 - c200*h020 - c100*h120 + h220 + ( -c210*h010 - c110*h110 )*2. )/h000;
-	c001 = h001/h000;
-	c101 = ( -c100*h001 + h101 )/h000;
-	c201 = ( -c101*h100 - c200*h001 - c100*h101 + h201 )/h000;
-	c011 = ( -c010*h001 + h011 )/h000;
-	c111 = ( -c101*h010 - c110*h001 - c100*h011 + h111 )/h000;
-	c211 = ( -c011*h200 - c210*h001 - c010*h201 + h211 + ( -c111*h100 - c110*h101 )*2. )/h000;
-	c021 = ( -c011*h010 - c020*h001 - c010*h011 + h021 )/h000;
-	c121 = ( -c101*h020 - c120*h001 - c100*h021 + h121 + ( -c111*h010 - c110*h011 )*2. )/h000;
-	c221 = ( -c021*h200 - c201*h020 - c001*h220 + h221 + ( -c121*h100 - c211*h010 - c011*h210 - c101*h120 - c111*h110*2. )*2. )/h000;
-	c002 = ( -c001*h001 + h002 )/h000;
-	c102 = ( -c100*h002 + h102 - c101*h001*2. )/h000;
-	c202 = ( -c102*h100 - c200*h002 - c100*h102 + h202 + ( -c201*h001 - c101*h101 )*2. )/h000;
-	c012 = ( -c010*h002 + h012 - c011*h001*2. )/h000;
-	c112 = ( -c102*h010 - c110*h002 - c100*h012 + h112 + ( -c111*h001 - c101*h011 )*2. )/h000;
-	c212 = ( -c012*h200 - c210*h002 - c010*h202 + h212 + ( -c112*h100 - c211*h001 - c011*h201 - c110*h102 - c111*h101*2. )*2. )/h000;
-	c022 = ( -c012*h010 - c020*h002 - c010*h012 + h022 + ( -c021*h001 - c011*h011 )*2. )/h000;
-	c122 = ( -c102*h020 - c120*h002 - c100*h022 + h122 + ( -c112*h010 - c121*h001 - c101*h021 - c110*h012 - c111*h011*2. )*2. )/h000;
-	c222 = ( -c122*h100 - c202*h020 - c102*h120 - c220*h002 - c120*h102 - c200*h022 - c100*h122 + h222 + ( -c212*h010 - c112*h110 - c221*h001 - c121*h101 - c201*h021 - c101*h121 - c210*h012 - c110*h112 + ( -c211*h011 - c111*h111 )*2. )*2. )/h000;
-	
-	#ifdef OPTIONS_SMAG
-		//Calculating turbulent viscosity for Smagorinsky  turbulence model
-		real_t tau_0 = 1./omega_ade;
-		real_t tau_t;
-		real_t q;
-
-		q = sqrt((c200-1.0/3)*(c200-1.0/3)+(c020-1.0/3)*(c020-1.0/3)+(c002-1.0/3)*(c002-1.0/3)+2*(c110*c110)+2*(c101*c101)+2*(c011*c011));
-		tau_t = 0.5 * (sqrt( tau_0 * tau_0 + 18 * Smag * Smag * q) - tau_0);
-		w[0] = 1.0 / (tau_0 + tau_t);
-
-		if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*conductivity_buffer+0.5);
-	#endif
-
-	// Galilean Correction
-	// TODO: calculate the velocity derivates...
-	// real_t dxu,dyv,dzw;
-	// dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
-	// dyv = dxu + 3.*w[0]/2.*(c200 - c020);
-	// dzw = dxu + 3.*w[0]/2.*(c200 - c002);
-	// real_t gcor1 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.y*u.y*dyv);
-	// real_t gcor2 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.z*u.z*dzw);
-	// real_t gcor3 = 3.*(1 - w[1]/2.)*(u.x*u.x*dxu + u.y*u.y*dyv + u.z*u.z*dzw);
-	// real_t a,b,cc;
-	// a = (1 - w[0])*(c200 - c020);
-	// b = (1 - w[0])*(c200 - c002);
-	// cc = w[1] + (1 - w[1])*(c200 + c020 + c002);
-	// a = a - gcor1 * GalileanCorrection;
-	// b = b - gcor2 * GalileanCorrection;
-	// cc = cc - gcor3 * GalileanCorrection;
-
-	//Cumulants relation - heat
-	c100 = w[0]*u.x + c100 * (1-w[0]);
-	c010 = w[0]*u.y + c010 * (1-w[0]);
-	c001 = w[0]*u.z + c001 * (1-w[0]);
-	c200 =  Sigma2;
-	c020 =  Sigma2;
-	c002 =  Sigma2;
-	c110 = 0;
-	c101 = 0;
-	c011 = 0;
-	//Cumulants relation - hydrodynamics
-	// c100 = c100 + Force.x;    //100 - change only due to force term
-	// c010 = c010 + Force.y;    //010 - change only due to force term
-	// c001 = c001 + Force.z ;   //001 - change only due to force term
-
-	// c200 = (a + b + cc)/3.;   //200
-	// c020 = (cc - 2*a + b)/3.; //020
-	// c002 = (cc - 2*b + a)/3.; //002
-
-	//Optional change in relaxation rate of 3rd and 5th order cumulants
-	<?R	sel = rowSums(P) == 3
-		for (i in cumulants[sel]) { ?>
-		<?%s i ?> = (1-omega_ade)*<?%s i ?>;
-	<?R } ?>
-	
-	<?R	sel = rowSums(P) == 4
-	for (i in cumulants[sel]) { ?>
-	<?%s i ?> = 0.0;
-	<?R } ?>
-
-	<?R	sel = rowSums(P) == 5
-		for (i in cumulants[sel]) { ?>
-			<?%s i ?> = (1-omega_ade)*<?%s i ?>;
-	<?R } ?>
-
-	<?R	sel = rowSums(P) == 6
-	for (i in cumulants[sel]) { ?>
-	<?%s i ?> = 0.0;
-	<?R } ?>
-
-	// back to density-probability functions 
-	h000 = h000;
-	h100 = c100*h000;
-	h200 = c200*h000 + c100*h100;
-	h010 = c010*h000;
-	h110 = c110*h000 + c100*h010;
-	h210 = c210*h000 + c110*h100 + c200*h010 + c100*h110;
-	h020 = c020*h000 + c010*h010;
-	h120 = c120*h000 + c100*h020 + c110*h010*2.;
-	h220 = c220*h000 + c120*h100 + c200*h020 + c100*h120 + ( c210*h010 + c110*h110 )*2.;
-	h001 = c001*h000;
-	h101 = c101*h000 + c100*h001;
-	h201 = c201*h000 + c101*h100 + c200*h001 + c100*h101;
-	h011 = c011*h000 + c010*h001;
-	h111 = c111*h000 + c101*h010 + c110*h001 + c100*h011;
-	h211 = c211*h000 + c011*h200 + c210*h001 + c010*h201 + ( c111*h100 + c110*h101 )*2.;
-	h021 = c021*h000 + c011*h010 + c020*h001 + c010*h011;
-	h121 = c121*h000 + c101*h020 + c120*h001 + c100*h021 + ( c111*h010 + c110*h011 )*2.;
-	h221 = c221*h000 + c021*h200 + c201*h020 + c001*h220 + ( c121*h100 + c211*h010 + c011*h210 + c101*h120 + c111*h110*2. )*2.;
-	h002 = c002*h000 + c001*h001;
-	h102 = c102*h000 + c100*h002 + c101*h001*2.;
-	h202 = c202*h000 + c102*h100 + c200*h002 + c100*h102 + ( c201*h001 + c101*h101 )*2.;
-	h012 = c012*h000 + c010*h002 + c011*h001*2.;
-	h112 = c112*h000 + c102*h010 + c110*h002 + c100*h012 + ( c111*h001 + c101*h011 )*2.;
-	h212 = c212*h000 + c012*h200 + c210*h002 + c010*h202 + ( c112*h100 + c211*h001 + c011*h201 + c110*h102 + c111*h101*2. )*2.;
-	h022 = c022*h000 + c012*h010 + c020*h002 + c010*h012 + ( c021*h001 + c011*h011 )*2.;
-	h122 = c122*h000 + c102*h020 + c120*h002 + c100*h022 + ( c112*h010 + c121*h001 + c101*h021 + c110*h012 + c111*h011*2. )*2.;
-	h222 = c222*h000 + c122*h100 + c202*h020 + c102*h120 + c220*h002 + c120*h102 + c200*h022 + c100*h122 + ( c212*h010 + c112*h110 + c221*h001 + c121*h101 + c201*h021 + c101*h121 + c210*h012 + c110*h112 + ( c211*h011 + c111*h111 )*2. )*2.;
-	
-	h000 = -h200 + h000; h100 = ( h200 + h100 )/2.; h200 = h200 - h100; 
-	h010 = -h210 + h010; h110 = ( h210 + h110 )/2.; h210 = h210 - h110; 
-	h020 = -h220 + h020; h120 = ( h220 + h120 )/2.; h220 = h220 - h120; 
-	h001 = -h201 + h001; h101 = ( h201 + h101 )/2.; h201 = h201 - h101; 
-	h011 = -h211 + h011; h111 = ( h211 + h111 )/2.; h211 = h211 - h111; 
-	h021 = -h221 + h021; h121 = ( h221 + h121 )/2.; h221 = h221 - h121; 
-	h002 = -h202 + h002; h102 = ( h202 + h102 )/2.; h202 = h202 - h102; 
-	h012 = -h212 + h012; h112 = ( h212 + h112 )/2.; h212 = h212 - h112; 
-	h022 = -h222 + h022; h122 = ( h222 + h122 )/2.; h222 = h222 - h122; 
-	h000 = -h020 + h000; h010 = ( h020 + h010 )/2.; h020 = h020 - h010; 
-	h100 = -h120 + h100; h110 = ( h120 + h110 )/2.; h120 = h120 - h110; 
-	h200 = -h220 + h200; h210 = ( h220 + h210 )/2.; h220 = h220 - h210; 
-	h001 = -h021 + h001; h011 = ( h021 + h011 )/2.; h021 = h021 - h011; 
-	h101 = -h121 + h101; h111 = ( h121 + h111 )/2.; h121 = h121 - h111; 
-	h201 = -h221 + h201; h211 = ( h221 + h211 )/2.; h221 = h221 - h211; 
-	h002 = -h022 + h002; h012 = ( h022 + h012 )/2.; h022 = h022 - h012; 
-	h102 = -h122 + h102; h112 = ( h122 + h112 )/2.; h122 = h122 - h112; 
-	h202 = -h222 + h202; h212 = ( h222 + h212 )/2.; h222 = h222 - h212; 
-	h000 = -h002 + h000; h001 = ( h002 + h001 )/2.; h002 = h002 - h001; 
-	h100 = -h102 + h100; h101 = ( h102 + h101 )/2.; h102 = h102 - h101; 
-	h200 = -h202 + h200; h201 = ( h202 + h201 )/2.; h202 = h202 - h201; 
-	h010 = -h012 + h010; h011 = ( h012 + h011 )/2.; h012 = h012 - h011; 
-	h110 = -h112 + h110; h111 = ( h112 + h111 )/2.; h112 = h112 - h111; 
-	h210 = -h212 + h210; h211 = ( h212 + h211 )/2.; h212 = h212 - h211; 
-	h020 = -h022 + h020; h021 = ( h022 + h021 )/2.; h022 = h022 - h021; 
-	h120 = -h122 + h120; h121 = ( h122 + h121 )/2.; h122 = h122 - h121; 
-	h220 = -h222 + h220; h221 = ( h222 + h221 )/2.; h222 = h222 - h221;
 }
 
 CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER_NONLINEAR(real_t rho, real_t omega_ade, vector_t u_hydro) 
 {
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
-
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	real_t H = h000 + h001 + h002 + h010 + h011 + h012 + h020 + h021 + h022 + h100 + h101 + h102 + h110 + h111 + h112 + h120 + h121 + h122 + h200 + h201 + h202 + h210 + h211 + h212 + h220 + h221 + h222;
 	
 	real_t temp000 = h000;
@@ -1745,8 +1677,13 @@ CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER_NONLINEAR(real_t rho, re
 
 CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER(real_t rho, real_t omega_ade, vector_t u) 
 {
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
+
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -1927,8 +1864,12 @@ CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER(real_t rho, real_t omega
 
 CudaDeviceFunction void relax_and_collide_ADE_CM(real_t rho, real_t omega_ade, vector_t u) 
 {
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -2110,8 +2051,12 @@ CudaDeviceFunction void relax_and_collide_ADE_CM(real_t rho, real_t omega_ade, v
 
 CudaDeviceFunction void relax_and_collide_ADE_SRT_from_cm_eq(real_t rho, real_t omega_ade,  vector_t u) 
 {
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
-	real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
 	real_t uxuy = u.x*u.y;
 	real_t ux2 = u.x*u.x;
 	real_t uy2 = u.y*u.y;
@@ -2236,8 +2181,7 @@ CudaDeviceFunction void relax_and_collide_ADE_SRT_from_cm_eq(real_t rho, real_t 
 
 CudaDeviceFunction vector_t relax_and_collide_hydro(vector_t Force, real_t omega)
 {	
- 	real_t w[10] = {omega,1.,1.,1.,1.,1.,1.,1.,1.,1.};
-//	if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nu_buffer+0.5);
+ 	real_t w[2] = {omega,1.};
 	  
 	f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 
 	f010 = f210 + f110 + f010; f110 = -f210 + f110; f210 = f110 + f210*2.; 
@@ -2273,7 +2217,6 @@ CudaDeviceFunction vector_t relax_and_collide_hydro(vector_t Force, real_t omega
 		for (i in cumulants) { ?>
 		real_t <?%s i ?>;
 	<?R } ?>	
-
 
 	c100 = f100/f000;
 	c200 = ( -c100*f100 + f200 )/f000;
@@ -2318,7 +2261,7 @@ CudaDeviceFunction vector_t relax_and_collide_hydro(vector_t Force, real_t omega
 		tau_t = 0.5 * (sqrt( tau_0 * tau_0 + 18 * Smag * Smag * q) - tau_0);
 		w[0] = 1.0 / (tau_0 + tau_t);
 
-//		if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nu_buffer+0.5);
+		if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nu_buffer+0.5);
 	#endif
 	
 	// Galilean Correction 
@@ -2326,6 +2269,11 @@ CudaDeviceFunction vector_t relax_and_collide_hydro(vector_t Force, real_t omega
 	dxu = - w[0]/(2.)*(2*c200 - c020 - c002) - w[1]/(2.)*(c200 + c020 + c002 - 1.);
 	dyv = dxu + 3.*w[0]/2.*(c200 - c020);
 	dzw = dxu + 3.*w[0]/2.*(c200 - c002);
+	#ifdef OPTIONS_AVG
+		avgdxu2 = avgdxu2 + dxu*dxu;
+		avgdyv2 = avgdyv2 + dyv*dyv;
+		avgdzw2 = avgdzw2 + dzw*dzw;
+	#endif
 	real_t gcor1 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.y*u.y*dyv);
 	real_t gcor2 = 3.*(1 - w[0]/2.)*(u.x*u.x*dxu - u.z*u.z*dzw);
 	real_t gcor3 = 3.*(1 - w[1]/2.)*(u.x*u.x*dxu + u.y*u.y*dyv + u.z*u.z*dzw);
@@ -2418,6 +2366,19 @@ CudaDeviceFunction vector_t relax_and_collide_hydro(vector_t Force, real_t omega
 	f120 = -f122 + f120; f121 = ( f122 + f121 )/2.; f122 = f122 - f121; 
 	f220 = -f222 + f220; f221 = ( f222 + f221 )/2.; f222 = f222 - f221;
 	
+	#ifdef OPTIONS_AVG
+		avgP =  avgP + getP_fluctuations();
+		avgUX = avgUX(0,0,0) + getU_().x;
+		avgUY = avgUY(0,0,0) + getU_().y;
+		avgUZ = avgUZ(0,0,0) + getU_().z;
+		varUX = varUX + getU_().x*getU_().x;
+		varUY = varUY + getU_().y*getU_().y;
+		varUZ = varUZ + getU_().z*getU_().z;
+		varUXUY = varUXUY + getU_().x*getU_().y;
+		varUXUZ = varUXUZ + getU_().x*getU_().z;
+		varUYUZ = varUYUZ + getU_().y*getU_().z;
+	#endif
+
 	return u;
 }
 
@@ -2430,18 +2391,21 @@ CudaDeviceFunction vector_t getForce(real_t localTemp, real_t rho)
 	// see chapter 8.4.1, eq 8.44, p313 from 'The Lattice Boltzmann Method: Principles and Practice'
 	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
 	real_t refTemperature = 0;
-	real_t BoussinesqForce = -GravitationY*BoussinesqCoeff*(localTemp - refTemperature); // BoussinesqCoeff=rho_0*thermal_exp_coeff
+	real_t BoussinesqForceX = -GravitationX*BoussinesqCoeff*(localTemp - refTemperature); // BoussinesqCoeff=rho_0*thermal_exp_coeff
+	real_t BoussinesqForceY = -GravitationY*BoussinesqCoeff*(localTemp - refTemperature); // BoussinesqCoeff=rho_0*thermal_exp_coeff
+	real_t BoussinesqForceZ = -GravitationZ*BoussinesqCoeff*(localTemp - refTemperature); // BoussinesqCoeff=rho_0*thermal_exp_coeff
+
 
 	vector_t Force; 
-	Force.x = GravitationX*rho; 
-	Force.y = GravitationY*rho+BoussinesqForce; 
-	Force.z = GravitationZ*rho;
+	Force.x = GravitationX*rho+BoussinesqForceX;  
+	Force.y = GravitationY*rho+BoussinesqForceY; 
+	Force.z = GravitationZ*rho+BoussinesqForceZ; 
 
 	return Force;
 }
 
 CudaDeviceFunction void CollisionCM(){
-	real_t localTemperature = _getT();
+	real_t localTemperature = getT_();
 	real_t rho = getRho();
 	vector_t Force = getForce(localTemperature, rho);
 
@@ -2459,6 +2423,8 @@ CudaDeviceFunction void CollisionCM(){
 		Force.z += fDarcyStoper.z;
 	} 
 
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
 	vector_t u = relax_and_collide_hydro(Force, omega_nu);
 	#ifdef OPTIONS_OutFlowConvective
 		U = u.x; // for convective outlet BC
@@ -2471,7 +2437,7 @@ CudaDeviceFunction void CollisionCM(){
 }
 
 CudaDeviceFunction void CollisionCM_HIGHER(){
-	real_t localTemperature = _getT();
+	real_t localTemperature = getT_();
 	real_t rho = getRho();
 	vector_t Force = getForce(localTemperature, rho);
 
@@ -2489,6 +2455,8 @@ CudaDeviceFunction void CollisionCM_HIGHER(){
 		Force.z += fDarcyStoper.z;
 	} 
 
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
 	vector_t u = relax_and_collide_hydro(Force, omega_nu);
 	#ifdef OPTIONS_OutFlowConvective
 		U = u.x;
@@ -2501,7 +2469,7 @@ CudaDeviceFunction void CollisionCM_HIGHER(){
 }
 
 CudaDeviceFunction void CollisionCM_HIGHER_NONLINEAR(){
-	real_t localTemperature = _getT();
+	real_t localTemperature = getT_();
 	real_t rho = getRho();
 	vector_t Force = getForce(localTemperature, rho);
 
@@ -2519,6 +2487,8 @@ CudaDeviceFunction void CollisionCM_HIGHER_NONLINEAR(){
 		Force.z += fDarcyStoper.z;
 	} 
 
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
 	vector_t u = relax_and_collide_hydro(Force, omega_nu);
 	#ifdef OPTIONS_OutFlowConvective
 		U = u.x; 
@@ -2531,7 +2501,7 @@ CudaDeviceFunction void CollisionCM_HIGHER_NONLINEAR(){
 }
 
 CudaDeviceFunction void CollisionCumulants(){
-	real_t localTemperature = _getT();
+	real_t localTemperature = getT_();
 	real_t rho = getRho();
 	vector_t Force = getForce(localTemperature, rho);
 
@@ -2549,7 +2519,10 @@ CudaDeviceFunction void CollisionCumulants(){
 		Force.z += fDarcyStoper.z;
 	} 
 
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
 	vector_t u = relax_and_collide_hydro(Force, omega_nu);
+
 	#ifdef OPTIONS_OutFlowConvective
 		U = u.x; 
 	#endif	
@@ -2560,38 +2533,8 @@ CudaDeviceFunction void CollisionCumulants(){
 	relax_and_collide_ADE_Cumulants(rho, omega_k, u);
 }
 
-CudaDeviceFunction void CollisionCumulants_Higher(){
-	real_t localTemperature = _getT();
-	real_t rho = getRho();
-	vector_t Force = getForce(localTemperature, rho);
-
-	// add Darcy force to stop flow within solid regions
-	if ((NodeType & NODE_ADDITIONALS) == NODE_DarcySolid) 
-	{
-		vector_t u_temp = getRawU();
-		u_temp.x += Force.x/(2*rho);
-		u_temp.y += Force.y/(2*rho);
-		u_temp.z += Force.z/(2*rho);
-
-		vector_t fDarcyStoper = get_fDarcyStoper(rho,  u_temp);
-		Force.x += fDarcyStoper.x;
-		Force.y += fDarcyStoper.y;
-		Force.z += fDarcyStoper.z;
-	} 
-
-	vector_t u = relax_and_collide_hydro(Force, omega_nu);
-	#ifdef OPTIONS_OutFlowConvective
-		U = u.x; 
-	#endif	
-
-	real_t omega_k = 1.0/(3*conductivity+0.5);
-	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
-
-	relax_and_collide_ADE_Cumulants_Higher(rho, omega_k, u);
-}
-
 CudaDeviceFunction void Collision_thermalBGK(){
-	real_t localTemperature = _getT();
+	real_t localTemperature = getT_();
 	real_t rho = getRho();
 	vector_t Force = getForce(localTemperature, rho);
 
@@ -2609,6 +2552,8 @@ CudaDeviceFunction void Collision_thermalBGK(){
 		Force.z += fDarcyStoper.z;
 	} 
 
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
 	vector_t u = relax_and_collide_hydro(Force, omega_nu);
 	#ifdef OPTIONS_OutFlowConvective
 		U = u.x; // for convective outlet BC
