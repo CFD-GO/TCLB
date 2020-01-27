@@ -31,7 +31,7 @@ CCTXT=NVCC
 CC=@CC@
 CXX=@CXX@
 
-AOUT = main empty compare
+AOUT = empty compare
 
 ifeq '$(strip $(WITH_LAMMPS))' '1'
  AOUT += lammps

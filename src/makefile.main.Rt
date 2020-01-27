@@ -92,7 +92,7 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 .PHONY: <?%s m ?>/clean
 
-<?%s m ?>: $(BIN)/<?%s m ?>
+<?%s m ?>: $(addprefix $(BIN)/, <?%s m ?> $(AOUT))
 	@echo "  DONE       $@"
 
 <?%s m ?>/source: <?%s src_all ?>
@@ -115,9 +115,10 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 	@echo "  DONE       $@"
 
 
-$(BIN)/<?%s m ?>: $(addprefix $(DEST)/, $(SRC_MAIN__OBJ_PRM)) $(addprefix $(DEST)/<?%s m ?>/, $(SRC_MODEL_OBJ_PRM))
+$(BIN)/<?%s m ?>: $(addprefix $(DEST)/, $(SRC_MAIN__OBJ_PRM)) $(addprefix $(DEST)/<?%s m ?>/, $(SRC_MODEL_OBJ_PRM)) CLB/config.mk
 	@echo "  LINKING    $@"
-	$(CXX) $^ -o $@ $(LD_OPT)
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+	@ln -f -s ../../$@ $(DEST)/<?%s m ?>/main
 
 wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path ?>/*
 	@echo "  RT         $@ (model)"
@@ -160,6 +161,19 @@ $(DEST)/<?%s m ?>/%:$(SRC)/templates/%
 
 <?R } ?>
 
+$(BIN)/compare : $(addprefix $(DEST)/, compare.o pugixml.o) CLB/config.mk
+	@echo "  LINKING    $@"
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+
+$(BIN)/lammps : $(addprefix $(DEST)/, Global.o lammps.o) CLB/config.mk
+	@echo "  LINKING    $@"
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+
+$(BIN)/empty : $(addprefix $(DEST)/, empty.o) CLB/config.mk
+	@echo "  LINKING    $@"
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+
+
 $(DEST)/%:$(SRC)/%
 #	@echo "  CP         $@"
 	@$(MKPATH) $@
@@ -176,12 +190,12 @@ $(DEST)/%:$(SRC)/%.Rt
 ifdef CPU
 
 define compile =
-	@echo "  G++        $< (from src)"
+	@echo "  C++        $<"
 	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 endef
 
 define compile_cu =
-	@echo "  G++        $< -- tamto"
+	@echo "  C++        $< (cross-compiling)"
 	@cp $< $<.cpp
 	@$(CXX) -c $<.cpp -o $@ $(CPP_OPT) $(OPT); rm $<.cpp
 endef
@@ -189,7 +203,7 @@ endef
 else
 
 define compile =
-	@echo "  G++        $<"
+	@echo "  C++        $<"
 	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 endef
 
@@ -205,16 +219,16 @@ endif
 %.o : %.cu
 	$(compile_cu)
 
-CLB/%/Dynamics_sp.c CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
+CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
 	@echo "  MISSING    $@"
 	@$(MKPATH) $@
 	@touch $@
 
 
-#%_sp.c:%.c
-#	@echo "  SP-CONST   $@"
-#	@$(MKPATH) $@
-#	@cat $< | sed -r 's/([^a-zA-Z0-9][0-9]+\.[0-9]*([eE][-+]?[0-9]+)?)[fL]+/\1f/g' > $@
+%_sp.c:%.c
+	@echo "  SP-CONST   $@"
+	@$(MKPATH) $@
+	@cat $< | sed -r 's/([^a-zA-Z0-9][0-9]+\.[0-9]*([eE][-+]?[0-9]+)?)[fL]+/\1f/g' > $@
 
 
 

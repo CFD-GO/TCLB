@@ -66,7 +66,7 @@ w = w[sel]
 w = lapply(w, function(x) files[x,"path"])
 
 sel_cu = grepl("[.]cu$",names(w))
-deps = paste0(nm, " : ", files[names(w),"path"], "   ", sapply(w,paste,collapse=" "), "\n\t", ifelse(sel_cu,"$(compile_cu)","$(compile)"))
+deps = paste0(nm, " : ", files[names(w),"path"], "   ", sapply(w,paste,collapse=" "), " CLB/config.mk\n\t", ifelse(sel_cu,"$(compile_cu)","$(compile)"))
 
 setwd("..")
 

@@ -116,7 +116,7 @@ then
 fi
 shift
 
-if ! test -f "CLB/$MODEL/main"
+if ! test -f "bin/$MODEL"
 then
 	echo "\"$MODEL\" is not compiled"
 	echo "  run: make $MODEL"
@@ -228,7 +228,7 @@ function runline {
 			VTIS=$(cat $R  | sed -n "s|.*Source=\"\([^\"]*\)\".*|$RPATH/\1|p")
 			trycp $R $VTIS $GPATH/
 		else
-			try "checking $R (pvtidiff)" $TCLB/CLB/compare "$R" "$G" 8
+			try "checking $R (pvtidiff)" $TCLB/bin/compare "$R" "$G" 8
 		fi ;;
 	skip)
 		case "$R" in
@@ -249,7 +249,7 @@ function testModel {
 		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="OK"
 		TCLB=".."
-		SOLVER="$TCLB/CLB/$MODEL/main"
+		SOLVER="$TCLB/bin/$MODEL"
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
