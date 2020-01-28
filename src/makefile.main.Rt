@@ -116,6 +116,7 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 
 
 $(BIN)/<?%s m ?>: $(addprefix $(DEST)/, $(SRC_MAIN__OBJ_PRM)) $(addprefix $(DEST)/<?%s m ?>/, $(SRC_MODEL_OBJ_PRM)) CLB/config.mk
+	@$(MKPATH) $@
 	@echo "  LINKING    $@"
 	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
 	@ln -f -s ../../$@ $(DEST)/<?%s m ?>/main
@@ -162,14 +163,17 @@ $(DEST)/<?%s m ?>/%:$(SRC)/templates/%
 <?R } ?>
 
 $(BIN)/compare : $(addprefix $(DEST)/, compare.o pugixml.o) CLB/config.mk
+	@$(MKPATH) $@
 	@echo "  LINKING    $@"
 	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
 
 $(BIN)/lammps : $(addprefix $(DEST)/, Global.o lammps.o) CLB/config.mk
+	@$(MKPATH) $@
 	@echo "  LINKING    $@"
 	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
 
 $(BIN)/empty : $(addprefix $(DEST)/, empty.o) CLB/config.mk
+	@$(MKPATH) $@
 	@echo "  LINKING    $@"
 	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
 
