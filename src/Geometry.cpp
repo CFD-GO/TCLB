@@ -983,7 +983,8 @@ int Geometry::Draw(pugi::xml_node & node)
       //  Py_Finalize();   
 
         #else
-            error("You need to compile PYTHON support for this geometry element");
+            ERROR("You need to compile PYTHON support for this geometry element");
+            return -1;
         #endif
 
 	} else if (strcmp(n.name(), "STL") == 0) {
