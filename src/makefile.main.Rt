@@ -218,9 +218,9 @@ endef
 
 endif
 
-%.o : %.cpp
+CLB/%.o : CLB/%.cpp
 	$(compile)
-%.o : %.cu
+CLB/%.o : CLB/%.cu
 	$(compile_cu)
 
 CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
