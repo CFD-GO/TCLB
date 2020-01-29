@@ -708,5 +708,4 @@ AC_SUBST(CPP_OPT)
 AC_SUBST(EMBEDED_PYTHON)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
-AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
