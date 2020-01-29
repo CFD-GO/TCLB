@@ -16,7 +16,7 @@ DEST=CLB
 SRC=src
 BIN=bin
 
-.PRECIOUS: CLB/%.cpp CLB/%.h CLB/%.hpp CLB/%.cu CLB/%.o
+.SECONDARY:
 .PHONY: all clean dummy
 .INTERMEDIATE : tapenade.run
 
