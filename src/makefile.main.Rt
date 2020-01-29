@@ -32,6 +32,43 @@ include $(DEST)/dep.mk
 
 all: <?%s paste(Models$name,collapse=" ") ?> 
 
+
+define compile =
+	@echo "  C++        $<"
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
+endef
+
+ifdef CPU
+define compile_cu =
+	@echo "  C++        $< (cross-compiling)"
+	@cp $< $<.cpp
+	@$(CXX) -c $<.cpp -o $@ $(CPP_OPT) $(OPT); rm $<.cpp
+endef
+else
+define compile_cu =
+	@echo "  NVCC       $<"
+	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
+endef
+endif
+
+define rtemplate =
+	@$(MKPATH) $@
+	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w $(DEST)/ -o $@ $(RTOPT) || mv $@ $@~
+endef
+
+define copy =
+	@$(MKPATH) $@
+	@$(CP) $< $@
+endef
+
+define link =
+	@$(MKPATH) $@
+	@echo "  LINKING    $@"
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+endef
+
+
 <?R
 	d = "$(DEST)"
 	by(Models, Models$group, function(m) {
@@ -79,15 +116,7 @@ wiki/% : src/%.Rt
 		model_path = Models$path[i];
 		adjoint = Models$adjoint[i]
 		opts = Models$opts[[i]]
-		dest = paste(d,"/",m,"/",sep="")
-		src = paste0("$(SOURCE_PLAN_C) $(addprefix ", m, "/,$(SOURCE_MODEL_C))")
-		if (adjoint) src = paste(src, "$(SOURCE_ADJ)")
-		src_all = paste(src, "$(SOURCE_REST)")
-		src = paste("$(addprefix ",d,"/,",src,")",sep="");
-		src_all = paste("$(addprefix ",d,"/,",src_all,")",sep="");
-		src_all = paste(dest,src_all)
 		rtopt = NULL
-		if (adjoint) rtopt = c(rtopt, "MODEL=TRUE")
 		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
 		if (length(opts) > 0) {
 			opts = ifelse(opts==0,"FALSE","TRUE")
@@ -97,18 +126,10 @@ wiki/% : src/%.Rt
 		}
 		opts = paste0("\"Options=list(",opts,")\"")
 		rtopt = c(rtopt,opts)
-		#paste0(names(opts),"=",a,collapse=",")
 ?>
 
 <?%s m ?>: $(addprefix $(BIN)/, <?%s m ?> $(AOUT))
 	@echo "  DONE       $@"
-
-<?%s m ?>/source: <?%s src_all ?>
-	@echo "  DONE       $@"
-
-<?%s m ?>/clean: $(DEST)/<?%s m ?>/makefile
-	@echo "  CLEAN      $@"
-	@cd $(DEST)/<?%s m ?>; $(MAKE) clean
 
 <?%s m ?>/summary: $(DEST)/<?%s m ?>/SUMMARY
 	@echo ""
@@ -150,61 +171,31 @@ $(DEST)/<?%s m ?>/%: <?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w $(DEST)/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
 $(DEST)/<?%s m ?>/%:<?%s model_path ?>/%
-	@$(MKPATH) $@
-	@$(CP) $< $@
+	$(copy)
 
 $(DEST)/<?%s m ?>/%:$(SRC)/templates/%
-	@$(MKPATH) $@
-	@$(CP) $< $@
+	$(copy)
 
 <?R } ?>
 
 $(BIN)/compare : $(addprefix $(DEST)/, compare.o pugixml.o) CLB/config.mk
-	@$(MKPATH) $@
-	@echo "  LINKING    $@"
-	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+	$(link)
 
 $(BIN)/lammps : $(addprefix $(DEST)/, Global.o lammps.o) CLB/config.mk
-	@$(MKPATH) $@
-	@echo "  LINKING    $@"
-	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+	$(link)
 
 $(BIN)/empty : $(addprefix $(DEST)/, empty.o) CLB/config.mk
-	@$(MKPATH) $@
-	@echo "  LINKING    $@"
-	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
-
+	$(link)
 
 $(DEST)/%:$(SRC)/%
-	@$(MKPATH) $@
-	@$(CP) $< $@
+	$(copy)
 
 $(DEST)/%:$(SRC)/%.Rt
-	@$(MKPATH) $@
-	@echo "  RT         $@"
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w $(DEST)/ -o $@ $(RTOPT) || mv $@ $@~
-
-
-define compile =
-	@echo "  C++        $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
-endef
-
-ifdef CPU
-define compile_cu =
-	@echo "  C++        $< (cross-compiling)"
-	@cp $< $<.cpp
-	@$(CXX) -c $<.cpp -o $@ $(CPP_OPT) $(OPT); rm $<.cpp
-endef
-else
-define compile_cu =
-	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
-endef
-endif
+	$(rtemplate)
 
 CLB/%.o : CLB/%.cpp
 	$(compile)
+
 CLB/%.o : CLB/%.cu
 	$(compile_cu)
 
