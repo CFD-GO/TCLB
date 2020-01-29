@@ -385,7 +385,7 @@ void MainFree( Solver *d);
 			ERROR("Could not find Lattice to produce\n");
 			return -1;
 		}
-		output("Lattice created (model: %s)\n", lattice->model->name);
+		output("Lattice created (model: %s)\n", lattice->model->name.c_str());
 	   	debug0("Lattice done");
 
 	   	LogScales = new double[
