@@ -21,6 +21,7 @@ resolve.path = function(x) sapply(strsplit(x,"/"),function(x) {
 
 
 # reduce the paths in w
+fs = resolve.path(fs)
 w$file = resolve.path(w$file)
 w$file = gsub(".Rt$","",w$file)
 w$dep = resolve.path(paste(dirname(w$file),w$dep,sep="/"))
@@ -54,6 +55,9 @@ for (i in seq_along(w)) {
     l = length(x)
     x = unique(c(x,do.call(c,w[x])))
   }
+  nm = names(w)[i]
+  sel = (x != nm)
+  x = c(nm, x[sel])
   w[[i]] = x
 }
 
@@ -69,7 +73,7 @@ w = w[sel]
 w = lapply(w, function(x) files[x,"path"])
 
 sel_cu = grepl("[.]cu$",names(w))
-deps = paste0(nm, " : ", files[names(w),"path"], "   ", sapply(w,paste,collapse=" "), " CLB/config.mk\n\t", ifelse(sel_cu,"$(compile_cu)","$(compile)"))
+deps = paste0(nm, " : ", sapply(w,paste,collapse=" "), " CLB/config.mk\n\t", ifelse(sel_cu,"$(compile_cu)","$(compile)"))
 
 setwd("..")
 
