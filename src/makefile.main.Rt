@@ -19,6 +19,7 @@ BIN=bin
 .SECONDARY:
 .PHONY: all clean dummy
 .INTERMEDIATE : tapenade.run
+.SUFFIXES:
 
 $(DEST)/dep.mk : tools/dep.R
 	@echo "  AUTO-DEP   $@"
