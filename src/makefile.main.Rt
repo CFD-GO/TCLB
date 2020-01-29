@@ -193,12 +193,6 @@ $(DEST)/%:$(SRC)/%
 $(DEST)/%:$(SRC)/%.Rt
 	$(rtemplate)
 
-CLB/%.o : CLB/%.cpp
-	$(compile)
-
-CLB/%.o : CLB/%.cu
-	$(compile_cu)
-
 CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
 	@echo "  MISSING    $@"
 	@$(MKPATH) $@

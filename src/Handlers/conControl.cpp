@@ -1,5 +1,6 @@
 #include "../HandlerFactory.h"
 #include "conControl.h"
+#include <sstream>
 std::string conControl::xmlname = "Control";
 
 int conControl::Param (pugi::xml_node n) {

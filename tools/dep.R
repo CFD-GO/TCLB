@@ -3,9 +3,11 @@
 options(width=150)
 
 setwd("src/")
+f = pipe("find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'")
+fs = readLines(f)
+close(f)
 f = pipe("grep -o '#[\\t ]*include[\\t ]*\"[^\"]*\"' `find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'` | sed -n 's/^\\([^:]*\\):#[ \\t]*include[ \\t]*\"\\([^\"]*\\)\"/\\1,\\2/gp'")
 w = read.csv(f,col.names=c("file","dep"), stringsAsFactors=FALSE);
-
 
 # function reducing the . and ..
 resolve.path = function(x) sapply(strsplit(x,"/"),function(x) {
@@ -19,11 +21,11 @@ resolve.path = function(x) sapply(strsplit(x,"/"),function(x) {
 
 
 # reduce the paths in w
-w$file_o = resolve.path(w$file)
-w$file = gsub(".Rt$","",w$file_o)
+w$file = resolve.path(w$file)
+w$file = gsub(".Rt$","",w$file)
 w$dep = resolve.path(paste(dirname(w$file),w$dep,sep="/"))
 
-files = data.frame(name=unique(c(w$file, w$dep)),stringsAsFactors=FALSE)
+files = data.frame(name=unique(c(w$file, w$dep, fs)),stringsAsFactors=FALSE)
 row.names(files) = files$name
 files$direct    = file.exists(files$name)
 files$template  = file.exists(paste0(files$name,".Rt"))
@@ -42,6 +44,7 @@ files$path = gsub("^templates","%",files$name)
 files$path = paste("CLB", files$path, sep="/")
 
 
+w = rbind(w, data.frame(file= files$name, dep=files$name))
 w = tapply(w$dep, w$file, function(x) x)
 
 for (i in seq_along(w)) {
