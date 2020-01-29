@@ -85,7 +85,8 @@ endef
 
 .PHONY: <?%s m$group[1] ?>/all <?%s m$group[1] ?>/list
 
-<?%s m$group[1] ?>/all : <?%s m$name ?>
+<?%s m$group[1] ?>/all : $(addprefix $(BIN)/, <?%s m$name ?> $(AOUT))
+	@echo "  DONE       $@"
 
 <?%s m$group[1] ?>/list :
 <?R 
