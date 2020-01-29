@@ -59,6 +59,18 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 	})
 ?>
 
+wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
+	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
+
+wiki/% : src/%.Rt
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ || rm $@
+
+
+
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
 ###############################################################################
