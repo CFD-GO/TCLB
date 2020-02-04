@@ -1,0 +1,119 @@
+
+<!-- To be used with d2q9q9_cm_cht_OutFlowNeumann_AVG_IBB -->
+
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/d2q9q9_HotKarman_Re100_Pr5/">
+    <Geometry nx="512" ny="100" > 
+      <!-- <CM_HIGHER> <Box/> </CM_HIGHER>   -->
+      <Cumulants> <Box/> </Cumulants>  
+      <WVelocity name="Inlet"><Box nx="1"/></WVelocity>
+      <ENeumann name="Outlet"><Box dx="-1"/></ENeumann>
+      <!-- <EConvective name="Outlet"><Box dx="-1"/></EConvective> -->
+      <!-- <EPressure name="Outlet"><Box dx="-1"/></EPressure> -->
+
+
+<!-- 
+Second Order BC on cylinder  
+-->
+        <HydroIBB>
+            <STL file="example/heat/cylinder_XYplane_D10_Z9.stl" 
+              scale="3.0" 
+              Xrot="0d" 
+              x="135.000000" 
+              y="50.000000" 
+              z="0" 
+              side="surface"/>
+        </HydroIBB>
+        <HeaterDirichletTemperatureIABB name="BC_heat_cylinder"> 
+            <STL file="example/heat/cylinder_XYplane_D10_Z9.stl" 
+              scale="3.0" 
+              Xrot="0d" 
+              x="135.000000" 
+              y="50.000000" 
+              z="0" 
+              side="surface"/>
+        </HeaterDirichletTemperatureIABB > 
+
+
+<!-- First order BC on cylinder: 
+Read cylinder from stl
+-->
+
+      <!--         
+        <Wall mask="ALL">
+          <STL file="example/heat/cylinder_XYplane_D10_Z9.stl" 
+              scale="3.0" 
+              Xrot="0d" 
+              x="135.000000" 
+              y="50.000000" 
+              z="0" 
+              side="in"/>
+        </Wall>  
+        <HeaterDirichletTemperatureEQ name="BC_heat_cylinder"> 
+          <STL file="example/heat/cylinder_XYplane_D10_Z9.stl"  
+              scale="3.0" 
+              Xrot="0d" 
+              x="135.000000" 
+              y="50.000000" 
+              z="0" 
+              side="in"/>
+        </HeaterDirichletTemperatureEQ>   
+      -->
+
+
+<!-- First order BC on cylinder: 
+draw cylinder using primitive functions 
+ -->
+      
+      <!--        
+        <Wall mask="ALL">
+          <Cylinder dx="120" dy="35" nx="30" ny="30"/>
+        </Wall>
+        <HeaterDirichletTemperatureEQ name="BC_heat_cylinder"> 
+            <Cylinder dx="120" dy="35" nx="30" ny="30"/>
+        </HeaterDirichletTemperatureEQ>    
+      -->
+     
+        <FluxMeasurmentZone1>
+            <Box dx="25" nx="1"/>
+        </FluxMeasurmentZone1>
+
+        <FluxMeasurmentZone2>
+            <Box dx="-50" nx="1"/>
+        </FluxMeasurmentZone2>
+    </Geometry>
+    <Model>
+
+      <Param name="InitTemperature" value="10"/>
+      <Param name="InitTemperature" value="10" zone="Inlet"/>
+      <Param name="InitTemperature" value="11" zone="BC_heat_cylinder"/>
+      <!-- <Param name="InitTemperature" value="10" zone="Outlet"/> -->
+      <!-- <Param name="InitHeatFlux" value="0.001" zone="BC_heat_cylinder"/> -->
+
+      <Param name="nu" value="0.01"/>
+      <Param name="conductivity" value="0.005"/>
+
+      <Param name="nu_buffer" value="0.166666"/>
+      <Param name="conductivity_buffer" value="0.166666"/>
+
+      <Param name="h_stability_enhancement" value="1."/>
+      <Param name="cp" value="1."/>
+      <Param name="material_density" value="1."/>
+
+      <Param name="VelocityX" value="0.025" />
+
+      <!-- CylinderCenter is used only for heat flux bc 
+      <Params CylinderCenterX="135.0" />
+      <Params CylinderCenterY="50.0"/> 
+      -->
+    
+    </Model>
+   
+    <Solve Iterations="3"> <VTK Iterations="1"/> </Solve> 
+    <Failcheck Iterations="100" nx="512" ny="100" />
+
+    <Solve Iterations="30000"> 
+      <VTK Iterations="1000" what="H,T,U,Rho"/> 
+      <Log Iterations="1000"/>
+    </Solve>
+  </CLBConfig>

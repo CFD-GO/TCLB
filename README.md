@@ -1,12 +1,26 @@
 CudneLB - the templated version
 ===
-[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![Coverage Status](https://coveralls.io/repos/github/CFD-GO/TCLB/badge.svg?branch=develop)](https://coveralls.io/github/CFD-GO/TCLB?branch=develop)
+- [![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) - Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master)
+- [![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/) - Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop)
 
 CudneLB is a MPI+CUDA or MPI+CPU high-performance CFD simulation code, based on Lattice Boltzmann Method.
 
-It provides a clear interface for calculation of complex physics, and implementing new models.
+It provides a clear interface for calculation of complex physics, and the implementation of new models.
 
 ## Installation
+
+Just clone the repo (or download the [zip file](https://github.com/CFD-GO/TCLB/archive/master.zip)):
+```bash
+git clone https://github.com/CFD-GO/TCLB.git
+cd TCLB
+```
+
+If you want a more recent (but less stable) version, you could try the development branch:
+
+```bash
+git clone -b develop https://github.com/CFD-GO/TCLB.git
+cd TCLB
+```
 
 ### Dependencies
 
@@ -15,10 +29,10 @@ You'll need:
 - packages for R: [optparse](https://cran.r-project.org/package=optparse), [numbers](https://cran.r-project.org/package=numbers), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra)
 - [nVidia CUDA](https://developer.nvidia.com/cuda-zone) (if you want to use GPU)
 - [python](https://www.python.org/), [numpy](http://www.numpy.org/) (if you want to use the integrated python interpreter)
-- [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython) (if you want to develop a model using python in place or R)
+- [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython) (if you want to develop a model using python instead of R)
 - [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface) (e.g. [OpenMPI](http://www.open-mpi.org/))
 
-You can install lot of these with the tools/install.sh script (if you are not afraid of running a script with sudo):
+You can install many of these with the tools/install.sh script (note it requires sudo):
 
 ```bash
 sudo tools/install.sh cuda 6.5-14 # only if your GPU supports cuda
@@ -51,6 +65,15 @@ This should also work:
 ```bash
 CLB/d2q9/main example/flow/2d/karman.xml
 ```
+
+## Documentation
+
+The documentation (including tutorials) is published at
+[docs.tclb.io](https://docs.tclb.io/). You can contribute at
+[CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
+
+For the `develop` version, most recent documentation can be found at
+[develop.docs.tclb.io](https://develop.docs.tclb.io/).
 
 ## Authors
 

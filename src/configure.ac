@@ -27,6 +27,16 @@ AC_ARG_WITH([mpi-lib],
 		[specify the full path to your mpi shared libraries, e.g. /usr/lib/openmpi/]),
 	[MPI_LIB="$withval"])
 
+AC_ARG_WITH([hdf5],
+	AC_HELP_STRING([--with-hdf5=hdf5],
+		[specify the full path to your hdf5 installation]))
+AC_ARG_WITH([hdf5-lib],
+	AC_HELP_STRING([--with-hdf5-lib=hdf5],
+		[specify the full path to your hdf5 installation (libraries)]))
+AC_ARG_WITH([hdf5-include],
+	AC_HELP_STRING([--with-hdf5-include=hdf5],
+		[specify the full path to your hdf5 installation (headers)]))
+
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
 		[make a GUI version]))
@@ -34,6 +44,10 @@ AC_ARG_ENABLE([graphics],
 AC_ARG_ENABLE([double],
 	AC_HELP_STRING([--enable-double],
 		[make a double precision version]))
+
+AC_ARG_ENABLE([cpp11],
+	AC_HELP_STRING([--enable-cpp11],
+		[enable C++ 11 standard]))
 
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
@@ -104,6 +118,14 @@ AC_ARG_WITH([cpp-flags],
 		[privide additionals flags for the compiler]),
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
+
+
+
+if test "x${COMPILER_BINDIR}" != "x"
+then
+	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
+
+fi
 
 test -z "$CXX" && CXX=mpic++
 test -z "$CC" && CC=mpicc
@@ -219,12 +241,18 @@ then
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
 		CUDA_SUFF="30"
+	elif test "$CUDA_ARCH" == "sm_35"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+		CUDA_SUFF="35"
 	elif test "$CUDA_ARCH" == "sm_60"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
-		CUDA_SUFF="60"
+    CUDA_SUFF="60"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -269,10 +297,6 @@ else
 fi
 CPPFLAGS="${CPPFLAGS} -I${MPI_INCLUDE}"
 
-
-
-
-
 AC_MSG_CHECKING([MPI library path])
 if test -z "${MPI_LIB}"; then
 	if test -z "${MPI}"; then
@@ -291,6 +315,58 @@ AC_CHECK_LIB([mpi], [MPI_Recv],[],[
 		AC_MSG_ERROR([Didn't find MPI Library])
 	])
 ])
+
+
+AC_MSG_CHECKING([HDF5 path])
+need_hdf5="no"
+has_hdf5="no"
+
+if test "x${with_hdf5}" != "xno"; then
+	if test "x${with_hdf5}" != "x"; then
+		HDF5_LIB="${with_hdf5}/lib"
+		HDF5_INCLUDE="${with_hdf5}/include"
+		need_hdf5="yes"
+	fi
+	if test "x${with_hdf5_lib}" != "x"
+	then
+		HDF5_LIB="${with_hdf5_lib}"
+		need_hdf5="yes"
+	fi
+	if test "x${with_hdf5_include}" != "x"
+	then
+		HDF5_INCLUDE="${with_hdf5_include}"
+		need_hdf5="yes"
+	fi
+
+	if test "x${HDF5_LIB}" != "x"
+	then
+		if test -d "${HDF5_LIB}"
+		then
+			LDFLAGS="${LDFLAGS} -L${HDF5_LIB}"
+		else
+			AC_MSG_ERROR([${HDF5_LIB}: No such directory])
+		fi
+	fi
+	if test "x${HDF5_INCLUDE}" != "x"
+	then
+		if test -d "${HDF5_INCLUDE}"
+		then
+			CPPFLAGS="${CPPFLAGS} -I${HDF5_INCLUDE}"
+		else
+			AC_MSG_ERROR([${HDF5_INCLUDE}: No such directory])
+		fi
+	fi
+	has_hdf5="yes"
+	AC_CHECK_HEADERS([hdf5.h],[],[has_hdf5="no"])
+	AC_CHECK_LIB([${hdf5_lib_name}], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
+	if test "x${has_hdf5}" == "xyes"; then
+		AC_DEFINE([WITH_HDF5], [1], [Using HDF5])
+	else
+		if test "x${need_hdf5}" == "xyes"; then
+			AC_MSG_ERROR([HDF5 not found])
+		fi
+	fi
+fi
 
 
 if  test "x${with_python}" == "xyes"; then
@@ -513,6 +589,14 @@ then
 	NVFLAGS="${NVFLAGS} --ptxas-options=-v"
 fi
 
+
+if test "x${enable_cpp11}" == "xyes"
+then
+	CPP_OPT="${CPP_OPT} -std=c++11"
+	NVFLAGS="${NVFLAGS} -std=c++11"
+fi
+
+
 if test "x${CONF_CPPFLAGS}" == "x"
 then
         if test "x${enable_debug}" == "xyes"
@@ -565,7 +649,7 @@ fi
 CP=cp
 if test "x${enable_marklines}" == "xyes"
 then
-	RTOPT="${RTOPT} --mark-lines"
+	RTOPT="${RTOPT} --mark-lines -i linemark.R"
 	CP=./tools/cp_line
 fi
 

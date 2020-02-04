@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" permissive="true">
+	<Geometry nx="128" ny="128">
+		<Dirichlet name="border">
+			<Box nx="1"/>
+			<Box dx="-1"/>
+			<Box ny="1"/>
+			<Box dy="-1"/>
+		</Dirichlet>
+		<None name="box">
+			<Box dx="60" nx="20" dy="20" ny="30"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Param name="Value" value="-1"/>
+		<Param name="Value" value="1" zone="box"/>
+		<Param name="Value" value="-1" zone="border"/>
+		<Param name="diff_coeff" value="0.01"/>
+	</Model>
+	<VTK Iterations="25"/>
+	<Solve Iterations="10000"/>
+</CLBConfig>

@@ -1,39 +1,45 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="512" ny="40" predef="none" model="MRT">
-		<MRT><Box/></MRT>
-		<WPressure><Box nx="1"/></WPressure>
-		<EPressure><Box dx="-1"/></EPressure>
-		<Wet><Box nx="10"/></Wet>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="512" ny="40" predef="none" model="MRT">
+		<MRT>
+			<Box/>
+		</MRT>
+		<WPressure>
+			<Box nx="1"/>
+		</WPressure>
+		<EPressure>
+			<Box dx="-1"/>
+		</EPressure>
+		<Wet>
+			<Box nx="10"/>
+		</Wet>
 		<MovingWall mask="ALL">
 			<Box ny="1"/>
 		</MovingWall>
 		<Wall mask="ALL">
 			<Box dy="-1"/>
 			<Box dy="20" nx="30"/>
-		</Wall>  
+		</Wall>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.05"/>
-		<Params InletDensity="1.00"/>
-		<Params nu="0.16666"/>
-		<Params InitDensity="0.3"
-			WetDensity="2.5"
-			WallDensity="1.0"
-			OutletDensity="2.5"
-			InletDensity="2.5"
-			Temperature="0.65"
-			FAcc="1"
-			Magic="0.01"
-			MagicA="-0.152"
-			MagicF="-0.6666666666666"
-			GravitationY="0.000"
-			GravitationX="0.0000"
-			MovingWallVelocity="0.1"
-		/>
+		<Param name="InletVelocity" value="0.05"/>
+		<Param name="InletDensity" value="1.00"/>
+		<Param name="nu" value="0.16666"/>
+		<Param name="MovingWallVelocity" value="0.1"/>
+		<Param name="GravitationX" value="0.0000"/>
+		<Param name="GravitationY" value="0.000"/>
+		<Param name="MagicF" value="-0.6666666666666"/>
+		<Param name="MagicA" value="-0.152"/>
+		<Param name="Magic" value="0.01"/>
+		<Param name="FAcc" value="1"/>
+		<Param name="Temperature" value="0.65"/>
+		<Param name="InletDensity" value="2.5"/>
+		<Param name="OutletDensity" value="2.5"/>
+		<Param name="WallDensity" value="1.0"/>
+		<Param name="WetDensity" value="2.5"/>
+		<Param name="InitDensity" value="0.3"/>
 	</Model>
-        <Log Iterations="100"/> 
-        <VTK Iterations="1000"/>
-	<Solve Iterations="10000" output="output/">
-	</Solve>
+	<Log Iterations="100"/>
+	<VTK Iterations="1000"/>
+	<Solve Iterations="10000" output="output/"/>
 </CLBConfig>

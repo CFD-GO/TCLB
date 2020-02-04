@@ -10,6 +10,9 @@
 #include "ZoneSettings.h"
 #include "SyntheticTurbulence.h"
 #include "Sampler.h"
+#include "RemoteForceInterface.h"
+#include "BallTree.h"
+
 class lbRegion;
 class LatticeContainer;
 
@@ -71,6 +74,12 @@ public:
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
   MPIInfo mpi; ///< MPI information
+  typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t > rfi_t;
+  rfi_t RFI;
+  typedef BallTree< rfi_t > balltree_t;
+  balltree_t BT;
+  size_t particle_data_size_max;
+  size_t balltree_data_size_max;
   char snapFileName[STRING_LEN];
   Lattice (lbRegion region, MPIInfo, int);
   ~Lattice ();

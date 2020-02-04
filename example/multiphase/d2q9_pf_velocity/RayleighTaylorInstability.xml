@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!--Model:	d2q9_pf_velocity 
+    Created: 	14-08-2017 
+    By:		T.Mitchell -->
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="256" ny="1026">
+		<MRT>
+			<Box/>
+		</MRT>
+		<Wall mask="ALL">
+			<Box dy="-1"/>
+		</Wall>
+		<Wall mask="ALL" name="LowerWall">
+			<Box ny="1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="MidPoint" value="513"/>
+		<Param name="Perturbation" value="0.1"/>
+		<Param name="Period" value="256"/>
+		<Param name="sigma" value="1.0e-3"/>
+		<Param name="M" value="0.01"/>
+		<Param name="W" value="5"/>
+		<Param name="GravitationY" value="-2.0e-6"/>
+		<Param name="Viscosity_h" value="0.01666"/>
+		<Param name="Viscosity_l" value="0.01666"/>
+		<Param name="PhaseField" value="0.0" zone="LowerWall"/>
+		<Param name="PhaseField_init" value="1.0"/>
+		<Param name="Density_l" value="1"/>
+		<Param name="Density_h" value="3"/>
+	</Model>
+	<VTK/>
+	<Failcheck Iterations="1000"/>
+	<Solve Iterations="48000" output="output/">
+		<VTK Iterations="6000"/>
+	</Solve>
+</CLBConfig>

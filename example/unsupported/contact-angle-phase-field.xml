@@ -1,46 +1,36 @@
-
-<CLBConfig output="output/" version="2.0">
+<?xml version="1.0"?>
+<CLBConfig output="output/" version="2.0" permissive="true">
 	<!--Created using CLBConfigWriter-->
-<Geometry model="MRT" nx="256" ny="256" predef="none">
-	<MRT>
-	    <Box />
-    </MRT>
-
-   <Wall mask="ALL" name="wall">
-        <Box ny="1"/>
-    </Wall>   
-    <None name="drop">
-        <Sphere dx="64" nx="128" ny="128"  />
-    </None>
-
-  
-
-
-</Geometry>
-
-<Model>
-	<Params MagicA="100" />
-	<Params Pressure-drop=".0" />
-	<Params M="0.1" />
-	<Params PhaseField="-0.5" />
-	<Params W=".05" />
-	<Params Velocity="0." />
-	<Params GravitationX="0.0" />
-	<Params PhaseField-drop="0.5" />
-	<Params GravitationX="0.0" />
-    <Params Fscale="0.00" /> 
-    <Params omega="1" />
-	<Params MagicA="100" />
-	<Params omega_l="1" />
-   
-    </Model>	
-
-
+	<Geometry model="MRT" nx="256" ny="256" predef="none">
+		<MRT>
+			<Box/>
+		</MRT>
+		<Wall mask="ALL" name="wall">
+			<Box ny="1"/>
+		</Wall>
+		<None name="drop">
+			<Sphere dx="64" nx="128" ny="128"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Param name="MagicA" value="100"/>
+		<Param name="Pressure" value=".0" zone="drop"/>
+		<Param name="M" value="0.1"/>
+		<Param name="PhaseField" value="-0.5"/>
+		<Param name="W" value=".05"/>
+		<Param name="Velocity" value="0."/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="PhaseField" value="0.5" zone="drop"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="Fscale" value="0.00"/>
+		<Param name="omega" value="1"/>
+		<Param name="MagicA" value="100"/>
+		<Param name="omega_l" value="1"/>
+	</Model>
 	<Solve Iterations="500">
-        <VTK Iterations="50" />
-    </Solve>
-    
-    <!--    <Params PhaseField-wall="-0.25" />
+		<VTK Iterations="50"/>
+	</Solve>
+	<!--    <Params PhaseField-wall="-0.25" />
 	<Solve Iterations="500">
         <VTK Iterations="50" />
     </Solve>

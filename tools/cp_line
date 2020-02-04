@@ -1,14 +1,26 @@
 #!/bin/bash
 
+HERE=false
+if test "x$1" == "xHERE"
+then
+	HERE=true
+	shift
+fi
+
 if test "$#" -ne 2
 then
 	echo "usage: cp_line file1 file2"
-exit -1
+	exit -1
 fi
                 
 if test -f "$1"
 then
-	R --vanilla --slave -e "cat('#line 1 \"',rtemplate:::relativePath('$1','$2'),'\" \n',sep='')" >$2
+	if $HERE
+	then
+		R --vanilla --slave -e "cat('#line 1 \"',rtemplate:::relativePath('$1','dummy'),'\" \n',sep='')" >$2
+	else
+		R --vanilla --slave -e "cat('#line 1 \"',rtemplate:::relativePath('$1','$2'),'\" \n',sep='')" >$2
+	fi
 	cat $1 >> $2
 else
 	cp $1 $2

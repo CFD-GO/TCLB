@@ -1,40 +1,39 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Units>
-		<Params L="1x" gauge="64"/>
+		<Param name="L" value="1x" gauge="64"/>
 	</Units>
-        <Geometry nx="1x" ny="1x">
-		<BGK><Box/></BGK> 
+	<Geometry nx="1x" ny="1x">
+		<BGK>
+			<Box/>
+		</BGK>
 		<Wet>
-			<Sphere nx="0.5x" ny="0.5x"/> 
+			<Sphere nx="0.5x" ny="0.5x"/>
 		</Wet>
-<!--		<Wall mask="ALL">
+		<!--		<Wall mask="ALL">
 			<Box nx="5"/>
 			<Box ny="5"/>
 			<Box dx="-5"/>
 			<Box dy="-5"/>
 		</Wall> -->
-<!--		<Wall mask="ALL"><Box dx="5" dy="10" nx="1" ny="1"/></Wall>
+		<!--		<Wall mask="ALL"><Box dx="5" dy="10" nx="1" ny="1"/></Wall>
 		-->
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.0"/>
-		<Params InletDensity="1.00"/>
-		<Params nu="0.16666666"/>
-		<Params InitDensity="0.1"
-			WetDensity="1.0"
-			WallDensity="0.55"
-			LiquidDensity="1.0"
-			VaporDensity="0.1"
-			GravitationY="0.000"
-			GravitationX="0.00"
-			Beta="0.01"
-			Kappa="0.0162"
-		/>
+		<Param name="InletVelocity" value="0.0"/>
+		<Param name="InletDensity" value="1.00"/>
+		<Param name="nu" value="0.16666666"/>
+		<Param name="Kappa" value="0.0162"/>
+		<Param name="Beta" value="0.01"/>
+		<Param name="GravitationX" value="0.00"/>
+		<Param name="GravitationY" value="0.000"/>
+		<Param name="VaporDensity" value="0.1"/>
+		<Param name="LiquidDensity" value="1.0"/>
+		<Param name="WallDensity" value="0.55"/>
+		<Param name="WetDensity" value="1.0"/>
+		<Param name="InitDensity" value="0.1"/>
 	</Model>
-	
 	<VTK/>
 	<VTK Iterations="1"/>
-	<Solve Iterations="500000">
-	</Solve>
+	<Solve Iterations="500000"/>
 </CLBConfig>

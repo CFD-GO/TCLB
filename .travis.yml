@@ -14,6 +14,7 @@ language: c
 
 addons:
   apt:
+    update: true
     packages:
       - nvidia-profiler
       - nvidia-cuda-dev
@@ -31,7 +32,7 @@ git:
 env:
   matrix: 
     - MODEL=d2q9_npe_guo
-    - MODEL=d2q9_BC
+    - MODEL=d2q9_bc
     - MODEL=d2q9
     - MODEL=d2q9_SRT
     - MODEL=d2q9_thin_film
@@ -40,6 +41,7 @@ env:
     - MODEL=d3q19_heat
     - MODEL=d2q9_kuper
     - MODEL=d2q9_pf
+    - MODEL=d2q9_pf_fd
     - MODEL=d3q27 
     - MODEL=d3q27_cumulant 
     - MODEL=d3q27_cumulant_AVG_IB_SMAG
@@ -49,7 +51,6 @@ before_install:
     - tools/install.sh rinside
     - sudo tools/install.sh python-dev
     - tools/install.sh rpython
-    - gem install coveralls-lcov
     - tools/install.sh submodules
 
 install:
@@ -57,11 +58,11 @@ install:
 
 script:
     - make configure
-    - ./configure --enable-double --with-cuda-arch=sm_20 --enable-marklines --with-python --enable-paranoid
+    - ./configure --enable-double --with-cuda-arch=sm_30 --enable-marklines --with-python --enable-paranoid --enable-cpp11 CPPFLAGS="-D_MWAITXINTRIN_H_INCLUDED -D__STRICT_ANSI__"
     - make $MODEL/source
     - make $MODEL
     - make $MODEL/clean
-    - ./configure --enable-double --disable-cuda --enable-marklines --enable-marklines --enable-coverage --with-python --enable-paranoid
+    - ./configure --enable-double --disable-cuda --enable-marklines --enable-coverage --with-python --enable-paranoid --enable-cpp11
     - make $MODEL
     - tools/tests.sh $MODEL
 
@@ -79,7 +80,7 @@ jobs:
           - tools/deploy.docs.sh
 
 after_success:
-    - tools/coveralls.sh
+    - bash <(curl -s https://codecov.io/bash) -y .codecov.yaml
 
 after_failure:
     - dmesg

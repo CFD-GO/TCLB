@@ -1,6 +1,6 @@
 #include "../Consts.h"
 #ifdef EMBEDED_PYTHON
-    #include "Python.h"
+    #include <Python.h>
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
     #include <numpy/arrayobject.h>
 #endif
@@ -38,6 +38,9 @@ int cbPythonCall::Init () {
 
             Py_Initialize();
             _import_array();
+            #else
+                ERROR("No Python support at compile time (./configure ... --enable-python)");
+                return -1;
             #endif
         }
 		return 0;
@@ -73,7 +76,7 @@ int cbPythonCall::DoIt () {
 ////BEGIN PYTHON HANDLING
  
 
-	    PyObject *pName, *pModule, *pOffsets, *pFunc;
+	    PyObject *pName, *pModule, *pOffsets, *pFunc, *pGlobalSize;
 	    PyObject *pValue, *pArgs;
 
 	    pName = PyString_FromString(module.value());
@@ -89,7 +92,7 @@ int cbPythonCall::DoIt () {
 	
 	        if (pFunc && PyCallable_Check(pFunc)) {
                
-                const int extra_args = 2; 
+                const int extra_args = 4; 
                 pArgs = PyTuple_New(components.size()+quantities.size()+extra_args);
                 buffers.resize( components.size()+quantities.size() );
                 long int offsets[3] = {-1,-1,-1};
@@ -148,9 +151,17 @@ int cbPythonCall::DoIt () {
                 for (int k=0; k < 3; k++){
                     PyTuple_SetItem(pOffsets, k, PyInt_FromLong(offsets[k]));
                 }
-    
-                PyTuple_SetItem(pArgs, 0, pOffsets);
-				PyTuple_SetItem(pArgs, 1, PyInt_FromLong( solver->iter  ));
+
+                pGlobalSize = PyTuple_New(3);    
+                PyTuple_SetItem(pGlobalSize, 0, PyInt_FromLong(solver->info.region.nx));
+                PyTuple_SetItem(pGlobalSize, 1, PyInt_FromLong(solver->info.region.ny));
+                PyTuple_SetItem(pGlobalSize, 2, PyInt_FromLong(solver->info.region.nz));
+
+                //first one defines number of extra arguments used
+                PyTuple_SetItem(pArgs, 0, PyInt_FromLong( extra_args ));
+                PyTuple_SetItem(pArgs, 1, pOffsets);
+				PyTuple_SetItem(pArgs, 2, PyInt_FromLong( solver->iter  ));
+ 				PyTuple_SetItem(pArgs, 3,  pGlobalSize  );
  
 		        pValue = PyObject_CallObject(pFunc, pArgs);
                 Py_DECREF(pArgs);
@@ -205,7 +216,8 @@ int cbPythonCall::DoIt () {
 //	    Py_Finalize();
 //END PYTHON HANDLING
 #else
-        output("Python support disabled at compile time, nothing to do");
+                ERROR("No Python support at compile time (./configure ... --enable-python)");
+                return -1;
 #endif
 
 

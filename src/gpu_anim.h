@@ -10,8 +10,8 @@
 
 #include "gl_helper.h"
 
-#include "cuda.h"
-#include "cuda_gl_interop.h"
+#include <cuda.h>
+#include <cuda_gl_interop.h>
 #include <iostream>
 
 
@@ -38,14 +38,6 @@ struct GPUAnimBitmap {
         dataBlock = d;
         clickDrag = NULL;
         move = NULL;
-        // first, find a CUDA device and set it to graphic interop
-        cudaDeviceProp  prop;
-        int dev;
-        memset( &prop, 0, sizeof( cudaDeviceProp ) );
-        prop.major = 1;
-        prop.minor = 0;
-        HANDLE_ERROR( cudaChooseDevice( &dev, &prop ) );
-        cudaGLSetGLDevice( dev );
 
         // a bug in the Windows GLUT implementation prevents us from
         // passing zero arguments to glutInit()

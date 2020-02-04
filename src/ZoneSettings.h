@@ -59,10 +59,12 @@ public:
     assert(z >= -1);
     assert(z <   ZONE_MAX);
     zone_max(z);
+    bool is_already_reported = false;
     if (z == -1) {
       for (int i=0;i<ZONE_MAX; i++) {
-        if (cpuConst[s+ZONESETTINGS*i] != 0.0 && cpuConst[s+ZONESETTINGS*i] != val ){
+        if (cpuConst[s+ZONESETTINGS*i] != 0.0 && cpuConst[s+ZONESETTINGS*i] != val && !is_already_reported){
              WARNING("Zone-specific settings in zone %d were overwritten from %lf to %lf", i, cpuConst[s+ZONESETTINGS*i], val );
+             is_already_reported = true;
         }
         cpuConst[s+ZONESETTINGS*i] = val;
       }

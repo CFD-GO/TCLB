@@ -1,31 +1,39 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
-        <Geometry nx="350" ny="50" nz="50">
-		<MRT><Box/></MRT>
+<CLBConfig version="2.0" permissive="true">
+	<Geometry nx="350" ny="50" nz="50">
+		<MRT>
+			<Box/>
+		</MRT>
 		<Zone name="OutletM">
 			<Box dx="-10" nx="1"/>
 		</Zone>
 		<WPressureL zone="Inlet"/>
 		<EPressure zone="Outlet"/>
-		<DesignSpace dx="100" fx="-100"><Box/></DesignSpace>
+		<DesignSpace dx="100" fx="-100">
+			<Box/>
+		</DesignSpace>
 		<Outlet zone="OutletM"/>
 		<Zone name="heater">
 			<Box dx="150" nx="50" ny="1" dy="1"/>
 		</Zone>
-                <Zone name="radiator">
-                        <Box dx="150" nx="50" ny="1" dy="1"/>
+		<Zone name="radiator">
+			<Box dx="150" nx="50" ny="1" dy="1"/>
 		</Zone>
 		<Heater zone="heater"/>
 		<Solid zone="radiator"/>
 		<None zone="radiator" mask="DESIGNSPACE"/>
-		<Wall zone="Tunnel" mask="ALL">
-		</Wall>
+		<Wall zone="Tunnel" mask="ALL"/>
 	</Geometry>
 	<Model>
-		<Params InletVelocity="0.05" InletDensity="1.09" nu="0.01"
-		InletTemperature="0.0" HeaterTemperature="1.0"
-		InitTemperature="0.0" FluidAlpha="0.003" SolidAlpha="1.0"/>
-		<Params HeatFluxInObj="15.0"/>
+		<Param name="SolidAlpha" value="1.0"/>
+		<Param name="FluidAlpha" value="0.003"/>
+		<Param name="InitTemperature" value="0.0"/>
+		<Param name="HeaterTemperature" value="1.0"/>
+		<Param name="InletTemperature" value="0.0"/>
+		<Param name="nu" value="0.01"/>
+		<Param name="InletDensity" value="1.09"/>
+		<Param name="InletVelocity" value="0.05"/>
+		<Param name="HeatFluxInObj" value="15.0"/>
 	</Model>
 	<Solve Iterations="300000" output="output/">
 		<Log Iterations="200"/>

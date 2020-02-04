@@ -1,6 +1,6 @@
 #include "Consts.h"
 #include "types.h"
-#include "stdio.h"
+#include <stdio.h>
 
 #ifndef __CUDACC__
   #define CROSS_CPP
@@ -10,7 +10,7 @@
 
   #ifndef CROSS_CPU
     #ifdef CROSS_CPP
-      #include "cuda_runtime.h"
+      #include <cuda_runtime.h>
       #define CudaDeviceFunction
       #define CudaHostFunction
       #define CudaGlobalFunction
@@ -27,150 +27,20 @@
       #define CudaSharedMemory __shared__
       #define CudaSyncThreads __syncthreads
     #if __CUDA_ARCH__ < 200
-      #define CudaSyncThreadsOr(x__) (__syncthreads(),x__)
+      #define CudaSyncThreadsOr(x__) (__syncthreads(),true)
     #else
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
     #endif
-      #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() )
+      #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
-        #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaThreadSynchronize()); HANDLE_ERROR( cudaGetLastError() );
+        #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
       #else
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
       #endif
       #define CudaBlock blockIdx
       #define CudaThread threadIdx
       #define CudaNumberOfThreads blockDim
-
-      #ifdef CROSS_OLD_ATOMIC
-        __device__ int lock = 0;
-        __device__ inline void atomicAddP(real_t* a, real_t b)
-        {
-                while(atomicCAS(&lock, 0, 1)) {};
-                a[0] += b;
-                lock = 0;
-        }
-      #else
-      
-#if __CUDA_ARCH__ < 200
-  #define CROSS_NEED_ATOMICADD
-#else
-#endif
-      
-        #ifdef CALC_DOUBLE_PRECISION
-          typedef unsigned long long int real_t_i;
-          #define R2I(x) __double_as_longlong(x)
-          #define I2R(x) __longlong_as_double(x)
-          #define CROSS_NEED_ATOMICADD
-        #else
-//         typedef unsigned long int      real_t_i;
-          #define R2I(x) __float_as_int(x)
-          #define I2R(x) __int_as_float(x)
-          typedef int      real_t_i;
-        #endif
-        
-        #ifdef CROSS_NEED_ATOMICADD
-        __device__ inline void atomicAddP(real_t* address, real_t val)
-        {
-            if (val != 0.0) {
-              real_t_i* address_as_ull = (real_t_i*) address;
-              real_t_i  old = *address_as_ull;
-              real_t_i  assumed, nw;
-              do {
-                  assumed = old;
-                  nw = R2I(val + I2R(assumed));
-                  old = atomicCAS(address_as_ull, assumed, nw);
-              } while (assumed != old);
-            }
-        }
-        #else
-        #define atomicAddP atomicAdd
-        #endif
-
-        
-        __device__ inline void atomicMaxP(real_t* address, real_t val)
-        {
-            if (val != 0.0) {
-              real_t_i* address_as_ull = (real_t_i*) address;
-              real_t_i  old = *address_as_ull;
-              real_t_i  assumed, nw;
-              do {
-                  assumed = old;
-                  nw = R2I(max(val,I2R(assumed)));
-                  old = atomicCAS(address_as_ull, assumed, nw);
-              } while (assumed != old);
-            }
-        }
-      #endif
-      __shared__ real_t  sumtab[MAX_THREADS];
-      __shared__ real_t* sumptr[MAX_THREADS];
-
-      __device__ inline void atomicSum_f(real_t * sum) {
-              int i = blockDim.x*blockDim.y;
-              int k = blockDim.x*blockDim.y;
-              int j = blockDim.x*threadIdx.y + threadIdx.x;
-              while (i> 1) {
-                      k = i >> 1;
-                      i = i - k;
-                      if (j<k) sumtab[j] += sumtab[j+i];
-                      __syncthreads();
-              }
-              if (j==0) {
-                real_t val = sumtab[0];
-                if (val != 0.0) {
-                  atomicAddP(sum, val);
-                }
-              }
-      }
-
-      __device__ inline void atomicSum(real_t * sum, real_t val)
-      {
-              __syncthreads();
-              int j = blockDim.x*threadIdx.y + threadIdx.x;
-              sumtab[j] = val;
-              __syncthreads();
-              atomicSum_f(sum);
-      }
-
-/*      __device__ inline void atomicSum(real_t * sum, real_t val) {
-        typedef cub::BlockReduce<real_t, 32, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 20> BlockReduce;
-        __shared__ typename BlockReduce::TempStorage temp_storage;
-        real_t ret = BlockReduce(temp_storage).Sum(val);
-        if ((blockDim.x*threadIdx.y + threadIdx.x) == 0) atomicAddP(sum, ret);
-      }
-*/
-
-      __device__ inline void atomicMax(real_t * sum, real_t val)
-      {
-              int i = blockDim.x*blockDim.y;
-              int k = blockDim.x*blockDim.y;
-              int j = blockDim.x*threadIdx.y + threadIdx.x;
-              __syncthreads();
-              sumtab[j] = val;
-              __syncthreads();
-              while (i> 1) {
-                      k = i >> 1;
-                      i = i - k;
-                      if (j<k) sumtab[j] = max(sumtab[j],sumtab[j+i]);
-                      __syncthreads();
-              }
-              if (j==0) atomicMaxP(sum,sumtab[0]);
-      }
-
-      __device__ inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
-      {
-                __syncthreads();
-                int j = blockDim.x*threadIdx.y + threadIdx.x;
-                if (yes) {
-                  sumtab[j] = val;
-                } else {
-                  sumtab[j] = 0.0;
-                }
-                __syncthreads();
-                atomicSum_f(sum);
-      }
-
     #endif
-
 
     #define CudaError cudaError_t
     #define CudaSuccess cudaSuccess
@@ -212,10 +82,11 @@
     #define CudaStreamCreate(a__) HANDLE_ERROR( cudaStreamCreate( a__ ) )
     #define CudaStreamSynchronize(a__) HANDLE_ERROR( cudaStreamSynchronize( a__ ) );  HANDLE_ERROR( cudaGetLastError() )
 
-    #define CudaThreadSynchronize() HANDLE_ERROR( cudaThreadSynchronize() )
+    #define CudaDeviceSynchronize() HANDLE_ERROR( cudaDeviceSynchronize() )
 
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
+    #define CudaDeviceReset() HANDLE_ERROR( cudaDeviceReset( ) )
 
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
@@ -326,17 +197,18 @@
     #endif
     #define CudaEventQuery(a__) CudaSuccess
     #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (c__ -  b__)
-    #define CudaThreadSynchronize()
+    #define CudaDeviceSynchronize()
     #define CudaDeviceSynchronize()
 
     #define CudaStream_t int
     #define CudaStreamCreate(a__)
     #define CudaStreamSynchronize(a__)
 
-    #define CudaThreadSynchronize()
+    #define CudaDeviceSynchronize()
 
     #define CudaSetDevice(a__) CpuSize.x=1;CpuSize.y=1;CpuSize.z=1;
     #define CudaGetDeviceCount(a__) *a__ = 1;
+    #define CudaDeviceReset()
 
     #define RunKernelMaxThreads 1
     extern uint3 CpuBlock;
@@ -346,6 +218,11 @@
     extern uint3 CpuThread;
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
+
+
+    inline real_t blockSum(real_t val) {
+      return val;
+    }
 
     template <typename T>
     inline void atomicSum(T * sum, T val)

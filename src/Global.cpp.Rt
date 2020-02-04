@@ -23,6 +23,8 @@
 // for isatty
 //#include <unistd.h>
 
+MPMDHelper MPMD;
+
 std::clock_t global_start;
 int D_MPI_RANK;
 int D_TERMINAL;
@@ -183,7 +185,7 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
 }
 
 
-int myprint(int level, const char *fmt, ...)
+int myprint(int level, int all, const char *fmt, ...)
 {
     if (level < D_print_level) return 0;
     va_list args;
@@ -191,7 +193,7 @@ int myprint(int level, const char *fmt, ...)
     static char buf[100*OUTPUT_LINE_LEN];
     vsprintf(buf, fmt, args);
     char* rank="";
-    if (level < D_only_root_level) {
+    if ((level < D_only_root_level) && (!all)) {
       if (D_MPI_RANK != 0) return 0;
     } else {
       rank = D_str_rank;

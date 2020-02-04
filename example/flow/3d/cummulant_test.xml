@@ -1,32 +1,41 @@
-<!-- This is of model of a pipe flow over sphere for the d3q27_cumulant purposes -->
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
-        <Geometry nx="512" ny="120" nz ="120">
-		<MRT><Box/></MRT>
-		<WVelocity name="Inlet"><Box dx="1" nx="1"/></WVelocity>
-		<EPressure name="Outlet"><Box dx="-2" nx="1"/></EPressure>
+<!-- This is of model of a pipe flow over sphere for the d3q27_cumulant purposes -->
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="512" ny="120" nz="120">
+		<MRT>
+			<Box/>
+		</MRT>
+		<WVelocity name="Inlet">
+			<Box dx="1" nx="1"/>
+		</WVelocity>
+		<EPressure name="Outlet">
+			<Box dx="-2" nx="1"/>
+		</EPressure>
 		<Wall mask="ALL">
 			<Tunnel/>
-			<Sphere  dx="70" nx="30" dy="45" ny="30" dz="45" nz="30"/>
+			<Sphere dx="70" nx="30" dy="45" ny="30" dz="45" nz="30"/>
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params Velocity="0.1"/> 
-		<Params nu="0.0001"/>
-		<Params InletTemperature="1"
-			InitTemperature="0"
-			FluidAlfa="0.01"
-			SolidAlfa="0.166"
-			Coriolis="0.001"
-			Tension="0.01"
-			EOSScale="0.05"
-			PressDiffInObj="1"
-			GalileanCorrection="1"/>   <!-- Galilean correction should be set up to 1 -->
+		<Param name="Velocity" value="0.1"/>
+		<Param name="nu" value="0.0001"/>
+		<Param name="GalileanCorrection" value="1"/>
+		<Param name="PressDiffInObj" value="1"/>
+		<Param name="EOSScale" value="0.05"/>
+		<Param name="Tension" value="0.01"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="1"/>
+		<!-- Galilean correction should be set up to 1 -->
 	</Model>
-	<VTK/> 
-	<Failcheck Iterations="1000"/> <!--Checks if the solution failed every 1000 iterations-->
-	<Average Iterations="1000"/> <!-- Resetting of the average values  every 1000 iterations-->
-	<Log Iterations="1000"/>	
-	<VTK Iterations="1000"/> 
+	<VTK/>
+	<Failcheck Iterations="1000"/>
+	<!--Checks if the solution failed every 1000 iterations-->
+	<Average Iterations="1000"/>
+	<!-- Resetting of the average values  every 1000 iterations-->
+	<Log Iterations="1000"/>
+	<VTK Iterations="1000"/>
 	<Solve Iterations="12000"/>
 </CLBConfig>
