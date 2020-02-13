@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "mpi.h"
+#include <mpi.h>
 #include "vtkOutput.h"
 #include <cstring>
 #include <stdlib.h>

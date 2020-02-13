@@ -30,6 +30,12 @@ AC_ARG_WITH([mpi-lib],
 AC_ARG_WITH([hdf5],
 	AC_HELP_STRING([--with-hdf5=hdf5],
 		[specify the full path to your hdf5 installation]))
+AC_ARG_WITH([hdf5-lib],
+	AC_HELP_STRING([--with-hdf5-lib=hdf5],
+		[specify the full path to your hdf5 installation (libraries)]))
+AC_ARG_WITH([hdf5-include],
+	AC_HELP_STRING([--with-hdf5-include=hdf5],
+		[specify the full path to your hdf5 installation (headers)]))
 
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
@@ -314,22 +320,40 @@ AC_CHECK_LIB([mpi], [MPI_Recv],[],[
 AC_MSG_CHECKING([HDF5 path])
 need_hdf5="no"
 has_hdf5="no"
-hdf5_lib_name=hdf5
+
 if test "x${with_hdf5}" != "xno"; then
 	if test "x${with_hdf5}" != "x"; then
-		if test "x${with_hdf5}" == "xyes"; then
-			need_hdf5=yes
+		HDF5_LIB="${with_hdf5}/lib"
+		HDF5_INCLUDE="${with_hdf5}/include"
+		need_hdf5="yes"
+	fi
+	if test "x${with_hdf5_lib}" != "x"
+	then
+		HDF5_LIB="${with_hdf5_lib}"
+		need_hdf5="yes"
+	fi
+	if test "x${with_hdf5_include}" != "x"
+	then
+		HDF5_INCLUDE="${with_hdf5_include}"
+		need_hdf5="yes"
+	fi
+
+	if test "x${HDF5_LIB}" != "x"
+	then
+		if test -d "${HDF5_LIB}"
+		then
+			LDFLAGS="${LDFLAGS} -L${HDF5_LIB}"
 		else
-			if test -d "${with_hdf5}"; then
-				LDFLAGS="${LDFLAGS} -L${with_hdf5}/lib"
-				CPPFLAGS="${CPPFLAGS} -I${with_hdf5}/include"
-				need_hdf5=yes
-				AC_MSG_RESULT([${with_hdf5}])
-			elif echo "${with_hdf5}" | grep '/'; then
-				AC_MSG_ERROR([${with_hdf5}: path not found])
-			else
-				hdf5_lib_name=${with_hdf5}
-			fi
+			AC_MSG_ERROR([${HDF5_LIB}: No such directory])
+		fi
+	fi
+	if test "x${HDF5_INCLUDE}" != "x"
+	then
+		if test -d "${HDF5_INCLUDE}"
+		then
+			CPPFLAGS="${CPPFLAGS} -I${HDF5_INCLUDE}"
+		else
+			AC_MSG_ERROR([${HDF5_INCLUDE}: No such directory])
 		fi
 	fi
 	has_hdf5="yes"
@@ -625,7 +649,7 @@ fi
 CP=cp
 if test "x${enable_marklines}" == "xyes"
 then
-	RTOPT="${RTOPT} --mark-lines"
+	RTOPT="${RTOPT} --mark-lines -i linemark.R"
 	CP=./tools/cp_line
 fi
 
