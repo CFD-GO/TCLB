@@ -19,8 +19,6 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 options(stringsAsFactors=FALSE)
 format.list = function(x,...) sapply(x, class)
 
-#source("fun_v3.R")
-
 if (! SYMALGEBRA) {
 	library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 } else {
@@ -30,7 +28,7 @@ if (! SYMALGEBRA) {
 
 if (is.null(Options$autosym)) Options$autosym = FALSE
 
-source("linemark.R")
+#source("linemark.R")
 
 rows = function(x) {
 	rows_df= function(x) {

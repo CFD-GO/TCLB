@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 function usage {
 	echo "tests.sh [-h] [-r n] [-v] MODEL [TESTS]"
 	if test "x$1" == "xhelp"
@@ -12,26 +14,59 @@ function usage {
 	fi
 }
 
+function comment_wait {
+#       echo -ne "[      ] $1\r"
+        printf   "[      ] %-70s %6s" "$1" "$2"
+}
+function comment_ok {
+#       echo -e "[\e[92m  OK  \e[0m] $1"
+        printf  "\r[\e[92m  OK  \e[0m] %-70s %6s\n" "$1" "$2"
+}
+function comment_fail {
+#       echo -e "[\e[91m FAIL \e[0m] $1"
+        printf  "\r[\e[91m FAIL \e[0m] %-70s %6s\n" "$1" "$2"
+}
+
 function try {
 	comment="$1"
-	mkdir -p output/
-	log=output/$(echo $comment | sed 's/ /./g').log
 	shift
-	echo -n "$comment... "
-	if env time -f "%e" -o $log.time "$@" >$log 2>&1
+	mkdir -p output/
+	log=$(echo $comment | sed 's|[ /\t]|.|g').log
+	comment_wait "$comment"
+	NEG=false
+	if test "x$1" == 'x!'
 	then
-		echo "OK ($(cat $log.time)s)"
+		NEG=true
+		shift
+	fi
+	if env time --quiet -f "%e" -o $log.time "$@" >$log 2>&1
+	then
+		RES=true
+	else
+		RES=false
+	fi
+	if test $NEG != $RES
+	then
+		comment_ok "$comment" "$(cat $log.time)s"
 		if $VERBOSE
 		then
-			cat $log
+			(
+				echo "----------------  LOG  ---------------"
+				cat  $log
+				echo "--------------------------------------"
+			) | sed 's|^|         |'
 		fi
 	else
-		echo "FAILED ($(cat $log.time)s)"
-		echo "----------------- CMD ----------------"
-		echo $@
-		echo "----------------- LOG ----------------"
-		cat  $log
-		echo "--------------------------------------"
+		comment_fail "$comment"
+		(
+			echo "----------------  CMD  ---------------"
+			echo $@
+			echo "----------------  TIME ---------------"
+			echo "Time: $(cat $log.time)s"
+			echo "----------------  LOG  ---------------"
+			cat  $log
+			echo "--------------------------------------"
+		) | sed 's|^|         |'
 		exit -1;
 	fi
 	return 0;
@@ -97,7 +132,7 @@ fi
 
 if test -z "$*"
 then
-	TESTS=$(cd tests/$MODEL; ls *.xml 2>/dev/null)
+	TESTS=$(cd tests/$MODEL; ls *.test 2>/dev/null)
 else
 	TESTS="$*"
 fi
@@ -111,91 +146,84 @@ fi
 
 
 GLOBAL="OK"
-export PYTHONPATH="$PYTHONPATH:tools/python:tests/$MODEL"
+export PYTHONPATH="$PYTHONPATH:$PWD/tools/python"
+
+function runline {
+	CMD=$1
+	R=$2
+	G=$TEST_DIR/$R
+	shift
+	case $CMD in
+	need) 
+		comment_wait "copy $@"
+		for i in "$@"
+		do
+			SRC=$TEST_DIR/$i
+			if test -f "$SRC"
+			then
+				cp $SRC $i
+			else
+				comment_fail "copy $@"
+				echo "         $i not found"
+				return -1;
+			fi
+		done
+		comment_ok "copy $@"
+		;;
+	run) try "running solver" "$@" ;;
+	fail) try "running solver" '!' "$@" ;;
+	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
+	diff) try "checking $R" diff "$R" "$G" ;;
+	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
+	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" 8;;
+	*) echo "unknown: $CMD"; return -1;;
+	esac
+	return 0;
+}
 
 function testModel {
 	for t in $TESTS
-	do
-		name="${t%.xml}"
-		t="$name.xml"
-		RESULT="FAILED"
-		
+	do		
+		name="${t%.test}"
+		t="$name.test"
+		TDIR="test-$MODEL-$name-$1"
+		test -d "$TDIR" && rm -r "$TDIR"
+		RESULT="OK"
+		TCLB=".."
+		SOLVER="$TCLB/CLB/$MODEL/main"
+		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
-			if try "Running \"$name\" test" CLB/$MODEL/main "tests/$MODEL/$t"
-			then
-				RESULT="OK"
-				RES=$(cd tests/$MODEL; find -name "${name}_*")
-				if ! test -z "$RES"
+			echo -e "\n\e[1mRunning $name test...\e[0m"
+			mkdir -p $TDIR		
+			while read -r -u 3 line
+			do
+				if ! (cd $TDIR && runline $(eval echo $line))
 				then
-					for r in $RES
-					do
-						g=tests/$MODEL/$r
-						echo -n " > Checking $r... "
-						EXT=${r##*.}
-						if test -f "$r" || [[ "x$EXT" == "xsha1" ]]
-						then
-							if ! test -f "$g"
-							then
-								echo "$g not found - this should not happen!"
-								exit -123
-							fi
-							R="WRONG"
-							COMMENT=""
-							case "$EXT" in
-							csv)
-								COMMENT="(csvdiff)"
-								tools/csvdiff -a "$r" -b "$g" -x 1e-10 -d Walltime >/dev/null && R="OK"
-								;;
-							sha1)
-								COMMENT="(SHA1 checksum)"
-								sha1sum -c "$g" >/dev/null 2>&1 && R="OK"
-								;;
-							*)
-								diff "$r" "$g" >/dev/null && R="OK"
-								;;
-							esac
-
-							if test "x$R" == "xOK"
-							then
-								echo "OK $COMMENT"
-							else
-								echo "Different $COMMENT"
-								if test "x$EXT" == "xsha1"
-								then
-									cat $g
-									pat=$(cat $g | sed 's/.*[ ][ ]*//')
-									test -z "$pat" || sha1sum $pat
-								fi
-								RESULT="WRONG"
-							fi
-						else
-							echo "Not found"
-							RESULT="WRONG"
-						fi
-					done
+					RESULT="FAILED"
+					break
 				fi
-			fi
+			done 3< "tests/$MODEL/$t"
 		else
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
 		fi
-		if ! test "x$RESULT" == "xOK"
+#		echo -n "         Test \"$name\" returned:"
+		if test "x$RESULT" == "xOK"
 		then
-			echo " > Test \"$name\" returned: $RESULT"
+			comment_ok   "$name test finished" "-----"
+		else
+			comment_fail "$name test finished" "-----"
 			GLOBAL="FAILED"
 		fi
 	done
 }
 
-rm -r output-$MODEL-*/ 2>/dev/null || true
-
 REPEAT=1
 while test "$REPEAT" -le "$REPEATS"
 do
 	test "$REPEATS" -gt "1" && echo "############ repeat: $REPEAT ################"
-	testModel
-	mv -v output/ "output-$MODEL-$REPEAT"
+	testModel $REPEAT
 	REPEAT=$(expr $REPEAT + 1)
 done
 
