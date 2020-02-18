@@ -1,3 +1,10 @@
+
+#define NO_SYNC 0x01
+#define WARP_SYNC 0x02
+#define BLOCK_SYNC 0x03
+
+#define PARTICLE_SYNC 0x02
+
 struct Particle {
 //	vector_t pos, vel, angvel;
 	vector_t cvel, diff;
@@ -44,12 +51,23 @@ struct ParticleI : Particle {
 	}
 };
 
+#define WARP_MASK 0xFFFFFFFF
+
 struct ParticleS : ParticleI {
 	static const bool sync = true;
+#if PARTICLE_SYNC == NO_SYNC
+	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return b; }
+#elif PARTICLE_SYNC == WARP_SYNC
+	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return CudaSyncWarpOr(b); }
+#elif PARTICLE_SYNC == BLOCK_SYNC
 	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return CudaSyncThreadsOr(b); }
+#else
+	#error "some sync needed"
+#endif
 	vector_t force;
 	vector_t moment;
 	CudaDeviceFunction ParticleS(real_t x, real_t y, real_t z) : ParticleI(x,y,z) {};
+
 	CudaDeviceFunction inline void applyForce(vector_t f) {
 		force.x += f.x;
 		force.y += f.y;
@@ -59,16 +77,66 @@ struct ParticleS : ParticleI {
 		moment.z -= f.x*diff.y - f.y*diff.x;
 	}
 	CudaDeviceFunction void push_all() {
+#if PARTICLE_SYNC == NO_SYNC
+		atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
+		atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
+		atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
+		atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
+		atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
+		atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
+#elif PARTICLE_SYNC == WARP_SYNC
+/*		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
+		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
+		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
+		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
+		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
+		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);*/
+		double val[6] = {force.x,force.y,force.z,moment.x,moment.y,moment.z};
+		atomicSumWarpArr(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val,6);
+#elif PARTICLE_SYNC == BLOCK_SYNC
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
+#endif
 		ParticleI::push_all();
 	}
 	CudaDeviceFunction void pull_all() {
-		ParticleI::pull_all();
+		vector_t pos, vel, angvel;
+#ifdef WARPLOAD
+		real_t val;
+		if (threadIdx.x < RFI_DATA_VOL) val = constContainer.particle_data[i*RFI_DATA_SIZE + threadIdx.x];
+		rad      = __shfl_sync(WARP_MASK, val, 0);
+		pos.x    = __shfl_sync(WARP_MASK, val, 1);
+		pos.y    = __shfl_sync(WARP_MASK, val, 2);
+		pos.z    = __shfl_sync(WARP_MASK, val, 3);
+		vel.x    = __shfl_sync(WARP_MASK, val, 4);
+		vel.y    = __shfl_sync(WARP_MASK, val, 5);
+		vel.z    = __shfl_sync(WARP_MASK, val, 6);
+		angvel.x = __shfl_sync(WARP_MASK, val, 7);
+		angvel.y = __shfl_sync(WARP_MASK, val, 8);
+		angvel.z = __shfl_sync(WARP_MASK, val, 9);
+#else
+		rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
+		pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
+		pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
+		pos.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+2];
+		vel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+0];
+		vel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+1];
+		vel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+2];
+		angvel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+0];
+		angvel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+1];
+		angvel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+2];
+#endif
+		diff.x = pos.x - node[0];
+		diff.y = pos.y - node[1];
+		diff.z = pos.z - node[2];
+		dist = sqrt(diff.x*diff.x + diff.y*diff.y + diff.z*diff.z);
+		cvel.x = vel.x + angvel.y*diff.z - angvel.z*diff.y;
+		cvel.y = vel.y + angvel.z*diff.x - angvel.x*diff.z;
+		cvel.z = vel.z + angvel.x*diff.y - angvel.y*diff.x;
 		force.x = 0;
 		force.y = 0;
 		force.z = 0;
