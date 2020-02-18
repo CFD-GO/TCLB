@@ -33,7 +33,6 @@ include $(DEST)/dep.mk
 
 all: <?%s paste(Models$name,collapse=" ") ?> 
 
-
 define compile =
 	@echo "  C++        $<"
 	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
