@@ -2,8 +2,8 @@ source("lib/lattice.R")
 
 # declaration of lattice (velocity) directions
 x = c(0,1,-1);
-P = expand.grid(x=0:2,y=0:2,z=0:2)
-U = expand.grid(x,x,x)
+P = expand.grid(x=0:2,y=0:2, z=0)
+U = expand.grid(x,x,0)
 
 # declaration of densities
 fname = paste("f",P$x,P$y,P$z,sep="")
@@ -11,34 +11,30 @@ AddDensity(
 	name = fname,
 	dx   = U[,1],
 	dy   = U[,2],
-	dz   = U[,3],
-	comment=paste("flow LB density F",1:27-1),
+	comment=paste("flow LB density F",1:9-1),
 	group="f"
 )
 
-for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
+for (f in fname) AddField(f,dx=0,dy=0) # Make f accessible also in present node (not only streamed)
 
 hname =  paste("h",P$x,P$y,P$z,sep="")
 AddDensity(
 	name = hname,
 	dx   = U[,1],
 	dy   = U[,2],
-	dz   = U[,3],
-	comment=paste("heat LB density H",1:27-1),
+	comment=paste("heat LB density H",1:9),
 	group="h"
 )
 
-for (h in hname) AddField(h,dx=0,dy=0,dz=0) # Make h accessible also in present node (not only streamed)
+for (h in hname) AddField(h,dx=0,dy=0) # Make h accessible also in present node (not only streamed)
 
 
 #	Inputs: Flow Properties
 AddSetting(name="VelocityX", 	default="0m/s",		comment='inlet/outlet/init x-velocity component', zonal=TRUE)
 AddSetting(name="VelocityY", 	default="0m/s",	 	comment='inlet/outlet/init y-velocity component', zonal=TRUE)
-AddSetting(name="VelocityZ", 	default="0m/s", 	comment='inlet/outlet/init z-velocity component', zonal=TRUE)
 AddSetting(name="Pressure" , 	default="0Pa",  	comment='inlet/outlet/init pressure', zonal=TRUE)
 AddSetting(name="GravitationX", default=0.0, 		comment='applied rho*GravitationX')
 AddSetting(name="GravitationY", default=0.0,	 	comment='applied rho*GravitationY')
-AddSetting(name="GravitationZ", default=0.0,	 	comment='applied rho*GravitationZ')
 AddSetting(name="nu",		    default=0.16666666,	comment='kinematic viscosity')
 
 
@@ -64,22 +60,17 @@ AddSetting(name="BoussinesqCoeff", 		default=1.0, 		comment='BoussinesqCoeff=rho
 
 #	Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="FDrag",    		comment='Force exerted on body in X-direction', unit="N")
-AddGlobal(name="FLateral", 		comment='Force exerted on body in Y-direction', unit="N")
-AddGlobal(name="FLift",    		comment='Force exerted on body in Z-direction', unit="N")
+AddGlobal(name="FLift",    		comment='Force exerted on body in Y-direction', unit="N")
 
 AddGlobal(name="XHydroFLux",	comment='Momentum flux in X-direction', unit="kg/s")
 AddGlobal(name="YHydroFLux",    comment='Momentum flux in Y-direction', unit="kg/s")
-AddGlobal(name="ZHydroFLux",    comment='Momentum flux in Z-direction', unit="kg/s")
 AddGlobal(name="XHydroFLux2",   comment='Momentum flux (2nd logger) in X-direction', unit="kg/s")
 AddGlobal(name="YHydroFLux2",   comment='Momentum flux (2nd logger) in Y-direction', unit="kg/s")
-AddGlobal(name="ZHydroFLux2",   comment='Momentum flux (2nd logger) in Z-direction', unit="kg/s")
 
 AddGlobal(name="HeatFluxX",     comment='Heat flux in X-direction', unit="W")
 AddGlobal(name="HeatFluxY",     comment='Heat flux in Y-direction', unit="W")
-AddGlobal(name="HeatFluxZ",     comment='Heat flux in Z-direction', unit="W")
 AddGlobal(name="HeatFluxX2",    comment='Heat flux (2nd logger) in X-direction', unit="W")
 AddGlobal(name="HeatFluxY2",    comment='Heat flux (2nd logger) in Y-direction', unit="W")
-AddGlobal(name="HeatFluxZ2",    comment='Heat flux (2nd logger) in Z-direction', unit="W")
 
 AddGlobal(name="HeatSource",   comment='Total Heat flux from body', unit="W")
 
@@ -140,7 +131,7 @@ if(Options$SMAG)
 	AddSetting(name="Smag", default=0, comment='Smagorinsky coefficient for SGS modeling')
 }
 
-AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")  
+AddDensity(name="U", dx=0, dy=0, group="Vel")  
 # AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 # AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
 if (Options$OutFlowConvective)
@@ -150,8 +141,7 @@ if (Options$OutFlowConvective)
 		name = holdname,
 		dx   = 0,
 		dy   = 0,
-		dz   = 0,
-		comment=paste("heat LB density H",1:27-1),
+		comment=paste("heat LB density H",0:8),
 		group="hold"
 	)
 
@@ -160,23 +150,22 @@ if (Options$OutFlowConvective)
 		name = foldname,
 		dx   = 0,
 		dy   = 0,
-		dz   = 0,
-		comment=paste("flow LB density F",1:27-1),
+		comment=paste("flow LB density F",0:8),
 		group="fold"
 	)
 
 	for (d in rows(DensityAll)) {
-		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy )
 	}
 
-	AddField(name="U",dx=c(-1,0,0))
+	AddField(name="U",dx=c(-1,0))
 	AddNodeType(name="EConvective", group="BOUNDARY")
 }
 
 if (Options$OutFlowNeumann)
 {
 	for (d in rows(DensityAll)) {
-		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy )
 	}
 	AddNodeType(name="ENeumann", group="BOUNDARY")
 }
@@ -192,22 +181,17 @@ if (Options$AVG) {
 	AddQuantity(name="averageP",	unit="Pa")
 	AddQuantity(name="averageT",	unit="K")
 
-	AddDensity(name="avgT",		dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="avgP",		dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="varUX",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="varUY",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="varUZ",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="varUXUY",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="varUXUZ",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="varUYUZ",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="avgdxu2",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="avgdyv2",	dx=0,dy=0,dz=0,average=TRUE)
-	AddDensity(name="avgdzw2",	dx=0,dy=0,dz=0,average=TRUE)
+	AddDensity(name="avgT",		dx=0,dy=0,average=TRUE)
+	AddDensity(name="avgP",		dx=0,dy=0,average=TRUE)
+	AddDensity(name="varUX",	dx=0,dy=0,average=TRUE)
+	AddDensity(name="varUY",	dx=0,dy=0,average=TRUE)
+	AddDensity(name="varUXUY",	dx=0,dy=0,average=TRUE)
+	AddDensity(name="avgdxu2",	dx=0,dy=0,average=TRUE)
+	AddDensity(name="avgdyv2",	dx=0,dy=0,average=TRUE)
 	AddDensity(name="avgUX",	average=TRUE)
 	AddDensity(name="avgUY",	average=TRUE)
-	AddDensity(name="avgUZ",	average=TRUE)
 
 	AddField(name="avgUX",		dx=c(-1,1),average=TRUE)
 	AddField(name="avgUY",		dy=c(-1,1),average=TRUE)
-	AddField(name="avgUZ",		dz=c(1,-1),average=TRUE)
+
 }

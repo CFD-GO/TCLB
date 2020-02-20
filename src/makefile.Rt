@@ -74,6 +74,10 @@ lammps:Global.o lammps.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 
+compare : compare.o pugixml.o
+	@echo "  LINKING    $@"
+	@$(CXX) $^ -o $@ $(LD_OPT)
+
 clean:
 	@echo "  RM         ALL"
 	@rm `find -name '*.o'` main 2>/dev/null; true
