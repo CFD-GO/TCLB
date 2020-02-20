@@ -7,8 +7,6 @@
 
 namespace mpitools {
 
-using ::MPI_Bcast;
-
 inline std::string MPI_Bcast(const std::string& str, int root, MPI_Comm comm) {
         size_t size = str.size();
         ::MPI_Bcast(&size, 1, MPI_UNSIGNED_LONG, root, comm);
