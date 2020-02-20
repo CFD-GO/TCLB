@@ -51,6 +51,7 @@ get.models = function() {
 			if (attr(opts_terms, "intercept") == 1) {
 				opts[name,]=0
 			}
+#			opts = apply(opts, 2, function(x) x > 0)
 		} else {
 			opts = data.frame(row.names=name)
 		}
@@ -65,7 +66,7 @@ get.models = function() {
 			in.group=nrow(opts),
 			path=path
 		)
-		ret$opts = lapply(rownames(opts),function(n) as.list(opts[n,,drop=FALSE]>0))
+		ret$opts = lapply(rownames(opts),function(n) as.list(opts[n,,drop=FALSE]))
 		ret
 	}))
 #	Models=merge(Models, get.model.names(M3))
