@@ -91,7 +91,7 @@ travis : .travis.yml
 	by(Models, Models$group, function(m) {
 		if (length(m$opts[[1]]) > 0) {
 			mat = do.call(rbind,m$opts)
-			mat = ifelse(mat==1, "X","-")
+			mat = ifelse(mat!=0, "X","-")
 			mat = as.data.frame(mat)
 			row.names(mat) = m$name
 		} else {
