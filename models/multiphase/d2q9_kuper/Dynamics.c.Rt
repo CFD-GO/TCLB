@@ -286,18 +286,6 @@ CudaDeviceFunction void BounceBack()
 
 }
 
-//CudaDeviceFunction void MovingWall()
-//{
-//	real_t rho, ru;
-//	real_t ux0 = MovingWallVelocity;
-//	rho = f0 + f1 + f3 + 2.*(f7 + f4 + f8);
-//	ru = rho * ux0;
-//	f2 = f4;
-//	f6 = f8 - (1./2.) * ru - (1./2.)*(f3 - f1);
-//	f5 = f7 + (1./2.) * ru + (1./2.)*(f3 - f1);
-//}
-//
-
 CudaDeviceFunction void MovingWall()
 {
 	real_t U_0 = MovingWallVelocity;
@@ -306,9 +294,9 @@ CudaDeviceFunction void MovingWall()
 	F = realGetF();
     
                                      
-    f5 =  -(6*f4*(U_1 - 1) + 2*(3*U_0 + U_1)*(f0 + f1 + f3 + f4 + f7 + f8) + 3*(U_1 - 1)*(F.x + 2*f1 - 2*f3 - 2*f7 + 2*f8) + (3*U_0 - 2*U_1 + 3)*(-F.y + 2*f4 + 2*f7 + 2*f8))/(12*U_1 - 12);
-    f6 = (1.0L/12.0L)*(-6*f4*(U_1 - 1) + 2*(3*U_0 - U_1)*(f0 + f1 + f3 + f4 + f7 + f8) + 3*(U_1 - 1)*(F.x + 2*f1 - 2*f3 - 2*f7 + 2*f8) + (3*U_0 + 2*U_1 - 3)*(-F.y + 2*f4 + 2*f7 + 2*f8))/(U_1 - 1);
-    f2 = (1.0L/3.0L)*(-U_1*(-F.y + 2*f4 + 2*f7 + 2*f8) - 2*U_1*(f0 + f1 + f3 + f4 + f7 + f8) + 3*f4*(U_1 - 1))/(U_1 - 1);
+   f[5] =  -(6*f[4]*(U_1 - 1) + 2*(3*U_0 + U_1)*(f[0] +f[1] +f[3] +f[4] +f[7] +f[8]) + 3*(U_1 - 1)*(F.x + 2*f[1] - 2*f[3] - 2*f[7] + 2*f[8]) + (3*U_0 - 2*U_1 + 3)*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]))/(12*U_1 - 12);
+   f[6] = (1.0L/12.0L)*(-6*f[4]*(U_1 - 1) + 2*(3*U_0 - U_1)*(f[0] +f[1] +f[3] +f[4] +f[7] +f[8]) + 3*(U_1 - 1)*(F.x + 2*f[1] - 2*f[3] - 2*f[7] + 2*f[8]) + (3*U_0 + 2*U_1 - 3)*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]))/(U_1 - 1);
+   f[2] = (1.0L/3.0L)*(-U_1*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]) - 2*U_1*(f[0] +f[1] +f[3] +f[4] +f[7] +f[8]) + 3*f[4]*(U_1 - 1))/(U_1 - 1);
 
 }
 
@@ -321,9 +309,9 @@ CudaDeviceFunction void MovingWallN()
     vector_t F;
 	F = realGetF();
 
-    f8 = (1.0L/12.0L)*(-6*f2*(U_1 + 1) + 2*(3*U_0 - U_1)*(f0 + f1 + f2 + f3 + f5 + f6) - 3*(U_1 + 1)*(F.x + 2*f1 - 2*f3 + 2*f5 - 2*f6) + (3*U_0 + 2*U_1 + 3)*(F.y + 2*f2 + 2*f5 + 2*f6))/(U_1 + 1);
-    f4 = (1.0L/3.0L)*(-U_1*(F.y + 2*f2 + 2*f5 + 2*f6) - 2*U_1*(f0 + f1 + f2 + f3 + f5 + f6) + 3*f2*(U_1 + 1))/(U_1 + 1);
-    f7 = (1.0L/12.0L)*(-6*f2*(U_1 + 1) - 2*(3*U_0 + U_1)*(f0 + f1 + f2 + f3 + f5 + f6) + 3*(U_1 + 1)*(F.x + 2*f1 - 2*f3 + 2*f5 - 2*f6) + (-3*U_0 + 2*U_1 + 3)*(F.y + 2*f2 + 2*f5 + 2*f6))/(U_1 + 1);
+   f[8] = (1.0L/12.0L)*(-6*f[2]*(U_1 + 1) + 2*(3*U_0 - U_1)*(f[0] +f[1] +f[2] +f[3] +f[5] +f[6]) - 3*(U_1 + 1)*(F.x + 2*f[1] - 2*f[3] + 2*f[5] - 2*f[6]) + (3*U_0 + 2*U_1 + 3)*(F.y + 2*f[2] + 2*f[5] + 2*f[6]))/(U_1 + 1);
+   f[4] = (1.0L/3.0L)*(-U_1*(F.y + 2*f[2] + 2*f[5] + 2*f[6]) - 2*U_1*(f[0] +f[1] +f[2] +f[3] +f[5] +f[6]) + 3*f[2]*(U_1 + 1))/(U_1 + 1);
+   f[7] = (1.0L/12.0L)*(-6*f[2]*(U_1 + 1) - 2*(3*U_0 + U_1)*(f[0] +f[1] +f[2] +f[3] +f[5] +f[6]) + 3*(U_1 + 1)*(F.x + 2*f[1] - 2*f[3] + 2*f[5] - 2*f[6]) + (-3*U_0 + 2*U_1 + 3)*(F.y + 2*f[2] + 2*f[5] + 2*f[6]))/(U_1 + 1);
 }
 
 CudaDeviceFunction void EPressure()
@@ -349,11 +337,11 @@ CudaDeviceFunction void EVelocity()
     u.x = Velocity;
     u.y= 0;
 
-    f6 = (1.0L/12.0L)*(-6*f1*(u.x + 1) - 3*(u.x + 1)*(F.y + 2*f2 - 2*f4 + 2*f5 - 2*f8) - 2*(u.x - 3*u.y)*(f0 + f1 + f2 + f4 + f5 + f8) + (2*u.x + 3*u.y + 3)*(F.x + 2*f1 + 2*f5 + 2*f8))/(u.x + 1);
+   f[6] = (1.0L/12.0L)*(-6*f[1]*(u.x + 1) - 3*(u.x + 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[5] - 2*f[8]) - 2*(u.x - 3*u.y)*(f[0] +f[1] +f[2] +f[4] +f[5] +f[8]) + (2*u.x + 3*u.y + 3)*(F.x + 2*f[1] + 2*f[5] + 2*f[8]))/(u.x + 1);
     
-    f3 = (1.0L/3.0L)*(-u.x*(F.x + 2*f1 + 2*f5 + 2*f8) - 2*u.x*(f0 + f1 + f2 + f4 + f5 + f8) + 3*f1*(u.x + 1))/(u.x + 1);
+   f[3] = (1.0L/3.0L)*(-u.x*(F.x + 2*f[1] + 2*f[5] + 2*f[8]) - 2*u.x*(f[0] +f[1] +f[2] +f[4] +f[5] +f[8]) + 3*f[1]*(u.x + 1))/(u.x + 1);
     
-    f7 = (1.0L/12.0L)*(-6*f1*(u.x + 1) + 3*(u.x + 1)*(F.y + 2*f2 - 2*f4 + 2*f5 - 2*f8) - 2*(u.x + 3*u.y)*(f0 + f1 + f2 + f4 + f5 + f8) + (2*u.x - 3*u.y + 3)*(F.x + 2*f1 + 2*f5 + 2*f8))/(u.x + 1);
+   f[7] = (1.0L/12.0L)*(-6*f[1]*(u.x + 1) + 3*(u.x + 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[5] - 2*f[8]) - 2*(u.x + 3*u.y)*(f[0] +f[1] +f[2] +f[4] +f[5] +f[8]) + (2*u.x - 3*u.y + 3)*(F.x + 2*f[1] + 2*f[5] + 2*f[8]))/(u.x + 1);
 
 }
 
@@ -371,9 +359,9 @@ vector_t F = realGetF();
 vector_t u;
 u.x = Velocity;
 u.y= 0;
-f8 = (1.0L/12.0L)*(-6*f3*(u.x - 1) + 3*(u.x - 1)*(F.y + 2*f2 - 2*f4 + 2*f6 - 2*f7) - 2*(u.x - 3*u.y)*(f0 + f2 + f3 + f4 + f6 + f7) + (2*u.x + 3*u.y - 3)*(-F.x + 2*f3 + 2*f6 + 2*f7))/(u.x - 1);
-f5 = -(6*f3*(u.x - 1) + 3*(u.x - 1)*(F.y + 2*f2 - 2*f4 + 2*f6 - 2*f7) + 2*(u.x + 3*u.y)*(f0 + f2 + f3 + f4 + f6 + f7) + (-2*u.x + 3*u.y + 3)*(-F.x + 2*f3 + 2*f6 + 2*f7))/(12*u.x - 12);
-f1 = (1.0L/3.0L)*(-u.x*(-F.x + 2*f3 + 2*f6 + 2*f7) - 2*u.x*(f0 + f2 + f3 + f4 + f6 + f7) + 3*f3*(u.x - 1))/(u.x - 1);
+f[8] = (1.0L/12.0L)*(-6*f[3]*(u.x - 1) + 3*(u.x - 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[6] - 2*f[7]) - 2*(u.x - 3*u.y)*(f[0] +f[2] +f[3] +f[4] +f[6] +f[7]) + (2*u.x + 3*u.y - 3)*(-F.x + 2*f[3] + 2*f[6] + 2*f[7]))/(u.x - 1);
+f[5] = -(6*f[3]*(u.x - 1) + 3*(u.x - 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[6] - 2*f[7]) + 2*(u.x + 3*u.y)*(f[0] +f[2] +f[3] +f[4] +f[6] +f[7]) + (-2*u.x + 3*u.y + 3)*(-F.x + 2*f[3] + 2*f[6] + 2*f[7]))/(12*u.x - 12);
+f[1] = (1.0L/3.0L)*(-u.x*(-F.x + 2*f[3] + 2*f[6] + 2*f[7]) - 2*u.x*(f[0] +f[2] +f[3] +f[4] +f[6] +f[7]) + 3*f[3]*(u.x - 1))/(u.x - 1);
 
 }
 
@@ -706,6 +694,13 @@ CudaDeviceFunction void CollisionMRT()
 {
 	real_t M[9];
 	real_t rho, ux, uy;
+
+    <?R if (Options$viscstep) { ?>
+        real_t omega = rho > 1 ? omega_l : omega_v;
+    <?R } else { ?>
+        real_t omega  =  ( omega_l + (omega_v - omega_l) * (rho - density_v)/(density_l - density_v));
+    <?R } ?>
+
 <?R
 # Calculating equlibrium density set
     	source("lib/feq.R")
@@ -732,11 +727,7 @@ CudaDeviceFunction void CollisionMRT()
 	C( rho, sum(f) )
 	C( u, f %*% U * ( rho^(-1) ) )
 ?>
-<?R if (Options$viscstep) { ?>
-    real_t omega = rho > 1 ? omega_l : omega_v;
-<?R } else { ?>
-    real_t omega  =  ( omega_l + (omega - omega_l) * (rho - density_v)/(density_l - density_v));
-<?R } ?>
+
 
 <?R
 	C( R, (f-feq) %*% M * OMEGA );
@@ -767,7 +758,7 @@ real_t c[9],d;
     <?R if (Options$viscstep) { ?>
         real_t gamma = rho > 1 ? omega_l : omega_v;
     <?R } else { ?>
-	    real_t gamma  =  ( omega_l + (omega - omega_l) * (rho - density_v)/(density_l - density_v));
+	    real_t gamma  =  ( omega_l + (omega_v - omega_l) * (rho - density_v)/(density_l - density_v));
     <?R } ?>
 //momentum collision
 
