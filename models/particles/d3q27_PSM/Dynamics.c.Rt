@@ -6,7 +6,7 @@
 ?>
 
 /*
-09/04/2019 - d3q27 model for particle coupling.
+09.04.19 - d3q27 model for particle coupling.
 	     
 	Consolidated isothermal portion of J. McCullough's thermal LBM-DEM model with D. Wang's TRT collision operator and modified weighting function for the PSM (based on LBM-DEM coupling of Noble & Torczynski, 1998).
 
@@ -17,8 +17,14 @@
 	Maintainer: Nathan Di Vaira di_vaira@hotmail.com
 		
 Code updates:
-
+	06.11.19 - Moving walls added
+	11.12.19 - PSM coverage and modified weighting functions corrected, now correct 2nd order convergence & improved viscosity dependence
+	10.01.20 - TotalFluidVelocity globals added
+	25.02.20 - Manual periodicity and FullParticleIterator removed to align with TCLB particle update
+	
 */
+
+#define SQRT_3 1.732050807568877
 
 <?R
 	f = PV(DensityAll$name[DensityAll$group=="f"])
@@ -92,18 +98,15 @@ CudaDeviceFunction vector_t getU(){
 }
 
 CudaDeviceFunction void Init() {
-	real_t u[3] = {InitVelocityX,InitVelocityY,InitVelocityZ};
 	real_t d = Density;
-	//SetEquilibrum(d,u);
-	SetEquilibrum2(d,InitVelocityX,InitVelocityY,InitVelocityZ);
+	SetEquilibrum(d,InitVelocityX,InitVelocityY,InitVelocityZ);
         sol = 0;
-        sol = CalcPeriodicSolid();
+        sol = CalcSolid();
 }
 
 CudaDeviceFunction void Run() {
     //sol = 0;
     //sol = CalcSolid();
-    //sol = CalcPeriodicSolid();
     AddToTotalSVF(sol);
 
     switch (NodeType & NODE_BOUNDARY) {
@@ -648,22 +651,7 @@ CudaDeviceFunction void MovingSWall(){
 }
 
 
-CudaDeviceFunction void SetEquilibrum(const real_t d, const real_t u[3])
-{	real_t usq, uf;
-<?R C(usq, sum(u*u)*(1/c_squ)) ?>
-<?R
-	for (i in 1:27) {
-         cat("//--",i,"-------------------------------------------------\n")
-         C( uf1, (u %*% t(U) * (1/c_squ))[i])
-         C( uf2, uf1 + (uf1*uf1+usq*(-1))*0.5 + 1)
-         C( uf3, d * uf2)
-         C( f[i], uf3 * tn[i,i])
-        }
-?>
-
-}
-
-CudaDeviceFunction void SetEquilibrum2(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
 {
 	<?R
 		C(f, EQ$Req %*% solve(EQ$mat));
@@ -688,48 +676,6 @@ CudaDeviceFunction real_t CalcSolid(){
         }
 
         if (ret > 1.0){ ret =  1.0;}
-        if (ret < 0.0){ ret = 0.0;}
-
-        return ret;
-}
-
-CudaDeviceFunction real_t CalcPeriodicSolid(){
-        real_t coverage = 0, ret = 0;
-	
-        for (FullParticleIterator p(X,Y,Z); p; ++p) {
-	    real_t dx = p.diff.x;
-	    real_t dy = p.diff.y;
-	    real_t dz = p.diff.z;
-            if ((DNx>0) && ((DNx - abs(dx)) < (p.rad + 2))) {
-	        dx = DNx - abs(dx);
-            }
-	    
-	    if ((DNy>0) && ((DNy - abs(dy)) < (p.rad + 2))) {
-	        dy = DNy - abs(dy);
-            }
-	    		
-	    if ((DNz>0) && ((DNz - abs(dz)) < (p.rad + 2))) {
-	        dz = DNz - abs(dz);
-            }
-
-	    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
-	
-	    if ((dist - p.rad)<sqrt(3)) {
-                if ((dist - p.rad) < - 1){
-                        coverage = 1.0;
-                } else{
-                        coverage = (p.rad -  0.084/p.rad + 0.5 - dist);
-                }
-
-                if (coverage > 1.0){ coverage =  1.0;}
-                if (coverage < 0.0){ coverage =  0.0;}
-
-                ret += coverage;
-
-           }
-	}
-	
-	if (ret > 1.0){ ret =  1.0;}
         if (ret < 0.0){ ret = 0.0;}
 
         return ret;
@@ -767,27 +713,15 @@ CudaDeviceFunction void CalcF() {
                       }
 	 ?>
 
-         for (FullParticleIterator p(X,Y,Z); p; ++p) {
+         for (ParticleIterator p(X,Y,Z); p; ++p) {
                 
 		    real_t dx = p.diff.x;
 		    real_t dy = p.diff.y;
 		    real_t dz = p.diff.z;
 
-		    if ((DNx>0) && ((DNx - abs(dx)) < (p.rad + 2))) {
-			dx = DNx - abs(dx);
-		    }
-		    
-		    if ((DNy>0) && ((DNy - abs(dy)) < (p.rad + 2))) {
-			dy = DNy - abs(dy);
-		    }
-				
-		    if ((DNz>0) && ((DNz - abs(dz)) < (p.rad + 2))) {
-			dz = DNz - abs(dz);
-		    }
-
 		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
                     
-		    if ((dist - p.rad)<sqrt(3)) {
+		    if ((dist - p.rad)<SQRT_3) {
 			numP += 1;
 			uPx = ((numP - 1.0)*uPx + p.cvel.x)/numP;
 			uPy = ((numP - 1.0)*uPy + p.cvel.y)/numP;
@@ -824,21 +758,9 @@ CudaDeviceFunction void CalcF() {
 		    real_t dy = p.diff.y;
 		    real_t dz = p.diff.z;
 
-		    if ((DNx>0) && ((DNx - abs(dx)) < (p.rad + 2))) {
-			dx = DNx - abs(dx);
-		    }
-		    
-		    if ((DNy>0) && ((DNy - abs(dy)) < (p.rad + 2))) {
-			dy = DNy - abs(dy);
-		    }
-				
-		    if ((DNz>0) && ((DNz - abs(dz)) < (p.rad + 2))) {
-			dz = DNz - abs(dz);
-		    }
-
 		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
                     
-		    if ((dist - p.rad)<sqrt(3)) {
+		    if ((dist - p.rad)<SQRT_3) {
                         uP[0] = uPx;
                         uP[1] = uPy;
                         uP[2] = uPz;
@@ -858,11 +780,7 @@ CudaDeviceFunction void CalcF() {
 			if(Options$SUP){
 				C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
 			}
-			if(Options$HOLD) {
-                        	C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feqP[bounce[i] + 1]) #Holdych(2003) bounceback operator
-                	C(omegaS[1],  f[bounce[1]+1] - f[1] + feqP[1] - feq[bounce[1] + 1])
-			}
-               }
+               	    }
                 ?>
 
                     vector_t force;
@@ -945,9 +863,6 @@ CudaDeviceFunction void CollisionBGK_PSM() {
 		}
 		if(Options$SUP){
                         C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-                }
-		if(Options$HOLD) {
-                        C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feqP[bounce[i] + 1]) #Holdych(2003) bounceback operator
                 }
 	}
 
@@ -1038,10 +953,6 @@ CudaDeviceFunction void CollisionTRT_PSM() {
                 if(Options$SUP){
                         C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
                 }
-		if(Options$HOLD) {
-                        C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feqP[bounce[i] + 1]) #Holdych(2003) bounceback operator
-                C(omegaS[1],  f[bounce[1]+1] - f[1] + feqP[1] - feq[bounce[1] + 1])
-		}
        }
 
        for (i in 1:27) {
