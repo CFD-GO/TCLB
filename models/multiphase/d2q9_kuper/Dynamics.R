@@ -45,11 +45,21 @@ AddQuantity(name="F", unit="N", vector=T);
 
 AddQuantity(name="DEBUG", vector=T);
 
-AddSetting(name="omega_l", comment='relaxation factor', default=1)
-AddSetting(name="omega_v", comment='relaxation factor', default=1)
 
-AddSetting(name="nu_l", omega_l='1.0/(3*nu_l + 0.5)', comment='viscosity')
-AddSetting(name="nu_v", omega_v='1.0/(3*nu_v + 0.5)', comment='viscosity')
+if (Options$viscstep) {
+    AddSetting(name="omega_l", comment='relaxation factor', default=1)
+    AddSetting(name="omega_v", comment='relaxation factor', default=1)
+
+    AddSetting(name="nu_l", omega_l='1.0/(3*nu_l + 0.5)', comment='viscosity')
+    AddSetting(name="nu_v", omega_v='1.0/(3*nu_v + 0.5)', comment='viscosity')
+} else {
+    AddSetting(name="omega_l", nu_l="(1./omega_l - 0.5) / 3." , comment='relaxation factor', default=1)
+    AddSetting(name="omega_v", nu_v="(1./omega_v - 0.5) / 3." , comment='relaxation factor', default=1)
+
+    AddSetting(name="nu_l", comment='viscosity')
+    AddSetting(name="nu_v", comment='viscosity')
+}
+
 
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
 AddSetting(name="Temperature", comment='temperature of the liquid/gas')

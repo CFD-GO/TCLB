@@ -694,13 +694,6 @@ CudaDeviceFunction void CollisionMRT()
 {
 	real_t M[9];
 	real_t rho, ux, uy;
-
-    <?R if (Options$viscstep) { ?>
-        real_t omega = rho > 1 ? omega_l : omega_v;
-    <?R } else { ?>
-        real_t omega  =  ( omega_l + (omega_v - omega_l) * (rho - density_v)/(density_l - density_v));
-    <?R } ?>
-
 <?R
 # Calculating equlibrium density set
     	source("lib/feq.R")
@@ -728,6 +721,15 @@ CudaDeviceFunction void CollisionMRT()
 	C( u, f %*% U * ( rho^(-1) ) )
 ?>
 
+<?R if (Options$viscstep) { ?>
+    real_t omega = rho > 1 ? omega_l : omega_v;
+<?R } else { ?>
+
+    const real_t mu_v = nu_v * density_v;
+    const real_t mu_l = nu_l * density_l;
+    const real_t mu =  ( mu_l +  (rho - density_l) * (mu_v - mu_l) / (density_l - density_v  + 1E-16) );
+    real_t omega = 1.0/( 3. * mu / rho + 0.5);
+<?R } ?>
 
 <?R
 	C( R, (f-feq) %*% M * OMEGA );
@@ -756,16 +758,17 @@ real_t c[9],d;
  
  real_t Usq = 0;
     <?R if (Options$viscstep) { ?>
-        real_t gamma = rho > 1 ? omega_l : omega_v;
+        real_t omega = rho > 1 ? omega_l : omega_v;
     <?R } else { ?>
-	    real_t gamma  =  ( omega_l + (omega_v - omega_l) * (rho - density_v)/(density_l - density_v));
+        real_t omega  =  ( nu_l +  (rho - density_v)*(nu_v - nu_l) /(density_l - density_v  + 1E-16)) ;
+        omega = 1.0/( 3 * omega + 0.5);
     <?R } ?>
 //momentum collision
 
 
 
 
- real_t  w[5] = {gamma,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
+ real_t  w[5] = {omega,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
  if ((NodeType & NODE_BOUNDARY) != 0) {
     if ( ( (NodeType & NODE_BOUNDARY) != NODE_NSymmetry ) && ( (NodeType & NODE_BOUNDARY) != NODE_SSymmetry ) ) {
         w[0] = 1.0/(3*nubuffer+0.5);
