@@ -73,6 +73,11 @@ AC_ARG_WITH([lammps],
 	AC_HELP_STRING([--with-lammps=path],
 		[specify the full path to your LAMMPS/LIGGGHTS directory]))
 
+AC_ARG_WITH([lammps-lib],
+	AC_HELP_STRING([--with-lammps-lib=libfile],
+		[specify the name of the lammps/liggghts library (.so/.a)]))
+		
+
 AC_ARG_WITH([verbosity_level],
 	AC_HELP_STRING([--with-verbosity-level=level],
 		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
@@ -540,18 +545,24 @@ then
 	do
 		touch ${LAMMPS}/install/include/lammps/${i}
 	done
-	if test -L ${LAMMPS}/src/libliggghts.so
+	if test "x${with_lammps_lib}" == "x"
 	then
-		echo "It's LIGGGHTS we're working with"
-		rm ${LAMMPS}/src/liblammps.so 2>/dev/null
-		ln -s $(readlink ${LAMMPS}/src/libliggghts.so) ${LAMMPS}/src/liblammps.so
+		LAMMPS_LIB="liblammps.so"
+		if test -L ${LAMMPS}/src/libliggghts.so
+		then
+			echo "It's LIGGGHTS we're working with"
+			LAMMPS_LIB="libliggghts.so"
+		fi
+	else
+		LAMMPS_LIB="${with_lammps_lib}"
 	fi
-	rm ${LAMMPS}/install/lib/liblammps.so 2>/dev/null
-	AC_CHECK_FILE([${LAMMPS}/src/liblammps.so], [ln -s ../../src/liblammps.so ${LAMMPS}/install/lib/liblammps.so],[AC_MSG_ERROR([Cannot find liblammps.so])])
+	AC_CHECK_FILE([${LAMMPS}/src/$LAMMPS_LIB], [ln -s ../../src/$LAMMPS_LIB ${LAMMPS}/install/lib/$LAMMPS_LIB],[AC_MSG_ERROR([Cannot find $LAMMPS_LIB])])
 	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib -Wl,-rpath=${LAMMPS}/install/lib"
 	CPPFLAGS="${CPPFLAGS} -I${LAMMPS}/install/include"
+	LAMMPS_LIB_NAME=${LAMMPS_LIB#lib}
+	LAMMPS_LIB_NAME=${LAMMPS_LIB_NAME%.*}
 	AC_CHECK_HEADERS([lammps/library.h])
-	AC_CHECK_LIB([lammps],[lammps_open])
+	AC_CHECK_LIB([$LAMMPS_LIB_NAME],[lammps_open], [], [AC_MSG_ERROR([Cannot link with $LAMMPS_LIB_NAME])])
 	WITH_LAMMPS=1
 fi
 
