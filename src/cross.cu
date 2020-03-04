@@ -2,7 +2,6 @@
 #include "Consts.h"
 #include "cross.h"
 #include "Global.h"
-#include "LatticeContainer.h"
 #include <vector>
 #include <algorithm>
 #include <iostream>

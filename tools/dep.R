@@ -1,17 +1,17 @@
-# 'grep' all the includes
-f = pipe("grep '# *include' `find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)'` | sed -n 's/^\\([^:]*\\):[ \\t]*#[ \\t]*include[ \\t]*[\"<]\\(.*\\)[>\"]/\\1,\\2/gp'")
-w = read.csv(f,col.names=c("file","dep"), stringsAsFactor=F, header=FALSE);
+#!/usr/bin/env Rscript
 
-# make the relative paths in include statement relative to *here*
-w[,2] = paste0(sub("[^/]*$","",w[,1]),w[,2])
+options(width=150)
 
-# cut out system includes
-sel = sapply(w[,2],file.exists)
-w = w[sel,]
+setwd("src/")
+f = pipe("find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'")
+fs = readLines(f)
+close(f)
+f = pipe("grep -o '#[\\t ]*include[\\t ]*\"[^\"]*\"' `find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'` | sed -n 's/^\\([^:]*\\):#[ \\t]*include[ \\t]*\"\\([^\"]*\\)\"/\\1,\\2/gp'")
+w = read.csv(f,col.names=c("file","dep"), stringsAsFactors=FALSE);
 
 # function reducing the . and ..
 resolve.path = function(x) sapply(strsplit(x,"/"),function(x) {
-  x = x[x!="."];
+  x = x[! (x %in% c(".",""))];
   while (any(x[-1] == ".." & x[-length(x)] != "..")) {
     i = which(x[-1] == ".." & x[-length(x)] != "..")
     x = x[-c(i,i+1)]
@@ -19,17 +19,63 @@ resolve.path = function(x) sapply(strsplit(x,"/"),function(x) {
   paste(x,collapse="/")
 })
 
+
 # reduce the paths in w
-w[,1] = resolve.path(w[,1])
-w[,2] = resolve.path(w[,2])
+fs = resolve.path(fs)
+w$file = resolve.path(w$file)
+w$file = gsub(".Rt$","",w$file)
+w$dep = resolve.path(paste(dirname(w$file),w$dep,sep="/"))
 
-# create the makefile-style dependency lines
-dep = do.call(c,as.list(by(w,w$file,function(x) paste(x[1,1],paste(x[,2],collapse=" "),sep=" : ") )))
+files = data.frame(name=unique(c(w$file, w$dep, fs)),stringsAsFactors=FALSE)
+row.names(files) = files$name
+files$direct    = file.exists(files$name)
+files$template  = file.exists(paste0(files$name,".Rt"))
+files$configure = file.exists(paste0(files$name,".in"))
+files$model     = grepl("templates/",files$name)
+files$src       = files$direct + files$template + files$configure
 
-# write dep.mk
-f=file("dep.mk")
-if (length(dep) > 0) {
-	cat(paste(dep,"\n#\t@echo \"  DEP        $@ <-- $?\"\n\t@test -f $@ && touch $@\n\n",sep=""),sep="", file=f)
-} else {
-	cat("# no dep\n",file=f);
+if (any(files$src > 1)) stop("Too many sources for:", files$name[files$src > 1])
+cat("No sources found for:")
+files$no_src = files$src < 1
+files$generated = ! files$direct
+print(files$name[files$src < 1])
+
+files$path = gsub("^templates","%",files$name)
+#files$path = paste(ifelse(files$direct,"src","CLB"), files$path, sep="/")
+files$path = paste("CLB", files$path, sep="/")
+
+
+w = rbind(w, data.frame(file= files$name, dep=files$name))
+w = tapply(w$dep, w$file, function(x) x)
+
+for (i in seq_along(w)) {
+  x = w[[i]]
+  l = -1
+  while (length(x) != l) {
+    l = length(x)
+    x = unique(c(x,do.call(c,w[x])))
+  }
+  nm = names(w)[i]
+  sel = (x != nm)
+  x = c(nm, x[sel])
+  w[[i]] = x
 }
+
+
+nm = names(w)
+nm = gsub("([.]cpp|[.]cu)$",".o", names(w))
+nm = gsub("^templates","%",nm)
+nm = paste("CLB",nm,sep="/")
+sel = grepl("[.]o$",nm)
+nm = nm[sel]
+w = w[sel]
+
+w = lapply(w, function(x) files[x,"path"])
+
+sel_cu = grepl("[.]cu$",names(w))
+deps = paste0(nm, " : ", sapply(w,paste,collapse=" "), " CLB/config.mk\n\t", ifelse(sel_cu,"$(compile_cu)","$(compile)"))
+
+setwd("..")
+
+writeLines(deps, con="CLB/dep.mk")
+

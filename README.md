@@ -63,7 +63,7 @@ make d2q9
 
 This should also work:
 ```bash
-CLB/d2q9/main example/flow/2d/karman.xml
+bin/d2q9 example/flow/2d/karman.xml
 ```
 
 ## Documentation

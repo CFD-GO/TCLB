@@ -1,0 +1,220 @@
+<?R
+	source("conf.R");
+	c_header()
+?>
+/** \file LatticeContainer.h
+  File defining LatticeContainer and some additional CUDA functions
+*/
+#include "../SyntheticTurbulence.h"
+#include "../BallTree.h"
+#include "ModelConsts.h"
+
+#ifndef SETTINGS_H
+<?R
+	for (v in rows(Settings)) { ?>
+    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
+	} ?>
+    void initSettings();
+    void setConstSetting(int i, real_t tmp);
+
+#define SETTINGS_H 1
+#endif
+
+
+#ifndef LATTICECONTAINER_H
+#define LATTICECONTAINER_H 1
+
+#include "../Consts.h"
+
+/// Main data structure for the lattice
+/**
+    Main data structure for storing solution (Snapshots)
+    in the lattice. It stores the internal part of the fields
+    and margins.
+*/
+    struct FTabs { <?R
+    for (m in NonEmptyMargin) { ?>
+        real_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
+    } ?>
+        void Alloc(int,int,int);
+        void Clear(int,int,int);
+        void PreAlloc(int,int,int);
+        void Free();
+/// Assign operator (no alloc)
+        inline FTabs & operator=(const FTabs & in) { <?R
+    for (m in NonEmptyMargin) { ?>
+            <?%s m$name ?> = in. <?%s m$name ?>; <?R
+    } ?>
+	    return *this;
+        }
+    };
+
+
+template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
+
+/// Container class used for storing all the data needed on GPU
+/**
+  Main class for storing the data needed on GPU and running kernels.
+  LatticeContainer is the container class which
+  owns all the data needed by the kernels on device
+  like pointers to the global gpu memory etc.
+  It defines push/pop functions allowing access
+  to node data stored in memory.
+*/
+class LatticeContainer {
+	public:
+  FTabs in; ///< Main FTabs used for Primal iteration as input
+  FTabs out; ///< Main FTabs used for Primal iteration as output
+#ifdef ADJOINT
+  FTabs adjout; ///< FTabs used for Adjoint iteration as output
+  FTabs adjin; ///< FTabs used for Adjoint iteration as input
+#endif
+  flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
+  cut_t* Q; 
+  size_t particle_data_size;
+  real_t* particle_data;
+  size_t balltree_data_size;
+  tr_elem* balltree_data;
+  real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
+  int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
+  int nx, ny, nz; ///< Size of the Lattice region
+  int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
+  int kx,ky; ///< X and Y thread division
+  int iter; ///< Iteration number
+	int px,py,pz;
+  int reset_iter; //< number of last average reset,for dynamics 
+  int ZoneIndex;
+  int MaxZones;
+  real_t** ZoneSettings;
+  real_t* ConstZoneSettings;
+  STWaveSet ST;
+  void Alloc (int,int,int);
+  void Free();
+  void ActivateCuts();
+  CudaDeviceFunction void fill();
+<?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
+  ?>
+  template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
+#ifdef ADJOINT
+  template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
+  template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
+#endif
+<?R } ?>
+
+  template<class N>  CudaDeviceFunction void getType(N & f);
+
+//  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
+  for (f in rows(Fields)) {
+    if (! f$big) { ?>
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
+    typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
+    return 0.0;
+  };
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load0_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt);
+  
+  template <int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx);
+  template <int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy);
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+  <?R } else { ?>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+  template <int DX, int DY, int DZ>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
+    return load_<?%s f$nicename ?>(x,y,z,nt,DX,DY,DZ);
+  };
+  <?R }
+  } ?>
+//  template <class N> CudaDeviceFunction void push_new(N & node);
+
+
+  CudaDeviceFunction inline const real_t ZoneSetting(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    const real_t * w = ZoneSettings[i];
+    if (w == NULL) return ConstZoneSettings[i];
+    return w[ZoneIndex];
+  }
+
+  CudaDeviceFunction inline const real_t ZoneSetting_DT(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    const real_t * w = ZoneSettings[i + DT_OFFSET];
+    if (w == NULL) return 0;
+    return w[ZoneIndex];
+  }
+
+  CudaDeviceFunction inline real_t * ZoneSettingGrad(const int & s, const int & z) {
+    const int i = s + ZONESETTINGS * z;
+    real_t * w = ZoneSettings[i + GRAD_OFFSET];
+    if (w == NULL) return & ConstZoneSettings[i + GRAD_OFFSET];
+    return & w[ZoneIndex];
+  }
+
+  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
+    if (Q == NULL) return NO_CUT;
+    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+    return Q[i];
+  }
+
+
+  CudaDeviceFunction inline vector_t getST(real_t x, real_t y, real_t z) {
+	return calc(ST, x,y,z);
+  }
+
+  void Color( uchar4 *optr );
+  template<class N> inline void RunBorderT(CudaStream_t);
+  template<class N> inline void RunInteriorT(CudaStream_t);
+  template<class N> inline void RunParticlesT(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
+  template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
+  
+  void CopyToConst();
+  void WaitAll();
+  void WaitBorder();
+
+  inline void clearGlobals() {
+        CudaMemset(Globals, 0, GLOBALS*sizeof(real_t));
+  }
+
+  <?R for (v in rows(Globals)) { ?>
+/// Get [<?%s v$comment ?>] from GPU memory
+        inline real_t get<?%s v$name ?>(){
+                real_t ret;
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
+                return ret;
+        }
+  <?R } ?>
+/// Get all the globals from GPU memory
+	inline void getGlobals(real_t * tab) {
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
+	}
+};
+
+template<class N> CudaGlobalFunction void RunKernel();
+CudaGlobalFunction void ColorKernel( uchar4 *optr);
+
+<?R
+for (q in rows(Quantities)) { ifdef(q$adjoint);
+        if (q$adjoint) {
+          node = "Node_Adj"
+        } else {
+          node = "Node"
+        }
+?>
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
+	for (tp in c("float","double"))
+        { ?>
+CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
+<?R
+	}
+}
+ifdef() ?>
+
+void * BAlloc(size_t size);
+void BPreAlloc(void **, size_t size);
+
+
+#endif

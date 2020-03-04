@@ -277,6 +277,7 @@ then
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
 	fi
+	LDFLAGS="${LDFLAGS} -lcudart"
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
 	CROSS_CPU=1
@@ -742,5 +743,4 @@ AC_SUBST(CPP_OPT)
 AC_SUBST(EMBEDED_PYTHON)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
-AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT

@@ -17,6 +17,7 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 # SYMALGEBRA=TRUE
 
 options(stringsAsFactors=FALSE)
+
 format.list = function(x,...) sapply(x, class)
 
 if (! SYMALGEBRA) {
@@ -28,68 +29,9 @@ if (! SYMALGEBRA) {
 
 if (is.null(Options$autosym)) Options$autosym = FALSE
 
-#source("linemark.R")
-
-rows = function(x) {
-	rows_df= function(x) {
-		if (nrow(x) > 0) {
-			lapply(1:nrow(x),function(i) lapply(x,"[[",i))
-		} else {
-			list()
-		}
-	};
-	switch( class(x),
-		list       = x,
-		data.frame = rows_df(x)
-	)
-}
-
-table_from_text = function(text) {
-	con = textConnection(text);
-	tab = read.table(con, header=T);
-	close(con);
-	tab
-}
-
-c_table_decl = function(d, sizes=TRUE) {
-	trim <- function (x) gsub("^\\s+|\\s+$", "", x)
-	d = as.character(d)
-	sel = grepl("\\[",d)
-	if(any(sel)) {
-		w = d[sel]
-#		w = regmatches(w,regexec("([^[]*)\\[ *([^\\] ]*) *]",w))
-		r = regexpr("\\[[^]]*\\]",w)
-		w = lapply(1:length(r), function(i) {
-			a_=w[i]
-			c(a_,
-				trim(substr(a_,1,r[i]-1)),
-				trim(substr(a_,r[i]+1,r[i]+attr(r,"match.length")[i]-2))
-			)
-		})
-
-		w = do.call(rbind,w)
-		w = data.frame(w)
-		w[,3] = as.integer(as.character(w[,3]))
-		if (sizes) {
-			w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
-		} else {
-			w = by(w,w[,2],function(x) {x[1,2]})
-		}
-		w = do.call(c,as.list(w))
-	} else {
-		w = c()
-	}
-	w = c(w,d[!sel])
-	w
-}
-
+source("lib.R")
 
 ifdef.global.mark = F
-ifdef = function(val=F, tag="ADJOINT") {
-	if ((!ifdef.global.mark) && ( val)) cat("\n#ifdef",tag,"\n");
-	if (( ifdef.global.mark) && (!val)) cat("\n#endif //",tag,"\n");
-	ifdef.global.mark <<- val
-}
 
 
 DensityAll = data.frame(parameter=logical(0))
@@ -477,11 +419,16 @@ NodeTypes = unique(NodeTypes)
 NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
 	n = nrow(tab)
 	l = ceiling(log2(n+1))
-	tab$index = 1:n
-	tab$Index = tab$name
-	tab$value = NodeShift*(1:n)
-	tab$mask  = NodeShift*((2^l)-1)
+	tab$index    = 1:n
+	tab$Index    = paste("NODE",tab$name,sep="_")
+	tab$value    = NodeShift*(1:n)
+	tab$mask     = NodeShift*((2^l)-1)
+	tab$max      = n
+	tab$bits     = l
+	tab$capacity = 2^l
 	tab$shift = NodeShiftNum
+	tab$groupIndex = paste("NODE",tab$group,sep="_")
+	tab$save = TRUE
 	NodeShift    <<- NodeShift * (2^l)
 	NodeShiftNum <<- NodeShiftNum + l
 	tab
@@ -503,24 +450,62 @@ NodeTypes = rbind(NodeTypes,data.frame(
         name="DefaultZone",
         group="SETTINGZONE",
         index=1,
-        Index="DefaultZone",
+        Index="ZONE_DefaultZone",
         value=0,
+        max=ZoneMax,
+        bits=ZoneBits,
+        capacity=ZoneMax,
         mask=(ZoneMax-1)*NodeShift,
-        shift=NodeShiftNum
+        shift=NodeShiftNum,
+        groupIndex = "NODE_SETTINGZONE",
+        save = TRUE
 ))
 NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds size of flag_t")
 
-NodeTypes = rbind(NodeTypes, data.frame(
-	name="None",
-	group="NONE",
-	index=1,
-	Index="None",
-	value=0,
-	mask=0,
-	shift=0
+ALLBits = ZoneShift
+ALLMax = 2^ZoneShift
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="None",
+        group="NONE",
+        index=1,
+        Index="NODE_None",
+        value=0,
+        max=0,
+        bits=0,
+        capacity=0,
+        mask=0,
+        shift=0,
+        groupIndex = "NODE_NONE",
+        save = FALSE
+))
+
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="Clear",
+        group="ALL",
+        index=1,
+        Index="NODE_Clear",
+        value=0,
+        max=ALLMax,
+        bits=ALLBits,
+        capacity=ALLMax,
+        mask=(ALLMax-1),
+        shift=0,
+        groupIndex = "NODE_ALL",
+        save = FALSE
+))
+
+NodeTypeGroups = unique(data.frame(
+        name=NodeTypes$group,
+        Index=NodeTypes$groupIndex,
+        max=NodeTypes$max,
+        bits=NodeTypes$bits,
+        capacity=NodeTypes$capacity,
+        mask=NodeTypes$mask,
+        shift=NodeTypes$shift,
+        save=NodeTypes$save
 ))
 
 Node=NodeTypes$value
@@ -696,6 +681,17 @@ Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
+
+
+Globals$IndexInObj = sapply(Globals$name, function(x) {
+  sel = ZoneSettings$name == paste(x, "InObj",sep="")
+  if (sum(sel) == 1) {
+    ZoneSettings$Index[sel]
+  } else {
+    " UNKNOWN_INOBJ "
+  }
+})
+
 
 offsets = function(d2=FALSE, cpu=FALSE) {
   def.cpu = cpu

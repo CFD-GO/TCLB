@@ -104,7 +104,7 @@ int cbPythonCall::DoIt () {
                     real_t * buffer;
                     long int dims[3];
 
-                    long int size = solver->getComponentIntoBuffer(component, buffer, dims, offsets );
+                    long int size = solver->lattice->getComponentIntoBuffer(component, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
                         pInputData = PyArray_SimpleNewFromData(3, dims, NPY_FLOAT, buffer);
@@ -128,7 +128,7 @@ int cbPythonCall::DoIt () {
                     real_t * buffer;
                     long int dims[4];
 
-                    long int size = solver->getQuantityIntoBuffer(quantity, buffer, dims, offsets );
+                    long int size = solver->lattice->getQuantityIntoBuffer(quantity, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
                         pInputData = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT, buffer);
@@ -198,7 +198,7 @@ int cbPythonCall::DoIt () {
                 for (int k =0; k < 10; k++){
                     debug1("PythonCall after,comp %s,  buffer %d, value %d: %f\n",component,buff_id,k, buffers[buff_id][k]);
                 }
-                int status = solver->loadComponentFromBuffer(component, buffers[buff_id]);
+                int status = solver->lattice->loadComponentFromBuffer(component, buffers[buff_id]);
                 buff_id++;
             }           
             for (; buff_id <= all_buff; buff_id++){

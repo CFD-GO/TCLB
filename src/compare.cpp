@@ -162,6 +162,8 @@ struct Tabs {
 				tab[fname] = new Tab<double>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "Float32") {
 				tab[fname] = new Tab<float>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
+			} else if (ftype == "UInt32") {
+				tab[fname] = new Tab<unsigned int>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "UInt16") {
 				tab[fname] = new Tab<unsigned short int>(dx,dy,dz,nx,ny,nz,fcomp,fname,ftype);
 			} else if (ftype == "UInt8") {
@@ -234,15 +236,16 @@ int main(int argc, char *argv[]) {
 	std::set< std::string > names;
 	for (Tabs::TabMap::iterator it = tabs1.tab.begin(); it != tabs1.tab.end(); it++) names.insert(it->first);
 	for (Tabs::TabMap::iterator it = tabs2.tab.begin(); it != tabs2.tab.end(); it++) names.insert(it->first);
+	bool wrong = false;
 	for (std::set< std::string >::iterator it = names.begin(); it != names.end(); it++) {
 		std::string name = *it;
 		if (tabs1.tab.find(name) == tabs1.tab.end()) {
 			printf("%s not in first file\n", name.c_str());
-			exit(-1);
+			wrong = true;
 		}
 		if (tabs2.tab.find(name) == tabs2.tab.end()) {
 			printf("%s not in second file\n", name.c_str());
-			exit(-1);
+			wrong = true;
 		}
 		double diff = tabs1.tab[name]->compare(tabs2.tab[name]);
 		printf("%s: Max difference: %lg", name.c_str(), diff);
@@ -259,9 +262,11 @@ int main(int argc, char *argv[]) {
 		}
 		if (diff > auto_eps * eps) {
 			printf(" --- WRONG\n");
-			exit(-1);
+			wrong = true;
 		} else {
 			printf(" --- OK\n");
 		}		
 	}
+	if (wrong) return -1;
+	return 0;
 }

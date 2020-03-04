@@ -126,7 +126,7 @@ int MainCallback(int seg, int tot, Solver* solver) {
 				sprintf(left,  "%dh %2dm", left_h, left_m);
 			}
 		}
-		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * solver->lattice->model->fields.size() * sizeof(real_t))) / 1e6);
 		int per_len = 20;
 		{
 			int i=0;
@@ -195,7 +195,6 @@ int main ( int argc, char * argv[] )
 	if (solver->mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
-		NOTICE("-        Model: %25s                               -\n",MODEL);
 		NOTICE("-------------------------------------------------------------------------\n");
 	}
 	MPI_Barrier(MPMD.local);
@@ -240,7 +239,7 @@ int main ( int argc, char * argv[] )
 	debug0("sizeof(size_t) = %ld\n", sizeof(size_t));
 	debug0("sizeof(real_t) = %ld\n", sizeof(real_t));
 	debug0("sizeof(vector_t) = %ld\n", sizeof(vector_t));
-	debug0("sizeof(flag_t) = %ld\n", sizeof(flag_t));
+	debug0("sizeof(big_flag_t) = %ld\n", sizeof(big_flag_t));
 
 	MPI_Barrier(MPMD.local);
 

@@ -1,18 +1,12 @@
-<?R
-  source("conf.R")
-  c_header(); ?>
-
 #ifndef CONFIG_H
-  #include "../config.h"
+  #include "config.h"
   #define CONFIG_H 
 #endif
 
 #ifndef CONSTS_H
 #define CONSTS_H 
-
+<?R git_version = function(){f=pipe("git describe --always --tags"); v=readLines(f); close(f); v} ?>
 #define VERSION "<?%s git_version() ?>"
-#define MODEL "<?%s MODEL ?>"
-#define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
 
 #ifdef CROSS_CPU
   #define MAX_THREADS 1
@@ -21,42 +15,5 @@
   #define MAX_THREADS 512
   #define X_BLOCK 32
 #endif
-
-<?R
-  big_hex = function(x,bits=16) {
-    ret = ""
-    while (x > 0 | bits > 0) {
-      a = x %% 16
-      ret = sprintf("%01x%s",a,ret)
-      x = (x-a) / 16
-      bits = bits - 4
-    }
-    ret
-  }
-  for (n in names(Node)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node[n]) ?> <?R
-  }
-  for (n in names(Node_Group)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node_Group[n]) ?> <?R
-  }
-?>
-<?R
-  for (v in rows(Consts)) { ?>
-#define <?%-40s v$name ?> <?%5d v$value ?> <?R
-  }
-?>
-
-typedef <?%s FlagT ?> flag_t;
-
-<?R for (e in names(Enums)) { ?>
-enum <?%s e ?> { <?%s paste(Enums[[e]],collapse=",") ?> }; <?R
-} ?>
-
-<?R for (n in names(Options)) {
-	if (Options[[n]]) { ?>
-#define OPTIONS_<?%s n ?> 1
-<?R } else { ?>
-#undef OPTIONS_<?%s n ?>
-<?R }} ?>
 
 #endif

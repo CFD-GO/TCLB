@@ -5,11 +5,9 @@
 #include "types.h"
 #include <stdlib.h>
 #include "Sampler.h"
-<?R
-       	source("conf.R")
-       	c_header();
-?>
-Sampler::Sampler(){ 
+#include "LatticeBase.h"
+
+Sampler::Sampler(LatticeBase *lattice_) : lattice(lattice_) { 
 	size = 0;
 	startIter = 0;
 	position = lbRegion();
@@ -22,11 +20,18 @@ int Sampler::initCSV(const char *name)
      output("Initializing %s\n",filename);
      assert( f != NULL );
      fprintf(f,"Iteration,X,Y,Z");
-     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-     if (quant->in("<?%s q$name ?>")) 
-	<?R if (!q$vector) { ?> fprintf(f,",<?%s q$name ?>");
-	<?R } else { ?> fprintf(f,",<?%s q$name ?>.x,<?%s q$name ?>.y,<?%s q$name ?>.z"); <?R } ?>
-     <?R }; ifdef(); ?> 
+	for (ModelBase::Quantities::const_iterator it=lattice->model->quantities.begin(); it!=lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+	  if (it->isAdjoint) continue;
+#endif
+		if (quant->in(it->name)) {
+			if (it->isVector) {
+				fprintf(f,",%s.x,%s.y,%s.z", it->name.c_str(), it->name.c_str(), it->name.c_str());
+			} else {
+				fprintf(f,",%s", it->name.c_str());
+			}
+		}
+	}
      fprintf(f,"\n");
      fclose(f); 
      return 0;
@@ -42,13 +47,18 @@ int Sampler::writeHistory(int curr_iter) {
 			tmp_loc.z = spoints[j].location.dz;
 			fprintf(f,"%d",i);
 			csvWriteElement(f,tmp_loc);
-			<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-			if (quant->in("<?%s q$name ?>")) {
-				<?%s q$type ?> tmp;
-				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost); 
+	for (ModelBase::Quantities::const_iterator it=lattice->model->quantities.begin(); it!=lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+	  if (it->isAdjoint) continue;
+#endif
+			if (quant->in(it->name)) {
+				real_t tmp;
+				int comp = 1;
+				if (it->isVector) comp = 3;
+				CudaMemcpy(&tmp,&gpu_buffer[(location[it->name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t)*comp,cudaMemcpyDeviceToHost); 
 				csvWriteElement(f,tmp);
-				}
-			<?R }; ifdef(); ?> 
+			}
+		}
 			fprintf(f,"\n");
 			}
 			}
@@ -62,16 +72,17 @@ totalIter = iter;
 int i = 0;
 startIter=start;
 quant = nquantities;
-<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-if (quant->in("<?%s q$name ?>"))
+for (ModelBase::Quantities::const_iterator it=lattice->model->quantities.begin(); it!=lattice->model->quantities.end(); it++) {
+#ifndef ADJOINT
+	  if (it->isAdjoint) continue;
+#endif
+if (quant->in(it->name))
  {	
-	location["<?%s q$name ?>"] = i;	
+	location[it->name] = i;	
 	i++;
-	<?R if (q$vector) {?>
-	i = i + 2;
-	<?R }; ?> 
+	if (it->isVector) i = i + 2;
      }
-<?R }; ifdef(); ?>
+}
 CudaMalloc((void**)&gpu_buffer, i*totalIter*spoints.size()*sizeof(real_t)); 
 size = i;
 return 0;

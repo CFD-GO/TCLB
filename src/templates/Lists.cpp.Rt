@@ -1,0 +1,190 @@
+<?R source("conf.R"); ?>
+#include "../Lists.h"
+#include "../Consts.h"
+#include "ModelConsts.h"
+
+#define UNKNOWN_INOBJ -1
+
+<?R
+	for (v in rows(Settings)) if (!is.na(v$derived)) {
+		i = which(as.character(Settings$name) == as.character(v$derived));
+		sel = Settings[i[1],] ?>
+double DF_<?%s v$name ?> (double <?%s v$name ?>) { return <?%s v$equation ?>;} <?R
+	}
+?>
+
+<?R
+	for (objname in names(Objectives)) {
+		obj = Objectives[[objname]]
+?>
+void OF_<?%s objname ?>(double *glob, double *obj, double *grad) { <?R
+	for (i in names(obj)) {
+		if (i != ".M") {
+			v = Globals[i == Globals$name,,drop=FALSE]
+			if (nrow(v) == 1) { ?>
+	double <?%s v$name ?> = glob[<?%s v$Index ?>]; <?R
+			}
+		}
+	} ?>
+	obj[0] = <?R C(obj) ?>; <?R
+	for (v in rows(Globals)) {
+		der = deriv(obj, v$name) ?>
+	grad[<?%s v$Index ?>] = <?R C(der) ?>; <?R
+	} ?>
+}
+<?R } ?>
+
+Model_m::Model_m() {
+	name = "<?%s MODEL ?>";
+	{
+		Setting set;
+<?R	for (v in rows(Settings)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>"; <?R
+		if (!is.na(v$derived)) {
+			i = which(as.character(Settings$name) == as.character(v$derived));
+			sel = Settings[i[1],] ?>
+		set.isDerived = true;
+		set.derivedSetting = <?%s sel$Index ?>;
+		set.derivedValue = DF_<?%s v$name ?>; <?R
+		} else { ?>
+		set.isDerived = false; <?R
+		} ?>
+		set.defaultValue = "<?%s v$default ?>";
+		settings.push_back(set);
+<?R	} ?>
+	}
+	{
+		ZoneSetting set;
+<?R	for (v in rows(ZoneSettings)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>"; 
+		set.defaultValue = "<?%s v$default ?>";
+		zonesettings.push_back(set);
+<?R	} ?>
+	}
+	{
+		Quantity set;
+<?R	for (v in rows(Quantities)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>";
+		set.isVector = <?%s if (v$vector) "true" else "false" ?>;
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		quantities.push_back(set);
+<?R	} ?>
+	}
+	{
+		Global set;
+<?R	for (v in rows(Globals)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>";
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		set.operation = MPI_<?%s v$op ?>;
+		set.inObjId = <?%s v$IndexInObj ?>;
+		globals.push_back(set);
+<?R	} ?>
+	}
+	{
+		Option set;
+<?R	for (i in seq_along(Options)) { ?>
+		set.id = <?%d i ?>;
+		set.name = "<?%s names(Options)[i] ?>";
+		set.isActive = <?%s if (Options[[i]]) "true" else "false" ?>;
+		options.push_back(set);
+<?R	} ?>
+	}
+	{
+		Scale set;
+<?R	for (v in rows(Scales)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.unit = "<?%s v$unit ?>";
+		scales.push_back(set);
+<?R	} ?>
+	}
+	{
+		Field set;
+<?R	for (v in rows(Fields)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		set.isParameter = <?%s if (v$parameter) "true" else "false" ?>;
+		set.isAverage = <?%s if (v$average) "true" else "false" ?>;
+		set.adjointName = "<?%s v$adjoint_name ?>";
+		set.tangentName = "<?%s v$tangent_name ?>";
+		set.accessArea = <?%d v$area ?>;
+		set.simpleAccess = <?%s if (v$simple_access) "true" else "false" ?>;
+		set.niceName = "<?%s v$nicename ?>";
+		fields.push_back(set);
+<?R	} ?>
+	}
+	{
+		NodeTypeFlag set;
+<?R	for (v in rows(NodeTypes)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.flag = <?%s v$Index ?>;
+		set.group_flag = <?%s v$groupIndex ?>;
+		set.group_id = <?%s v$groupIndex ?>;
+		set.name = "<?%s v$name ?>";
+		nodetypeflags.push_back(set);
+<?R	} ?>
+	}
+	{
+		NodeTypeGroupFlag set;
+<?R
+	for (v in rows(NodeTypeGroups)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.flag = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.shift = <?%s v$shift ?>;
+		set.max = <?%d v$max ?>;
+		set.capacity = <?%d v$capacity ?>;
+		set.bits = <?%d v$bits ?>;
+		set.isSave = <?%s if (v$save) "true" else "false" ?>;
+		nodetypegroupflags.push_back(set);
+<?R		if (v$name == "SETTINGZONE") { ?>
+		settingzones = set; <?R
+		}
+	} ?>
+	}
+	{
+		Stage set;
+<?R	for (v in rows(Stages)) { ?>
+		set.id = <?%s v$Index ?>;
+		set.name = "<?%s v$name ?>";
+		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
+		set.isParticle = <?%s if (v$particle) "true" else "false" ?>;
+		set.mainFun = "<?%s v$main ?>";
+		stages.push_back(set);
+<?R	} ?>
+	}
+	{
+		Action set;
+<?R	for (i in seq_along(Actions)) { ?>
+		set.id = <?%s i-1 ?>;
+		set.name = "<?%s names(Actions)[i] ?>"; <?R
+		for (v in Actions[[i]]) { ?>
+		set.stages.push_back(<?%s Stages$Index[which( Stages$name == v )] ?>); <?R
+		} ?>
+		actions.push_back(set);
+<?R	} ?>
+	}
+	{
+		Objective set;
+<?R	for (i in seq_along(Objectives)) {
+		obj = Objectives[[i]]
+		objname = names(Objectives)[i]
+?>
+		set.id = <?%s i-1 ?>;
+		set.name = "<?%s objname ?>";
+		set.fun = OF_<?%s objname ?>;
+<?R	} ?>
+	}
+}
+
+
+

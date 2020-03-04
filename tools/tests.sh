@@ -9,22 +9,24 @@ function usage {
 		echo "         -h|--help        Help (this message)"
 		echo "         -r|--repeat n    Repeat test n times"
 		echo "         -v|--verbose     Verbose output"
+		echo "         -c|--recalculate Recalculate and save results"
+		echo "         -a|--add         Add new test from file"
 		echo "         MODEL   The name of the model to test"
 		echo "         TESTS   The list of test to run (optional)"
 	fi
 }
 
 function comment_wait {
-#       echo -ne "[      ] $1\r"
-        printf   "[      ] %-70s %6s" "$1" "$2"
+        printf   "[      ] %-80s %7s" "$1" "$2"
 }
 function comment_ok {
-#       echo -e "[\e[92m  OK  \e[0m] $1"
-        printf  "\r[\e[92m  OK  \e[0m] %-70s %6s\n" "$1" "$2"
+        printf  "\r[\e[92m  OK  \e[0m] %-87s %6s\n" "$1" "$2"
 }
 function comment_fail {
-#       echo -e "[\e[91m FAIL \e[0m] $1"
-        printf  "\r[\e[91m FAIL \e[0m] %-70s %6s\n" "$1" "$2"
+        printf  "\r[\e[91m FAIL \e[0m] %-87s %6s\n" "$1" "$2"
+}
+function comment_cp {
+        printf  "\r[\e[92m  CP  \e[0m] %-87s %6s\n" "$1" "$2"
 }
 
 function try {
@@ -51,21 +53,21 @@ function try {
 		if $VERBOSE
 		then
 			(
-				echo "----------------  LOG  ---------------"
+				echo "--------------------------------------  LOG  -------------------------------------------"
 				cat  $log
-				echo "--------------------------------------"
+				echo "----------------------------------------------------------------------------------------"
 			) | sed 's|^|         |'
 		fi
 	else
 		comment_fail "$comment"
 		(
-			echo "----------------  CMD  ---------------"
+			echo "--------------------------------------  CMD  -------------------------------------------"
 			echo $@
-			echo "----------------  TIME ---------------"
+			echo "--------------------------------------  TIME -------------------------------------------"
 			echo "Time: $(cat $log.time)s"
-			echo "----------------  LOG  ---------------"
+			echo "--------------------------------------  LOG  -------------------------------------------"
 			cat  $log
-			echo "--------------------------------------"
+			echo "----------------------------------------------------------------------------------------"
 		) | sed 's|^|         |'
 		exit -1;
 	fi
@@ -74,7 +76,7 @@ function try {
 
 REPEATS=1
 VERBOSE=false
-
+RECALCULATE=false
 while true
 do
 	case "$1" in
@@ -89,6 +91,12 @@ do
 		;;
 	-v|--verbose)
 		VERBOSE=true
+		;;
+	-c|--recalculate)
+		RECALCULATE=true
+		;;
+	-a|--add)
+		echo "Not yet supported"
 		;;
 	-h|--help)
 		usage help
@@ -108,7 +116,7 @@ then
 fi
 shift
 
-if ! test -f "CLB/$MODEL/main"
+if ! test -f "bin/$MODEL"
 then
 	echo "\"$MODEL\" is not compiled"
 	echo "  run: make $MODEL"
@@ -148,14 +156,30 @@ fi
 GLOBAL="OK"
 export PYTHONPATH="$PYTHONPATH:$PWD/tools/python"
 
+function trycp {
+	if cp "$@"
+	then
+		while ! test -z "$2"
+		do
+			comment_cp "$1"
+			shift
+		done
+	else
+		comment_fail "Failed to copy"
+	fi
+	return 0
+}
+
 function runline {
 	CMD=$1
-	R=$2
-	G=$TEST_DIR/$R
 	shift
-	case $CMD in
+	R=$1
+	G=$TEST_DIR/$R
+	RPATH=$(dirname $R)
+	GPATH=$(dirname $G)
+	case "$CMD" in
 	need) 
-		comment_wait "copy $@"
+		comment_wait "copy $*"
 		for i in "$@"
 		do
 			SRC=$TEST_DIR/$i
@@ -163,20 +187,55 @@ function runline {
 			then
 				cp $SRC $i
 			else
-				comment_fail "copy $@"
+				comment_fail "copy $*"
 				echo "         $i not found"
 				return -1;
 			fi
 		done
-		comment_ok "copy $@"
+		comment_ok "copy $*"
 		;;
 	run) try "running solver" "$@" ;;
 	fail) try "running solver" '!' "$@" ;;
-	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
-	diff) try "checking $R" diff "$R" "$G" ;;
-	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
-	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" 8;;
-	*) echo "unknown: $CMD"; return -1;;
+	csvdiff)
+		if $RECALCULATE
+		then
+			mkdir -p "$GPATH"
+			trycp "$R" "$GPATH/"
+		else
+			try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime
+		fi ;;
+	diff)
+		if $RECALCULATE
+		then
+			mkdir -p "$GPATH"
+			trycp "$R" "$GPATH/"
+		else
+			try "checking $R" diff "$R" "$G"
+		fi ;;
+	sha1)
+		if $RECALCULATE
+		then
+			mkdir -p "$GPATH"
+			comment_ok "sha1sum $R"
+			sha1sum "$R" >$G.sha1
+		else
+			try "checking $R (sha1)" sha1sum -c "$G.sha1"
+		fi ;;
+	pvtidiff)
+		if $RECALCULATE
+		then
+			mkdir -p "$GPATH"
+			VTIS=$(cat $R  | sed -n "s|.*Source=\"\([^\"]*\)\".*|$RPATH/\1|p")
+			trycp $R $VTIS $GPATH/
+		else
+			try "checking $R (pvtidiff)" $TCLB/bin/compare "$R" "$G" 8
+		fi ;;
+	skip)
+		case "$R" in
+		recalculate) $RECALCULATE && return -2 ;;
+		*) echo "[------] unknown: $R"; return -1;;
+		esac ;;
+	*) echo "[------] unknown: $CMD"; return -1;;
 	esac
 	return 0;
 }
@@ -190,7 +249,7 @@ function testModel {
 		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="OK"
 		TCLB=".."
-		SOLVER="$TCLB/CLB/$MODEL/main"
+		SOLVER="$TCLB/bin/$MODEL"
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
