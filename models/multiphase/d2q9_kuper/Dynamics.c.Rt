@@ -760,8 +760,10 @@ real_t c[9],d;
     <?R if (Options$viscstep) { ?>
         real_t omega = rho > 1 ? omega_l : omega_v;
     <?R } else { ?>
-        real_t omega  =  ( nu_l +  (rho - density_v)*(nu_v - nu_l) /(density_l - density_v  + 1E-16)) ;
-        omega = 1.0/( 3 * omega + 0.5);
+        const real_t mu_v = nu_v * density_v;
+        const real_t mu_l = nu_l * density_l;
+        const real_t mu =  ( mu_l +  (rho - density_l) * (mu_v - mu_l) / (density_l - density_v  + 1E-16) );
+        real_t omega = 1.0/( 3. * mu / rho + 0.5);
     <?R } ?>
 //momentum collision
 
