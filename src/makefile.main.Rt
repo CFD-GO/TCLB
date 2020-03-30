@@ -198,7 +198,7 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
-	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
+	@$(RS) $< --args -d "<?%s d ?>/<?%s m ?>"
 
 <?%s d ?>/<?%s m ?>/makefile:$(SRC)/makefile.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R <?%s src_all ?>
 	@echo "  RT         $@"
