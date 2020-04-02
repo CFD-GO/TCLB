@@ -69,6 +69,15 @@ AC_ARG_WITH([catalyst],
 	AC_HELP_STRING([--with-catalyst=path],
 		[specify the full path to your paraview source and build]))
 
+AC_ARG_WITH([lammps],
+	AC_HELP_STRING([--with-lammps=path],
+		[specify the full path to your LAMMPS/LIGGGHTS directory]))
+
+AC_ARG_WITH([lammps-lib],
+	AC_HELP_STRING([--with-lammps-lib=libfile],
+		[specify the name of the lammps/liggghts library (.so/.a)]))
+		
+
 AC_ARG_WITH([verbosity_level],
 	AC_HELP_STRING([--with-verbosity-level=level],
 		[specify level of debug messages 0-all, 1-much, 2-some, 3-normal]))
@@ -104,7 +113,6 @@ AC_ARG_WITH([python],
 AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
 		[Set python(2)-config binary to call]))
-
 
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
@@ -516,6 +524,46 @@ then
 	
 fi
 
+if test "x${with_lammps}" != "x"
+then
+	if ! test -d "${with_lammps}"
+	then
+		AC_MSG_ERROR([lammps path ${with_lammps} is not a directory])
+	fi
+	LAMMPS="${with_lammps}"
+	LAMMPS="$(cd $LAMMPS; pwd)"
+	mkdir -p $LAMMPS/install/include/lammps
+	mkdir -p $LAMMPS/install/lib/
+	for i in lammps.h library.h input.h modify.h fix.h fix_external.h pointers.h lmptype.h lmpwindows.h atom.h domain.h
+	do
+		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
+		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[AC_MSG_ERROR([Cannot find ${i}])])
+	done
+
+	for i in error.h comm.h vector_liggghts.h neighbor.h math_extra_liggghts.h domain_I.h
+	do
+		touch ${LAMMPS}/install/include/lammps/${i}
+	done
+	if test "x${with_lammps_lib}" == "x"
+	then
+		LAMMPS_LIB="liblammps.so"
+		if test -L ${LAMMPS}/src/libliggghts.so
+		then
+			echo "It's LIGGGHTS we're working with"
+			LAMMPS_LIB="libliggghts.so"
+		fi
+	else
+		LAMMPS_LIB="${with_lammps_lib}"
+	fi
+	AC_CHECK_FILE([${LAMMPS}/src/$LAMMPS_LIB], [ln -s ../../src/$LAMMPS_LIB ${LAMMPS}/install/lib/$LAMMPS_LIB],[AC_MSG_ERROR([Cannot find $LAMMPS_LIB])])
+	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib -Wl,-rpath=${LAMMPS}/install/lib"
+	CPPFLAGS="${CPPFLAGS} -I${LAMMPS}/install/include"
+	LAMMPS_LIB_NAME=${LAMMPS_LIB#lib}
+	LAMMPS_LIB_NAME=${LAMMPS_LIB_NAME%.*}
+	AC_CHECK_HEADERS([lammps/library.h])
+	AC_CHECK_LIB([$LAMMPS_LIB_NAME],[lammps_open], [], [AC_MSG_ERROR([Cannot link with $LAMMPS_LIB_NAME])])
+	WITH_LAMMPS=1
+fi
 
 if test "x${with_r}" == "x"
 then
@@ -686,6 +734,7 @@ AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
+AC_SUBST(WITH_LAMMPS)
 AC_SUBST(WITH_R)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)

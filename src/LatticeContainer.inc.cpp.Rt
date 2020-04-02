@@ -89,7 +89,8 @@ template < class N > class ThreadNumber {
 	maxy = th.y;
 	sy = maxy;
 	ky = ny/sy;
-	if (fit) while ((sy > 1) && (ky*sy != ny)) { sy--; ky = ny/sy; }
+//	if (fit) while ((sy > 1) && (ky*sy != ny)) { sy--; ky = ny/sy; }
+	if (fit) { sy = 1; ky = ny; }
 	if (ky*th.y < ny) ky++;
 	print();
   }

@@ -25,12 +25,13 @@ SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattic
 SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
 SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
-SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp
+SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
 SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
 SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
 SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
 SOURCE_PLAN+=glue.hpp
 SOURCE_PLAN+=mpitools.hpp
+SOURCE_PLAN+=pinned_allocator.hpp
 SOURCE_PLAN+=compare.cpp
 
 <?R
@@ -90,7 +91,7 @@ travis : .travis.yml
 	by(Models, Models$group, function(m) {
 		if (length(m$opts[[1]]) > 0) {
 			mat = do.call(rbind,m$opts)
-			mat = ifelse(mat==1, "X","-")
+			mat = ifelse(mat!=0, "X","-")
 			mat = as.data.frame(mat)
 			row.names(mat) = m$name
 		} else {
@@ -203,7 +204,7 @@ wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <
 
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
-	@cd <?%s d ?>/<?%s m ?>; $(RS) ../../$<
+	@$(RS) $< --args -d "<?%s d ?>/<?%s m ?>"
 
 <?%s d ?>/<?%s m ?>/makefile:$(SRC)/makefile.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R <?%s src_all ?>
 	@echo "  RT         $@"

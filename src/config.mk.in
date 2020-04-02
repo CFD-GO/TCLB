@@ -12,13 +12,19 @@ PV_VERSION = @PV_VERSION@
 WITH_CATALYST = @WITH_CATALYST@
 EMBEDED_PYTHON = @EMBEDED_PYTHON@
 
+WITH_LAMMPS = @WITH_LAMMPS@
+
 SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu LatticeContainer.cu Dynamics.c
 SOURCE=$(SOURCE_CU)
 HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h types.h pugixml.hpp pugiconfig.hpp
 
 OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o SyntheticTurbulence.o Sampler.o ZoneSettings.o RemoteForceInterface.o hdf5Lattice.o xpath_modification.o
 
-AOUT=main
+AOUT = main empty compare
+
+ifeq '$(strip $(WITH_LAMMPS))' '1'
+ AOUT += lammps
+endif
 
 NVCC=nvcc
 CCTXT=NVCC
