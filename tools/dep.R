@@ -1,3 +1,13 @@
+#!/usr/bin/env Rscript
+
+library(optparse)
+options <- list(
+        make_option(c("-d","--path"), "store", default="", help="Work directory", type="character")
+)
+opt <- parse_args(OptionParser(usage="Usage: ADmod -f inputfile [-o outputfile]", options))
+
+if (opt$path != "") setwd(opt$path)
+
 # 'grep' all the includes
 f = pipe("grep '# *include' `find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)'` | sed -n 's/^\\([^:]*\\):[ \\t]*#[ \\t]*include[ \\t]*[\"<]\\(.*\\)[>\"]/\\1,\\2/gp'")
 w = read.csv(f,col.names=c("file","dep"), stringsAsFactor=F, header=FALSE);
