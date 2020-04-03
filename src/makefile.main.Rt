@@ -69,7 +69,14 @@ rm:rm-files configure
 clean: <?%s paste(Models$name, "clean", sep="/", collapse=" ") ?>
 	
 wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
-	@echo "  RT         $@ (model)"
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
+
+schemas : wiki/catalog.xml <?%s paste("wiki/schema/", Models$name, ".xsd", sep="", collapse=" ") ?>
+
+wiki/catalog.xml : src/catalog.xml.Rt
+	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 

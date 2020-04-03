@@ -146,8 +146,9 @@ fill.type = function(complexType, el) {
   }
 }
 
-schema <- node("schema", attrs=list(targetNamespace="http://tclb.io/"),
-                namespaceDefinitions = list("http://tclb.io/", xs="http://www.w3.org/2001/XMLSchema"))
+namespace_name = paste("urn","tclb",MODEL,sep=":")
+schema <- node("schema", attrs=list(targetNamespace=namespace_name),
+                namespaceDefinitions = list(namespace_name, xs="http://www.w3.org/2001/XMLSchema"))
 doc <- newXMLDoc(node = schema)
 for (name in names(data)) if (name != "types") {
   el = data[[name]]
@@ -170,7 +171,7 @@ for (name in names(data$types)) {
 
 simpleType <- node("simpleType", parent = schema, attrs = list(name="unit"))
 restriction <- node("restriction", parent = simpleType, attrs = list(base="xs:string"))
-pattern="([0-9]*.)?[0-9]+([eE][-+]?[0-9]+)?((m|s|kg|K|x|y|z|A|t|N|Pa|J|W|V|C|nm|um|mm|cm|km|h|ns|us|ms|g|mg)[0-9]*)*(/((m|s|kg|K|x|y|z|A|t|N|Pa|J|W|V|C|nm|um|mm|cm|km|h|ns|us|ms|g|mg)[0-9]*)+)?"
+pattern="[-+]?([0-9]*[.])?[0-9]+([eE][-+]?[0-9]+)?((m|s|kg|K|x|y|z|A|t|N|Pa|J|W|V|C|nm|um|mm|cm|km|h|ns|us|ms|g|mg)[0-9]*)*(/((m|s|kg|K|x|y|z|A|t|N|Pa|J|W|V|C|nm|um|mm|cm|km|h|ns|us|ms|g|mg)[0-9]*)+)?"
 node("pattern", parent = restriction, attrs = list(value=pattern))
 
 attributeGroup <- node("attributeGroup", parent = schema, attrs = list(name="geom"))
