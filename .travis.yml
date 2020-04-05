@@ -77,7 +77,7 @@ jobs:
           - tools/install.sh rpackage XML
           - make configure
           - ./configure --disable-cuda
-          - mkdir -p wiki/xml wiki/images
+          - mkdir -p wiki/xml wiki/images wiki/schema
           - R -f tools/gen.doc.R
           - make wiki/Models.md
           - make schemas
