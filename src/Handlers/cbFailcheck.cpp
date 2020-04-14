@@ -75,7 +75,7 @@ int cbFailcheck::DoIt () {
 			MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPMD.local);
 
                     if(fin ){
-			notice("Checking %s discovered NaN", it->name);
+			notice("Checking %s discovered NaN", it->name.c_str());
 			break;
 			}
 		}
