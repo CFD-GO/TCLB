@@ -67,6 +67,9 @@ fi
 
 rm -r TCLB_docs/docs/models
 cp -r wiki/models/ TCLB_docs/docs/models
+rm -r TCLB_docs/docs/schema
+cp -r wiki/schema/ TCLB_docs/docs/schema
+cp -r wiki/catalog.xml TCLB_docs/docs/catalog.xml
 rm -r TCLB_docs/docs/XML-Reference
 cp -r wiki/xml/ TCLB_docs/docs/XML-Reference
 
