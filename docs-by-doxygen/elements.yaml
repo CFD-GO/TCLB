@@ -1,0 +1,690 @@
+types:
+  nodetypes:
+    name: Node Type Brush
+    children:
+      - type: geom
+      - type: predefined
+      - type: bool
+      - special: blocks
+    attr:
+      - name: mask
+        val:
+          select:
+            - special: NodeTypeGroups
+      - type: geom
+      - name: name
+        val:
+          string: zonename
+  geom:
+    name: Geometry Primitive
+    attr:
+      - type: geom
+  predefined:
+    name: Predefined geometry shapes
+  bool:
+    name: Geometry Boolean Operation
+    children:
+      - type: geom
+      - type: bool
+  action:
+    name: Executions
+    children:
+      - type: params
+    attr:
+      - name: Iterations
+        val:
+          unit: int
+        use: required
+  setup:
+    name: Setup Elements
+  callback:
+    name: Callbacks
+    attr:
+      - name: Iterations
+        val:
+          unit: int
+  params:
+    name: Params
+  geometry:
+    name: Geometry
+    children:
+      - type: nodetypes
+  container:
+    name: Container
+    attr:
+      - name: output
+        val:
+          string: path
+  clbconfig:
+    name: CLBConfig
+    attr:
+      - name: output
+        val:
+          string: path
+        use: required
+        default: output/
+  units:
+    name: units
+    children:
+      - type: params
+  design:
+    name: Optimization and Optimal Control
+
+CLBConfig:
+  type: clbconfig
+  children:
+    - type: units
+    - type: geometry
+    - type: action
+    - type: callback
+    - type: container
+    - type: params
+    - type: setup
+  attr:
+    - name: permissive
+      val:
+        bool:
+    - name: version
+      val:
+        string: version 
+
+Geometry:
+  type: geometry
+  attr:
+  - name: nx
+    val:
+      unit: int
+  - name: ny
+    val:
+      unit: int
+  - name: nz
+    val:
+      unit: int
+
+Init:
+  comment: >
+   Initialize lattice. Init is also always run at the end of `<Model/`> element
+  type: callback
+
+Solve:
+  comment: >
+   Main solution element. It runs a prescribed number of iterations.
+  type: action
+
+VTK:
+  comment: Export VTK data
+  example: <VTK Iterations="1000" what="U,Rho"/>
+  type: callback
+  attr:
+    - name: what
+      optional: true
+      val:
+        list:
+          - special: Quantities
+          - special: NodeTypeGroups
+      comment: List of Quantities and Geometry Components to export.
+    - name: name
+      val: 
+        string: outname
+      comment: Name of the VTK file. 
+
+HDF5:
+  comment: Export HDF5 data file and Xdmf description
+  example: <HDF5 Iterations="1000" what="U,Rho"/>
+  type: callback
+  attr:
+    - name: what
+      optional: true
+      val:
+        list:
+          - special: Quantities
+          - special: NodeTypeGroups
+      comment: List of Quantities and Geometry Components to export.
+    - name: name
+      val:
+        string: outname
+      comment: Name of the HDF5 and Xdmf file.
+    - name: compress
+      val: 
+        bool:
+      comment: Use ZLIB deflation filter to compress output
+    - name: write_xdmf
+      val: 
+        bool:
+      comment: Write Xdmf accompaning file describing the data for visualisation
+    - name: point_data
+      val:
+        bool:
+      comment: Write Xdmf that described the data as Point Data and not Cell Data
+    - name: chunk
+      val:
+        string: 3int
+      comment: HDF5 Chunk size (not supported yet)
+    - name: precision
+      val:
+        select:
+          - float
+          - double
+      comment: "Select the precision of the HDF5 data. If this doesn't match the calculation type, this can conflict with compression."
+
+TXT:
+  comment: Export data to TXT file
+  type: callback
+  attr:
+    - name: name
+      val: 
+        string: outname
+      comment: Name of the TXT file. 
+    - name: gzip
+      val: 
+        bool:
+      comment: If to compress the TXT output
+
+Catalyst:
+  comment: Run Catalyst co-processor
+  example: <Catalyst script="vis1.py" Iterations="1000"/>
+  type: callback
+  attr:
+    - name: export
+      val:
+        select:
+        - CellData
+        - PointData
+      comment: Select if to provide the Catalyst co-processor with VTK Cell of Point Data
+    - name: script
+      val: 
+        string: file
+      comment: Catalyst co-processing Python script
+      use: required
+    - name: preprocess
+      val:
+        bool:
+      default: true
+      comment: If active, the Python script will be modified so that the files will be placed in the output directory
+
+Log:
+  type: callback
+  attr:
+    - name: name
+      val:
+        string: outname
+
+Stop:
+  comment: Allows to stop the computatation if a change of some Global is small for a longer time
+  example: <Stop FluxChange="1e-5" Times="5" Iterations="100"/>
+  type: callback
+  attr:
+    - name:
+        - special: Globals
+      val:
+        numeric: float
+      comment: Limit on change of a specific Global
+    - name: Times
+      val:
+        numeric: int
+      comment: Numer of times the change have to be below the limit to stop the computation.
+
+PID:
+  comment: PID controller. Allows to achive a specified value of an Global, with tweaking of a Setting
+  example: <PID Flux="10.0" control="ForceX" scale="0.01" DerivativeTime="100" IntegrationTime="10000" Iterations="10"/>
+  type: callback
+  attr:
+    - name: integral
+      val:
+        select:
+        - special: Globals
+      comment: Target value for a specified Global
+      use: required
+    - name: control
+      val:
+        select:
+          - special: Settings
+      comment: The setting to control (currently only zonal settings are supported)
+      use: required
+    - name: zone
+      val:
+        select:
+          - special: Zones
+      comment: The setting to control (currently only zonal settings are supported)
+    - name: scale
+      val:
+        numeric: float
+      comment: The proportional rate D in PID controller 
+    - name: DerivativeTime
+      val:
+        numeric: float
+      comment: The derivative time scale. D = P * DerivativeTime
+    - name: IntegrationTime
+      val:
+        numeric: float
+      comment: The integral time scale. I = P / IntegrationTime
+
+Sample:
+  comment: Effecient sampling of quantities on each iteration, without need for VTK
+  example: <Sample Iterations="1000" what="U,P" ><Point dx="10" dy="20"/></Sample>
+  type: callback
+  attr:
+    - name: what
+      optional: true
+      val:
+        list:
+          - special: Quantities
+      comment: List of Quantities to be sampled. By default all are sampled.
+
+Box:
+  type: geom
+
+Sphere:
+  type: geom
+
+Pipe:
+  type: geom
+
+Wedge:
+  type: geom
+  attr:
+    - name: direction
+      val:
+        select:
+        - UpperLeft
+        - UpperRight
+        - LowerLeft
+        - LowerRight
+      use: required
+
+STL:
+  comment: >
+    Imports a STL file as geometrical object. The element works in two modes.
+    In the first mode, it fills elements inside or outside of the STL geometry (casting rays along some axis).
+    In the second mode (`side="surface"`) it fills elements touching the geometry (on both sides) and
+    **calculates the cuts* for Interpolated-BounceBack-type conditions.
+  example: <STL file="geometry.stl" scale="1m" x="10" side="out"/>
+  type: geom
+  attr:
+    - name: file
+      val:
+        file: "*.stl"
+      comment: STL file to import
+      use: required
+    - name: side
+      val:
+        select:
+        - out
+        - in
+        - surface
+      comment: Specifies if to fill the interior (in), exterior (out), or the surface (see description)
+      default: in
+    - name: ray_axis
+      val:
+        select:
+        - "x"
+        - "y"
+        - "z"
+      comment: Specifies the axis along which rays will be cast for in/out filling of STL
+    - name: scale
+      val:
+        unit: float
+      comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
+    - name: x
+      val:
+        unit: float
+      comment: Specifies the offset by which the STL geometry should be moved
+    - name: y
+      val:
+        unit: float
+      comment: Specifies the offset by which the STL geometry should be moved
+    - name: z
+      val:
+        unit: float
+      comment: Specifies the offset by which the STL geometry should be moved
+
+Inlet:
+  type: predefined
+
+Outlet:
+  type: predefined
+
+Channel:
+  type: predefined
+
+Tunnel:
+  type: predefined
+
+
+Param:
+  type:
+    params
+  attr:
+    - name: name
+      val:
+        select:
+          - special: Settings
+    - name: value
+      val:
+        unit: float
+      use: required
+    - name: gauge
+      val:
+        unit: float
+
+Model:
+  type: container
+  children:
+    - type: params
+    - type: setup
+
+Units:
+  type: units
+
+Adjoint:
+  type: action
+  children:
+    - type: action
+
+Optimize:
+  type: action
+  children:
+    - type: action
+  attr:
+    - name: Method
+      val:
+        select:
+          - MMA
+          - L-BFGS-B
+          - COBYLA
+          - NELDERMEAD
+      comment: Optimization method
+    - name: Material
+      val:
+        select:
+          - more
+          - less
+      comment: Optional constraint on "amount of material", which is the sum of Topological parameters
+    - name: XAbsTolerance
+      val:
+        numeric: float
+    - name: RelTolerance
+      val:
+        numeric: float
+      comment: Relative Tolerance
+    - name: AbsTolerance
+      val:
+        numeric: float
+      comment: Absolute Tolerance
+    - name: StopAtValue
+      val:
+        numeric: float
+      comment: At what value of the objective to stop
+    - name: MaxEvaluations
+      val:
+        numeric: int
+      comment: Maximal number of evalulations (optimizer iterations)
+
+OptimalControl:
+  type: design
+  attr:
+    - name: what
+      val:
+        select:
+          - special: SettingInZone
+      comment: Select a time-dependent setting to optimize
+      use: required
+
+OptimalControlSecond:
+  comment: >
+    Parametrises a time-dependend Setting with the value of every second iteration.
+    Values inbetween are interpolated.
+  example: |
+    <OptimalControlSecond what="Velocity-inlet" lower="0.0" upper="0.05"/>
+  type: design
+  attr:
+    - name: what
+      val:
+        select:
+          - special: SettingInZone
+      comment: Select a time-dependent setting to optimize
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the value of the Setting
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the value of the Setting
+
+Fourier:
+  comment: >
+    Makes a truncated Fourier transform of a time-dependent Setting (OptimalControl)
+  example: |
+    <Fourier>
+      <OptimalControlSecond what="Velocity-inlet"/>
+    </Fourier>
+  type: design
+  attr:
+    - name: modes
+      val:
+        select:
+          numeric: int
+      comment: Number of Fourier modes to use for the parametrization
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the Fourier coefficients
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the Fourier coefficients
+
+BSpline:
+  comment: >
+    Makes B-Spline transform/smoothing of a time-dependent Setting (OptimalControl)
+  example: |
+    <BSpline nodes="10" lower="-1" upper="1">
+      <OptimalControlSecond what="Velocity-inlet"/>
+    </BSpline>
+  type: design
+  attr:
+    - name: nodes
+      val:
+        numeric: int
+      comment: Number of degrees of freedom (parameters) of the b-spline
+    - name: periodic
+      val:
+        bool:
+      comment: If the b-spline should be periotic in the control period
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the values
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the values
+
+RepeatControl:
+  comment: >
+    Repeats a control for optimal control
+  example: |
+    <RepeatControl length="100" lower="-1" upper="1">
+      <OptimalControl what="Velocity-inlet"/>
+    </RepeatControl>
+  type: design
+  attr:
+    - name: length
+      val:
+        unit: int
+      comment: Length of the control to repeat
+    - name: lower
+      val:
+        unit: float
+      comment: Lower limit on the values
+    - name: upper
+      val:
+        unit: float
+      comment: Upper limit on the values
+
+Threshold:
+  type: action
+  comment: >
+    Goes with a threshold from 0 to 1.
+    Then for a specific threshold sets all the parameter below the threshold to 0 and above the threshold to 1.
+    Then runs the calculation for the binary (0-1) parameter set.
+  attr:
+    - name: Levels
+      val:
+        numeric: int
+      comment: Number of Levels to calculate between 0 and 1
+
+ThresholdNow:
+  type: action
+  comment: >
+    For a specific threshold sets all the parameter below the threshold to 0 and above the threshold to 1.
+    Then runs the calculation for the binary (0-1) parameter set.
+  attr:
+    - name: Level
+      val:
+        numeric: float
+      comment: Threshold level to apply
+
+Repeat:
+  type: action
+  comment: A loop element
+  example: |
+    <Repeat Times="5">
+      <Init/>
+      <Solve Iterations="1000"/>
+      <VTK/>
+    </Repeat>
+  attr:
+    - name: Times
+      val:
+        numeric: int
+      comment: Numer of Times to repeat a segment
+
+Control:
+  type: setup
+  comment: Element prescribing time-dependent Settings
+  example: |
+    <Control Iterations="1s">
+      <CSV file="example/sin.csv" Time="x*1s">
+        <Params PY="Sin*0.5m+1m"/>
+        <Params PR="Cos*2+1"/>
+      </CSV>
+    </Control>
+  attr:
+    - name: Iterations
+      val:
+        unit: int
+      comment: Length of the time-dependentcy
+
+SyntheticTurbulence:
+  type: setup
+  comment: Prescribe properties of the synthetic turbulence generated for initialization and boundary conditions
+  attr:
+    - name: Modes
+      val:
+        numeric: int
+      comment: Number of harmonic modes to generate for the turbulence
+    - name: Spread
+      val:
+        select:
+          - Even
+          - Log
+          - Quantile
+      comment: The way to divide the spectrum to a finite number of modes
+    - name: Spectrum
+      val:
+        select:
+          - Von Karman
+          - One Wave
+      comment: Type of spectrum to use
+    - name: MainWaveLength
+      val:
+        unit: float
+      comment: Main wave-length in the Von Karman spectrum
+    - name: DiffusionWaveLength
+      val:
+        unit: float
+      comment: Diffusion scale wave-length in the Von Karman spectrum
+    - name: MinWaveLength
+      val:
+        unit: float
+      comment: Minimal space wave-length
+    - name: MaxWaveLength
+      val:
+        unit: float
+      comment: Maximal space wave-length
+    - name: TimeWaveLength
+      val:
+        unit: float
+      comment: Time wave-length of the syntetic turbulence (can be also `TimeWaveNumber` or `TimeWaveFrequency`)
+
+LoadBinary:
+  type: action
+  comment: Load a Field from a binary file (low level)
+  attr:
+    - name: file
+      val:
+        string: file
+      comment: path to a binary file (without the suffix)
+    - name: comp
+      val:
+        select:
+          - special: Fields
+      comment: Field to load from the binary file
+
+SaveBinary:
+  type: action
+  comment: Save a Field to a binary file (low level)
+  attr:
+    - name: file
+      val:
+        string: outfile
+      comment: the name of the binary file
+    - name: filename
+      val:
+        string: file
+      comment: full path to the binary file
+    - name: comp
+      val:
+        select:
+          - special: Fields
+      comment: Field to save to the binary file
+
+LoadMemoryDump:
+  type: action
+  comment: Load all fields from a dump created by Save element
+  attr:
+    - name: file
+      val:
+        string: file
+      comment: path to a binary file (without the suffix)
+
+SaveMemoryDump:
+  type: action
+  comment: |
+        Save all fields, to be loaded later on with LoadMemoryDump
+        Warning: Save and Load Memory Dump have to be used on the *same number of cores*, same model and same precision.
+  attr:
+    - name: file
+      val:
+        string: outfile
+      comment: the name of the binary file
+    - name: filename
+      val:
+        string: file
+      comment: full path to the binary file
+
+EvalIf:
+  type: action
+  comment: |
+        Evaluate subactions only if opt_present build (d2qg and d2q9_bc, option is *bc* )options are present, or only if opt_missing is missing
+  attr:
+    - name: opt_present
+      val:
+        string: build opts
+      comment:
+    - name: opt_missing
+      val:
+        string: build opt
+      comment: 
