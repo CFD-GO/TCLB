@@ -1,6 +1,8 @@
+
+// maintainer: Grzegorz Gruszczynski @ggruszczynski
 <?R 
-    # c_header();
 	source("conf.R")
+	c_header();
 	source("lib/lattice.R")
 	source("lib/feq.R")
 	source("lib/boundary.R")
@@ -168,9 +170,9 @@ CudaDeviceFunction real_t getH(){
 CudaDeviceFunction vector_t get_fDarcyStoper(real_t rho, vector_t u)
 {
 	vector_t fDarcy;
-	fDarcy.x = -2*rho*(u.x);
-	fDarcy.y = -2*rho*(u.y);
-	fDarcy.z = -2*rho*(u.z);
+	fDarcy.x = -rho*u.x;
+	fDarcy.y = -rho*u.y;
+	fDarcy.z = -rho*u.z;
 	return fDarcy;
 }
 
@@ -1808,7 +1810,7 @@ CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER(real_t rho, real_t omega
 	h201 = -temp201*(omega_ade - 1.);
 	h012 = -temp012*(omega_ade - 1.);
 	h021 = -temp021*(omega_ade - 1.);
-	h111 = 0;
+	h111 = -temp111*(omega_ade - 1.);
 	h220 = H*Sigma2*Sigma2;
 	h202 = H*Sigma2*Sigma2;
 	h022 = H*Sigma2*Sigma2;

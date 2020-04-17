@@ -89,6 +89,7 @@ Contributors:
 * [Dmytro Sashko](https://github.com/shkodm)
 * [Travis Mitchell](https://github.com/TravisMitchell)
 * [Paweł Obrępalski](https://github.com/PabloOb)
+* [Grzegorz Gruszczyński](https://github.com/ggruszczynski)
 
 Developed at: [C-CFD Group](https://c-cfd.meil.pw.edu.pl/) at [Warsaw University of Technology](http://pw.edu.pl/) from 2012
 
