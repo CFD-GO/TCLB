@@ -698,6 +698,9 @@ Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettin
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
+Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
+Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
+
 offsets = function(d2=FALSE, cpu=FALSE) {
   def.cpu = cpu
   mw = PV(c("nx","ny","nz"))
