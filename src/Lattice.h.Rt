@@ -151,6 +151,20 @@ public:
         void <?%s FunName ?>_Opt(int, int, int, int, int); 
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
+        void IterateAction(int action, int iter, int iter_type);
+        inline void RunAction(int action, int a, int b, int iter_type) {
+		switch (action) { <?R
+for (n in names(Actions)) {
+        a = Actions[[n]]
+        if (n == "Iteration") {
+                FunName = "Iteration"
+        } else {
+                FunName = paste("Action",n,sep="_")
+        } ?>
+		case ACTION_<?%s n ?>: return <?%s FunName ?>(a, b, iter_type); <?R
+} ?>
+		}
+	}
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };

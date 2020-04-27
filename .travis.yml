@@ -79,8 +79,8 @@ jobs:
           - ./configure --disable-cuda
           - mkdir -p wiki/xml wiki/images wiki/schema
           - R -f tools/gen.doc.R
-          - make wiki/Models.md
-          - make schemas
+          - make -j 2 wiki/Models.md
+          - make -j 2 schemas
           - tools/deploy.docs.sh
 
 after_success:
