@@ -818,6 +818,7 @@ CudaDeviceFunction void CollisionBGK_PSM() {
     AddToTotalFluidVelocityX(u[0]);
     AddToTotalFluidVelocityY(u[1]);
     AddToTotalFluidVelocityZ(u[2]); 
+    AddToTotalFluidVolume(1); 
 
     <?R
 
@@ -907,6 +908,11 @@ CudaDeviceFunction void CollisionTRT_PSM() {
     u[1] = ((<?R C(f %*% U[,2]) ?>)/d + 0.5*(AccelY + GravitationY) );
     u[2] = ((<?R C(f %*% U[,3]) ?>)/d + 0.5*(AccelZ + GravitationZ) );
 
+    AddToTotalFluidVelocityX(u[0]);
+    AddToTotalFluidVelocityY(u[1]);
+    AddToTotalFluidVelocityZ(u[2]); 
+    AddToTotalFluidVolume(1); 
+
     uP[0] = uPx;
     uP[1] = uPy;
     uP[2] = uPz;
@@ -966,13 +972,13 @@ CudaDeviceFunction void CollisionMRT() {
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-//        vector_t u = getU();
-//        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
 
-	ret.x = (<?R C(sum(f)) ?>);
-	ret.x = ret.x/111;
+//	ret.x = (<?R C(sum(f)) ?>);
+//	ret.x = ret.x/111;
 //	ret.x = wb;
-	if (NodeType == NODE_Solid) ret.y = 0; else ret.y= 1;
+	if (NodeType == NODE_Wall) ret.y = 0; else ret.y= 1;
         return ret;
 }
 

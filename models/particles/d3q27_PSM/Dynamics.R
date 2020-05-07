@@ -76,6 +76,7 @@ AddGlobal(name="TotalSVF", comment='Total of solids throughout domain')
 AddGlobal(name="TotalFluidVelocityX")
 AddGlobal(name="TotalFluidVelocityY")
 AddGlobal(name="TotalFluidVelocityZ")
+AddGlobal(name="TotalFluidVolume")
 
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")
