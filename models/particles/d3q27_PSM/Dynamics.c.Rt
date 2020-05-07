@@ -815,9 +815,10 @@ CudaDeviceFunction void CollisionBGK_PSM() {
     uP[1] = uPy;
     uP[2] = uPz;
 
-    AddToTotalFluidVelocityX(u[0]);
-    AddToTotalFluidVelocityY(u[1]);
-    AddToTotalFluidVelocityZ(u[2]); 
+    AddToTotalFluidMomentumX(d*u[0]);
+    AddToTotalFluidMomentumY(d*u[1]);
+    AddToTotalFluidMomentumZ(d*u[2]); 
+    AddToTotalFluidMass(d); 
     AddToTotalFluidVolume(1); 
 
     <?R
@@ -908,9 +909,10 @@ CudaDeviceFunction void CollisionTRT_PSM() {
     u[1] = ((<?R C(f %*% U[,2]) ?>)/d + 0.5*(AccelY + GravitationY) );
     u[2] = ((<?R C(f %*% U[,3]) ?>)/d + 0.5*(AccelZ + GravitationZ) );
 
-    AddToTotalFluidVelocityX(u[0]);
-    AddToTotalFluidVelocityY(u[1]);
-    AddToTotalFluidVelocityZ(u[2]); 
+    AddToTotalFluidMomentumX(d*u[0]);
+    AddToTotalFluidMomentumY(d*u[1]);
+    AddToTotalFluidMomentumZ(d*u[2]); 
+    AddToTotalFluidMass(d); 
     AddToTotalFluidVolume(1); 
 
     uP[0] = uPx;

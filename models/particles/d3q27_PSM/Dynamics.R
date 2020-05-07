@@ -73,9 +73,11 @@ AddSetting(name="DNy", default = 0, comment='Total nodes in Y direction')
 AddSetting(name="DNz", default = 0, comment='Total nodes in Z direction')
 
 AddGlobal(name="TotalSVF", comment='Total of solids throughout domain')
-AddGlobal(name="TotalFluidVelocityX")
-AddGlobal(name="TotalFluidVelocityY")
-AddGlobal(name="TotalFluidVelocityZ")
+
+AddGlobal(name="TotalFluidMomentumX")
+AddGlobal(name="TotalFluidMomentumY")
+AddGlobal(name="TotalFluidMomentumZ")
+AddGlobal(name="TotalFluidMass")
 AddGlobal(name="TotalFluidVolume")
 
 AddNodeType(name="NVelocity", group="BOUNDARY")
