@@ -64,9 +64,9 @@ AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX
 AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
 AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
 
-AddSetting(name="AccelX", default=0.0, comment='body acceleration X')
-AddSetting(name="AccelY", default=0.0, comment='body acceleration Y')
-AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z')
+AddSetting(name="AccelX", default=0.0, comment='body acceleration X', unit="m/s2")
+AddSetting(name="AccelY", default=0.0, comment='body acceleration Y', unit="m/s2")
+AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z', unit="m/s2")
 
 AddSetting(name="DNx", default = 0, comment='Total nodes in X direction')
 AddSetting(name="DNy", default = 0, comment='Total nodes in Y direction')
@@ -74,11 +74,11 @@ AddSetting(name="DNz", default = 0, comment='Total nodes in Z direction')
 
 AddGlobal(name="TotalSVF", comment='Total of solids throughout domain')
 
-AddGlobal(name="TotalFluidMomentumX")
-AddGlobal(name="TotalFluidMomentumY")
-AddGlobal(name="TotalFluidMomentumZ")
-AddGlobal(name="TotalFluidMass")
-AddGlobal(name="TotalFluidVolume")
+AddGlobal(name="TotalFluidMomentumX", unit="kgm/s")
+AddGlobal(name="TotalFluidMomentumY", unit="kgm/s")
+AddGlobal(name="TotalFluidMomentumZ", unit="kgm/s")
+AddGlobal(name="TotalFluidMass", unit="kg")
+AddGlobal(name="TotalFluidVolume", unit="m3")
 
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")
