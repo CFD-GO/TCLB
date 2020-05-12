@@ -499,10 +499,6 @@ CudaDeviceFunction void CalcF() {
                          omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
                          omegaF = PV("omegaF")
 
-#                      C(usq, sum(u*u)*(1/c_squ))
-#                      for (i in 1:27){
-#                         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-#                      }
 	 ?>
 	CalcEquilibrium(feq, d, u);
 
@@ -559,12 +555,6 @@ CudaDeviceFunction void CalcF() {
                         uP[1] = uPy;
                         uP[2] = uPz;
 
-                <?R
-#                    C(uPsq, sum(uP*uP)*(1/c_squ))
-#                    for (i in 1:27){
-#                        C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-#                    }
-		?>
 		CalcEquilibrium(feqP, d, uP);
 		<?R
 			if(Options$NEBB) {
@@ -629,10 +619,6 @@ CudaDeviceFunction void CollisionBGK_PSM() {
       uPsq = PV("uPsq")
       uPlsq = PV("uPlsq")
 
-#      C(usq, sum(u*u)*(1/c_squ))
-#      for (i in 1:27){
-#         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-#      }
 ?>
 	CalcEquilibrium(feq, d, u);
 <?R
@@ -645,10 +631,6 @@ CudaDeviceFunction void CollisionBGK_PSM() {
 
       <?R
 	localOmegaF = PV(c("localOmegaF")) 
-#	C(uPsq, sum(uP*uP)*(1/c_squ))
-#	for (i in 1:27){
-#		C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-#	}
 ?>
 	CalcEquilibrium(feqP, d, uP);
 <?R
@@ -714,10 +696,6 @@ CudaDeviceFunction void CollisionTRT_PSM() {
 <?R
        localOmegaF = PV(c("localOmegaF"))
 
-#       C(usq, sum(u*u)*(1/c_squ))
-#       for (i in 1:27) {
-#          C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-#       }
 ?>
 	CalcEquilibrium(feq, d, u);
 <?R
@@ -731,9 +709,6 @@ CudaDeviceFunction void CollisionTRT_PSM() {
 ?>
 	CalcEquilibrium(feqP, d, uP);
 <?R
-#       for (i in 1:27) {
-#                C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-#       }
 
                if (Options$NEBB) {
                        C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
