@@ -99,7 +99,9 @@ CudaDeviceFunction vector_t getU(){
 
 CudaDeviceFunction void Init() {
 	real_t d = Density;
-	SetEquilibrum(d,InitVelocityX,InitVelocityY,InitVelocityZ);
+	real_t u[3];
+	u[0] = InitVelocityX; u[1] = InitVelocityY; u[2] = InitVelocityZ;
+	CalcEquilibrium(f, d, u);
         sol = 0;
         sol = CalcSolid();
 }
@@ -228,269 +230,57 @@ CudaDeviceFunction void BounceBack()
 // 0 1 2 3 4 5 6 7 8
 // 1 5 2 6 3 7 4 8 0
 
+<?R
+NonEquilibriumExtrapolation = function(adjx,adjy,adjz) {
+?>
+	real_t u[3], d, f_neigh[27], eq_local[27], eq_neigh[27];
+<?R
+	f_neigh_pop = PV(paste("f",1:27-1,"(",adjx,",",adjy,",",adjz,")",sep=""))
+	f_neigh = PV("f_neigh[",1:27-1,"]")
+
+	C(f_neigh, f_neigh_pop);
+	d = PV("d")
+	u = PV("u[",1:3-1,"]")
+	u_prescribed = PV(c("VelocityX","VelocityY","VelocityZ"))
+	C(d, sum(f_neigh))
+	C(u, u_prescribed)
+?>
+	CalcEquilibrium(eq_local, d, u);
+<?R	C(u, f_neigh %*% U * d^{-1}) ?>
+	CalcEquilibrium(eq_neigh, d, u);
+	for (int i=0;i<27;i++) f[i] = eq_local[i] - eq_neigh[i] + f_neigh[i];
+<?R
+}
+?>	
+
 CudaDeviceFunction void NonEquilibriumExtrapolationN()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjY = -1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,adjY,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,adjY,0)",sep=""))) }
-    ?>
-
+<?R	NonEquilibriumExtrapolation(0,-1,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationS()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjY = 1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,adjY,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,adjY,0)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(0,1,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationE()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjX = -1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(adjX,0,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(adjX,0,0)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(-1,0,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationW()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjX = 1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(adjX,0,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(adjX,0,0)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(1,0,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationF()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjZ = -1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,0,adjZ)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,0,adjZ)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(0,0,-1) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationB()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjZ = 1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,0,adjZ)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,0,adjZ)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(0,0,1) ?>
 }
 
 
@@ -651,10 +441,12 @@ CudaDeviceFunction void MovingSWall(){
 }
 
 
-CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+CudaDeviceFunction void CalcEquilibrium(real_t f_tab[27], real_t d, real_t u[3])
 {
 	<?R
-		C(f, EQ$Req %*% solve(EQ$mat));
+		EQ = MRT_eq(U, d, d*u, ortogonal=FALSE);
+		f_tmp = PV("f_tab[",1:27-1,"]")
+		C(f_tmp, EQ$Req %*% solve(EQ$mat));
 	?>
 }
 
@@ -707,11 +499,13 @@ CudaDeviceFunction void CalcF() {
                          omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
                          omegaF = PV("omegaF")
 
-                      C(usq, sum(u*u)*(1/c_squ))
-                      for (i in 1:27){
-                         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-                      }
+#                      C(usq, sum(u*u)*(1/c_squ))
+#                      for (i in 1:27){
+#                         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
+#                      }
 	 ?>
+	CalcEquilibrium(feq, d, u);
+
 
          for (ParticleIterator p(X,Y,Z); p; ++p) {
                 
@@ -766,21 +560,20 @@ CudaDeviceFunction void CalcF() {
                         uP[2] = uPz;
 
                 <?R
-
-                    C(uPsq, sum(uP*uP)*(1/c_squ))
-
-                    for (i in 1:27){
-                        C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-                    }
-                    for (i in 1:27){
-
+#                    C(uPsq, sum(uP*uP)*(1/c_squ))
+#                    for (i in 1:27){
+#                        C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
+#                    }
+		?>
+		CalcEquilibrium(feqP, d, uP);
+		<?R
 			if(Options$NEBB) {
-				C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feq[bounce[i] + 1]) #Non-eq bounceback operator
+				C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
+			} else if(Options$SUP){
+				C(omegaS,  feqP - f + (1.0 - omegaF)*(f - feq)) #Superposition operator
+			} else {
+				omegaS[1:27] = 0
 			}
-			if(Options$SUP){
-				C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-			}
-               	    }
                 ?>
 
                     vector_t force;
@@ -836,41 +629,38 @@ CudaDeviceFunction void CollisionBGK_PSM() {
       uPsq = PV("uPsq")
       uPlsq = PV("uPlsq")
 
-      C(usq, sum(u*u)*(1/c_squ))
-      for (i in 1:27){
-         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-      }
+#      C(usq, sum(u*u)*(1/c_squ))
+#      for (i in 1:27){
+#         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
+#      }
+?>
+	CalcEquilibrium(feq, d, u);
+<?R
 
-           for (i in 1:27) {
-         C(F[i], ((a %*% t(U))[i] + (1/c_squ)*(a %*% t(U))[i]*(u %*% t(U))[i] - (u %*% a)) * tn[i,i]*(1/c_squ)*d)
-      }
+      C(F, ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d)
 
-      for (i in 1:27){
-         C(delf[i], f[i] - feq[i])
-      }
       ?>
 
       localOmegaF = omegaF;
 
       <?R
 	localOmegaF = PV(c("localOmegaF")) 
-	C(uPsq, sum(uP*uP)*(1/c_squ))
-	for (i in 1:27){
-		C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-	}
-	for (i in 1:27){
-
-		if(Options$NEBB) {
-                        C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feq[bounce[i] + 1]) #Non-eq bounceback operator
+#	C(uPsq, sum(uP*uP)*(1/c_squ))
+#	for (i in 1:27){
+#		C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
+#	}
+?>
+	CalcEquilibrium(feqP, d, uP);
+<?R
+		if (Options$NEBB) {
+                        C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
+		} else if (Options$SUP){
+                        C(omegaS,  feqP - f + (1.0 - omegaF)*(f - feq)) #Superposition operator
+                } else {
+			omegaS[1:27] = 0
 		}
-		if(Options$SUP){
-                        C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-                }
-	}
 
-	for (i in 1:27){
-		C(f[i], f[i] + (1.0-sol)*(localOmegaF*(feq[i] - f[i]) + (1.0-0.5*localOmegaF)*F[i]) + sol*omegaS[i])
-	}
+		C(f, f + (1.0-sol)*(localOmegaF*(feq - f) + (1.0-0.5*localOmegaF)*F) + sol*omegaS)
      ?>
 }
 
@@ -923,49 +713,37 @@ CudaDeviceFunction void CollisionTRT_PSM() {
 
 <?R
        localOmegaF = PV(c("localOmegaF"))
-       C(usq, sum(u*u)*(1/c_squ))
 
-       for (i in 1:27) {
-          C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-       }
+#       C(usq, sum(u*u)*(1/c_squ))
+#       for (i in 1:27) {
+#          C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
+#       }
+?>
+	CalcEquilibrium(feq, d, u);
+<?R
 
-       for (i in 1:27) {
-          C(feven[i], 0.5*(f[i] + f[bounce[i]+1]))
-       }
+       C(feven, 0.5*(f + f[bounce+1]))
+       C(fodd, 0.5*(f - f[bounce+1]))
+       C(feqeven, 0.5*(feq + feq[bounce+1]))
+       C(feqodd, 0.5*(feq - feq[bounce+1]))
 
-       for (i in 1:27) {
-          C(fodd[i], 0.5*(f[i] - f[bounce[i]+1]))
-       }
+       C(F, ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d)
+?>
+	CalcEquilibrium(feqP, d, uP);
+<?R
+#       for (i in 1:27) {
+#                C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
+#       }
 
-       for (i in 1:27) {
-          C(feqeven[i], 0.5*(feq[i] + feq[bounce[i]+1]))
-       }
+               if (Options$NEBB) {
+                       C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
+               } else if (Options$SUP){
+                       C(omegaS,  feqP - f + (1.0 - omegaF)*(f - feq)) #Superposition operator
+               } else {
+			omegaS[1:27] = 0
+		}
 
-       for (i in 1:27) {
-          C(feqodd[i], 0.5*(feq[i] - feq[bounce[i]+1]))
-       }
-
-       for (i in 1:27) {
-         C(F[i], ((a %*% t(U))[i] + (1/c_squ)*(a %*% t(U))[i]*(u %*% t(U))[i] - (u %*% a)) * tn[i,i]*(1/c_squ)*d)
-       }
-
-       for (i in 1:27) {
-                C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-       }
-
-       for (i in 1:27) {
-                
-		if(Options$NEBB) {
-                        C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feq[bounce[i] + 1]) #Non-eq bounceback operator
-                }
-                if(Options$SUP){
-                        C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-                }
-       }
-
-       for (i in 1:27) {
-            C(f[i], f[i] + (1.0-sol)*(localOmegaF*(feqeven[i] - feven[i]) + omegaP*(feqodd[i] - fodd[i]) + (1.0-0.5*localOmegaF)*F[i]) + sol*omegaS[i])
-       }
+            C(f, f + (1.0-sol)*(localOmegaF*(feqeven - feven) + omegaP*(feqodd - fodd) + (1.0-0.5*localOmegaF)*F) + sol*omegaS)
      ?>
 }
 
