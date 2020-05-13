@@ -14,11 +14,6 @@ struct Particle {
 	}
 };
 
-#define safe_push_all if (P::valid_()) this->push_all
-#define safe_pull_all if (P::valid_()) this->pull_all
-#define safe_pull_base if (P::valid_()) this->pull_base
-#define safe_pull_rest if (P::valid_()) this->pull_rest
-
 struct ParticleI : Particle {
 	static const bool sync = false;
 	static CudaDeviceFunction inline bool SyncOr(const bool& b) { return b; }
@@ -30,24 +25,35 @@ struct ParticleI : Particle {
 	CudaDeviceFunction void push_all() {
 	}
 	CudaDeviceFunction void pull_all() {
-		vector_t pos, vel, angvel;
-		rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
-		pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
-		pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
-		pos.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+2];
-		vel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+0];
-		vel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+1];
-		vel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+2];
-		angvel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+0];
-		angvel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+1];
-		angvel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+2];
-		diff.x = pos.x - node[0];
-		diff.y = pos.y - node[1];
-		diff.z = pos.z - node[2];
-		dist = sqrt(diff.x*diff.x + diff.y*diff.y + diff.z*diff.z);
-		cvel.x = vel.x + angvel.y*diff.z - angvel.z*diff.y;
-		cvel.y = vel.y + angvel.z*diff.x - angvel.x*diff.z;
-		cvel.z = vel.z + angvel.x*diff.y - angvel.y*diff.x;
+		if (valid_()) {
+			vector_t pos, vel, angvel;
+			rad = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_R];
+			pos.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+0];
+			pos.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+1];
+			pos.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_POS+2];
+			vel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+0];
+			vel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+1];
+			vel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_VEL+2];
+			angvel.x = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+0];
+			angvel.y = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+1];
+			angvel.z = constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+2];
+			diff.x = pos.x - node[0];
+			diff.y = pos.y - node[1];
+			diff.z = pos.z - node[2];
+			dist = sqrt(diff.x*diff.x + diff.y*diff.y + diff.z*diff.z);
+			cvel.x = vel.x + angvel.y*diff.z - angvel.z*diff.y;
+			cvel.y = vel.y + angvel.z*diff.x - angvel.x*diff.z;
+			cvel.z = vel.z + angvel.x*diff.y - angvel.y*diff.x;
+		} else {
+			rad = 0;
+			diff.x = 0;
+			diff.y = 0;
+			diff.z = 0;
+			dist = 0;
+			cvel.x = 0;
+			cvel.y = 0;
+			cvel.z = 0;
+		}			
 	}
 };
 
@@ -104,6 +110,7 @@ struct ParticleS : ParticleI {
 		ParticleI::push_all();
 	}
 	CudaDeviceFunction void pull_all() {
+		if (valid_()) {
 		vector_t pos, vel, angvel;
 #ifdef WARPLOAD
 		real_t val;
@@ -143,18 +150,34 @@ struct ParticleS : ParticleI {
 		moment.x = 0;
 		moment.y = 0;
 		moment.z = 0;
+		} else {
+		rad = 0;
+		diff.x = 0;
+		diff.y = 0;
+		diff.z = 0;
+		dist = 0;
+		cvel.x = 0;
+		cvel.y = 0;
+		cvel.z = 0;
+		force.x = 0;
+		force.y = 0;
+		force.z = 0;
+		moment.x = 0;
+		moment.y = 0;
+		moment.z = 0;
+		}
 	}
 };
 
 template < class P >
 struct AllParticleIterator : P {
 	CudaDeviceFunction AllParticleIterator(real_t x, real_t y, real_t z) : P(x,y,z) {
-		safe_pull_all();
+		P::pull_all();
 	}
 	CudaDeviceFunction void operator++ () {
-		safe_push_all();
+		P::push_all();
 		this->i++;
-		safe_pull_all();
+		P::pull_all();
 	}
 };
 
@@ -170,7 +193,7 @@ struct TreeParticleIterator : P {
 	        	return;
 		}
 	        go(true);
-		safe_pull_all();
+		P::pull_all();
 	}
 	CudaDeviceFunction void go(bool go_left) {
 		while (nodei != -1) {
@@ -186,11 +209,11 @@ struct TreeParticleIterator : P {
 	}
 	CudaDeviceFunction void operator++ () {
 		if (nodei != -1) {
-		    this->push_all();
+		    P::push_all();
 		    nodei = constContainer.balltree_data[nodei].back;
 		    go(false);
 		}
-	        safe_pull_all();
+	        P::pull_all();
 	}
 };
 
