@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(GF+RT+Outflow+GuoCM)*autosym"
+OPT="(GF+RT+Outflow+GuoCM+debug+BGK+CM)*autosym"
 
 # GF: Guo Forcing - feature in MRT model;
 #	This is using a higher order Forcing scheme
@@ -9,6 +9,9 @@ OPT="(GF+RT+Outflow+GuoCM)*autosym"
 #	This is using the Temporal term included in the 
 #	phase field equilibrium distribution function by
 #	Ren et al. (2016)
+# debug: Enables tracking of momentum and force globals 
+# BGK: Applies single relaxation time - not recommended
+# CM: Applies the Central moments relaxation
 
 # Boundary Conditions:
 # Outflow: 

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="150" ny="150" predef="none" model="MRT">
 		<MRT>
 			<Box/>
@@ -10,20 +10,25 @@
 		</None>
 	</Geometry>
 	<Model>
-		<Params Velocity="0.0"/>
-		<Params omega="1.0"/>
-		<Params tempomega="1.0"/>
+		<Param name="Velocity" value="0.0"/>
+		<Param name="omega" value="1.0"/>
+		<Param name="tempomega" value="1.0"/>
 		<!-- as omega gets defined in R preamble-->
-		<Params Density="0.30711" Density-zdrop="0.021748" GravitationY="0.0" GravitationX="0.0" G="-1.0" betaforcing="1.0"/>
-		<Params T="0.075456"/>
+		<Param name="betaforcing" value="1.0"/>
+		<Param name="G" value="-1.0"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="Density" value="0.021748" zone="zdrop"/>
+		<Param name="Density" value="0.30711"/>
+		<Param name="T" value="0.075456"/>
 		<!--T_critical = 0.09432, rho_critical = 0.11911 -->
-		<Params alpha="1"/>
+		<Param name="alpha" value="1"/>
 		<!-- increasing alpha increases interface thickness -->
-		<Params R="1"/>
+		<Param name="R" value="1"/>
 		<!-- no effect on thickness or stability-->
-		<Params beta="4"/>
+		<Param name="beta" value="4"/>
 		<!-- effects density, but ratio of densities remains constant-->
-		<Params kappa="0"/>
+		<Param name="kappa" value="0"/>
 	</Model>
 	<VTK/>
 	<Solve Iterations="5000" output="output/">

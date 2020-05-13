@@ -6,9 +6,14 @@
 #include "vHandler.h"
 #include "Callback.h"
 
+#define STOP_CHANGE 0x01
+#define STOP_ABOVE 0x02
+#define STOP_BELOW 0x03
+
 class  cbStop  : public  Callback  {
         std::vector< int > what;
-        std::vector< double > change;
+        std::vector< int > stop_type;
+        std::vector< double > limit;
         std::vector< double > old;
 	int times, score;
 	int old_iter_type;
@@ -17,6 +22,7 @@ class  cbStop  : public  Callback  {
 int Init ();
 int DoIt ();
 int Finish ();
+void AddStop(int what_, int stop_type_, double limit_);
 };
 
 #endif // CBSTOP_H

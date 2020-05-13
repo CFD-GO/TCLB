@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="300" ny="100">
 		<MRT>
 			<Box/>
@@ -30,12 +30,13 @@
 		</None>
 	</Geometry>
 	<Model>
-		<Params Velocity="0.005"/>
-		<Params nu="0.01"/>
-		<Params DragInObj="-1.0" PorocityTheta="-3"/>
+		<Param name="Velocity" value="0.005"/>
+		<Param name="nu" value="0.01"/>
+		<Param name="PorocityTheta" value="-3"/>
+		<Param name="DragInObj" value="-1.0"/>
 	</Model>
 	<VTK Iterations="1000"/>
 	<Log Iterations="100"/>
-	<Params Descent="1.0"/>
+	<Param name="Descent" value="1.0"/>
 	<OptSolve Iterations="100000"/>
 </CLBConfig>

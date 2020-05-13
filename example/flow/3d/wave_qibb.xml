@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="64" ny="25" nz="64">
 		<MRT>
 			<Box/>
@@ -14,9 +14,9 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params ForceX="1e-5"/>
-		<Params nu="0.001"/>
-		<Params GalileanCorrection="1"/>
+		<Param name="ForceX" value="1e-5"/>
+		<Param name="nu" value="0.001"/>
+		<Param name="GalileanCorrection" value="1"/>
 	</Model>
 	<Failcheck Iterations="1000"/>
 	<VTK Iterations="1000"/>

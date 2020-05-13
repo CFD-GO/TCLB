@@ -21,41 +21,47 @@
 #include <assert.h>
 
 #include <ctime>
-
+#include "glue.hpp"
 // for isatty
 //#include <unistd.h>
 
 #include "Solver.h"
 #include "xpath_modification.h"
+#include "mpitools.hpp"
 
 // Reads units from configure file and applies them to the solver
-void readUnits(pugi::xml_node config, Solver* solver) {
+int readUnits(pugi::xml_node config, Solver* solver) {
 	pugi::xml_node set = config.child("Units");
 	if (!set) {
 		warning("No \"Units\" element in config file\n");
-		return;
+		return 0;
 	}
-	for (pugi::xml_node node = set.child("Params"); node; node = node.next_sibling("Params")) {
-		std::string nm="", val="", gauge="1";
-		for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute())
-		{
-			if (((std::string) attr.name()) == "gauge") {
-				gauge = attr.value();
-			} else {
-				if (nm != "") {
-					error("Only one variable allowed in a Params element in Units (%s)\n", nm.c_str());
-				}
-				nm = attr.name();
-				val= attr.value();
-			}
+	int i=1;
+	for (pugi::xml_node node = set.child("Param"); node; node = node.next_sibling("Param")) {
+	        std::string par, value, gauge;
+		pugi::xml_attribute attr;
+		attr = node.attribute("value");
+		if (attr) {
+			value = attr.value();
+		} else {
+			ERROR("Value not provided in Param in Units\n");
+			return -1;
 		}
-		if (nm == "") {
-			error("No variable in a Params element in Units\n");
+		attr = node.attribute("gauge");
+		if (attr) {
+			gauge = attr.value();
+		} else {
+			ERROR("Gauge not provided in Param in Units\n");
+			return -1;
 		}
-		debug2("Units: %s = %s = %s\n", nm.c_str(), val.c_str(), gauge.c_str());
-		solver->setUnit(nm, val, gauge);
+		attr = node.attribute("name");
+		if (attr) par = attr.value(); else par = (Glue() << "unnamed" << i).str();
+		debug2("Units: %s = %s = %s\n", par.c_str(), value.c_str(), gauge.c_str());
+		solver->setUnit(par, value, gauge);
+		i++;
 	}
 	solver->Gauge();
+	return 0;
 };
 
 CudaEvent_t     start, stop; // CUDA events to measure time
@@ -222,40 +228,6 @@ int main ( int argc, char * argv[] )
 		return 0;
 	}
 
-	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
-	{
-		int count, dev;
-		CudaGetDeviceCount( &count );
-/*		if (argc >= 3) {
-                	if (argc < 2 + solver->mpi.size) {
-				error("Not enough device numbers");
-				notice("Usage: program configfile [device number]\n");
-				notice(" Provide device number for each processor (%d processors)\n", solver->mpi.size);
-				return 0;
-			}
-			HANDLE_IOERR( sscanf(argv[2+solver->mpi.rank], "%d", &dev) );
-			if (dev < 0) {
-				error("Wrong device number: %s\n", argv[2+solver->mpi.rank]);
-				return -1;
-			}
-			#ifdef GRAPHICS
-				if (dev != 0) { error("Only device 0 can be selected for GUI program (not yet implemented)\n"); return -1; }
-			#endif
-		} else { */
-			CudaGetDeviceCount( &count );
-			dev = solver->mpi.rank % count;
-/*		} */
-		debug2("Selecting device %d/%d\n", dev, count);
-		CudaSetDevice( dev );
-		solver->mpi.gpu = dev;
-		#ifdef CROSS_GPU
-			debug2("Initializing device\n");
-			cudaFree(0);
-		#endif
-	}
-	MPI_Barrier(MPMD.local);
-	DEBUG_M;
-
 	// Calculating the right number of threads per block
 	#ifdef CROSS_CPU
 		solver->info.xsdim = 1;
@@ -278,7 +250,7 @@ int main ( int argc, char * argv[] )
         if (xml_def_init()) { error("Error in xml_def_init. It should work!\n"); return -1; }
 	strcpy(solver->info.conffile, filename);
 	solver->setOutput("");
-	pugi::xml_parse_result result = solver->configfile.load_file(filename);
+	pugi::xml_parse_result result = solver->configfile.load_file(filename, pugi::parse_default | pugi::parse_comments);
 	if (!result) {
 		error("Error while parsing %s: %s\n", filename, result.description());
 		return -1;
@@ -288,13 +260,114 @@ int main ( int argc, char * argv[] )
 	pugi::xml_node config, geom, units;
 	XMLCHILD(config, solver->configfile, "CLBConfig");
 	
+	// Treatment of depreciated Params element:
+	{
+		pugi::xpath_node_set found = config.select_nodes("//Params");
+		if (found.size() > 0) {
+                    	WARNING("%ld depreciated Params elements found. Changing them to Param:\n", found.size());
+                    	config.append_attribute("permissive").set_value("true");
+                    	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+				pugi::xml_node node = it->node();
+				pugi::xml_node after = node;
+				std::string gauge = "";
+				pugi::xml_attribute gauge_attr = node.attribute("gauge");
+				if (gauge_attr) gauge = gauge_attr.value();
+				for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) if (strcmp(attr.name(),"gauge") != 0) {
+				        std::string par, zone;
+			                par = attr.name();
+		                        size_t i = par.find_first_of('-');
+		                        if (i == string::npos) {
+		                        	zone = "";
+		                        } else {
+                		                zone = par.substr(i+1);
+		                                par = par.substr(0,i);
+					}
+					pugi::xml_node param = node.parent().insert_child_after("Param", after);
+					after = param;
+					param.append_attribute("name").set_value(par.c_str());
+					param.append_attribute("value").set_value(attr.value());
+					if (zone != "") param.append_attribute("zone").set_value(zone.c_str());
+					if (gauge != "") param.append_attribute("gauge").set_value(gauge.c_str());
+				}
+				node.parent().remove_child(node);
+			}
+		}
+	}	
+
+
 	if (argc > 2) {
-		int status = xpath_modify(config, argc-2, argv+2);
+		int status = xpath_modify(solver->configfile, config, argc-2, argv+2);
+		if (status == -444) { // Graceful exit
+			if (readUnits(config, solver)) {
+				ERROR("Wrong Units\n");
+				return -1;
+			}
+			return 0;
+		}
 		if (status != 0) return status;
 	}
+
+	// Delete comments:
+	{
+		pugi::xpath_node_set found = config.select_nodes("//comment()");
+		if (found.size() > 0) {
+                    	output("Discarding %ld comments\n", found.size());
+                    	for (pugi::xpath_node_set::const_iterator it = found.begin(); it != found.end(); ++it) {
+				pugi::xml_node node = it->node();
+				if (node) {
+					node.parent().remove_child(node);
+				} else {
+					ERROR("Comment is not a node (this should not happen)\n");
+				}
+			}
+		}
+	}
+
+	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
+	{
+		#ifndef CROSS_CPU
+			int count, dev;
+			CudaGetDeviceCount( &count );
+			{
+				MPI_Comm comm = MPMD.local;
+				std::string nodename = mpitools::MPI_Nodename(comm);
+				MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
+				dev = mpitools::MPI_Rank(nodecomm);
+				MPI_Comm_free(&nodecomm);
+			}
+			if (dev >= count) {
+				bool oversubscribe = false;
+				pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
+				if (attr) oversubscribe = attr.as_bool();
+				if (!oversubscribe) {
+					ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
+					return -1;
+				} else {
+					WARNING("Oversubscribing GPUs.");
+				}
+				dev = dev % count;
+			}
+			output_all("Selecting device %d/%d\n", dev, count);
+			CudaSetDevice( dev );
+			solver->mpi.gpu = dev;
+			debug2("Initializing device\n");
+			cudaFree(0);
+		#else
+			output_all("Running on CPU\n");
+			CudaSetDevice(0);
+			solver->mpi.gpu = 0;
+		#endif
+	}
+	MPI_Barrier(MPMD.local);
+	DEBUG_M;
+
 	
+	if (readUnits(config, solver)) {
+		ERROR("Wrong Units\n");
+		return -1;
+	}
+
 	XMLCHILD(geom, config, "Geometry");
-	readUnits(config, solver);
 
 	// Reading the size of mesh
 	int nx, ny, nz, ns = 2;
@@ -348,6 +421,7 @@ int main ( int argc, char * argv[] )
 		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
 	}
 	delete solver;
+	CudaDeviceReset();
 	MPI_Finalize();
 	return 0;
 }

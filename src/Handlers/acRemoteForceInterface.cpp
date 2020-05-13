@@ -22,13 +22,44 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         solver->lattice->RFI.setUnits(units[0],units[1],units[2]);
         solver->lattice->RFI.CanCopeWithUnits(false);
 
+        bool stats = false;
+        std::string stats_prefix = solver->info.outpath;
+        stats_prefix = stats_prefix + "_RFI";
+        int stats_iter = 200;
+        
+        attr = node.attribute("stats");
+        if (attr) stats = attr.as_bool();
+        attr = node.attribute("stats_iter");
+        if (attr) {
+          stats_iter = solver->units.alt(attr.value());
+          stats = true;
+        }
+        attr = node.attribute("stats_prefix");
+        if (attr) {
+          stats_prefix = attr.value();
+          stats = true;
+        }
+        
+        if (stats) {
+          output("Asking for stats on RFI ( %s every %d it)\n", stats_prefix.c_str(), stats_iter);
+          solver->lattice->RFI.enableStats(stats_prefix.c_str(), stats_iter);
+        }
+
         inter = MPMD[integrator_];
         if (! inter) {
                 ERROR("Integrator %s not found in MPMD (that usualy means that you didn't run it)\n",integrator_.c_str());
                 return -1;
         }
         integrator = integrator_;
+
+        bool use_box = true;
+        attr = node.attribute("use_box");
+        if (attr) use_box = attr.as_bool();
         
+        if (use_box) {
+          lbRegion reg = solver->lattice->region;
+          solver->lattice->RFI.DeclareSimpleBox(reg.dx, reg.dx+reg.nx, reg.dy, reg.dy+reg.ny, reg.dz, reg.dz+reg.nz);
+        }
         MPI_Barrier(MPMD.local);
         solver->lattice->RFI.Connect(MPMD.work,inter.work);
         

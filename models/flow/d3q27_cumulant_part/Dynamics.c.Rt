@@ -28,6 +28,12 @@ CudaDeviceFunction void CalcF(){
 	vector_t force;
 <?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
 	if (p.dist < p.rad) {
+		real_t cvel_len = sqrt(p.cvel.x*p.cvel.x + p.cvel.y*p.cvel.y + p.cvel.z*p.cvel.z);
+		if (cvel_len > ParticleVelocityLimit) {
+			p.cvel.x = p.cvel.x / cvel_len * ParticleVelocityLimit;
+			p.cvel.y = p.cvel.y / cvel_len * ParticleVelocityLimit;
+			p.cvel.z = p.cvel.z / cvel_len * ParticleVelocityLimit;
+		}
 		force.x = u.x - d*p.cvel.x;
 		force.y = u.y - d*p.cvel.y;
 		force.z = u.z - d*p.cvel.z;
@@ -38,7 +44,7 @@ CudaDeviceFunction void CalcF(){
 		fy         = -force.y;
 //		p.force.z += +force.z;
 		fz         = -force.z;
-		sol = p.dist;
+		sol += 1;
 	}
 	}
 	}

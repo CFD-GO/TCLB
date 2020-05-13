@@ -1,0 +1,52 @@
+
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+<!-- 
+	Model:	d2q9_pf_velocity 
+		Can also be run with d2q9_pf_velocity_CM if the collision type is changed.
+
+	This is the test case from Yos et al. (2019) - Journal of Computational Physics
+	Density ratio:10
+	Viscosity ratio: 6.324555
+	Eotvos number = 100
+	Reynolds = 10
+	t* = 3750
+
+   Created: 	14-08-2017 
+    By:		T.Mitchell
+-->
+<Geometry nx="512.000000" ny="1536.000000" >
+	<MRT><Box /></MRT>
+	<Wall mask="ALL">
+	    <Box   ny="1"  />
+	    <Box   dy="-1" />
+	</Wall> 
+</Geometry>
+<Model>
+	<Param name="Density_h" value="1.000000" />    
+	<Param name="Density_l" value="0.100000" />    
+
+	<Param name="Viscosity_h" value="0.265271" />    
+	<Param name="Viscosity_l" value="0.419430" />    
+
+	<Param name="PhaseField_h" value="1" />    
+	<Param name="PhaseField_l" value="0" />    
+	<Param name="PhaseField_init"   value="1" />    
+
+	<Param name="Radius"   value="51.2000" />
+	<Param name="CenterX"  value="256.0000" />
+	<Param name="CenterY"  value="1280.0000" />
+	<Param name="BubbleType"  value="1" />
+
+	<Param name="M"     value="0.0560" />   
+	<Param name="W"     value="4.0960" /> 
+	<Param name="sigma" value="0.00076355" />
+
+	<Param name="BuoyancyY" value="0.00000728" />
+</Model>
+<VTK />
+<Solve Iterations="37500.000000">
+	<VTK Iterations="3750" />
+	<Failcheck Iterations="3750.000000"/>
+</Solve>
+</CLBConfig>

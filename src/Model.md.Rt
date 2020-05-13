@@ -1,4 +1,5 @@
 <?R
+  NEED_OFFSETS = FALSE
   source("conf.R")
   branch = git_branch("..")
   options(width=4000)
@@ -19,7 +20,7 @@
 ?>
 
 ## Description
-<?%s Description$long ?>
+<?R cat(Description$long,sep="\n") ?>
 
 ## Details
 [Model description files](Model description) files for this model:

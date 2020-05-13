@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0">
+<CLBConfig version="2.0" permissive="true">
 	<Geometry nx="128" ny="128">
 		<MRT>
 			<Box/>
@@ -10,7 +10,15 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params tau_psi="1." n_inf="1." z=".2" el="1." kb="1." T="1." epsilon="1." dt="1." psi_bc-wall="1."/>
+		<Param name="psi_bc" value="1." zone="wall"/>
+		<Param name="dt" value="1."/>
+		<Param name="epsilon" value="1."/>
+		<Param name="T" value="1."/>
+		<Param name="kb" value="1."/>
+		<Param name="el" value="1."/>
+		<Param name="z" value=".2"/>
+		<Param name="n_inf" value="1."/>
+		<Param name="tau_psi" value="1."/>
 	</Model>
 	<Solve Iterations="30000" output="output/">
 		<VTK Iterations="1000"/>

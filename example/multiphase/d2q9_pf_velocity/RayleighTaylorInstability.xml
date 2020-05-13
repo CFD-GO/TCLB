@@ -2,7 +2,7 @@
 <!--Model:	d2q9_pf_velocity 
     Created: 	14-08-2017 
     By:		T.Mitchell -->
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="256" ny="1026">
 		<MRT>
 			<Box/>
@@ -15,7 +15,19 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params Density_h="3" Density_l="1" PhaseField_init="1.0" PhaseField-LowerWall="0.0" Viscosity_l="0.01666" Viscosity_h="0.01666" GravitationY="-2.0e-6" W="5" M="0.01" sigma="1.0e-3" Period="256" Perturbation="0.1" MidPoint="513"/>
+		<Param name="MidPoint" value="513"/>
+		<Param name="Perturbation" value="0.1"/>
+		<Param name="Period" value="256"/>
+		<Param name="sigma" value="1.0e-3"/>
+		<Param name="M" value="0.01"/>
+		<Param name="W" value="5"/>
+		<Param name="GravitationY" value="-2.0e-6"/>
+		<Param name="Viscosity_h" value="0.01666"/>
+		<Param name="Viscosity_l" value="0.01666"/>
+		<Param name="PhaseField" value="0.0" zone="LowerWall"/>
+		<Param name="PhaseField_init" value="1.0"/>
+		<Param name="Density_l" value="1"/>
+		<Param name="Density_h" value="3"/>
 	</Model>
 	<VTK/>
 	<Failcheck Iterations="1000"/>

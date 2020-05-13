@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<!--<Units>
 				<Params size="0.0001m" gauge="1"/>
 				<Params nu="1e-5m2/s" gauge="0.166666666666"/>
@@ -16,8 +16,17 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params omega="1" omega_g="1" Density="0.06" Density-zdrop="2.0" Density_dry="2.0" Density_dry-zdrop="0.06" GravitationX="0.0" GravitationY="0.0"/>
-		<Params Gc="0.9" Gad1="-0.3" Gad2="0.3"/>
+		<Param name="GravitationY" value="0.0"/>
+		<Param name="GravitationX" value="0.0"/>
+		<Param name="Density_dry" value="0.06" zone="zdrop"/>
+		<Param name="Density_dry" value="2.0"/>
+		<Param name="Density" value="2.0" zone="zdrop"/>
+		<Param name="Density" value="0.06"/>
+		<Param name="omega_g" value="1"/>
+		<Param name="omega" value="1"/>
+		<Param name="Gad2" value="0.3"/>
+		<Param name="Gad1" value="-0.3"/>
+		<Param name="Gc" value="0.9"/>
 	</Model>
 	<VTK/>
 	<VTK Iterations="100"/>

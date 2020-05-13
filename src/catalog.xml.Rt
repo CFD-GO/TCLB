@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<catalog  xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog"> <?R
+  models = strsplit(MODELS, ",")[[1]]
+  for (m in models) { ?>
+   <public publicId="urn:tclb:<?%s m ?>" uri="schema/<?%s m ?>.xsd" />
+   <uri name="urn:tclb:<?%s m ?>" uri="schema/<?%s m ?>.xsd"/> <?R
+   } ?>
+</catalog>

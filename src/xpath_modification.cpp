@@ -1,10 +1,23 @@
 #include "Global.h"
 #include "xpath_modification.h"
 
-int xpath_modify(pugi::xml_node config, int argc, char * argv[] ) {
+int xpath_modify(pugi::xml_document& doc, pugi::xml_node config, int argc, char * argv[] ) {
     for (int i = 0; i < argc; i++) {
             try {
                     char * add_attribute = NULL;
+                    if (strcmp(argv[i], "-s") == 0) {
+                        i++;
+                        if (i >= argc) {
+                                ERROR("no filename for -s\n");
+                                return -1;
+                        }
+                        doc.save_file(argv[i]);
+                        continue;
+                    } else if (strcmp(argv[i], "-x") == 0) {
+                        output("Gracefully exiting\n");
+                        return -444;
+                    }
+                        
                     output("XPATH: %s\n",argv[i]);
                     pugi::xpath_node_set found = config.select_nodes(argv[i]);
                     output("XPATH: %ld things found\n", found.size());

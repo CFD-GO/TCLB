@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<!-- 3D RTI Test Case
 	Run with d3q27_pf_velocity model
  -->
@@ -24,9 +24,17 @@
 		</Saddletrack>
 	</Geometry>
 	<Model>
-		<Params Density_h="1" Density_l="0.33333333" PhaseField="1.0" PhaseField-Lower="0.0"/>
-		<Params IntWidth="5" M="0.00367025" sigma="5.0e-5"/>
-		<Params Viscosity_l="2.1333333e-2" Viscosity_h="2.1333333e-2" GravitationY="-3.5555556e-6" RTI_Characteristic_Length="128"/>
+		<Param name="PhaseField" value="0.0" zone="Lower"/>
+		<Param name="PhaseField" value="1.0"/>
+		<Param name="Density_l" value="0.33333333"/>
+		<Param name="Density_h" value="1"/>
+		<Param name="sigma" value="5.0e-5"/>
+		<Param name="M" value="0.00367025"/>
+		<Param name="IntWidth" value="5"/>
+		<Param name="RTI_Characteristic_Length" value="128"/>
+		<Param name="GravitationY" value="-3.5555556e-6"/>
+		<Param name="Viscosity_h" value="2.1333333e-2"/>
+		<Param name="Viscosity_l" value="2.1333333e-2"/>
 	</Model>
 	<VTK/>
 	<Failcheck Iterations="3000"/>

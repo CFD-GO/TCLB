@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="128" ny="128" predef="none" model="MRT">
 		<MRT>
 			<Box/>
@@ -17,14 +17,18 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params InletDensity="1.00"/>
-		<Params nu="0.1"/>
-		<Params K="0.01"/>
-		<Params InitDensity="1.0" Temperature="-0.1" Temperature-Blobb="0.1" MovingWallVelocity="0.1" TotalTempSqrInObj="-1.0"/>
+		<Param name="InletDensity" value="1.00"/>
+		<Param name="nu" value="0.1"/>
+		<Param name="K" value="0.01"/>
+		<Param name="TotalTempSqrInObj" value="-1.0"/>
+		<Param name="MovingWallVelocity" value="0.1"/>
+		<Param name="Temperature" value="0.1" zone="Blobb"/>
+		<Param name="Temperature" value="-0.1"/>
+		<Param name="InitDensity" value="1.0"/>
 	</Model>
 	<Control Iterations="5000">
 		<CSV file="example/Bump.csv" Time="x*5000">
-			<Params MovingWallVelocity="Bump*0.1"/>
+			<Param name="MovingWallVelocity" value="Bump*0.1"/>
 		</CSV>
 	</Control>
 	<OptimalControl what="MovingWallVelocity-DefaultZone" lower="-0.1" upper="0.1"/>

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="output/">
+<CLBConfig version="2.0" output="output/" permissive="true">
 	<Geometry nx="256" ny="256">
 		<CM>
 			<Box/>
@@ -19,11 +19,20 @@
 		</Wall>
 	</Geometry>
 	<Model>
-		<Params Density_h="1.0" Density_l="0.01"/>
-		<Params Viscosity_h="0.01666" Viscosity_l="0.01666" PhaseField_h="1.0" PhaseField_l="0.0" ContactAngle="110" PhaseField_init="0.0" PhaseField_init-water="1.0" W="4" M="0.05" sigma="1E-04"/>
-		<Params/>
+		<Param name="Density_l" value="0.01"/>
+		<Param name="Density_h" value="1.0"/>
+		<Param name="sigma" value="1E-04"/>
+		<Param name="M" value="0.05"/>
+		<Param name="W" value="4"/>
+		<Param name="PhaseField_init" value="1.0" zone="water"/>
+		<Param name="PhaseField_init" value="0.0"/>
+		<Param name="ContactAngle" value="110"/>
+		<Param name="PhaseField_l" value="0.0"/>
+		<Param name="PhaseField_h" value="1.0"/>
+		<Param name="Viscosity_l" value="0.01666"/>
+		<Param name="Viscosity_h" value="0.01666"/>
 		<!-- <Params omega_bulk="1.0"/> -->
-		<Params GravitationY="-1.0E-05"/>
+		<Param name="GravitationY" value="-1.0E-05"/>
 	</Model>
 	<Solve Iterations="25" output="output/">
 		<VTK Iterations="10"/>

@@ -44,11 +44,14 @@ get.models = function() {
 			opts = NULL
 		}
 		if (class(opts) == "formula") {
-			opts = terms(opts)
-			opts = attr(opts,"factors")
+			opts_terms = terms(opts)
+			opts = attr(opts_terms,"factors")
 			opts = data.frame(t(opts))
 			rownames(opts) = paste(name,gsub(":","_",rownames(opts)),sep="_")
-			opts[name,]=0
+			if (attr(opts_terms, "intercept") == 1) {
+				opts[name,]=0
+			}
+#			opts = apply(opts, 2, function(x) x > 0)
 		} else {
 			opts = data.frame(row.names=name)
 		}
