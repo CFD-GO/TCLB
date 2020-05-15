@@ -40,37 +40,22 @@ AddQuantity(name="Solid",unit="1")
 AddQuantity(name="U",unit="m/s",vector=T)
 AddQuantity(name="Rho",unit="kg/m3")
 
-AddSetting(name="Density", default=1, comment='fluid density')
-
 AddSetting(name="omegaF", comment='one over F relaxation time')
 AddSetting(name="nu", omegaF='1.0/(3*nu+0.5)', default=0.1, comment='kinetic viscosity in LBM unit')
-AddSetting(name="omegaP", comment='relaxation parameter for odd components in TRT')
-AddDensity( name="localOmegaF", group="l",parameter=TRUE)
 
-AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
+if (Options$TRT) {
+	AddSetting(name="omegaP", comment='relaxation parameter for odd components in TRT')
+}
+
 AddSetting(name="VelocityX", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity x-direction')
 AddSetting(name="VelocityY", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity y-direction')
 AddSetting(name="VelocityZ", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity z-direction')
 
-AddSetting(name="InitVelocityX", default="0.0", zonal=TRUE, comment='init velocity x-direction')
-AddSetting(name="InitVelocityY", default="0.0", zonal=TRUE, comment='init velocity y-direction')
-AddSetting(name="InitVelocityZ", default="0.0", zonal=TRUE, comment='init velocity z-direction')
-
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
-AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
-
-AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
-AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
-AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
+AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE, unit="1Pa")
 
 AddSetting(name="AccelX", default=0.0, comment='body acceleration X', unit="m/s2")
 AddSetting(name="AccelY", default=0.0, comment='body acceleration Y', unit="m/s2")
 AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z', unit="m/s2")
-
-AddSetting(name="DNx", default = 0, comment='Total nodes in X direction')
-AddSetting(name="DNy", default = 0, comment='Total nodes in Y direction')
-AddSetting(name="DNz", default = 0, comment='Total nodes in Z direction')
 
 AddGlobal(name="TotalSVF", comment='Total of solids throughout domain')
 
