@@ -461,11 +461,11 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		CudaMalloc(&container->particle_data, RFI.mem_size());
 	}
 	container->particle_data_size = RFI.size();
-//		for (int i=0; i<RFI.size(); i++){
+//		for (size_t i=0; i<RFI.size(); i++){
 //			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
 //		}
 	if (true) {
-		for (int i=0; i<RFI.size(); i++){
+		for (size_t i=0; i<RFI.size(); i++){
 			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
 			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
 			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
@@ -526,7 +526,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
         CudaStreamSynchronize(kernelStream);
 	DEBUG_PROF_PUSH("Testing particles for NaNs");
 	{	int nans = 0;
-		for (int i=0; i<RFI.size(); i++){
+		for (size_t i=0; i<RFI.size(); i++){
 			for (int j=0; j<3; j++){
 				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
 					nans++;
