@@ -76,14 +76,14 @@ int cbPythonCall::DoIt () {
 ////BEGIN PYTHON HANDLING
  
 
-	    PyObject *pName, *pModule, *pOffsets, *pFunc, *pGlobalSize;
+	    PyObject *pModule, *pOffsets, *pFunc, *pGlobalSize;
 	    PyObject *pValue, *pArgs;
 
-	    pName = PyString_FromString(module.value());
+	    //pName = PyString_FromString(module.value());
 	    /* Error checking of pName left out */
 	
-	    pModule = PyImport_Import(pName);
-	    Py_DECREF(pName);
+	    pModule = PyImport_ImportModule(module.value());
+	    //Py_DECREF(pName);
         	
 	    if (pModule != NULL) {
             int buff_id = 0; 
@@ -149,25 +149,25 @@ int cbPythonCall::DoIt () {
                 
                 pOffsets = PyTuple_New(3);    
                 for (int k=0; k < 3; k++){
-                    PyTuple_SetItem(pOffsets, k, PyInt_FromLong(offsets[k]));
+                    PyTuple_SetItem(pOffsets, k, PyLong_FromLong(offsets[k]));
                 }
 
                 pGlobalSize = PyTuple_New(3);    
-                PyTuple_SetItem(pGlobalSize, 0, PyInt_FromLong(solver->info.region.nx));
-                PyTuple_SetItem(pGlobalSize, 1, PyInt_FromLong(solver->info.region.ny));
-                PyTuple_SetItem(pGlobalSize, 2, PyInt_FromLong(solver->info.region.nz));
+                PyTuple_SetItem(pGlobalSize, 0, PyLong_FromLong(solver->info.region.nx));
+                PyTuple_SetItem(pGlobalSize, 1, PyLong_FromLong(solver->info.region.ny));
+                PyTuple_SetItem(pGlobalSize, 2, PyLong_FromLong(solver->info.region.nz));
 
                 //first one defines number of extra arguments used
-                PyTuple_SetItem(pArgs, 0, PyInt_FromLong( extra_args ));
+                PyTuple_SetItem(pArgs, 0, PyLong_FromLong( extra_args ));
                 PyTuple_SetItem(pArgs, 1, pOffsets);
-				PyTuple_SetItem(pArgs, 2, PyInt_FromLong( solver->iter  ));
+				PyTuple_SetItem(pArgs, 2, PyLong_FromLong( solver->iter  ));
  				PyTuple_SetItem(pArgs, 3,  pGlobalSize  );
  
 		        pValue = PyObject_CallObject(pFunc, pArgs);
                 Py_DECREF(pArgs);
                 long ret_value = 999;
 	            if (pValue != NULL) {
-                    ret_value = PyInt_AsLong(pValue);
+                    ret_value = PyLong_AsLong(pValue);
 	                Py_DECREF(pValue);
                 } 
 

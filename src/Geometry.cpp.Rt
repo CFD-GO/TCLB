@@ -963,7 +963,7 @@ int Geometry::Draw(pugi::xml_node & node)
                     //Call my function, passing it the number four
                     pValue = PyObject_CallObject(pFunc, pArgs);
 
-           			if (  PyInt_AsLong(pValue) == 1 ) {
+           			if (  PyLong_AsLong(pValue) == 1 ) {
    			             Dot(x, y, z);
 		            }
                  
