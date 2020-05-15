@@ -112,7 +112,7 @@ AC_ARG_WITH([python],
 
 AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
-		[Set python(2)-config binary to call]))
+		[Set python-config binary to call]))
 
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
@@ -384,7 +384,12 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_NOTICE([python config: ${python_config}])
 
     AC_MSG_CHECKING([python embandinng: linker flags])
-    PF=$(${python_config} --ldflags)
+
+	if ${python_config} --ldflags --embed; then
+	    PF=$(${python_config} --ldflags --embed)
+	else
+	    PF=$(${python_config} --ldflags)
+	fi 
 	
     LDFLAGS="${LDFLAGS} ${PF}"
 
