@@ -75,10 +75,6 @@ CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
 }
 
-CudaDeviceFunction real_t getSolid(){
-	return sol;
-}
- 
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
@@ -97,24 +93,27 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+<?R if (Options$particles) { ?>
+CudaDeviceFunction real_t getSolid(){
+	return sol;
+}
+<?R } ?>
+
 CudaDeviceFunction void Init() {
 	real_t d = 1.0+3.0*Pressure;
 	real_t u[3];
 	u[0] = VelocityX; u[1] = VelocityY; u[2] = VelocityZ;
 	CalcEquilibrium(f, d, u);
-        sol = 0;
-        sol = CalcSolid();
 }
 
 CudaDeviceFunction void Run() {
-    //sol = 0;
-    //sol = CalcSolid();
-    AddToTotalSVF(sol);
+<?R if (Options$singlekernel) { ?>
+	CalcF();
+<?R } ?>
 
     switch (NodeType & NODE_BOUNDARY) {
-		
-        case NODE_Solid:
 
+        case NODE_Solid:
         case NODE_Wall:
 	    BounceBack();
 	    break;
@@ -183,17 +182,13 @@ CudaDeviceFunction void Run() {
 
 	}	   
   
-    switch (NodeType & NODE_COLLISION) {
+	switch (NodeType & NODE_COLLISION) {
         
 	case NODE_BGK:
             Collision_PSM();
 	    break;
 	}
 
- 	sol = 0;
-	uPx = 0;
-	uPy = 0;
-	uPz = 0;
 }
 
 CudaDeviceFunction void BounceBack()
@@ -444,38 +439,17 @@ CudaDeviceFunction void CalcEquilibrium(real_t f_tab[27], real_t d, real_t u[3])
 	?>
 }
 
-CudaDeviceFunction real_t CalcSolid(){
-        real_t coverage = 0, ret = 0;
-
-        for (ParticleIterator p(X,Y,Z); p; ++p) if ((p.dist - p.rad)<1.5) {
-                if ((p.dist - p.rad) < - 1){
-                        coverage = 1.0;
-                } else{
-                        coverage = (p.rad -  0.084/p.rad + 0.5 - p.dist);
-                }
-
-                if (coverage > 1.0){ coverage =  1.0;}
-                if (coverage < 0.0){ coverage =  0.0;}
-
-                ret += coverage;
-
-        }
-
-        if (ret > 1.0){ ret =  1.0;}
-        if (ret < 0.0){ ret = 0.0;}
-
-        return ret;
-}
+<?R if (Options$particles) { ?>
 
 CudaDeviceFunction void CalcF() {
 	 real_t numP = 0;
 	
-	    real_t omegaS[27], feqP[27], feq[27], u[3], uP[3];
-	    real_t d, usq, uPsq;
+	    real_t omegaS[27], feqP[27], feq[27], u[3];
+	    real_t d;
 	    
-	    uP[0] = 0.0;
-	    uP[1] = 0.0;
-	    uP[2] = 0.0;
+	    uPx = 0.0;
+	    uPy = 0.0;
+	    uPz = 0.0;
 
 	    d=getRho();
 	    u[0] = ((<?R C(f %*% U[,1]) ?> )/d + 0.5*AccelX );
@@ -544,6 +518,7 @@ CudaDeviceFunction void CalcF() {
 		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
                     
 		    if ((dist - p.rad)<SQRT_3) {
+			real_t uP[3];
                         uP[0] = uPx;
                         uP[1] = uPy;
                         uP[2] = uPz;
@@ -572,151 +547,92 @@ CudaDeviceFunction void CalcF() {
         }
 
 }
+<?R } ?>
 
 CudaDeviceFunction void Collision_PSM() {
-#ifndef OPTIONS_TRT
-
-    real_t u[3],uf, d, feq[27], F[27], delf[27];
-    real_t uP[3], omegaS[27], feqP[27], coverage=0, numP=0;
-    real_t usq, uPsq;
-
-    d = getRho();
-    // pu* = pu + 0.5pa
-    u[0] = ((<?R C(f %*% U[,1]) ?>)/d + 0.5*AccelX );
-    u[1] = ((<?R C(f %*% U[,2]) ?>)/d + 0.5*AccelY );
-    u[2] = ((<?R C(f %*% U[,3]) ?>)/d + 0.5*AccelZ );
-
-    uP[0] = uPx;
-    uP[1] = uPy;
-    uP[2] = uPz;
-
-    AddToTotalFluidMomentumX(d*u[0]);
-    AddToTotalFluidMomentumY(d*u[1]);
-    AddToTotalFluidMomentumZ(d*u[2]); 
-    AddToTotalFluidMass(d); 
-    AddToTotalFluidVolume(1); 
-
+	real_t u[3], d, R[27];
 <?R
-
+	d = PV("d")
+      u = PV("u[",1:3-1,"]")
+      uP = PV("uP",c("x","y","z"))
       a = PV("Accel", c("X", "Y", "Z"))
-      F = PV(paste("F[",1:27-1,"]",sep=""))
-      feq = PV(paste("feq[",1:27-1,"]",sep=""))
-      delf = PV(paste("delf[",1:27-1,"]",sep=""))
+	R = PV("R[",1:27-1,"]")
 
-      feqP = PV(paste("feqP[",1:27-1,"]",sep=""))	      
-      omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
+#	M = WMRT_mat(U)
+	M = MRT_polyMatrix(U)$mat
+
+	RL = R
+	R[1] = d
+	R[2:4] = (u-a*0.5)*d
+	EQ   = MRT_eq(U, d, u*d, ortogonal=FALSE, mat=M);
+	EQ_P = MRT_eq(U, d, uP*d, ortogonal=FALSE, mat=M)
+
+	
+      F = ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d
+      feq = EQ$Req %*% solve(EQ$mat)
+      feqP = EQ_P$Req %*% solve(EQ_P$mat)
+
+	B = solve(EQ$mat, EQ$mat[bounce+1,]) # Bounce-back matrix
+
       sol = PV("sol")
-      uP = PV(paste("uP[",1:3-1,"]",sep=""))
-      uPl = PV(paste("uPl[",1:3-1,"]",sep=""))
-      uPsq = PV("uPsq")
-      uPlsq = PV("uPlsq")
 
+	omegaF = PV(c("omegaF"))
+	omegaF1 = PV(c("omegaF1"))
+	omegaP1 = PV(c("omegaP1"))
+
+	omegaF = 1.0 - omegaF1;
 ?>
-	CalcEquilibrium(feq, d, u);
+	real_t omegaF1 = 1.0-omegaF;
 <?R
-
-      C(F, ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d)
-
-	omegaF = PV(c("omegaF")) 
+	if (Options$TRT) {
 ?>
-	CalcEquilibrium(feqP, d, uP);
+		real_t omegaP1 = 1.0-omegaP;
 <?R
+		omegaF = 1.0 - omegaF1;
+		omegaP = 1.0 - omegaP1;
+		omega = V(omegaF,omegaP)[EQ$order %% 2 + 1]
+	} else {
+		omega = omegaF
+	}
+	
 		if (Options$NEBB) {
-                        C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
+                        RomegaS =  R %*% B - R + EQ_P$Req - EQ$Req %*% B #Non-eq bounceback operator
+		      sol = PV("sol")
 		} else if (Options$SUP){
-                        C(omegaS,  feqP - f + (1.0 - omegaF)*(f - feq)) #Superposition operator
+                        RomegaS =  EQ_P$Req - R + (1.0 - omegaF)*(R - EQ$Req) #Superposition operator
+		      sol = PV("sol")
                 } else {
-			omegaS[1:27] = 0
+			RomegaS = 0
 			sol = 0
 		}
 
-		C(f, f + (1.0-sol)*(omegaF*(feq - f) + (1.0-0.5*omegaF)*F) + sol*omegaS)
-     ?>
-
-#else
-
-    real_t u[3], d, feq[27], F[27];
-    real_t uP[3], omegaS[27], feqP[27], coverage=0, numP=0;
-    real_t usq, uPsq;
-    real_t feven[27], fodd[27], feqeven[27], feqodd[27];
-
-<?R
-
-      a = PV("Accel",c("X", "Y", "Z"))
-
-      F = PV(paste("F[",1:27-1,"]",sep=""))
-      feq = PV(paste("feq[",1:27-1,"]",sep=""))
-      feqP = PV(paste("feqP[",1:27-1,"]",sep=""))
-
-      feven = PV(paste("feven[",1:27-1,"]",sep=""))
-      fodd = PV(paste("fodd[",1:27-1,"]",sep=""))
-      feqeven = PV(paste("feqeven[",1:27-1,"]",sep=""))
-      feqodd = PV(paste("feqodd[",1:27-1,"]",sep=""))
-
-
-      omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
-      sol = PV("sol")
-      uP = PV(paste("uP[",1:3-1,"]",sep=""))
-
-      uPsq = PV("uPsq")
-
-
+	
+#	  W = MRT_polyMatrix(U)$mat
+#	flip = 27:1
+#	C( RL, f %*% W)
+#	C( RL[flip], (RL %*% solve(W) %*% EQ$mat)[flip])
+	C( RL, f %*% EQ$mat)
+	C( d, RL[1])
+	C( u, RL[2:4]*d^{-1} + a*0.5)
 ?>
-
-    d = getRho();
-    // pu* = pu + 0.5pa
-    u[0] = ((<?R C(f %*% U[,1]) ?>)/d + 0.5*(AccelX + GravitationX) );
-    u[1] = ((<?R C(f %*% U[,2]) ?>)/d + 0.5*(AccelY + GravitationY) );
-    u[2] = ((<?R C(f %*% U[,3]) ?>)/d + 0.5*(AccelZ + GravitationZ) );
-
     AddToTotalFluidMomentumX(d*u[0]);
     AddToTotalFluidMomentumY(d*u[1]);
     AddToTotalFluidMomentumZ(d*u[2]); 
     AddToTotalFluidMass(d); 
     AddToTotalFluidVolume(1); 
-
-    uP[0] = uPx;
-    uP[1] = uPy;
-    uP[2] = uPz;
-
 <?R
-       omegaF = PV(c("omegaF"))
-
+	C( RL, R + (1.0-sol)*(omega*(EQ$Req - R) + (1.0 - omega*0.5)*(F %*% EQ$mat)) + sol*RomegaS)
+#	C( RL[flip], (RL %*% solve(EQ$mat) %*% W)[flip])
+#	C( f, RL %*% solve(W))
+	C( f, RL %*% solve(EQ$mat))
+	
 ?>
-	CalcEquilibrium(feq, d, u);
-<?R
-
-       C(feven, 0.5*(f + f[bounce+1]))
-       C(fodd, 0.5*(f - f[bounce+1]))
-       C(feqeven, 0.5*(feq + feq[bounce+1]))
-       C(feqodd, 0.5*(feq - feq[bounce+1]))
-
-       C(F, ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d)
-?>
-	CalcEquilibrium(feqP, d, uP);
-<?R
-
-               if (Options$NEBB) {
-                       C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
-               } else if (Options$SUP){
-                       C(omegaS,  feqP - f + (1.0 - omegaF)*(f - feq)) #Superposition operator
-               } else {
-			omegaS[1:27] = 0
-		}
-
-            C(f, f + (1.0-sol)*(omegaF*(feqeven - feven) + omegaP*(feqodd - fodd) + (1.0-0.5*omegaF)*F) + sol*omegaS)
-     ?>
-#endif
 }
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
         ret.x = sqrt(u.x*u.x + u.y*u.y);
-
-//	ret.x = (<?R C(sum(f)) ?>);
-//	ret.x = ret.x/111;
-//	ret.x = wb;
 	if (NodeType == NODE_Wall) ret.y = 0; else ret.y= 1;
         return ret;
 }
