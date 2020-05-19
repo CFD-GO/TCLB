@@ -442,48 +442,25 @@ CudaDeviceFunction void CalcEquilibrium(real_t f_tab[27], real_t d, real_t u[3])
 <?R if (Options$particles) { ?>
 
 CudaDeviceFunction void CalcF() {
-	 real_t numP = 0;
-	
-	    real_t omegaS[27], feqP[27], feq[27], u[3];
-	    real_t d;
-	    
-	    uPx = 0.0;
-	    uPy = 0.0;
-	    uPz = 0.0;
+	    real_t u[3], d;
+<?R
+	d = PV("d")
+	u = PV("u[",1:3-1,"]")
+	uP = PV("uP",c("x","y","z"))
+	a = PV("Accel", c("X", "Y", "Z"))
+	f = PV("f[",1:27-1,"]")
+	sol = PV("sol")
 
-	    d=getRho();
-	    u[0] = ((<?R C(f %*% U[,1]) ?> )/d + 0.5*AccelX );
-	    u[1] = ((<?R C(f %*% U[,2]) ?> )/d + 0.5*AccelY );
-	    u[2] = ((<?R C(f %*% U[,3]) ?> )/d + 0.5*AccelZ );
+	C( d, sum(f) )
+	C( u, f %*% U * d^{-1} + a*0.5 )
+	C( uP, 0)
+	C( sol, 0)
+?>
+	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
-                <?R
-                         u = PV(paste("u[",1:3-1,"]",sep=""))
-                         uP = PV(paste("uP[",1:3-1,"]",sep=""))
-                         d = PV("d")
-                         usq = PV ("usq")
-                         uPsq = PV ("uPsq")
-                         feq = PV(paste("feq[",1:27-1,"]",sep=""))
-                         feqP = PV(paste("feqP[",1:27-1,"]",sep=""))
-                         omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
-                         omegaF = PV("omegaF")
-
-	 ?>
-	CalcEquilibrium(feq, d, u);
-
-
-         for (ParticleIterator p(X,Y,Z); p; ++p) {
-                
-		    real_t dx = p.diff.x;
-		    real_t dy = p.diff.y;
-		    real_t dz = p.diff.z;
-
-		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
+		    real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                     
 		    if ((dist - p.rad)<SQRT_3) {
-			numP += 1;
-			uPx = ((numP - 1.0)*uPx + p.cvel.x)/numP;
-			uPy = ((numP - 1.0)*uPy + p.cvel.y)/numP;
-			uPz = ((numP - 1.0)*uPz + p.cvel.z)/numP;
 
                     real_t localCoverage = 0.0;
 
@@ -496,56 +473,32 @@ CudaDeviceFunction void CalcF() {
                     if (localCoverage > 1.0){ localCoverage =  1.0;}
                     if (localCoverage < 0.0){ localCoverage =  0.0;}
 
-		   
-		    sol += localCoverage;
+			real_t tau = 1.0/omegaF - 0.5;
+		    localCoverage = localCoverage*tau / ((1 - localCoverage) + tau);
+		    //localCoverage = localCoverage*(tau + 2*tau*tau + 3*tau*tau*tau + 4*tau*tau*tau*tau) / ((1 - localCoverage) + (tau + 2*tau*tau + 3*tau*tau*tau + 4*tau*tau*tau*tau));
 
+
+                    vector_t force;
+<?R
+		uparticle = PV("p.cvel.",c("x","y","z"))
+		force = PV("force.",c("x","y","z"))
+		localCoverage = PV("localCoverage")
+		C( force, localCoverage*(u - uparticle) )
+?>
+                p.applyForce(force);
+<?R
+		C( sol, sol + localCoverage )
+		C( uP, uP + localCoverage*uparticle )
+?>
                  }
              
         }
 
-                    if (sol > 1.0){ sol =  1.0;}
-                    if (sol < 0.0){ sol =  0.0;}
-
-		    sol = sol*(1/omegaF - 0.5) / ((1 - sol) + (1/omegaF - 0.5));
-		    //sol = sol*((1/omegaF - 0.5) + 2*(1/omegaF - 0.5)*(1/omegaF - 0.5) + 3*(1/omegaF - 0.5)*(1/omegaF - 0.5)*(1/omegaF - 0.5) + 4*(1/omegaF - 0.5)*(1/omegaF - 0.5)*(1/omegaF - 0.5)*(1/omegaF - 0.5)) / ((1 - sol) + ((1/omegaF - 0.5) + 2*(1/omegaF - 0.5)*(1/omegaF - 0.5) + 3*(1/omegaF - 0.5)*(1/omegaF - 0.5)*(1/omegaF - 0.5) + 4*(1/omegaF - 0.5)*(1/omegaF - 0.5)*(1/omegaF - 0.5)*(1/omegaF - 0.5)));
-
-         for (SyncParticleIterator p(X,Y,Z); p; ++p) {
-                if ((NodeType & NODE_BOUNDARY)==0){
-		    real_t dx = p.diff.x;
-		    real_t dy = p.diff.y;
-		    real_t dz = p.diff.z;
-
-		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
-                    
-		    if ((dist - p.rad)<SQRT_3) {
-			real_t uP[3];
-                        uP[0] = uPx;
-                        uP[1] = uPy;
-                        uP[2] = uPz;
-
-		CalcEquilibrium(feqP, d, uP);
-		<?R
-			if(Options$NEBB) {
-				C(omegaS,  f[bounce+1] - f + feqP - feq[bounce + 1]) #Non-eq bounceback operator
-			} else if(Options$SUP){
-				C(omegaS,  feqP - f + (1.0 - omegaF)*(f - feq)) #Superposition operator
-			} else {
-				omegaS[1:27] = 0
-			}
-                ?>
-
-                    vector_t force;
-                    force.x=0.0; force.y=0.0; force.z=0.0;
-
-                    force.x = -sol * ( <?R C(t(U[,1] %*% omegaS)) ?> );
-                    force.y = -sol * ( <?R C(t(U[,2] %*% omegaS)) ?> );
-                    force.z = -sol * ( <?R C(t(U[,3] %*% omegaS)) ?> );
-
-                    p.applyForce(force);
-                 }
-             }
-        }
-
+	if (sol > 1.0){ sol =  1.0;}
+	if (sol < 0.0){ sol =  0.0;}
+<?R
+	C( uP, uP*sol^{-1} )
+?>
 }
 <?R } ?>
 
