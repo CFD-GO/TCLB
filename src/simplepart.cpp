@@ -11,7 +11,10 @@ struct Particle {
   double m;
   double v[3];
   double f[3];
+  size_t n;
+  bool logging;
   Particle() {
+    n = 0;
     x[0] = 0;
     x[1] = 0;
     x[2] = 0;
@@ -20,6 +23,7 @@ struct Particle {
     v[2] = 0;
     m = 0;
     r = 0;
+    logging = false;
   }
 };
 
@@ -50,6 +54,12 @@ int main(int argc, char *argv[]) {
   wsize.resize(RFI.Workers());
   windex.resize(RFI.Workers());
   Particles particles;
+  double dt = 0;
+
+  bool logging = false;
+  std::string logging_filename;
+  int logging_iter = 1;
+  FILE* logging_f = NULL;
 
   double periodicity[3];
   bool periodic[3];
@@ -76,6 +86,15 @@ int main(int argc, char *argv[]) {
     ERROR("No SimplePart element in %s", filename);
     return -1;
   }
+  for (pugi::xml_attribute attr = main_node.first_attribute(); attr; attr = attr.next_attribute()) {
+    std::string attr_name = attr.name();
+    if (attr_name == "dt") {
+      dt = attr.as_double();
+    } else {
+      ERROR("Unknown atribute '%s' in '%s'", attr.name(), main_node.name());
+      return -1;
+    }
+  }
 
   for (pugi::xml_node node = main_node.first_child(); node; node = node.next_sibling()) {
     std::string node_name = node.name();
@@ -99,6 +118,8 @@ int main(int argc, char *argv[]) {
           p.r = attr.as_double();
         } else if (attr_name == "m") {
           p.m = attr.as_double();
+        } else if (attr_name == "log") {
+          p.logging = attr.as_bool();
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
@@ -108,6 +129,7 @@ int main(int argc, char *argv[]) {
         ERROR("Specify the radius with 'r' attribute");
         return -1;
       }
+      p.n = particles.size();
       particles.push_back(p);
     } else if (node_name == "Periodic") {
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
@@ -126,14 +148,51 @@ int main(int argc, char *argv[]) {
           return -1;
         }
       }
+    } else if (node_name == "Log") {
+      if (logging) {
+          ERROR("There can be only one '%s' element", node.name());
+          return -1;
+      } 
+      for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
+        std::string attr_name = attr.name();
+        if (attr_name == "name") {
+          logging = true;
+          logging_filename = attr.value();
+        } else if (attr_name == "Iterations") {
+          logging_iter = attr.as_int();
+          if (logging_iter < 1) {
+            ERROR("The '%s' attribute in '%s' have to be higher then 1", attr.name(), node.name());
+            return -1;
+          }
+        } else {
+          ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
+          return -1;
+        }
+      }
+      if (!logging) {
+        ERROR("Name not set in '%s' element", node.name());
+        return -1;
+      }
     } else {
       ERROR("Unknown node '%s' in '%s'", node.name(), main_node.name());
       return -1;
     }
   }
-
+  if (logging) {
+    logging_f = fopen(logging_filename.c_str(), "w");
+    if (logging_f == NULL) {
+      ERROR("Failed to open '%s' for writing", logging_filename.c_str());
+      return -1;
+    }
+    fprintf(logging_f, "Iteration,Time");
+    for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
+      size_t n = p->n;
+      fprintf(logging_f, ",p%ld_x,p%ld_y,p%ld_z,p%ld_vx,p%ld_vy,p%ld_vz,p%ld_fx,p%ld_fy,p%ld_fz",n,n,n,n,n,n,n,n,n);
+    }
+    fprintf(logging_f, "\n");
+  }
+  int iter = 0;
   while (RFI.Active()) {
-
     for (int phase = 0; phase < 3; phase++) {
       if (phase == 0) {
         for (int i = 0; i < RFI.Workers(); i++)
@@ -222,8 +281,24 @@ int main(int argc, char *argv[]) {
       } else {
       }
     }
+    if (logging && (iter % logging_iter == 0)) {
+      fprintf(logging_f, "%d,%.15lg", iter, dt*iter);
+      for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
+        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->x[i]);
+        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->v[i]);
+        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+      }
+      fprintf(logging_f, "\n");
+    }
+    for (Particles::iterator p = particles.begin(); p != particles.end(); p++) {
+      if (p->m > 0.0) {
+        for (int i=0; i<3; i++) p->v[i] = p->v[i] + p->f[i] / p->m * dt;
+      }
+      for (int i=0; i<3; i++) p->x[i] = p->x[i] + p->v[i] * dt;
+    }
+    iter++;
   }
-
+  if (logging && (logging_f != NULL)) fclose(logging_f);
   if (RFI.Connected()) {
     RFI.Close();
     MPI_Finalize();
