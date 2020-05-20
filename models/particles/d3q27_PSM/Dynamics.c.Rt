@@ -483,7 +483,7 @@ CudaDeviceFunction void CalcF() {
 		uparticle = PV("p.cvel.",c("x","y","z"))
 		force = PV("force.",c("x","y","z"))
 		localCoverage = PV("localCoverage")
-		C( force, localCoverage*(u - uparticle) )
+		C( force, d*localCoverage*(u - uparticle) )
 ?>
                 p.applyForce(force);
 <?R
@@ -494,11 +494,15 @@ CudaDeviceFunction void CalcF() {
              
         }
 
-	if (sol > 1.0){ sol =  1.0;}
-	if (sol < 0.0){ sol =  0.0;}
+	if (sol > 1.0) { sol =  1.0; }
+	if (sol > 1.0e-8) {
+<?R C( uP, uP*sol^{-1} ) ?>
+	} else {
 <?R
-	C( uP, uP*sol^{-1} )
+	C(uP, 0)
+	C(sol, 0)
 ?>
+	}
 }
 <?R } ?>
 
