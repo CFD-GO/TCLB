@@ -2,8 +2,8 @@
         source("conf.R")
 	c_header()
 ?>
-/** \file cuda.cu
-        Main CUDA C file
+/** \file arbcuda.cu
+        Main CUDA C file for Arbitrary Lattices
         Here is nearly all of the CUDA C code. It includes:
           LatticeContainer.h
           LatticeContainer.c
@@ -23,8 +23,8 @@
 class Node;
 class Node_Globs;
 
-#include "LatticeContainer.h"
-CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
+#include "ArbitraryLatticeContainer.h"
+CudaDeviceFunction CudaConstantMemory ArbitraryLatticeContainer constContainer;
 
 #ifdef ADJOINT
 	#include "../ADTools.cu"
@@ -37,7 +37,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
-#include "LatticeAccess.inc.cpp"
+#include "ArbitraryLatticeAccess.inc.cpp"
 
 
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
@@ -340,4 +340,4 @@ cat("\n")
 ifdef()
 ?>
 
-#include "LatticeContainer.inc.cpp"
+#include "ArbitraryLatticeContainer.inc.cpp"
