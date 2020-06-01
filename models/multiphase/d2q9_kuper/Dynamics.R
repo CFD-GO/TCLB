@@ -41,6 +41,7 @@ AddQuantity(name="Rho", unit="kg/m3");
 AddQuantity(name="U", unit="m/s", vector=T);
 AddQuantity(name="P", unit="Pa");
 AddQuantity(name="F", unit="N", vector=T);
+AddQuantity(name="Finternal", unit="N", vector=T);
 
 
 AddQuantity(name="DEBUG", vector=T);
