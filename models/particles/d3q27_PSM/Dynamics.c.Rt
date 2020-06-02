@@ -75,10 +75,6 @@ CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
 }
 
-CudaDeviceFunction real_t getSolid(){
-	return sol;
-}
- 
 CudaDeviceFunction vector_t getU(){
 	real_t d = <?R C(sum(f)) ?>;
 	vector_t u;
@@ -97,22 +93,27 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+<?R if (Options$particles) { ?>
+CudaDeviceFunction real_t getSolid(){
+	return sol;
+}
+<?R } ?>
+
 CudaDeviceFunction void Init() {
-	real_t d = Density;
-	SetEquilibrum(d,InitVelocityX,InitVelocityY,InitVelocityZ);
-        sol = 0;
-        sol = CalcSolid();
+	real_t d = 1.0+3.0*Pressure;
+	real_t u[3];
+	u[0] = VelocityX; u[1] = VelocityY; u[2] = VelocityZ;
+	CalcEquilibrium(f, d, u);
 }
 
 CudaDeviceFunction void Run() {
-    //sol = 0;
-    //sol = CalcSolid();
-    AddToTotalSVF(sol);
+<?R if (Options$singlekernel) { ?>
+	CalcF();
+<?R } ?>
 
     switch (NodeType & NODE_BOUNDARY) {
-		
-        case NODE_Solid:
 
+        case NODE_Solid:
         case NODE_Wall:
 	    BounceBack();
 	    break;
@@ -181,25 +182,13 @@ CudaDeviceFunction void Run() {
 
 	}	   
   
-    switch (NodeType & NODE_COLLISION) {
+	switch (NodeType & NODE_COLLISION) {
         
 	case NODE_BGK:
-	    #ifdef OPTIONS_TRT
-                CollisionTRT_PSM();
-	    #else
-		CollisionBGK_PSM();
-	    #endif
+            Collision_PSM();
 	    break;
-
-	case NODE_MRT:
-            CollisionMRT();
-            break;
 	}
 
- 	sol = 0;
-	uPx = 0;
-	uPy = 0;
-	uPz = 0;
 }
 
 CudaDeviceFunction void BounceBack()
@@ -228,300 +217,90 @@ CudaDeviceFunction void BounceBack()
 // 0 1 2 3 4 5 6 7 8
 // 1 5 2 6 3 7 4 8 0
 
+<?R
+u_prescribed = PV(c("VelocityX","VelocityY","VelocityZ"))
+
+
+NonEquilibriumExtrapolation = function(adjx,adjy,adjz) {
+?>
+	real_t u[3], d, f_neigh[27], eq_local[27], eq_neigh[27];
+<?R
+	f_neigh_pop = PV(paste("f",1:27-1,"(",adjx,",",adjy,",",adjz,")",sep=""))
+	f_neigh = PV("f_neigh[",1:27-1,"]")
+
+	C(f_neigh, f_neigh_pop);
+	d = PV("d")
+	u = PV("u[",1:3-1,"]")
+	C(d, sum(f_neigh))
+	C(u, u_prescribed)
+?>
+	CalcEquilibrium(eq_local, d, u);
+<?R	C(u, f_neigh %*% U * d^{-1}) ?>
+	CalcEquilibrium(eq_neigh, d, u);
+	for (int i=0;i<27;i++) f[i] = eq_local[i] - eq_neigh[i] + f_neigh[i];
+<?R
+}
+?>	
+
 CudaDeviceFunction void NonEquilibriumExtrapolationN()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjY = -1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,adjY,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,adjY,0)",sep=""))) }
-    ?>
-
+<?R	NonEquilibriumExtrapolation(0,-1,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationS()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjY = 1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,adjY,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,adjY,0)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(0,1,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationE()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjX = -1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(adjX,0,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(adjX,0,0)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(-1,0,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationW()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjX = 1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(adjX,0,0)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(adjX,0,0)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(1,0,0) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationF()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjZ = -1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,0,adjZ)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,0,adjZ)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(0,0,-1) ?>
 }
 
 CudaDeviceFunction void NonEquilibriumExtrapolationB()
 {
-    real_t u[3], d, eq_local[27], eq_neigh[27], usq;
-    const int adjZ = 1; 
-    
-    <?R 
-    fpop = PV(paste("f",1:27-1,"(0,0,adjZ)",sep=""))
-    d=PV("d") 
-    C(d, sum(fpop)) 
-    ?>
-    
-    // pu* = pu + rG
-    u[0] = VelocityX;
-    u[1] = VelocityY;
-    u[2] = VelocityZ;
-    
-    <?R  
-      eq_local = PV(paste("eq_local[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_local[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-    ?>
-    
-    u[0] = (<?R C(fpop%*%U[,1]) ?>)/d;
-    u[1] = (<?R C(fpop%*%U[,2]) ?>)/d;
-    u[2] = (<?R C(fpop%*%U[,3]) ?>)/d;
-    
-    <?R  
-      eq_neigh = PV(paste("eq_neigh[",1:27-1,"]",sep=""))
-      
-      C(usq, sum(u*u)*(1/c_squ))
-
-      for (i in 1:27) {
-         C( eq_neigh[i], d * ((u %*% t(U) * (1/c_squ))[i] + ((u %*% t(U) * (1/c_squ))[i]*(u %*% t(U) * (1/c_squ))[i]+usq*(-1))*0.5 + 1) * tn[i,i])
-      }
-      
-      for (i in 1:27){  
-         C(f[i], eq_local[i] - eq_neigh[i] + PV(paste("f",i-1,"(0,0,adjZ)",sep=""))) }
-    ?>
+<?R	NonEquilibriumExtrapolation(0,0,1) ?>
 }
 
 
 CudaDeviceFunction void NVelocity()
 {
-    <?R ZouHe(EQ, 2, -1, "velocity") ?>
+    <?R ZouHe(EQ, 2, -1, "velocity", V=u_prescribed[2]) ?>
 }
 
 CudaDeviceFunction void SVelocity()
 {
-    <?R ZouHe(EQ, 2, 1, "velocity") ?>
+    <?R ZouHe(EQ, 2, 1, "velocity", V=u_prescribed[2]) ?>
 }
 
 CudaDeviceFunction void EVelocity()
 {
-    <?R ZouHe(EQ, 1, -1, "velocity") ?>
+    <?R ZouHe(EQ, 1, -1, "velocity", V=u_prescribed[1]) ?>
 }
 
 CudaDeviceFunction void WVelocity()
 {
-    <?R ZouHe(EQ, 1, 1, "velocity") ?>
+    <?R ZouHe(EQ, 1, 1, "velocity", V=u_prescribed[1]) ?>
 }
 
 CudaDeviceFunction void FVelocity()
 {
-    <?R ZouHe(EQ, 3, -1, "velocity") ?>
+    <?R ZouHe(EQ, 3, -1, "velocity", V=u_prescribed[3]) ?>
 }
 
 CudaDeviceFunction void BVelocity()
 {
-    <?R ZouHe(EQ, 3, 1, "velocity") ?>
+    <?R ZouHe(EQ, 3, 1, "velocity", V=u_prescribed[3]) ?>
 }
 
 
@@ -651,81 +430,37 @@ CudaDeviceFunction void MovingSWall(){
 }
 
 
-CudaDeviceFunction void SetEquilibrum(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+CudaDeviceFunction void CalcEquilibrium(real_t f_tab[27], real_t d, real_t u[3])
 {
 	<?R
-		C(f, EQ$Req %*% solve(EQ$mat));
+		EQ = MRT_eq(U, d, d*u, ortogonal=FALSE);
+		f_tmp = PV("f_tab[",1:27-1,"]")
+		C(f_tmp, EQ$Req %*% solve(EQ$mat));
 	?>
 }
 
-CudaDeviceFunction real_t CalcSolid(){
-        real_t coverage = 0, ret = 0;
-
-        for (ParticleIterator p(X,Y,Z); p; ++p) if ((p.dist - p.rad)<1.5) {
-                if ((p.dist - p.rad) < - 1){
-                        coverage = 1.0;
-                } else{
-                        coverage = (p.rad -  0.084/p.rad + 0.5 - p.dist);
-                }
-
-                if (coverage > 1.0){ coverage =  1.0;}
-                if (coverage < 0.0){ coverage =  0.0;}
-
-                ret += coverage;
-
-        }
-
-        if (ret > 1.0){ ret =  1.0;}
-        if (ret < 0.0){ ret = 0.0;}
-
-        return ret;
-}
+<?R if (Options$particles) { ?>
 
 CudaDeviceFunction void CalcF() {
-	 real_t numP = 0;
-	
-	    real_t omegaS[27], feqP[27], feq[27], u[3], uP[3];
-	    real_t d, usq, uPsq;
-	    
-	    uP[0] = 0.0;
-	    uP[1] = 0.0;
-	    uP[2] = 0.0;
+	    real_t u[3], d;
+<?R
+	d = PV("d")
+	u = PV("u[",1:3-1,"]")
+	uP = PV("uP",c("x","y","z"))
+	a = PV("Accel", c("X", "Y", "Z"))
+	f = PV("f[",1:27-1,"]")
+	sol = PV("sol")
 
-	    d=getRho();
-	    u[0] = ((<?R C(f %*% U[,1]) ?> )/d + 0.5*(AccelX + GravitationX) );
-	    u[1] = ((<?R C(f %*% U[,2]) ?> )/d + 0.5*(AccelY + GravitationY) );
-	    u[2] = ((<?R C(f %*% U[,3]) ?> )/d + 0.5*(AccelZ + GravitationZ) );
+	C( d, sum(f) )
+	C( u, f %*% U * d^{-1} + a*0.5 )
+	C( uP, 0)
+	C( sol, 0)
+?>
+	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
-                <?R
-                         u = PV(paste("u[",1:3-1,"]",sep=""))
-                         uP = PV(paste("uP[",1:3-1,"]",sep=""))
-                         d = PV("d")
-                         usq = PV ("usq")
-                         uPsq = PV ("uPsq")
-                         feq = PV(paste("feq[",1:27-1,"]",sep=""))
-                         feqP = PV(paste("feqP[",1:27-1,"]",sep=""))
-                         omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
-                         omegaF = PV("omegaF")
-
-                      C(usq, sum(u*u)*(1/c_squ))
-                      for (i in 1:27){
-                         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-                      }
-	 ?>
-
-         for (ParticleIterator p(X,Y,Z); p; ++p) {
-                
-		    real_t dx = p.diff.x;
-		    real_t dy = p.diff.y;
-		    real_t dz = p.diff.z;
-
-		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
+		    real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                     
 		    if ((dist - p.rad)<SQRT_3) {
-			numP += 1;
-			uPx = ((numP - 1.0)*uPx + p.cvel.x)/numP;
-			uPy = ((numP - 1.0)*uPy + p.cvel.y)/numP;
-			uPz = ((numP - 1.0)*uPz + p.cvel.z)/numP;
 
                     real_t localCoverage = 0.0;
 
@@ -738,241 +473,124 @@ CudaDeviceFunction void CalcF() {
                     if (localCoverage > 1.0){ localCoverage =  1.0;}
                     if (localCoverage < 0.0){ localCoverage =  0.0;}
 
-		   
-		    sol += localCoverage;
+			real_t tau = 1.0/omegaF - 0.5;
+		    localCoverage = localCoverage*tau / ((1 - localCoverage) + tau);
+		    //localCoverage = localCoverage*(tau + 2*tau*tau + 3*tau*tau*tau + 4*tau*tau*tau*tau) / ((1 - localCoverage) + (tau + 2*tau*tau + 3*tau*tau*tau + 4*tau*tau*tau*tau));
 
+
+                    vector_t force;
+<?R
+		uparticle = PV("p.cvel.",c("x","y","z"))
+		force = PV("force.",c("x","y","z"))
+		localCoverage = PV("localCoverage")
+		C( force, d*localCoverage*(u - uparticle) )
+?>
+                p.applyForce(force);
+<?R
+		C( sol, sol + localCoverage )
+		C( uP, uP + localCoverage*uparticle )
+?>
                  }
              
         }
 
-                    if (sol > 1.0){ sol =  1.0;}
-                    if (sol < 0.0){ sol =  0.0;}
-
-		    localOmegaF = omegaF;
-		    sol = sol*(1/localOmegaF - 0.5) / ((1 - sol) + (1/localOmegaF - 0.5));
-		    //sol = sol*((1/localOmegaF - 0.5) + 2*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5) + 3*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5) + 4*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)) / ((1 - sol) + ((1/localOmegaF - 0.5) + 2*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5) + 3*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5) + 4*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)*(1/localOmegaF - 0.5)));
-
-         for (SyncParticleIterator p(X,Y,Z); p; ++p) {
-                if ((NodeType & NODE_BOUNDARY)==0){
-		    real_t dx = p.diff.x;
-		    real_t dy = p.diff.y;
-		    real_t dz = p.diff.z;
-
-		    real_t dist = sqrt(dx*dx + dy*dy + dz*dz);
-                    
-		    if ((dist - p.rad)<SQRT_3) {
-                        uP[0] = uPx;
-                        uP[1] = uPy;
-                        uP[2] = uPz;
-
-                <?R
-
-                    C(uPsq, sum(uP*uP)*(1/c_squ))
-
-                    for (i in 1:27){
-                        C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-                    }
-                    for (i in 1:27){
-
-			if(Options$NEBB) {
-				C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feq[bounce[i] + 1]) #Non-eq bounceback operator
-			}
-			if(Options$SUP){
-				C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-			}
-               	    }
-                ?>
-
-                    vector_t force;
-                    force.x=0.0; force.y=0.0; force.z=0.0;
-
-                    force.x = -sol * ( <?R C(t(U[,1] %*% omegaS)) ?> );
-                    force.y = -sol * ( <?R C(t(U[,2] %*% omegaS)) ?> );
-                    force.z = -sol * ( <?R C(t(U[,3] %*% omegaS)) ?> );
-
-                    p.applyForce(force);
-                 }
-             }
-        }
-
-}
-
-CudaDeviceFunction void CollisionBGK_PSM() {
-    real_t u[3],uf, d, feq[27], F[27], delf[27];
-    real_t uP[3], omegaS[27], feqP[27], coverage=0, numP=0;
-    real_t usq, uPsq;
-
-    // Assume Gravity in y-direction
-    real_t localGravitationY = GravitationY;
-    
-    d = getRho();
-    // pu* = pu + 0.5pa
-    u[0] = ((<?R C(f %*% U[,1]) ?>)/d + 0.5*(AccelX + GravitationX) );
-    u[1] = ((<?R C(f %*% U[,2]) ?>)/d + 0.5*(AccelY + localGravitationY) );
-    u[2] = ((<?R C(f %*% U[,3]) ?>)/d + 0.5*(AccelZ + GravitationZ) );
-
-    uP[0] = uPx;
-    uP[1] = uPy;
-    uP[2] = uPz;
-
-    AddToTotalFluidVelocityX(u[0]);
-    AddToTotalFluidVelocityY(u[1]);
-    AddToTotalFluidVelocityZ(u[2]); 
-
-    <?R
-
-      a = PV(c("(AccelX + GravitationX)", "(AccelY + localGravitationY)", "(AccelZ + GravitationZ)"))
-      F = PV(paste("F[",1:27-1,"]",sep=""))
-      feq = PV(paste("feq[",1:27-1,"]",sep=""))
-      delf = PV(paste("delf[",1:27-1,"]",sep=""))
-
-      feqP = PV(paste("feqP[",1:27-1,"]",sep=""))	      
-      omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
-      sol = PV("sol")
-      uP = PV(paste("uP[",1:3-1,"]",sep=""))
-      uPl = PV(paste("uPl[",1:3-1,"]",sep=""))
-      uPsq = PV("uPsq")
-      uPlsq = PV("uPlsq")
-
-      C(usq, sum(u*u)*(1/c_squ))
-      for (i in 1:27){
-         C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-      }
-
-           for (i in 1:27) {
-         C(F[i], ((a %*% t(U))[i] + (1/c_squ)*(a %*% t(U))[i]*(u %*% t(U))[i] - (u %*% a)) * tn[i,i]*(1/c_squ)*d)
-      }
-
-      for (i in 1:27){
-         C(delf[i], f[i] - feq[i])
-      }
-      ?>
-
-      localOmegaF = omegaF;
-
-      <?R
-	localOmegaF = PV(c("localOmegaF")) 
-	C(uPsq, sum(uP*uP)*(1/c_squ))
-	for (i in 1:27){
-		C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-	}
-	for (i in 1:27){
-
-		if(Options$NEBB) {
-                        C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feq[bounce[i] + 1]) #Non-eq bounceback operator
-		}
-		if(Options$SUP){
-                        C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-                }
-	}
-
-	for (i in 1:27){
-		C(f[i], f[i] + (1.0-sol)*(localOmegaF*(feq[i] - f[i]) + (1.0-0.5*localOmegaF)*F[i]) + sol*omegaS[i])
-	}
-     ?>
-}
-
-CudaDeviceFunction void CollisionTRT_PSM() {
-    real_t u[3], d, feq[27], F[27];
-    real_t uP[3], omegaS[27], feqP[27], coverage=0, numP=0;
-    real_t usq, uPsq;
-    real_t feven[27], fodd[27], feqeven[27], feqodd[27];
-
+	if (sol > 1.0) { sol =  1.0; }
+	if (sol > 1.0e-8) {
+<?R C( uP, uP*sol^{-1} ) ?>
+	} else {
 <?R
-
-      a = PV(c("(AccelX + GravitationX)", "(AccelY + GravitationY)", "(AccelZ + GravitationZ)"))
-
-      F = PV(paste("F[",1:27-1,"]",sep=""))
-      feq = PV(paste("feq[",1:27-1,"]",sep=""))
-      feqP = PV(paste("feqP[",1:27-1,"]",sep=""))
-
-      feven = PV(paste("feven[",1:27-1,"]",sep=""))
-      fodd = PV(paste("fodd[",1:27-1,"]",sep=""))
-      feqeven = PV(paste("feqeven[",1:27-1,"]",sep=""))
-      feqodd = PV(paste("feqodd[",1:27-1,"]",sep=""))
-
-
-      omegaS = PV(paste("omegaS[",1:27-1,"]",sep=""))
-      sol = PV("sol")
-      uP = PV(paste("uP[",1:3-1,"]",sep=""))
-
-      uPsq = PV("uPsq")
-
-
+	C(uP, 0)
+	C(sol, 0)
 ?>
-
-    d = getRho();
-    // pu* = pu + 0.5pa
-    u[0] = ((<?R C(f %*% U[,1]) ?>)/d + 0.5*(AccelX + GravitationX) );
-    u[1] = ((<?R C(f %*% U[,2]) ?>)/d + 0.5*(AccelY + GravitationY) );
-    u[2] = ((<?R C(f %*% U[,3]) ?>)/d + 0.5*(AccelZ + GravitationZ) );
-
-    uP[0] = uPx;
-    uP[1] = uPy;
-    uP[2] = uPz;
-
-    localOmegaF = omegaF;
-
-<?R
-       localOmegaF = PV(c("localOmegaF"))
-       C(usq, sum(u*u)*(1/c_squ))
-
-       for (i in 1:27) {
-          C( feq[i],  (((u %*% t(U) * (1/c_squ))[i]) + (((u %*% t(U) * (1/c_squ))[i])*((u %*% t(U) * (1/c_squ))[i])+usq*(-1))*0.5 + 1) * d *tn[i,i])
-       }
-
-       for (i in 1:27) {
-          C(feven[i], 0.5*(f[i] + f[bounce[i]+1]))
-       }
-
-       for (i in 1:27) {
-          C(fodd[i], 0.5*(f[i] - f[bounce[i]+1]))
-       }
-
-       for (i in 1:27) {
-          C(feqeven[i], 0.5*(feq[i] + feq[bounce[i]+1]))
-       }
-
-       for (i in 1:27) {
-          C(feqodd[i], 0.5*(feq[i] - feq[bounce[i]+1]))
-       }
-
-       for (i in 1:27) {
-         C(F[i], ((a %*% t(U))[i] + (1/c_squ)*(a %*% t(U))[i]*(u %*% t(U))[i] - (u %*% a)) * tn[i,i]*(1/c_squ)*d)
-       }
-
-       for (i in 1:27) {
-                C(feqP[i], (((uP %*% t(U) *(1/c_squ))[i]) + (((uP %*% t(U) * (1/c_squ))[i])*((uP %*% t(U) * (1/c_squ))[i]) + uPsq*(-1))*0.5 + 1)*d*tn[i,i])
-       }
-
-       for (i in 1:27) {
-                
-		if(Options$NEBB) {
-                        C(omegaS[i],  f[bounce[i]+1] - f[i] + feqP[i] - feq[bounce[i] + 1]) #Non-eq bounceback operator
-                }
-                if(Options$SUP){
-                        C(omegaS[i],  feqP[i] - f[i] + (1.0 - omegaF)*(f[i] - feq[i])) #Superposition operator
-                }
-       }
-
-       for (i in 1:27) {
-            C(f[i], f[i] + (1.0-sol)*(localOmegaF*(feqeven[i] - feven[i]) + omegaP*(feqodd[i] - fodd[i]) + (1.0-0.5*localOmegaF)*F[i]) + sol*omegaS[i])
-       }
-     ?>
+	}
 }
+<?R } ?>
 
-CudaDeviceFunction void CollisionMRT() {
+CudaDeviceFunction void Collision_PSM() {
+	real_t u[3], d, R[27];
+<?R
+	d = PV("d")
+      u = PV("u[",1:3-1,"]")
+      uP = PV("uP",c("x","y","z"))
+      a = PV("Accel", c("X", "Y", "Z"))
+	R = PV("R[",1:27-1,"]")
+
+#	M = WMRT_mat(U)
+	M = MRT_polyMatrix(U)$mat
+
+	RL = R
+	R[1] = d
+	R[2:4] = (u-a*0.5)*d
+	EQ   = MRT_eq(U, d, u*d, ortogonal=FALSE, mat=M);
+	EQ_P = MRT_eq(U, d, uP*d, ortogonal=FALSE, mat=M)
+
+	
+      F = ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d
+      feq = EQ$Req %*% solve(EQ$mat)
+      feqP = EQ_P$Req %*% solve(EQ_P$mat)
+
+	B = solve(EQ$mat, EQ$mat[bounce+1,]) # Bounce-back matrix
+
+      sol = PV("sol")
+
+	omegaF = PV(c("omegaF"))
+	omegaF1 = PV(c("omegaF1"))
+	omegaP1 = PV(c("omegaP1"))
+
+	omegaF = 1.0 - omegaF1;
+?>
+	real_t omegaF1 = 1.0-omegaF;
+<?R
+	if (Options$TRT) {
+?>
+		real_t omegaP1 = 1.0-omegaP;
+<?R
+		omegaF = 1.0 - omegaF1;
+		omegaP = 1.0 - omegaP1;
+		omega = V(omegaF,omegaP)[EQ$order %% 2 + 1]
+	} else {
+		omega = omegaF
+	}
+	
+		if (Options$NEBB) {
+                        RomegaS =  R %*% B - R + EQ_P$Req - EQ$Req %*% B #Non-eq bounceback operator
+		      sol = PV("sol")
+		} else if (Options$SUP){
+                        RomegaS =  EQ_P$Req - R + (1.0 - omegaF)*(R - EQ$Req) #Superposition operator
+		      sol = PV("sol")
+                } else {
+			RomegaS = 0
+			sol = 0
+		}
+
+	
+#	  W = MRT_polyMatrix(U)$mat
+#	flip = 27:1
+#	C( RL, f %*% W)
+#	C( RL[flip], (RL %*% solve(W) %*% EQ$mat)[flip])
+	C( RL, f %*% EQ$mat)
+	C( d, RL[1])
+	C( u, RL[2:4]*d^{-1} + a*0.5)
+?>
+    AddToTotalFluidMomentumX(d*u[0]);
+    AddToTotalFluidMomentumY(d*u[1]);
+    AddToTotalFluidMomentumZ(d*u[2]); 
+    AddToTotalFluidMass(d); 
+    AddToTotalFluidVolume(1); 
+<?R
+	C( RL, R + (1.0-sol)*(omega*(EQ$Req - R) + (1.0 - omega*0.5)*(F %*% EQ$mat)) + sol*RomegaS)
+#	C( RL[flip], (RL %*% solve(EQ$mat) %*% W)[flip])
+#	C( f, RL %*% solve(W))
+	C( f, RL %*% solve(EQ$mat))
+	
+?>
 }
 
 CudaDeviceFunction float2 Color() {
         float2 ret;
-//        vector_t u = getU();
-//        ret.x = sqrt(u.x*u.x + u.y*u.y);
-
-	ret.x = (<?R C(sum(f)) ?>);
-	ret.x = ret.x/111;
-//	ret.x = wb;
-	if (NodeType == NODE_Solid) ret.y = 0; else ret.y= 1;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+	if (NodeType == NODE_Wall) ret.y = 0; else ret.y= 1;
         return ret;
 }
 
