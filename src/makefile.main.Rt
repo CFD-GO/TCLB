@@ -9,6 +9,12 @@
 ?>
 # MODELS: 
 #	<?%s paste(Models$name,collapse=", ") ?>
+#######################################################################################################################
+
+listAllModels:
+<?R for(mod in Models$name) { ?>
+	@echo "<?%s cat(mod) ?>"
+<?R }?>
 
 #######################################################################################################################
 
@@ -237,7 +243,9 @@ wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <
 <?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || rm $@
+	$(RT) -c -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@-debug.R $(RTOPT) <?%s rtopt ?> 
+	$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || rm $@
+
 
 <?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"

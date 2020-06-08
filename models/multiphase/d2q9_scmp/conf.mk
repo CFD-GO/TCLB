@@ -1,0 +1,3 @@
+ADJOINT=0
+TEST=TRUE
+OPT="VirtualRhoWBC*ViscositySmooth*(TRT+BGK+WMRT+CUM)*FMT*HiOrd"
