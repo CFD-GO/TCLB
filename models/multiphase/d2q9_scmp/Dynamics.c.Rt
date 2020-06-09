@@ -527,7 +527,7 @@ CudaDeviceFunction real_t realCalcPhi(const real_t& rho2_ ) {
 
 CudaDeviceFunction void Init() {
     const real_t rho = Density;
-    const real_t Jx = Density*velocity;
+    const real_t Jx = Density*Velocity;
     const real_t Jy = 0;
     const real_t Jz = 0;
     
@@ -738,7 +738,7 @@ CudaDeviceFunction void CollisionMRT()
 <?R
   C(PV(c("rho","Jx","Jy")), m %*% solve(EQ$mat) %*% cbind(1,U))
 ?>
-	real_t omega = evalOmega(rho)
+	real_t omega = evalOmega(rho);
 	real_t omega2 = (2.0 - omega)/(1 + 2*(Kupershtokh_K-0.25)*omega);
 <?R
 
@@ -771,12 +771,9 @@ real_t c[9],d;
 
 const real_t rho = d;
 real_t Usq = 0;
-const real_t omega = evalOmega(rho)
+const real_t omega = evalOmega(rho);
 
-//momentum collision
-
-
-
+ //momentum collision
 
  real_t  w[5] = {omega,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
  if ((NodeType & NODE_BOUNDARY) != 0) {
