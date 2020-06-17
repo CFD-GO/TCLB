@@ -1,3 +1,22 @@
+/**
+@author Michał Dzikowski / mdzik
+
+This model is based on:
+- Kupershtokh - "On equations of state in a lattice Boltzmann method", 10.1016/j.camwa.2009.02.024
+- LycettLuo - "Improved forcing scheme in pseudopotential lattice Boltzmann methods for multiphase flow at arbitrarily high density ratios", 10.1103/PhysRevE.91.023305 
+
+All incorporated in same framework with 
+- possible different collision operators: SRT, TRT, MRT, WMRT and Cumulant
+- viscosity-density relations: step on rho=1 or smooth change
+- simple wall boundary handling (prescribed rho at wall nodes) 
+- VirtualRhoWBC after "Implementation of contact angles in pseudopotential lattice Boltzmann simulations with curved boundaries", 10.1103/PhysRevE.100.053313
+- Wall interaction calculation with proper interparticle-potential handling (under prepration for publication)
+
+
+
+**/
+
+
 <?R
 	source("conf.R") ;
 	c_header();
