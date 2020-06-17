@@ -32,12 +32,13 @@ AddQuantity(name="Finternal", unit="N", vector=T);
 AddQuantity(name="DEBUG", vector=T);
 
 
-AddSetting(name="omega_l", comment='relaxation factor', default=1)
-AddSetting(name="omega_v", comment='relaxation factor', default=1)
+AddSetting(name="omega_l", nu_l="(1./omega_l - 0.5) / 3." , comment='relaxation factor', default=1)
+AddSetting(name="omega_v", nu_v="(1./omega_v - 0.5) / 3." , comment='relaxation factor', default=1)
 
-AddSetting(name="nu_l", omega_l='1.0/(3*nu_l + 0.5)', comment='viscosity')
-AddSetting(name="nu_v", omega_v='1.0/(3*nu_v + 0.5)', comment='viscosity')
+AddSetting(name="nu_l", comment='viscosity')
+AddSetting(name="nu_v", comment='viscosity')
 
+AddSetting(name="Magic", default=3/16, comment='Magic parameter')
 
 
 AddSetting(name="Velocity", default="0m/s", comment='inlet velocity')
@@ -49,10 +50,18 @@ AddSetting(name="LVRho_ulimit", default=0.01, , zonal=TRUE, comment="Upper limit
 AddSetting(name="LVRho_llimit", default=3.2, , zonal=TRUE,  comment="Lower limiting value of rho_w see DOI: 10.1103/PhysRevE.100.053313")
 
 
-AddSetting(name="WallSmoothingMagic", default=0.12, comment="Wall normal smoothing parameter, higher - more smoothed")
+AddSetting(name="Kupershtokh_K", comment='C-S EOS multiplying param', default="0.01")
 
-AddSetting(name="Kupershtokh_K", comment='K', default="0.01")
-AddSetting(name="Kupershtokh_A", comment='A in force calculation', default="-0.152")
+if (Options$Kupershtokh) {
+    AddSetting(name="Kupershtokh_A", comment='A in force calculation - type of stencil (0 for psi*sum(psi(ei)))', default="-0.152")
+} else {
+    AddSetting(name="Kupershtokh_A", comment='A in force calculation - type of stencil (0 for psi*sum(psi(ei)))', default="0")
+}
+
+AddSetting(name="LBL_kappa", comment='kappa - int width parameter (0 is safe value)', default="0")
+AddSetting(name="LBL_epsilon0", comment='epsilon0 param - se original paper (2 is safe value)', default="2")
+
+
 
 AddSetting(name="GravitationY", comment='Gravitation in the direction of y')
 AddSetting(name="GravitationX", comment='Gravitation in the direction of x')

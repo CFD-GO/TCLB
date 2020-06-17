@@ -54,22 +54,22 @@
 	J = PV("J",c("x","y"))
 
 
-C = function (x, y, ..., eq = " = ", sep) 
-{
-    x = ToC(x, ...)
-    if (missing(y)) {
-        if (missing(sep)) 
-            sep = ""
-        cat(x, sep = sep)
-    }
-    else {
-        if (missing(sep)) 
-            sep = ";\n"
-        y = ToC(y, ...)
-        sel = y != x
-        if (any(sel)) cat(paste0(x[sel], eq, y[sel], sep), sep = "")
-    }
-}
+# C = function (x, y, ..., eq = " = ", sep) 
+# {
+#     x = ToC(x, ...)
+#     if (missing(y)) {
+#         if (missing(sep)) 
+#             sep = ""
+#         cat(x, sep = sep)
+#     }
+#     else {
+#         if (missing(sep)) 
+#             sep = ";\n"
+#         y = ToC(y, ...)
+#         sel = y != x
+#         if (any(sel)) cat(paste0(x[sel], eq, y[sel], sep), sep = "")
+#     }
+# }
 
 
 # Calculating equlibrium density set
@@ -132,7 +132,17 @@ CudaDeviceFunction vector_t getDEBUG(){
     vector_t debug;
     debug.x = 0;
     debug.y = 0;
-    debug.z = inWall;
+    const real_t rho = getRho();
+    const real_t omega = evalOmega(rho);
+    <?R
+    epsilon0 = 2
+    phi = ph
+    rho = PV("rho")
+    omega = PV("omega")
+    kappa = PV("LBL_kappa")
+
+    C(PV("debug.z"),  1 - 0.25*omega + 0.5*(5-kappa)*(rho*epsilon0)*phi[1]^-2*omega*36^-1)
+    ?>
     if (IamWall) {
     <?R
         Force = PV(c("debug.x","debug.y"));
@@ -400,7 +410,7 @@ CudaDeviceFunction real_t evalOmega(const real_t rho){
 
         const real_t mu_v = nu_v * density_v;
         const real_t mu_l = nu_l * density_l;
-        const real_t mu =  ( mu_l +  (rho - density_l) * (mu_v - mu_l) / (density_l - density_v  + 1E-16) );
+        const real_t mu =  ( mu_l +  (rho - density_l) * (mu_v - mu_l) / (density_v - density_l  + 1E-16) );
         real_t omega = 1.0/( 3. * mu / rho + 0.5);
     <?R } ?>
     return omega;
@@ -685,6 +695,8 @@ CudaDeviceFunction void Run() {
 // Collision Handling
 //################################################################################################
 
+<?R if (!Options$CUM) { ?>
+
 CudaDeviceFunction void CollisionMRT()
 {	
 <?R
@@ -739,19 +751,92 @@ CudaDeviceFunction void CollisionMRT()
   C(PV(c("rho","Jx","Jy")), m %*% solve(EQ$mat) %*% cbind(1,U))
 ?>
 	real_t omega = evalOmega(rho);
-	real_t omega2 = (2.0 - omega)/(1 + 2*(Kupershtokh_K-0.25)*omega);
+	real_t omega2 = (2.0 - omega)/(1 + 2*(Magic-0.25)*omega);
 <?R
 
   C(m, m - meq)
   C(m, m*(1-Omega))
+
+
 ?>  
-// ###### EDM
   vector_t F = realGetF();
+
+<?R 
+    if (Options$Kupershtokh) {
+    ###### EDM        
+?>
+
+
   Jx = Jx + F.x + (GravitationX*rho);
   Jy = Jy + F.y + (GravitationY*rho); 
-// ###### EDM
+
+// This is equall to  EDM (but faster): C(m, (m - meq)*(1-Omega) + meg + meq_du - meq )
 <?R 
-  C(m, m + meq)
+    ###### EDM
+    dF = 0
+    } else if (Options$LycettLuo) {
+    ###### Lycett-Brown / Luo
+
+        df_LBL = PV(paste("tmp[",1:9-1,"]",sep=""))
+        gamma = PV('gamma')
+        cs2 = 1/3
+        Fx = Force[1]
+        Fy = Force[2]
+        
+        G = PV("G")
+        omega = PV('omega')
+        tau = omega^-1
+        kappa = PV("LBL_kappa")
+
+        pow <- function(s,c) {
+        temp_C = s
+        for (ii in 1:(c-1)){ temp_C = temp_C * s}
+        return(temp_C)
+        }
+
+        Phi_xx = PV("Phi_xx")
+        Phi_xy = PV("Phi_xy")
+        Phi_yx = PV("Phi_yx")
+        Phi_yy = PV("Phi_yy")
+
+        epsilon0 = PV("LBL_epsilon0")
+        
+        for (i in 1:9){
+            vx = U[i,1]
+            vy = U[i,2]
+            Ux = J[1]*rho^-1
+            Uy = J[2]*rho^-1
+            wi = wi_[i]
+
+            df_LBL[i] = (3.0/2.0)*wi*(0-gamma*tau*(pow(Fx, 2) + pow(Fy, 2) - 3*pow(Fx*vx + Fy*vy, 2)) - 2*rho*tau*(Fx*(Ux - vx) + Fy*(Uy - vy) - 3*(Fx*vx + Fy*vy)*(Ux*vx + Uy*vy)) + rho*(Phi_xx*(3*pow(vx, 2) - 1) + 3*Phi_xy*vx*vy + 3*Phi_yx*vx*vy + Phi_yy*(3*pow(vy, 2) - 1)))*(rho*tau)^-1
+        }
+        dF = df_LBL%*% EQ$mat
+
+        phi = ph
+
+
+        writePhi_XX <- function(i,j, comp){
+            t1 = (phi-phi[[1]])*U[,i]*U[,j]
+            t2 = 2*(phi-phi[1])
+            G = -1**cs2^-1
+            C( comp, G*cs2*phi[1]*(0-kappa*0.5*(wi_%*%t1)) + G*cs2*phi[1]*(kappa+1)*(1*(i==j))*(wi_%*%t2)*(12^-1) )
+        }
+        #writePhi_XX(1,1, PV("const real_t Phi_xx"))
+        #writePhi_XX(1,2, PV("const real_t Phi_xy"))
+        #writePhi_XX(2,1, PV("const real_t Phi_yx"))
+        #writePhi_XX(2,2, PV("const real_t Phi_yy"))
+        
+        C(PV("const real_t Phi_xx"), 0)
+        C(PV("const real_t Phi_xy"), 0)
+        C(PV("const real_t Phi_yx"), 0)
+        C(PV("const real_t Phi_yy"), 0)
+
+        
+        C(PV("const real_t gamma"), 1 - 0.25*omega + 0.5*(5-kappa)*(rho*epsilon0)*phi[1]^-2*omega*36^-1)
+
+    }
+
+  C(m, m + meq + dF)
 
   if (Options$FMT) {
 	C(m, m %*% solve(EQ$mat) %*% EQ_NO$mat)
@@ -762,6 +847,9 @@ CudaDeviceFunction void CollisionMRT()
 ?>
 
 }
+
+<?R } else { ?>
+
 
 CudaDeviceFunction void CollisionCumulant()
 {
@@ -884,3 +972,5 @@ Jc=c(PV("c[1]"),PV("c[2]"))
   f[7] = f[7] - f[6]; 
 
 }
+
+<?R }?>    
