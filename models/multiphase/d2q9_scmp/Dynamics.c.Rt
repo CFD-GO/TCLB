@@ -6,11 +6,14 @@ This model is based on:
 - LycettLuo - "Improved forcing scheme in pseudopotential lattice Boltzmann methods for multiphase flow at arbitrarily high density ratios", 10.1103/PhysRevE.91.023305 
 
 All incorporated in same framework with 
-- possible different collision operators: SRT, TRT, MRT, WMRT and Cumulant
+- possible different collision operators: 
+    - standard SRT, TRT, MRT models 
+    - WMRT "A weighted multiple-relaxation-time lattice Boltzmann method for multiphase flows and its application to partial coalescence cascade" 10.1016/j.jcp.2017.03.062
+    - Cumulant "The cumulant lattice Boltzmann equation in three dimensions: Theory and validation" 10.1016/j.camwa.2015.05.001
 - viscosity-density relations: step on rho=1 or smooth change
 - simple wall boundary handling (prescribed rho at wall nodes) 
 - VirtualRhoWBC after "Implementation of contact angles in pseudopotential lattice Boltzmann simulations with curved boundaries", 10.1103/PhysRevE.100.053313
-- Wall interaction calculation with proper interparticle-potential handling (under prepration for publication)
+- Wall interaction calculation with proper interparticle-potential handling (under prepration)
 
 
 
