@@ -157,14 +157,14 @@ CudaDeviceFunction vector_t getDEBUG(){
     const real_t rho = getRho();
     const real_t omega = evalOmega(rho);
     <?R
-    epsilon0 = 2
-    phi = ph
-    rho = PV("rho")
-    omega = PV("omega")
-    kappa = PV("LBL_kappa")
-
-    C(PV("debug.z"),  1 - 0.25*omega + 0.5*(5-kappa)*(rho*epsilon0)*phi[1]^-2*omega*36^-1)
+    #epsilon0 = 2
+    #phi = ph
+    #rho = PV("rho")
+    #omega = PV("omega")
+    #kappa = PV("LBL_kappa")
+    #C(PV("debug.z"),  1 - 0.25*omega + 0.5*(5-kappa)*(rho*epsilon0)*phi[1]^-2*omega*36^-1)
     ?>
+    debug.z = omega;
     if (IamWall) {
     <?R
         Force = PV(c("debug.x","debug.y"));
