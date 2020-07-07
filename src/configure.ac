@@ -366,7 +366,7 @@ if test "x${with_hdf5}" != "xno"; then
 	fi
 	has_hdf5="yes"
 	AC_CHECK_HEADERS([hdf5.h],[],[has_hdf5="no"])
-	AC_CHECK_LIB([${hdf5_lib_name}], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
+	AC_CHECK_LIB([hdf5], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
 	if test "x${has_hdf5}" == "xyes"; then
 		AC_DEFINE([WITH_HDF5], [1], [Using HDF5])
 	else
