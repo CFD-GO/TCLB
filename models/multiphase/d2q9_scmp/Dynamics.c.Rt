@@ -428,6 +428,7 @@ CudaDeviceFunction void ESymmetry()
 CudaDeviceFunction real_t evalOmega(const real_t rho){
     <?R if (!Options$ViscositySmooth) { ?>
         real_t omega = rho > 1 ? omega_l : omega_v;
+        printf("%f %f %f %f \n", omega,  rho , omega_l, omega_v);
     <?R } else { ?>
 
         const real_t mu_v = nu_v * density_v;
