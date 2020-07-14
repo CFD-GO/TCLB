@@ -36,6 +36,8 @@ AddSetting(name="ForceZ", default=0, comment='Force force Z')
 AddSetting(name="Smag", default=0, comment='Smagorinsky coefficient for SGS modeling')
 AddSetting(name="Omega", default=1, comment='relaxation rate for 3rd order cumulants')
 
+AddSetting(name="ParticleVelocityLimit", default=0.05, comment='(local) particle velocity limit', unit="1m/s")
+
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
 AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")

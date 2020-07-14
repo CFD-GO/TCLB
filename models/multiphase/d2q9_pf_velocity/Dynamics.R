@@ -135,7 +135,7 @@ AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX
 AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY', zonal=T)
 AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX')
 AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY')
-
+AddSetting(name="fixedIterator", default=2.0, comment='fixed iterator for velocity calculation')
 #	Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
@@ -143,33 +143,35 @@ AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
 AddNodeType(name="SpikeTrack",group="ADDITIONALS")
 AddNodeType(name="BubbleTrack",group="ADDITIONALS")
-AddGlobal(name="RTIBubble", comment='Bubble Tracker')
-AddGlobal(name="RTISpike",  comment='Spike Tracker')
-
+AddGlobal(name="RTIBubble", comment='Bubble Tracker', op="MAX")
+AddGlobal(name="RTISpike",  comment='Spike Tracker', op="MAX")
 AddGlobal(name="NMovingWallForce", comment='force exerted on the N Moving Wall')
 AddGlobal(name="NMovingWallPower", comment='implented: Vx* incoming momentum (precollision)')
 
-AddGlobal(name="MomentumX", comment='Total momentum in the domain', unit="")
-AddGlobal(name="MomentumY", comment='Total momentum in the domain', unit="")
-AddGlobal(name="MomentumX_afterCol", comment='Total momentum in the domain', unit="")
-AddGlobal(name="MomentumY_afterCol", comment='Total momentum in the domain', unit="")
+if (Options$debug){
+	AddGlobal(name="MomentumX", comment='Total momentum in the domain', unit="")
+	AddGlobal(name="MomentumY", comment='Total momentum in the domain', unit="")
+	AddGlobal(name="MomentumX_afterCol", comment='Total momentum in the domain', unit="")
+	AddGlobal(name="MomentumY_afterCol", comment='Total momentum in the domain', unit="")
 
-AddGlobal(name="F_pressureX", comment='Pressure force X', unit="")
-AddGlobal(name="F_pressureY", comment='Pressure force Y', unit="")
-AddGlobal(name="F_bodyX", comment='Body force X', unit="")
-AddGlobal(name="F_bodyY", comment='Body force Y', unit="")
-AddGlobal(name="F_surf_tensionX", comment='Surface tension force X', unit="")
-AddGlobal(name="F_surf_tensionY", comment='Surface tension force Y', unit="")
-AddGlobal(name="F_muX", comment='Viscous tension force X', unit="")
-AddGlobal(name="F_muY", comment='Viscous tension force Y', unit="")
-AddGlobal(name="F_total_hydroX", comment='Total hydrodynamic force X', unit="")
-AddGlobal(name="F_total_hydroY", comment='Total hydrodynamic force Y', unit="")
+	AddGlobal(name="F_pressureX", comment='Pressure force X', unit="")
+	AddGlobal(name="F_pressureY", comment='Pressure force Y', unit="")
+	AddGlobal(name="F_bodyX", comment='Body force X', unit="")
+	AddGlobal(name="F_bodyY", comment='Body force Y', unit="")
+	AddGlobal(name="F_surf_tensionX", comment='Surface tension force X', unit="")
+	AddGlobal(name="F_surf_tensionY", comment='Surface tension force Y', unit="")
+	AddGlobal(name="F_muX", comment='Viscous tension force X', unit="")
+	AddGlobal(name="F_muY", comment='Viscous tension force Y', unit="")
+	AddGlobal(name="F_total_hydroX", comment='Total hydrodynamic force X', unit="")
+	AddGlobal(name="F_total_hydroY", comment='Total hydrodynamic force Y', unit="")
 
-AddGlobal(name="F_phiX", comment='Forcing term for interface tracking X', unit="")
-AddGlobal(name="F_phiY", comment='Forcing term for interface tracking Y', unit="")
-
+	AddGlobal(name="F_phiX", comment='Forcing term for interface tracking X', unit="")
+	AddGlobal(name="F_phiY", comment='Forcing term for interface tracking Y', unit="")
+}
 #	Node things
-AddNodeType(name="CM", group="COLLISION")  # Central Moments collision
+if (Options$CM){
+	AddNodeType(name="CM", group="COLLISION")  # Central Moments collision
+}
 AddNodeType(name="Smoothing", group="ADDITIONALS")  #  To smooth phase field interface during initialization.
 
 #	Boundary things

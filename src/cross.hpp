@@ -99,6 +99,62 @@
               atomicSum_f(sum);
       }
 
+#if CUDART_VERSION >= 9000
+__device__ inline void atomicSumWarp(real_t * sum, real_t val)
+{
+	#define FULL_MASK 0xffffffff
+	if (__any_sync(FULL_MASK, val != 0)) {
+		for (int offset = 16; offset > 0; offset /= 2)
+		    val += __shfl_down_sync(FULL_MASK, val, offset);
+		if (threadIdx.x == 0) atomicAddP(sum,val);
+	}
+}
+
+__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
+{
+	#define FULL_MASK 0xffffffff
+	bool pred = false;
+	for (unsigned char i=0; i<len; i++) pred = pred || (val[i] != 0.0);
+	if (__any_sync(FULL_MASK, pred)) {
+		for (int offset = 16; offset > 0; offset /= 2) {
+			for (unsigned char i=0; i<len; i++) val[i] += __shfl_xor_sync(FULL_MASK, val[i], offset);
+		}
+		if (threadIdx.x < len) {
+			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
+		}
+	}
+}
+
+#elif CUDART_VERSION >= 7000
+
+__device__ inline void atomicSumWarp(real_t * sum, real_t val)
+{
+	#define FULL_MASK 0xffffffff
+	if (__any(val != 0)) {
+		for (int offset = 16; offset > 0; offset /= 2)
+		    val += __shfl_down(val, offset);
+		if (threadIdx.x == 0) atomicAddP(sum,val);
+	}
+}
+
+__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
+{
+	#define FULL_MASK 0xffffffff
+	bool pred = false;
+	for (unsigned char i=0; i<len; i++) pred = pred || (val[i] != 0.0);
+	if (__any(pred)) {
+		for (int offset = 16; offset > 0; offset /= 2) {
+			for (unsigned char i=0; i<len; i++) val[i] += __shfl_xor(val[i], offset);
+		}
+		if (threadIdx.x < len) {
+			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
+		}
+	}
+}
+#else
+  #warning "no atomicSumWarp for this CUDA version"
+#endif
+
 /*      __device__ inline void atomicSum(real_t * sum, real_t val) {
         typedef cub::BlockReduce<real_t, 32, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 20> BlockReduce;
         __shared__ typename BlockReduce::TempStorage temp_storage;

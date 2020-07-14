@@ -10,8 +10,8 @@
 
 #include "gl_helper.h"
 
-#include "cuda.h"
-#include "cuda_gl_interop.h"
+#include <cuda.h>
+#include <cuda_gl_interop.h>
 #include <iostream>
 
 

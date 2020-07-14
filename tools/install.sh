@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|coveralls|python-dev|rpython|module [VERSION]"
+	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|module [VERSION]"
 	exit -2
 }
 
@@ -191,6 +191,35 @@ r)
 	    try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
 	fi
 	;;
+rpackage)
+	GITHUB=false
+        if test "x$1" == "xgithub"
+        then
+        	GITHUB=true
+        	shift
+        fi
+	if test -z "$1"
+	then
+		echo "tools/install.sh rpackage package_name"
+		echo " OR "
+		echo "tools/install.sh rpackage github user/repo"
+		exit -1
+	fi
+	if $GITHUB
+	then
+		github_install "$1"
+	else
+		normal_install "$1"
+	fi
+	;;
+normal_install)
+	if test -z "$1"
+	then
+		echo "tools/install.sh normal_install package"
+		exit -1
+	fi
+	normal_install "$1"
+	;;
 rdep)
         if test "x$1" == "xgithub"
         then
@@ -259,7 +288,7 @@ openmpi)
 		try "Clean APT" apt-get clean
 	fi
 	;;
-coveralls)
+cover)
 	get_PMS
 	if test "x$PMS" == "xyum"	
 	then
@@ -270,7 +299,6 @@ coveralls)
 	then
 		try "Installing lcov" apt-get install -y lcov
 		try "Installing time" apt-get install -y time
-	#	try "Installing coveralls-lcov" gem install coveralls-lcov
 	fi
 	;;
 submodules)

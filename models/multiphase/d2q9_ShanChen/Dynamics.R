@@ -39,6 +39,7 @@ AddSetting( name="VelocityY",default=0, comment='inlet/outlet/init velocity', zo
 AddSetting( name="GravitationX",default=0, comment='body/external acceleration', zonal=TRUE)
 AddSetting( name="GravitationY",default=0, comment='body/external acceleration', zonal=TRUE)
 AddSetting( name="Density",default=1, comment='Density',zonal=TRUE)
+AddNodeType(name="MovingWall", group="BOUNDARY")
 
 AddSetting( name="G_ff",default=0, comment='fluid-fluid interaction strength')
 AddSetting( name="G_sf",default=0, comment='solid-fluid interaction strength')

@@ -1,0 +1,1373 @@
+
+// maintainer: Grzegorz Gruszczynski @ggruszczynski
+<?R 
+	source("conf.R")
+    c_header();
+	source("lib/lattice.R")
+	source("lib/feq.R")
+	source("lib/boundary.R")
+    
+    # Creating variables for symbolic computations
+		f = PV(DensityAll$name[DensityAll$group=="f"])
+		h = PV(DensityAll$name[DensityAll$group=="h"])
+
+		rho =  PV("rho")
+		u = PV(c("ux","uy","uz"))
+		J = PV("J",c("x","y","z"))
+
+		rhoT = PV("rhoT")
+		tmp = PV("tmp")
+
+    # Extracting velocity set
+		U 		 = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+		UforHeat = as.matrix(DensityAll[DensityAll$group=="h",c("dx","dy","dz")])
+
+    # Calculating equlibrium density set
+		EQ = MRT_eq(U, rho, J, ortogonal=FALSE);
+		#EQ$feq = EQ$Req %*% solve(EQ$mat)
+
+	if (Options$OutFlowNeumann) 
+	{
+		f_neighbours = Density$nicename[Density$group =="f"]
+		h_neighbours = Density$nicename[Density$group =="h"]
+	}
+
+	if (Options$OutFlowConvective) 
+	{
+		f_neighbours = Density$nicename[Density$group =="f"]
+		h_neighbours = Density$nicename[Density$group =="h"]
+		#f_old = PV(paste(f_neighbours,"(0,0)",sep="")) # this is slightly different
+		#h_old = PV(paste(h_neighbours,"(0,0)",sep="")) 
+		f_old = PV(Density$name[Density$group == "fold"])
+		h_old = PV(Density$name[Density$group == "hold"])
+		f_n = PV(paste(f_neighbours,"(",-Density$dx[Density$group=="f"]-1,",",-Density$dy[Density$group=="f"],")",sep=""))
+		h_n = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],")",sep=""))
+		U_loc = PV("U_local")
+		U_inv = PV("invU")
+	}
+?>
+
+CudaDeviceFunction real_t getm00_F(){
+	real_t m00_F = <?R C(sum(f)) ?>;
+	return m00_F/material_density;
+}
+
+CudaDeviceFunction real_t getcp(){
+	return cp;
+}
+
+CudaDeviceFunction real_t getmaterial_density(){
+	return material_density;
+}
+
+CudaDeviceFunction real_t getconductivity(){
+	return conductivity;
+}
+
+
+CudaDeviceFunction real_t getRho(){
+	// Use this function is only for vtk output.
+	// Nodes are created using streamed, post-collision DF.
+	// RunBoundaries are called in orded to assign the desired value at the boundary.
+	// It can make a difference in convergence study and nicer preview.
+
+	RunBoundariesHydrodynamics();
+	RunBoundariesHeat();	
+	RunHOBoundaries();
+
+	real_t rho = <?R C(sum(f)) ?>;
+	return rho;
+}
+
+CudaDeviceFunction real_t getRho_(){
+	real_t rho = <?R C(sum(f)) ?>;
+	return rho;
+}
+
+CudaDeviceFunction real_t getP_fluctuations(){
+	return (getRho_()-material_density)/3.0;
+}
+
+
+CudaDeviceFunction vector_t getU(){	
+	// Use this function is only for vtk output.
+	// Nodes are created using streamed, post-collision DF.
+	// RunBoundaries are called in orded to assign the desired value at the boundary.
+	// It can make a difference in convergence study and nicer preview.
+
+	RunBoundariesHydrodynamics();
+	RunBoundariesHeat();	
+	RunHOBoundaries();
+
+	vector_t u;
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+		u.x = 0;
+		u.y = 0;
+		u.z = 0;
+	}
+    else{
+		u = getRawU();
+		real_t localTemperature = getT_();
+		real_t rho = getRho_();
+		vector_t Force = getForce(localTemperature, rho);
+		u.x += Force.x/(2*rho);
+		u.y += Force.y/(2*rho);
+		u.z += Force.z/(2*rho);
+    }
+	return u;
+}
+
+CudaDeviceFunction vector_t getU_()
+{
+	real_t localTemperature = getT_();
+	vector_t u = getRawU();
+	real_t rho = getRho_();
+	vector_t Force = getForce(localTemperature, rho);
+	u.x += Force.x/(2*rho);
+	u.y += Force.y/(2*rho);
+	u.z += Force.z/(2*rho);
+	return u;
+}
+ 
+CudaDeviceFunction vector_t getRawU(){
+	real_t d = getRho_();
+	vector_t u;
+	<?R C(PV(c("u.x","u.y", "u.z")), f %*% U) ?>
+	u.x /= d;
+	u.y /= d;
+	u.z /= d;
+	return u;
+}
+
+
+CudaDeviceFunction real_t getT(){
+	// Use this function is only for vtk output.
+	// Nodes are created using streamed, post-collision DF.
+	// RunBoundaries are called in orded to assign the desired value at the boundary.
+	// It can make a difference in convergence study and nicer preview.
+
+	RunBoundariesHydrodynamics();
+	RunBoundariesHeat();	
+	RunHOBoundaries();
+
+	real_t rho = getRho_();
+	real_t m00_H = <?R C(sum(h)) ?>;
+	return m00_H/(rho*cp);
+}
+
+CudaDeviceFunction real_t getT_(){
+	real_t rho = getRho_();
+	real_t m00_H = <?R C(sum(h)) ?>;
+	return m00_H/(rho*cp);
+}
+
+CudaDeviceFunction real_t getH(){
+	return <?R C(sum(h)) ?>;
+}
+
+CudaDeviceFunction vector_t get_fDarcyStoper(real_t rho, vector_t u)
+{
+	vector_t fDarcy;
+	fDarcy.x = -rho*u.x;
+	fDarcy.y = -rho*u.y;
+	fDarcy.z = -rho*u.z;
+	return fDarcy;
+}
+
+CudaDeviceFunction float2 Color() {
+	float2 ret;
+	
+	ret.x = getT_();
+	ret.x -= 10;  // hack for better preview.
+	ret.y = ret.x;
+
+
+	if (NodeType == NODE_Solid){
+		ret.y = 0;
+	} else {
+		ret.y = 1;
+	}
+
+	// vector_t u = getU_();
+	// // ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+	// ret.x = u.x;
+	// ret.y = u.y;
+
+	return ret;
+}
+
+#ifdef OPTIONS_AVG
+CudaDeviceFunction real_t getaverageT(){
+	return avgT/average_iter;
+}
+CudaDeviceFunction real_t getaverageP(){
+	return avgP/average_iter;
+}
+CudaDeviceFunction real_t getDissipation(){
+        real_t diss;
+       	diss = nu*((avgdxu2/average_iter)-(avgUX(1,0,0) - avgUX(-1,0,0))*(avgUX(1,0,0) - avgUX(-1,0,0))/(4*average_iter*average_iter));
+        return diss;
+}
+CudaDeviceFunction vector_t getaverageU(){
+        vector_t u;
+        u.x = avgUX(0,0,0)/average_iter;  //avgUX(0,0,0) in fact
+        u.y = avgUY(0,0,0)/average_iter;
+        return u;
+}
+CudaDeviceFunction vector_t getvarU(){
+		vector_t u_avg = getaverageU();
+
+		vector_t u;
+        u.x = varUX/average_iter - u_avg.x*u_avg.x;
+        u.y = varUY/average_iter - u_avg.y*u_avg.y;
+        return u;
+}
+CudaDeviceFunction vector_t getReStr(){
+		vector_t u_avg = getaverageU();
+        vector_t st;
+        st.z = varUXUY/average_iter - u_avg.x*u_avg.y;
+        return st;
+}
+CudaDeviceFunction real_t getKinE(){
+	real_t ke;
+	ke = 0.5*(getvarU().x + getvarU().y + getvarU().z);
+	return ke;
+}
+#endif
+
+
+CudaDeviceFunction void Init() {
+	real_t pressure = Pressure;
+	vector_t u; u.x = VelocityX; u.y = VelocityY; u.z = 0;
+
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+		u.x = 0; u.y = 0; u.z = 0;
+		pressure = 0;
+	}
+	
+	real_t rho = 1.0*material_density + pressure * 3.0;
+	real_t H = rho*cp*InitTemperature;
+
+	SetEquilibriumHydro(rho, u.x, u.y, u.z);
+
+	if(CylinderCenterX_GH > 0 && CylinderCenterY_GH > 0 && Sigma_GH > 0){ 
+		// Gaussian Hill Benchmark
+		real_t dx = X - CylinderCenterX_GH;
+		real_t dy = Y - CylinderCenterY_GH;
+		real_t L = dx*dx + dy*dy;
+		H *= exp(-L/(2*Sigma_GH));
+	}
+
+	SetEquilibriumHeat(H,rho,u);
+
+	#ifdef OPTIONS_OutFlowConvective
+	if ((NodeType & NODE_BOUNDARY) == NODE_EConvective){
+			<?R if (Options$OutFlowConvective)
+				{
+					C(f_old, f)
+					C(h_old, h)     
+				}       
+			?>
+	}
+	#endif
+}
+
+CudaDeviceFunction void HydroBounceBack()
+{
+	<?R 
+		# FullBounceBack(group='f') # to much stuff gets generated in the IBB mode Oo
+	?> 
+
+	real_t tmp;
+	tmp = f010;
+	f010 = f020;
+	f020 = tmp;
+	tmp = f120;
+	f120 = f210;
+	f210 = tmp;
+	tmp = f100;
+	f100 = f200;
+	f200 = tmp;
+	tmp = f110;
+	f110 = f220;
+	f220 = tmp;
+}
+
+CudaDeviceFunction void ThermalBounceBack()
+{
+	<?R 
+		# FullBounceBack(group='h')
+	?> 
+
+	real_t tmp;
+	tmp = h010;
+	h010 = h020;
+	h020 = tmp;
+	tmp = h120;
+	h120 = h210;
+	h210 = tmp;
+	tmp = h100;
+	h100 = h200;
+	h200 = tmp;
+	tmp = h110;
+	h110 = h220;
+	h220 = tmp;
+}
+
+CudaDeviceFunction void WVelocity()
+{
+	// real_t Jx, Jy, Jz, rho;
+	// rho  = ( -f022 - f012 - f002 - f021 - f011 - f001 - f020 - f010 - f000 + ( -f221 - f212 - f211 - f222 - f201 - f202 - f210 - f220 - f200 )*2. ) / ( -1 + VelocityX );
+	// Jx = VelocityX*rho;
+	// Jy  = ( f022 - f012 + f021 - f011 + f020 - f010 ) / ( 1/3. );
+	// Jz  = ( f022 + f012 + f002 - f021 - f011 - f001 )*3. ;
+	// f100 = f200 + Jx*4./9.;
+	// f110 = f220 + ( Jx + Jy )/9.;
+	// f120 = f210 + ( -Jy + Jx )/9.;
+	// f101 = f202 + ( Jz + Jx )/9.;
+	// f111 = f222 + ( Jz + Jy + Jx )/36.;
+	// f121 = f212 + ( Jz - Jy + Jx )/36.;
+	// f102 = f201 + ( -Jz + Jx )/9.;
+	// f112 = f221 + ( -Jz + Jy + Jx )/36.;
+	// f122 = f211 + ( -Jz - Jy + Jx )/36.;
+
+	<?R # ZouHeRewrite(EQ, f, c(-1, 0, 0), "velocity") ?> // TODO: this shall work :/
+
+	real_t rho, ru;
+	vector_t u;
+	u.x=VelocityX; u.y=0; u.z=0;
+	rho = ( f000 + f010 + f020 + 2.*(f200 + f220 + f210) ) / (1. - u.x);
+	ru = rho * u.x;
+	f100 = f200 + (2./3.) * ru;
+	f110 = f220 + (1./6.) * ru + (1./2.)*(f020 - f010);
+	f120 = f210 + (1./6.) * ru + (1./2.)*(f010 - f020);
+
+
+
+	// equilibrium scheme for Heat-BC - don't care and impose rho*Teq
+	// see chapter 5.3.4.2, eq 5.34, p191 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+
+	real_t T = InitTemperature;	
+	real_t H = rho*cp*T;
+	SetEquilibriumHeat(H, rho, u); 
+}
+
+CudaDeviceFunction void EPressure()
+{
+// 	real_t Jx, Jy, Jz, rho;
+// 	rho = (material_density + Pressure*3.); // TODO: *material_density; ? why pressure + 1?
+// // rho = (1 + Pressure*3.);
+// 	Jx  = ( -f022 - f012 - f002 - f021 - f011 - f001 - f020 - f010 + rho - f000 + ( -f112 - f121 - f122 - f111 - f102 - f101 - f120 - f110 - f100 )*2. ) / ( -1 );
+// 	Jy  = ( f022 - f012 + f021 - f011 + f020 - f010 ) / ( 1/3. );
+// 	Jz  = ( f022 + f012 + f002 - f021 - f011 - f001 )*3. ;
+
+// 	f200 = f100 - Jx*4./9.;
+// 	f210 = f120 + ( Jy - Jx )/9.;
+// 	f220 = f110 + ( -Jy - Jx )/9.;
+// 	f201 = f102 + ( Jz - Jx )/9.;
+// 	f211 = f122 + ( Jz + Jy - Jx )/36.;
+// 	f221 = f112 + ( Jz - Jy - Jx )/36.;
+// 	f202 = f101 + ( -Jz - Jx )/9.;
+// 	f212 = f121 + ( -Jz + Jy - Jx )/36.;
+// 	f222 = f111 + ( -Jz - Jy - Jx )/36.;
+
+<?R #ZouHeRewrite(EQ, f, c(1, 0), "pressure") ?>
+
+	real_t ru;
+	real_t rho = (material_density + Pressure*3.); // TODO: *material_density; ? why pressure + 1?
+	vector_t u; 
+	u.z=0;
+	u.x = -1. + ( f000 + f010 + f020 + 2.*(f100 + f110 + f120) ) / rho;
+	ru = rho * u.x;
+	f200 = f100 - (2./3.) * ru;
+	f220 = f110 - (1./6.) * ru + (1./2.)*(f010 - f020);
+	f210 = f120 - (1./6.) * ru + (1./2.)*(f020 - f010);
+
+	u.y = (f110 + f010 + f210 - f220 - f020 - f120)/rho; // TODO: or just 0?
+	// equilibrium scheme for Heat-BC - don't care and impose rho*Teq
+	// see chapter 5.3.4.2, eq 5.34, p191 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+
+	real_t T = InitTemperature;
+	real_t H = rho*cp*T;
+	SetEquilibriumHeat(H, rho, u); 	
+}
+
+//	BOUNDARY CONDITIONS:
+#ifdef OPTIONS_OutFlowConvective
+#define myMax(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+CudaDeviceFunction void EConvective()
+{
+	// See 'Evaluation of outflow boundary conditions for two-phase lattice Boltzmann equation' 
+	// by Qin Lou, Zhaoli Guo and Baochang Shi from 2013 for details.
+
+	real_t U_local = myMax(0, U(-1,0,0)); 
+	real_t invU = 1.0/(1+ U_local);
+
+	<?R
+	if (Options$OutFlowConvective) {
+		C(f, (f_old + U_loc*f_n)*U_inv)
+		C(f_old, f)
+
+		C(h, (h_old + U_loc*h_n)*U_inv)
+		C(h_old, h)
+	}
+	?>
+}
+#endif
+
+#ifdef OPTIONS_OutFlowNeumann
+CudaDeviceFunction void ENeumann()
+{
+	// See 'Evaluation of outflow boundary conditions for two-phase lattice Boltzmann equation' 
+	// by Qin Lou, Zhaoli Guo and Baochang Shi from 2013 for details.
+	<?R
+	if (Options$OutFlowNeumann){
+		C(f, PV(paste0(f_neighbours,"(",-Density$dx[Density$group=="f"]-1,",",-Density$dy[Density$group=="f"],")")))
+		C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],")")))
+	}
+	?>
+}
+#endif
+
+CudaDeviceFunction void ImposeHeatFlux(vector_t n)
+{
+	if ((NodeType & NODE_BOUNDARY) != NODE_Wall) // in case of wall, bounce back procedure has been already done
+	{
+		ThermalBounceBack();
+	}
+
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
+	real_t rho = getRho_();
+	real_t imposed_heat_flux = InitHeatFlux;
+	real_t first_order_cm = -2*imposed_heat_flux*h_stability_enhancement;
+	real_t third_order_cm = first_order_cm*Sigma2;
+	real_t fifth_order_cm = third_order_cm*Sigma2;
+
+	// real_t third_order_cm = -2*1/3.*imposed_heat_flux*h_stability_enhancement*h_stability_enhancement/(rho*cp);
+	// real_t fifth_order_cm = -2*1/9.*imposed_heat_flux*h_stability_enhancement*h_stability_enhancement*h_stability_enhancement/(cp*cp*rho*rho);
+		
+	// set the cm_heat_flux_cht_bc into the temp variables
+	real_t temp000 = 0;
+	real_t temp100 = n.x*first_order_cm;
+	real_t temp010 = n.y*first_order_cm;
+	real_t temp110 = 0;
+	real_t temp200 = 0;
+	real_t temp020 = 0;
+	real_t temp120 = n.x*third_order_cm;
+	real_t temp210 = n.y*third_order_cm;
+	real_t temp220 = 0;
+
+	// we assume that the Neumann BC is not moving, 
+	// thus we treat the cm as raw moments and...
+	// go back straight from cm to density-probability functions
+	h000 += temp000 - temp020 - temp200 + temp220;
+	h100 += 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h200 += -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h010 += 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	h110 += 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h210 += -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h020 += -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	h120 += -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	h220 += 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+}
+
+CudaDeviceFunction void HeatDirichletEquilibriumScheme()
+{
+	// equilibrium scheme for BC - don't care and impose rho*Teq
+	// see chapter 5.3.4.2, eq 5.34, p191 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+	real_t T = InitTemperature;
+	real_t rho = getRho_();
+
+	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = getU_(); 
+	real_t H = rho*cp*T;
+	SetEquilibriumHeat(H, rho, u); 
+}
+
+CudaDeviceFunction void HeaterSource()
+{
+	TODO:
+	real_t T = InitTemperature;
+	real_t rho = getRho_();
+	vector_t u = getU_();
+	real_t H = rho*cp*T;  
+
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+
+	//back from cm_eq to raw moments
+	real_t temp000 = H;
+	real_t temp100 = H*u.x;
+	real_t temp010 = H*u.y;
+	real_t temp200 = H*(Sigma2 + ux2);
+	real_t temp020 = H*(Sigma2 + uy2);
+	real_t temp110 = H*uxuy;
+	real_t temp210 = H*u.y*(Sigma2 + ux2);
+	real_t temp120 = H*u.x*(Sigma2 + uy2);
+	real_t temp220 = H*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+	//back to density-probability functions
+	real_t heq000 = temp000 - temp020 - temp200 + temp220;
+	real_t heq100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	real_t heq200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	real_t heq010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	real_t heq110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	real_t heq210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	real_t heq020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	real_t heq120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	real_t heq220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+
+	//add source term
+	h000 += heq000;
+	h100 += heq100;
+	h010 += heq010;
+	h110 += heq110;
+	h200 += heq200;
+	h020 += heq020;
+	h120 += heq120;
+	h210 += heq210;
+	h220 += heq220;
+}
+
+CudaDeviceFunction void HeatDirichletAntiBounceBackScheme()
+{
+	// Anti-Bounce-Back Scheme
+	// see chapter 8.5.2.1, eq 8.53, p318 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+
+	// Be aware that the ABB is a link-wise BC, thus the collision does not take place.
+
+	if ((NodeType & NODE_BOUNDARY) != NODE_Wall) // in case of wall, bounce back procedure has been already done
+	{
+		ThermalBounceBack();
+	}
+
+	real_t T = InitTemperature;
+	real_t rho = getRho_();
+	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = getU_(); 
+	real_t H = rho*cp*T;
+
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+
+	//back from cm_eq to raw moments
+	real_t temp000 = H;
+	real_t temp100 = H*u.x;
+	real_t temp010 = H*u.y;
+	real_t temp200 = H*(Sigma2 + ux2);
+	real_t temp020 = H*(Sigma2 + uy2);
+	real_t temp110 = H*uxuy;
+	real_t temp210 = H*u.y*(Sigma2 + ux2);
+	real_t temp120 = H*u.x*(Sigma2 + uy2);
+	real_t temp220 = H*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+	//back to density-probability functions
+	real_t heq000 = temp000 - temp020 - temp200 + temp220;
+	real_t heq100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	real_t heq200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	real_t heq010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	real_t heq110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	real_t heq210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	real_t heq020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	real_t heq120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	real_t heq220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+
+	//anti bounce back
+	h000 = -h000 + 2 * heq000;
+	h100 = -h100 + 2 * heq100;
+	h010 = -h010 + 2 * heq010;
+	h110 = -h110 + 2 * heq110;
+	h200 = -h200 + 2 * heq200;
+	h020 = -h020 + 2 * heq020;
+	h120 = -h120 + 2 * heq120;
+	h210 = -h210 + 2 * heq210;
+	h220 = -h220 + 2 * heq220;
+}
+
+#ifdef OPTIONS_IBB
+
+CudaDeviceFunction void HydroInterpolatedBounceBack()
+{
+	// See 'Momentum transfer of a Boltzmann-lattice fluid with boundaries'
+	// by M. Bouzidi, M. Firdaouss, P. Lallemand, 2001
+
+	// Be aware that the IBB is a wet node BC, thus a collision has to be done.
+
+	cut_t q;
+	//vector_t F;
+	//F.x = F.y = F.z = 0.0;
+	<?R
+        bounce = Bounce(U);
+        sel = DensityAll$group=="f"
+        attach(DensityAll[sel,])
+        f = PV(name)
+        fold = PV(name,"(0,0)")
+        fpre = PV(name,"(",-dx,",",-dy,",",-dz,")")
+        QU = cbind(dx,dy,dz)
+        detach()
+        Qw = PV( paste("Q",P$x,P$y,P$z,sep=""))
+        Q = PV( "q")
+		F = PV("F.",c("x","y","z"))
+        for (i in 2:length(Qw)) {
+            C(Q,Qw[i]);
+	?>
+			if (q != NO_CUT) {
+				<?R 
+					p = PV("p"); 
+					op = p^(-1);
+					fa = PV("fa");  
+				?>
+					real_t p = ((real_t)q) * (2.0 /CUT_MAX); // q * 0.005 * 2 
+					real_t fa = <?R C(fold[i]) ?>; 
+					if (p > 1.0) { 
+						<?R C(f[bounce[i]],fa*op + fold[bounce[i]]*(p-1)*op) ?>
+					} else { 
+						<?R C(f[bounce[i]],fa*p + f[i]*(1-p)) ?>
+					}
+				<?R
+					#v = (f[bounce[i]] - fa) * QU[i,]
+					#for (j in 1:3) if (! is.zero(v[j])) C(F[j],F[j] + v[j]) 
+				?>
+				
+			}
+	<?R } ?>
+
+
+	// force measurment takes place in Run()
+	// if((NodeType & NODE_BODY) == NODE_ForceMeasurmentZone) { 
+	// 	AddToFDrag(F.x); 
+	// 	AddToFLateral(F.y); 
+	// 	AddToFLift(F.z); 
+	// }
+}
+
+CudaDeviceFunction void ThermalInterpolatedBounceBack()
+{
+	// See 'Momentum transfer of a Boltzmann-lattice fluid with boundaries'
+	// by M. Bouzidi, M. Firdaouss, P. Lallemand, 2001
+
+	// Be aware that the IBB is a wet node BC, thus a collision has to be done.
+	
+	cut_t q;
+	<?R
+        bounce = Bounce(U);
+        sel = DensityAll$group=="h"
+        attach(DensityAll[sel,])
+        h = PV(name)
+        rhold = PV(name,"(0,0)")
+        detach()
+        Qw = PV( paste("Q",P$x,P$y,P$z,sep=""))
+        Q = PV("q")
+	
+        for (i in 2:length(Qw)) {
+            C(Q,Qw[i]);
+	?>
+			if (q != NO_CUT) {
+				<?R 
+					p = PV("p"); 
+					op = p^(-1);
+					ha = PV("ha");  
+				?>
+					real_t p = ((real_t)q) * (2.0 /CUT_MAX); // q * 0.005 * 2 
+					real_t ha = <?R C(rhold[i]) ?>; 
+					if (p > 1.0) { 
+						<?R C(h[bounce[i]],ha*op + rhold[bounce[i]]*(p-1)*op) ?>
+					} else { 
+						<?R C(h[bounce[i]],ha*p + h[i]*(1-p)) ?>
+					}
+				
+			}
+	<?R } ?>
+}
+
+CudaDeviceFunction void HeaterDirichletTemperatureInterpolatedAntiBounceBack()
+{
+	// Anti-Bounce-Back Scheme
+	// See 'On anti bounce back boundary condition for lattice Boltzmann schemes' 
+	// by F. Dubois P. Lallemand and M.M Tekitek, 2019
+
+	// See chapter 8.5.2.1, eq 8.53, p318 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+
+	// See 'Momentum transfer of a Boltzmann-lattice fluid with boundaries'
+	// by M. Bouzidi, M. Firdaouss, P. Lallemand, 2001 
+
+	// Be aware that the IBB is a wet node BC, thus a collision has to be done.
+	
+	real_t T = InitTemperature;
+	real_t rho = getRho_();
+
+	vector_t u; u.x=0; u.y=0; u.z=0;  // TODO: or vector_t u = getU_(); 
+	real_t H = rho*cp*T;
+
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+
+	//equilibrium in central moments space
+	real_t heq000 = H;
+	real_t heq100 = 0;
+	real_t heq010 = 0;
+	real_t heq200 = H*Sigma2;
+	real_t heq020 = H*Sigma2;
+	real_t heq110 = 0;
+	real_t heq210 = 0;
+	real_t heq120 = 0;
+	real_t heq220 = H*Sigma2*Sigma2;
+	//back to raw moments
+	real_t temp000 = heq000;
+	real_t temp100 = heq000*u.x + heq100;
+	real_t temp010 = heq000*u.y + heq010;
+	real_t temp200 = heq000*ux2 + 2.*heq100*u.x + heq200;
+	real_t temp020 = heq000*uy2 + 2.*heq010*u.y + heq020;
+	real_t temp110 = heq000*uxuy + heq010*u.x + heq100*u.y + heq110;
+	real_t temp210 = heq000*ux2*u.y + heq010*ux2 + 2.*heq100*uxuy + 2.*heq110*u.x + heq200*u.y + heq210;
+	real_t temp120 = heq000*u.x*uy2 + 2.*heq010*uxuy + heq020*u.x + heq100*uy2 + 2.*heq110*u.y + heq120;
+	real_t temp220 = heq000*ux2*uy2 + 2.*heq010*ux2*u.y + heq020*ux2 + 2.*heq100*u.x*uy2 + 4.*heq110*uxuy + 2.*heq120*u.x + heq200*uy2 + 2.*heq210*u.y + heq220;
+	//back to density-probability functions
+	heq000 = temp000 - temp020 - temp200 + temp220;
+	heq100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	heq200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	heq010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	heq110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	heq210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	heq020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	heq120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	heq220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+
+	// Code below is generated with R
+	cut_t q;
+	<?R
+		bounce = Bounce(U);
+		sel = DensityAll$group=="h"
+		attach(DensityAll[sel,])
+		h = PV(name)
+		rhold = PV(name,"(0,0)")
+		rh_eq = PV(paste("heq",P$x,P$y,P$z,sep=""))
+
+		detach()
+		Qw = PV( paste("Q",P$x,P$y,P$z,sep=""))
+		Q = PV("q")
+
+		for (i in 2:length(Qw)) {
+			C(Q,Qw[i]);
+	?>
+			if (q != NO_CUT) {
+				<?R 
+					p = PV("p"); 
+					op = p^(-1);
+					ha = PV("ha"); 
+				?>
+				real_t p = ((real_t)q) * (2.0 /CUT_MAX); // q * 0.005 * 2 
+				real_t ha = <?R C(rhold[i]) ?>;  
+
+				if (p > 1.0) { 
+					<?R  C(h[bounce[i]], -1*ha*op + rhold[bounce[i]]*(p-1)*op + 2*op*rh_eq[bounce[i]]) ?>
+				} else { 
+					<?R  C(h[bounce[i]], -1*(ha*p + h[i]*(1-p)) + 2*rh_eq[bounce[i]])  ?>	
+				}	
+							
+				<?R # C(h[bounce[i]], -1*ha + 2*rh_eq[bounce[i]])  ?>	 	// p =1
+			}
+	<?R } ?>
+}
+
+#endif
+
+CudaDeviceFunction void RunBoundariesHydrodynamics()
+{    
+	switch (NodeType & NODE_BOUNDARY) {
+		case NODE_WVelocity:
+			WVelocity();
+			break;
+		case NODE_EPressure:
+			EPressure();
+			break;
+		case NODE_Wall:
+			HydroBounceBack();
+			ThermalBounceBack();
+			break;
+		#ifdef OPTIONS_OutFlowConvective
+			case NODE_EConvective:
+				EConvective();
+				break;
+		#endif
+		#ifdef OPTIONS_OutFlowNeumann
+			case NODE_ENeumann:
+				ENeumann();
+				break;
+		#endif
+	}
+}
+
+
+CudaDeviceFunction void RunBoundariesHeat()
+{	
+	real_t h1, h2;
+	switch (NodeType & NODE_ADDITIONALS_HEAT) {
+		case NODE_HeaterDirichletTemperatureEQ:
+			h1 = <?R C(sum(h)) ?>;   		
+			HeatDirichletEquilibriumScheme();
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
+			break;
+		case NODE_HeaterDirichletTemperatureABB:	
+			h1 = <?R C(sum(h)) ?>;   		
+			HeatDirichletAntiBounceBackScheme();
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
+			break;
+		case NODE_HeaterSource:
+			h1 = <?R C(sum(h)) ?>;   		
+			HeaterSource();
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
+			break;
+		case NODE_HeaterNeumannHeatFluxCylinder:
+			h1 = <?R C(sum(h)) ?>;   		
+			ImposeHeatFlux(get_n_cylinder());
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);
+		case NODE_HeaterNeumannHeatFluxEast:
+		{
+			h1 = <?R C(sum(h)) ?>;   		
+			vector_t n{-1.,0,0};
+			ImposeHeatFlux(n);
+			h2 = <?R C(sum(h)) ?>;
+			AddToHeatSource(h2-h1);  
+			break;
+		}
+	}
+}
+
+CudaDeviceFunction void RunHOBoundaries()
+{	
+	// I(A)BB's are wet node BC. They are stored in separate HO_BOUNDARY group,
+	// because the regular wet BOUNDARY nodes have a limiter.
+
+	#ifdef OPTIONS_IBB
+		if ((NodeType & NODE_HO_BOUNDARY_HYDRO) == NODE_HydroIBB){
+			HydroInterpolatedBounceBack();
+		}
+	
+		switch (NodeType & NODE_HO_BOUNDARY_HEAT) {
+			case NODE_HeaterDirichletTemperatureIABB:
+			{
+				real_t h1 = <?R C(sum(h)) ?>;
+				HeaterDirichletTemperatureInterpolatedAntiBounceBack();
+				real_t h2 = <?R C(sum(h)) ?>;
+				AddToHeatSource(h2-h1); 
+				break;
+			}
+			case NODE_ThermalIBB:
+				ThermalInterpolatedBounceBack();
+				break;
+		}
+
+	#endif
+}
+
+
+CudaDeviceFunction void Run() {
+	vector_t p1 {0,0,0};
+	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurmentZone) {
+		<?R C(PV(c("p1.x","p1.y", "p1.z")), f %*% U) ?>
+	}
+
+	RunBoundariesHydrodynamics();
+	RunBoundariesHeat();	
+	RunHOBoundaries();
+
+    switch (NodeType & NODE_COLLISION) {    
+		case NODE_CM_HIGHER:
+			CollisionCM_HIGHER();
+			break;
+		case NODE_Cumulants:
+			CollisionCumulants();
+			break;
+		// case NODE_CM_HIGHER_NONLINEAR:
+		// 	CollisionCM_HIGHER_NONLINEAR();
+		// 	break;
+		// case NODE_CM:
+		// 	CollisionCM();
+		// 	break;
+		// case NODE_BGK:
+		// 	Collision_thermalBGK();
+		// 	break;
+	}
+
+	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurmentZone) {
+		vector_t p2;
+		<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+		//Summing the difference in momentum before/after collision
+		AddToFDrag(-(p2.x-p1.x));
+		AddToFLift(-(p2.y-p1.y));
+	}
+
+	if((NodeType & NODE_OBJECTIVEFLUX) == NODE_FluxMeasurmentZone1) {
+		vector_t p2;
+		<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+		//Summing the momentum flux through the boundary.
+		AddToXHydroFLux(-p2.x);
+		AddToYHydroFLux(-p2.y);
+
+		vector_t h2;
+		<?R C(PV(c("h2.x","h2.y", "h2.z")), h %*% UforHeat) ?>
+		// Summing the heat flux (both convective and diffusive) through the boundary.
+		// convective flux - eq part of h distributions
+		// diffusive flux - neq part of h distributions
+
+		AddToHeatFluxX(-h2.x);
+		AddToHeatFluxY(-h2.y);
+	}
+
+	if((NodeType & NODE_OBJECTIVEFLUX) == NODE_FluxMeasurmentZone2) {
+		vector_t p2;
+		<?R C(PV(c("p2.x","p2.y", "p2.z")), f %*% U) ?>
+		//Summing the momentum flux through the boundary.
+		AddToXHydroFLux2(-p2.x);
+		AddToYHydroFLux2(-p2.y);
+
+		vector_t h2;
+		<?R C(PV(c("h2.x","h2.y", "h2.z")), h %*% UforHeat) ?>
+		// Summing the heat flux (both convective and diffusive) through the boundary.
+		// convective flux - eq part of h distributions
+		// diffusive flux - neq part of h distributions
+
+		AddToHeatFluxX2(-h2.x);
+		AddToHeatFluxY2(-h2.y);
+	}
+
+	#ifdef OPTIONS_AVG
+		avgT += getT_();
+	#endif
+}
+
+CudaDeviceFunction vector_t get_n_cylinder()
+{
+	real_t dx = X - CylinderCenterX;
+	real_t dy = Y - CylinderCenterY;
+
+	real_t L = sqrt(dx*dx + dy*dy);
+	vector_t n;
+	n.x = dx/L;
+	n.y = dy/L;
+	n.z = 0;
+	return n;
+}
+
+CudaDeviceFunction void SetEquilibriumHydro(real_t rho, real_t Jx, real_t Jy, real_t Jz)
+{
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+}
+
+
+CudaDeviceFunction void SetEquilibriumHeat(real_t H, real_t rho, vector_t u) 
+{
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+
+	//equilibrium in central moments space
+	h000 = H;
+	h100 = 0;
+	h010 = 0;
+	h200 = H*Sigma2;
+	h020 = H*Sigma2;
+	h110 = 0;
+	h210 = 0;
+	h120 = 0;
+	h220 = H*Sigma2*Sigma2;
+	//back to raw moments
+	real_t temp000 = h000;
+	real_t temp100 = h000*u.x + h100;
+	real_t temp010 = h000*u.y + h010;
+	real_t temp200 = h000*ux2 + 2.*h100*u.x + h200;
+	real_t temp020 = h000*uy2 + 2.*h010*u.y + h020;
+	real_t temp110 = h000*uxuy + h010*u.x + h100*u.y + h110;
+	real_t temp210 = h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy + 2.*h110*u.x + h200*u.y + h210;
+	real_t temp120 = h000*u.x*uy2 + 2.*h010*uxuy + h020*u.x + h100*uy2 + 2.*h110*u.y + h120;
+	real_t temp220 = h000*ux2*uy2 + 2.*h010*ux2*u.y + h020*ux2 + 2.*h100*u.x*uy2 + 4.*h110*uxuy + 2.*h120*u.x + h200*uy2 + 2.*h210*u.y + h220;
+	//back to density-probability functions
+	h000 = temp000 - temp020 - temp200 + temp220;
+	h100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	h110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	h120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	h220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+}
+
+CudaDeviceFunction void relax_and_collide_ADE_Cumulants(real_t rho, real_t omega_ade, vector_t u)
+{
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1/3.;
+	#endif
+	real_t w[2] = {omega_ade,1.,};
+	 
+	// moments from the density-probability function
+	h000 = h200 + h100 + h000;
+	h100 = -h200 + h100;
+	h200 = h100 + h200*2.;
+	h010 = h210 + h110 + h010;
+	h110 = -h210 + h110;
+	h210 = h110 + h210*2.;
+	h020 = h220 + h120 + h020;
+	h120 = -h220 + h120;
+	h220 = h120 + h220*2.;
+	h000 = h020 + h010 + h000;
+	h010 = -h020 + h010;
+	h020 = h010 + h020*2.;
+	h100 = h120 + h110 + h100;
+	h110 = -h120 + h110;
+	h120 = h110 + h120*2.;
+	h200 = h220 + h210 + h200;
+	h210 = -h220 + h210;
+	h220 = h210 + h220*2.;
+
+	// from moments to cumulants
+	real_t c000 = h000;
+	real_t c100 = h100/h000;
+	real_t c200 = ( -c100*h100 + h200 )/h000;
+	real_t c010 = h010/h000;
+	real_t c110 = ( -c100*h010 + h110 )/h000;
+	real_t c210 = ( -c110*h100 - c200*h010 - c100*h110 + h210 )/h000;
+	real_t c020 = ( -c010*h010 + h020 )/h000;
+	real_t c120 = ( -c100*h020 + h120 - c110*h010*2. )/h000;
+	real_t c220 = ( -c120*h100 - c200*h020 - c100*h120 + h220 + ( -c210*h010 - c110*h110 )*2. )/h000;
+
+	// relaxation
+	c100 = w[0]*u.x + c100 * (1-w[0]);
+	c010 = w[0]*u.y + c010 * (1-w[0]);
+	c200 = Sigma2;
+	c020 = Sigma2;
+	c110 = 0;
+	c120 = 0;
+	c210 = 0;
+	c220 = 0;
+
+	// from cummulants to moments
+	h000 = h000;
+	h100 = c100*h000;
+	h200 = c200*h000 + c100*h100;
+	h010 = c010*h000;
+	h110 = c110*h000 + c100*h010;
+	h210 = c210*h000 + c110*h100 + c200*h010 + c100*h110;
+	h020 = c020*h000 + c010*h010;
+	h120 = c120*h000 + c100*h020 + c110*h010*2.;
+	h220 = c220*h000 + c120*h100 + c200*h020 + c100*h120 + ( c210*h010 + c110*h110 )*2.;
+
+	// from moments to density distribution function
+	h000 = -h200 + h000;
+	h100 = ( h200 + h100 )/2.;
+	h200 = h200 - h100;
+	h010 = -h210 + h010;
+	h110 = ( h210 + h110 )/2.;
+	h210 = h210 - h110;
+	h020 = -h220 + h020;
+	h120 = ( h220 + h120 )/2.;
+	h220 = h220 - h120;
+	h000 = -h020 + h000;
+	h010 = ( h020 + h010 )/2.;
+	h020 = h020 - h010;
+	h100 = -h120 + h100;
+	h110 = ( h120 + h110 )/2.;
+	h120 = h120 - h110;
+	h200 = -h220 + h200;
+	h210 = ( h220 + h210 )/2.;
+	h220 = h220 - h210;
+}
+
+CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER(real_t rho, real_t omega_ade, vector_t u) 
+{
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	real_t H = h000 + h010 + h020 + h100 + h110 + h120 + h200 + h210 + h220;
+	real_t temp000 = h000;
+	real_t temp100 = h100;
+	real_t temp010 = h010;
+	real_t temp200 = h200;
+	real_t temp020 = h020;
+	real_t temp110 = h110;
+	real_t temp210 = h210;
+	real_t temp120 = h120;
+	real_t temp220 = h220;
+	//raw moments from density-probability functions
+	h000 = temp000 + temp010 + temp020 + temp100 + temp110 + temp120 + temp200 + temp210 + temp220;
+	h100 = temp100 + temp110 + temp120 - temp200 - temp210 - temp220;
+	h010 = temp010 - temp020 + temp110 - temp120 + temp210 - temp220;
+	h200 = temp100 + temp110 + temp120 + temp200 + temp210 + temp220;
+	h020 = temp010 + temp020 + temp110 + temp120 + temp210 + temp220;
+	h110 = temp110 - temp120 - temp210 + temp220;
+	h210 = temp110 - temp120 + temp210 - temp220;
+	h120 = temp110 + temp120 - temp210 - temp220;
+	h220 = temp110 + temp120 + temp210 + temp220;
+	//central moments from raw moments
+	temp000 = h000;
+	temp100 = -h000*u.x + h100;
+	temp010 = -h000*u.y + h010;
+	temp200 = h000*ux2 - 2.*h100*u.x + h200;
+	temp020 = h000*uy2 - 2.*h010*u.y + h020;
+	temp110 = h000*uxuy - h010*u.x - h100*u.y + h110;
+	temp210 = -h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy - 2.*h110*u.x - h200*u.y + h210;
+	temp120 = -h000*u.x*uy2 + 2.*h010*uxuy - h020*u.x + h100*uy2 - 2.*h110*u.y + h120;
+	temp220 = h000*ux2*uy2 - 2.*h010*ux2*u.y + h020*ux2 - 2.*h100*u.x*uy2 + 4.*h110*uxuy - 2.*h120*u.x + h200*uy2 - 2.*h210*u.y + h220;
+	//collision in central moments space
+	//collide
+	h000 = H;
+	h100 = -temp100*(omega_ade - 1.);
+	h010 = -temp010*(omega_ade - 1.);
+	h200 = H*Sigma2;
+	h020 = H*Sigma2;
+	h110 = 0;
+	h210 = -temp210*(omega_ade - 1.);
+	h120 = -temp120*(omega_ade - 1.);
+	h220 = H*Sigma2*Sigma2;
+	//back to raw moments
+	temp000 = h000;
+	temp100 = h000*u.x + h100;
+	temp010 = h000*u.y + h010;
+	temp200 = h000*ux2 + 2.*h100*u.x + h200;
+	temp020 = h000*uy2 + 2.*h010*u.y + h020;
+	temp110 = h000*uxuy + h010*u.x + h100*u.y + h110;
+	temp210 = h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy + 2.*h110*u.x + h200*u.y + h210;
+	temp120 = h000*u.x*uy2 + 2.*h010*uxuy + h020*u.x + h100*uy2 + 2.*h110*u.y + h120;
+	temp220 = h000*ux2*uy2 + 2.*h010*ux2*u.y + h020*ux2 + 2.*h100*u.x*uy2 + 4.*h110*uxuy + 2.*h120*u.x + h200*uy2 + 2.*h210*u.y + h220;
+	//back to density-probability functions
+	h000 = temp000 - temp020 - temp200 + temp220;
+	h100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	h110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	h120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	h220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+}
+
+CudaDeviceFunction vector_t relax_and_collide_hydro(vector_t Force, real_t omega)
+{
+	//  real_t d = getRho_();
+	real_t  w[4] = {omega,1.,1.,1.};  // defining relaxation rate for first cummulants
+
+	// from density-probability function to moments 
+	f000 = f200 + f100 + f000;
+	f100 = -f200 + f100;
+	f200 = f100 + f200*2.;
+	f010 = f210 + f110 + f010;
+	f110 = -f210 + f110;
+	f210 = f110 + f210*2.;
+	f020 = f220 + f120 + f020;
+	f120 = -f220 + f120;
+	f220 = f120 + f220*2.;
+	f000 = f020 + f010 + f000;
+	f010 = -f020 + f010;
+	f020 = f010 + f020*2.;
+	f100 = f120 + f110 + f100;
+	f110 = -f120 + f110;
+	f120 = f110 + f120*2.;
+	f200 = f220 + f210 + f200;
+	f210 = -f220 + f210;
+	f220 = f210 + f220*2.;
+	// from moments to cumulants
+	real_t c000 = f000;
+	real_t c100 = f100/f000;
+	real_t c200 = ( -c100*f100 + f200 )/f000;
+	real_t c010 = f010/f000;
+	real_t c110 = ( -c100*f010 + f110 )/f000;
+	real_t c210 = ( -c110*f100 - c200*f010 - c100*f110 + f210 )/f000;
+	real_t c020 = ( -c010*f010 + f020 )/f000;
+	real_t c120 = ( -c100*f020 + f120 - c110*f010*2. )/f000;
+	real_t c220 = ( -c120*f100 - c200*f020 - c100*f120 + f220 + ( -c210*f010 - c110*f110 )*2. )/f000;
+	// //Getting the velocity from the cummulants and force term
+	vector_t u;
+	u.x = c100 + Force.x/(2.*c000);
+	u.y = c010 + Force.y/(2.*c000);
+	u.z = 0;
+	//Cumulant relaxation:
+	real_t  a = (c200 + c020);
+	real_t  b = (c200 - c020);
+	//Forcing
+	c100 = c100 + Force.x;
+	c010 = c010 + Force.y;
+	//END Forcing
+	//real_t Dxu = - w[0]*(2*c200 - c020)/(2.*d) - w[1]*(c200 + c020)/d;
+	//real_t Dyv =  - w[0]*(2*c020 - c200)/(2.*d) - w[1]*(c200 + c020)/d;
+	// c100 = -c100;
+	// c200 = (1 - w[0])*c200 + w[0]*1./3;
+	c200 = ((1 - w[1])*a + w[1]*2./3. + (1 - w[0])*b)/2.;
+	// c010 =-c010;
+	// c020 = (1 - w[0])*c020 + w[0]*1./3;
+
+	c020 = ((1 - w[1])*a + w[1]*2./3. - (1 - w[0])*b)/2.;
+	c110 = (1- w[0])*c110;
+	c210 = (1 - w[2])*c210;
+	c220 = (1 - w[3])*c220;
+	c120 = (1 - w[2])*c120;
+
+	// from cummulants to moments
+	f000 = f000;
+	f100 = c100*f000;
+	f200 = c200*f000 + c100*f100;
+	f010 = c010*f000;
+	f110 = c110*f000 + c100*f010;
+	f210 = c210*f000 + c110*f100 + c200*f010 + c100*f110;
+	f020 = c020*f000 + c010*f010;
+	f120 = c120*f000 + c100*f020 + c110*f010*2.;
+	f220 = c220*f000 + c120*f100 + c200*f020 + c100*f120 + ( c210*f010 + c110*f110 )*2.;
+
+	// from moments to density-probability function
+	f000 = -f200 + f000;
+	f100 = ( f200 + f100 )/2.;
+	f200 = f200 - f100;
+	f010 = -f210 + f010;
+	f110 = ( f210 + f110 )/2.;
+	f210 = f210 - f110;
+	f020 = -f220 + f020;
+	f120 = ( f220 + f120 )/2.;
+	f220 = f220 - f120;
+	f000 = -f020 + f000;
+	f010 = ( f020 + f010 )/2.;
+	f020 = f020 - f010;
+	f100 = -f120 + f100;
+	f110 = ( f120 + f110 )/2.;
+	f120 = f120 - f110;
+	f200 = -f220 + f200;
+	f210 = ( f220 + f210 )/2.;
+	f220 = f220 - f210;
+	
+	return u;
+}
+
+
+CudaDeviceFunction vector_t getForce(real_t localTemp, real_t rho)
+{
+	// Boussinesq approximation
+	// rho(T) ~ rho_0*(1-thermal_exp_coeff*(Temp-Temp_0))
+	// F_b = (rho(T) - rho_0)*Grav_Y = -Grav_Y*rho_0*thermal_exp_coeff*(Temp-Temp_0)
+	// see chapter 8.4.1, eq 8.44, p313 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+	real_t refTemperature = 0;
+	real_t BoussinesqForceX = -GravitationX*BoussinesqCoeff*(localTemp - refTemperature); // BoussinesqCoeff=rho_0*thermal_exp_coeff
+	real_t BoussinesqForceY = -GravitationY*BoussinesqCoeff*(localTemp - refTemperature); // BoussinesqCoeff=rho_0*thermal_exp_coeff
+
+	vector_t Force; 
+	Force.x = GravitationX*rho+BoussinesqForceX;  
+	Force.y = GravitationY*rho+BoussinesqForceY; 
+	Force.z = 0; 
+
+	return Force;
+}
+
+
+CudaDeviceFunction void CollisionCM_HIGHER(){
+	real_t localTemperature = getT_();
+	real_t rho = getRho_();
+	vector_t Force = getForce(localTemperature, rho);
+
+	// add Darcy force to stop flow within solid regions
+	if ((NodeType & NODE_ADDITIONALS) == NODE_DarcySolid) 
+	{
+		vector_t u_temp = getRawU();
+		u_temp.x += Force.x/(2*rho);
+		u_temp.y += Force.y/(2*rho);
+		u_temp.z += Force.z/(2*rho);
+
+		vector_t fDarcyStoper = get_fDarcyStoper(rho,  u_temp);
+		Force.x += fDarcyStoper.x;
+		Force.y += fDarcyStoper.y;
+		Force.z += fDarcyStoper.z;
+	} 
+
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
+	vector_t u = relax_and_collide_hydro(Force, omega_nu);
+	#ifdef OPTIONS_OutFlowConvective
+		U = u.x;
+	#endif	
+
+	real_t omega_k = 1.0/(3*conductivity+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
+
+	relax_and_collide_ADE_CM_HIGHER(rho, omega_k, u);
+
+}
+
+CudaDeviceFunction void CollisionCumulants(){
+	real_t localTemperature = getT_();
+	real_t rho = getRho_();
+	vector_t Force = getForce(localTemperature, rho);
+
+	// add Darcy force to stop flow within solid regions
+	if ((NodeType & NODE_ADDITIONALS) == NODE_DarcySolid) 
+	{
+		vector_t u_temp = getRawU();
+		u_temp.x += Force.x/(2*rho);
+		u_temp.y += Force.y/(2*rho);
+		u_temp.z += Force.z/(2*rho);
+
+		vector_t fDarcyStoper = get_fDarcyStoper(rho,  u_temp);
+		Force.x += fDarcyStoper.x;
+		Force.y += fDarcyStoper.y;
+		Force.z += fDarcyStoper.z;
+	} 
+
+	real_t omega_nu = 1.0/(3*nu+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
+	vector_t u = relax_and_collide_hydro(Force, omega_nu);
+
+	#ifdef OPTIONS_OutFlowConvective
+		U = u.x; 
+	#endif	
+
+	real_t omega_k = 1.0/(3*conductivity+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
+
+	relax_and_collide_ADE_Cumulants(rho, omega_k, u);
+}

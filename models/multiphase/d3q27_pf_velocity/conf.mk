@@ -1,9 +1,9 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(OutFlow+BGK+RT)*autosym"
+OPT="(OutFlow+BGK+thermo*planarBenchmark)*autosym"
 # SC: Solid Contact
 # 	This option currently fixes the bottom layer of nodes to be 
 # 	solid with the contact angle defined in input.
-# RT: Ren Temporal Correction
-#	Utilises the previous velocity and phase value at each cell
-#	to ensure consistency of recovered Allen-Cahn eqn.
+# thermo: thermocapillary flows
+# 	Options resolves the temperature field with an RK4 integration
+# 	and updates the surface tension as a result

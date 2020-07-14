@@ -30,6 +30,12 @@ AC_ARG_WITH([mpi-lib],
 AC_ARG_WITH([hdf5],
 	AC_HELP_STRING([--with-hdf5=hdf5],
 		[specify the full path to your hdf5 installation]))
+AC_ARG_WITH([hdf5-lib],
+	AC_HELP_STRING([--with-hdf5-lib=hdf5],
+		[specify the full path to your hdf5 installation (libraries)]))
+AC_ARG_WITH([hdf5-include],
+	AC_HELP_STRING([--with-hdf5-include=hdf5],
+		[specify the full path to your hdf5 installation (headers)]))
 
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
@@ -62,6 +68,15 @@ AC_ARG_ENABLE([rinside],
 AC_ARG_WITH([catalyst],
 	AC_HELP_STRING([--with-catalyst=path],
 		[specify the full path to your paraview source and build]))
+
+AC_ARG_WITH([lammps],
+	AC_HELP_STRING([--with-lammps=path],
+		[specify the full path to your LAMMPS/LIGGGHTS directory]))
+
+AC_ARG_WITH([lammps-lib],
+	AC_HELP_STRING([--with-lammps-lib=libfile],
+		[specify the name of the lammps/liggghts library (.so/.a)]))
+		
 
 AC_ARG_WITH([verbosity_level],
 	AC_HELP_STRING([--with-verbosity-level=level],
@@ -97,8 +112,7 @@ AC_ARG_WITH([python],
 
 AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
-		[Set python(2)-config binary to call]))
-
+		[Set python-config binary to call]))
 
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
@@ -314,19 +328,40 @@ AC_CHECK_LIB([mpi], [MPI_Recv],[],[
 AC_MSG_CHECKING([HDF5 path])
 need_hdf5="no"
 has_hdf5="no"
+
 if test "x${with_hdf5}" != "xno"; then
 	if test "x${with_hdf5}" != "x"; then
-		if test "x${with_hdf5}" == "xyes"; then
-			need_hdf5=yes
+		HDF5_LIB="${with_hdf5}/lib"
+		HDF5_INCLUDE="${with_hdf5}/include"
+		need_hdf5="yes"
+	fi
+	if test "x${with_hdf5_lib}" != "x"
+	then
+		HDF5_LIB="${with_hdf5_lib}"
+		need_hdf5="yes"
+	fi
+	if test "x${with_hdf5_include}" != "x"
+	then
+		HDF5_INCLUDE="${with_hdf5_include}"
+		need_hdf5="yes"
+	fi
+
+	if test "x${HDF5_LIB}" != "x"
+	then
+		if test -d "${HDF5_LIB}"
+		then
+			LDFLAGS="${LDFLAGS} -L${HDF5_LIB}"
 		else
-			if test -d "${with_hdf5}"; then
-				LDFLAGS="${LDFLAGS} -L${with_hdf5}/lib"
-				CPPFLAGS="${CPPFLAGS} -I${with_hdf5}/include"
-				need_hdf5=yes
-				AC_MSG_RESULT([${with_hdf5}])
-			else
-				AC_MSG_ERROR([${with_hdf5}: path not found])
-			fi
+			AC_MSG_ERROR([${HDF5_LIB}: No such directory])
+		fi
+	fi
+	if test "x${HDF5_INCLUDE}" != "x"
+	then
+		if test -d "${HDF5_INCLUDE}"
+		then
+			CPPFLAGS="${CPPFLAGS} -I${HDF5_INCLUDE}"
+		else
+			AC_MSG_ERROR([${HDF5_INCLUDE}: No such directory])
 		fi
 	fi
 	has_hdf5="yes"
@@ -349,7 +384,12 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_NOTICE([python config: ${python_config}])
 
     AC_MSG_CHECKING([python embandinng: linker flags])
-    PF=$(${python_config} --ldflags)
+
+	if ${python_config} --ldflags --embed; then
+	    PF=$(${python_config} --ldflags --embed)
+	else
+	    PF=$(${python_config} --ldflags)
+	fi 
 	
     LDFLAGS="${LDFLAGS} ${PF}"
 
@@ -489,6 +529,46 @@ then
 	
 fi
 
+if test "x${with_lammps}" != "x"
+then
+	if ! test -d "${with_lammps}"
+	then
+		AC_MSG_ERROR([lammps path ${with_lammps} is not a directory])
+	fi
+	LAMMPS="${with_lammps}"
+	LAMMPS="$(cd $LAMMPS; pwd)"
+	mkdir -p $LAMMPS/install/include/lammps
+	mkdir -p $LAMMPS/install/lib/
+	for i in lammps.h library.h input.h modify.h fix.h fix_external.h pointers.h lmptype.h lmpwindows.h atom.h domain.h
+	do
+		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
+		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[AC_MSG_ERROR([Cannot find ${i}])])
+	done
+
+	for i in error.h comm.h vector_liggghts.h neighbor.h math_extra_liggghts.h domain_I.h
+	do
+		touch ${LAMMPS}/install/include/lammps/${i}
+	done
+	if test "x${with_lammps_lib}" == "x"
+	then
+		LAMMPS_LIB="liblammps.so"
+		if test -L ${LAMMPS}/src/libliggghts.so
+		then
+			echo "It's LIGGGHTS we're working with"
+			LAMMPS_LIB="libliggghts.so"
+		fi
+	else
+		LAMMPS_LIB="${with_lammps_lib}"
+	fi
+	AC_CHECK_FILE([${LAMMPS}/src/$LAMMPS_LIB], [ln -s ../../src/$LAMMPS_LIB ${LAMMPS}/install/lib/$LAMMPS_LIB],[AC_MSG_ERROR([Cannot find $LAMMPS_LIB])])
+	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib -Wl,-rpath=${LAMMPS}/install/lib"
+	CPPFLAGS="${CPPFLAGS} -I${LAMMPS}/install/include"
+	LAMMPS_LIB_NAME=${LAMMPS_LIB#lib}
+	LAMMPS_LIB_NAME=${LAMMPS_LIB_NAME%.*}
+	AC_CHECK_HEADERS([lammps/library.h])
+	AC_CHECK_LIB([$LAMMPS_LIB_NAME],[lammps_open], [], [AC_MSG_ERROR([Cannot link with $LAMMPS_LIB_NAME])])
+	WITH_LAMMPS=1
+fi
 
 if test "x${with_r}" == "x"
 then
@@ -622,7 +702,7 @@ fi
 CP=cp
 if test "x${enable_marklines}" == "xyes"
 then
-	RTOPT="${RTOPT} --mark-lines"
+	RTOPT="${RTOPT} --mark-lines -i linemark.R"
 	CP=./tools/cp_line
 fi
 
@@ -659,6 +739,7 @@ AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
+AC_SUBST(WITH_LAMMPS)
 AC_SUBST(WITH_R)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
