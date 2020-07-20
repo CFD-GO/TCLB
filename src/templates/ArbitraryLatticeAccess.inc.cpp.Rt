@@ -30,7 +30,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::getType(N 
     if (missing(buf)) stop("No Buffor provided");
     if (pocket) {
       MContext$Pocket = "pocket" ?>
-      FTabs <?%s MContext$Pocket ?> = <?%s buf ?>; <?R
+      AFTabs <?%s MContext$Pocket ?> = <?%s buf ?>; <?R
       MContext$PocketMove = TRUE
     } else {
       MContext$Pocket = buf

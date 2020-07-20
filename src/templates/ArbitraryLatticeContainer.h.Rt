@@ -8,6 +8,7 @@
 #include "../SyntheticTurbulence.h"
 #include "../BallTree.h"
 #include "ModelConsts.h"
+#include "LatticeContainerBase.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -32,7 +33,7 @@
 	in the lattice. It stores the internal part of the fields
 	and margins. TODO: reimplement this struct and its functions to use a listsize
 */
-struct FTabs { <?R
+struct AFTabs { <?R
 	for (m in NonEmptyMargin) { ?>
 	real_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
 	} ?>
@@ -40,7 +41,7 @@ struct FTabs { <?R
 	void Clear(int, int, int);
 	void PreAlloc(int, int, int);
 	void Free();
-	inline FTabs & operator=(const FTabs & in) { <?R
+	inline AFTabs & operator=(const AFTabs & in) { <?R
 		for (m in NonEmptyMargin) { ?>
 			<?%s m$name ?> = in.<?%s m$name ?>; <?R
 		}?>
@@ -48,7 +49,7 @@ struct FTabs { <?R
 	}
 };
 
-template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
+template <int,int,int> class A_Cannot_stream_the_field_in_the_direction_ {};
 
 /// Arbitrary Lattice Container class used for storing all the data needed on GPU
 /**
@@ -59,14 +60,15 @@ template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
   It defines push/pop functions allowing access
   to node data stored in memory.
 */
-class ArbitraryLatticeContainer {
+class ArbitraryLatticeContainer : public LatticeContainerBase {
 	public:
-	FTabs in; ///< Main FTabs used for Primal iteration as input
-	FTabs out; ///< Main FTabs used for Primal iteration as output
+	AFTabs in; ///< Main AFTabs used for Primal iteration as input
+	AFTabs out; ///< Main AFTabs used for Primal iteration as output
   #ifdef ADJOINT
-	FTabs adjout; ///< FTabs used for Adjoint iteration as output
-	FTabs adjin; ///< FTabs used for Adjoint iteration as input
+	AFTabs adjout; ///< AFTabs used for Adjoint iteration as output
+	AFTabs adjin; ///< AFTabs used for Adjoint iteration as input
   #endif
+  	struct index { size_t id; };
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
 	cut_t* Q; 
 	size_t particle_data_size;
@@ -107,7 +109,7 @@ class ArbitraryLatticeContainer {
 	  if (! f$big) { ?>
 	template <int DX, int DY, int DZ>
 	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
-	  typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
+	  typename A_Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
 	  return 0.0;
 	};
 	template <int DX, int DY, int DZ>
@@ -165,6 +167,9 @@ class ArbitraryLatticeContainer {
 	template<class N> inline void RunBorderT(CudaStream_t);
 	template<class N> inline void RunInteriorT(CudaStream_t);
 	template<class N> inline void RunParticlesT(CudaStream_t);
+
+	//template<class N> CudaGlobalFunction void RunBorderKernel();
+
 	template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
 	template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
 	template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
@@ -191,7 +196,7 @@ class ArbitraryLatticeContainer {
 	  }
 };
 
-template<class N> CudaGlobalFunction void RunKernel();
+//template<class N> CudaGlobalFunction void RunKernel();
 CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
@@ -202,10 +207,10 @@ for (q in rows(Quantities)) { ifdef(q$adjoint);
           node = "Node"
         }
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
+//CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
         { ?>
-CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
+//CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
 <?R
 	}
 }

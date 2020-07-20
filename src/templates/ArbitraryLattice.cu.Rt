@@ -13,6 +13,7 @@
 #include "../cross.h"
 #include "../types.h"
 #include "../Global.h"
+#include "LatticeContainerBase.h"
 #include "ArbitraryLatticeContainer.h"
 #include "ArbitraryLattice.h"
 #include <mpi.h>
@@ -33,7 +34,7 @@
         This is the main container that is stored in the GPU const memory.
         It is used to pass all the needed information on buffers etc to the kernels
 */
-CudaExternConstantMemory(ArbitraryLatticeContainer constContainer);
+CudaExternConstantMemory(ArbitraryLatticeContainer constArbitraryContainer);
 
 /// Calculate the Snapshot level for the optimal Checkpoiting technique
 /**
@@ -42,7 +43,7 @@ CudaExternConstantMemory(ArbitraryLatticeContainer constContainer);
         /param i The number
         /return number of zeros at the end of the number written in a binary system
 */
-int SnapLevel(unsigned int i) {
+int ASnapLevel(unsigned int i) {
 	unsigned int j = 16;
 	unsigned int w = 0;
 	unsigned int k = 0xFFFFu;
@@ -87,7 +88,7 @@ ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns) : Lat
 	container = new ArbitraryLatticeContainer;
 	sample = new Sampler(this);
 	globals = new double[GLOBALS];
-	Snaps = new FTabs[nSnaps];
+	Snaps = new AFTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
 	container->px = region.dx;
@@ -103,7 +104,7 @@ ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns) : Lat
 		iSnaps[i]= -1;
 	}
 #ifdef ADJOINT
-	aSnaps = new FTabs[2];
+	aSnaps = new AFTabs[2];
 	aSnaps[0].PreAlloc(_region.nx,_region.ny,_region.nz);
 	aSnaps[1].PreAlloc(_region.nx,_region.ny,_region.nz);
 #endif
@@ -668,8 +669,8 @@ exit (-1);
 
 <?R } ?>
 
-/// Function listing all buffers in FTabs
-void ArbitraryLattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
+/// Function listing all buffers in AFTabs
+void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -706,7 +707,7 @@ void ArbitraryLattice::saveToTab(real_t * rtab, int snap) {
 	void** ptr;
 	size_t* size;
 	int n;
-	FTabs tab = Snaps[snap];
+	AFTabs tab = Snaps[snap];
 	listTabs(tab, &n, &size, &ptr, NULL);
 	for(int i = 0; i < n; i++) {
 		debug1("Save buf %d of size %ld\n", i, size[i]);
@@ -723,7 +724,7 @@ void ArbitraryLattice::loadFromTab(real_t* rtab, int snap) {
 	void** ptr;
 	size_t* size;
 	int n;
-	FTabs tab = Snaps[snap];
+	AFTabs tab = Snaps[snap];
 	listTabs(tab, &n, &size, &ptr, NULL);
 	for(int i = 0; i < n; i++) {
 		debug1("Load buf %d of size %ld\n", i, size[i]);
@@ -734,8 +735,8 @@ void ArbitraryLattice::loadFromTab(real_t* rtab, int snap) {
 	delete[] ptr;
 }
 
-/// Save a FTabs
-int ArbitraryLattice::save(FTabs& tab, const char * filename) {
+/// Save a AFTabs
+int ArbitraryLattice::save(AFTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
 		ERROR("Cannot open %s for output\n", filename);
@@ -766,8 +767,8 @@ int ArbitraryLattice::save(FTabs& tab, const char * filename) {
 	return 0;
 }
 
-/// Load a FTabs
-int ArbitraryLattice::load(FTabs& tab, const char * filename) {
+/// Load a AFTabs
+int ArbitraryLattice::load(AFTabs& tab, const char * filename) {
 	FILE * f = fopen(filename, "r");
 	output("Loading Lattice data from %s\n", filename);
 	if (f == NULL) {
@@ -828,7 +829,7 @@ void ArbitraryLattice::GenerateST() {
 // Function for calculating the index of a Snapshot for an iteration
 // CBG
 int ArbitraryLattice::getSnap(int i) {
-	int s = SnapLevel(i) + 1;
+	int s = ASnapLevel(i) + 1;
 	return s;
 }
 
@@ -1152,7 +1153,7 @@ void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, rea
 		small.dy -= region.dy;
 		small.dz -= region.dz;
 		
-		CudaKernelRun(get<?%s q$name ?>, dim3(small.nx, small.ny), dim3(1), (small, buf, scale));
+		CudaKernelRun(get<?%s q$name ?>, dim3(small.nx, small.ny), dim3(1), (small, buf, scale, 1));
 		CudaMemcpy(&tab[over.offsetL(x, y, z)], buf, small.sizeL() * sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
@@ -1304,6 +1305,16 @@ void ArbitraryLattice::resetAverage() {
 }
 
 // GetSample functions go here
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+void ArbitraryLattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
+{	
+			container->in = Snaps[Snap];
+			<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
+			container->CopyToConst();
+	lbRegion small = region.intersect(over);
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale, 1));
+}
+<?R } ;ifdef() ?>
 
 void ArbitraryLattice::updateAllSamples() {
 	if(sample->size != 0) {
@@ -1475,9 +1486,9 @@ int ArbitraryLattice::loadComp(const char* filename, const char* comp) {
 	return 0;
 }
 
-LatticeBase * Ask_For_Lattice(const LatticePromise &prom) {
+LatticeBase * A_Ask_For_Lattice(const LatticePromise &prom) {
 	return new ArbitraryLattice(prom.region, prom.mpi, prom.ns);
 }
 
 // register function in the handler factory
-template class LatticeFactory::Register< Ask_For_Lattice >;
+template class LatticeFactory::Register< A_Ask_For_Lattice >;

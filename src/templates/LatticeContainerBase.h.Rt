@@ -1,0 +1,53 @@
+<?R
+	source("conf.R")
+        c_header()
+    tminx = min(0,Fields$minx)
+    tmaxx = max(0,Fields$maxx)
+    tminy = min(0,Fields$miny)
+    tmaxy = max(0,Fields$maxy)
+    tminz = min(0,Fields$minz)
+    tmaxz = max(0,Fields$maxz)
+?>
+
+#ifndef LATTICECONTAINERBASE_H
+#define LATTICECONTAINERBASE_H 1
+
+#include "../BallTree.h"
+#include "../SyntheticTurbulence.h"
+#include "ModelConsts.h"
+
+
+
+void initSettings();
+template<class N, class Accessor> CudaGlobalFunction void RunKernel();
+
+// leave this base class as limited as possible for now - add variables as we need
+// them for generalisation
+class LatticeContainerBase {
+    private:
+    public:
+        // implement variables and member functions once we've figured out where it actually needs to be used for both lattices
+
+        void Alloc(int, int, int);
+        void Free();
+        void ActivateCuts();
+};
+
+<?R
+for (q in rows(Quantities)) { ifdef(q$adjoint);
+        if (q$adjoint) {
+          node = "Node_Adj"
+        } else {
+          node = "Node"
+        }
+?>
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale, int latticeType); <?R
+	for (tp in c("float","double"))
+        { ?>
+CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int, int);
+<?R
+	}
+}
+ifdef() ?>
+
+#endif

@@ -24,7 +24,42 @@ class Node;
 class Node_Globs;
 
 #include "LatticeContainer.h"
+#include "ArbitraryLatticeContainer.h"
+
+
 CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
+CudaDeviceFunction CudaConstantMemory ArbitraryLatticeContainer constArbitraryContainer;
+
+
+//#ifndef CONTAINERACCESSORS
+// Accessor for ArbitraryLatticeContainer
+/*struct ArbitraryLatticeContainerAccessor {
+	typedef ArbitraryLatticeContainerAccessor Accessor;
+	typedef ArbitraryLatticeContainer Container;
+	typedef ArbitraryLatticeContainer::index index;
+
+	CudaDeviceFunction static ArbitraryLatticeContainer& container() {
+		return constArbitraryContainer;
+	}
+
+	// run functions go here
+};
+
+// Accessor for CartesianLatticeContainer
+struct CartesianLatticeContainerAccessor {
+	typedef CartesianLatticeContainerAccessor Accessor;
+	typedef LatticeContainer Container;
+	typedef LatticeContainer::index index;
+
+	CudaDeviceFunction static LatticeContainer& container() {
+		return constContainer;
+	}
+
+	// run functions go here
+
+};*/
+//#define CONTAINERACCESSORS 1
+//#endif
 
 #ifdef ADJOINT
 	#include "../ADTools.cu"
@@ -38,30 +73,30 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 ?>
 
 #include "LatticeAccess.inc.cpp"
-
+#include "ArbitraryLatticeAccess.inc.cpp"
 
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
         for (f in rows(Fields)) { ?>
-#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
-#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
+#define <?%s f$nicename ?>_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
+#define <?%s f$nicename ?>_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
-#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
-#define <?%s f$nicename ?>_dyn_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
+#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
+#define <?%s f$nicename ?>_dyn_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
 #define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
         }
 ?>
 
-#define X ((real_t) x_ + constContainer.px + 0.5)
-#define Y ((real_t) y_ + constContainer.py + 0.5)
-#define Z ((real_t) z_ + constContainer.pz + 0.5)
-#define Time (constContainer.iter)
-#define SyntheticTurbulence(x__,y__,z__) constContainer.getST(x__,y__,z__)
-#define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
+#define X ((real_t) x_ + Accessor::container().px + 0.5)
+#define Y ((real_t) y_ + Accessor::container().py + 0.5)
+#define Z ((real_t) z_ + Accessor::container().pz + 0.5)
+#define Time (Accessor::container().iter)
+#define SyntheticTurbulence(x__,y__,z__) Accessor::container().getST(x__,y__,z__)
+#define average_iter (Accessor::container().iter - Accessor::container().reset_iter)  //Look nicer in Dynamics
 <?R
 	for(s in rows(ZoneSettings)) { ?>
 //#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
-#define <?%s s$name ?> constContainer.ZoneSetting(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
-#define <?%s s$name ?>_DT constContainer.ZoneSetting_DT(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
+#define <?%s s$name ?> Accessor::container().ZoneSetting(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
+#define <?%s s$name ?>_DT Accessor::container().ZoneSetting_DT(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
 <?R
         }
 ?>
@@ -72,7 +107,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")
 	for (i in 2:length(Q)) { ?>
-#define <?%s Q[i] ?> constContainer.getQ(x_,y_,z_,<?%d i-2 ?>)
+#define <?%s Q[i] ?> Accessor::container().getQ(x_,y_,z_,<?%d i-2 ?>)
 <?R     } ?>
 
 
@@ -85,9 +120,10 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 #define NODE_H
 
-template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
-        int x_,y_,z_;
-        CudaDeviceFunction inline void Pre(){};
+template <class Accessor, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
+		int x_,y_,z_;        
+		typename Accessor::index idx;
+		CudaDeviceFunction inline void Pre(){};
         CudaDeviceFunction inline void ExecElement(){};
         CudaDeviceFunction inline void LoadElement(){};
         CudaDeviceFunction inline void SaveElement(){};
@@ -165,13 +201,16 @@ for (tp in rows(Dispatch)) {
 		Globs$zonal = FALSE
         } else {
                 Globs = NULL
-        } 	
+        } 
         T1 = switch(tp$Action, No="Primal", Adj="Adjoint", Opt="Optimize", SAdj="SteadyAdjoint")
         T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
         T3 = tp$stage_name
 ?>
-template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	int x_,y_,z_; <?R
+// add in T1 as the accessor type
+template <class Accessor> struct Node_Run <Accessor, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
+	// have to modify these to use Accessor::idx
+	int x_,y_,z_; 
+	typename Accessor::index idx;<?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
         } ?>
@@ -187,7 +226,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	}
 	CudaDeviceFunction void inline Glob() { <?R
         for (g in rows(Globs)) if (!g$zonal) {
-		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
+		where_to_put_it = paste0("&Accessor::container().Globals[", g$Index, "]")
                 if (g$op == "SUM") { ?>
                 atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 } else if (g$op == "MAX") { ?>
@@ -198,9 +237,10 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	CudaDeviceFunction void inline GlobDiff() {
 	<?R if (any(Globs$zonal)) { ?>
 		int z = NodeType >> ZONE_SHIFT;
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
+		//for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){ MOD
+		for (int nz = 0; nz < Accessor::container().MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
         for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
+		where_to_put_it = paste0("Accessor::container().ZoneSettingGrad(", g$Index,", nz)") ?>
                 atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
         } ?>
 		}
@@ -208,9 +248,10 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	}
 	CudaDeviceFunction void inline GlobDiffOutOfDomain() { 
 	<?R if (any(Globs$zonal)) { ?>
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
+		// for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){
+		for (int nz = 0; nz < Accessor::container().MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
         for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
+		where_to_put_it = paste0("Accessor::container().ZoneSettingGrad(", g$Index,", nz)") ?>
                 atomicSumDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
         } ?>
 		}
@@ -261,12 +302,12 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	} ?>
 
 	CudaDeviceFunction inline void LoadElement() {
-	   constContainer.getType(*this);
+	   Accessor::container().getType(*this);
 	   PreDiff();
 		<?R
 		if (tp$Stream == "Adj") { ?>
-		constContainer.pop_<?%s s$name ?>(*this);
-		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
+		Accessor::container().pop_<?%s s$name ?>(*this);
+		Accessor::container().pop_<?%s s$name ?>_adj(*this);<?R
 		        for (d in rows(Density)) if (d$parameter) {
         		        if (tp$Globals == "Globs") { ?>
                 old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
@@ -276,11 +317,11 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                                 }
                         }
 		} else if (tp$Stream == "Opt") { ?>
-		constContainer.pop_param(*this);
-		constContainer.pop_param_adj(*this); <?R
+		Accessor::container().pop_param(*this);
+		Accessor::container().pop_param_adj(*this); <?R
 		} else if (tp$Stream == "Init") {
 		} else if (tp$Stream == "No") { ?>
-	        constContainer.pop_<?%s s$name ?>(*this); <?R
+	        Accessor::container().pop_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
@@ -292,13 +333,13 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 old_<?%s d$adjoint_name ?> -= <?%s d$adjoint_name ?>;
                 AddToAdjointRes(old_<?%s d$adjoint_name ?>*old_<?%s d$adjoint_name ?>); <?R
                         } ?>
-		constContainer.push_<?%s s$name ?>_adj(*this); <?R
+		Accessor::container().push_<?%s s$name ?>_adj(*this); <?R
 		} else if (tp$Stream == "Opt") { ?>
-		constContainer.push_param(*this); <?R
+		Accessor::container().push_param(*this); <?R
 		} else if (tp$Stream == "Init") { ?>
-		constContainer.push_<?%s s$name ?>(*this); <?R
+		Accessor::container().push_<?%s s$name ?>(*this); <?R
 		} else if (tp$Stream == "No") { ?>
-		constContainer.push_<?%s s$name ?>(*this); <?R
+		Accessor::container().push_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
@@ -340,4 +381,7 @@ cat("\n")
 ifdef()
 ?>
 
+#include "ContainerAccessors.cpp"
+#include "LatticeContainerBase.cpp"
 #include "LatticeContainer.inc.cpp"
+#include "ArbitraryLatticeContainer.inc.cpp"

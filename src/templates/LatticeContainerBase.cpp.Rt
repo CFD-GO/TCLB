@@ -1,0 +1,400 @@
+<?R
+	source("conf.R")
+        c_header()
+    tminx = min(0,Fields$minx)
+    tmaxx = max(0,Fields$maxx)
+    tminy = min(0,Fields$miny)
+    tmaxy = max(0,Fields$maxy)
+    tminz = min(0,Fields$minz)
+    tmaxz = max(0,Fields$maxz)
+?>
+
+#include "LatticeContainerBase.h"
+#include "ArbitraryLattice.h"
+#include "../Global.h"
+#include "../SyntheticTurbulence.h"
+#include "../BallTree.h"
+#include "ModelConsts.h"
+#include <mpi.h>
+#define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
+#define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
+
+#ifdef ENABLE_NVPROF
+	#include <nvToolsExt.h>
+	#define DEBUG_PROF_PUSH(x__) nvtxRangePushA(x__)
+	#define DEBUG_PROF_POP() nvtxRangePop()
+#else
+	#define DEBUG_PROF_PUSH(x__)
+	#define DEBUG_PROF_POP()
+#endif
+
+// destructor
+/*LatticeContainerBase::~LatticeContainerBase() {
+
+}*/
+
+// ?
+int _xsdim = 0;
+int _ysdim = 1;
+
+/// Fast modulo for one k
+CudaDeviceFunction inline int mymod(int x, int k){
+    if (x >= k) return x-k;   
+    if (x < 0) return x+k;
+    return x;
+}
+
+/// Clear mem (unused)
+CudaGlobalFunction void clearmem(real_t* ptr) {
+	ptr[CudaBlock.x] = 0.0;
+}
+
+/// Init Settings with 0 in GPU constant memory
+void initSettings() {
+	real_t val = 0;
+<?R for (v in rows(Settings)) {
+	if (is.na(v$derived)) { ?>
+			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
+	}} ?>
+}
+
+/// Set Setting in GPU constant memory
+/**
+  Sets a Setting in the constant memory of GPU
+  \param i Index of the Setting
+  \param tmp value of the Setting
+*/
+void setConstSetting(int i, real_t tmp) {
+	switch (i) {
+<?R
+        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
+	case <?%s v$Index ?>:
+	        CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
+		break; <?R
+        } ?>
+	}
+}
+
+
+
+
+/// Get maximal number of threads for all the kernels on runtime
+template < class N, class Accessor > dim3 GetThreads() {
+	dim3 ret;
+	CudaFuncAttributes * attr = new CudaFuncAttributes;
+	CudaFuncGetAttributes(attr, (RunKernel< N, Accessor >)) ;
+	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes);
+	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
+	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
+	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
+	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
+	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
+	ret.x = X_BLOCK;
+	ret.y = attr->maxThreadsPerBlock/ret.x;
+	ret.z = 1;
+	return ret;
+}
+
+
+template < class N, class Accessor > class ThreadNumber {
+public:
+static unsigned int ky, sy, maxy;
+static std::string name;
+static void Init(bool fit, size_t ny, std::string name_) {
+    ny = ny - 2;
+      name = name_;
+  dim3 th = GetThreads< N, Accessor >();
+  maxy = th.y;
+  sy = maxy;
+  ky = ny/sy;
+//	if (fit) while ((sy > 1) && (ky*sy != ny)) { sy--; ky = ny/sy; }
+  if (fit) { sy = 1; ky = ny; }
+  if (ky*th.y < ny) ky++;
+  print();
+}
+static inline int getKY() { return ky; }
+static inline int getSY() { return sy; }
+static inline void print() {
+  if (maxy != sy) {
+  notice( "  %3dx%-3d  | %s --- Reduced from %d to fit Y dim\n", X_BLOCK, sy, name.c_str(), maxy);
+  } else {
+  output( "  %3dx%-3d  | %s\n", X_BLOCK, sy, name.c_str());
+  }
+}
+};
+
+template < class N, class Accessor > unsigned int ThreadNumber< N, Accessor >::ky = 0;
+template < class N, class Accessor > unsigned int ThreadNumber< N, Accessor >::sy = 0;
+template < class N, class Accessor > unsigned int ThreadNumber< N, Accessor >::maxy = 0;
+template < class N, class Accessor > std::string ThreadNumber< N, Accessor >::name = "";
+
+/// Initialize Thread/Block number variables
+template <class Accessor> int InitDim(int ny) {
+	MPI_Barrier(MPMD.local);
+        output( "  Threads  |      Action\n");
+<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
+        ThreadNumber< Node_Run<Accessor, <?%s tp$TemplateArgs ?> >, Accessor >::Init(<?%s {if (Stages$particle[tp$Stage]) "true" else "false"} ?>, ny, "<?%s tp$TemplateArgs ?>"); <?R
+	}; ifdef(); ?>
+	MPI_Barrier(MPMD.local);
+        return 0;
+}
+
+/// Allocation of a GPU memory Buffer
+void * BAlloc(size_t size) {
+    char * tmp = NULL;
+      ALLOCPRINT1;
+      #ifdef DIRECT_MEM
+        CudaMallocHost( (void**)&tmp, size );
+      #else
+        CudaMalloc( (void**)&tmp, size );
+      #endif
+      ALLOCPRINT2;
+      CudaMemset( tmp, 0, size ); 
+      return (void *) tmp;
+}
+
+/// Preallocation of a buffer (combines allocation into one big allocation)
+void BPreAlloc(void ** ptr, size_t size) {
+    CudaMalloc( ptr, size );
+}
+
+/// NULL-safe free
+inline void MyFree(void * ptr) {
+    if (ptr != NULL) {
+        #ifdef DIRECT_MEM
+	    CudaFreeHost( ptr );
+	#else
+	    CudaFree( ptr );
+	#endif
+	ptr = NULL;
+    }
+}
+
+/// Main Kernel
+/**
+  iterates over all elements and runs them with RunElement function.
+  constContainer.dx/dy is to calculate only internal nodes
+*/
+template <class N, class Accessor> CudaGlobalFunction void RunKernel()
+{
+	N now;
+	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + Accessor::container().dx;
+	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + Accessor::container().dy;
+	now.z_ = CudaBlock.y+Accessor::container().dz;
+	#ifndef GRID_3D
+		for (; now.x_ < Accessor::container().nx; now.x_ += CudaNumberOfThreads.x) {
+	#endif
+		now.Pre();
+		if (now.y_ < Accessor::container().fy) {
+			now.RunElement();
+		} else {
+			now.OutOfDomain();
+		}
+		now.Glob();
+	#ifndef GRID_3D
+		}
+	#endif
+}
+
+/// Border Kernel
+/**
+  iterates over border elements and runs them with RunElement function
+*/
+template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel()
+{
+	N now;
+	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.z_ = CudaBlock.x;
+	now.Pre();
+<?R if (tmaxy > tminy) { ?>
+	if (now.z_ < Accessor::container().nz) {
+<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
+		now.y_ = <?%d y - 1 ?>;
+		now.RunElement();
+<?R	} else if (y < 0) { ?>
+		now.y_ = Accessor::container().ny - <?%d -y ?>;
+		now.RunElement();
+<?R	} ?>
+	}
+<?R }
+    if (tmaxz > tminz) { ?>
+	now.y_ = CudaBlock.x;
+	if ((now.y_ < Accessor::container().fy) && (now.y_ >= Accessor::container().dy)) {
+<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
+		now.z_ = <?%d z - 1 ?>;
+		now.RunElement();
+<?R	} else if (z < 0) { ?>
+		now.z_ = Accessor::container().nz - <?%d -z ?>;
+		now.RunElement();
+<?R	} ?>
+	}
+<?R } ?>
+	now.Glob();
+}
+
+template <class N> CudaGlobalFunction void RunParticlesKernel()
+{
+    // content omitted - see LatticeContainer
+}
+
+template <class N, class Accessor>
+CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
+{
+    int offset = x+y*Accessor::container().nx;
+    float l=0.0; float w=0.0;
+    int r=0,g=0,b=0;
+    N now;
+    if (x < 0) return;
+    if (y < 0) return;
+    if (z < 0) return;
+    if (x >= Accessor::container().nx) return;
+    if (y >= Accessor::container().ny) return;
+    if (z >= Accessor::container().nz) return;
+    now.x_ = x;
+    now.y_ = y;
+    now.z_ = z;
+    Accessor::container().getType(now);
+    Accessor::container().pop(now);
+    {
+     float2 v = now.Color();
+     l = v.x;
+     w = v.y;
+    }
+
+if (ISFINITE(l)) {
+
+    l = l * 111;
+    if (               (l <-111)) {r = 255; g = 255; b = 255; }
+    if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
+    if ((l >=  -11) && (l <  -1)) {r = 0; g = (255*(-l-1))/10; b = 255; }
+    if ((l >=   -1) && (l <   0)) {r = 0; g = 0; b = 255*(-l); }
+    if ((l >=    0) && (l <   1)) {r = 255*l; g = 0; b = 0; }
+    if ((l >=    1) && (l <  11)) {r = 255; g = 255*(l-1)/10; b = 0; }
+    if ((l >=   11) && (l < 111)) {r = 255; g = 255; b = 255*(l-11)/100; }
+    if ((l >=  111)             ) {r = 255; g = 255; b = 255; }
+    r=r*w;
+    g=g*w + (1-w)*255;
+    b=b*w;
+} else {
+    r=255;
+    b=255;
+    g=0;
+}
+    optr[offset].x = r;  
+    optr[offset].y = g;  
+    optr[offset].z = b;  
+    optr[offset].w = 255;
+}
+
+/// Kernel for graphics output
+template <class Accessor> CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
+{
+  NodeToColor< Node_Run< Accessor, Primal, NoGlobals, Get >, Accessor >(
+    CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
+    CudaBlock.y,
+    z,
+    optr
+  );
+}
+
+// Functions for getting quantities
+<?R
+        for (q in rows(Quantities))
+        {
+                ifdef(q$adjoint); ?>
+/// Calculate quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  For now, we add the option latticeType to pass in if we are using arbitrary or cartesian lattice due to our trouble templating this function. 
+  We will have to write a completely different function for this for each lattice anyway, so no worries. Just a temporary measure until we develop the ArbitraryLattice.
+  \param r Lattice region to calculate the quantity
+  \param tab buffor to put the calculated result
+  \param scale Scale to rescale the result (for units)
+*/
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale, int latticeType)
+{
+	int x = CudaBlock.x+r.dx;
+  int y = CudaBlock.y+r.dy; 
+  if(latticeType == 0) {
+    <?R
+    if (q$adjoint) { ?>
+      Node_Run< CartesianLatticeContainerAccessor, Adjoint, NoGlobals, Get > now; <?R
+    } else { ?>
+      Node_Run< CartesianLatticeContainerAccessor, Primal, NoGlobals, Get > now; <?R
+    }?>
+    int z;
+    for (z = r.dz; z < r.dz + r.nz; z ++) {
+      now.x_ = x;
+      now.y_ = y;
+      now.z_ = z;
+      constContainer.getType(now);
+      <?%s q$type ?> w;
+//		if (now.NodeType) {
+      constContainer.pop(now);<?R
+      if (q$adjoint) { ?>
+        constContainer.pop_adj(now); <?R
+                    } ?>
+        w = now.get<?%s q$name ?>(); <?R
+        if (q$type == "vector_t") {
+                      for (coef in c("x","y","z")) { ?>
+        w.<?%s coef ?> *= scale; <?R
+          }
+        } else { ?>
+        w *= scale; <?R
+                    } ?>
+  //		} else { <?R
+        if (q$type == "vector_t") {
+                      for (coef in c("x","y","z")) { ?>
+  //			w.<?%s coef ?> = nan(""); <?R
+          }
+        } else { ?>
+  //			w = nan(""); <?R
+                    } ?>
+  //		}
+      tab[r.offset(x,y,z)] = w;
+    }
+
+  } else if(latticeType == 1) {
+    <?R
+    if (q$adjoint) { ?>
+      Node_Run< ArbitraryLatticeContainerAccessor, Adjoint, NoGlobals, Get > now; <?R
+    } else { ?>
+      Node_Run< ArbitraryLatticeContainerAccessor, Primal, NoGlobals, Get > now; <?R
+    }?>
+    int z;
+    for (z = r.dz; z < r.dz + r.nz; z ++) {
+      now.x_ = x;
+      now.y_ = y;
+      now.z_ = z;
+      constArbitraryContainer.getType(now);
+      <?%s q$type ?> w;
+//		if (now.NodeType) {
+      constArbitraryContainer.pop(now);<?R
+      if (q$adjoint) { ?>
+        constArbitraryContainer.pop_adj(now); <?R
+                    } ?>
+        w = now.get<?%s q$name ?>(); <?R
+        if (q$type == "vector_t") {
+                      for (coef in c("x","y","z")) { ?>
+        w.<?%s coef ?> *= scale; <?R
+          }
+        } else { ?>
+        w *= scale; <?R
+                    } ?>
+  //		} else { <?R
+        if (q$type == "vector_t") {
+                      for (coef in c("x","y","z")) { ?>
+  //			w.<?%s coef ?> = nan(""); <?R
+          }
+        } else { ?>
+  //			w = nan(""); <?R
+                    } ?>
+  //		}
+      tab[r.offset(x,y,z)] = w;
+    }
+  }
+}
+<?R
+        }
+        ifdef();
+?>

@@ -11,6 +11,7 @@
 #include "../cross.h"
 #include "../types.h"
 #include "../Global.h"
+#include "LatticeContainerBase.h"
 #include "LatticeContainer.h"
 #include "Lattice.h"
 #include <mpi.h>
@@ -1180,7 +1181,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 		small.dy -= region.dy;
 		small.dz -= region.dz;
 //	        debug1("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, buf, scale));
+		CudaKernelRun( get<?%s q$name ?>, dim3(small.nx,small.ny) , dim3(1) , (small, buf, scale, 0));
 //	        debug1("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
 		CudaMemcpy(&tab[over.offsetL(x,y,z)], buf, small.sizeL()*sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
 	}
@@ -1343,7 +1344,7 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
 	lbRegion small = region.intersect(over);
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale));
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale, 0));
 }
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(){
@@ -1526,7 +1527,7 @@ int Lattice::loadComp(const char* filename, const char* comp) {
 
 	delete[] buf;
 	return 0;
-} 
+}
 
 LatticeBase * Ask_For_Lattice(const LatticePromise& prom) {
   return new Lattice(prom.region, prom.mpi, prom.ns);

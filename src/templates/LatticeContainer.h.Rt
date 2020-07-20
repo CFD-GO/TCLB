@@ -8,13 +8,14 @@
 #include "../SyntheticTurbulence.h"
 #include "../BallTree.h"
 #include "ModelConsts.h"
+#include "LatticeContainerBase.h"
 
 #ifndef SETTINGS_H
 <?R
 	for (v in rows(Settings)) { ?>
     CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
 	} ?>
-    void initSettings();
+    //void initSettings();
     void setConstSetting(int i, real_t tmp);
 
 #define SETTINGS_H 1
@@ -61,7 +62,7 @@ template <int,int,int> class Cannot_stream_the_field_in_the_direction_ {};
   It defines push/pop functions allowing access
   to node data stored in memory.
 */
-class LatticeContainer {
+class LatticeContainer : public LatticeContainerBase {
 	public:
   FTabs in; ///< Main FTabs used for Primal iteration as input
   FTabs out; ///< Main FTabs used for Primal iteration as output
@@ -69,6 +70,7 @@ class LatticeContainer {
   FTabs adjout; ///< FTabs used for Adjoint iteration as output
   FTabs adjin; ///< FTabs used for Adjoint iteration as input
 #endif
+  struct index { int x, y, z; };
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
   cut_t* Q; 
   size_t particle_data_size;
@@ -167,6 +169,9 @@ class LatticeContainer {
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
   template<class N> inline void RunParticlesT(CudaStream_t);
+
+  //template<class N> CudaGlobalFunction void RunBorderKernel();
+
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
@@ -193,7 +198,7 @@ class LatticeContainer {
 	}
 };
 
-template<class N> CudaGlobalFunction void RunKernel();
+//template<class N> CudaGlobalFunction void RunKernel();
 CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
@@ -204,10 +209,10 @@ for (q in rows(Quantities)) { ifdef(q$adjoint);
           node = "Node"
         }
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
+//CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
 	for (tp in c("float","double"))
         { ?>
-CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
+//CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
 <?R
 	}
 }
