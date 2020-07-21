@@ -1530,7 +1530,10 @@ int Lattice::loadComp(const char* filename, const char* comp) {
 }
 
 LatticeBase * Ask_For_Lattice(const LatticePromise& prom) {
-  return new Lattice(prom.region, prom.mpi, prom.ns);
+	if(prom.latticeType == 0)
+		return new Lattice(prom.region, prom.mpi, prom.ns);
+	else
+		return NULL;
 }
 
 // Register this function in the Handler Factory

@@ -126,9 +126,9 @@ class Solver {
 	int writeVTK(const char * nm, name_set * s);
 	int writeTXT(const char * nm, name_set * s, int type);
 	int writeBIN(const char * nm);
-	int setSize(int,int,int,int);
+	int setSize(int,int,int,int, int);
 	int MPIDivision();
-	int InitAll(int);
+	int InitAll(int, int);
 	int RunMainLoop();
 	int EventLoop();
 

@@ -413,153 +413,153 @@ void ArbitraryLattice::RunAction(int act, int iter_type) {
 */
 void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 {
-DEBUG_PROF_PUSH("<?%s n ?>");
-real_t * tmp;
-int size, from, to;
-MPI_Status status;
-MPI_Request request;
-int i=0;
-debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
-ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+	DEBUG_PROF_PUSH("<?%s n ?>");
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
+	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 
-debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
-container->ZoneIndex = ZoneIter;
-container->MaxZones = zSet.MaxZones;
+	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
+	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
 <?R
-for (m in NonEmptyMargin) {
+	for (m in NonEmptyMargin) {
 ?>
-from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-to = mpi.node[mpi.rank].<?%s m$side ?>;
-if (mpi.rank != to) {
-	gpuin[i] = Snaps[tab1].<?%s m$name ?>;
-	gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
-	nodeout[i] = to;
-	nodein[i] = from;
-	i ++;
-} else {
-	container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
-}
-container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
+		i ++;
+	} else {
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+	}
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
 <?R
-}
+	}
 ?>
 <?R
-old_stage_level = 0
-action_stages = Stages[a,]
-sel = which(action_stages$particle)	
-action_stages$first_particle = FALSE
-action_stages$first_particle[head(sel,1)] = TRUE
-action_stages$last_particle = FALSE
-action_stages$last_particle[tail(sel,1)] = TRUE
-for (stage in rows(action_stages)) {
+	old_stage_level = 0
+	action_stages = Stages[a,]
+	sel = which(action_stages$particle)	
+	action_stages$first_particle = FALSE
+	action_stages$first_particle[head(sel,1)] = TRUE
+	action_stages$last_particle = FALSE
+	action_stages$last_particle[tail(sel,1)] = TRUE
+	for (stage in rows(action_stages)) {
 ?>
-DEBUG_PROF_PUSH("<?%s stage$name ?>");
+	DEBUG_PROF_PUSH("<?%s stage$name ?>");
 //---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
-			 if (old_stage_level > 0) { 
-				for (m in NonEmptyMargin) { ?>
-container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
-					} 
-			 }
-			 old_stage_level = old_stage_level + 1 ?>
+				if (old_stage_level > 0) { 
+					for (m in NonEmptyMargin) { ?>
+	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
+						} 
+				}
+				old_stage_level = old_stage_level + 1 ?>
 
 <?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
 <?R if (stage$first_particle) { ?>
-DEBUG_PROF_PUSH("Get Particles");
-RFI.SendSizes();
-RFI.SendParticles();
-DEBUG_PROF_POP();
-if (RFI.size() > particle_data_size_max) {
-	if (container->particle_data != NULL) CudaFree(container->particle_data);
-	particle_data_size_max = RFI.size();
-	CudaMalloc(&container->particle_data, RFI.mem_size());
-}
-container->particle_data_size = RFI.size();
+	DEBUG_PROF_PUSH("Get Particles");
+	RFI.SendSizes();
+	RFI.SendParticles();
+	DEBUG_PROF_POP();
+	if (RFI.size() > particle_data_size_max) {
+		if (container->particle_data != NULL) CudaFree(container->particle_data);
+		particle_data_size_max = RFI.size();
+		CudaMalloc(&container->particle_data, RFI.mem_size());
+	}
+	container->particle_data_size = RFI.size();
 //		for (int i=0; i<RFI.size(); i++){
 //			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
 //		}
-if (true) {
-	for (int i=0; i<RFI.size(); i++){
-		RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
-		RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
-		RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
-	}
-}
-
-if (RFI.mem_size() > 0) {
-	CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), cudaMemcpyHostToDevice, kernelStream);
-}
-DEBUG_PROF_PUSH("Tree Build");
-	BT.Build();
-DEBUG_PROF_POP();
-	if (BT.size() > balltree_data_size_max) {
-		if (container->balltree_data != NULL) CudaFree(container->balltree_data);
-		balltree_data_size_max = BT.size();
-		CudaMalloc(&container->balltree_data, BT.mem_size());
-	}
-	container->balltree_data_size = BT.size();
-	if (BT.mem_size() > 0) {
-		CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), cudaMemcpyHostToDevice, kernelStream);
-	}
-<?R } ?>
-container->CopyToConst();
-DEBUG_PROF_PUSH("Calculation");
-switch(iter_type & ITER_INTEG){
-case ITER_NO:
-	container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
-case ITER_GLOBS:
-	container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
-case ITER_OBJ:
-#ifdef ADJOINT
-	container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
-#endif
-			break;
-}	
-	CudaStreamSynchronize(kernelStream);
-
-	MPIStream_A();
-
-switch(iter_type & ITER_INTEG){
-case ITER_NO:
-	container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
-case ITER_GLOBS:
-	container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
-case ITER_OBJ:
-#ifdef ADJOINT
-	container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
-#endif
-			break;
-}	
-
-MPIStream_B();
-DEBUG_PROF_POP();
-<?R if (stage$last_particle) { ?>
-if (RFI.mem_size() > 0) {
-	CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), cudaMemcpyDeviceToHost, kernelStream);
-}
-	CudaStreamSynchronize(kernelStream);
-DEBUG_PROF_PUSH("Testing particles for NaNs");
-{	int nans = 0;
-	for (int i=0; i<RFI.size(); i++){
-		for (int j=0; j<3; j++){
-			if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
-				nans++;
-				RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
-			}
+	if (true) {
+		for (int i=0; i<RFI.size(); i++){
+			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
 		}
 	}
-	if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
-}
-DEBUG_PROF_POP();
-RFI.SendForces();
+
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+	}
+	DEBUG_PROF_PUSH("Tree Build");
+		BT.Build();
+	DEBUG_PROF_POP();
+		if (BT.size() > balltree_data_size_max) {
+			if (container->balltree_data != NULL) CudaFree(container->balltree_data);
+			balltree_data_size_max = BT.size();
+			CudaMalloc(&container->balltree_data, BT.mem_size());
+		}
+		container->balltree_data_size = BT.size();
+		if (BT.mem_size() > 0) {
+			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+		}
 <?R } ?>
-	CudaDeviceSynchronize();
+	container->CopyToConst();
+	DEBUG_PROF_PUSH("Calculation");
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
+		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
+	case ITER_OBJ:
+#ifdef ADJOINT
+		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+#endif
+				break;
+	}
+		CudaStreamSynchronize(kernelStream);
+
+		MPIStream_A();
+
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
+		container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
+	case ITER_OBJ:
+#ifdef ADJOINT
+		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+#endif
+				break;
+	}	
+
+	MPIStream_B();
+	DEBUG_PROF_POP();
+<?R if (stage$last_particle) { ?>
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), cudaMemcpyDeviceToHost, kernelStream);
+	}
+		CudaStreamSynchronize(kernelStream);
+	DEBUG_PROF_PUSH("Testing particles for NaNs");
+	{	int nans = 0;
+		for (int i=0; i<RFI.size(); i++){
+			for (int j=0; j<3; j++){
+				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
+					nans++;
+					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+				}
+			}
+		}
+		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
+	}
+	DEBUG_PROF_POP();
+	RFI.SendForces();
+<?R } ?>
+		CudaDeviceSynchronize();
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
-DEBUG_PROF_POP();
+	DEBUG_PROF_POP();
 <?R } ?>
-Snap = tab1;
-MarkIteration();
-updateAllSamples();	
-DEBUG_PROF_POP();
+	Snap = tab1;
+	MarkIteration();
+	updateAllSamples();	
+	DEBUG_PROF_POP();
 };
 
 /// Adjoint Iteration
@@ -1487,7 +1487,10 @@ int ArbitraryLattice::loadComp(const char* filename, const char* comp) {
 }
 
 LatticeBase * A_Ask_For_Lattice(const LatticePromise &prom) {
-	return new ArbitraryLattice(prom.region, prom.mpi, prom.ns);
+	if(prom.latticeType == 1)
+		return new ArbitraryLattice(prom.region, prom.mpi, prom.ns);
+	else
+		return NULL;
 }
 
 // register function in the handler factory

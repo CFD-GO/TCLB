@@ -375,6 +375,16 @@ int main ( int argc, char * argv[] )
 	nz = myround(solver->units.alt(geom.attribute("nz").value(),1));
 	notice("Mesh size in config file: %dx%dx%d\n",nx,ny,nz);
 
+	// Look for an arbitrary lattice node
+	pugi::xml_node arbLattice;
+	int latticeType = 0;
+	XMLCHILD(arbLattice, config, "ArbitraryLattice");
+	
+	if(arbLattice) {
+		output("We are using an arbitrary lattice for this sim!\n");
+		latticeType = 1;
+	}
+
 	// Finding the adjoint element
 	pugi::xml_node adj;
 	adj = solver->configfile.find_node(find_adjoint);
@@ -389,8 +399,11 @@ int main ( int argc, char * argv[] )
 		NOTICE("Will be running nonstationary adjoint at %d Snaps\n", D_MPI_RANK, ns);
 	}
 
+	// TODO: may want to construct the lattice promise out here and even pass in the xml node, but will leave it in solver for now
+	// because i'm not 100% sure of which region / mpi to use out here, if these are even defined
+
 	// Initializing the lattice of a specific size
-	if (solver->setSize(nx,ny,nz,ns)) return -1;
+	if (solver->setSize(nx,ny,nz,ns, latticeType)) return -1;
 	solver->setOutput("");
 
 	//Setting settings to default

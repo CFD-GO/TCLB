@@ -36,6 +36,7 @@ public:
   lbRegion region;
   MPIInfo mpi;
   int ns;
+  int latticeType; // 0 = Cartesian lattice, 1 = ArbitraryLattice
 };
 
 /// Class for computations
