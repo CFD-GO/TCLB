@@ -1,4 +1,6 @@
 
+Options$particles = Options$NEBB | Options$SUP
+
 AddDensity( name="f[0]", dx= 0, dy= 0, dz= 0, group="f")
 AddDensity( name="f[1]", dx= 1, dy= 0, dz= 0, group="f")
 AddDensity( name="f[2]", dx=-1, dy= 0, dz= 0, group="f")
@@ -31,51 +33,40 @@ AddDensity( name="f[26]",dx=-1, dy=-1, dz=-1, group="f")
 for (d in rows(DensityAll)){
     AddField( name=d$name,  dx=c(1,-1), dy=c(1,-1), dz=c(1,-1) ) }
 
-AddDensity( name="sol", group="Force",parameter=TRUE)
-AddDensity( name="uPx", group="Force",parameter=TRUE)
-AddDensity( name="uPy", group="Force",parameter=TRUE)
-AddDensity( name="uPz", group="Force",parameter=TRUE)
+if (Options$particles) {
+    AddDensity( name="sol", group="Force",parameter=TRUE)
+    AddDensity( name="uPx", group="Force",parameter=TRUE)
+    AddDensity( name="uPy", group="Force",parameter=TRUE)
+    AddDensity( name="uPz", group="Force",parameter=TRUE)
+    AddQuantity(name="Solid",unit="1")
+    AddGlobal(name="TotalSVF", comment='Total of solids throughout domain')
+}
 
-AddQuantity(name="Solid",unit="1")
 AddQuantity(name="U",unit="m/s",vector=T)
 AddQuantity(name="Rho",unit="kg/m3")
 
-AddSetting(name="Density", default=1, comment='fluid density')
-
 AddSetting(name="omegaF", comment='one over F relaxation time')
 AddSetting(name="nu", omegaF='1.0/(3*nu+0.5)', default=0.1, comment='kinetic viscosity in LBM unit')
-AddSetting(name="omegaP", comment='relaxation parameter for odd components in TRT')
-AddDensity( name="localOmegaF", group="l",parameter=TRUE)
 
-AddSetting(name="Velocity", default="0m/s", comment='Inlet velocity', zonal=TRUE)
+if (Options$TRT) {
+	AddSetting(name="omegaP", comment='relaxation parameter for odd components in TRT')
+}
+
 AddSetting(name="VelocityX", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity x-direction')
 AddSetting(name="VelocityY", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity y-direction')
 AddSetting(name="VelocityZ", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity z-direction')
 
-AddSetting(name="InitVelocityX", default="0.0", zonal=TRUE, comment='init velocity x-direction')
-AddSetting(name="InitVelocityY", default="0.0", zonal=TRUE, comment='init velocity y-direction')
-AddSetting(name="InitVelocityZ", default="0.0", zonal=TRUE, comment='init velocity z-direction')
+AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE, unit="1Pa")
 
-AddSetting(name="InletPressure", InletDensity='1.0+InletPressure/3', default="0Pa", comment='inlet pressure')
-AddSetting(name="InletDensity", default=1, comment='inlet density')
-AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
+AddSetting(name="AccelX", default=0.0, comment='body acceleration X', unit="m/s2")
+AddSetting(name="AccelY", default=0.0, comment='body acceleration Y', unit="m/s2")
+AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z', unit="m/s2")
 
-AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
-AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
-AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
-
-AddSetting(name="AccelX", default=0.0, comment='body acceleration X')
-AddSetting(name="AccelY", default=0.0, comment='body acceleration Y')
-AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z')
-
-AddSetting(name="DNx", default = 0, comment='Total nodes in X direction')
-AddSetting(name="DNy", default = 0, comment='Total nodes in Y direction')
-AddSetting(name="DNz", default = 0, comment='Total nodes in Z direction')
-
-AddGlobal(name="TotalSVF", comment='Total of solids throughout domain')
-AddGlobal(name="TotalFluidVelocityX")
-AddGlobal(name="TotalFluidVelocityY")
-AddGlobal(name="TotalFluidVelocityZ")
+AddGlobal(name="TotalFluidMomentumX", unit="kgm/s")
+AddGlobal(name="TotalFluidMomentumY", unit="kgm/s")
+AddGlobal(name="TotalFluidMomentumZ", unit="kgm/s")
+AddGlobal(name="TotalFluidMass", unit="kg")
+AddGlobal(name="TotalFluidVolume", unit="m3")
 
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")
@@ -94,9 +85,22 @@ AddNodeType(name="BPressure", group="BOUNDARY")
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 
-AddStage("BaseInit", "Init", save=Fields$group %in% c("f","Force"), load = DensityAll$group %in% c("f","Force"))
-AddStage("BaseIteration", "Run", save=Fields$group %in% c("f","Force"), load = DensityAll$group %in% c("f","Force"))
-AddStage("CalcF", save=Fields$group == "Force", load = DensityAll$group %in% c("f","Force"), particle=TRUE)
-
-AddAction("Iteration", c("BaseIteration", "CalcF"))
-AddAction("Init", c("BaseInit", "CalcF"))
+if (Options$particles) {
+	if (Options$singlekernel) {
+            AddStage("BaseInit", "Init", save = Fields$group %in% c("f","Force"), load = FALSE)
+            AddStage("BaseIteration", "Run", save = Fields$group %in% c("f","Force"), load = DensityAll$group %in% "f")
+            AddAction("Iteration", "BaseIteration")
+            AddAction("Init", "BaseInit")
+	} else {
+            AddStage("BaseInit", "Init", save = Fields$group %in% "f", load = FALSE)
+            AddStage("BaseIteration", "Run", save = Fields$group %in% "f", load = DensityAll$group %in% c("f","Force"))
+            AddStage("CalcF", save=Fields$group %in% "Force", load = DensityAll$group %in% "f", particle=TRUE)
+            AddAction("Iteration", c("BaseIteration", "CalcF"))
+            AddAction("Init", c("BaseInit", "CalcF"))
+	}
+} else {
+        AddStage("BaseInit", "Init", save = Fields$group %in% "f", load = FALSE)
+        AddStage("BaseIteration", "Run", save = Fields$group %in% "f", load = DensityAll$group %in% "f")
+        AddAction("Iteration", "BaseIteration")
+        AddAction("Init", "BaseInit")
+}

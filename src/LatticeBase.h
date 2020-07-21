@@ -100,6 +100,7 @@ public:
   virtual void        Iterate(int, int) = 0;
   virtual void        IterateTill(int,int) = 0;
   virtual void	RunAction(int, int) = 0;
+  virtual void IterateAction(int , int , int ) = 0;
   virtual void GetFlags(lbRegion, big_flag_t *) = 0;
   virtual void Get_Field(int, real_t * tab) = 0;
   virtual void Set_Field(int, real_t * tab) = 0;

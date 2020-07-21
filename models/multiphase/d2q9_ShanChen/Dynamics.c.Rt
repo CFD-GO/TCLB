@@ -66,6 +66,9 @@ CudaDeviceFunction void Run() {
     case NODE_Wall:
         BounceBack();
         break;
+    case NODE_MovingWall:
+        MovingWall();
+        break;
     }
     if (NodeType & NODE_MRT) 
     {
@@ -105,6 +108,24 @@ CudaDeviceFunction void CollisionBGK() {
     f[6] = f_temp[6] - omega*(f_temp[6]-f[6]);	
     f[7] = f_temp[7] - omega*(f_temp[7]-f[7]);
     f[8] = f_temp[8] - omega*(f_temp[8]-f[8]);
+}
+
+
+CudaDeviceFunction void MovingWall()
+{
+	real_t U_0 = VelocityX;
+    real_t U_1 = 0;
+    vector_t F;
+	const vector_t F_ff = getF_sf();
+    const vector_t F_sf = getF_ff();
+    F.x = F_sf.x + F_ff.x; 
+    F.y = F_sf.y + F_ff.y;
+    F.z = 0; 
+                                     
+    f[5] =  -(6*f[4]*(U_1 - 1) + 2*(3*U_0 + U_1)*(f[0] + f[1] + f[3] + f[4] + f[7] + f[8]) + 3*(U_1 - 1)*(F.x + 2*f[1] - 2*f[3] - 2*f[7] + 2*f[8]) + (3*U_0 - 2*U_1 + 3)*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]))/(12*U_1 - 12);
+    f[6] = (1.0L/12.0L)*(-6*f[4]*(U_1 - 1) + 2*(3*U_0 - U_1)*(f[0] + f[1] + f[3] + f[4] + f[7] + f[8]) + 3*(U_1 - 1)*(F.x + 2*f[1] - 2*f[3] - 2*f[7] + 2*f[8]) + (3*U_0 + 2*U_1 - 3)*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]))/(U_1 - 1);
+    f[2] = (1.0L/3.0L)*(-U_1*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]) - 2*U_1*(f[0] + f[1] + f[3] + f[4] + f[7] + f[8]) + 3*f[4]*(U_1 - 1))/(U_1 - 1);
+
 }
 
 CudaDeviceFunction void BounceBack() {

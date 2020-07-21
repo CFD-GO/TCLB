@@ -51,6 +51,19 @@ define compile_cu =
 endef
 endif
 
+	
+wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
+
+schemas : wiki/catalog.xml <?%s paste("wiki/schema/", Models$name, ".xsd", sep="", collapse=" ") ?>
+
+wiki/catalog.xml : src/catalog.xml.Rt
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
+
 define rtemplate =
 	@$(MKPATH) $@
 	@echo "  RT         $@"
@@ -155,7 +168,10 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@$(MKPATH) $@
 	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w wiki/ -o $@ <?%s rtopt ?> || rm $@
 
-#  $(DEST)/<?%s m ?>/Dynamics_b.c $(DEST)/<?%s m ?>/Dynamics_b.h $(DEST)/<?%s m ?>/types_b.h $(DEST)/<?%s m ?>/ADpre_.h $(DEST)/<?%s m ?>/ADpre__b.h : $(DEST)/<?%s m ?>/tapenade.run
+wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <?%s model_path ?>/*
+	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w ./ -o $@ <?%s rtopt ?> || mv $@ $@~
 
 $(DEST)/<?%s m ?>/tapenade.run : tools/makeAD $(DEST)/<?%s m ?>/Dynamics.c $(DEST)/<?%s m ?>/ADpre.h $(DEST)/<?%s m ?>/ADpre_b.h $(DEST)/<?%s m ?>/templates/Dynamics.h $(DEST)/<?%s m ?>/Consts.h $(DEST)/<?%s m ?>/types.h $(DEST)/<?%s m ?>/ADset.sh $(DEST)/<?%s m ?>/ADpost.sed
 	@echo "  TAPENADE   $<"

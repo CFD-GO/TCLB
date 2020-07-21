@@ -79,6 +79,7 @@ SRC_MAIN__INC_PRM += CommonHandler.h
 SRC_MAIN__INC_PRM += Handlers.h
 SRC_MAIN__INC_PRM += Factory.h
 SRC_MAIN__INC_PRM += HandlerFactory.h
+SRC_MAIN__CPP_PRM += simplepart.cpp
 
 SRC_MODEL_CUD_PRM += Lattice.cu
 SRC_MODEL_CUD_PRM += cuda.cu

@@ -1,6 +1,6 @@
 CudneLB - the templated version
 ===
-- [![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) - Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master)
+- [![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3672102.svg)](https://doi.org/10.5281/zenodo.3672102) - Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master)
 - [![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/) - Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop)
 
 CudneLB is a MPI+CUDA or MPI+CPU high-performance CFD simulation code, based on Lattice Boltzmann Method.
@@ -89,6 +89,7 @@ Contributors:
 * [Dmytro Sashko](https://github.com/shkodm)
 * [Travis Mitchell](https://github.com/TravisMitchell)
 * [Paweł Obrępalski](https://github.com/PabloOb)
+* [Grzegorz Gruszczyński](https://github.com/ggruszczynski)
 
 Developed at: [C-CFD Group](https://c-cfd.meil.pw.edu.pl/) at [Warsaw University of Technology](http://pw.edu.pl/) from 2012
 

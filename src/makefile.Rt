@@ -74,6 +74,10 @@ lammps:Global.o lammps.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 
+simplepart: simplepart.o Global.o pugixml.o
+	@echo "  LINKING    $@"
+	@$(CXX) $^ -o $@ $(LD_OPT)
+
 compare : compare.o pugixml.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
