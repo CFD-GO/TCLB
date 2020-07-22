@@ -170,6 +170,13 @@ bool find_adjoint(pugi::xml_node node)
 	} else return false;
 }
 
+bool find_arbitraryLattice(pugi::xml_node node)
+{
+	if(strcmp(node.name(), "ArbitraryLattice") == 0) {
+		return true;
+	} else return false;
+}
+
 
 // Main program function
 int main ( int argc, char * argv[] )
@@ -378,8 +385,7 @@ int main ( int argc, char * argv[] )
 	// Look for an arbitrary lattice node
 	pugi::xml_node arbLattice;
 	int latticeType = 0;
-	XMLCHILD(arbLattice, config, "ArbitraryLattice");
-	
+	arbLattice = config.find_node(find_arbitraryLattice);
 	if(arbLattice) {
 		output("We are using an arbitrary lattice for this sim!\n");
 		latticeType = 1;

@@ -988,6 +988,54 @@ void ArbitraryLattice::Iterate(int niter, int iter_type) {
 	FinalIteration();
 }
 
+/// Run Action
+void ArbitraryLattice::IterateAction(int action, int niter, int iter_type)
+{
+	int last_glob = iter_type & ITER_LASTGLOB;
+	int i;
+	InitialIteration(niter);
+	if (iter_type & ITER_INTEG) last_glob=0;
+	if (reverse_save) {
+		ERROR("Run Action not supported in Adjoint"); exit(-1);
+	} else {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
+			ERROR("Run Action not supported in Adjoint"); exit(-1);
+			break;
+                case ITER_NORM:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+				RunAction(action, Snap, (Snap+1) % 2, iter_type);
+				Iter ++;
+				container->iter ++;
+			}
+			break;
+                case ITER_OPT:
+			ERROR("Run Action not supported in Adjoint"); exit(-1);
+                        break;
+		}
+	}
+	if (last_glob) {
+	        switch (iter_type & ITER_TYPE) {
+                case ITER_OPT:
+			clearGlobals();
+	        case ITER_ADJOINT:
+			clearGlobals_Adj();
+			break;
+                case ITER_NORM:
+			clearGlobals();
+			break;
+		}
+		calcGlobals();
+	} else if ( iter_type & ITER_INTEG ) {
+		calcGlobals();
+	}
+	FinalIteration();
+};
+
 // Overwrite NodeType in a region
 // TODO: modify this function or its called functions to allow for arbitrary lattice
 void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
