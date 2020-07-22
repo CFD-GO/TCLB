@@ -1,6 +1,8 @@
+
+// maintainer: Grzegorz Gruszczynski @ggruszczynski
 <?R 
-    # c_header();
 	source("conf.R")
+    c_header();
 	source("lib/lattice.R")
 	source("lib/feq.R")
 	source("lib/boundary.R")
@@ -166,9 +168,9 @@ CudaDeviceFunction real_t getH(){
 CudaDeviceFunction vector_t get_fDarcyStoper(real_t rho, vector_t u)
 {
 	vector_t fDarcy;
-	fDarcy.x = -2*rho*(u.x);
-	fDarcy.y = -2*rho*(u.y);
-	fDarcy.z = -2*rho*(u.z);
+	fDarcy.x = -rho*u.x;
+	fDarcy.y = -rho*u.y;
+	fDarcy.z = -rho*u.z;
 	return fDarcy;
 }
 
