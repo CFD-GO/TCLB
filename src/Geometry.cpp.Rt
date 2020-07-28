@@ -403,6 +403,44 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] = sin(v) * y + cos(v) * z;
 	}
     }
+    if (n.attribute("Yrot")) {
+	double v = units.alt(n.attribute("Yrot").value());
+	debug1("STL: rotating Y axis %lf (%lf deg)\n", v, v / 4. / atan(1.) * 180);
+	double x, z;
+	for (int i = 0; i < ntri; i++) {
+	    x = tri[i].p1[0];
+	    z = tri[i].p1[2];
+	    tri[i].p1[0] = cos(v) * x - sin(v) * z;
+	    tri[i].p1[2] = sin(v) * x + cos(v) * z;
+	    x = tri[i].p2[0];
+	    z = tri[i].p2[2];
+	    tri[i].p2[0] = cos(v) * x - sin(v) * z;
+	    tri[i].p2[2] = sin(v) * x + cos(v) * z;
+	    x = tri[i].p3[0];
+	    z = tri[i].p3[2];
+	    tri[i].p3[0] = cos(v) * x - sin(v) * z;
+	    tri[i].p3[2] = sin(v) * x + cos(v) * z;
+	}
+    }
+    if (n.attribute("Zrot")) {
+	double v = units.alt(n.attribute("Zrot").value());
+	debug1("STL: rotating Z axis %lf (%lf deg)\n", v, v / 4. / atan(1.) * 180);
+	double x, y;
+	for (int i = 0; i < ntri; i++) {
+	    x = tri[i].p1[0];
+	    y = tri[i].p1[1];
+	    tri[i].p1[0] = cos(v) * x - sin(v) * y;
+	    tri[i].p1[1] = sin(v) * x + cos(v) * y;
+	    x = tri[i].p2[0];
+	    y = tri[i].p2[1];
+	    tri[i].p2[0] = cos(v) * x - sin(v) * y;
+	    tri[i].p2[1] = sin(v) * x + cos(v) * y;
+	    x = tri[i].p3[0];
+	    y = tri[i].p3[1];
+	    tri[i].p3[0] = cos(v) * x - sin(v) * y;
+	    tri[i].p3[1] = sin(v) * x + cos(v) * y;
+	}
+    }
     if (n.attribute("scale")) {
 	double v = units.alt(n.attribute("scale").value());
 	debug1("STL: scaling %lf\n", v);
