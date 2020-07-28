@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="/scratch/eait/uqtmitc3/thermocapillary/" permissive="true">
+	<!-- MODEL: d3q27_pf_thermocapillary
+     First test of temp field
+	Created: 17/04/2020
+     	Responsible: @TravisMitchell
+-->
+	<Geometry nx="512" ny="256" nz="10">
+		<MRT>
+			<Box/>
+		</MRT>
+		<TWall>
+			<Box dy="-1"/>
+		</TWall>
+		<BWall>
+			<Box ny="1"/>
+		</BWall>
+		<Wall mask="ALL" name="BottomWall">
+			<Box ny="1"/>
+		</Wall>
+		<Wall mask="ALL" name="TopWall">
+			<Box dy="-1"/>
+		</Wall>
+		<TWall>
+			<Box dy="-1"/>
+		</TWall>
+		<BWall>
+			<Box ny="1"/>
+		</BWall>
+	</Geometry>
+	<Model>
+        <Param name="myL"     value="256"/>
+        <Param name="MIDPOINT"     value="128"/>
+        <Param name="PLUSMINUS"     value="1"/>
+        <Param name="T_h"     value="20"/>
+        <Param name="T_c"     value="10"/>
+        <Param name="T_0"     value="4"/>
+		<Param name="Density_h"     value="1"/>
+    	<Param name="Density_l"     value="1"/>
+		<Param name="Viscosity_h"   value="0.2"/>
+		<Param name="Viscosity_l"   value="0.2"/>
+		<Param name="sigma"         value="2.5e-2"/>
+		<Param name="M"             value="0.05"/>
+		<Param name="IntWidth"      value="5"/>
+        <Param name="T_init"        value="10"/>
+        <Param name="T_init"        value="10" zone="TopWall"/>
+		<Param name="T_ref"        	value="10"/>
+		<Param name="sigma_T" 		value="-5e-4"/>
+        <Param name="cp_h"          value="1"/>
+        <Param name="cp_l"			value="1"/>
+        <Param name="k_h" 			value="0.04"/>
+        <Param name="k_l" 			value="0.2"/>
+	</Model>
+	<Init/>
+	<Container>
+		<Stop TempChangeBelow="1e-4" Times="2" Iterations="1000"/>
+		<RunAction name="TempToSteadyState"  Iterations="100000"/>
+	</Container>
+	<VTK />
+	<Failcheck nx="10"	Iterations="5"/>
+	<Solve 		Iterations="400000">
+		<VTK 	Iterations="100000" />
+		<Log	Iterations="100"/>
+	</Solve>
+</CLBConfig>

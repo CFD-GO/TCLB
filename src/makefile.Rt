@@ -8,11 +8,11 @@ GRID3D=0                  # use 3D block grid (only avaliable on capability 2.x)
 ARCH=sm_11                # CUDA architecture: sm_10 for capability 1.0, sm_13 for capability 
 #CPU=1
 
+include ../config.mk
 
-all:main empty compare
+all : $(AOUT)
 	@echo "  DONE       $^"
 
-include ../config.mk
 include dep.mk
 
 <?R
@@ -67,6 +67,14 @@ main:main.o $(OBJ)
 endif
 
 empty:empty.o
+	@echo "  LINKING    $@"
+	@$(CXX) $^ -o $@ $(LD_OPT)
+
+lammps:Global.o lammps.o
+	@echo "  LINKING    $@"
+	@$(CXX) $^ -o $@ $(LD_OPT)
+
+simplepart: simplepart.o Global.o pugixml.o
 	@echo "  LINKING    $@"
 	@$(CXX) $^ -o $@ $(LD_OPT)
 

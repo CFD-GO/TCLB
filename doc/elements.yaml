@@ -3,6 +3,7 @@ types:
     name: Node Type Brush
     children:
       - type: geom
+      - type: predefined
       - type: bool
       - special: blocks
     attr:
@@ -11,10 +12,15 @@ types:
           select:
             - special: NodeTypeGroups
       - type: geom
+      - name: name
+        val:
+          string: zonename
   geom:
     name: Geometry Primitive
     attr:
       - type: geom
+  predefined:
+    name: Predefined geometry shapes
   bool:
     name: Geometry Boolean Operation
     children:
@@ -74,15 +80,48 @@ CLBConfig:
     - type: container
     - type: params
     - type: setup
-  
+  attr:
+    - name: permissive
+      val:
+        bool:
+    - name: version
+      val:
+        string: version 
 
 Geometry:
   type: geometry
+  attr:
+  - name: nx
+    val:
+      unit: int
+  - name: ny
+    val:
+      unit: int
+  - name: nz
+    val:
+      unit: int
+
+Init:
+  comment: >
+   Initialize lattice. Init is also always run at the end of `<Model/`> element
+  type: callback
 
 Solve:
   comment: >
    Main solution element. It runs a prescribed number of iterations.
   type: action
+
+RunAction:
+  comment: >
+   Main solution element. It runs a prescribed number of iterations.
+  type: action
+  attr:
+    - name: name
+      optional: false
+      val:
+        select:
+          - special: Actions
+      comment: The name of the action to run
 
 VTK:
   comment: Export VTK data
@@ -247,6 +286,9 @@ Sample:
 Box:
   type: geom
 
+Sphere:
+  type: geom
+
 Pipe:
   type: geom
 
@@ -258,8 +300,8 @@ Wedge:
         select:
         - UpperLeft
         - UpperRight
-        - BottomLeft
-        - BottomRight
+        - LowerLeft
+        - LowerRight
       use: required
 
 STL:
@@ -295,6 +337,31 @@ STL:
       val:
         unit: float
       comment: Specifies the scale by which the STL geometry should be multiplied. If you work in physical units, this can be e.g. "1m"
+    - name: x
+      val:
+        unit: float
+      comment: Specifies the offset by which the STL geometry should be moved
+    - name: y
+      val:
+        unit: float
+      comment: Specifies the offset by which the STL geometry should be moved
+    - name: z
+      val:
+        unit: float
+      comment: Specifies the offset by which the STL geometry should be moved
+
+Inlet:
+  type: predefined
+
+Outlet:
+  type: predefined
+
+Channel:
+  type: predefined
+
+Tunnel:
+  type: predefined
+
 
 Param:
   type:
@@ -505,6 +572,16 @@ Repeat:
       val:
         numeric: int
       comment: Numer of Times to repeat a segment
+
+Container:
+  type: action
+  comment: A simple container element
+  example: |
+    <Container>
+      <VTK Iterations="10"/>
+      <Solve Iterations="1000"/>
+    </Container>
+  attr:
 
 Control:
   type: setup

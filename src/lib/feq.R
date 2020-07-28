@@ -83,3 +83,28 @@ MRT_feq = function(...) {
 	ret$feq
 }
 
+
+WMRT_mat = function(U) {
+	get.M.matrix = function(a) {
+	  an = lapply(a@vec,names)
+	  an = unique(do.call(c,an))
+	  an = setdiff(an,".M")
+	  ret = lapply(a@vec,function(p) { nan = setdiff(an,names(p)); p[,nan] = 0; p})
+	  n = length(ret)
+	  for (i in seq_len(n)) names(ret[[i]])[names(ret[[i]]) == ".M"] = paste0(".M",i)
+	  m=ret[[1]]
+	  for (i in seq_len(n-1)+1) m = merge(x=m,y=ret[[i]],all=TRUE,suffixes = c("a","b"))
+	  m[is.na(m)] = 0
+	  as.matrix(m[,paste0(".M",1:n)])
+	}
+	
+	EQ_NO = MRT_eq(U, ortogonal=FALSE, order=300); # Get high-order equilibrium
+	M = EQ_NO$mat
+	A = get.M.matrix(EQ_NO$Req) # get the matrix of terms in the equilibrium moments
+	R = diag(nrow = ncol(A))
+	R[1:nrow(A),] = qr.R(qr(A)) # do a upper diagonal decomposition
+	R = R / diag(R) # make diagonal terms 1
+	R
+	M = M %*% solve(R)
+	M
+}
