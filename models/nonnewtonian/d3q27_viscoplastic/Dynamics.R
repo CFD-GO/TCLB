@@ -12,6 +12,15 @@ AddDensity(
         group="f"
 )
 
+if (Options$OutFlow){
+    for (d in rows(DensityAll)) {
+	AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=d$dz )
+    }
+    for (d in rows(DensityAll)) {
+	AddField( name=d$name, dx=-d$dx, dy=-d$dy-1, dz=-d$dz )
+    }
+}
+
 # exported to VTK
 AddQuantity( name="P",unit="Pa")
 AddQuantity( name="U",unit="m/s",vector=T)
@@ -55,6 +64,11 @@ AddNodeType("YZslice1",group="ADDITIONALS")
 AddNodeType("XYslice2",group="ADDITIONALS")
 AddNodeType("XZslice2",group="ADDITIONALS")
 AddNodeType("YZslice2",group="ADDITIONALS")
+
+if (Options$OutFlow) {
+    AddNodeType( name="NeumannXP", group="BOUNDARY")
+    AddNodeType( name="NeumannYP", group="BOUNDARY")
+}
 
 AddGlobal(name="TotalRho", comment='Total mass', unit="kg")
 
