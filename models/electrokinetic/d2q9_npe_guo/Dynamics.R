@@ -139,3 +139,8 @@ AddDensity( name="BC[1]", dx=0, dy=0, group="BC")
 
 
 
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

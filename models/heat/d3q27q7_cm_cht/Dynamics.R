@@ -214,3 +214,10 @@ if (Options$AVG) {
 	AddField(name="avgUY",		dy=c(-1,1),average=TRUE)
 	AddField(name="avgUZ",		dz=c(1,-1),average=TRUE)
 }
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")

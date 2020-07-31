@@ -191,3 +191,7 @@ if (Options$Outflow) {
 	AddNodeType(name="Convective_N", group="BOUNDARY")
 	AddNodeType(name="Neumann_E", group="BOUNDARY")
 }
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")
+AddNodeType(name="MRT", group="COLLISION")

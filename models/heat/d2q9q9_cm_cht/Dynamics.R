@@ -195,3 +195,7 @@ if (Options$AVG) {
 	AddField(name="avgUY",		dy=c(-1,1),average=TRUE)
 
 }
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")

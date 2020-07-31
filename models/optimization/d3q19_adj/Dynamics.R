@@ -156,3 +156,11 @@ AddGlobal(name="MaterialPenalty", comment='quadratic penalty for intermediate ma
 
 AddNodeType("Inlet","OBJECTIVE")
 AddNodeType("Outlet","OBJECTIVE")
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WPressureL", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")
+AddNodeType(name="MRT", group="COLLISION")

@@ -85,3 +85,10 @@ AddGlobal(name="YZarea", comment='Volume flux', unit="m2")
 # Adding directional cross-ratios - neglect for a while
 
 
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

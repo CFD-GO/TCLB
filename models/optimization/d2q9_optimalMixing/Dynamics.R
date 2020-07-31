@@ -62,3 +62,6 @@ AddGlobal("MovingWallPower")
 AddQuantity(name="RhoB",adjoint=TRUE)
 AddQuantity(name="TB",adjoint=TRUE) 
 
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

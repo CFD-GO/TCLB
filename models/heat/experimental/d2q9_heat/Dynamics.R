@@ -36,4 +36,10 @@ AddSetting(name="FluidAlfa", default=1, comment='inlet density')
 
 AddGlobal(name="OutFlux");
 
-AddNodeType("Heater","ADDITIONALS")
+AddNodeType("Heater","ADDITIONALS")AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

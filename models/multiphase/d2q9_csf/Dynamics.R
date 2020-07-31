@@ -160,3 +160,6 @@ AddNodeType(name="SVelocity",group="BOUNDARY")
 AddNodeType("Inlet","OBJECTIVE")
 AddNodeType("Outlet","OBJECTIVE")
  
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

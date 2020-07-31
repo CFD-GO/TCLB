@@ -24,3 +24,8 @@ AddSetting(name="OutletDensity", default="0Pa", comment='inlet pressure')
 
 AddGlobal(name="Diff", comment='pressure loss')
 
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")
