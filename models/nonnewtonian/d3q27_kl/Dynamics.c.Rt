@@ -22,6 +22,13 @@
 
     u = PV(paste("u[",1:3-1,"]",sep=""))
 
+    if (Options$OutFlow){
+        OutFlow <- data.frame(dir=c('XP','XN','YP','YN','ZP','ZN'))
+        OutFlow$dx = c(-1,1,0,0,0,0)
+        OutFlow$dy = c(0,0,-1,1,0,0)
+        OutFlow$dz = c(0,0,0,0,-1,1)
+    }
+
 ?>
 
 CudaDeviceFunction void Init(){
@@ -97,14 +104,12 @@ CudaDeviceFunction void Run() {
         case NODE_Wall:
             BounceBack();
             break;
-#ifdef OPTIONS_OutFlow            
-        case NODE_NeumannXP:
-            ZeroGradient_Xp();
+<?R if (Options$OutFlow) {     for (d in rows(OutFlow)) {?>
+        case NODE_Neumann<?%s d$dir ?>:
+            ZeroGradient_<?%s d$dir ?>();
             break;
-        case NODE_NeumannYP:
-            ZeroGradient_Yp();
-            break;
-#endif
+<?R    }    }   ?>
+
 	}
 
     if ((NodeType & NODE_COLLISION) == NODE_BGK) {
@@ -252,69 +257,21 @@ CudaDeviceFunction void PressureHB_Xn() {
     
 }
 
-#ifdef OPTIONS_OutFlow
-CudaDeviceFunction void ZeroGradient_Xp() {
-// Take Distributions from 1 node inside
-    f0  = f0(-1,0,0);
-    f1  = f1(-2,0,0);
-    f2  = f2(-1,-1,0);
-    f3  = f3(0,0,0);
-    f4  = f4(-1,1,0);
-    f5  = f5(-1,0,-1);
-    f6  = f6(-1,0,1);
-    f7  = f7(-2,-1,0);
-    f8  = f8(0,-1,0);
-    f9  = f9(0,1,0);
-    f10 = f10(-2,1,0);
-    f11 = f11(-2,0,-1);
-    f12 = f12(-1,-1,-1);
-    f13 = f13(0,0,-1);
-    f14 = f14(-1,1,-1);
-    f15 = f15(-2,0,1);
-    f16 = f16(-1,-1,1);
-    f17 = f17(0,0,1);
-    f18 = f18(-1,1,1);
-    f19 = f19(-2,-1,-1);
-    f20 = f20(0,-1,-1);
-    f21 = f21(0,1,-1);
-    f22 = f22(-2,1,-1);
-    f23 = f23(-2,-1,1);
-    f24 = f24(0,-1,1);
-    f25 = f25(0,1,1);
-    f26 = f26(-2,1,1);
+<?R 
+if (Options$OutFlow) {
+    for (d in rows(OutFlow)) {
+?>
+CudaDeviceFunction void ZeroGradient_<?%s d$dir ?>() {
+<?R for (j in rows(DensityAll)) { 
+    if (j$group == 'f') { 
+        cat(j$name," = ",j$name,"(",paste(-j$dx+d$dx,-j$dy+d$dy,-j$dz+d$dz,sep=','),");\n",sep="")
+    } } ?>}
+<?R
+    }
 }
+?>
 
-CudaDeviceFunction void ZeroGradient_Yp() {
-// Take Distributions from 1 node inside
-    f0 = f0(0,-1,0);
-    f1 = f1(-1,-1,0);
-    f2 = f2(0,-2,0);
-    f3 = f3(1,-1,0);
-    f4 = f4(0,0,0);
-    f5 = f5(0,-1,-1);
-    f6 = f6(0,-1,1);
-    f7 = f7(-1,-2,0);
-    f8 = f8(1,-2,0);
-    f9 = f9(1,0,0);
-    f10 = f10(-1,0,0);
-    f11 = f11(-1,-1,-1);
-    f12 = f12(0,-2,-1);
-    f13 = f13(1,-1,-1);
-    f14 = f14(0,0,-1);
-    f15 = f15(-1,-1,1);
-    f16 = f16(0,-2,1);
-    f17 = f17(1,-1,1);
-    f18 = f18(0,0,1);
-    f19 = f19(-1,-2,-1);
-    f20 = f20(1,-2,-1);
-    f21 = f21(1,0,-1);
-    f22 = f22(-1,0,-1);
-    f23 = f23(-1,-2,1);
-    f24 = f24(1,-2,1);
-    f25 = f25(1,0,1);
-    f26 = f26(-1,0,1);
-}
-#endif
+
 
 CudaDeviceFunction void CollisionBGK() {
 

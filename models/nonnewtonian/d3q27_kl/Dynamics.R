@@ -29,10 +29,9 @@ AddDensity(name="f26", dx=1 , dy=-1, dz=-1 , group="f" )
 
 if (Options$OutFlow){
     for (d in rows(DensityAll)) {
-        AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz)
-    }
-    for (d in rows(DensityAll)) {
-        AddField( name=d$name, dx=-d$dx, dy=-d$dy-1, dz=-d$dz)
+        AddField( name=d$name, dx=-d$dx+c(-1,1), dy=-d$dy, dz=-d$dz)
+        AddField( name=d$name, dx=-d$dx, dy=-d$dy+c(-1,1), dz=-d$dz)
+        AddField( name=d$name, dx=-d$dx, dy=-d$dy, dz=-d$dz+c(-1,1))
     }
 }
 
@@ -96,8 +95,11 @@ AddNodeType(name="ExtendedBdy", group="ADDITIONALS")
 
 if (Options$OutFlow){
     AddNodeType(name="NeumannXP", group="BOUNDARY")
+    AddNodeType(name="NeumannXN", group="BOUNDARY")
     AddNodeType(name="NeumannYP", group="BOUNDARY")
-
+    AddNodeType(name="NeumannYN", group="BOUNDARY")
+    AddNodeType(name="NeumannZP", group="BOUNDARY")
+    AddNodeType(name="NeumannZN", group="BOUNDARY")
 }
 
 AddGlobal(name="VelocityMax",op="MAX")
