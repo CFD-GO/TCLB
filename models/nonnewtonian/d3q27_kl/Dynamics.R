@@ -38,8 +38,6 @@ if (Options$OutFlow){
 AddDensity(name="gamma_dot")
 AddDensity(name="nu_app")
 AddDensity(name="Omega")
-#AddDensity(name="YieldedStat")
-#for (i in c("xx","xy","xz","yx","yy","yz","zx","zy","zz")){
 for (i in c("xx","xy","yz","yy","zx","zz")){
     AddDensity( name=paste("D",i,sep=""))
 }

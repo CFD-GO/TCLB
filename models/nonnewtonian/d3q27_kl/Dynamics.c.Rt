@@ -35,16 +35,6 @@ CudaDeviceFunction void Init(){
 
 
     real_t u[3] = {0,0,0};
-//    if (NodeType != NODE_Wall) {
-//        real_t Rand_scale = sin(X*Y)+cos(Y/X)*sin((X+Y)/(X*Y));
-//        u[0] = Rand_scale*GravitationX;
-//        u[1] = Rand_scale*GravitationY;
-//        u[2] = 0*GravitationZ;
-//    }
-//    if (NodeType != NODE_Wall) {
-//        real_t scale = 0.004;
-//        u[0] = scale/2 - scale/2 * cos(3.1415/48*(Y-49)) ;
-//   }
     real_t d = Density;
     SetEquilibrium(d,u);
     nu_app = eta1;
@@ -536,13 +526,15 @@ CudaDeviceFunction real_t getDzz() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * 
 CudaDeviceFunction real_t getYieldStatus() {
     if (NodeType == NODE_Wall) { 
         return 0.0;
-    } else  if ((abs(sigmaY - gamma_dot*nu_app)/sigmaY < 0.01) || (gamma_dot*nu_app < sigmaY)) { 
+    } else  if ((gamma_dot*nu_app <= sigmaY)) { 
         if (gamma_dot <= sLim) {
             return -0.8;
         } else {
             return -1.0;
         }
-    } else {
+    } else if (abs(sigmaY - gamma_dot*nu_app)/sigmaY < 0.001) { 
+        return 0.8;
+    } else {   
         return 1.0;
     }
 }
