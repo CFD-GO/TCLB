@@ -118,13 +118,13 @@ AddSetting(name="t_to_s", default="1t/s", unit="t/s", comment ="time scale ratio
 
 AddGlobal(name="TotalMomentum");
 
-AddNodeType("SSymmetry","BOUNDARY")
-AddNodeType("NSymmetry","BOUNDARY")
+AddNodeType(name="SSymmetry", group="BOUNDARY")
+AddNodeType(name="NSymmetry", group="BOUNDARY")
 
 
-#AddNodeType("ForceTemperature","ADDITIONALS")
-#AddNodeType("ForceConcentration","ADDITIONALS")
-#AddNodeType("Seed","ADDITIONALS")
+#AddNodeType(name="ForceTemperature", group="ADDITIONALS")
+#AddNodeType(name="ForceConcentration", group="ADDITIONALS")
+#AddNodeType(name="Seed", group="ADDITIONALS")
 
 
 AddNodeType(name="NVelocity", group="BOUNDARY")

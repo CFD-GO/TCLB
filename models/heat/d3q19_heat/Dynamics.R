@@ -29,7 +29,7 @@ AddSetting(name="Pressure", default="0Pa", comment='inlet pressure', zonal=TRUE)
 AddSetting(name="Temperature", default=1, comment='inlet density', zonal=TRUE)
 AddSetting(name="FluidAlpha", default=1, comment='inlet density')
 
-AddNodeType("Heater","ADDITIONALS")
+AddNodeType(name="Heater", group="ADDITIONALS")
 AddNodeType(name="EPressure", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")
 AddNodeType(name="Solid", group="BOUNDARY")

@@ -68,11 +68,11 @@ AddSetting(name="Buoyancy", comment="Buoyancy Boussinesq approximation", unit="m
 AddGlobal(name="OutFlux");
 AddGlobal(name="Material");
 
-AddNodeType("Heater","ADDITIONALS")
-AddNodeType("ForceTemperature","ADDITIONALS")
-AddNodeType("ForceConcentration","ADDITIONALS")
-AddNodeType("Seed","ADDITIONALS")
-AddNodeType("Obj","OBJECTIVE")
+AddNodeType(name="Heater", group="ADDITIONALS")
+AddNodeType(name="ForceTemperature", group="ADDITIONALS")
+AddNodeType(name="ForceConcentration", group="ADDITIONALS")
+AddNodeType(name="Seed", group="ADDITIONALS")
+AddNodeType(name="Obj", group="OBJECTIVE")
 
 AddNodeType(name="EPressure", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")

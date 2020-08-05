@@ -49,9 +49,9 @@ AddSetting(name="ForceZ", comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-AddNodeType("XYslice",group="ADDITIONALS");
-AddNodeType("XZslice",group="ADDITIONALS");
-AddNodeType("YZslice",group="ADDITIONALS");
+AddNodeType(name="XYslice", group="ADDITIONALS");
+AddNodeType(name="XZslice", group="ADDITIONALS");
+AddNodeType(name="YZslice", group="ADDITIONALS");
 
 #AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
 #AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")

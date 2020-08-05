@@ -44,17 +44,17 @@ AddSetting(name="ForceZ",default=0,comment='Force force Z')
 
 AddGlobal(name="HeatFlux", comment='Heat flux', unit="Km3/s")
 
-AddNodeType("WVelocityTurbulent","BOUNDARY")
-AddNodeType("NSymmetry","BOUNDARY")
-AddNodeType("SSymmetry","BOUNDARY")
-AddNodeType("ISymmetry","BOUNDARY")
-AddNodeType("OSymmetry","BOUNDARY")
-AddNodeType("NVelocity", "BOUNDARY")
-AddNodeType("SVelocity", "BOUNDARY")
-AddNodeType("NPressure", "BOUNDARY")
-AddNodeType("SPressure", "BOUNDARY")
-AddNodeType("Heater", "ADDITIONALS")
-AddNodeType("SamplingPlane","ADDITIONALS")
+AddNodeType(name="WVelocityTurbulent", group="BOUNDARY")
+AddNodeType(name="NSymmetry", group="BOUNDARY")
+AddNodeType(name="SSymmetry", group="BOUNDARY")
+AddNodeType(name="ISymmetry", group="BOUNDARY")
+AddNodeType(name="OSymmetry", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="NPressure", group="BOUNDARY")
+AddNodeType(name="SPressure", group="BOUNDARY")
+AddNodeType(name="Heater", group="ADDITIONALS")
+AddNodeType(name="SamplingPlane", group="ADDITIONALS")
 	
 #Adding terms for supporting time-correlation for synthetic turbulence
 
