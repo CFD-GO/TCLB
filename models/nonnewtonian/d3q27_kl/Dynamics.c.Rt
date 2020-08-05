@@ -229,17 +229,17 @@ CudaDeviceFunction void PressureHB_Xn() {
 
     if (TimeMod < t1) {
         Pin = 0;
-    } else if (TimeMod >= t1 && TimeMod < t2) {
+    } else if (TimeMod < t2) {
         Pin = Pmax*m1*(TimeMod-t1)/(t2-t1);
-    } else if (TimeMod >= t2 && TimeMod < t3) {
+    } else if (TimeMod < t3) {
         Pin = -Pmax*m1*(TimeMod-t3)/(t3-t2);
-    } else if (TimeMod >= t3 && TimeMod < t4) {
+    } else if (TimeMod < t4) {
         Pin = Pmax*m2*(TimeMod-t3)/(t4-t3);
-    } else if (TimeMod >= t4 && TimeMod < t6) {
+    } else if (TimeMod < t6) {
         Pin = (Pmax-m2*Pmax)/((t5-t4)*(t5-t6))*(TimeMod-t4)*(TimeMod-t6)+m2*Pmax;
-    } else if (TimeMod >= t6 && TimeMod <= Period) {
+    } else if (TimeMod <= Period) {
         Pin = -Pmax*m2*(TimeMod-Period)/(Period-t6);
-    }
+    } else Pin = 0;
 
     rho =  Density + 3.0*Pin;
 
