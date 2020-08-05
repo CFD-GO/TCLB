@@ -313,13 +313,13 @@ inline flag_t Geometry::Dot(int x, int y, int z)
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);
 	if (geom[i] & fg_mask) {
-		if (fg_mode == MODE_FILL) return NODE_None;
+		if (fg_mode == MODE_FILL) return 0;
 	} else {
-		if (fg_mode == MODE_CHANGE) return NODE_None;
+		if (fg_mode == MODE_CHANGE) return 0;
 	}
 	return geom[i] = (geom[i] & (~fg_mask)) | fg;
     } else 
-    return NODE_None;
+    return 0;
 }
 
 /// Check if a point is inside a sphere

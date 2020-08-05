@@ -489,16 +489,6 @@ NodeShift = 2^NodeShiftNum
 
 if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
 
-NodeTypes = rbind(NodeTypes, data.frame(
-	name="None",
-	group="NONE",
-	index=1,
-	Index="None",
-	value=0,
-	mask=0,
-	shift=0
-))
-
 Node=NodeTypes$value
 names(Node) = NodeTypes$name
 
