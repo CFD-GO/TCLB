@@ -6,6 +6,17 @@
 ?>
 
 
+// Model developed for (currently [05-08-2020] under review):
+//   "Lattice Boltzmann simulation of transient blood flow in arterial geometries 
+//    using a regularised, viscoplastic and shear-thinning fluid"
+//
+//
+// Based on the blood rheology proposed by Kunag and Luo:
+//  doi: 10.1016/0021-9290(92)90233-Q
+//
+// Maintainer: Bryce Hill @bhill23
+
+
 <?R
     f = PV(DensityAll$name[DensityAll$group=="f"])
     f_d = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
