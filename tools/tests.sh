@@ -139,9 +139,9 @@ fi
 
 if test -z "$TESTS"
 then
-	echo "No tests for model $MODEL \(WARNING: there is a directory tests/$MODEL !\)"
-	echo "Exiting with error. Because I Can."
-	exit -1
+	echo "No tests for model $MODEL (WARNING: there is a directory tests/$MODEL)"
+	echo "Exiting with no error."
+	exit 0
 fi
 
 
@@ -150,9 +150,9 @@ export PYTHONPATH="$PYTHONPATH:$PWD/tools/python"
 
 function runline {
 	CMD=$1
-	R=$2
-	G=$TEST_DIR/$R
 	shift
+	R=$1
+	G=$TEST_DIR/$R
 	case $CMD in
 	need) 
 		comment_wait "copy $@"
@@ -175,7 +175,7 @@ function runline {
 	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
 	diff) try "checking $R" diff "$R" "$G" ;;
 	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
-	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" 8;;
+	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${2:-8}" ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
 	*) echo "unknown: $CMD"; return -1;;
 	esac
 	return 0;
