@@ -4,8 +4,10 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0" output="output/d3q27q27_HotKarman_Re100_Pr5/">
     <Geometry nx="512" ny="100" nz="3" > 
-      <!-- <CM_HIGHER> <Box/> </CM_HIGHER>   -->
       <Cumulants> <Box/> </Cumulants>  
+      <!-- <CM> <Box/> </CM>   -->
+      <!-- <CM_HIGHER> <Box/> </CM_HIGHER>   -->
+      <!-- <BGK> <Box/> </BGK>   -->
       <WVelocity name="Inlet"><Box nx="1"/></WVelocity>
       <ENeumann name="Outlet"><Box dx="-1"/></ENeumann>
       <!-- <EConvective name="Outlet"><Box dx="-1"/></EConvective> -->

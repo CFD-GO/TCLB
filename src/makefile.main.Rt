@@ -25,13 +25,15 @@ SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattic
 SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
 SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
-SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp
+SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
 SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
 SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
 SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
 SOURCE_PLAN+=glue.hpp
 SOURCE_PLAN+=mpitools.hpp
+SOURCE_PLAN+=pinned_allocator.hpp
 SOURCE_PLAN+=compare.cpp
+SOURCE_PLAN+=simplepart.cpp
 
 <?R
 	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")
@@ -68,7 +70,14 @@ rm:rm-files configure
 clean: <?%s paste(Models$name, "clean", sep="/", collapse=" ") ?>
 	
 wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
-	@echo "  RT         $@ (model)"
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
+
+schemas : wiki/catalog.xml <?%s paste("wiki/schema/", Models$name, ".xsd", sep="", collapse=" ") ?>
+
+wiki/catalog.xml : src/catalog.xml.Rt
+	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 
@@ -90,7 +99,7 @@ travis : .travis.yml
 	by(Models, Models$group, function(m) {
 		if (length(m$opts[[1]]) > 0) {
 			mat = do.call(rbind,m$opts)
-			mat = ifelse(mat==1, "X","-")
+			mat = ifelse(mat!=0, "X","-")
 			mat = as.data.frame(mat)
 			row.names(mat) = m$name
 		} else {
@@ -185,6 +194,11 @@ wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path
 	@echo "  RT         $@ (model)"
 	@$(MKPATH) $@
 	-@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w wiki/ -o $@ <?%s rtopt ?> || rm $@
+
+wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <?%s model_path ?>/*
+	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w ./ -o $@ <?%s rtopt ?> || mv $@ $@~
 
 # for model <?%s m ?> and destination <?%s d ?>
 

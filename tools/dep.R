@@ -10,7 +10,7 @@ if (opt$path != "") setwd(opt$path)
 
 # 'grep' all the includes
 f = pipe("grep '# *include' `find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)'` | sed -n 's/^\\([^:]*\\):[ \\t]*#[ \\t]*include[ \\t]*[\"<]\\(.*\\)[>\"]/\\1,\\2/gp'")
-w = read.csv(f,col.names=c("file","dep"), stringsAsFactor=F);
+w = read.csv(f,col.names=c("file","dep"), stringsAsFactor=F, header=FALSE);
 
 # make the relative paths in include statement relative to *here*
 w[,2] = paste0(sub("[^/]*$","",w[,1]),w[,2])

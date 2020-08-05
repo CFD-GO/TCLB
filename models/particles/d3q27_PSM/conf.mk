@@ -1,0 +1,3 @@
+ADJOINT=0
+TEST=FALSE
+OPT="TRT*(NEBB+SUP+(NEBB+SEP):singlekernel)"

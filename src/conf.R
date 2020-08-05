@@ -13,6 +13,7 @@
 if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
+if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
 
 # SYMALGEBRA=TRUE
 
@@ -697,6 +698,9 @@ Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettin
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
+Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
+Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
+
 offsets = function(d2=FALSE, cpu=FALSE) {
   def.cpu = cpu
   mw = PV(c("nx","ny","nz"))
@@ -788,24 +792,21 @@ offsets = function(d2=FALSE, cpu=FALSE) {
   list(Fields=ret, MarginSizes=MarginNSize * size)
 }
 
-ret = offsets(cpu=FALSE)
-
-Fields = ret$Fields
-
-
-for (i in 1:length(Margin)) {
-	Margin[[i]]$Size = ret$MarginSizes[i]
-	if (! is.zero(Margin[[i]]$Size)) {
-		 Margin[[i]]$size = 1L;
-	} else {
-		Margin[[i]]$size = 0L
-	}
-	Margin[[i]]$opposite_side = Margin[[28-i]]$side
+if (NEED_OFFSETS) {
+    ret = offsets(cpu=FALSE)
+    Fields = ret$Fields
+    for (i in 1:length(Margin)) {
+            Margin[[i]]$Size = ret$MarginSizes[i]
+            if (! is.zero(Margin[[i]]$Size)) {
+                     Margin[[i]]$size = 1L;
+            } else {
+                    Margin[[i]]$size = 0L
+            }
+            Margin[[i]]$opposite_side = Margin[[28-i]]$side
+    }
+    NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
+    NonEmptyMargin = Margin[NonEmptyMargin]
 }
-
-NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
-NonEmptyMargin = Margin[NonEmptyMargin]
-
 
 Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),

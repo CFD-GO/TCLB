@@ -65,9 +65,12 @@ then
 	(cd TCLB_docs; git checkout -B $doc_branch)
 fi
 
-rm -r TCLB_docs/docs/models
+rm -r TCLB_docs/docs/models || true
 cp -r wiki/models/ TCLB_docs/docs/models
-rm -r TCLB_docs/docs/XML-Reference
+rm -r TCLB_docs/docs/schema || true
+cp -r wiki/schema/ TCLB_docs/docs/schema
+cp -r wiki/catalog.xml TCLB_docs/docs/catalog.xml
+rm -r TCLB_docs/docs/XML-Reference || true
 cp -r wiki/xml/ TCLB_docs/docs/XML-Reference
 
 pushd TCLB_docs

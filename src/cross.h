@@ -26,11 +26,18 @@
       #define CudaConstantMemory __constant__
       #define CudaSharedMemory __shared__
       #define CudaSyncThreads __syncthreads
-    #if __CUDA_ARCH__ < 200
-      #define CudaSyncThreadsOr(x__) (__syncthreads(),true)
-    #else
+
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
-    #endif
+#if CUDART_VERSION >= 9000
+      #define WARP_MASK 0xFFFFFFFF
+      #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, b);
+#elif CUDART_VERSION >= 7000
+      #define CudaSyncWarpOr(x__) __any(b);
+#else
+      #warning "no atomicSumWarp for this CUDA version"
+#endif
+
+    
       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
       #ifdef CROSS_SYNC
         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
@@ -156,6 +163,7 @@
     #define CudaSharedMemory static
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
     #define CudaSyncThreadsOr(x__) x__
+    #define CudaSyncWarpOr(x__) x__
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
       #define CudaKernelRun(a__,b__,c__,d__) \
@@ -229,7 +237,19 @@
     {
       sum[0] += val;
     }
-    
+
+    template <typename T>
+    inline void atomicSumWarp(T * sum, T val)
+    {
+      sum[0] += val;
+    }
+
+    template <typename T>
+    inline void atomicSumWarpArr(T * sum, T * val, unsigned char len)
+    {
+      for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
+    }
+
 //    template <typename T>
     inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
       {

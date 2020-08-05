@@ -1,0 +1,189 @@
+<?R 
+
+library(jsonlite)
+library(yaml)
+library(XML)
+
+NEED_OFFSETS = FALSE
+source("conf.R")
+
+data = yaml::yaml.load_file("doc/elements.yaml")
+
+eq = function(a,b) if (is.null(a)) FALSE else a == b;
+get.by.type = function(tp) {
+  data[sapply(data, function(x) eq(x$type,tp))]
+}
+
+for (i in rows(NodeTypes)) {
+  el = list(
+    comment = i$comment,
+    type="nodetypes"
+  )
+  data[[i$name]] = el
+}
+
+specials = list()
+
+specials[["Settings"]] = c(Settings$name,ZoneSettings$name)
+specials[["Globals"]] = Globals$name
+#GeometryComponents
+specials[["Quantities"]] = Quantities$name
+specials[["NodeTypeGroups"]] = names(Node_Group)
+specials[["SettingsFull"]] = lapply(rows(Settings), function(i) list(
+  name=i$name,
+  comment=i$comment,
+  val=list(unit="float")
+))
+
+specials[["Fields"]] = Fields$name
+
+rep = function(l) { if (is.list(l)) {
+  sel = sapply(l, function(x) if (is.list(x)) "special" %in% names(x) else FALSE)
+  ret = l[!sel]
+  for (i in which(sel)) {
+    nm = l[[i]]$special
+    if (nm %in% names(specials)) {
+      ret = c(ret,specials[[nm]])
+    } else {
+      warning("no ",nm," in specials")
+    }
+  }
+  lapply(ret,rep)
+} else l }
+data = rep(data)
+
+node = function(...) {
+  x = newXMLNode(...)
+  setXMLNamespace(x, "xs")
+  x
+}
+
+add.namespace = function(x) {
+  setXMLNamespace(x, "xs")
+  children = xmlChildren(x)
+  for (i in children) {
+    add.namespace(i)
+  }
+}
+
+add.docs = function(node, text) {
+  annotation <- node("annotation", parent = node, attrs = list())
+  documentation <- node("documentation", parent = annotation, attrs = list())
+  newXMLTextNode(text, parent = documentation)
+}
+
+fill.type = function(complexType, el) {
+  ret = NULL
+  for (i in el$children) {
+    if (names(i) == "type") {
+      ret = c(ret,get.by.type(i$type))
+    }
+  }
+  el$children = as.character(names(ret))
+  if (length(el$children) > 0) {
+    children <- node("choice", parent = complexType, attrs = list( minOccurs="0", maxOccurs="unbounded"))
+    for (i in el$children) {
+      element <- node("element", parent = children, attrs = list( ref=i ))
+    }
+  }
+  for (attr in el$attr)
+  if (is.character(attr$type)) {
+    attributeGroup <- node("attributeGroup", parent = complexType, attrs = list(ref = attr$type))
+  } else if (is.character(attr$name)) {
+    simpletype = NULL
+    ls = NULL
+    if (length(names(attr$val)) != 1) {
+        print(attr)
+        cat("unknown attribute", attr$name, "val:", names(attr$val),"(",length(names(attr$val)),")\n")
+    } else if (names(attr$val) == "string") {
+      simpletype = "xs:string"
+    } else if (names(attr$val) == "numeric") {
+      simpletype = "xs:double"
+    } else if (names(attr$val) == "unit") {
+      simpletype = "unit"
+    } else if (names(attr$val) == "file") {
+      simpletype = "xs:string"
+    } else if (names(attr$val) == "select") {
+      ls = attr$val$select
+      simpletype = "select"
+    } else if (names(attr$val) == "list") {
+      ls = attr$val$list
+      simpletype = "list"
+    } else if (names(attr$val) == "bool") {
+      simpletype = "xs:boolean"
+    } else {
+      cat("unknown val:", names(attr$val),"\n")
+      simpletype = "xs:string"
+    }
+    attribute <- node("attribute", parent = complexType, attrs = list( name = attr$name))
+    if (is.character(attr$comment)) add.docs(attribute, attr$comment)
+    if (is.null(simpletype)) {
+      
+    } else if (simpletype == "select") {
+#      attribute <- node("attribute", parent = complexType, attrs = list( name = attr$name))
+      simpleType <- node("simpleType", parent = attribute)
+      restriction <- node("restriction", parent = simpleType, attrs = list( base="xs:string"))
+      for (i in ls) {
+        node("enumeration", parent = restriction, attrs = list( value=i))
+      }
+    } else if (simpletype == "list") {
+      simpleType <- node("simpleType", parent = attribute)
+      restriction <- node("restriction", parent = simpleType, attrs = list( base="xs:string"))
+      pattern=paste0(ls,collapse="|")
+      pattern=paste0("(",pattern,")(,(",pattern,"))*")
+      node("pattern", parent = restriction, attrs = list(value=pattern))
+    } else {
+#      simpleType <- node("simpleType", parent = attribute, attrs = list( name=simpletype))
+#      attribute <- node("attribute", parent = complexType, attrs = list( name = attr$name, type=simpletype))
+      addAttributes(attribute, type=simpletype)
+    }
+    if (is.character(attr$use)) {
+	addAttributes(attribute, use = attr$use)
+    } else if (is.character(attr$default)) {
+	addAttributes(attribute, default = attr$default, use = "optional")
+    } else if (is.logical(attr$default)) {
+	addAttributes(attribute, default = ifelse(attr$default,"true","false"), use = "optional")
+    } 
+  }
+}
+
+namespace_name = paste("urn","tclb",MODEL,sep=":")
+schema <- node("schema", attrs=list(targetNamespace=namespace_name),
+                namespaceDefinitions = list(namespace_name, xs="http://www.w3.org/2001/XMLSchema"))
+doc <- newXMLDoc(node = schema)
+for (name in names(data)) if (name != "types") {
+  el = data[[name]]
+  element <- node("element", parent = schema, attrs = list(name=name))
+  if (is.character(el$comment)) {
+    add.docs(element, el$comment)
+  }
+  complexType <- node("complexType", parent = element)
+  if (!is.null(el$type)) {
+    complexContent <- node("complexContent", parent = complexType)
+    complexType <- node("extension", parent = complexContent, attrs = list(base=el$type))
+  }
+  fill.type(complexType,el)
+}
+for (name in names(data$types)) {
+  el = data$types[[name]]
+  complexType <- node("complexType", parent = schema, attrs = list(name=name))
+  fill.type(complexType,el)
+}
+
+simpleType <- node("simpleType", parent = schema, attrs = list(name="unit"))
+restriction <- node("restriction", parent = simpleType, attrs = list(base="xs:string"))
+pattern="[-+]?([0-9]*[.])?[0-9]+([eE][-+]?[0-9]+)?((m|s|kg|K|x|y|z|A|t|N|Pa|J|W|V|C|nm|um|mm|cm|km|h|ns|us|ms|g|mg)[0-9]*)*(/((m|s|kg|K|x|y|z|A|t|N|Pa|J|W|V|C|nm|um|mm|cm|km|h|ns|us|ms|g|mg)[0-9]*)+)?"
+node("pattern", parent = restriction, attrs = list(value=pattern))
+
+attributeGroup <- node("attributeGroup", parent = schema, attrs = list(name="geom"))
+x = do.call(paste0,expand.grid(c("n","d","f"),c("x","y","z")))
+for (i in x) {
+  node("attribute", parent = attributeGroup, attrs = list(name=i, type="unit"))
+}
+
+add.namespace(xmlRoot(doc))
+
+#doc
+cat(saveXML(doc))
+
+?>
