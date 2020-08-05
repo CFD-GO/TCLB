@@ -83,7 +83,10 @@ AddSetting( name="Lambda", comment="TRT Magic Number")
 AddSetting( name="MaxIter", default=100)
 AddSetting( name="sLim", default=5e-16)
 
+AddNodeType(name="BGK", group="COLLISION")
 AddNodeType(name="TRT", group="COLLISION")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
 AddNodeType(name="PressureXP", group="BOUNDARY")
 AddNodeType(name="PressureXN", group="BOUNDARY")
 AddNodeType(name="PressureSinXN", group="BOUNDARY")
@@ -108,3 +111,5 @@ AddGlobal(name="Log_Uy")
 AddGlobal(name="Log_Uz")
 AddGlobal(name="Log_P")
 AddGlobal(name="Log_rho")
+
+

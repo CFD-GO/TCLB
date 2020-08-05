@@ -62,3 +62,5 @@ AddSetting(name="psi0", default=1, comment='initial psi - zeta', zonal=T)
 
 AddNodeType(name="Solid", group="BOUNDARY")
 AddNodeType(name="Wall", group="BOUNDARY")
+
+AddNodeType(name="Collision", group="COLLISION")
