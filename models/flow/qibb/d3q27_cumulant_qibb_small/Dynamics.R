@@ -34,30 +34,30 @@ AddSetting(name="ForceZ",default=0,comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-AddNodeType("SymmetryY", "BOUNDARY")
-AddNodeType("SymmetryZ", "BOUNDARY")
-AddNodeType("TopSymmetry","BOUNDARY")
-AddNodeType("BottomSymmetry","BOUNDARY")
-AddNodeType("NVelocity", "BOUNDARY")
-AddNodeType("SVelocity", "BOUNDARY")
-AddNodeType("NPressure", "BOUNDARY")
-AddNodeType("SPressure", "BOUNDARY")
+AddNodeType(name="SymmetryY", group="BOUNDARY")
+AddNodeType(name="SymmetryZ", group="BOUNDARY")
+AddNodeType(name="TopSymmetry", group="BOUNDARY")
+AddNodeType(name="BottomSymmetry", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="NPressure", group="BOUNDARY")
+AddNodeType(name="SPressure", group="BOUNDARY")
 
 # new boundary conditions
-AddNodeType("EOutlet","BOUNDARY")
-AddNodeType("WVelocityEq","BOUNDARY")
-AddNodeType("WVelocityBB","BOUNDARY")
+AddNodeType(name="EOutlet", group="BOUNDARY")
+AddNodeType(name="WVelocityEq", group="BOUNDARY")
+AddNodeType(name="WVelocityBB", group="BOUNDARY")
 
 #reporting fluxes
-AddNodeType("XYslice1",group="ADDITIONALS")
-AddNodeType("XZslice1",group="ADDITIONALS")
-AddNodeType("YZslice1",group="ADDITIONALS")
-AddNodeType("XYslice2",group="ADDITIONALS")
-AddNodeType("XZslice2",group="ADDITIONALS")
-AddNodeType("YZslice2",group="ADDITIONALS")
+AddNodeType(name="XYslice1", group="ADDITIONALS")
+AddNodeType(name="XZslice1", group="ADDITIONALS")
+AddNodeType(name="YZslice1", group="ADDITIONALS")
+AddNodeType(name="XYslice2", group="ADDITIONALS")
+AddNodeType(name="XZslice2", group="ADDITIONALS")
+AddNodeType(name="YZslice2", group="ADDITIONALS")
 
 # QIBB flag - put as extra for the quadratically-interpolated bounce-back in group HO_BOUNDARY - higher order boundary
-AddNodeType("QIBB",group="HO_BOUNDARY")
+AddNodeType(name="QIBB", group="HO_BOUNDARY")
 
 AddGlobal(name="TotalRho", comment='Total mass', unit="kg")
 
@@ -85,3 +85,10 @@ AddGlobal(name="YZarea", comment='Volume flux', unit="m2")
 # Adding directional cross-ratios - neglect for a while
 
 
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")
