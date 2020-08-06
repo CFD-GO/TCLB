@@ -142,8 +142,8 @@ if (Options$thermo){
 		AddSetting("myL", default="100")
 		AddSetting("MIDPOINT", default="51")
 		AddSetting("PLUSMINUS", default="1")
-		AddNodeType("BWall",group="ADDITIONALS")
-		AddNodeType("TWall",group="ADDITIONALS")
+		AddNodeType(name="BWall", group="ADDITIONALS")
+		AddNodeType(name="TWall", group="ADDITIONALS")
 	}
 	AddDensity("RK1", dx=0, dy=0, dz=0, group="Thermal")
 	AddDensity("RK2", dx=0, dy=0, dz=0, group="Thermal")
@@ -247,13 +247,13 @@ AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ
 
 # Velocity Tracking on Centerline:
 AddSetting(name="xyzTrack", default=1,comment='x<-1, y<-2, z<-3')
-AddNodeType("Centerline",group="ADDITIONALS")
+AddNodeType(name="Centerline", group="ADDITIONALS")
 # Allow for smoothing of sharp interface initiation by diffusion
-AddNodeType("Smoothing",group="ADDITIONALS")
+AddNodeType(name="Smoothing", group="ADDITIONALS")
 #  For RTI interface tracking
-AddNodeType("Spiketrack",group="ADDITIONALS")
-AddNodeType("Saddletrack",group="ADDITIONALS")
-AddNodeType("Bubbletrack",group="ADDITIONALS")
+AddNodeType(name="Spiketrack", group="ADDITIONALS")
+AddNodeType(name="Saddletrack", group="ADDITIONALS")
+AddNodeType(name="Bubbletrack", group="ADDITIONALS")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
@@ -288,3 +288,11 @@ AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of dr
 AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
 AddGlobal(name="LiqCells",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
 AddGlobal(name="DropFront",	op="MAX",  comment='Highest location of droplet', unit="m")
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")
+AddNodeType(name="MRT", group="COLLISION")

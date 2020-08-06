@@ -49,9 +49,9 @@ AddSetting(name="ForceZ", comment='Force force Z')
 
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
-AddNodeType("XYslice",group="ADDITIONALS");
-AddNodeType("XZslice",group="ADDITIONALS");
-AddNodeType("YZslice",group="ADDITIONALS");
+AddNodeType(name="XYslice", group="ADDITIONALS");
+AddNodeType(name="XZslice", group="ADDITIONALS");
+AddNodeType(name="YZslice", group="ADDITIONALS");
 
 #AddGlobal(name="XFlux", comment='Volume flux', unit="m3/s")
 #AddGlobal(name="YFlux", comment='Volume flux', unit="m3/s")
@@ -86,3 +86,10 @@ AddGlobal(name="VOLvolume", comment='Volume flux', unit="m3")
 
 AddGlobal(name="MaxV", comment='Max velocity', unit="m3", op="MAX")
 
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WPressureL", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

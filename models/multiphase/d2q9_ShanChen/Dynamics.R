@@ -43,3 +43,6 @@ AddNodeType(name="MovingWall", group="BOUNDARY")
 
 AddSetting( name="G_ff",default=0, comment='fluid-fluid interaction strength')
 AddSetting( name="G_sf",default=0, comment='solid-fluid interaction strength')
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")
