@@ -23,18 +23,17 @@
 void AFTabs::Alloc(int nx,int ny,int nz) {
     size_t size;
     char * tmp = NULL;
-    <?R for (m in NonEmptyMargin) { ?>
-      size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
-      ALLOCPRINT1;
-      #ifdef DIRECT_MEM
-        CudaMallocHost( (void**)&tmp, size );
-      #else
-        CudaMalloc( (void**)&tmp, size );
-      #endif
-      ALLOCPRINT2;
-      CudaMemset( tmp, 0, size ); 
-      <?%s m$name ?>=  (real_t*)tmp;
-    <?R } ?>
+
+    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    ALLOCPRINT1;
+    #ifdef DIRECT_MEM
+      CudaMallocHost((void**)&tmp, size);
+    #else
+      CudaMalloc((void**)&tmp, size);
+    #endif
+    ALLOCPRINT2;
+    CudaMemset(tmp, 0, size);
+    data = (real_t*)tmp;
 }
 
 /// Preallocation of a AFTabs
@@ -43,27 +42,21 @@ void AFTabs::Alloc(int nx,int ny,int nz) {
 */
 void AFTabs::PreAlloc(int nx,int ny,int nz) {
     size_t size;
-    <?R for (m in NonEmptyMargin) { ?>
-      size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
-      CudaPreAlloc( (void**)&<?%s m$name ?>, size );
-    <?R } ?>
+    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    CudaPreAlloc((void**)&data, size);
 }
 
 /// Clearing (zero-ing) of a AFTabs
 void AFTabs::Clear(int nx,int ny,int nz) {
     size_t size;
-    <?R for (m in NonEmptyMargin) { ?>
-      size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
-      CudaMemset( <?%s m$name ?>, 0, size );
-    <?R } ?>
+    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    CudaMemset(data, 0, size);
 }
 
 /// Free AFTabs memory
-void AFTabs::Free() { <?R
-    for (m in NonEmptyMargin) { ?>
-    MyFree(<?%s m$name ?>); 
-    <?%s m$name ?> = NULL;<?R
-    } ?>
+void AFTabs::Free() {
+    MyFree(data);
+    data = NULL;
 }
 
 /// Allocation of memory of a container
@@ -88,6 +81,15 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_)
     CudaMemset( tmp, 0, size ); 
     NodeType = (flag_t*)tmp;
 
+    // allocate memory for the connectivity matrix
+    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(int);
+  ALLOCPRINT1;
+    CudaMalloc((void**)&tmp, size);
+  ALLOCPRINT2;
+    CudaMemset(tmp, 0, size);
+    Connectivity = (int*)tmp;
+    GenerateConnectivity(nx_, ny_, nz_);
+
     Q = NULL;
     particle_data_size = 0;
     particle_data = NULL;
@@ -99,6 +101,30 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_)
     CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
     Globals = (real_t*)tmp;
 	ST.setsize(0, ST_GPU);
+}
+
+// maybe move to ArbitraryLattice class once we read from the xml file
+void ArbitraryLatticeContainer::GenerateConnectivity(int nx_, int ny_, int nz_) {
+  output("Generating connectivity! \n");
+    int n_dirs = <?%d length(rows(Density)) ?>;
+    size_t n_nodes = nx_ * ny_ * nz_;
+    int currentDir = 0;
+
+    size_t* tmp;
+    tmp = new size_t[nx_];
+    <?R for(d in rows(Density)) { ?>
+    for(int z = 0; z < nz_; z++)
+    for(int y = 0; y < ny_; y++) {
+      // go x row by x row, copying each to cuda memory
+      size_t offset = (size_t) (n_nodes * currentDir) + ((nx_ * y) + (nx_ * ny_ * z)); // compute mem offset of current row
+      // fill row with connectivity values (calculated according to dx,dy,dz of current Density entry)
+      for(int x = 0; x < nx_; x++)
+        tmp[x] = (size_t) ((n_nodes * currentDir) + ((x - (<?%d d$dx ?>)) + (nx_ * (y - (<?%d d$dy ?>))) + (nx_ * ny_ * (z + (<?%d d$dz ?>)))));
+      // copy row into the Connectivity matrix
+      CudaMemcpy2D(&Connectivity[offset], sizeof(size_t), tmp, sizeof(size_t), sizeof(size_t), nx_, cudaMemcpyHostToDevice);
+    }
+    currentDir++;
+    <?R } ?>
 }
 
 void ArbitraryLatticeContainer::ActivateCuts() {

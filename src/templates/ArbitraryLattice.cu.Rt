@@ -428,7 +428,7 @@ void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	/*from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
@@ -437,12 +437,16 @@ void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		nodein[i] = from;
 		i ++;
 	} else {
-		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; -- TODO - used to communicate between MPI nodes, will have to re-do this for arbitrary subdivisions
 	}
-	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;*/
 <?R
 	}
 ?>
+	container->out.data = Snaps[tab1].data;
+	container->in.data = Snaps[tab0].data;
+	
+
 <?R
 	old_stage_level = 0
 	action_stages = Stages[a,]
@@ -457,7 +461,7 @@ void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 //---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
 				if (old_stage_level > 0) { 
 					for (m in NonEmptyMargin) { ?>
-	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
+	// container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; -- TODO - used for some junk I don't know about, will probably re-write this later <?R
 						} 
 				}
 				old_stage_level = old_stage_level + 1 ?>
@@ -586,7 +590,7 @@ debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
 <?R
 for (m in NonEmptyMargin) {
 ?>
-to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+/*to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 from = mpi.node[mpi.rank].<?%s m$side ?>;
 if (mpi.rank != to) {
 	gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
@@ -598,12 +602,15 @@ if (mpi.rank != to) {
 	container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
 }
 container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
+container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;*/
 <?R
-}
-
+} ?>
+container->in.data = Snaps[tab0].data;
+container->adjout.data = aSnaps[adjtab1].data;
+<?R
 for (s in a) {
 			 stage = Stages[s,,drop=F] ?>
+	
 
 	   container->CopyToConst();
 
@@ -679,6 +686,7 @@ void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** p
 	if (np) *np = n;
 	if (size) *size = new size_t[n];
 	if (ptr) *ptr = new void*[n];
+/*
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -688,7 +696,11 @@ void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** p
 	j++;
 <?R
 	}
-?>
+?>*/
+
+	if (size) (*size)[0] = ((size_t) nx * ny * nz * 9) * sizeof(real_t);
+	if (ptr) (*ptr)[0] = (void*) tab.data;
+	if (maxsize) if(size) if((*size)[0] > *maxsize) *maxsize = (*size)[0];
 }
 
 // CBG?

@@ -33,18 +33,14 @@
 	in the lattice. It stores the internal part of the fields
 	and margins. TODO: reimplement this struct and its functions to use a listsize
 */
-struct AFTabs { <?R
-	for (m in NonEmptyMargin) { ?>
-	real_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
-	} ?>
+struct AFTabs {
+	real_t* data;
 	void Alloc(int, int, int);
 	void Clear(int, int, int);
 	void PreAlloc(int, int, int);
 	void Free();
-	inline AFTabs & operator=(const AFTabs & in) { <?R
-		for (m in NonEmptyMargin) { ?>
-			<?%s m$name ?> = in.<?%s m$name ?>; <?R
-		}?>
+	inline AFTabs & operator=(const AFTabs & in) {
+		data = in.data;
 		return *this;
 	}
 };
@@ -70,6 +66,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
   #endif
   	struct index { size_t id; };
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
+	int * Connectivity; ///< Table of memory offsets for adjacent nodes
 	cut_t* Q; 
 	size_t particle_data_size;
 	real_t* particle_data;
@@ -89,6 +86,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	real_t* ConstZoneSettings;
 	STWaveSet ST;
 	void Alloc (int,int,int);
+	void GenerateConnectivity(int,int,int);
 	void Free();
 	void ActivateCuts();
 	CudaDeviceFunction void fill();

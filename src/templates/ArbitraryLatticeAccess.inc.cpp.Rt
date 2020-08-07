@@ -214,6 +214,7 @@ resolve.symmetries = function(D) {
 
 template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$suffix ?>(N & node) 
 {
+  AFTabs pocket = in; /*
 <?R
   con = make.context("in",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) { ?>
@@ -224,18 +225,36 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
     con=load.field(paste("node",d$name,sep="."), f, p, dp,con)
   }
   if (Options$autosym) resolve.symmetries(Density[s$load.densities,,drop=FALSE])
-?>
+?> */
+  size_t neighbour;
+<?R 
+dirNum = 0
+for (d in rows(Density)[s$load.densities]) { ?>
+  //--------------------------- <?%s d$name ?> ----------------------
+  neighbour = Connectivity[(nx * ny * nz * <?%d dirNum ?>) + node.x_ + (nx * node.y_) + (nx * ny * node.z_)];
+  node.f[<?%d dirNum ?>] = pocket.data[neighbour];
+<?R 
+dirNum = dirNum + 1
+} ?>
 }
 
 template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::push<?%s s$suffix ?>(N & node) 
 {
+  /*
 <?R
   con = make.context("out",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
     p = PV(c("node.x_","node.y_","node.z_"));
     con=save.field(paste("node",f$name,sep="."), f, p, con)
-  }?>
+  }?>*/
+
+  AFTabs pocket = out; <?R
+  dirNum = 0
+  for (f in rows(Fields)[s$save.fields]) { ?>
+  pocket.data[(nx * ny * nz * <?%d dirNum ?>) + node.x_ + (nx * node.y_) + (nx * ny * node.z_)] = node.f[<?%d dirNum ?>]; <?R 
+  dirNum = dirNum + 1
+  } ?>
 }
 
 <?R if (ADJOINT) { ?>
@@ -295,7 +314,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
 
 suffix = ""
 if (Options$autosym) suffix = "0"
-
+    fnum = 0
     for (f in rows(Fields)) {
     if (! f$big) {
     for (dz in f$minz:f$maxz) {
@@ -304,11 +323,15 @@ if (Options$autosym) suffix = "0"
 template <> 
 CudaDeviceFunction real_t ArbitraryLatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) 
 {
-  real_t ret; <?R
+  real_t ret; /*<?R
   con = make.context("in");
   p = PV(c("x","y","z"));
   dp = c(dx, dy, dz)
-  con=load.field("ret", f, p, dp, con) ?>
+  con=load.field("ret", f, p, dp, con) ?>*/
+
+  size_t neighbour = Connectivity[(nx * ny * nz * <?%d fnum ?>) + x + (nx * y) + (nx * ny * z)];
+  ret = in.data[neighbour];
+
   return ret;
 }
 <?R }}} ?>
@@ -355,7 +378,8 @@ CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (c
 
 
 <?R
-    } 
+    }
+    fnum = fnum + 1
     }
 ?>
 
