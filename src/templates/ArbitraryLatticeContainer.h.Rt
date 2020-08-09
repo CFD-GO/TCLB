@@ -66,7 +66,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
   #endif
   	struct index { size_t id; };
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
-	int * Connectivity; ///< Table of memory offsets for adjacent nodes
+	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
 	cut_t* Q; 
 	size_t particle_data_size;
 	real_t* particle_data;

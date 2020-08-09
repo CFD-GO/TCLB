@@ -82,12 +82,12 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_)
     NodeType = (flag_t*)tmp;
 
     // allocate memory for the connectivity matrix
-    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(int);
+    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(size_t);
   ALLOCPRINT1;
     CudaMalloc((void**)&tmp, size);
   ALLOCPRINT2;
     CudaMemset(tmp, 0, size);
-    Connectivity = (int*)tmp;
+    Connectivity = (size_t*)tmp;
     GenerateConnectivity(nx_, ny_, nz_);
 
     Q = NULL;
@@ -112,6 +112,7 @@ void ArbitraryLatticeContainer::GenerateConnectivity(int nx_, int ny_, int nz_) 
 
     size_t* tmp;
     tmp = new size_t[nx_];
+
     <?R for(d in rows(Density)) { ?>
     for(int z = 0; z < nz_; z++)
     for(int y = 0; y < ny_; y++) {
@@ -121,7 +122,8 @@ void ArbitraryLatticeContainer::GenerateConnectivity(int nx_, int ny_, int nz_) 
       for(int x = 0; x < nx_; x++)
         tmp[x] = (size_t) ((n_nodes * currentDir) + ((x - (<?%d d$dx ?>)) + (nx_ * (y - (<?%d d$dy ?>))) + (nx_ * ny_ * (z + (<?%d d$dz ?>)))));
       // copy row into the Connectivity matrix
-      CudaMemcpy2D(&Connectivity[offset], sizeof(size_t), tmp, sizeof(size_t), sizeof(size_t), nx_, cudaMemcpyHostToDevice);
+      //CudaMemcpy2D(&Connectivity[offset], sizeof(size_t), tmp, sizeof(size_t), sizeof(size_t), nx_, cudaMemcpyHostToDevice);
+      CudaMemcpy(&Connectivity[offset], tmp, sizeof(size_t) * nx_, cudaMemcpyHostToDevice);
     }
     currentDir++;
     <?R } ?>
