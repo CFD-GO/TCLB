@@ -98,15 +98,15 @@ ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns) : Lat
 	container->reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
-		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
+		Snaps[i].PreAlloc(_region.nx * _region.ny * _region.nz);
 	}
 	for (int i=0; i < maxSnaps; i++) {	
 		iSnaps[i]= -1;
 	}
 #ifdef ADJOINT
 	aSnaps = new AFTabs[2];
-	aSnaps[0].PreAlloc(_region.nx,_region.ny,_region.nz);
-	aSnaps[1].PreAlloc(_region.nx,_region.ny,_region.nz);
+	aSnaps[0].PreAlloc(_region.nx * _region.ny * _region.nz);
+	aSnaps[1].PreAlloc(_region.nx * _region.ny * _region.nz);
 #endif
 	DEBUG_M;
 	MPIInit(mpi);
@@ -602,7 +602,7 @@ if (mpi.rank != to) {
 	container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
 }
 container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;*/
+container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;*/ // TODO - revise this when we move on to multiple ranks
 <?R
 } ?>
 container->in.data = Snaps[tab0].data;

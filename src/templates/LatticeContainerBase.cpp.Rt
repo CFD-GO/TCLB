@@ -170,17 +170,17 @@ inline void MyFree(void * ptr) {
     }
 }
 
-/// Main Kernel
+/// Main Kernel for cartesian lattice
 /**
   iterates over all elements and runs them with RunElement function.
   constContainer.dx/dy is to calculate only internal nodes
 */
-template <class N, class Accessor> CudaGlobalFunction void RunKernel()
-{
-	N now;
+template <class N, class Accessor> CudaGlobalFunction void RunKernel() {
+  N now;
 	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + Accessor::container().dx;
 	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + Accessor::container().dy;
-	now.z_ = CudaBlock.y+Accessor::container().dz;
+  now.z_ = CudaBlock.y+Accessor::container().dz;
+
 	#ifndef GRID_3D
 		for (; now.x_ < Accessor::container().nx; now.x_ += CudaNumberOfThreads.x) {
 	#endif
@@ -209,7 +209,7 @@ template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel()
 <?R if (tmaxy > tminy) { ?>
 	if (now.z_ < Accessor::container().nz) {
 <?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		now.y_ = <?%d y - 1 ?>;
+    now.y_ = <?%d y - 1 ?>;
 		now.RunElement();
 <?R	} else if (y < 0) { ?>
 		now.y_ = Accessor::container().ny - <?%d -y ?>;
@@ -315,7 +315,8 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 {
 	int x = CudaBlock.x+r.dx;
   int y = CudaBlock.y+r.dy; 
-  if(latticeType == 0) {
+  // please ignore the horrible code duplication here - had issues passing in the template arguments correctly. Will likely split this out later
+  if(latticeType == 0) { // cartesian lattice
     <?R
     if (q$adjoint) { ?>
       Node_Run< CartesianLatticeContainerAccessor, Adjoint, NoGlobals, Get > now; <?R
@@ -354,7 +355,7 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
       tab[r.offset(x,y,z)] = w;
     }
 
-  } else if(latticeType == 1) {
+  } else if(latticeType == 1) { // arbitrary lattice
     <?R
     if (q$adjoint) { ?>
       Node_Run< ArbitraryLatticeContainerAccessor, Adjoint, NoGlobals, Get > now; <?R
@@ -387,9 +388,11 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
   //			w.<?%s coef ?> = nan(""); <?R
           }
         } else { ?>
-  //			w = nan(""); <?R
+  //			w = nan(""); 
+      <?R
                     } ?>
   //		}
+      
       tab[r.offset(x,y,z)] = w;
     }
   }

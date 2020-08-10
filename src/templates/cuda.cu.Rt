@@ -91,7 +91,9 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 template <class Accessor, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
 		int x_,y_,z_;        
-		typename Accessor::index idx;
+		typename Accessor::index idx_;
+		CudaDeviceFunction inline void SetIndex(int, int, int){};
+		CudaDeviceFunction inline void SetIndex(size_t){};
 		CudaDeviceFunction inline void Pre(){};
         CudaDeviceFunction inline void ExecElement(){};
         CudaDeviceFunction inline void LoadElement(){};
@@ -179,10 +181,18 @@ for (tp in rows(Dispatch)) {
 template <class Accessor> struct Node_Run <Accessor, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	// have to modify these to use Accessor::idx
 	int x_,y_,z_; 
-	typename Accessor::index idx;<?R
+	typename Accessor::index idx_;<?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
-        } ?>
+		} ?>
+	CudaDeviceFunction void inline SetIndex(int x, int y, int z) {
+		x_ = x;
+		y_ = y;
+		z_ = z;
+	}
+	CudaDeviceFunction void inline SetIndex(size_t index) {
+		idx_.index = index;
+	}
 	CudaDeviceFunction void inline Pre() { <?R
 	for (g in rows(Globs)) if (!g$zonal){ ?>
 		<?%s g$var ?> = 0.0f; <?R

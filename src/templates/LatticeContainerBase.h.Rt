@@ -20,6 +20,7 @@
 
 void initSettings();
 template<class N, class Accessor> CudaGlobalFunction void RunKernel();
+template<class N, class Accessor> CudaGlobalFunction void RunBorderKernel();
 
 // leave this base class as limited as possible for now - add variables as we need
 // them for generalisation

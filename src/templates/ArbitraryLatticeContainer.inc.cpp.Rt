@@ -20,11 +20,11 @@
 #define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
 
 /// Allocation of memory for an AFTabs
-void AFTabs::Alloc(int nx,int ny,int nz) {
+void AFTabs::Alloc(size_t tabSize) {
     size_t size;
     char * tmp = NULL;
 
-    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    size = (size_t) tabSize * <?%d length(rows(Density)) ?> * sizeof(real_t);
     ALLOCPRINT1;
     #ifdef DIRECT_MEM
       CudaMallocHost((void**)&tmp, size);
@@ -40,16 +40,16 @@ void AFTabs::Alloc(int nx,int ny,int nz) {
 /**
   Aglomerates all the allocation into one big memory chunk
 */
-void AFTabs::PreAlloc(int nx,int ny,int nz) {
+void AFTabs::PreAlloc(size_t tabSize) {
     size_t size;
-    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    size = (size_t) tabSize * <?%d length(rows(Density)) ?> * sizeof(real_t);
     CudaPreAlloc((void**)&data, size);
 }
 
 /// Clearing (zero-ing) of a AFTabs
-void AFTabs::Clear(int nx,int ny,int nz) {
+void AFTabs::Clear(size_t tabSize) {
     size_t size;
-    size = (size_t) nx * ny * nz * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    size = (size_t) tabSize * <?%d length(rows(Density)) ?> * sizeof(real_t);
     CudaMemset(data, 0, size);
 }
 

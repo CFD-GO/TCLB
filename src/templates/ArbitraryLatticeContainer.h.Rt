@@ -35,9 +35,9 @@
 */
 struct AFTabs {
 	real_t* data;
-	void Alloc(int, int, int);
-	void Clear(int, int, int);
-	void PreAlloc(int, int, int);
+	void Alloc(size_t);
+	void Clear(size_t);
+	void PreAlloc(size_t);
 	void Free();
 	inline AFTabs & operator=(const AFTabs & in) {
 		data = in.data;
@@ -76,6 +76,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
 	int nx, ny, nz; ///< Size of the Lattice region
 	int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
+	size_t latticeSize; ///< Total size of the lattice - replaces nx, ny, nz
 	int kx,ky; ///< X and Y thread division
 	int iter; ///< Iteration number
 	  int px,py,pz;
