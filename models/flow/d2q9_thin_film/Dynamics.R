@@ -94,5 +94,8 @@ AddNodeType(name="SSymmetry", group="BOUNDARY")
 
 
 AddNodeType(name="Cumulant", group="COLLISION")
-AddNodeType("Inlet","OBJECTIVE")
-AddNodeType("Outlet","OBJECTIVE")
+AddNodeType(name="Inlet", group="OBJECTIVE")
+AddNodeType(name="Outlet", group="OBJECTIVE")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

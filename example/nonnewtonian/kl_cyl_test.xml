@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Model: d3q27_kl -->
+<!-- Steady Pressure Gradient applied to a Bingham Plastic -->
+<CLBConfig version="2.0" output="output/">
+    <Geometry nx="128" ny="32" nz="32">
+        <Wall>
+            <Box/>
+        </Wall>
+        <TRT mask="ALL">
+            <XPipe x="64" y="16" z="16" R="15"/>
+        </TRT>
+	</Geometry>
+	<Model>
+	    <Param name="Density" value="1"/>
+        <Param name="m" value="1e14"/>
+        <Param name="Lambda" value="0.25"/>
+        <Param name="eta1" value="0.2"/>
+        <Param name="eta2" value="0.0"/>  
+        <Param name="sigmaY" value="2e-5"/>  
+        <Param name="GravitationX" value="2e-5"/>
+    </Model>
+
+    <Solve Iterations="3000">
+        <VTK Iterations="300" what="flag,U,Rho,Pressure,Shear,Nu_app,Stress,YieldStatus"/>
+    </Solve>
+
+
+</CLBConfig>
+
+
+

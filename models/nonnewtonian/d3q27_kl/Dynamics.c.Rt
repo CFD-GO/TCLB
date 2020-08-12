@@ -1,0 +1,567 @@
+<?R 
+    source("conf.R") 
+    c_header();
+    source("lib/feq.R")
+    source("lib/boundary.R")
+?>
+
+
+// Model developed for (currently [05-08-2020] under review):
+//   "Lattice Boltzmann simulation of transient blood flow in arterial geometries 
+//    using a regularised, viscoplastic and shear-thinning fluid"
+//
+//
+// Based on the blood rheology proposed by Kunag and Luo:
+//  doi: 10.1016/0021-9290(92)90233-Q
+//
+// Maintainer: Bryce Hill @bhill23
+
+
+<?R
+    f = PV(DensityAll$name[DensityAll$group=="f"])
+    f_d = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+
+    inv_d = c() #c(0,3,4,1,2,6,5,9,10,7,8,17,18,15,16,13,14,11,12,25,26,23,24,21,22,19,20)
+    
+    for ( i in 1:27 ) {
+        for ( j in 1:27 ) {
+            if ((f_d[i,1] == -f_d[j,1]) && (f_d[i,2] == -f_d[j,2]) && (f_d[i,3] == -f_d[j,3])) {
+                inv_d = append(inv_d, j-1)
+            }
+        }
+    }
+
+    u = PV(paste("u[",1:3-1,"]",sep=""))
+
+    if (Options$OutFlow){
+        OutFlow <- data.frame(dir=c('XP','XN','YP','YN','ZP','ZN'))
+        OutFlow$dx = c(-1,1,0,0,0,0)
+        OutFlow$dy = c(0,0,-1,1,0,0)
+        OutFlow$dz = c(0,0,0,0,-1,1)
+    }
+
+?>
+
+CudaDeviceFunction void Init(){
+
+
+    real_t u[3] = {0,0,0};
+    real_t d = Density;
+    SetEquilibrium(d,u);
+    nu_app = eta1;
+    gamma_dot = 0.0;
+    Dxx = 0.0;
+    Dxy = 0.0;
+    Dyy = 0.0;
+    Dyz = 0.0;
+    Dzx = 0.0;
+    Dzz = 0.0;
+//    YieldedStat = 0.0; 
+    Iter = 0;
+}
+
+
+CudaDeviceFunction void SetEquilibrium(real_t d, real_t u[3]){
+	real_t Usq = u[0]*u[0] + u[1]*u[1] + u[2]*u[2];
+	
+<?R
+    d = PV("d")
+    Usq = PV("Usq")
+    w0 = 8/27
+    w1 = 2/27
+    w2 = 1/54
+    w3 = 1/216
+    c_squ = 3 #inverse of c_s^2
+    wi = c(w0,w1,w1,w1,w1,w1,w1,w2,w2,w2,w2,w2,w2,w2,w2,w2,w2,w2,w2,w3,w3,w3,w3,w3,w3,w3,w3)
+
+
+    for (i in 1:27) {
+        ciu = f_d[i,] %*% u  
+        C(f[i], d*wi[i] * (1 + c_squ*(ciu) + 0.5*c_squ*c_squ*(ciu)*(ciu) - 0.5*c_squ*Usq) )
+    }
+
+
+?>
+
+}
+
+CudaDeviceFunction void Run() {
+    switch (NodeType & NODE_BOUNDARY) {
+        case NODE_PressureXN:
+            Pressure_Xn();
+            break;
+        case NODE_PressureSinXN:
+            PressureSin_Xn();
+            break;
+        case NODE_PressureCosXN:
+            PressureCos_Xn();
+            break;
+        case NODE_PressureHBXN:
+            PressureHB_Xn();
+            break;
+        case NODE_PressureXP:
+            Pressure_Xp();
+            break;
+        case NODE_Wall:
+            BounceBack();
+            break;
+<?R if (Options$OutFlow) {     for (d in rows(OutFlow)) {?>
+        case NODE_Neumann<?%s d$dir ?>:
+            ZeroGradient_<?%s d$dir ?>();
+            break;
+<?R    }    }   ?>
+
+	}
+
+    if ((NodeType & NODE_COLLISION) == NODE_BGK) {
+        CollisionBGK();
+    }
+    if ((NodeType & NODE_COLLISION) == NODE_TRT) {
+        CollisionTRT();
+    }
+}
+
+CudaDeviceFunction void BounceBack() {
+    
+   	real_t tmp;
+	tmp = f1;	f1 = f3;	f3 = tmp;
+	tmp = f2;	f2 = f4;	f4 = tmp;
+	tmp = f5;	f5 = f6;	f6 = tmp;
+	tmp = f7;	f7 = f9;	f9 = tmp;
+	tmp = f8; 	f8 = f10;	f10 = tmp;
+	tmp = f11;	f11 = f17;	f17 = tmp;
+	tmp = f12;	f12 = f18;	f18 = tmp;
+	tmp = f13;	f13 = f15;	f15 = tmp;
+	tmp = f14;	f14 = f16;	f16 = tmp;
+	tmp = f19;	f19 = f25;	f25 = tmp;
+	tmp = f20;	f20 = f26;	f26 = tmp;
+	tmp = f21; 	f21 = f23;	f23 = tmp;
+	tmp = f22;	f22 = f24;	f24 = tmp;
+    
+}
+
+
+CudaDeviceFunction void Pressure_Xn() {
+    real_t Jx, Jy, Jz, rho;
+    rho = Pressure*3.;
+    Jx  =  -f12 - f5 - f14 - f2 - f0 - f4 - f16 - f6 + rho - f18 + ( -f3 - f8 - f9 - f21 - f24 - f13 - f17 - f20 - f25 )*2. ;
+    Jy  =  ( -f12 + f14 - f2  + f4  - f16 + f18 )*3. ;
+    Jz  =  ( -f12 - f5  - f14 + f16 + f6  + f18 )*3. ;
+    f26 = f20 + ( -Jz - Jy + Jx )/36.;
+    f15 = f13 + ( -Jz + Jx )/9.;
+    f23 = f21 + ( -Jz + Jy + Jx )/36.;
+    f10 = f8  + ( -Jy + Jx )/9.;
+    f1  = f3  + Jx*4./9.;
+    f7  = f9  + ( Jy + Jx )/9.;
+    f22 = f24 + ( Jz - Jy + Jx )/36.;
+    f11 = f17 + ( Jz + Jx )/9.;
+    f19 = f25 + ( Jz + Jy + Jx )/36.;
+}
+
+CudaDeviceFunction void Pressure_Xp() {
+    real_t Jx, Jy, Jz, rho;
+    rho =  Pressure*3.;
+    Jx  =  -1.0*(-f12 - f5 - f14 - f2 - f0 - f4 - f16 - f6 + rho - f18 + ( -f1 - f10 - f7 - f23 - f22 - f15 - f11 - f26 - f19 )*2.) ;
+    Jy  =  ( -f12 + f14 - f2  + f4  - f16 + f18 )*3. ;
+    Jz  =  ( -f12 - f5  - f14 + f16 + f6  + f18 )*3. ;
+    f20 = f26 - ( -Jz - Jy + Jx )/36.;
+    f13 = f15 - ( -Jz + Jx )/9.;
+    f21 = f23 - ( -Jz + Jy + Jx )/36.;
+    f8  = f10 - ( -Jy + Jx )/9.;
+    f3  = f1  - Jx*4./9.;
+    f9  = f7  - ( Jy + Jx )/9.;
+    f24 = f22 - ( Jz - Jy + Jx )/36.;
+    f17 = f11 - ( Jz + Jx )/9.;
+    f25 = f19 - ( Jz + Jy + Jx )/36.;
+}
+
+CudaDeviceFunction void PressureSin_Xn() {
+    real_t Jx, Jy, Jz, rho;
+    rho =  Density + 3.0*deltaP*sin(Time*2*3.1415/Period);
+            
+    Jx  =  -f12 - f5 - f14 - f2 - f0 - f4 - f16 - f6 + rho - f18 + ( -f3 - f8 - f9 - f21 - f24 - f13 - f17 - f20 - f25 )*2. ;
+    Jy  =  ( -f12 + f14 - f2  + f4  - f16 + f18 )*3. ;
+    Jz  =  ( -f12 - f5  - f14 + f16 + f6  + f18 )*3. ;
+    f26 = f20 + ( -Jz - Jy + Jx )/36.;
+    f15 = f13 + ( -Jz + Jx )/9.;
+    f23 = f21 + ( -Jz + Jy + Jx )/36.;
+    f10 = f8  + ( -Jy + Jx )/9.;
+    f1  = f3  + Jx*4./9.;
+    f7  = f9  + ( Jy + Jx )/9.;
+    f22 = f24 + ( Jz - Jy + Jx )/36.;
+    f11 = f17 + ( Jz + Jx )/9.;
+    f19 = f25 + ( Jz + Jy + Jx )/36.;
+}
+
+CudaDeviceFunction void PressureCos_Xn() {
+    real_t Jx, Jy, Jz, rho;
+    rho =  Density + 3.0*deltaP - 3.0*deltaP*cos(Time*2*3.1415/Period); //Starts at eq then moves in direction of dP
+            
+    Jx  =  -f12 - f5 - f14 - f2 - f0 - f4 - f16 - f6 + rho - f18 + ( -f3 - f8 - f9 - f21 - f24 - f13 - f17 - f20 - f25 )*2. ;
+    Jy  =  ( -f12 + f14 - f2  + f4  - f16 + f18 )*3. ;
+    Jz  =  ( -f12 - f5  - f14 + f16 + f6  + f18 )*3. ;
+    f26 = f20 + ( -Jz - Jy + Jx )/36.;
+    f15 = f13 + ( -Jz + Jx )/9.;
+    f23 = f21 + ( -Jz + Jy + Jx )/36.;
+    f10 = f8  + ( -Jy + Jx )/9.;
+    f1  = f3  + Jx*4./9.;
+    f7  = f9  + ( Jy + Jx )/9.;
+    f22 = f24 + ( Jz - Jy + Jx )/36.;
+    f11 = f17 + ( Jz + Jx )/9.;
+    f19 = f25 + ( Jz + Jy + Jx )/36.;
+}
+
+CudaDeviceFunction void PressureHB_Xn() {
+    real_t Jx, Jy, Jz, rho, Pin;
+    
+    
+    real_t t1 = Period/2.6;
+    real_t t2 = Period/1.95;
+    real_t t3 = Period/1.69;
+    real_t t4 = Period/1.52;
+    real_t t5 = Period/1.25;
+    real_t t6 = Period/1.03;
+
+    real_t m1 = 0.28/3.68;
+    real_t m2 = 2.622806/3.68;
+
+    int TimeMod = (int(Time) + (int)t1) % int(Period);  //Period starts at t1
+
+    if (TimeMod < t1) {
+        Pin = 0;
+    } else if (TimeMod < t2) {
+        Pin = Pmax*m1*(TimeMod-t1)/(t2-t1);
+    } else if (TimeMod < t3) {
+        Pin = -Pmax*m1*(TimeMod-t3)/(t3-t2);
+    } else if (TimeMod < t4) {
+        Pin = Pmax*m2*(TimeMod-t3)/(t4-t3);
+    } else if (TimeMod < t6) {
+        Pin = (Pmax-m2*Pmax)/((t5-t4)*(t5-t6))*(TimeMod-t4)*(TimeMod-t6)+m2*Pmax;
+    } else if (TimeMod <= Period) {
+        Pin = -Pmax*m2*(TimeMod-Period)/(Period-t6);
+    } else Pin = 0;
+
+    rho =  Density + 3.0*Pin;
+
+    Jx  =  -f12 - f5 - f14 - f2 - f0 - f4 - f16 - f6 + rho - f18 + ( -f3 - f8 - f9 - f21 - f24 - f13 - f17 - f20 - f25 )*2. ;
+    Jy  =  ( -f12 + f14 - f2  + f4  - f16 + f18 )*3. ;
+    Jz  =  ( -f12 - f5  - f14 + f16 + f6  + f18 )*3. ;
+    f26 = f20 + ( -Jz - Jy + Jx )/36.;
+    f15 = f13 + ( -Jz + Jx )/9.;
+    f23 = f21 + ( -Jz + Jy + Jx )/36.;
+    f10 = f8  + ( -Jy + Jx )/9.;
+    f1  = f3  + Jx*4./9.;
+    f7  = f9  + ( Jy + Jx )/9.;
+    f22 = f24 + ( Jz - Jy + Jx )/36.;
+    f11 = f17 + ( Jz + Jx )/9.;
+    f19 = f25 + ( Jz + Jy + Jx )/36.;
+    
+}
+
+<?R 
+if (Options$OutFlow) {
+    for (d in rows(OutFlow)) {
+?>
+CudaDeviceFunction void ZeroGradient_<?%s d$dir ?>() {
+<?R for (j in rows(DensityAll)) { 
+    if (j$group == 'f') { 
+        cat(j$name," = ",j$name,"(",paste(-j$dx+d$dx,-j$dy+d$dy,-j$dz+d$dz,sep=','),");\n",sep="")
+    } } ?>}
+<?R
+    }
+}
+?>
+
+
+
+CudaDeviceFunction void CollisionBGK() {
+
+<?R
+
+      G = PV(c("GravitationX", "GravitationY", "GravitationZ"))
+
+      fa = PV(paste("fa[",1:27-1,"]",sep=""))
+      fneq = PV(paste("fneq[",1:27-1,"]",sep=""))
+      deq = PV(paste("deq[",1:27-1,"]",sep=""))
+
+?>
+
+    real_t u[3], d, fa[27], fneq[27], deq[27];
+    
+    d = <?R C(sum(f)) ?>;
+    u[0] = ((<?R C(f %*% f_d[,1]) ?>)/d);
+    u[1] = ((<?R C(f %*% f_d[,2]) ?>)/d);
+    u[2] = ((<?R C(f %*% f_d[,3]) ?>)/d);
+   
+// fa - actual incoming distribution 
+<?R
+    for (i in 1:27) {
+        C(fa[i],f[i])
+    }
+?>
+    
+// deq - equilibrium, non-forced 
+	SetEquilibrium(d, u); //stores equilibrium distribution in f0-f26
+<?R
+    for (i in 1:27) {
+        C(deq[i],f[i])
+    }
+?>
+
+
+<?R
+    for (i in 1:27) {
+        C(fneq[i], fa[i]-deq[i])
+    }        
+?>
+
+   
+    
+    Dxx = <?R C((f_d[,1] * f_d[,1]) %*% fneq)?> ;
+    Dyy = <?R C((f_d[,2] * f_d[,2]) %*% fneq)?> ;
+    Dzz = <?R C((f_d[,3] * f_d[,3]) %*% fneq)?> ;
+    Dxy = <?R C((f_d[,1] * f_d[,2]) %*% fneq)?> ;
+    Dyz = <?R C((f_d[,2] * f_d[,3]) %*% fneq)?> ;
+    Dzx = <?R C((f_d[,3] * f_d[,1]) %*% fneq)?> ;
+ 
+// Traceless part for deformation strain
+
+    if (Strain_Dim == 3) {    
+        Dxx = Dxx - (Dxx+Dyy+Dzz)/3.;
+        Dyy = Dyy - (Dxx+Dyy+Dzz)/3.;
+        Dzz = Dzz - (Dxx+Dyy+Dzz)/3.;
+    } else if (Strain_Dim == 2) {
+        Dxx = Dxx - (Dxx+Dyy)/2.;
+        Dyy = Dyy - (Dxx+Dyy)/2.;
+    }
+    
+    real_t sqrtSS = sqrt(2.0* (Dxx*Dxx + Dyy*Dyy + Dzz*Dzz + 2.0*(Dxy*Dxy + Dyz*Dyz + Dzx*Dzx)) ); // Second Invariant of deformation strain tensor; sqrt(2(S:S))
+	
+    real_t omega_tmp = 1.0/(3.0*nu_app+0.5); //From previous timestep
+    real_t nu_cutoff = eta1 + (sigmaY/sLim + eta2/(sqrt(sLim)))*(1.0 - exp(-m*sLim)); //KL
+    real_t nu_inf = eta1 + sigmaY * m; // Same for both Bingham and KL
+    
+    real_t gamma_dot_old;
+    gamma_dot = (1.5 * omega_tmp / d) * sqrtSS;
+    
+    Iter = 0;
+    do {                //Iterate nu_app(gamma_dot) and gamma_dot(nu_app) until convergence
+        gamma_dot_old = gamma_dot;
+
+        if (gamma_dot <= sLim) {
+            nu_app = nu_inf*(1-gamma_dot/sLim) + nu_cutoff*gamma_dot/sLim;
+        } else {
+            nu_app = eta1 + (eta2/(sqrt(gamma_dot)) + sigmaY/gamma_dot) * (1.0 - exp(-m*gamma_dot)); // KL 
+        }
+        omega_tmp = 1.0/(3.0*nu_app+0.5);
+        gamma_dot = (1.5 * omega_tmp / d) * sqrtSS;
+        Iter += 1;
+    } while ( Iter < MaxIter && abs((gamma_dot - gamma_dot_old)/gamma_dot_old) > 1e-7 );    
+
+    Omega = omega_tmp;
+
+// BGK Collision/Streaming.
+
+<?R
+    Omega = PV("Omega")
+    for (i in 1:27) {
+        C(f[i], fa[i] + Omega*(deq[i]-fa[i]) + 1/18.0 * (G %*% t(f_d))[i])
+    }
+?>
+    
+    switch (NodeType & NODE_ADDITIONALS) {
+        case NODE_LogP:
+            AddToLog_Ux(u[0]);
+            AddToLog_Uy(u[1]);
+            AddToLog_Uz(u[2]);
+            AddToLog_P(d/3.0);
+            AddToLog_rho(d);
+    }
+
+}
+
+
+
+CudaDeviceFunction void CollisionTRT() {
+
+<?R
+
+      G = PV(c("GravitationX", "GravitationY", "GravitationZ"))
+
+      fa = PV(paste("fa[",1:27-1,"]",sep=""))
+      fneq = PV(paste("fneq[",1:27-1,"]",sep=""))
+      deq = PV(paste("deq[",1:27-1,"]",sep=""))
+
+?>
+
+    real_t u[3], d, fa[27], fneq[27], deq[27];
+    
+    d = <?R C(sum(f)) ?>;
+    u[0] = ((<?R C(f %*% f_d[,1]) ?>)/d);
+    u[1] = ((<?R C(f %*% f_d[,2]) ?>)/d);
+    u[2] = ((<?R C(f %*% f_d[,3]) ?>)/d);
+   
+// fa - actual incoming distribution 
+<?R
+    for (i in 1:27) {
+        C(fa[i],f[i])
+    }
+?>
+    
+// deq - equilibrium, non-forced 
+	SetEquilibrium(d, u); //stores equilibrium distribution in f0-f26
+<?R
+    for (i in 1:27) {
+        C(deq[i],f[i])
+    }
+?>
+
+
+
+<?R
+    for (i in 1:27) {
+        C(fneq[i], fa[i]-deq[i])
+    }        
+?>
+
+    
+    Dxx = <?R C((f_d[,1] * f_d[,1]) %*% fneq)?> ;
+    Dyy = <?R C((f_d[,2] * f_d[,2]) %*% fneq)?> ;
+    Dzz = <?R C((f_d[,3] * f_d[,3]) %*% fneq)?> ;
+    Dxy = <?R C((f_d[,1] * f_d[,2]) %*% fneq)?> ;
+    Dyz = <?R C((f_d[,2] * f_d[,3]) %*% fneq)?> ;
+    Dzx = <?R C((f_d[,3] * f_d[,1]) %*% fneq)?> ;
+ 
+// Traceless part for deformation strain
+
+    if (Strain_Dim == 3) {    
+        Dxx = Dxx - (Dxx+Dyy+Dzz)/3.;
+        Dyy = Dyy - (Dxx+Dyy+Dzz)/3.;
+        Dzz = Dzz - (Dxx+Dyy+Dzz)/3.;
+    } else if (Strain_Dim == 2) {
+        Dxx = Dxx - (Dxx+Dyy)/2.;
+        Dyy = Dyy - (Dxx+Dyy)/2.;
+    }
+    
+    real_t sqrtSS = sqrt(2.0* (Dxx*Dxx + Dyy*Dyy + Dzz*Dzz + 2.0*(Dxy*Dxy + Dyz*Dyz + Dzx*Dzx)) ); // Second Invariant of deformation strain tensor; sqrt(2(S:S))
+	
+    real_t omega_tmp = 1.0/(3.0*nu_app+0.5); //From previous timestep
+    real_t nu_cutoff = eta1 + (sigmaY/sLim + eta2/(sqrt(sLim)))*(1.0 - exp(-m*sLim)); //KL
+    real_t nu_inf = eta1 + sigmaY * m; // Same for both Bingham and KL
+    
+    real_t gamma_dot_old;
+    gamma_dot = (1.5 * omega_tmp / d) * sqrtSS;
+    
+    Iter = 0;
+    do {                //Iterate nu_app(gamma_dot) and gamma_dot(nu_app) until convergence
+        gamma_dot_old = gamma_dot;
+
+        if (gamma_dot <= sLim) {
+            nu_app = nu_inf*(1-gamma_dot/sLim) + nu_cutoff*gamma_dot/sLim;
+        } else {
+            nu_app = eta1 + (eta2/(sqrt(gamma_dot)) + sigmaY/gamma_dot) * (1.0 - exp(-m*gamma_dot)); // KL 
+        }
+        omega_tmp = 1.0/(3.0*nu_app+0.5);
+        gamma_dot = (1.5 * omega_tmp / d) * sqrtSS;
+        Iter += 1;
+    } while ( Iter < MaxIter && abs((gamma_dot - gamma_dot_old)/gamma_dot_old) > 1e-7 );    
+
+
+    Omega = omega_tmp;
+
+	lambda_even = -1.0/(3.0*nu_app + 0.5);
+	lambda_odd  =  1.0/(Lambda/(1.0/lambda_even+0.5)-0.5);
+
+// TRT Collision/Streaming.
+
+<?R
+    lambda_even = PV("lambda_even")
+    lambda_odd = PV("lambda_odd")
+    for (i in 1:27) {
+        C(f[i], fa[i] + 0.5*lambda_even*(fneq[i]+fneq[inv_d[i]+1]) + 0.5*lambda_odd*(fneq[i]-fneq[inv_d[i]+1]) + 1/18.0 * (G %*% t(f_d))[i])
+    }
+?>
+    
+    switch (NodeType & NODE_ADDITIONALS) {
+        case NODE_LogP:
+            AddToLog_Ux(u[0]);
+            AddToLog_Uy(u[1]);
+            AddToLog_Uz(u[2]);
+            AddToLog_P(d/3.0);
+            AddToLog_rho(d);
+    }
+
+
+    AddToVelocityMax(sqrt(u[0]*u[0]+u[1]*u[1]+u[2]*u[2]));
+
+}
+
+
+CudaDeviceFunction real_t getRho() {
+    return <?R C(sum(f)) ?>;
+}
+
+CudaDeviceFunction vector_t getU() {
+    real_t d = <?R C(sum(f)) ?>;
+    vector_t u;
+	u.x = (f1-f3 + f7-f9 + f10-f8 + f11-f17 + f15-f13 + f19-f25 + f26-f20 + f23-f21 + f22-f24) /d;
+	u.y = (f2-f4 + f7-f9 + f8-f10 + f12-f18 + f16-f14 + f19-f25 + f20-f26 + f23-f21 + f24-f22) /d;
+	u.z = (f5-f6 + f11-f17 + f12-f18 + f13-f15 + f14-f16 + f19-f25 + f20-f26 + f21-f23 + f22-f24) /d;
+	return u;
+}
+
+CudaDeviceFunction real_t getNu_app() {
+	return nu_app;
+}
+
+CudaDeviceFunction real_t getPressure() {
+    return (<?R C(sum(f)) ?>) / 3.0;
+}
+
+CudaDeviceFunction real_t getShear() {
+    return gamma_dot;
+}
+
+CudaDeviceFunction real_t getStress() {
+    return gamma_dot * nu_app;
+}
+
+CudaDeviceFunction real_t getDxx() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * Dxx; }
+CudaDeviceFunction real_t getDxy() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * Dxy; }
+CudaDeviceFunction real_t getDzx() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * Dzx; }
+CudaDeviceFunction real_t getDyy() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * Dyy; }
+CudaDeviceFunction real_t getDyz() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * Dyz; }
+CudaDeviceFunction real_t getDzz() { return -1.5 * Omega / (<?R C(sum(f)) ?>) * Dzz; }
+
+
+CudaDeviceFunction real_t getYieldStatus() {
+    if (NodeType == NODE_Wall) { 
+        return 0.0;
+    } else  if ((gamma_dot*nu_app <= sigmaY)) { 
+        if (gamma_dot <= sLim) {
+            return -0.8;
+        } else {
+            return -1.0;
+        }
+    } else if (abs(sigmaY - gamma_dot*nu_app)/sigmaY < 0.001) { 
+        return 0.8;
+    } else {   
+        return 1.0;
+    }
+}
+
+CudaDeviceFunction int getIterations() { return Iter; }
+CudaDeviceFunction real_t getLambda_even() { return lambda_even; }
+CudaDeviceFunction real_t getLambda_odd() { return lambda_odd; }
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+        return ret;
+}

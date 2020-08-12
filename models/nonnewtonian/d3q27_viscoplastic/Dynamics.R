@@ -12,6 +12,15 @@ AddDensity(
         group="f"
 )
 
+if (Options$OutFlow){
+    for (d in rows(DensityAll)) {
+	AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=d$dz )
+    }
+    for (d in rows(DensityAll)) {
+	AddField( name=d$name, dx=-d$dx, dy=-d$dy-1, dz=-d$dz )
+    }
+}
+
 # exported to VTK
 AddQuantity( name="P",unit="Pa")
 AddQuantity( name="U",unit="m/s",vector=T)
@@ -37,24 +46,29 @@ AddSetting(name="YieldStress",default="0Pa", comment='Yield stress')
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
 # naming convention used (hopefully consistent with other pieces of code) X: East - West; Y: North-South; Z: Inlet-Outlet (terminology from computer games)
-AddNodeType("SymmetryY", "BOUNDARY")
-AddNodeType("SymmetryZ", "BOUNDARY")
-AddNodeType("NVelocity_ZouHe", "BOUNDARY")
-AddNodeType("SVelocity_ZouHe", "BOUNDARY")
-AddNodeType("EVelocity_ZouHe", "BOUNDARY")
-AddNodeType("WVelocity_ZouHe", "BOUNDARY")
-AddNodeType("NPressure_ZouHe", "BOUNDARY")
-AddNodeType("SPressure_ZouHe", "BOUNDARY")
-AddNodeType("EPressure_ZouHe", "BOUNDARY")
-AddNodeType("WPressure_ZouHe", "BOUNDARY")
+AddNodeType(name="SymmetryY", group="BOUNDARY")
+AddNodeType(name="SymmetryZ", group="BOUNDARY")
+AddNodeType(name="NVelocity_ZouHe", group="BOUNDARY")
+AddNodeType(name="SVelocity_ZouHe", group="BOUNDARY")
+AddNodeType(name="EVelocity_ZouHe", group="BOUNDARY")
+AddNodeType(name="WVelocity_ZouHe", group="BOUNDARY")
+AddNodeType(name="NPressure_ZouHe", group="BOUNDARY")
+AddNodeType(name="SPressure_ZouHe", group="BOUNDARY")
+AddNodeType(name="EPressure_ZouHe", group="BOUNDARY")
+AddNodeType(name="WPressure_ZouHe", group="BOUNDARY")
 
 #reporting fluxes
-AddNodeType("XYslice1",group="ADDITIONALS")
-AddNodeType("XZslice1",group="ADDITIONALS")
-AddNodeType("YZslice1",group="ADDITIONALS")
-AddNodeType("XYslice2",group="ADDITIONALS")
-AddNodeType("XZslice2",group="ADDITIONALS")
-AddNodeType("YZslice2",group="ADDITIONALS")
+AddNodeType(name="XYslice1", group="ADDITIONALS")
+AddNodeType(name="XZslice1", group="ADDITIONALS")
+AddNodeType(name="YZslice1", group="ADDITIONALS")
+AddNodeType(name="XYslice2", group="ADDITIONALS")
+AddNodeType(name="XZslice2", group="ADDITIONALS")
+AddNodeType(name="YZslice2", group="ADDITIONALS")
+
+if (Options$OutFlow) {
+    AddNodeType(name="NeumannXP", group="BOUNDARY")
+    AddNodeType(name="NeumannYP", group="BOUNDARY")
+}
 
 AddGlobal(name="TotalRho", comment='Total mass', unit="kg")
 
@@ -78,3 +92,6 @@ AddGlobal(name="YZvz", comment='Volume flux', unit="m3/s")
 AddGlobal(name="YZrho1", comment='Volume flux', unit="kg/m")
 AddGlobal(name="YZrho2", comment='Volume flux', unit="kg/m")
 AddGlobal(name="YZarea", comment='Volume flux', unit="m2")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

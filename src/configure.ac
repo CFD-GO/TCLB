@@ -120,6 +120,9 @@ AC_ARG_ENABLE([paranoid],
 AC_ARG_ENABLE([profiling],
 	AC_HELP_STRING([--enable-profiling],
 		[enable profiling for R in rtemplate]))		
+AC_ARG_ENABLE([keepcode],
+	AC_HELP_STRING([--enable-keepcode],
+		[keeps the R code for rtemplate along with the generated file]))
 
 AC_ARG_WITH([cpp-flags],
 	AC_HELP_STRING([--with-cpp-flags=FLAGS],
@@ -715,6 +718,11 @@ fi
 if test "x${enable_profiling}" == "xyes"
 then
 	RTOPT="${RTOPT} -p"
+fi
+
+if test "x${enable_keepcode}" == "xyes"
+then
+	RTOPT="${RTOPT} --keep-code"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.
