@@ -217,9 +217,9 @@ void ArbitraryLatticeContainer::CopyToConst() {
 */
 template <class N> inline void ArbitraryLatticeContainer::RunBorderT(CudaStream_t borderStream) {
     #ifdef BORDER_Z
-	    CudaKernelRunNoWait( (RunBorderKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
+	    CudaKernelRunNoWait( (RunBorderKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
     #else
-	    CudaKernelRunNoWait( (RunBorderKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
+	    CudaKernelRunNoWait( (RunBorderKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
     #endif
 };
 
@@ -233,9 +233,9 @@ template <class N> inline void ArbitraryLatticeContainer::RunInteriorT(CudaStrea
     ky = ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getKY();
     nnz = fz - dz;
     #ifdef GRID_3D
-        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
     #endif
 };
 

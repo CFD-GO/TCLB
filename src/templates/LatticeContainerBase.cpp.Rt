@@ -44,6 +44,7 @@ CudaDeviceFunction inline int mymod(int x, int k){
     return x;
 }
 
+
 /// Clear mem (unused)
 CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
@@ -196,6 +197,33 @@ template <class N, class Accessor> CudaGlobalFunction void RunKernel() {
 	#endif
 }
 
+/// Main Kernel for arbitrary lattice
+/**
+  iterates over all elements and runs them with RunElement function.
+  constContainer.dx/dy is to calculate only internal nodes
+*/
+template <class N, class Accessor> CudaGlobalFunction void RunKernel_arb() {
+  N now;
+	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + Accessor::container().dx;
+	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + Accessor::container().dy;
+  now.z_ = CudaBlock.y+Accessor::container().dz;
+  now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+	#ifndef GRID_3D
+		for (; now.x_ < Accessor::container().nx; now.x_ += CudaNumberOfThreads.x) {
+      now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+	#endif
+		now.Pre();
+		if (now.y_ < Accessor::container().fy) {
+			now.RunElement();
+		} else {
+			now.OutOfDomain();
+		}
+		now.Glob();
+	#ifndef GRID_3D
+		}
+	#endif
+}
+
 /// Border Kernel
 /**
   iterates over border elements and runs them with RunElement function
@@ -225,6 +253,47 @@ template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel()
 		now.RunElement();
 <?R	} else if (z < 0) { ?>
 		now.z_ = Accessor::container().nz - <?%d -z ?>;
+		now.RunElement();
+<?R	} ?>
+	}
+<?R } ?>
+	now.Glob();
+}
+
+/// Border Kernel
+/**
+  iterates over border elements and runs them with RunElement function
+*/
+template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel_arb()
+{
+	N now;
+	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.z_ = CudaBlock.x;
+	now.Pre();
+<?R if (tmaxy > tminy) { ?>
+	if (now.z_ < Accessor::container().nz) {
+<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
+    now.y_ = <?%d y - 1 ?>;
+    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+		now.RunElement();
+<?R	} else if (y < 0) { ?>
+    now.y_ = Accessor::container().ny - <?%d -y ?>;
+    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+		now.RunElement();
+<?R	} ?>
+	}
+<?R }
+    if (tmaxz > tminz) { ?>
+  now.y_ = CudaBlock.x;
+  now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+	if ((now.y_ < Accessor::container().fy) && (now.y_ >= Accessor::container().dy)) {
+<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
+    now.z_ = <?%d z - 1 ?>;
+    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+		now.RunElement();
+<?R	} else if (z < 0) { ?>
+    now.z_ = Accessor::container().nz - <?%d -z ?>;
+    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
 		now.RunElement();
 <?R	} ?>
 	}
@@ -364,9 +433,10 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
     }?>
     int z;
     for (z = r.dz; z < r.dz + r.nz; z ++) {
-      now.x_ = x;
-      now.y_ = y;
-      now.z_ = z;
+      //now.x_ = x;
+      //now.y_ = y;
+      //now.z_ = z;
+      now.idx_.id = x + (y + (z * constArbitraryContainer.ny)) * constArbitraryContainer.nx;
       constArbitraryContainer.getType(now);
       <?%s q$type ?> w;
 //		if (now.NodeType) {

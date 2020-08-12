@@ -12,7 +12,7 @@
 
 // get the type of node
 template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::getType(N & node) {
-    node.NodeType = NodeType[(node.x_ + (node.y_ + (node.z_*ny)) * nx)]; // will have to change this to nodeID
+    node.NodeType = NodeType[node.idx_.id]; // will have to change this to nodeID
 
     <?R # InOut("type", "in", Density); ?> // not sure if this line is neccessary but will leave for now
 }
@@ -231,7 +231,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
 dirNum = 0
 for (d in rows(Density)[s$load.densities]) { ?>
   //--------------------------- <?%s d$name ?> ----------------------
-  neighbour = Connectivity[(nx * ny * nz * <?%d dirNum ?>) + node.x_ + (node.y_ + (node.z_ * ny)) * nx];
+  neighbour = Connectivity[(nx * ny * nz * <?%d dirNum ?>) + node.idx_.id];
   node.f[<?%d dirNum ?>] = pocket.data[neighbour];
 <?R 
 dirNum = dirNum + 1
@@ -252,7 +252,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::push<?%s s
   AFTabs pocket = out; <?R
   dirNum = 0
   for (f in rows(Fields)[s$save.fields]) { ?>
-  pocket.data[(nx * ny * nz * <?%d dirNum ?>) + (node.x_ + (node.y_ + (node.z_ * ny)) * nx)] = node.f[<?%d dirNum ?>]; <?R 
+  pocket.data[(nx * ny * nz * <?%d dirNum ?>) + node.idx_.id] = node.f[<?%d dirNum ?>]; <?R 
   dirNum = dirNum + 1
   } ?>
 }
