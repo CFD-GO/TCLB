@@ -76,6 +76,8 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
 	int nx, ny, nz; ///< Size of the Lattice region
 	int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
+	int sy_;
+	int bnx;
 	size_t latticeSize; ///< Total size of the lattice - replaces nx, ny, nz
 	int kx,ky; ///< X and Y thread division
 	int iter; ///< Iteration number

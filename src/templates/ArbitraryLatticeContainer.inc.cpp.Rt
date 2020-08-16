@@ -73,6 +73,10 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_)
 
     InitDim<ArbitraryLatticeContainerAccessor>(ny);
 
+    // todo - update this to the ThreadNumber::sy() when I can figure out the correct sequence of function calls / where to put it
+    sy_ = 16;
+    bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
+
     char * tmp=NULL;
     size_t size;
 
@@ -233,10 +237,13 @@ template <class N> inline void ArbitraryLatticeContainer::RunInteriorT(CudaStrea
     int nnz;
     ky = ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getKY();
     nnz = fz - dz;
+
     #ifdef GRID_3D
+        // TODO modify this to suit arbitrary
         CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        // square grid - side length: bnx = sqrt(latticeSize / blockSize)
+        CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bnx, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
     #endif
 };
 

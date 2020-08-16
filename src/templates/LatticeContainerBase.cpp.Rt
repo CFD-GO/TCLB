@@ -108,6 +108,7 @@ static void Init(bool fit, size_t ny, std::string name_) {
   maxy = th.y;
   sy = maxy;
   ky = ny/sy;
+  
 //	if (fit) while ((sy > 1) && (ky*sy != ny)) { sy--; ky = ny/sy; }
   if (fit) { sy = 1; ky = ny; }
   if (ky*th.y < ny) ky++;
@@ -135,7 +136,8 @@ template <class Accessor> int InitDim(int ny) {
         output( "  Threads  |      Action\n");
 <?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
         ThreadNumber< Node_Run<Accessor, <?%s tp$TemplateArgs ?> >, Accessor >::Init(<?%s {if (Stages$particle[tp$Stage]) "true" else "false"} ?>, ny, "<?%s tp$TemplateArgs ?>"); <?R
-	}; ifdef(); ?>
+  }; ifdef(); ?>
+  
 	MPI_Barrier(MPMD.local);
         return 0;
 }
@@ -204,24 +206,17 @@ template <class N, class Accessor> CudaGlobalFunction void RunKernel() {
 */
 template <class N, class Accessor> CudaGlobalFunction void RunKernel_arb() {
   N now;
-	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + Accessor::container().dx;
-	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + Accessor::container().dy;
-  now.z_ = CudaBlock.y+Accessor::container().dz;
-  now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
-	#ifndef GRID_3D
-		for (; now.x_ < Accessor::container().nx; now.x_ += CudaNumberOfThreads.x) {
-      now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
-	#endif
-		now.Pre();
-		if (now.y_ < Accessor::container().fy) {
-			now.RunElement();
-		} else {
-			now.OutOfDomain();
-		}
-		now.Glob();
-	#ifndef GRID_3D
-		}
-	#endif
+
+  now.idx_.id = CudaThread.x + (CudaThread.y * CudaNumberOfThreads.x) + 
+                  (CudaBlock.x * CudaNumberOfThreads.x * CudaNumberOfThreads.y) + 
+                  (CudaBlock.y * CudaNumberOfThreads.x * CudaNumberOfThreads.y * Accessor::container().bnx);
+  now.Pre();
+  if(now.idx_.id < Accessor::container().latticeSize) {
+    now.RunElement();
+  } else {
+    now.OutOfDomain();
+  }
+  now.Glob();
 }
 
 /// Border Kernel
@@ -232,7 +227,8 @@ template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
 	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z_ = CudaBlock.x;
+  now.z_ = CudaBlock.x;
+  
 	now.Pre();
 <?R if (tmaxy > tminy) { ?>
 	if (now.z_ < Accessor::container().nz) {
@@ -267,33 +263,35 @@ template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel()
 template <class N, class Accessor> CudaGlobalFunction void RunBorderKernel_arb()
 {
 	N now;
-	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z_ = CudaBlock.x;
+  int cart_x_ = CudaThread.x + CudaBlock.y * X_BLOCK;
+  int cart_y_;
+  int cart_z_ = CudaBlock.x;
+
 	now.Pre();
 <?R if (tmaxy > tminy) { ?>
-	if (now.z_ < Accessor::container().nz) {
+	if (cart_z_ < Accessor::container().nz) {
 <?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-    now.y_ = <?%d y - 1 ?>;
-    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+    cart_y_ = <?%d y - 1 ?>;
+    now.idx_.id = cart_x_ + (cart_y_ + (cart_z_ * Accessor::container().ny)) * Accessor::container().nx;
 		now.RunElement();
 <?R	} else if (y < 0) { ?>
-    now.y_ = Accessor::container().ny - <?%d -y ?>;
-    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+    cart_y_ = Accessor::container().ny - <?%d -y ?>;
+    now.idx_.id = cart_x_ + (cart_y_ + (cart_z_ * Accessor::container().ny)) * Accessor::container().nx;
 		now.RunElement();
 <?R	} ?>
 	}
 <?R }
     if (tmaxz > tminz) { ?>
-  now.y_ = CudaBlock.x;
-  now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+  cart_y_ = CudaBlock.x;
+  now.idx_.id = cart_x_ + (cart_y_ + (cart_z_ * Accessor::container().ny)) * Accessor::container().nx;
 	if ((now.y_ < Accessor::container().fy) && (now.y_ >= Accessor::container().dy)) {
 <?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-    now.z_ = <?%d z - 1 ?>;
-    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+  cart_z_ = <?%d z - 1 ?>;
+    now.idx_.id = cart_x_ + (cart_y_ + (cart_z_ * Accessor::container().ny)) * Accessor::container().nx;
 		now.RunElement();
 <?R	} else if (z < 0) { ?>
-    now.z_ = Accessor::container().nz - <?%d -z ?>;
-    now.idx_.id = now.x_ + (now.y_ + (now.z_ * Accessor::container().ny)) * Accessor::container().nx;
+    cart_z_ = Accessor::container().nz - <?%d -z ?>;
+    now.idx_.id = cart_x_ + (cart_y_ + (cart_z_ * Accessor::container().ny)) * Accessor::container().nx;
 		now.RunElement();
 <?R	} ?>
 	}
