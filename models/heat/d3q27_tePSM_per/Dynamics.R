@@ -181,3 +181,6 @@ AddStage("CalcF", save=Fields$group == "Force", load = DensityAll$group %in% c("
 AddAction("Iteration", c("BaseIteration", "CalcF"))
 AddAction("Init", c("BaseInit", "CalcF"))
 
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")

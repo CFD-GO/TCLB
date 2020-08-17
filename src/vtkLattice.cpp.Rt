@@ -26,7 +26,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 
 	{	flag_t * NodeType = new flag_t[size];
 		lattice->GetFlags(reg, NodeType);
-		if (what->in("flag")) {
+		if (what->explicitlyIn("flag")) {
 			vtkFile.WriteField("flag",NodeType);
 		}
 		unsigned char * small = new unsigned char[size];

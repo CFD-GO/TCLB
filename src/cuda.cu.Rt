@@ -238,7 +238,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		}
 	if (tp$stage) { ################################################################
 		if (tp$Stream == "Opt") { ?>
-	CudaDeviceFunction inline void Opt() {
+	CudaDeviceFunction inline void Opt() { <?R
+		if ("DesignSpace" %in% NodeTypes$name) { ?>
 	        if ((NodeType & NODE_DESIGNSPACE) == NODE_DesignSpace) { <?R
 		        for (d in rows(Density)) {
                                 if (d$parameter) { ?>
@@ -247,7 +248,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 if (<?%s d$name ?> < 0.0f) <?%s d$name ?> = 0.0f; <?R
                                 }
                         }?>
-                }
+                } <?R
+		} ?>
         } <?R
 	        } ?>
 

@@ -120,6 +120,9 @@ AC_ARG_ENABLE([paranoid],
 AC_ARG_ENABLE([profiling],
 	AC_HELP_STRING([--enable-profiling],
 		[enable profiling for R in rtemplate]))		
+AC_ARG_ENABLE([keepcode],
+	AC_HELP_STRING([--enable-keepcode],
+		[keeps the R code for rtemplate along with the generated file]))
 
 AC_ARG_WITH([cpp-flags],
 	AC_HELP_STRING([--with-cpp-flags=FLAGS],
@@ -366,7 +369,7 @@ if test "x${with_hdf5}" != "xno"; then
 	fi
 	has_hdf5="yes"
 	AC_CHECK_HEADERS([hdf5.h],[],[has_hdf5="no"])
-	AC_CHECK_LIB([${hdf5_lib_name}], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
+	AC_CHECK_LIB([hdf5], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
 	if test "x${has_hdf5}" == "xyes"; then
 		AC_DEFINE([WITH_HDF5], [1], [Using HDF5])
 	else
@@ -714,6 +717,11 @@ fi
 if test "x${enable_profiling}" == "xyes"
 then
 	RTOPT="${RTOPT} -p"
+fi
+
+if test "x${enable_keepcode}" == "xyes"
+then
+	RTOPT="${RTOPT} --keep-code"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.

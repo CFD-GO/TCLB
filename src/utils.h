@@ -39,8 +39,13 @@ inline int myround(double v) {
 class name_set {
 	std::set< std::string > myset;
 	public:
+	bool all;
         typedef std::set<std::string>::iterator iterator;
 		inline void add_from_string(std::string in, char separator) {
+			if (in == "all") {
+				all = true;
+				return;
+			}
 			std::string::iterator  ts, curr;
 			ts = curr = in.begin();
 		        for(; curr <= in.end(); curr++ ) {
@@ -52,12 +57,17 @@ class name_set {
 			}
 		}
 		inline name_set(char * str) {
+			all = false;
 			add_from_string(str, ',');
 		}
 		inline name_set() {
+			all=false;
 		}
 		inline bool in(std::string what) {
-		        if (myset.count("all") > 0) return true;
+		        if (all) return true;
+			return myset.count(what) > 0;
+		}
+		inline bool explicitlyIn(std::string what) {
 			return myset.count(what) > 0;
 		}
         inline int size(){

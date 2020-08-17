@@ -20,7 +20,7 @@ HEADERS=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h v
 
 OBJ  = vtkOutput.o cuda.o Global.o Lattice.o vtkLattice.o cross.o pugixml.o Geometry.o def.o unit.o Solver.o SyntheticTurbulence.o Sampler.o ZoneSettings.o RemoteForceInterface.o hdf5Lattice.o xpath_modification.o
 
-AOUT = main empty compare
+AOUT = main empty compare simplepart
 
 ifeq '$(strip $(WITH_LAMMPS))' '1'
  AOUT += lammps
