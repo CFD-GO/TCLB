@@ -66,7 +66,7 @@ public:
 	inline ~Handler() {
 		(*ref)--;
 		debug0("Handler shared pointer--: %d\n", *ref);
-		if (ref <= 0) {
+		if (*ref <= 0) {
 			if (hand) {
 				hand->Finish();
 				delete hand;
