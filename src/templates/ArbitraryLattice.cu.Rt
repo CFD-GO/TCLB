@@ -1062,9 +1062,17 @@ void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
 	delete[] mask;
 }
 
-//void ArbitraryLattice::LoadLattice() {
+void ArbitraryLattice::LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
+	//if(connectivity_ == NULL || coords == NULL || nodeTypes == NULL) return;
 	
-//}
+	// first allocate memory to connectivity matrix
+	container->AllocConnectivity(latticeSize, Q);
+
+	// now copy everything in connectivity_ over to the latticeContainer matrix
+	CudaMemcpy2D(container->Connectivity, sizeof(size_t), connectivity_, sizeof(size_t), sizeof(size_t), latticeSize * Q, cudaMemcpyHostToDevice);
+	output("Should have set Connectivity values\n");
+
+}
 
 // TODO: modify this for arb lattice
 void ArbitraryLattice::CutsOverwrite(cut_t* Q, lbRegion over) {

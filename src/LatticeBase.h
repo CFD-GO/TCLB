@@ -64,6 +64,7 @@ public:
   virtual void Color(uchar4 *) = 0;
   virtual void FlagOverwrite(big_flag_t *, lbRegion) = 0;
   virtual void CutsOverwrite(cut_t * Q, lbRegion over) = 0;
+  virtual void LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) = 0;
   virtual void Init() = 0;
   virtual void saveSolution(const char * filename) = 0;
   virtual void loadSolution(const char * filename) = 0;

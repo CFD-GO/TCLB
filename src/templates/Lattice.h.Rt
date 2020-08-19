@@ -47,6 +47,7 @@ public:
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
   int Offset(int,int,int);
+  void LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q);
   void FlagOverwrite(big_flag_t *, lbRegion);
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();

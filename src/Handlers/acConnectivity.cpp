@@ -10,9 +10,9 @@ int acConnectivity::Init () {
 			solver->lattice->FlagOverwrite(solver->geometry->geom,solver->geometry->region);
 			solver->lattice->CutsOverwrite(solver->geometry->Q,solver->geometry->region);
 			solver->lattice->zSet.zone_max(solver->geometry->SettingZones.size()-1);*/
-
 			solver->connectivity->load(node);
-
+			solver->lattice->LoadLattice(solver->connectivity->connectivity, solver->connectivity->coords, solver->connectivity->geom, 
+											solver->connectivity->latticeSize, solver->connectivity->Q);
 			return 0;
 	}
 

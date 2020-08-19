@@ -11,6 +11,7 @@ public:
     big_flag_t * geom; ///< Main table of flags/NodeType's
     size_t * connectivity; ///< Main connectivity matrix
     size_t latticeSize; ///< Number of nodes in the arbitrary lattice
+    int d, Q;
     real_t * coords; ///< Table of coordinates of each node
     lbRegion region; ///< Local lattice region
     lbRegion totalregion; ///< Global lattice region
