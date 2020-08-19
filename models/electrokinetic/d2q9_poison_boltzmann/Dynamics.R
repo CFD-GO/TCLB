@@ -55,8 +55,12 @@ AddSetting(name="psi0", default=1, comment='initial psi - zeta', zonal=T)
 
 #AddGlobal(name="OutFlux");
 
-#AddNodeType("Heater","ADDITIONALS")
-#AddNodeType("ForceTemperature","ADDITIONALS")
-#AddNodeType("ForceConcentration","ADDITIONALS")
-#AddNodeType("Seed","ADDITIONALS")
+#AddNodeType(name="Heater", group="ADDITIONALS")
+#AddNodeType(name="ForceTemperature", group="ADDITIONALS")
+#AddNodeType(name="ForceConcentration", group="ADDITIONALS")
+#AddNodeType(name="Seed", group="ADDITIONALS")
 
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+
+AddNodeType(name="Collision", group="COLLISION")

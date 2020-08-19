@@ -143,20 +143,23 @@ AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 
-AddNodeType(name="NSymmetry",group="BOUNDARY")
-AddNodeType(name="SSymmetry",group="BOUNDARY")
+AddNodeType(name="NSymmetry", group="BOUNDARY")
+AddNodeType(name="SSymmetry", group="BOUNDARY")
 
-AddNodeType(name="EPressure",group="BOUNDARY")
-AddNodeType(name="WPressure",group="BOUNDARY")
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
 
-AddNodeType(name="EVelocity",group="BOUNDARY")
-AddNodeType(name="WVelocity",group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
 
-AddNodeType(name="NVelocity",group="BOUNDARY")
-AddNodeType(name="SVelocity",group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
 
 
 
-AddNodeType("Inlet","OBJECTIVE")
-AddNodeType("Outlet","OBJECTIVE")
+AddNodeType(name="Inlet", group="OBJECTIVE")
+AddNodeType(name="Outlet", group="OBJECTIVE")
  
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

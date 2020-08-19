@@ -234,34 +234,40 @@ int main(int argc, char *argv[]) {
 	std::set< std::string > names;
 	for (Tabs::TabMap::iterator it = tabs1.tab.begin(); it != tabs1.tab.end(); it++) names.insert(it->first);
 	for (Tabs::TabMap::iterator it = tabs2.tab.begin(); it != tabs2.tab.end(); it++) names.insert(it->first);
+	bool result = true;
 	for (std::set< std::string >::iterator it = names.begin(); it != names.end(); it++) {
 		std::string name = *it;
 		if (tabs1.tab.find(name) == tabs1.tab.end()) {
 			printf("%s not in first file\n", name.c_str());
-			exit(-1);
-		}
-		if (tabs2.tab.find(name) == tabs2.tab.end()) {
+			result = false;
+		} else if (tabs2.tab.find(name) == tabs2.tab.end()) {
 			printf("%s not in second file\n", name.c_str());
-			exit(-1);
-		}
-		double diff = tabs1.tab[name]->compare(tabs2.tab[name]);
-		printf("%s: Max difference: %lg", name.c_str(), diff);
-		double auto_eps;
-		if (tabs1.tab[name]->ftype == "Float64") {
-			auto_eps = 2.22e-16;
-		} else if (tabs1.tab[name]->ftype == "Float32") {
-			auto_eps = 1.19e-07;
+			result = false;
 		} else {
-			auto_eps = 0;
+			double diff = tabs1.tab[name]->compare(tabs2.tab[name]);
+			printf("%s: Max difference: %lg", name.c_str(), diff);
+			double auto_eps;
+			if (tabs1.tab[name]->ftype == "Float64") {
+				auto_eps = 2.22e-16;
+			} else if (tabs1.tab[name]->ftype == "Float32") {
+				auto_eps = 1.19e-07;
+			} else {
+				auto_eps = 0;
+			}
+			if (auto_eps != 0) {
+				printf(" = %.1lf * %lg", diff / auto_eps, auto_eps);
+			}
+			if (diff > auto_eps * eps) {
+				printf(" --- WRONG\n");
+				result = false;
+			} else {
+				printf(" --- OK\n");
+			}		
 		}
-		if (auto_eps != 0) {
-			printf(" = %.1lf * %lg", diff / auto_eps, auto_eps);
-		}
-		if (diff > auto_eps * eps) {
-			printf(" --- WRONG\n");
-			exit(-1);
-		} else {
-			printf(" --- OK\n");
-		}		
+	}
+	if (result) {
+		return 0;
+	} else {
+		return -1;
 	}
 }

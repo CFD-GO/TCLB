@@ -104,3 +104,6 @@ if (Options$particles) {
         AddAction("Iteration", "BaseIteration")
         AddAction("Init", "BaseInit")
 }
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")
