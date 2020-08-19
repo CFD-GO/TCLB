@@ -1065,13 +1065,21 @@ void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
 void ArbitraryLattice::LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
 	//if(connectivity_ == NULL || coords == NULL || nodeTypes == NULL) return;
 	
-	// first allocate memory to connectivity matrix
+	// first allocate memory to connectivity matrix (and NodeType matrix)
 	container->AllocConnectivity(latticeSize, Q);
 
 	// now copy everything in connectivity_ over to the latticeContainer matrix
 	CudaMemcpy2D(container->Connectivity, sizeof(size_t), connectivity_, sizeof(size_t), sizeof(size_t), latticeSize * Q, cudaMemcpyHostToDevice);
-	output("Should have set Connectivity values\n");
 
+	// Put the nodetype data into a new matrix with type flag_t
+	flag_t* temp;
+	temp = new flag_t[latticeSize];
+	for(int i = 0; i < latticeSize; i++)
+		temp[i] = nodeTypes[i];
+	
+	// then copy these to cuda memory
+	CudaMemcpy2D(container->NodeType, sizeof(flag_t), temp, sizeof(flag_t), sizeof(flag_t), latticeSize, cudaMemcpyHostToDevice);
+	output("Copied connectivity file info to CUDA memory\n");
 }
 
 // TODO: modify this for arb lattice
