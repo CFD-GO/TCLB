@@ -1062,6 +1062,10 @@ void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
 	delete[] mask;
 }
 
+//void ArbitraryLattice::LoadLattice() {
+	
+//}
+
 // TODO: modify this for arb lattice
 void ArbitraryLattice::CutsOverwrite(cut_t* Q, lbRegion over) {
 	if(Q == NULL) return;

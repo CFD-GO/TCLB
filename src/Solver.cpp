@@ -11,6 +11,7 @@
 class LatticeContainer;
 #include "vtkLattice.h"
 #include "Geometry.h"
+#include "Connectivity.h"
 #include "def.h"
 #include "utils.h"
 #include "unit.h"
@@ -401,7 +402,7 @@ void MainFree( Solver *d);
 		}
 
 		geometry = new Geometry(region, mpi.totalregion, units, lattice->model);
-
+		connectivity = new Connectivity(region, mpi.totalregion, units, lattice->model);
 		return 0;
 	}
 

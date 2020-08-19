@@ -10,6 +10,7 @@
 #include "LatticeBase.h"
 #include "vtkLattice.h"
 #include "Geometry.h"
+#include "Connectivity.h"
 #include "def.h"
 #include "utils.h"
 #include "unit.h"
@@ -54,6 +55,7 @@ class Solver {
 	pugi::xml_document configfile;
         LatticeBase * lattice; ///< Main Lattice object
 	Geometry * geometry; ///< Main Geometry object
+	Connectivity * connectivity; ///< Class for reading/processing connectivity information
 	lbRegion region; ///< Global region
         int iter; ///< Iteration (Now)
         int opt_iter; ///< Optimization iteration

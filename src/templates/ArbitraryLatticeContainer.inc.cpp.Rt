@@ -125,7 +125,7 @@ void ArbitraryLatticeContainer::GenerateConnectivity(int nx_, int ny_, int nz_) 
       size_t offset = (size_t) (latticeSize * currentDir) + ((nx_ * y) + (nx_ * ny_ * z)); // compute mem offset of current row
       // fill row with connectivity values (calculated according to dx,dy,dz of current Density entry)
       for(int x = 0; x < nx_; x++)
-        tmp[x] = (size_t) ((latticeSize * currentDir) + ((x - (<?%d d$dx ?>)) + (nx_ * (y - (<?%d d$dy ?>))) + (nx_ * ny_ * (z + (<?%d d$dz ?>)))));
+        tmp[x] = (size_t) ((latticeSize * currentDir) + ((x - (<?%d d$dx ?>)) % nx_) + (nx_ * ((y - (<?%d d$dy ?>)) % ny_)) + (nx_ * ny_ * ((z - (<?%d d$dz ?>)) % nz_)));
       // copy row into the Connectivity matrix
       //CudaMemcpy2D(&Connectivity[offset], sizeof(size_t), tmp, sizeof(size_t), sizeof(size_t), nx_, cudaMemcpyHostToDevice);
       CudaMemcpy(&Connectivity[offset], tmp, sizeof(size_t) * nx_, cudaMemcpyHostToDevice);
