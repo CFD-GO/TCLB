@@ -73,7 +73,7 @@ int ArbitraryLattice::Offset(int x, int y, int z)
         \param mpi_ MPI Information
         \param ns Number of Snapshots
 */
-ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns) : LatticeBase(ZONESETTINGS, ZONE_MAX) {
+ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns, size_t latticeSize) : LatticeBase(ZONESETTINGS, ZONE_MAX) {
 	region = _region;
 	mpi = mpi_;
 	DEBUG_M;
@@ -90,7 +90,7 @@ ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns) : Lat
 	globals = new double[GLOBALS];
 	Snaps = new AFTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
-	container->Alloc(_region.nx,_region.ny,_region.nz);
+	container->Alloc(_region.nx,_region.ny,_region.nz, latticeSize);
 	container->px = region.dx;
 	container->py = region.dy;
 	container->pz = region.dz;
@@ -98,15 +98,15 @@ ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns) : Lat
 	container->reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
-		Snaps[i].PreAlloc(_region.nx * _region.ny * _region.nz);
+		Snaps[i].PreAlloc(latticeSize);
 	}
 	for (int i=0; i < maxSnaps; i++) {	
 		iSnaps[i]= -1;
 	}
 #ifdef ADJOINT
 	aSnaps = new AFTabs[2];
-	aSnaps[0].PreAlloc(_region.nx * _region.ny * _region.nz);
-	aSnaps[1].PreAlloc(_region.nx * _region.ny * _region.nz);
+	aSnaps[0].PreAlloc(latticeSize);
+	aSnaps[1].PreAlloc(latticeSize);
 #endif
 	DEBUG_M;
 	MPIInit(mpi);
@@ -1568,7 +1568,7 @@ int ArbitraryLattice::loadComp(const char* filename, const char* comp) {
 
 LatticeBase * A_Ask_For_Lattice(const LatticePromise &prom) {
 	if(prom.latticeType == 1)
-		return new ArbitraryLattice(prom.region, prom.mpi, prom.ns);
+		return new ArbitraryLattice(prom.region, prom.mpi, prom.ns, prom.latticeSize);
 	else
 		return NULL;
 }

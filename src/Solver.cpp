@@ -251,8 +251,10 @@ void MainFree( Solver *d);
 	\param ny Y size of the lattice
 	\param nz Z size of the lattice (1 for 3D)
 	\param ns Number of Snapshots allocated
+	\param latticeSize total size of the lattice (will be different for arbitraryLattices)
+	\param latticeType (0 = Cartesian, 1 = Arbitrary)
 */
-	int Solver::setSize(int nx, int ny, int nz, int ns, int latticeType) {
+	int Solver::setSize(int nx, int ny, int nz, int ns, size_t latticeSize, int latticeType) {
 		info.region.nx = nx;
 		info.region.ny = ny;
 		info.region.nz = nz;
@@ -263,7 +265,7 @@ void MainFree( Solver *d);
 //		}
 		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
 		MPIDivision();
-		InitAll(ns, latticeType);
+		InitAll(ns, latticeType, latticeSize);
 		// Setting settings to default
 		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
 			if (! it->isDerived) {
@@ -365,7 +367,7 @@ void MainFree( Solver *d);
 	Initializes Lattice, settings, etc.
 	\param ns Number of Snapshots to allocate
 */
-	int Solver::InitAll(int ns, int latticeType) {
+	int Solver::InitAll(int ns, int latticeType, size_t latticeSize) {
 	        // Making a window
 	        #ifdef GRAPHICS
 	        	NOTICE("Running graphics at %dx%d\n", region.nx, region.ny);
@@ -381,6 +383,7 @@ void MainFree( Solver *d);
 		prom.mpi = mpi;
 		prom.ns = ns;
 		prom.latticeType = latticeType;
+		prom.latticeSize = latticeSize;
 //		lattice = new Lattice(region, mpi, ns);
 		lattice = LatticeFactory::Produce(prom);
 		if (lattice == 0) {

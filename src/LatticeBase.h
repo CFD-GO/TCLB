@@ -37,6 +37,7 @@ public:
   MPIInfo mpi;
   int ns;
   int latticeType; // 0 = Cartesian lattice, 1 = ArbitraryLattice
+  size_t latticeSize;
 };
 
 /// Class for computations

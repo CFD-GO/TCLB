@@ -88,7 +88,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	real_t** ZoneSettings;
 	real_t* ConstZoneSettings;
 	STWaveSet ST;
-	void Alloc (int,int,int);
+	void Alloc (int,int,int,size_t);
 	void AllocConnectivity (size_t,int);
 	void GenerateConnectivity(int,int,int);
 	void Free();

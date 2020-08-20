@@ -57,6 +57,7 @@ class Solver {
 	Geometry * geometry; ///< Main Geometry object
 	Connectivity * connectivity; ///< Class for reading/processing connectivity information
 	lbRegion region; ///< Global region
+	size_t latticeSize; ///< Overall lattice size (used for initialising arbitrary lattice)
         int iter; ///< Iteration (Now)
         int opt_iter; ///< Optimization iteration
 	int mpi_rank; ///< MPI rank
@@ -128,9 +129,9 @@ class Solver {
 	int writeVTK(const char * nm, name_set * s);
 	int writeTXT(const char * nm, name_set * s, int type);
 	int writeBIN(const char * nm);
-	int setSize(int,int,int,int, int);
+	int setSize(int,int,int,int,size_t,int);
 	int MPIDivision();
-	int InitAll(int, int);
+	int InitAll(int, int, size_t);
 	int RunMainLoop();
 	int EventLoop();
 

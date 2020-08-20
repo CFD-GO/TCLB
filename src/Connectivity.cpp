@@ -32,7 +32,8 @@ int Connectivity::load(pugi::xml_node & node) {
     char buffer[20];
     // read header information
     ret = fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
-    ret = fscanf(cxnFile, "DIMENSION %d\n", &d);
+    ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &x, &y, &z);
+    ret = fscanf(cxnFile, "d %d\n", &d);
     ret = fscanf(cxnFile, "Q %d\n", &Q);
     ret = fscanf(cxnFile, "MASK %s\n", buffer);
     ret = fscanf(cxnFile, "NODES\n");

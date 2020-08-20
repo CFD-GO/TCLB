@@ -43,7 +43,7 @@ public:
   balltree_t BT;
   size_t particle_data_size_max;
   size_t balltree_data_size_max;
-  ArbitraryLattice (lbRegion region, MPIInfo, int);
+  ArbitraryLattice (lbRegion region, MPIInfo, int, size_t);
   ~ArbitraryLattice ();
   void MPIInit (MPIInfo);
   void Color(uchar4 *);

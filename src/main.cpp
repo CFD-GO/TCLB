@@ -64,6 +64,37 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 	return 0;
 };
 
+// reads the dimensions from the first few lines of the connectivity file - assumes we have an ArbitraryLattice node 
+int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, size_t & latticeSize_) {
+	// find ArbitraryLattice node
+	pugi::xml_node arbLatticeNode;
+	arbLatticeNode = config.child("ArbitraryLattice");
+	if(!arbLatticeNode)
+		error("Can't find AribtraryLattice element\n");
+	
+	if(!arbLatticeNode.attribute("file")) {
+        error("No 'file' attribute in ArbitraryLattice element in xml conf\n");
+    }
+	// open the file if there's one listed in the tag
+	FILE* cxnFile = fopen(arbLatticeNode.attribute("file").value(), "rb");
+	if(cxnFile == NULL) {
+		error("Connection file can't be opened\n");
+		return -1;
+	}
+	// just read the first 2 lines to get the values we want
+	int nx, ny, nz;
+	size_t latticeSize;
+	fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
+	fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
+
+	fclose(cxnFile);
+	nx_ = nx;
+	ny_ = ny;
+	nz_ = nz;
+	latticeSize_ = latticeSize;
+
+};
+
 CudaEvent_t     start, stop; // CUDA events to measure time
 
 // Main callback function called every some iterations to display speed
@@ -167,6 +198,13 @@ bool find_adjoint(pugi::xml_node node)
 		} else {
 			return true;
 		}
+	} else return false;
+}
+
+bool find_geom(pugi::xml_node node)
+{
+	if(strcmp(node.name(), "Geometry") == 0) {
+		return true;
 	} else return false;
 }
 
@@ -373,23 +411,45 @@ int main ( int argc, char * argv[] )
 		return -1;
 	}
 
-	XMLCHILD(geom, config, "Geometry");
+	//XMLCHILD(geom, config, "Geometry");
+	//if(!geom)
+	//	output("Looks like we don't have the geom object!!\n");
 
-	// Reading the size of mesh
-	int nx, ny, nz, ns = 2;
-	nx = myround(solver->units.alt(geom.attribute("nx").value(),1));
-	ny = myround(solver->units.alt(geom.attribute("ny").value(),1));
-	nz = myround(solver->units.alt(geom.attribute("nz").value(),1));
-	notice("Mesh size in config file: %dx%dx%d\n",nx,ny,nz);
-
-	// Look for an arbitrary lattice node
+	// first look for the geom node
+	geom = config.find_node(find_geom);
+	
+	// also look for the arbitrary latice node
 	pugi::xml_node arbLattice;
 	int latticeType = 0;
 	arbLattice = config.find_node(find_arbitraryLattice);
-	if(arbLattice) {
-		output("We are using an arbitrary lattice for this sim!\n");
+
+	if(arbLattice && geom) {
+		ERROR("Do not use both ArbitraryLattice and Geometry XML tags\n");
+		return -1;
+	} else if(!arbLattice && !geom) {
+		ERROR("Could not find a Geometry or ArbitraryLattice XML tag\n");
+	} else if(arbLattice) {
+		output("Simulation is using an ArbitraryLattice\n");
 		latticeType = 1;
+	} else if(geom) {
+		output("Simulation is using a regular Cartesian Lattice\n");
+		latticeType = 0;
 	}
+
+	// Reading the size of mesh
+	int nx, ny, nz, ns = 2;
+	size_t latticeSize;
+	if(latticeType == 0) { // cartesian lattice - read dim from geometry tags
+		nx = myround(solver->units.alt(geom.attribute("nx").value(),1));
+		ny = myround(solver->units.alt(geom.attribute("ny").value(),1));
+		nz = myround(solver->units.alt(geom.attribute("nz").value(),1));
+		latticeSize = nx * ny * nz;
+	} else { // arbitrary lattice 0 read dim from connectivity file
+		readConnectivityDim(config, nx, ny, nz, latticeSize);
+		notice("Mesh size in cxn file: %d\n", latticeSize);
+	}
+	
+	notice("Mesh dimensions in config file: %dx%dx%d\n",nx,ny,nz);
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
@@ -409,7 +469,7 @@ int main ( int argc, char * argv[] )
 	// because i'm not 100% sure of which region / mpi to use out here, if these are even defined
 
 	// Initializing the lattice of a specific size
-	if (solver->setSize(nx,ny,nz,ns, latticeType)) return -1;
+	if (solver->setSize(nx,ny,nz,ns,latticeSize,latticeType)) return -1;
 	solver->setOutput("");
 
 	//Setting settings to default
