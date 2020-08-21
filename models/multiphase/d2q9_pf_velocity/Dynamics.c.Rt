@@ -420,11 +420,13 @@ CudaDeviceFunction void BC_Switcher ()
 }
 
 CudaDeviceFunction void calcHydroIter() {
+	real_t tmpPhase = 0.0;
 	if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing){
 		Init_distributions();
 	}
 	else{
 		PhaseF = PhaseF(0,0);
+		tmpPhase = PhaseF;
 		real_t myPhaseF = PhaseF;
 		real_t rho = calcRho(myPhaseF);
 		log_data_from_special_nodes();
@@ -433,8 +435,14 @@ CudaDeviceFunction void calcHydroIter() {
 			AddToMomentumY(V*rho);
 		#endif
 
-		BC_Switcher();
+		BC_Switcher();		
 
+                if (PhaseF <= 0.5) {
+//			AddToBubbleVelocityX( (1 - PhaseF)*U );
+//			AddToBubbleVelocityY( (1 - PhaseF)*V );
+			AddToBubbleLocationY( (1 - PhaseF)*Y );
+			AddToSumPhiGas( (1 - PhaseF) );
+		}
 		#ifdef OPTIONS_BGK
 			if (NodeType & NODE_BGK) { CollisionBGK();}
 		#elif OPTIONS_CM
@@ -442,6 +450,10 @@ CudaDeviceFunction void calcHydroIter() {
 		#else
 			if (NodeType & NODE_MRT) { CollisionMRT();}
 		#endif
+                if (tmpPhase <= 0.5) {
+			AddToBubbleVelocityX( (1 - tmpPhase)*U );
+			AddToBubbleVelocityY( (1 - tmpPhase)*V );
+		}
 
 		myPhaseF = PhaseF(0,0);
 		rho = calcRho(myPhaseF);
