@@ -1062,7 +1062,7 @@ void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
 	delete[] mask;
 }
 
-void ArbitraryLattice::LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
+void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
 	//if(connectivity_ == NULL || coords == NULL || nodeTypes == NULL) return;
 	
 	// first allocate memory to connectivity matrix (and NodeType matrix)
@@ -1079,6 +1079,11 @@ void ArbitraryLattice::LoadLattice(size_t* connectivity_, real_t* coords, big_fl
 	
 	// then copy these to cuda memory
 	CudaMemcpy2D(container->NodeType, sizeof(flag_t), temp, sizeof(flag_t), sizeof(flag_t), latticeSize, cudaMemcpyHostToDevice);
+	delete[] temp;
+
+	// copy coords over to latticeContainer matrix
+	CudaMemcpy2D(container->coords, sizeof(vector_t), coords_, sizeof(vector_t), sizeof(vector_t), latticeSize, cudaMemcpyHostToDevice);
+
 	output("Copied connectivity file info to CUDA memory\n");
 }
 
@@ -1099,7 +1104,7 @@ void ArbitraryLattice::CutsOverwrite(cut_t* Q, lbRegion over) {
 
 // TODO: modify this for arb lattice
 void ArbitraryLattice::GetFlags(lbRegion over, big_flag_t* mask_) {
-	lbRegion inter = region.intersect(over); // calculate the intersection between the region we want and our domain
+	/*lbRegion inter = region.intersect(over); // calculate the intersection between the region we want and our domain
 	flag_t* mask;
 	mask = new flag_t[inter.nx]; 
 	for(int y = inter.dy; y < inter.ny + inter.dy; y++)
@@ -1108,7 +1113,25 @@ void ArbitraryLattice::GetFlags(lbRegion over, big_flag_t* mask_) {
 		CudaMemcpy2D(mask, sizeof(flag_t), &container->NodeType[region.offsetL(inter.dx, y, z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
 		for(int x = inter.dx; x < inter.dx + inter.nx; x++) mask_[over.offsetL(x, y, z)] = mask[x - inter.dx]; // copy over each nodetype into the inputted pointer
 	}
-	delete[] mask;
+	delete[] mask;*/
+
+	// modified to do this all in 1D
+	flag_t* tempFlags;
+	tempFlags = new flag_t[container->latticeSize];
+	CudaMemcpy2D(tempFlags, sizeof(flag_t), container->NodeType, sizeof(flag_t), sizeof(flag_t), container->latticeSize, cudaMemcpyDeviceToHost);
+	for(int i = 0; i < container->latticeSize; i++) mask_[i] = tempFlags[i];
+	//delete[] tempFlags;
+
+}
+
+void ArbitraryLattice::GetCoords(real_t* tab) {
+	//vector_t* temp;
+	//temp = new vector_t[container->latticeSize];
+	//CudaMemcpy2D(temp, sizeof(vector_t), container->coords, sizeof(vector_t), sizeof(vector_t), container->latticeSize, cudaMemcpyDeviceToHost);
+	//for(int i = 0; i < container->latticeSize; i++) tab[i] = temp[i];
+	CudaMemcpy(tab, container->coords, container->latticeSize * sizeof(vector_t), cudaMemcpyDeviceToHost);
+
+	//delete[] temp;
 }
 
 // for the appropriate field, call the automatically generated getter for that field
@@ -1219,7 +1242,7 @@ void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, rea
 	container->in = Snaps[Snap];
 	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
 		container->CopyToConst();
-	
+	/*
 	lbRegion inter = region.intersect(over);
 	int x = inter.dx, y = inter.dy;
 	<?%s q$type ?>* buf = NULL;
@@ -1235,8 +1258,20 @@ void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, rea
 		
 		CudaKernelRun(get<?%s q$name ?>, dim3(small.nx, small.ny), dim3(1), (small, buf, scale, 1));
 		CudaMemcpy(&tab[over.offsetL(x, y, z)], buf, small.sizeL() * sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
-	}
+	}*/
+	
+
+	// allocate some memory to a buffer - do the whole lot at once
+	<?%s q$type ?>* buf = NULL;
+	CudaMalloc((void**)&buf, container->latticeSize * sizeof(<?%s q$type ?>));
+	// dummy region to pass into the get<> function
+	lbRegion small;
+	CudaKernelRun(get<?%s q$name ?>, dim3(container->getDimx, container->getDimy), dim3(1), (small, buf, scale, 1));
+	// copy over to host memory
+	
+	CudaMemcpy(tab, buf, container->latticeSize * sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
 	CudaFree(buf);
+
 }
 
 <?R }; ifdef() ?>

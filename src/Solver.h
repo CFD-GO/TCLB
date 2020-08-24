@@ -58,6 +58,7 @@ class Solver {
 	Connectivity * connectivity; ///< Class for reading/processing connectivity information
 	lbRegion region; ///< Global region
 	size_t latticeSize; ///< Overall lattice size (used for initialising arbitrary lattice)
+	int latticeType; ///< Lattice type (0 = Cartesian, 1 = Arbitrary)
         int iter; ///< Iteration (Now)
         int opt_iter; ///< Optimization iteration
 	int mpi_rank; ///< MPI rank

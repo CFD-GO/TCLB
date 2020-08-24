@@ -67,6 +67,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
   	struct index { size_t id; };
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
 	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
+	vector_t * coords;
 	cut_t* Q; 
 	size_t particle_data_size;
 	real_t* particle_data;
@@ -78,6 +79,8 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
 	int sy_;
 	int bnx;
+	int getDimx; // used for the GetQuantity cuda kernel calls
+	int getDimy;
 	size_t latticeSize; ///< Total size of the lattice - replaces nx, ny, nz
 	int kx,ky; ///< X and Y thread division
 	int iter; ///< Iteration number

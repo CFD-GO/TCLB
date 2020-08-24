@@ -75,6 +75,9 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeS
     sy_ = 16;
     bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
 
+    getDimx = sqrt(latticeSize) + 1;
+    getDimy = latticeSize / getDimx; + 1;
+
     char * tmp=NULL;
     size_t size;
 
@@ -94,6 +97,7 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeS
 void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_) {
   size_t size;
   char * tmp=NULL;
+  // allocate for connectivity matrix
     size = (size_t) latticeSize_* Q_ * sizeof(size_t);
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
@@ -101,12 +105,22 @@ void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_) {
     CudaMemset( tmp, 0, size ); 
     Connectivity = (size_t*)tmp;
 
+  // allocate for flags matrix
     size = (size_t) latticeSize_*sizeof(flag_t);
 	ALLOCPRINT1;
     CudaMalloc( (void**)&tmp, size );
 	ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); 
     NodeType = (flag_t*)tmp;
+
+    // allocate for coords matrix
+    size = (size_t) latticeSize_*sizeof(vector_t);
+	ALLOCPRINT1;
+    CudaMalloc( (void**)&tmp, size );
+	ALLOCPRINT2;
+    CudaMemset( tmp, 0, size ); 
+    coords = (vector_t*)tmp;
+
 }
 
 void ArbitraryLatticeContainer::ActivateCuts() {

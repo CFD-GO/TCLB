@@ -1054,7 +1054,7 @@ void Lattice::IterateAction(int action, int niter, int iter_type)
 	FinalIteration();
 };
 
-void Lattice::LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
+void Lattice::LoadLattice(size_t* connectivity_, vector_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
 	return;
 }
 
@@ -1103,6 +1103,10 @@ void Lattice::GetFlags(lbRegion over, big_flag_t * mask_)
 	        for (int x = inter.dx; x<inter.dx+inter.nx; x++) mask_[over.offsetL(x,y,z)] = mask[x-inter.dx];
 	}
 	delete[] mask;
+}
+
+void Lattice::GetCoords(real_t* tab) {
+	return;
 }
 
 void Lattice::Get_Field(int id, real_t * tab) { <?R

@@ -48,7 +48,7 @@ int Connectivity::load(pugi::xml_node & node) {
     // allocate memory for connectivity / nodetype matrices
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
     geom = (big_flag_t*) malloc(latticeSize * sizeof(big_flag_t));
-    coords = (real_t*) malloc(latticeSize * 3 * sizeof(real_t));
+    coords = (vector_t*) malloc(latticeSize * sizeof(vector_t));
     
     // read in node connectivity data from file
     for(size_t i = 0; i < latticeSize; i++) {
@@ -59,9 +59,14 @@ int Connectivity::load(pugi::xml_node & node) {
         // first scan for the nid, nodetype, coords
         ret = fscanf(cxnFile, "%zu %s %e %e %e ", &nid, nodeType, &x, &y, &z);
         // can't fscan a float into a real_t so use intermediate vars
-        coords[i] = x;
-        coords[i + latticeSize] = y;
-        coords[i + 2*latticeSize] = z;
+        vector_t w;
+        w.x = x;
+        w.y = y;
+        w.z = z;
+        coords[i] = w;
+        //coords[3*i] = x;
+        //coords[3*i + 1] = y;
+        //coords[3*i + 2] = z;
 
         // find the flag corresponding to our nodeType
         it = model->nodetypeflags.ByName(nodeType);

@@ -48,7 +48,7 @@ public:
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
   int Offset(int,int,int);
-  void LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q);
+  void LoadLattice(size_t* connectivity_, vector_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q);
   void FlagOverwrite(big_flag_t *, lbRegion);
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();
@@ -87,6 +87,7 @@ public:
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
   void GetFlags(lbRegion, big_flag_t *);
+  void GetCoords(real_t*);
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
   void Get_Field_Adj(int, real_t * tab);

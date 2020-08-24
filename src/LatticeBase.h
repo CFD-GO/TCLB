@@ -65,7 +65,7 @@ public:
   virtual void Color(uchar4 *) = 0;
   virtual void FlagOverwrite(big_flag_t *, lbRegion) = 0;
   virtual void CutsOverwrite(cut_t * Q, lbRegion over) = 0;
-  virtual void LoadLattice(size_t* connectivity_, real_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) = 0;
+  virtual void LoadLattice(size_t* connectivity_, vector_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) = 0;
   virtual void Init() = 0;
   virtual void saveSolution(const char * filename) = 0;
   virtual void loadSolution(const char * filename) = 0;
@@ -105,6 +105,7 @@ public:
   virtual void	RunAction(int, int) = 0;
   virtual void IterateAction(int , int , int ) = 0;
   virtual void GetFlags(lbRegion, big_flag_t *) = 0;
+  virtual void GetCoords(real_t*) = 0;
   virtual void Get_Field(int, real_t * tab) = 0;
   virtual void Set_Field(int, real_t * tab) = 0;
   virtual void Get_Field_Adj(int, real_t * tab) = 0;

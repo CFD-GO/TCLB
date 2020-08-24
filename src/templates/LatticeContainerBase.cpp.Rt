@@ -396,6 +396,7 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
       now.x_ = x;
       now.y_ = y;
       now.z_ = z;
+
       constContainer.getType(now);
       <?%s q$type ?> w;
 //		if (now.NodeType) {
@@ -432,37 +433,39 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
     }?>
     int z;
     for (z = r.dz; z < r.dz + r.nz; z ++) {
-      //now.x_ = x;
-      //now.y_ = y;
-      //now.z_ = z;
-      now.idx_.id = x + (y + (z * constArbitraryContainer.ny)) * constArbitraryContainer.nx;
-      constArbitraryContainer.getType(now);
-      <?%s q$type ?> w;
-//		if (now.NodeType) {
-      constArbitraryContainer.pop(now);<?R
-      if (q$adjoint) { ?>
-        constArbitraryContainer.pop_adj(now); <?R
-                    } ?>
-        w = now.get<?%s q$name ?>(); <?R
-        if (q$type == "vector_t") {
-                      for (coef in c("x","y","z")) { ?>
-        w.<?%s coef ?> *= scale; <?R
-          }
-        } else { ?>
-        w *= scale; <?R
-                    } ?>
-  //		} else { <?R
-        if (q$type == "vector_t") {
-                      for (coef in c("x","y","z")) { ?>
-  //			w.<?%s coef ?> = nan(""); <?R
-          }
-        } else { ?>
-  //			w = nan(""); 
-      <?R
-                    } ?>
-  //		}
-      
-      tab[r.offset(x,y,z)] = w;
+      // compute the node id from the cuda block coordinates
+      now.idx_.id = CudaBlock.x + (CudaBlock.y * constArbitraryContainer.getDimx);
+      // check that we haven't gone off the lattice
+      if(now.idx_.id < constArbitraryContainer.latticeSize){
+        constArbitraryContainer.getType(now);
+        <?%s q$type ?> w;
+  //		if (now.NodeType) {
+        constArbitraryContainer.pop(now);<?R
+        if (q$adjoint) { ?>
+          constArbitraryContainer.pop_adj(now); <?R
+                      } ?>
+          w = now.get<?%s q$name ?>(); <?R
+          if (q$type == "vector_t") {
+                        for (coef in c("x","y","z")) { ?>
+          w.<?%s coef ?> *= scale; <?R
+            }
+          } else { ?>
+          w *= scale; <?R
+                      } ?>
+    //		} else { <?R
+          if (q$type == "vector_t") {
+                        for (coef in c("x","y","z")) { ?>
+    //			w.<?%s coef ?> = nan(""); <?R
+            }
+          } else { ?>
+    //			w = nan(""); 
+        <?R
+                      } ?>
+    //		}
+        tab[now.idx_.id] = w;
+        
+      }
+      // do nothing if we are off the lattice
     }
   }
 }

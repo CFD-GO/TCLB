@@ -50,6 +50,60 @@ int vtkWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_
 	return 0;
 }
 
+int vtkWriteLatticeArbitrary(char * filename, size_t latticeSize, LatticeBase * lattice, UnitEnv units, name_set * what)
+{
+	size_t size;
+	lbRegion reg = lattice->region;
+	size = latticeSize;
+	vtsFileOut vtsFile(MPMD.local);
+	if (vtsFile.Open(filename)) {return -1;}
+	double spacing = 1/units.alt("m");	
+	vtsFile.Init(lattice->mpi.totalregion, reg, latticeSize, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
+
+	{	big_flag_t * NodeType = new big_flag_t[size];
+		lattice->GetFlags(reg, NodeType);
+		if (what->explicitlyIn("flag")) {
+			vtsFile.WriteField("flag",NodeType);
+		}
+		unsigned char * small = new unsigned char[size];
+		for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
+			if ((what->all && it->isSave) || what->explicitlyIn(it->name)) {
+				for (size_t i=0;i<size;i++) {
+					small[i] = (NodeType[i] & it->flag) >> it->shift;
+				}
+				vtsFile.WriteField(it->name.c_str(),small);
+			}
+		}
+		delete[] small;
+		delete[] NodeType;
+	}
+
+	for (ModelBase::Quantities::const_iterator it = lattice->model->quantities.begin(); it != lattice->model->quantities.end(); it++) {
+		if (what->in(it->name)) {
+			double v = units.alt(it->unit);
+			int comp = 1;
+			if (it->isVector) comp = 3;
+	                real_t* tmp = new real_t[size*comp];
+                        lattice->GetQuantity(it->id, reg, tmp, 1/v);
+			vtsFile.WriteField(it->name.c_str(), tmp, comp);
+			delete[] tmp;
+		}
+	}
+	
+	vtsFile.FinishCellData();
+	vtsFile.WritePointsHeader();
+	
+	real_t* temp = new real_t[size * 3];
+	lattice->GetCoords(temp);
+	printf("Coord val: %e %e %e %e\n", temp[0], temp[1], temp[2], temp[3]);
+
+	vtsFile.WriteField("coords", temp, 3);
+	delete[] temp;
+	vtsFile.Finish();
+
+	vtsFile.Close();
+	return 0;
+}
 
 int binWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units)
 {
