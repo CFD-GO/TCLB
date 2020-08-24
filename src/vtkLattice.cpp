@@ -95,7 +95,6 @@ int vtkWriteLatticeArbitrary(char * filename, size_t latticeSize, LatticeBase * 
 	
 	real_t* temp = new real_t[size * 3];
 	lattice->GetCoords(temp);
-	printf("Coord val: %e %e %e %e\n", temp[0], temp[1], temp[2], temp[3]);
 
 	vtsFile.WriteField("coords", temp, 3);
 	delete[] temp;

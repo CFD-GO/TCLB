@@ -8,7 +8,7 @@
 const char * vts_field_header = "<DataArray type=\"%s\" Name=\"%s\" format=\"binary\" encoding=\"base64\" NumberOfComponents=\"%d\">\n";
 const char * vts_field_footer = "</DataArray>\n";
 const char * vts_field_parallel = "<PDataArray type=\"%s\" Name=\"%s\" format=\"binary\" encoding=\"base64\" NumberOfComponents=\"%d\"/>\n";
-const char * vts_footer       = "</Points>\n</Piece>\n</StructuredGrid>\n</VTKFile>\n";
+const char * vts_footer       = "</Points>\n</Piece>\n</PolyData>\n</VTKFile>\n";
 
 // Error handler
 #define FERR 	if (f == NULL) {fprintf(stderr, "Error: vtkOutput tried to write before opening a file\n"); return; } 
@@ -37,10 +37,10 @@ int vtsFileOut::Open(const char* filename) {
 		strcpy(name, filename);
 		n=name;
 		while(*n != '\0') {
-			if (strcmp(n, ".vts") == 0) break;
+			if (strcmp(n, ".vtp") == 0) break;
 			n++;
 		}
-		strcpy(n, ".pvts");
+		strcpy(n, ".pvtp");
 		fp = fopen(name,"w");
 		if (fp == NULL) {fprintf(stderr, "Error: Could not open (p)vtk file %s\n", name); return -1; }
 	}
@@ -66,25 +66,14 @@ void vtsFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, c
 	FERR;
 	size = latticeSize;
     fprintf(f, "<?xml version=\"1.0\"?>\n");
-	fprintf(f, "<VTKFile type=\"StructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
-	fprintf(f, "<StructuredGrid WholeExtent=\"%d %d %d %d %d %d\">\n",
-		region.dx, region.dx + region.nx,
-		region.dy, region.dy + region.ny,
-		region.dz, region.dz + region.nz);
-
-	fprintf(f, "<Piece Extent=\"%d %d %d %d %d %d\">\n",
-		region.dx, region.dx + region.nx,
-		region.dy, region.dy + region.ny,
-		region.dz, region.dz + region.nz
-	);
+	fprintf(f, "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
+	fprintf(f, "<PolyData>\n");
+	fprintf(f, "<Piece NumberOfPoints=\"%d\" NumberOfVerts=\"0\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n", latticeSize);
 	fprintf(f, "<PointData %s>\n", selection);
 	if (fp != NULL) {
         fprintf(fp, "<?xml version=\"1.0\"?>\n");
-        fprintf(fp, "<VTKFile type=\"PStructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
-        fprintf(fp, "<PStructuredGrid WholeExtent=\"%d %d %d %d %d %d\">\n",
-            region.dx, region.dx + region.nx,
-            region.dy, region.dy + region.ny,
-            region.dz, region.dz + region.nz);
+        fprintf(fp, "<VTKFile type=\"PPolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
+        fprintf(fp, "<PPolyData>\n");
 	}
 	int size;
 	lbRegion reg;
@@ -97,12 +86,7 @@ void vtsFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, c
 		strcpy(buf, name);
 		MPI_Bcast(buf, name_size, MPI_CHAR, i, comm);
 		if (fp != NULL) {
-			fprintf(fp, "<Piece Extent=\"%d %d %d %d %d %d\" Source=\"%s\"/>\n",
-				reg.dx, reg.dx + reg.nx,
-				reg.dy, reg.dy + reg.ny,
-				reg.dz, reg.dz + reg.nz,
-				buf
-			);
+			fprintf(fp, "<Piece NumberOfPoints=\"%d\" NumberOfVerts=\"0\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\" Source=\"%s\"/>\n", buf);
 		}
 	}
 	delete[] buf;
@@ -152,7 +136,7 @@ void vtsFileOut::Finish() {
 	FERR;
 	fprintf(f, "%s", vts_footer);
 	if (fp != NULL) {
-		fprintf(fp, "</PPoints>\n</PStructuredGrid>\n</VTKFile>\n");
+		fprintf(fp, "</PPoints>\n</PPolyData>\n</VTKFile>\n");
 	}
 };
 

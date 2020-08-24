@@ -214,7 +214,7 @@ void MainFree( Solver *d);
 			outIterFile(nm, ".vti", filename);
 			ret = vtkWriteLattice(filename, lattice, units, s);
 		} else {
-			outIterFile(nm, ".vts", filename);
+			outIterFile(nm, ".vtp", filename);
 			
 			ret = vtkWriteLatticeArbitrary(filename, latticeSize, lattice, units, s);
 		}
