@@ -77,7 +77,7 @@ int Connectivity::load(pugi::xml_node & node) {
         // set it to that in the nodetype array
         // if it's a wall, don't set it to mrt as well
         // if it's anything else, & it with mrt.. will need to think of a more elegant way to handle this when I generalise the pre-processor
-        if(it->flag == (0x000a))
+        if(strcmp(nodeType, "Wall") == 0)
             geom[i] = it->flag;
         else
             geom[i] = it->flag | defMask;

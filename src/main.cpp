@@ -133,9 +133,14 @@ int MainCallback(int seg, int tot, Solver* solver) {
 		}
        		int ups = (float) (1000. * all_iter)/eTime; // Steps made per second
   		double lbups=1.0;
-       		lbups *= solver->info.region.nx;
-		lbups *= solver->info.region.ny;
+		  if(solver->latticeType == 0) {
+			lbups *= solver->info.region.nx;
+			lbups *= solver->info.region.ny;
        		lbups *= solver->info.region.nz;
+		  } else {
+			  lbups *= solver->latticeSize;
+		  }
+       		
        		lbups *= iter;
 		lbups /= elapsedTime;
 		desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)

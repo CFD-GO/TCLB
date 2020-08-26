@@ -233,7 +233,7 @@ dirNum = 0
 for (d in rows(Density)[s$load.densities]) { ?>
   //--------------------------- <?%s d$name ?> ----------------------
   neighbour = Connectivity[(latticeSize * <?%d dirNum ?>) + node.idx_.id];
-  node.f[<?%d dirNum ?>] = pocket.data[neighbour];
+  node.<?%s d$field ?> = pocket.data[neighbour];
 <?R 
 dirNum = dirNum + 1
 } ?>
@@ -253,7 +253,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::push<?%s s
   AFTabs pocket = out; <?R
   dirNum = 0
   for (f in rows(Fields)[s$save.fields]) { ?>
-  pocket.data[(latticeSize * <?%d dirNum ?>) + node.idx_.id] = node.f[<?%d dirNum ?>]; <?R 
+  pocket.data[(latticeSize * <?%d dirNum ?>) + node.idx_.id] = node.<?%s f$name ?>; <?R 
   dirNum = dirNum + 1
   } ?>
 }
