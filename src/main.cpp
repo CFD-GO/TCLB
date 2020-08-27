@@ -402,10 +402,12 @@ int main ( int argc, char * argv[] )
 	solver->lattice->Callback((int(*)(int, int, void*)) MainCallback, (void*) solver);
 
 	// Running main handler (it makes all the magic)
-	Handler hand(config, solver);
-	if (!hand) {
-		error("Something went wrong in xml run!\n");
-		return -1;
+	{
+		Handler hand(config, solver);
+		if (!hand) {
+			error("Something went wrong in xml run!\n");
+			return -1;
+		}
 	}
     #ifdef EMBEDED_PYTHON
     Py_Finalize();
