@@ -1242,24 +1242,6 @@ void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, rea
 	container->in = Snaps[Snap];
 	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
 		container->CopyToConst();
-	/*
-	lbRegion inter = region.intersect(over);
-	int x = inter.dx, y = inter.dy;
-	<?%s q$type ?>* buf = NULL;
-	CudaMalloc((void**)&buf, inter.nx * inter.ny * sizeof(<?%s q$type ?>));
-
-	for(int z = inter.dz; z < inter.dz + inter.nz; z++) {
-		lbRegion small = inter;
-		small.dz = z;
-		small.nz = 1;
-		small.dx -= region.dx;
-		small.dy -= region.dy;
-		small.dz -= region.dz;
-		
-		CudaKernelRun(get<?%s q$name ?>, dim3(small.nx, small.ny), dim3(1), (small, buf, scale, 1));
-		CudaMemcpy(&tab[over.offsetL(x, y, z)], buf, small.sizeL() * sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
-	}*/
-	
 
 	// allocate some memory to a buffer - do the whole lot at once
 	<?%s q$type ?>* buf = NULL;
@@ -1267,8 +1249,8 @@ void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, rea
 	// dummy region to pass into the get<> function
 	lbRegion small;
 	CudaKernelRun(get<?%s q$name ?>, dim3(container->getDimx, container->getDimy), dim3(1), (small, buf, scale, 1));
+
 	// copy over to host memory
-	
 	CudaMemcpy(tab, buf, container->latticeSize * sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
 	CudaFree(buf);
 

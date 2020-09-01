@@ -2,13 +2,16 @@
 
 	#include "Global.h"
 	#include "LatticeBase.h"
+	#include "Connectivity.h"
 	#include "vtkOutput.h"
-	#include "vtsOutput.h"
+	#include "vtpOutput.h"
+	#include "vtuOutput.h"
 	#include "unit.h"
 	#include "utils.h"
 
 	int vtkWriteLattice(char * filename, LatticeBase * lattice, UnitEnv, name_set * s);
 	int vtkWriteLatticeArbitrary(char * filename, size_t latticeSize, LatticeBase * lattice, UnitEnv, name_set * s);
+	int vtkWriteLatticeArbitraryUG(char * filename, size_t latticeSize, LatticeBase * lattice, Connectivity * connectivity, UnitEnv, name_set * s);
 	int binWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units);
 	int txtWriteLattice(char * filename, LatticeBase * lattice, UnitEnv, name_set * s, int type);
 	

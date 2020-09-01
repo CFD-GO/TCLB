@@ -213,10 +213,13 @@ void MainFree( Solver *d);
 		if(latticeType == 0) { // cartesian lattice output function
 			outIterFile(nm, ".vti", filename);
 			ret = vtkWriteLattice(filename, lattice, units, s);
-		} else {
+		} else if(latticeType == 1 && !connectivity->cellDataOutput) {
 			outIterFile(nm, ".vtp", filename);
 			
 			ret = vtkWriteLatticeArbitrary(filename, latticeSize, lattice, units, s);
+		} else if(latticeType == 1 && connectivity->cellDataOutput) {
+			outIterFile(nm, ".vtu", filename);
+			ret = vtkWriteLatticeArbitraryUG(filename, latticeSize, lattice, connectivity, units, s);
 		}
 		return ret;
 	}

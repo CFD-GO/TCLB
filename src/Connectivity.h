@@ -3,6 +3,7 @@
 
 #include "unit.h"
 #include "Lists.h"
+#include "pugixml.hpp"
 
 
 class Connectivity {
@@ -14,6 +15,13 @@ public:
     int d, Q;
     int x, y, z; ///< Dimensions of the base lattice
     vector_t * coords; ///< Table of coordinates of each node
+    bool cellDataOutput;
+    size_t nPoints;
+    size_t nCells;
+    real_t * pointData;
+    size_t * cellConnectivity;
+    size_t * cellOffsets;
+    unsigned char * cellTypes;
     lbRegion region; ///< Local lattice region
     lbRegion totalregion; ///< Global lattice region
     UnitEnv units; ///< Units object for unit calculations

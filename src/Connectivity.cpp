@@ -23,6 +23,11 @@ int Connectivity::load(pugi::xml_node & node) {
     if(!node.attribute("file")) {
         error("No 'file' attribute in ArbitraryLattice element in xml conf\n");
     }
+    cellDataOutput = false;
+    if(node.attribute("cellData")) {
+        cellDataOutput = true;
+        printf("found the cell data attr\n");
+    }
 
     FILE* cxnFile = fopen(node.attribute("file").value(), "rb");
     if(cxnFile == NULL) {
@@ -90,6 +95,36 @@ int Connectivity::load(pugi::xml_node & node) {
         ret = fscanf(cxnFile, "%zu\n", &connectivity[((Q - 1) * latticeSize) + i]);
     }
 
-    // TODO: need to load flags yet, will likely have to do some sort of string->flag_t dict, or change the nodeType field to a number
     fclose(cxnFile);
+
+    if(cellDataOutput) {
+
+        FILE* cellFile = fopen(node.attribute("cellData").value(), "rb");
+
+        ret = fscanf(cellFile, "N_POINTS %zu\n", &nPoints);
+        ret = fscanf(cellFile, "N_CELLS %zu\n", &nCells);
+
+        pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
+        cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
+        cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
+        cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
+        ret = fscanf(cellFile, "POINTS\n");
+
+        for(int i = 0; i < nPoints; i++) {
+            float x, y, z;
+            ret = fscanf(cellFile, "%e %e %e\n", &x, &y, &z);
+            pointData[3*i] = x;
+            pointData[3*i + 1] = y;
+            pointData[3*i + 2] = z;
+        }
+        
+        ret = fscanf(cellFile, "CELLS\n");
+        for(int i = 0; i < nCells; i++) {
+            ret = fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], 
+                                                                &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]);
+            cellOffsets[i] = 8*(i+1);
+            cellTypes[i] = 12;
+        }
+        printf("Loaded cell connectivity\n");
+    }
 }

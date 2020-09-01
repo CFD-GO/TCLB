@@ -1,9 +1,9 @@
-#ifndef VTSOUTPUT_H
+#ifndef VTPOUTPUT_H
 #include "cross.h"
 #include "types.h"
 #include "Region.h"
 
-class vtsFileOut {
+class vtpFileOut {
     FILE* f;
     FILE* fp;
     char* name; int name_size;
@@ -11,7 +11,7 @@ class vtsFileOut {
     int size;
     MPI_Comm comm;
 public:
-    vtsFileOut(MPI_Comm comm_ = MPI_COMM_WORLD);
+    vtpFileOut(MPI_Comm comm_ = MPI_COMM_WORLD);
     int Open(const char* filename);
 	void WriteB64(void * tab, int len);
 	void Init(lbRegion region, size_t latticeSize, char* selection);
@@ -45,4 +45,4 @@ public:
 };
 
 #endif
-#define VTSOUTPUT_H 1
+#define VTPOUTPUT_H 1

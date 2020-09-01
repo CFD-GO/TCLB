@@ -1,20 +1,20 @@
 #include <stdio.h>
 #include <mpi.h>
-#include "vtsOutput.h"
+#include "vtpOutput.h"
 #include "vtkOutput.h"
 #include <cstring>
 #include <stdlib.h>
 
-const char * vts_field_header = "<DataArray type=\"%s\" Name=\"%s\" format=\"binary\" encoding=\"base64\" NumberOfComponents=\"%d\">\n";
-const char * vts_field_footer = "</DataArray>\n";
-const char * vts_field_parallel = "<PDataArray type=\"%s\" Name=\"%s\" format=\"binary\" encoding=\"base64\" NumberOfComponents=\"%d\"/>\n";
-const char * vts_footer       = "</Points>\n</Piece>\n</PolyData>\n</VTKFile>\n";
+const char * vtp_field_header = "<DataArray type=\"%s\" Name=\"%s\" format=\"binary\" encoding=\"base64\" NumberOfComponents=\"%d\">\n";
+const char * vtp_field_footer = "</DataArray>\n";
+const char * vtp_field_parallel = "<PDataArray type=\"%s\" Name=\"%s\" format=\"binary\" encoding=\"base64\" NumberOfComponents=\"%d\"/>\n";
+const char * vtp_footer       = "</Points>\n</Piece>\n</PolyData>\n</VTKFile>\n";
 
 // Error handler
 #define FERR 	if (f == NULL) {fprintf(stderr, "Error: vtkOutput tried to write before opening a file\n"); return; } 
 
 
-vtsFileOut::vtsFileOut(MPI_Comm comm_)
+vtpFileOut::vtpFileOut(MPI_Comm comm_)
 {
     f = NULL;
     fp = NULL;
@@ -22,11 +22,11 @@ vtsFileOut::vtsFileOut(MPI_Comm comm_)
     comm = comm_;
 };
 
-int vtsFileOut::Open(const char* filename) {
+int vtpFileOut::Open(const char* filename) {
     char* n;
     f = fopen(filename, "w");
     if(f == NULL) {
-        fprintf(stderr, "Error, could not open vts file %s\n", filename);
+        fprintf(stderr, "Error, could not open vtp file %s\n", filename);
         return -1;
     }
     int s = strlen(filename) + 5;
@@ -57,12 +57,12 @@ int vtsFileOut::Open(const char* filename) {
 	return 0;
 };
 
-void vtsFileOut::WriteB64(void * tab, int len) {
+void vtpFileOut::WriteB64(void * tab, int len) {
 	FERR;
 	fprintB64(f, tab, len);
 };
 
-void vtsFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, char* selection, double spacing) {
+void vtpFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, char* selection, double spacing) {
 	FERR;
 	size = latticeSize;
     fprintf(f, "<?xml version=\"1.0\"?>\n");
@@ -95,28 +95,28 @@ void vtsFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, c
 	}
 };
 
-void vtsFileOut::Init(lbRegion region, size_t latticeSize, char* selection) {
+void vtpFileOut::Init(lbRegion region, size_t latticeSize, char* selection) {
     Init(region, region, latticeSize, selection);
 };
 
-void vtsFileOut::Init(int width, int height, size_t latticeSize) {
+void vtpFileOut::Init(int width, int height, size_t latticeSize) {
     Init(lbRegion(0, 0, 0, width, height, 1), latticeSize, "");
 };
 
-void vtsFileOut::WriteField(const char * name, void * data, int elem, const char * tp, int components) {
+void vtpFileOut::WriteField(const char * name, void * data, int elem, const char * tp, int components) {
 	FERR;
 	int len = size*elem;
-	fprintf(f, vts_field_header, tp, name, components);
+	fprintf(f, vtp_field_header, tp, name, components);
 	WriteB64(&len, sizeof(int));
 	WriteB64(data, size*elem);
 	fprintf(f, "\n");
-	fprintf(f, "%s", vts_field_footer);
+	fprintf(f, "%s", vtp_field_footer);
 	if (fp != NULL) {
-		fprintf(fp, vts_field_parallel,  tp, name, components);
+		fprintf(fp, vtp_field_parallel,  tp, name, components);
 	}
 };
 
-void vtsFileOut::FinishCellData() {
+void vtpFileOut::FinishCellData() {
 	FERR;
 	fprintf(f, "</PointData>\n");
 	if (fp != NULL) {
@@ -124,7 +124,7 @@ void vtsFileOut::FinishCellData() {
 	}
 };
 
-void vtsFileOut::WritePointsHeader() {
+void vtpFileOut::WritePointsHeader() {
 	FERR;
 	fprintf(f, "<Points>\n");
 	if(fp != NULL) {
@@ -132,15 +132,15 @@ void vtsFileOut::WritePointsHeader() {
 	}
 }
 
-void vtsFileOut::Finish() {
+void vtpFileOut::Finish() {
 	FERR;
-	fprintf(f, "%s", vts_footer);
+	fprintf(f, "%s", vtp_footer);
 	if (fp != NULL) {
 		fprintf(fp, "</PPoints>\n</PPolyData>\n</VTKFile>\n");
 	}
 };
 
-void vtsFileOut::Close() {
+void vtpFileOut::Close() {
 	FERR;
 	fclose(f);
 	if (fp != NULL) fclose(fp);
