@@ -175,6 +175,7 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 
 AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
+	if (any(unit == "")) stop("Empty unit in AddSetting not allowed")
 	if (missing(comment)) {
 		comment = name
 	}
@@ -211,6 +212,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 
 AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=0.0) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
+	if (any(unit == "")) stop("Empty unit in AddGlobal not allowed")
 	if (missing(var)) var=name
 	if (comment == "") {
 		comment = name
@@ -230,6 +232,7 @@ AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=
 
 AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 	if (missing(name)) stop("Have to supply name in AddQuantity!")
+	if (any(unit == "")) stop("Empty unit in AddQuantity not allowed")
 	if (comment == "") {
 		comment = name
 	}
