@@ -45,19 +45,20 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #include "ArbitraryLatticeAccess.inc.cpp"
 
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
-        for (f in rows(Fields)) { ?>
-#define <?%s f$nicename ?>_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
-#define <?%s f$nicename ?>_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
+		for (f in rows(Fields)) { ?>
+
+#define <?%s f$nicename ?>_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, z__ > (idx_,NodeType))
+#define <?%s f$nicename ?>_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, 0 > (idx_,NodeType))
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
-#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
-#define <?%s f$nicename ?>_dyn_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
+#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> (idx_,NodeType,x__, y__, z__))
+#define <?%s f$nicename ?>_dyn_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < 0 > (idx_,NodeType,x__, y__))
 #define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
         }
 ?>
 
-#define X ((real_t) x_ + Accessor::container().px + 0.5)
-#define Y ((real_t) y_ + Accessor::container().py + 0.5)
-#define Z ((real_t) z_ + Accessor::container().pz + 0.5)
+#define X ((real_t) idx_.x + Accessor::container().px + 0.5)
+#define Y ((real_t) idx_.y + Accessor::container().py + 0.5)
+#define Z ((real_t) idx_.z + Accessor::container().pz + 0.5)
 #define Time (Accessor::container().iter)
 #define SyntheticTurbulence(x__,y__,z__) Accessor::container().getST(x__,y__,z__)
 #define average_iter (Accessor::container().iter - Accessor::container().reset_iter)  //Look nicer in Dynamics
@@ -92,8 +93,6 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 template <class Accessor, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
 		int x_,y_,z_;        
 		typename Accessor::index idx_;
-		CudaDeviceFunction inline void SetIndex(int, int, int){};
-		CudaDeviceFunction inline void SetIndex(size_t){};
 		CudaDeviceFunction inline void Pre(){};
         CudaDeviceFunction inline void ExecElement(){};
         CudaDeviceFunction inline void LoadElement(){};
@@ -185,14 +184,6 @@ template <class Accessor> struct Node_Run <Accessor, <?%s T1 ?>, <?%s T2 ?>, <?%
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
 		} ?>
-	CudaDeviceFunction void inline SetIndex(int x, int y, int z) {
-		x_ = x;
-		y_ = y;
-		z_ = z;
-	}
-	CudaDeviceFunction void inline SetIndex(size_t index) {
-		idx_.index = index;
-	}
 	CudaDeviceFunction void inline Pre() { <?R
 	for (g in rows(Globs)) if (!g$zonal){ ?>
 		<?%s g$var ?> = 0.0f; <?R

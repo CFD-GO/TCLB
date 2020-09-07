@@ -64,7 +64,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	AFTabs adjout; ///< AFTabs used for Adjoint iteration as output
 	AFTabs adjin; ///< AFTabs used for Adjoint iteration as input
   #endif
-  	struct index { size_t id; };
+  	struct index { size_t id; int x, y, z; };
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
 	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
 	vector_t * coords;
@@ -113,23 +113,23 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	for (f in rows(Fields)) {
 	  if (! f$big) { ?>
 	template <int DX, int DY, int DZ>
-	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
+	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt) {
 	  typename A_Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
 	  return 0.0;
 	};
 	template <int DX, int DY, int DZ>
-	CudaDeviceFunction real_t load0_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt);
+	CudaDeviceFunction real_t load0_<?%s f$nicename ?> (const index & idx, const flag_t & nt);
 	
 	template <int DY, int DZ>
-	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx);
+	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt, const int & dx);
 	template <int DZ>
-	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy);
-	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt, const int & dx, const int & dy);
+	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt, const int & dx, const int & dy, const int & dz);
 	<?R } else { ?>
-	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz);
+	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt, const int & dx, const int & dy, const int & dz);
 	template <int DX, int DY, int DZ>
-	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
-	  return load_<?%s f$nicename ?>(x,y,z,nt,DX,DY,DZ);
+	CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt) {
+	  return load_<?%s f$nicename ?>(idx,nt,DX,DY,DZ);
 	};
 	<?R }
 	} ?>

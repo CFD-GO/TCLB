@@ -220,7 +220,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
   for (d in rows(Density)[s$load.densities]) { ?>
 //--------------------------- <?%s d$name ?> ----------------------<?R
     f = rows(Fields)[Fields$name == d$field][[1]]
-    p = PV(c("node.x_","node.y_","node.z_"));
+    p = PV(c("node.idx_.x","node.idx_.y","node.idx_z"));
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field(paste("node",d$name,sep="."), f, p, dp,con)
   }
@@ -232,8 +232,8 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
 dirNum = 0
 for (d in rows(Density)[s$load.densities]) { ?>
   //--------------------------- <?%s d$name ?> ----------------------
-  neighbour = Connectivity[(latticeSize * <?%d dirNum ?>) + node.idx_.id];
-  node.<?%s d$field ?> = pocket.data[neighbour];
+  neighbour = Connectivity[(latticeSize * <?%d DirectionOffset(-d$dx, -d$dy, -d$dz) ?>) + node.idx_.id];
+  node.<?%s d$field ?> = pocket.data[neighbour + (latticeSize * <?%d dirNum ?>)];
 <?R 
 dirNum = dirNum + 1
 } ?>
@@ -246,7 +246,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::push<?%s s
   con = make.context("out",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x_","node.y_","node.z_"));
+    p = PV(c("node.idx_.x","node.idx_.y","node.idx_.z"));
     con=save.field(paste("node",f$name,sep="."), f, p, con)
   }?>*/
 
@@ -268,7 +268,7 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::push<?%s s
     con = field.access(
         d=paste("node",d$adjoint_name,sep="."),
         f=rows(Fields)[Fields$name == d$field][[1]],
-        p=PV(c("node.x_","node.y_","node.z_")),
+        p=PV(c("node.idx_.x","node.idx_.y","node.idx_.z")),
         dp=c(-d$dx, -d$dy, -d$dz),
         pattern="get",
         access="atomicadd",
@@ -283,11 +283,11 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
   con = make.context("adjin",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x_","node.y_","node.z_"));
+    p = PV(c("node.idx_.x","node.idx_.y","node.idx_.z"));
     con = field.access(
      d=paste("node",f$adjoint_name,sep="."),
      f=f,
-     p=PV(c("node.x_","node.y_","node.z_")),
+     p=PV(c("node.idx_.x","node.idx_.y","node.idx_.z")),
      pattern="put",
      access="getsum",
      MContext=con
@@ -317,62 +317,66 @@ suffix = ""
 if (Options$autosym) suffix = "0"
     fnum = 0
     for (f in rows(Fields)) {
+    dirNum = 0
     if (! f$big) {
     for (dz in f$minz:f$maxz) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>
 template <> 
-CudaDeviceFunction real_t ArbitraryLatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) 
+CudaDeviceFunction real_t ArbitraryLatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const index & idx, const flag_t & nt) 
 {
   real_t ret; /*<?R
   con = make.context("in");
   p = PV(c("x","y","z"));
   dp = c(dx, dy, dz)
   con=load.field("ret", f, p, dp, con) ?>*/
-  size_t neighbour = Connectivity[(latticeSize * <?%d fnum ?>) + x + (nx * y) + (nx * ny * z)];
-  ret = in.data[neighbour];
+  size_t neighbour = Connectivity[(latticeSize * <?%d DirectionOffset(dx, dy, dz) ?>) + idx.id];
+  ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];
 
   return ret;
 }
 <?R }}} ?>
 
 template <int DY, int DZ> 
-CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx) 
+CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?> (const index & idx, const flag_t & nt, const int & dx) 
 {
   switch(dx) {
 <?R  for (dx in f$minx:f$maxx) { ?>
-    case <?%d dx ?>: return load_<?%s f$nicename ?> < <?%d dx ?>, DY, DZ > (x, y, z, nt);
+    case <?%d dx ?>: return load_<?%s f$nicename ?> < <?%d dx ?>, DY, DZ > (idx, nt);
 <?R } ?>
     default: return NAN;
   }
 }
 template < int DZ > 
-CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy) 
+CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?> (const index & idx, const flag_t & nt, const int & dx, const int & dy) 
 {
   switch(dy) {
 <?R  for (dy in f$miny:f$maxy) { ?>
-    case <?%d dy ?>: return load_<?%s f$nicename ?> < <?%d dy ?>, DZ > (x, y, z, nt, dx);
+    case <?%d dy ?>: return load_<?%s f$nicename ?> < <?%d dy ?>, DZ > (idx, nt, dx);
 <?R } ?>
     default: return NAN;
   }
 }
-CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (const index & idx, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
 {
   switch(dz) {
 <?R  for (dz in f$minz:f$maxz) { ?>
-    case <?%d dz ?>: return load_<?%s f$nicename ?> < <?%d dz ?> > (x, y, z, nt, dx, dy);
+    case <?%d dz ?>: return load_<?%s f$nicename ?> < <?%d dz ?> > (idx, nt, dx, dy);
 <?R } ?>
     default: return NAN;
   }
 }
 <?R } else { ?>
-CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (const index & idx, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
 {
-  real_t ret; <?R
+  real_t ret; /*<?R
   con = make.context("in");
   p = PV(c("x","y","z"));
   dp = PV(c("dx","dy","dz"));
-  con=load.field("ret", f, p, dp, con) ?>
+  con=load.field("ret", f, p, dp, con) ?>*/
+  size_t neighbour = Connectivity[(latticeSize * <?%d DirectionOffset(dx, dy, dz) ?>) + idx.id];
+  ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];
+
   return ret;
 }
 
@@ -388,9 +392,9 @@ if (Options$autosym) {
   sym_load = function(f,d,i,sig=1) {
    if (i > 3) {
     if (sig < 0) { ?>
-    return -load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
+    return -load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (idx,nt);
 <?R } else { ?>
-    return load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
+    return load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (idx,nt);
 <?R }
    } else {
     s = names(symmetries)[i]
@@ -420,7 +424,7 @@ if (Options$autosym) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>
 template <> 
-CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) {
+CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const index & idx, const flag_t & nt) {
 <?R sym_load(f,c(dx,dy,dz),1); ?>
 }
 

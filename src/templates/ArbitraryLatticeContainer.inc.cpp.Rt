@@ -24,7 +24,7 @@ void AFTabs::Alloc(size_t tabSize) {
     size_t size;
     char * tmp = NULL;
 
-    size = (size_t) tabSize * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    size = (size_t) tabSize * <?%d length(rows(Fields)) ?> * sizeof(real_t);
     ALLOCPRINT1;
     #ifdef DIRECT_MEM
       CudaMallocHost((void**)&tmp, size);
@@ -42,14 +42,14 @@ void AFTabs::Alloc(size_t tabSize) {
 */
 void AFTabs::PreAlloc(size_t tabSize) {
     size_t size;
-    size = (size_t) tabSize * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    size = (size_t) tabSize * <?%d length(rows(Fields)) ?> * sizeof(real_t);
     CudaPreAlloc((void**)&data, size);
 }
 
 /// Clearing (zero-ing) of a AFTabs
 void AFTabs::Clear(size_t tabSize) {
     size_t size;
-    size = (size_t) tabSize * <?%d length(rows(Density)) ?> * sizeof(real_t);
+    size = (size_t) tabSize * <?%d length(rows(Fields)) ?> * sizeof(real_t);
     CudaMemset(data, 0, size);
 }
 
@@ -161,28 +161,28 @@ void ArbitraryLatticeContainer::Free()
 /*template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z_ = CudaBlock.x;
+	now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.idx_.z = CudaBlock.x;
 	now.Pre();
 <?R if (tmaxy > tminy) { ?>
-	if (now.z_ < constContainer.nz) {
+	if (now.idx_.z < constContainer.nz) {
 <?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		now.y_ = <?%d y - 1 ?>;
+		now.idx_.y = <?%d y - 1 ?>;
 		now.RunElement();
 <?R	} else if (y < 0) { ?>
-		now.y_ = constContainer.ny - <?%d -y ?>;
+		now.idx_.y = constContainer.ny - <?%d -y ?>;
 		now.RunElement();
 <?R	} ?>
 	}
 <?R }
     if (tmaxz > tminz) { ?>
-	now.y_ = CudaBlock.x;
-	if ((now.y_ < constContainer.fy) && (now.y_ >= constContainer.dy)) {
+	now.idx_.y = CudaBlock.x;
+	if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
 <?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-		now.z_ = <?%d z - 1 ?>;
+		now.idx_.z = <?%d z - 1 ?>;
 		now.RunElement();
 <?R	} else if (z < 0) { ?>
-		now.z_ = constContainer.nz - <?%d -z ?>;
+		now.idx_.z = constContainer.nz - <?%d -z ?>;
 		now.RunElement();
 <?R	} ?>
 	}

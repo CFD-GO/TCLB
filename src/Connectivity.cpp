@@ -43,12 +43,18 @@ int Connectivity::load(pugi::xml_node & node) {
     ret = fscanf(cxnFile, "MASK %s\n", buffer);
     ret = fscanf(cxnFile, "NODES\n");
 
-    ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.ByName(buffer);
-    if (it == model->nodetypeflags.end()) {
-        ERROR("Unknown flag (in xml): %s\n", buffer);
-        return -1;
+    big_flag_t defMask = 0;
+    ModelBase::NodeTypeFlags::const_iterator it;
+    if(strcmp(buffer, "NONE") != 0) {
+        it = model->nodetypeflags.ByName(buffer);
+        if (it == model->nodetypeflags.end()) {
+            ERROR("Unknown flag (in xml): %s\n", buffer);
+            return -1;
+        }
+        defMask = it->flag;
     }
-    big_flag_t defMask = it->flag;
+
+    
 
     // allocate memory for connectivity / nodetype matrices
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
@@ -69,23 +75,25 @@ int Connectivity::load(pugi::xml_node & node) {
         w.y = y;
         w.z = z;
         coords[i] = w;
-        //coords[3*i] = x;
-        //coords[3*i + 1] = y;
-        //coords[3*i + 2] = z;
 
-        // find the flag corresponding to our nodeType
-        it = model->nodetypeflags.ByName(nodeType);
-        if (it == model->nodetypeflags.end()) {
-            ERROR("Unknown flag (in xml): %s\n", nodeType);
-            return -1;
+        if(strcmp(nodeType, "NONE") != 0) {
+            // find the flag corresponding to our nodeType
+            it = model->nodetypeflags.ByName(nodeType);
+            if (it == model->nodetypeflags.end()) {
+                ERROR("Unknown flag (in xml): %s\n", nodeType, nid);
+                return -1;
+            }
+            // set it to that in the nodetype array
+            // if it's a wall, don't set it to mrt as well
+            // if it's anything else, & it with mrt.. will need to think of a more elegant way to handle this when I generalise the pre-processor
+            if(strcmp(nodeType, "Wall") == 0)
+                geom[i] = it->flag;
+            else
+                geom[i] = it->flag | defMask;
+
         }
-        // set it to that in the nodetype array
-        // if it's a wall, don't set it to mrt as well
-        // if it's anything else, & it with mrt.. will need to think of a more elegant way to handle this when I generalise the pre-processor
-        if(strcmp(nodeType, "Wall") == 0)
-            geom[i] = it->flag;
-        else
-            geom[i] = it->flag | defMask;
+        
+        
 
         // next scan in the connectivity - have to scan an unknown number of integers
         for(int q = 0; q < Q - 1; q++) {

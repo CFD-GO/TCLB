@@ -265,14 +265,14 @@ void LatticeContainer::Free()
 /*template <class N> CudaGlobalFunction void RunKernel()
 {
 	N now;
-	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
-	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
-	now.z_ = CudaBlock.y+constContainer.dz;
+	now.idx_.x = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
+	now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
+	now.idx_.z = CudaBlock.y+constContainer.dz;
 	#ifndef GRID_3D
-		for (; now.x_ < constContainer.nx; now.x_ += CudaNumberOfThreads.x) {
+		for (; now.idx_.x < constContainer.nx; now.idx_.x += CudaNumberOfThreads.x) {
 	#endif
 		now.Pre();
-		if (now.y_ < constContainer.fy) {
+		if (now.idx_.y < constContainer.fy) {
 			now.RunElement();
 		} else {
 			now.OutOfDomain();
@@ -299,28 +299,28 @@ void LatticeContainer::Free()
 /*template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z_ = CudaBlock.x;
+	now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.idx_.z = CudaBlock.x;
 	now.Pre();
 <?R if (tmaxy > tminy) { ?>
-	if (now.z_ < constContainer.nz) {
+	if (now.idx_.z < constContainer.nz) {
 <?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		now.y_ = <?%d y - 1 ?>;
+		now.idx_.y = <?%d y - 1 ?>;
 		now.RunElement();
 <?R	} else if (y < 0) { ?>
-		now.y_ = constContainer.ny - <?%d -y ?>;
+		now.idx_.y = constContainer.ny - <?%d -y ?>;
 		now.RunElement();
 <?R	} ?>
 	}
 <?R }
     if (tmaxz > tminz) { ?>
-	now.y_ = CudaBlock.x;
-	if ((now.y_ < constContainer.fy) && (now.y_ >= constContainer.dy)) {
+	now.idx_.y = CudaBlock.x;
+	if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
 <?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-		now.z_ = <?%d z - 1 ?>;
+		now.idx_.z = <?%d z - 1 ?>;
 		now.RunElement();
 <?R	} else if (z < 0) { ?>
-		now.z_ = constContainer.nz - <?%d -z ?>;
+		now.idx_.z = constContainer.nz - <?%d -z ?>;
 		now.RunElement();
 <?R	} ?>
 	}
@@ -363,12 +363,12 @@ void LatticeContainer::Free()
                 int pnz = ceil(p.pos.z + p.rad) + 1 - constContainer.pz;
                 if (pdz < 0) pdz = 0;
                 if (pnz > constContainer.nz) pnz = constContainer.nz;
-                for (now.z_ = pdz; now.z_ < pnz; now.z_++) {	
-                for (now.y_ = pdy+CudaThread.y; now.y_ < pny; now.y_+=CudaNumberOfThreads.y) {	
-                for (now.x_ = pdx+CudaThread.x; now.x_ < pnx; now.x_+=CudaNumberOfThreads.x) {
-                        p.diff.x = p.pos.x - now.x_ - constContainer.px;
-                        p.diff.y = p.pos.y - now.y_ - constContainer.py;
-                        p.diff.z = p.pos.z - now.z_ - constContainer.pz;
+                for (now.idx_.z = pdz; now.idx_.z < pnz; now.idx_.z++) {	
+                for (now.idx_.y = pdy+CudaThread.y; now.idx_.y < pny; now.idx_.y+=CudaNumberOfThreads.y) {	
+                for (now.idx_.x = pdx+CudaThread.x; now.idx_.x < pnx; now.idx_.x+=CudaNumberOfThreads.x) {
+                        p.diff.x = p.pos.x - now.idx_.x - constContainer.px;
+                        p.diff.y = p.pos.y - now.idx_.y - constContainer.py;
+                        p.diff.z = p.pos.z - now.idx_.z - constContainer.pz;
                         p.dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                         p.cvel.x = p.vel.x + p.angvel.y*p.diff.z - p.angvel.z*p.diff.y;
                         p.cvel.y = p.vel.y + p.angvel.z*p.diff.x - p.angvel.x*p.diff.z;
@@ -489,9 +489,9 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     if (x >= constContainer.nx) return;
     if (y >= constContainer.ny) return;
     if (z >= constContainer.nz) return;
-    now.x_ = x;
-    now.y_ = y;
-    now.z_ = z;
+    now.idx_.x = x;
+    now.idx_.y = y;
+    now.idx_.z = z;
     constContainer.getType(now);
     constContainer.pop(now);
     {
@@ -569,9 +569,9 @@ void LatticeContainer::Color( uchar4 *optr ) {
         }?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
-		now.x_ = x;
-		now.y_ = y;
-		now.z_ = z;
+		now.idx_.x = x;
+		now.idx_.y = y;
+		now.idx_.z = z;
 		constContainer.getType(now);
 		<?%s q$type ?> w;
 //		if (now.NodeType) {
