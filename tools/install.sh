@@ -144,6 +144,8 @@ do
 	fi
 done
 
+SUDO=""
+
 while test -n "$1"
 do
 	case "$1" in
@@ -152,6 +154,25 @@ do
 	--pms) shift; PMS="$1" ;;
 	--github) GITHUB=true ;;
 	--rstudio-repo) RSTUDIO_REPO=true ;;
+	--sudo)
+		if test "$UID" == "0"
+		then
+			echo "--sudo: running as root"
+		else
+			if test -f "$(command -v sudo)"
+			then
+				SUDO="sudo -n"
+				if $SUDO true 2>/dev/null
+				then
+					echo "--sudo: sudo working without password"
+				else
+					error "--sudo: sudo requires a password"
+				fi
+			else
+				error "No sudo"
+			fi
+		fi
+		;;
 	r)
 		case "$PMS" in
 		yum)
