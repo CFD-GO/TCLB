@@ -194,6 +194,9 @@ do
 			try "Updating APT" $SUDO apt-get update -qq
 			try "Installing R base" $SUDO apt-get install -y --allow-unauthenticated --no-install-recommends r-base-dev r-recommended qpdf
 			;;
+		brew)
+			try "Installing R from brew" brew install r
+			;;
 		*)
 			pms_error R ;;
 		esac
@@ -270,6 +273,9 @@ do
 			try "Installing OpenMPI from APT" $SUDO apt-get install -y openmpi-bin libopenmpi-dev
 			try "Clean APT" $SUDO apt-get clean
 			;;
+		brew)
+			try "Installing OpenMPI from brew" brew install openmpi
+			;;
 		*)
 			pms_error OpenMPI ;;
 		esac
@@ -314,6 +320,9 @@ do
 			;;
 		apt-get)
 			try "Installing python-dev from APT" $SUDO apt-get install -qq python-dev python-numpy python-sympy
+			;;
+		brew)
+			try "Installing Python from brew (this should install headers as well)" brew install python
 			;;
 		*)
 			pms_error python-dev ;;
