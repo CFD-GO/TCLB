@@ -176,9 +176,9 @@ do
 	essentials)
 		case "$PMS" in
 		brew)
-			try "Installing gnu utils from brew" brew install --default-names coreutils
-			try "Installing gnu utils from brew" brew install --default-names findutils
-			try "Installing gnu utils from brew" brew install --default-names gnu-sed
+			try "Installing gnu utils from brew" brew install coreutils
+			try "Installing gnu utils from brew" brew install findutils
+			try "Installing gnu utils from brew" brew install gnu-sed
 			;;
 		esac
 		;;
