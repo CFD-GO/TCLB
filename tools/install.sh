@@ -173,6 +173,15 @@ do
 			fi
 		fi
 		;;
+	essentials)
+		case "$PMS" in
+		brew)
+			try "Installing gnu utils from brew" brew install --default-names coreutils
+			try "Installing gnu utils from brew" brew install --default-names findutils
+			try "Installing gnu utils from brew" brew install --default-names gnu-sed
+			;;
+		esac
+		;;
 	r)
 		case "$PMS" in
 		yum)
