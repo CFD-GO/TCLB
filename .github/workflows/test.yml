@@ -3,8 +3,11 @@ name: Testing the test
 on: [ push ]
 
 jobs:
-  test-ubuntu:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
     - uses: CFD-GO/action_TCLB_test@master
       with:
