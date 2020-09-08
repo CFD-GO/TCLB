@@ -97,7 +97,9 @@ int acAndersen::Init () {
                                 p[i] /= a;
                         }
                         debug2("Andersen p:");
-                        for (int i=0; i < d; i++) debug2(" %lg",p[i]);
+                        for (int i=0; i < d; i++) {
+                                debug2(" %lg",p[i]);
+                        }
                         debug2("\n");
 
                         double psum = 0;
