@@ -176,8 +176,8 @@ do
 	r)
 		case "$PMS" in
 		yum)
-			try "Adding epel-release repo" yum install -y epel-release
-			try "Installing R base" sudo yum install -y R
+			try "Adding epel-release repo" $SUDO yum install -y epel-release
+			try "Installing R base" $SUDO yum install -y R
 			;;
 		apt-get)
 			if $RSTUDIO_REPO
@@ -191,8 +191,8 @@ do
 				try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
 				try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
 			fi
-			try "Updating APT" apt-get update -qq
-			try "Installing R base" apt-get install -y --allow-unauthenticated --no-install-recommends r-base-dev r-recommended qpdf
+			try "Updating APT" $SUDO apt-get update -qq
+			try "Installing R base" $SUDO apt-get install -y --allow-unauthenticated --no-install-recommends r-base-dev r-recommended qpdf
 			;;
 		*)
 			pms_error R ;;
@@ -247,11 +247,11 @@ do
 		apt-get)
 			try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
 			try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-			try "Updating APT" apt-get update -qq
+			try "Updating APT" $SUDO apt-get update -qq
 			CUDA_APT=${CUDA%-*}
 			CUDA_APT=${CUDA_APT/./-}
-			try "Installing CUDA form APT" apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
-			try "Clean APT" apt-get clean
+			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
+			try "Clean APT" $SUDO apt-get clean
 			;;
 		*)
 			pms_error CUDA ;;
@@ -260,15 +260,15 @@ do
 	openmpi)
 		case "$PMS" in
 		yum)
-			try "Installing openmpi from yum" yum install -y openmpi
-			try "Installing openmpi-devel from yum" yum install -y openmpi-devel
-			try "Clean yum" yum clean packages
+			try "Installing openmpi from yum" $SUDO yum install -y openmpi
+			try "Installing openmpi-devel from yum" $SUDO yum install -y openmpi-devel
+			try "Clean yum" $SUDO yum clean packages
 			echo "Don't forget to load mpi module before compilation."
 			;;
 		apt-get)
-			try "Updating APT" apt-get update -qq
-			try "Installing OpenMPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
-			try "Clean APT" apt-get clean
+			try "Updating APT" $SUDO apt-get update -qq
+			try "Installing OpenMPI from APT" $SUDO apt-get install -y openmpi-bin libopenmpi-dev
+			try "Clean APT" $SUDO apt-get clean
 			;;
 		*)
 			pms_error OpenMPI ;;
@@ -276,11 +276,8 @@ do
 		;;
 	lcov)
 		case "$PMS" in
-		yum)
-			echo "The install script doesnt support yum yet, please install CUDA manually."
-			;;
 		apt-get)
-			try "Installing lcov and time" apt-get install -y time lcov
+			try "Installing lcov and time" $SUDO apt-get install -y time lcov
 			;;
 		*)
 			pms_error lcov ;;
@@ -311,12 +308,12 @@ do
 	python-dev)
 		case "$PMS" in
 		yum)
-			try "Installing python-devel from yum" yum install -y python-devel
-			try "Installing numpy from yum" yum install -y numpy 
-			try "Installing sympy from yum" yum install -y sympy
+			try "Installing python-devel from yum" $SUDO yum install -y python-devel
+			try "Installing numpy from yum" $SUDO yum install -y numpy 
+			try "Installing sympy from yum" $SUDO yum install -y sympy
 			;;
 		apt-get)
-			try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
+			try "Installing python-dev from APT" $SUDO apt-get install -qq python-dev python-numpy python-sympy
 			;;
 		*)
 			pms_error python-dev ;;
@@ -325,8 +322,8 @@ do
 	module)
 		case "$PMS" in
 		yum)
-			try "Installing dependencies: tcl" yum -y install tcl 
-			try "Installing dependencies: tcl-devel" yum -y install tcl-devel
+			try "Installing dependencies: tcl" $SUDO yum -y install tcl 
+			try "Installing dependencies: tcl-devel" $SUDO yum -y install tcl-devel
 			;;
 		*)
 			pms_error ;;
