@@ -53,6 +53,44 @@ int Connectivity::load(pugi::xml_node & node) {
         else
             fscanf(cxnFile, "\n");
     }
+    // initialise the max/min variables -- note: assumes we never stream further away than -1 -> +1.. should be -MAX_INT, +MAX_INT to be perfectly correct
+    mindx = 1;
+    mindy = 1;
+    mindz = 1;
+    maxdx = -1;
+    maxdy = -1;
+    maxdz = -1;
+    // determine max/min connectivity directions
+    for(int q = 0; q < Q; q++) {
+        if(connectivityDirections[3*q] < mindx)
+            mindx = connectivityDirections[3*q];
+        if(connectivityDirections[3*q + 1] < mindy)
+            mindy = connectivityDirections[3*q + 1];
+        if(connectivityDirections[3*q + 2] < mindz)
+            mindz = connectivityDirections[3*q + 2];
+
+        if(connectivityDirections[3*q] > maxdx)
+            maxdx = connectivityDirections[3*q];
+        if(connectivityDirections[3*q + 1] > maxdy)
+            maxdy = connectivityDirections[3*q + 1];
+        if(connectivityDirections[3*q + 2] > maxdz)
+            maxdz = connectivityDirections[3*q + 2];
+    }
+    ndx = maxdx - mindx + 1;
+    ndy = maxdy - mindy + 1;
+    ndz = maxdz - mindz + 1;
+    // reallocate and reset connectivity directions to be a ndx * ndy * ndz matrix
+    int* tmp = (int*) malloc(ndx * ndy * ndz * sizeof(int));
+    // set it all to -1 so we can identify offsets we don't know
+    memset(tmp, -1, ndx * ndy * ndz * sizeof(int));
+    
+    // load values in connectivityDirections in here
+    for(int q = 0; q < Q; q++) {
+        tmp[(connectivityDirections[3*q] - mindx) + ((connectivityDirections[3*q + 1] - mindy) * ndx) + ((connectivityDirections[3*q + 2] - mindz) * ndx * ndy)] = q;
+    }
+    // get rid of old connectivity array and set to new tmp matrix form
+    free(connectivityDirections);
+    connectivityDirections = tmp;
 
     ret = fscanf(cxnFile, "MASK %s\n", buffer);
     ret = fscanf(cxnFile, "NODES\n");

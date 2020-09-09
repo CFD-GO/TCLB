@@ -22,6 +22,7 @@ public:
     size_t * cellConnectivity;
     size_t * cellOffsets;
     int * connectivityDirections;
+    int ndx, ndy, ndz, mindx, mindy, mindz, maxdx, maxdy, maxdz;
     unsigned char * cellTypes;
     lbRegion region; ///< Local lattice region
     lbRegion totalregion; ///< Global lattice region

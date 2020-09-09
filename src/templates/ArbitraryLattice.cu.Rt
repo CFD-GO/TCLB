@@ -1062,9 +1062,9 @@ void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
 	delete[] mask;
 }
 
-void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big_flag_t* nodeTypes, int* directionOffsets, size_t latticeSize, int Q) {
+void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big_flag_t* nodeTypes, int* directionOffsets, size_t latticeSize, int Q, int ndx, int ndy, int ndz, int mindx, int mindy, int mindz) {
 	// first allocate memory to connectivity matrix (and NodeType matrix)
-	container->AllocConnectivity(latticeSize, Q);
+	container->AllocConnectivity(latticeSize, Q, ndx, ndy, ndz);
 
 	// now copy everything in connectivity_ over to the latticeContainer matrix
 	CudaMemcpy2D(container->Connectivity, sizeof(size_t), connectivity_, sizeof(size_t), sizeof(size_t), latticeSize * Q, cudaMemcpyHostToDevice);
@@ -1083,8 +1083,15 @@ void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big
 	CudaMemcpy2D(container->coords, sizeof(vector_t), coords_, sizeof(vector_t), sizeof(vector_t), latticeSize, cudaMemcpyHostToDevice);
 
 	//CudaMemcpy(tab, container->coords, container->latticeSize * sizeof(vector_t), cudaMemcpyDeviceToHost);
-	CudaMemcpy(container->DirectionOffsets, directionOffsets, Q * 3 * sizeof(int), cudaMemcpyHostToDevice);
+	CudaMemcpy(container->DirectionOffsets, directionOffsets, ndx * ndy * ndz * sizeof(int), cudaMemcpyHostToDevice);
 	container->connectivityDim = Q;
+	// set dimensions and offsets of the direction table
+	container->ndx = ndx;
+	container->ndy = ndy;
+	container->ndz = ndz;
+	container->mindx = mindx;
+	container->mindy = mindy;
+	container->mindz = mindz;
 
 	output("Copied connectivity file info to CUDA memory\n");
 }

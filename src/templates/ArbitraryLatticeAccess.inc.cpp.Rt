@@ -330,7 +330,7 @@ CudaDeviceFunction real_t ArbitraryLatticeContainer::load<?%s suffix ?>_<?%s f$n
   p = PV(c("x","y","z"));
   dp = c(dx, dy, dz)
   con=load.field("ret", f, p, dp, con) ?>*/
-  size_t neighbour = Connectivity[(latticeSize * <?%d DirectionOffset(dx, dy, dz) ?>) + idx.id];
+  size_t neighbour = Connectivity[(latticeSize * GetConnectivityOffset(<?%d dx ?>, <?%d dy ?>, <?%d dz ?>)) + idx.id];
   ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];
 
   return ret;
@@ -374,7 +374,7 @@ CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (c
   p = PV(c("x","y","z"));
   dp = PV(c("dx","dy","dz"));
   con=load.field("ret", f, p, dp, con) ?>*/
-  size_t neighbour = Connectivity[(latticeSize * <?%d DirectionOffset(dx, dy, dz) ?>) + idx.id];
+  size_t neighbour = Connectivity[(latticeSize * GetConnectivityOffset(<?%d dx ?>, <?%d dy ?>, <?%d dz ?>)) + idx.id];
   ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];
 
   return ret;

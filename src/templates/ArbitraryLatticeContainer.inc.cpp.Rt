@@ -95,7 +95,7 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeS
 	ST.setsize(0, ST_GPU);
 }
 
-void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_) {
+void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_, int ndx_, int ndy_, int ndz_) {
   size_t size;
   char * tmp=NULL;
   // allocate for connectivity matrix
@@ -123,7 +123,7 @@ void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_) {
     coords = (vector_t*)tmp;
 
     // allocate for stream direction offsets matrix
-    size = (size_t) Q_ * 3 * sizeof(int);
+    size = (size_t) ndx_ * ndy_ * ndz_ * sizeof(int);
   ALLOCPRINT1;
     CudaMalloc((void**)&tmp, size);
   ALLOCPRINT2;
@@ -136,11 +136,14 @@ void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_) {
   Tries to find and return the offset in the connectivity array of the for streaming from offset (dx, dy, dz)
 **/
 CudaDeviceFunction int ArbitraryLatticeContainer::GetConnectivityOffset(int dx, int dy, int dz) {
-  for(int i = 0; i < connectivityDim; i++) {
+  /*for(int i = 0; i < connectivityDim; i++) {
     if(DirectionOffsets[3*i] == dx && DirectionOffsets[3*i + 1] == dy && DirectionOffsets[3*i + 2] == dz)
       return i;
-  }
-  return -1;
+  }*/
+
+  return DirectionOffsets[(dx - mindx) + (dy - mindy)*ndx + (dz - mindz)*ndx*ndy];
+
+  //return -1;
 }
 
 void ArbitraryLatticeContainer::ActivateCuts() {

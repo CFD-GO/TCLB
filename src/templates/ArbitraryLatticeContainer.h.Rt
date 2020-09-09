@@ -69,6 +69,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
 	int connectivityDim; ///< Number of directions defined in Connectivity
 	int * DirectionOffsets; ///< Table defining direction order of connectivity matrix
+	int ndx, ndy, ndz, mindx, mindy, mindz; ///< Values to compute the correct index in the DirectionOffsets table
 	vector_t * coords; // TODO: make macro in cuda.cu reference this array for arbitrary lattice instead of X_ + 0.5, ...
 	cut_t* Q; 
 	size_t particle_data_size;
@@ -94,7 +95,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	real_t* ConstZoneSettings;
 	STWaveSet ST;
 	void Alloc (int,int,int,size_t);
-	void AllocConnectivity (size_t,int);
+	void AllocConnectivity (size_t,int,int,int,int);
 	CudaDeviceFunction int GetConnectivityOffset(int dx, int dy, int dz);
 	void GenerateConnectivity(int,int,int);
 	void Free();
