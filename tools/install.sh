@@ -2,12 +2,8 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [dry] [skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|module [VERSION]"
+	echo "install.sh [--dry] [--skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|module [VERSION]"
 	exit -2
-}
-
-function dry {
-	test $RUN == "dry"
 }
 
 function error {
@@ -20,64 +16,27 @@ function rm_tmp {
   then
 	cd .. && rm -fr install_tmp
   else
-  	echo Not in install_tmp directory while exiting
+  	echo "Not in install_tmp directory while exiting"
   	echo PWD: $PWD
   fi
   return 0;
 }
   
-# --------------- First, check if running dry ----------------
-if test "x$1" == "xdry"
-then
-	RUN=dry
-	shift
-else
-	RUN=normal
-fi
-
-if test "x$1" == "xskipssl"
-then
-	WGETOPT="--no-check-certificate"
-	shift
-fi
-
-# ------------------- Second, check Package Management System - PMS  ----------------------
-PMS=""
-function get_PMS {
+function pms_error {
 	if test -z "$PMS"
 	then
-		pms_array=( apt-get yum )
-		for i in "${pms_array[@]}"
-		do
-			if [ -x "$(command -v $i)" ] ; then 
-				echo "Discovered Package Manager: $i"
-				PMS=$i
-			fi
-		done
-		if test -z "$PMS"
-		then
-			echo "Unknown type of Package Manager, only apt-get and yum are supported."
-			exit 2;
-		fi
+		echo "The package manager needed for installation of '$1'"
+	else
+		echo "The package manager '$PMS' not supported for installation of '$1'"
 	fi
+	exit -1;
 }
 
-# --------------- First argument is type of install ---------
-test -z "$1" && usage
-inst=$1
-shift
-
-# --------------- Move myself to tmp ------------------------
-mkdir -p install_tmp >/dev/null 2>&1 || error Failed to create install_tmp directory
-cd install_tmp >/dev/null 2>&1 || error Failed to go into install_tmp directory
-trap rm_tmp EXIT
-
-# --------------- Install functions -------------------------
 function try {
 	comment=$1
 	log=$(echo $comment | sed 's|[ /]|.|g').log
 	shift
-	if dry
+	if $DRY
 	then
 		echo "$comment:"
 		echo "         $@"
@@ -99,14 +58,14 @@ function try {
 	return 0;
 }
 
-function github_install {
+function install_rpackage_github {
 	name=$(echo $1 | sed "s/\//./g")
 	rm -f $name.tar.gz
 	try "Downloading $name" wget $WGETOPT https://github.com/$1/archive/master.tar.gz -O $name.tar.gz
 	try "Installing $name" R CMD INSTALL $name.tar.gz 
 }
 
-function normal_install {
+function install_rpackage {
 	name=$1
 	try "Installing $name" R --slave <<EOF
 		options(repos='http://cran.rstudio.com');
@@ -136,7 +95,7 @@ function gitdep.cp {
 		echo "Same"
 	else
 		echo "Changed"
-		if dry
+		if $DRY
 		then
 			echo "cp \"gitdep_repo/$1\" \"../$2\""
 		else
@@ -163,197 +122,245 @@ function gitdep {
 
 # --------------- Main install script -----------------------
 
-dry && echo Running dry install
+# --------------- Move myself to tmp ------------------------
+mkdir -p install_tmp >/dev/null 2>&1 || error Failed to create install_tmp directory
+cd install_tmp >/dev/null 2>&1 || error Failed to go into install_tmp directory
+trap rm_tmp EXIT
 
 
-case "$inst" in
-r)
-	get_PMS
-	CRAN="http://cran.rstudio.com"
-	DIST=$(lsb_release -cs)
-	if lsb_release -sid | grep "Mint"
-	then
-		DIST=trusty # All Mints are Trusty :-)
+DRY=false
+WGETOPT=""
+PMS=""
+GITHUB=false
+RSTUDIO_REPO=false
+
+for i in apt-get yum brew
+do
+	if test -f "$(command -v $i)"
+	then 
+		echo "Discovered Package Manager: $i"
+		PMS=$i
+		break
 	fi
-	if test "x$PMS" == "xyum"
-	then
-	    try "Adding epel-release repo" yum install -y epel-release
-	    try "Installing R base" sudo yum install -y R
-	    try "Changing access to R lib paths" chmod 2777 /usr/lib64/R/library /usr/share/R/library
-	fi
-	
-	if test "x$PMS" == "xapt-get"
-	then
-	    try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
-	    try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
-	    try "Updating APT" apt-get update -qq
-	    try "Installing R base" apt-get install -y --allow-unauthenticated --no-install-recommends r-base-dev r-recommended qpdf
-	    try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
-	fi
-	;;
-rpackage)
-	GITHUB=false
-        if test "x$1" == "xgithub"
-        then
-        	GITHUB=true
-        	shift
-        fi
-	if test -z "$1"
-	then
-		echo "tools/install.sh rpackage package_name"
-		echo " OR "
-		echo "tools/install.sh rpackage github user/repo"
-		exit -1
-	fi
-	if $GITHUB
-	then
-		github_install "$1"
-	else
-		normal_install "$1"
-	fi
-	;;
-normal_install)
-	if test -z "$1"
-	then
-		echo "tools/install.sh normal_install package"
-		exit -1
-	fi
-	normal_install "$1"
-	;;
-rdep)
-        if test "x$1" == "xgithub"
-        then
-                github_install cran/getopt
-                github_install cran/optparse
-                github_install cran/numbers
-                github_install cran/yaml
-        else
-                normal_install optparse
-                normal_install numbers
-                normal_install yaml
-        fi
-	github_install llaniewski/rtemplate
-	github_install llaniewski/gvector
-	github_install llaniewski/polyAlgebra
-	;;
-rpython)
-	normal_install rjson
-	normal_install rPython
-	;;
-rinside)
-	if test "x$1" == "xgithub"
-	then
-		github_install eddelbuettel/rinside
-	else
-		normal_install RInside
-	fi
-	;;
-cuda)
-	test -z "$1" && error Version number needed for cuda install
-	get_PMS
-	CUDA=$1
+done
+
+SUDO=""
+
+while test -n "$1"
+do
+	case "$1" in
+	--dry) DRY=true ;;
+	--skipssl) WGETOPT="--no-check-certificate" ;;
+	--pms) shift; PMS="$1" ;;
+	--github) GITHUB=true ;;
+	--rstudio-repo) RSTUDIO_REPO=true ;;
+	--sudo)
+		if test "$UID" == "0"
+		then
+			echo "--sudo: running as root"
+		else
+			if test -f "$(command -v sudo)"
+			then
+				SUDO="sudo -n"
+				if $SUDO true 2>/dev/null
+				then
+					echo "--sudo: sudo working without password"
+				else
+					error "--sudo: sudo requires a password"
+				fi
+			else
+				error "No sudo"
+			fi
+		fi
+		;;
+	essentials)
+		case "$PMS" in
+		brew)
+			try "Installing gnu utils from brew" brew install coreutils
+			try "Installing gnu utils from brew" brew install findutils
+			try "Installing gnu utils from brew" brew install gnu-sed
+			;;
+		esac
+		;;
+	r)
+		case "$PMS" in
+		yum)
+			try "Adding epel-release repo" $SUDO yum install -y epel-release
+			try "Installing R base" $SUDO yum install -y R
+			;;
+		apt-get)
+			if $RSTUDIO_REPO
+			then
+				CRAN="http://cran.rstudio.com"
+				DIST=$(lsb_release -cs)
+				if lsb_release -sid | grep "Mint"
+				then
+					DIST=trusty # All Mints are Trusty :-)
+				fi
+				try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
+				try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
+			fi
+			try "Updating APT" $SUDO apt-get update -qq
+			try "Installing R base" $SUDO apt-get install -y --allow-unauthenticated --no-install-recommends r-base-dev r-recommended qpdf
+			;;
+		brew)
+			try "Installing R from brew" brew install r
+			;;
+		*)
+			pms_error R ;;
+		esac
+		#try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
+		;;
+	-r|--rpackage)
+		test -z "$1" && error "usage tools/install.sh [--github] --rpackage package_name"
+		if $GITHUB
+		then
+			install_rpackage_github "$1"
+		else
+			install_rpackage "$1"
+		fi
+		shift
+		;;
+	rdep)
+		if $GITHUB
+		then
+				install_rpackage_github cran/getopt
+				install_rpackage_github cran/optparse
+				install_rpackage_github cran/numbers
+				install_rpackage_github cran/yaml
+		else
+				install_rpackage optparse
+				install_rpackage numbers
+				install_rpackage yaml
+		fi
+		install_rpackage_github llaniewski/rtemplate
+		install_rpackage_github llaniewski/gvector
+		install_rpackage_github llaniewski/polyAlgebra
+		;;
+	rpython)
+		install_rpackage rjson
+		install_rpackage rPython
+		;;
+	rinside)
+		if $GITHUB
+		then
+			install_rpackage_github eddelbuettel/rinside
+		else
+			install_rpackage RInside
+		fi
+		;;
+	cuda)
+		test -z "$1" && error "Version number needed for cuda install"
+		CUDA=$1
+		shift
+		echo "#### Installing CUDA library ####"
+		
+		case "$PMS" in
+		apt-get)
+			try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+			try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+			try "Updating APT" $SUDO apt-get update -qq
+			CUDA_APT=${CUDA%-*}
+			CUDA_APT=${CUDA_APT/./-}
+			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
+			try "Clean APT" $SUDO apt-get clean
+			;;
+		*)
+			pms_error CUDA ;;
+		esac
+		;;
+	openmpi)
+		case "$PMS" in
+		yum)
+			try "Installing openmpi from yum" $SUDO yum install -y openmpi
+			try "Installing openmpi-devel from yum" $SUDO yum install -y openmpi-devel
+			try "Clean yum" $SUDO yum clean packages
+			echo "Don't forget to load mpi module before compilation."
+			;;
+		apt-get)
+			try "Updating APT" $SUDO apt-get update -qq
+			try "Installing OpenMPI from APT" $SUDO apt-get install -y openmpi-bin libopenmpi-dev
+			try "Clean APT" $SUDO apt-get clean
+			;;
+		brew)
+			try "Installing OpenMPI from brew" brew install openmpi
+			;;
+		*)
+			pms_error OpenMPI ;;
+		esac
+		;;
+	lcov)
+		case "$PMS" in
+		apt-get)
+			try "Installing lcov and time" $SUDO apt-get install -y time lcov
+			;;
+		*)
+			pms_error lcov ;;
+		esac
+		;;
+	submodules)
+		if test -f "../tests/README.md"
+		then
+			echo "\"tests\" already cloned"
+			exit 0
+		fi
+#		try "Saving gitmodules" cp ../.gitmodules gitmodules
+#		try "Changing URLs of submodules" sed -i 's/git@github.com:/https:\/\/github.com\//' ../.gitmodules
+		try "Updating \"tests\" submodule" git submodule update --init ../tests
+#		try "Loading gitmodules" mv gitmodules ../.gitmodules
+		;;
+	gitdep)
+		if ! test -f "../.gitdeps"
+		then
+			echo no .gitdeps file
+			exit 0;
+		fi
+		while read line
+		do
+			gitdep $line
+		done <../.gitdeps
+		;;
+	python-dev)
+		case "$PMS" in
+		yum)
+			try "Installing python-devel from yum" $SUDO yum install -y python-devel
+			try "Installing numpy from yum" $SUDO yum install -y numpy 
+			try "Installing sympy from yum" $SUDO yum install -y sympy
+			;;
+		apt-get)
+			try "Installing python-dev from APT" $SUDO apt-get install -qq python-dev python-numpy python-sympy
+			;;
+		brew)
+			try "Installing Python from brew (this should install headers as well)" brew install python
+			;;
+		*)
+			pms_error python-dev ;;
+		esac
+		;;
+	module)
+		case "$PMS" in
+		yum)
+			try "Installing dependencies: tcl" $SUDO yum -y install tcl 
+			try "Installing dependencies: tcl-devel" $SUDO yum -y install tcl-devel
+			;;
+		*)
+			pms_error ;;
+		esac
+		try "Downloading module" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
+		try "Unpacking archive" tar -xjf modules-4.1.0.tar.bz2 -C .
+		try "Entering module directory" cd modules-4.1.0
+		try "Configuring" ./configure
+		try "make" make
+		try "make install" make install
+		try "Leaving module directory" cd ..
+		try "Remember to restart terminal" . ~/.bashrc	
+		;;
+	-*)
+		echo "Unknown option $1" ; usage ;;
+	*)		
+		echo "Unknown installation '$1'"; usage ;;
+	esac
 	shift
-	echo "#### Installing CUDA library ####"
-	
-	if test "x$PMS" == "xyum"
-	then
-		echo "The install script doesnt support yum yet, please install CUDA manually."
-		exit 1;
-	fi
-	
-	if test "x$PMS" == "xapt-get"
-	then
-	    try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-	    try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-	    try "Updating APT" apt-get update -qq
-	    CUDA_APT=${CUDA%-*}
-	    CUDA_APT=${CUDA_APT/./-}
-	    try "Installing CUDA form APT" apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
-	    try "Clean APT" apt-get clean
-	fi
-	;;
-openmpi)
-	get_PMS
-	if test "x$PMS" == "xyum"
-	then
-		try "Installing openmpi from yum" yum install -y openmpi
-		try "Installing openmpi-devel from yum" yum install -y openmpi-devel
-		try "Clean yum" yum clean packages
-		echo "Don't forget to load mpi module before compilation."
-	fi
-	if test "x$PMS" == "xapt-get"
-	then
-		try "Updating APT" apt-get update -qq
-		try "Installing MPI from APT" apt-get install -y openmpi-bin libopenmpi-dev
-		try "Clean APT" apt-get clean
-	fi
-	;;
-cover)
-	get_PMS
-	if test "x$PMS" == "xyum"	
-	then
-		echo "The install script doesnt support yum yet, please install CUDA manually."
-	fi 
-	
-	if test "x$PMS" == "xapt-get"
-	then
-		try "Installing lcov" apt-get install -y lcov
-		try "Installing time" apt-get install -y time
-	fi
-	;;
-submodules)
-	if test -f "../tests/README.md"
-	then
-		echo "\"tests\" already cloned"
-		exit 0
-	fi
-	try "Saving gitmodules" cp ../.gitmodules gitmodules
-	try "Changing URLs of submodules" sed -i 's/git@github.com:/https:\/\/github.com\//' ../.gitmodules
-	try "Updating \"tests\" submodule" git submodule update --init ../tests
-	try "Loading gitmodules" mv gitmodules ../.gitmodules
-	;;
-gitdep)
-	if ! test -f "../.gitdeps"
-	then
-		echo no .gitdeps file
-		exit 0;
-	fi
-	while read line
-	do
-		gitdep $line
-	done <../.gitdeps
-	;;
-python-dev)
-	get_PMS
-	if test "x$PMS" == "xyum"	
-	then
-		try "Installing python-devel from yum" yum install -y python-devel
-		try "Installing numpy from yum" yum install -y numpy 
-		try "Installing sympy from yum" yum install -y sympy
-	fi
-	
-	if test "x$PMS" == "xapt-get"
-	then
-		try "Installing python-dev from APT" apt-get install -qq python-dev python-numpy python-sympy
-	fi
-	;;
-module)
-	try "Installing dependencies: tcl" yum -y install tcl 
-	try "Installing dependencies: tcl-devel" yum -y install tcl-devel
-	try "Downloading module" wget https://github.com/cea-hpc/modules/releases/download/v4.1.0/modules-4.1.0.tar.bz2
-	try "Unpacking archive" tar -xjf modules-4.1.0.tar.bz2 -C .
-	try "Entering module directory" cd modules-4.1.0
-	try "Configuring" ./configure
-	try "make" make
-	try "make install" make install
-	try "Leaving module directory" cd ..
-	try "Remember to restart terminal" . ~/.bashrc	
-	;;
-*)
-	echo "Unknown type of install $inst"
-	usage
-	;;
-esac
-
+done
 
 exit 0;
