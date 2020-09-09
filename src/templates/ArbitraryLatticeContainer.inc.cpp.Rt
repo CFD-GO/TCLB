@@ -67,7 +67,7 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeS
     ny = ny_;
     nz = nz_;
 
-    latticeSize = latticeSize_; // this will be moved out once we have a better allocation/distribution method
+    latticeSize = latticeSize_;
 
     InitDim<ArbitraryLatticeContainerAccessor>(ny);
 
@@ -122,6 +122,25 @@ void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_) {
     CudaMemset( tmp, 0, size ); 
     coords = (vector_t*)tmp;
 
+    // allocate for stream direction offsets matrix
+    size = (size_t) Q_ * 3 * sizeof(int);
+  ALLOCPRINT1;
+    CudaMalloc((void**)&tmp, size);
+  ALLOCPRINT2;
+    CudaMemset(tmp, 0, size);
+    DirectionOffsets = (int*) tmp;
+
+}
+
+/**
+  Tries to find and return the offset in the connectivity array of the for streaming from offset (dx, dy, dz)
+**/
+CudaDeviceFunction int ArbitraryLatticeContainer::GetConnectivityOffset(int dx, int dy, int dz) {
+  for(int i = 0; i < connectivityDim; i++) {
+    if(DirectionOffsets[3*i] == dx && DirectionOffsets[3*i + 1] == dy && DirectionOffsets[3*i + 2] == dz)
+      return i;
+  }
+  return -1;
 }
 
 void ArbitraryLatticeContainer::ActivateCuts() {
@@ -215,7 +234,7 @@ template <class N> inline void ArbitraryLatticeContainer::RunBorderT(CudaStream_
 	    CudaKernelRunNoWait( (RunBorderKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
     #else
 	    CudaKernelRunNoWait( (RunBorderKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
-    #endif*/ // TODO - needs revised upon working out 
+    #endif*/ // TODO - needs revised upon working out parallel implementation
 };
 
 /// Run the interior kernel

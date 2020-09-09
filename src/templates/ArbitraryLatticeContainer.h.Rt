@@ -64,10 +64,12 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	AFTabs adjout; ///< AFTabs used for Adjoint iteration as output
 	AFTabs adjin; ///< AFTabs used for Adjoint iteration as input
   #endif
-  	struct index { size_t id; int x, y, z; };
+  	struct index { size_t id; int x, y, z; }; // don't ask about the x, y, z - pretty sure they're neccessary for now :(
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
 	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
-	vector_t * coords;
+	int connectivityDim; ///< Number of directions defined in Connectivity
+	int * DirectionOffsets; ///< Table defining direction order of connectivity matrix
+	vector_t * coords; // TODO: make macro in cuda.cu reference this array for arbitrary lattice instead of X_ + 0.5, ...
 	cut_t* Q; 
 	size_t particle_data_size;
 	real_t* particle_data;
@@ -93,6 +95,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	STWaveSet ST;
 	void Alloc (int,int,int,size_t);
 	void AllocConnectivity (size_t,int);
+	CudaDeviceFunction int GetConnectivityOffset(int dx, int dy, int dz);
 	void GenerateConnectivity(int,int,int);
 	void Free();
 	void ActivateCuts();

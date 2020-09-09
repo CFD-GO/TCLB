@@ -5,7 +5,7 @@ std::string acConnectivity::xmlname = "ArbitraryLattice";
 int acConnectivity::Init () {
 			solver->connectivity->load(node);
 			solver->lattice->LoadLattice(solver->connectivity->connectivity, solver->connectivity->coords, solver->connectivity->geom, 
-											solver->connectivity->latticeSize, solver->connectivity->Q);
+											solver->connectivity->connectivityDirections, solver->connectivity->latticeSize, solver->connectivity->Q);
 			return 0;
 	}
 

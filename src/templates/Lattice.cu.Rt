@@ -1054,7 +1054,7 @@ void Lattice::IterateAction(int action, int niter, int iter_type)
 	FinalIteration();
 };
 
-void Lattice::LoadLattice(size_t* connectivity_, vector_t* coords, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
+void Lattice::LoadLattice(size_t* connectivity_, vector_t* coords, big_flag_t* nodeTypes, int* directionOffsets, size_t latticeSize, int Q) {
 	return;
 }
 

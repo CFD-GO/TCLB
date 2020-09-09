@@ -1062,9 +1062,7 @@ void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
 	delete[] mask;
 }
 
-void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big_flag_t* nodeTypes, size_t latticeSize, int Q) {
-	//if(connectivity_ == NULL || coords == NULL || nodeTypes == NULL) return;
-	
+void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big_flag_t* nodeTypes, int* directionOffsets, size_t latticeSize, int Q) {
 	// first allocate memory to connectivity matrix (and NodeType matrix)
 	container->AllocConnectivity(latticeSize, Q);
 
@@ -1083,6 +1081,10 @@ void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big
 
 	// copy coords over to latticeContainer matrix
 	CudaMemcpy2D(container->coords, sizeof(vector_t), coords_, sizeof(vector_t), sizeof(vector_t), latticeSize, cudaMemcpyHostToDevice);
+
+	//CudaMemcpy(tab, container->coords, container->latticeSize * sizeof(vector_t), cudaMemcpyDeviceToHost);
+	CudaMemcpy(container->DirectionOffsets, directionOffsets, Q * 3 * sizeof(int), cudaMemcpyHostToDevice);
+	container->connectivityDim = Q;
 
 	output("Copied connectivity file info to CUDA memory\n");
 }

@@ -21,6 +21,7 @@ public:
     real_t * pointData;
     size_t * cellConnectivity;
     size_t * cellOffsets;
+    int * connectivityDirections;
     unsigned char * cellTypes;
     lbRegion region; ///< Local lattice region
     lbRegion totalregion; ///< Global lattice region
