@@ -333,7 +333,11 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no
 	}
 	if (is.logical(save.fields)) {
 		if ((length(save.fields) != 1) && (length(save.fields) != nrow(Fields))) stop("Wrong length of save.fields in AddStage")
-		Fields[,s$tag] <<- save.fields
+		if (nrow(Fields) > 0) {
+  		  Fields[,s$tag] <<- save.fields
+                } else {
+  		  Fields[,s$tag] <<- logical(0)
+                }
 	} else stop("save.fields should be logical or character in AddStage")
 }
 
@@ -360,6 +364,7 @@ AddObjective = function(name, expr) {
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
+if (nrow(Fields) < 1) stop("The model has to have at least one Field/Density")
 
 for (i in Globals$name) AddObjective(i,PV(i))
 
@@ -452,19 +457,23 @@ for (n in names(Actions)) { a = Actions[[n]]
 
 NodeShift = 1
 NodeShiftNum = 0
-NodeTypes = unique(NodeTypes)
-NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
-	n = nrow(tab)
-	l = ceiling(log2(n+1))
-	tab$index = 1:n
-	tab$Index = tab$name
-	tab$value = NodeShift*(1:n)
-	tab$mask  = NodeShift*((2^l)-1)
-	tab$shift = NodeShiftNum
-	NodeShift    <<- NodeShift * (2^l)
-	NodeShiftNum <<- NodeShiftNum + l
-	tab
-}))
+if (nrow(NodeTypes) > 0) {
+  NodeTypes = unique(NodeTypes)
+  NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
+          n = nrow(tab)
+          l = ceiling(log2(n+1))
+          tab$index = 1:n
+          tab$Index = tab$name
+          tab$value = NodeShift*(1:n)
+          tab$mask  = NodeShift*((2^l)-1)
+          tab$shift = NodeShiftNum
+          NodeShift    <<- NodeShift * (2^l)
+          NodeShiftNum <<- NodeShiftNum + l
+          tab
+  }))
+} else {
+  NodeTypes = data.frame()
+}
 FlagT = "unsigned short int"
 FlagTBits = 16
 if (NodeShiftNum > 14) {
@@ -522,7 +531,7 @@ DensityAll$tangent_name = add.to.var.name(DensityAll$name,"d")
 Fields$adjoint_name = add.to.var.name(Fields$name,"b")
 Fields$tangent_name = add.to.var.name(Fields$name,"d")
 
-Fields$area = with(Fields,(maxx-minx+1)*(maxy-miny+1)*(maxz-minz+1))
+Fields$area = (Fields$maxx-Fields$minx+1)*(Fields$maxy-Fields$miny+1)*(Fields$maxz-Fields$minz+1)
 Fields$simple_access = (Fields$area == 1)
 Fields$big = Fields$area > 27
 
