@@ -13,7 +13,7 @@ public:
     size_t * connectivity; ///< Main connectivity matrix
     size_t latticeSize; ///< Number of nodes in the arbitrary lattice
     int d, Q;
-    int x, y, z; ///< Dimensions of the base lattice
+    int nx, ny, nz; ///< Dimensions of the base lattice
     vector_t * coords; ///< Table of coordinates of each node
     bool cellDataOutput;
     size_t nPoints;
@@ -21,6 +21,7 @@ public:
     real_t * pointData;
     size_t * cellConnectivity;
     size_t * cellOffsets;
+    std::map<std::string,big_flag_t> GroupsToNodeTypes;
     int * connectivityDirections;
     int ndx, ndy, ndz, mindx, mindy, mindz, maxdx, maxdy, maxdz;
     unsigned char * cellTypes;

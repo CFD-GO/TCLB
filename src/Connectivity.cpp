@@ -20,6 +20,28 @@ int Connectivity::load(pugi::xml_node & node) {
     int ret;
     
     output("Loading connectivity information ...\n");
+    
+    // first read mappings from connectivity file 'labels' to nodetypes from child nodes
+    for(pugi::xml_node z = node.first_child(); z; z = z.next_sibling()) {
+        // find the nodetype flag for the child name in xml config
+        ModelBase::NodeTypeFlags::const_iterator it;
+        it = model->nodetypeflags.ByName(z.name());
+        if (it == model->nodetypeflags.end()) {
+            ERROR("Unknown flag (in xml): %s\n", z.name());
+            return -1;
+        }
+        //printf("Flag found for %s: %d\n", z.name(), it->flag);
+        // give this group
+        pugi::xml_attribute group = z.attribute("group");
+        if(group) {
+            if(GroupsToNodeTypes.count(group.value()) > 0)
+                GroupsToNodeTypes[group.value()] |= it->flag;
+            else
+                GroupsToNodeTypes[group.value()] = it->flag;
+        }
+        
+    }
+
     if(!node.attribute("file")) {
         error("No 'file' attribute in ArbitraryLattice element in xml conf\n");
     }
@@ -38,7 +60,7 @@ int Connectivity::load(pugi::xml_node & node) {
 
     // read header information
     ret = fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
-    ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &x, &y, &z);
+    ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
     ret = fscanf(cxnFile, "d %d\n", &d);
     ret = fscanf(cxnFile, "Q %d\n", &Q);
     ret = fscanf(cxnFile, "OFFSET_DIRECTIONS\n");
@@ -92,21 +114,8 @@ int Connectivity::load(pugi::xml_node & node) {
     free(connectivityDirections);
     connectivityDirections = tmp;
 
-    ret = fscanf(cxnFile, "MASK %s\n", buffer);
+    //ret = fscanf(cxnFile, "MASK %s\n", buffer);
     ret = fscanf(cxnFile, "NODES\n");
-
-    big_flag_t defMask = 0;
-    ModelBase::NodeTypeFlags::const_iterator it;
-    if(strcmp(buffer, "NONE") != 0) {
-        it = model->nodetypeflags.ByName(buffer);
-        if (it == model->nodetypeflags.end()) {
-            ERROR("Unknown flag (in xml): %s\n", buffer);
-            return -1;
-        }
-        defMask = it->flag;
-    }
-
-    
 
     // allocate memory for connectivity / nodetype matrices
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
@@ -120,7 +129,7 @@ int Connectivity::load(pugi::xml_node & node) {
         size_t nid;
 
         // first scan for the nid, nodetype, coords
-        ret = fscanf(cxnFile, "%zu %s %e %e %e ", &nid, nodeType, &x, &y, &z);
+        ret = fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z);
         // can't fscan a float into a real_t so use intermediate vars
         vector_t w;
         w.x = x;
@@ -128,31 +137,30 @@ int Connectivity::load(pugi::xml_node & node) {
         w.z = z;
         coords[i] = w;
 
-        if(strcmp(nodeType, "NONE") != 0) {
-            // find the flag corresponding to our nodeType
-            it = model->nodetypeflags.ByName(nodeType);
-            if (it == model->nodetypeflags.end()) {
-                ERROR("Unknown flag (in xml): %s\n", nodeType, nid);
-                return -1;
-            }
-            // set it to that in the nodetype array
-            // if it's a wall, don't set it to mrt as well
-            // if it's anything else, & it with mrt.. will need to think of a more elegant way to handle this when I generalise the pre-processor
-            if(strcmp(nodeType, "Wall") == 0)
-                geom[i] = it->flag;
-            else
-                geom[i] = it->flag | defMask;
-
-        }
-        
-        
-
         // next scan in the connectivity - have to scan an unknown number of integers
-        for(int q = 0; q < Q - 1; q++) {
+        for(int q = 0; q < Q; q++) {
             ret = fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]);
         }
-        // do the last scan separate to get the newline
-        ret = fscanf(cxnFile, "%zu\n", &connectivity[((Q - 1) * latticeSize) + i]);
+
+        // now read the labels on each node
+        int nlabels;
+        char label[20];
+        // read in the number of labels we have
+        ret = fscanf(cxnFile, "%d", &nlabels);
+        // read in our labels after that
+        for(int j = 0; j < nlabels; j++) {
+            ret = fscanf(cxnFile, " %s", &label);
+            // see if we have this label in our mapping
+            if(GroupsToNodeTypes.count(label) > 0) {
+                // if we do, |= that onto our current NodeType value
+                geom[i] |= GroupsToNodeTypes[label];
+            } else {
+                ERROR("Unknown group label (in connectivity file): %s\n", label);
+                return -1;
+            }
+        }
+
+        ret = fscanf(cxnFile, "\n");
     }
 
     fclose(cxnFile);
