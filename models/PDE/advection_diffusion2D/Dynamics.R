@@ -13,8 +13,18 @@ AddQuantity(name="Phi")
 #	Inputs: Flow Properties
 AddSetting(name="diff_coeff")
 AddSetting(name="Value", zonal=TRUE)
-AddSetting(name="ux", comment="free stream velocity")
-AddSetting(name="uy", comment="free stream velocity")
+
+if (Options$fields) {
+	AddDensity(name="ux", group="u", comment="free stream velocity", parameter=TRUE)
+	AddDensity(name="uy", group="u", comment="free stream velocity", parameter=TRUE)
+	AddDensity(name="phi0", group="init", comment="initial phi", parameter=TRUE)
+	AddStage(name="InitFromFieldsStage", main="InitFromFields", load.densities=TRUE, save.fields=TRUE)
+	AddAction(name="InitFromFields", "InitFromFieldsStage")
+} else {
+	AddSetting(name="ux", comment="free stream velocity")
+	AddSetting(name="uy", comment="free stream velocity")
+}
 
 #	Boundary things:
 AddNodeType(name="Dirichlet", group="BOUNDARY")
+

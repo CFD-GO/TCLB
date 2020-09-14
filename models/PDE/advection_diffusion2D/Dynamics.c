@@ -15,7 +15,18 @@ CudaDeviceFunction real_t getPhi() {
 
 CudaDeviceFunction void Init() {
     phi = Value;
- }
+    #ifdef OPTIONs_fields
+      ux=0;
+      uy=0;
+    #endif
+}
+
+#ifdef OPTIONS_fields
+CudaDeviceFunction void InitFromFields() {
+    phi = phi0;
+}
+#endif
+
 
 CudaDeviceFunction void Run() { 
   real_t lap_phi = phi(-1,0) + phi(1,0) + phi(0,-1) + phi(0,1) - 4*phi(0,0);
