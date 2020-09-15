@@ -220,9 +220,14 @@ int txtWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 				f = fopen(fn,"w");
 				break;
 			case 1:
+#if defined(_WIN32)
+				ERROR("gzip unsupported on Windows");
+				return -1;
+#else
 				char com[STRING_LEN];
 				sprintf(com, "gzip > %s.gz", fn);
 				f = popen(com, "w");
+#endif
 				break;
 			default:
 				ERROR("Unknown type in txtWriteLattice\n");

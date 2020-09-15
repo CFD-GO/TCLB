@@ -45,6 +45,7 @@ SOURCE_PLAN+=CommonHandler.h Handlers.h
 SOURCE_PLAN+=Factory.h HandlerFactory.h
 SOURCE_PLAN+=SUMMARY
 SOURCE_PLAN+=conf.doxygen
+SOURCE_PLAN+=CMakeLists.txt
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 ADDITIONALS=README.md dictionary.h
@@ -141,7 +142,7 @@ for (d in destinations) {
 		src_all = paste(src_all,add)
 		rtopt = NULL
 		if (adjoint) rtopt = c(rtopt, "MODEL=TRUE")
-		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
+		rtopt = c(rtopt, paste0("\"MODEL='",m,"'\""))
 		if (length(opts) > 0) {
 			opts = ifelse(opts==0,"FALSE","TRUE")
 			opts = paste0(names(opts),"=",opts,collapse=",")
@@ -186,6 +187,16 @@ for (d in destinations) {
 
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
+
+<?%s m ?>/cmake: $(addprefix CLB/d2q9/,$(SOURCE_ALL))
+	@echo "  DONE       $@"
+
+<?%s m ?>/windows: <?%s m ?>/cmake
+	@echo "  CMAKE      $@"
+	@cd <?%s d ?>/<?%s m ?>; cmake .
+	@echo "  MSBuild    $@"
+	@cd <?%s d ?>/<?%s m ?>; MSBuild.exe main.vcxproj
+
 
 <?%s d ?>/<?%s m ?>/ :
 	@$(MKPATH) $@

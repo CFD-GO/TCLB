@@ -1,0 +1,62 @@
+#ifndef CONFIG_H
+  #define CONFIG_H
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Making a CPU version */
+#undef CROSS_CPU
+
+/* Making a OPENMP version */
+#undef CROSS_OPENMP
+
+/* Making a GUI version */
+#undef GRAPHICS
+
+/* Making a double precision version */
+#define CALC_DOUBLE_PRECISION 1
+
+/* Using 3D block grid in CUDA */
+#define GRID3D 1
+
+/* Using NLOpt */
+#undef WITH_NLOPT
+
+/* Using R */
+#undef WITH_R
+
+/* Using HDF5 */
+#undef WITH_HDF5
+
+/* CUDA ARCH */
+#undef CUDA_ARCH
+
+/* Calling only syncronious CUDA functions */
+#undef CROSS_SYNC
+
+/* Calling CUDA malloc where it is (no preallocation) */
+#undef CROSS_SYNCALLOC
+
+/* Calling CUDA malloc where it is (no preallocation) */
+#define CROSS_MPI_WAITANY 1
+
+/* Debug Level */
+#define DEBUG_LEVEL 3
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Build-in python support */
+#undef EMBEDED_PYTHON
+
+#endif
