@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- This is of model of a square-pipe flow  d3q27_viscoplastic model - you should observe a non-yielded zone in the liquid -->
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="128" ny="32" nz="32">
+		<MRT>
+			<Box/>
+		</MRT>
+		<NeumannXP mask="ALL">
+			<Box dx="-1"/>
+		</NeumannXP>
+		<WPressure_ZouHe mask="ALL" name="Inlet">
+			<Box nx="1"/>
+		</WPressure_ZouHe>
+		<Wall mask="ALL">
+			<Tunnel/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="Pressure" value="0"/>
+		<Param name="Pressure" value="0" zone="Inlet"/>
+		<Param name="nu" value="0.05"/>
+		<Param name="YieldStress" value="0.00002"/>
+	</Model>
+	<Control Iterations="14000">
+		<CSV file="example/nonnewtonian/PressureIn_alternate.csv" Time="t*1">
+			<Param name="Pressure" value="P*1" zone="Inlet"/>
+		</CSV>
+	</Control>
+	<Sample Iterations="100" what="P">
+		<Point dx="1" dy="16" dz="16"/>
+	</Sample>
+	<VTK/>
+	<Failcheck Iterations="100"/>
+	<VTK Iterations="2000"/>
+	<Solve Iterations="14000"/>
+</CLBConfig>

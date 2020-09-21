@@ -175,6 +175,7 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 
 AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
+	if (any(unit == "")) stop("Empty unit in AddSetting not allowed")
 	if (missing(comment)) {
 		comment = name
 	}
@@ -211,6 +212,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 
 AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=0.0) {
 	if (missing(name)) stop("Have to supply name in AddGlobal!")
+	if (any(unit == "")) stop("Empty unit in AddGlobal not allowed")
 	if (missing(var)) var=name
 	if (comment == "") {
 		comment = name
@@ -230,6 +232,7 @@ AddGlobal = function(name, var, comment="", unit="1", adjoint=F, op="SUM", base=
 
 AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 	if (missing(name)) stop("Have to supply name in AddQuantity!")
+	if (any(unit == "")) stop("Empty unit in AddQuantity not allowed")
 	if (comment == "") {
 		comment = name
 	}
@@ -284,31 +287,6 @@ AddDescription = function(short, long) {
 	)
 }
 
-AddNodeType("BGK","COLLISION")
-AddNodeType("MRT","COLLISION")
-# AddNodeType("MR","COLLISION")
-# AddNodeType("Entropic","COLLISION")
-AddNodeType("Wall","BOUNDARY")
-AddNodeType("Solid","BOUNDARY")
-AddNodeType("WVelocity","BOUNDARY")
-AddNodeType("WPressure","BOUNDARY")
-AddNodeType("WPressureL","BOUNDARY")
-AddNodeType("EPressure","BOUNDARY")
-AddNodeType("EVelocity","BOUNDARY")
-# AddNodeType("MovingWall","BOUNDARY")
-# AddNodeType("Heater","ADDITIONALS")
-# AddNodeType("HeatSource","ADDITIONALS")
-# AddNodeType("Wet","ADDITIONALS")
-# AddNodeType("Dry","ADDITIONALS")
-# AddNodeType("Propagate","ADDITIONALS")
-#AddNodeType("Inlet","OBJECTIVE")
-#AddNodeType("Outlet","OBJECTIVE")
-# AddNodeType("Obj1","OBJECTIVE")
-# AddNodeType("Obj2","OBJECTIVE")
-# AddNodeType("Obj3","OBJECTIVE")
-# AddNodeType("Thermometer","OBJECTIVE")
-AddNodeType("DesignSpace","DESIGNSPACE")
-
 Stages=NULL
 
 AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE) {
@@ -355,7 +333,11 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no
 	}
 	if (is.logical(save.fields)) {
 		if ((length(save.fields) != 1) && (length(save.fields) != nrow(Fields))) stop("Wrong length of save.fields in AddStage")
-		Fields[,s$tag] <<- save.fields
+		if (nrow(Fields) > 0) {
+  		  Fields[,s$tag] <<- save.fields
+                } else {
+  		  Fields[,s$tag] <<- logical(0)
+                }
 	} else stop("save.fields should be logical or character in AddStage")
 }
 
@@ -382,6 +364,7 @@ AddObjective = function(name, expr) {
 
 source("Dynamics.R") #------------------------------------------- HERE ARE THE MODEL THINGS
 
+if (nrow(Fields) < 1) stop("The model has to have at least one Field/Density")
 
 for (i in Globals$name) AddObjective(i,PV(i))
 
@@ -474,19 +457,23 @@ for (n in names(Actions)) { a = Actions[[n]]
 
 NodeShift = 1
 NodeShiftNum = 0
-NodeTypes = unique(NodeTypes)
-NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
-	n = nrow(tab)
-	l = ceiling(log2(n+1))
-	tab$index = 1:n
-	tab$Index = tab$name
-	tab$value = NodeShift*(1:n)
-	tab$mask  = NodeShift*((2^l)-1)
-	tab$shift = NodeShiftNum
-	NodeShift    <<- NodeShift * (2^l)
-	NodeShiftNum <<- NodeShiftNum + l
-	tab
-}))
+if (nrow(NodeTypes) > 0) {
+  NodeTypes = unique(NodeTypes)
+  NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
+          n = nrow(tab)
+          l = ceiling(log2(n+1))
+          tab$index = 1:n
+          tab$Index = tab$name
+          tab$value = NodeShift*(1:n)
+          tab$mask  = NodeShift*((2^l)-1)
+          tab$shift = NodeShiftNum
+          NodeShift    <<- NodeShift * (2^l)
+          NodeShiftNum <<- NodeShiftNum + l
+          tab
+  }))
+} else {
+  NodeTypes = data.frame()
+}
 FlagT = "unsigned short int"
 FlagTBits = 16
 if (NodeShiftNum > 14) {
@@ -513,16 +500,6 @@ NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
 
 if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
-
-NodeTypes = rbind(NodeTypes, data.frame(
-	name="None",
-	group="NONE",
-	index=1,
-	Index="None",
-	value=0,
-	mask=0,
-	shift=0
-))
 
 Node=NodeTypes$value
 names(Node) = NodeTypes$name
@@ -554,7 +531,7 @@ DensityAll$tangent_name = add.to.var.name(DensityAll$name,"d")
 Fields$adjoint_name = add.to.var.name(Fields$name,"b")
 Fields$tangent_name = add.to.var.name(Fields$name,"d")
 
-Fields$area = with(Fields,(maxx-minx+1)*(maxy-miny+1)*(maxz-minz+1))
+Fields$area = (Fields$maxx-Fields$minx+1)*(Fields$maxy-Fields$miny+1)*(Fields$maxz-Fields$minz+1)
 Fields$simple_access = (Fields$area == 1)
 Fields$big = Fields$area > 27
 
@@ -697,6 +674,9 @@ Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
+
+Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
+Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
 
 offsets = function(d2=FALSE, cpu=FALSE) {
   def.cpu = cpu

@@ -436,11 +436,13 @@ void MainFree( Solver *d);
 int Solver::getPars() {
 	int n = region.size();
 	int j=0;
+	<?R if ("DesignSpace" %in% NodeTypes$name) { ?>
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			j++;
 		}
 	}
+	<?R } ?>
 	Par_size = j * <?%d sum(Density$parameter==T) ?>;
 	debug1("Par_size: %d\n",Par_size);
 	MPI_Gather(&Par_size, 1, MPI_INT, Par_sizes, 1, MPI_INT, 0, MPMD.local);
@@ -468,12 +470,14 @@ int Solver::getPar(double * wb) {
 	int j=0;
 <?R for (d in rows(Density)) if (d$parameter) { ?>
 	lattice->Get_<?%s d$nicename ?>(buf);
+	<?R if ("DesignSpace" %in% NodeTypes$name) { ?>
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			wb_l[j] = buf[i];
 			j++;
 		}
 	}
+	<?R } ?>
 <?R } ?>
 	assert(j == Par_size);
 	MPI_Gatherv(wb_l, Par_size, MPI_DOUBLE, wb, Par_sizes, Par_disp, MPI_DOUBLE, 0, MPMD.local);
@@ -664,6 +668,7 @@ int Solver::getDPar(double * wb) {
 	#ifdef ADJOINT
 <?R for (d in rows(Density)) if ((d$parameter)) { ?>
 	lattice->Get_<?%s d$nicename ?>_Adj(buf);
+	<?R if ("DesignSpace" %in% NodeTypes$name) { ?>
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			wb_l[j] = buf[i];
@@ -671,6 +676,7 @@ int Solver::getDPar(double * wb) {
 			j++;
 		}
 	}
+	<?R } ?>
 <?R } ?>
 	#endif
 	output("L2 norm of gradient: %lg\n", sqrt(sum));
@@ -702,6 +708,7 @@ int Solver::setPar(const double * w) {
 	DEBUG_M;
 	lattice->Get_<?%s d$nicename ?>(buf);
 	DEBUG_M;
+	<?R if ("DesignSpace" %in% NodeTypes$name) { ?>
 	for (int i=0; i<n; i++) {
 		if (geometry->geom[i] & NODE_DesignSpace) {
 			diff = buf[i];
@@ -712,6 +719,7 @@ int Solver::setPar(const double * w) {
 			j++;
 		}
 	}
+	<?R } ?>
 	DEBUG_M;
 	lattice->Set_<?%s d$nicename ?>(buf);
 	DEBUG_M;
@@ -734,8 +742,10 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 		data->region.ny - y - 1,
 		0,
 	1,1,1);
-	flag_t NodeType = NODE_Wall;
-	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+	<?R if ("Wall" %in% NodeTypes$name) { ?>
+		flag_t NodeType = NODE_Wall;
+		data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+	<?R } ?>
 }
 
 /// Refresh callback (GUI)

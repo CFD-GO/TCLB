@@ -461,11 +461,11 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		CudaMalloc(&container->particle_data, RFI.mem_size());
 	}
 	container->particle_data_size = RFI.size();
-//		for (int i=0; i<RFI.size(); i++){
+//		for (size_t i=0; i<RFI.size(); i++){
 //			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
 //		}
 	if (true) {
-		for (int i=0; i<RFI.size(); i++){
+		for (size_t i=0; i<RFI.size(); i++){
 			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
 			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
 			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
@@ -526,7 +526,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
         CudaStreamSynchronize(kernelStream);
 	DEBUG_PROF_PUSH("Testing particles for NaNs");
 	{	int nans = 0;
-		for (int i=0; i<RFI.size(); i++){
+		for (size_t i=0; i<RFI.size(); i++){
 			for (int j=0; j<3; j++){
 				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
 					nans++;
@@ -990,6 +990,54 @@ void Lattice::Iterate(int niter, int iter_type)
 				Iter ++;
 				container->iter ++;
 			}
+                        break;
+		}
+	}
+	if (last_glob) {
+	        switch (iter_type & ITER_TYPE) {
+                case ITER_OPT:
+			clearGlobals();
+	        case ITER_ADJOINT:
+			clearGlobals_Adj();
+			break;
+                case ITER_NORM:
+			clearGlobals();
+			break;
+		}
+		calcGlobals();
+	} else if ( iter_type & ITER_INTEG ) {
+		calcGlobals();
+	}
+	FinalIteration();
+};
+
+/// Run Action
+void Lattice::IterateAction(int action, int niter, int iter_type)
+{
+	int last_glob = iter_type & ITER_LASTGLOB;
+	int i;
+	InitialIteration(niter);
+	if (iter_type & ITER_INTEG) last_glob=0;
+	if (reverse_save) {
+		ERROR("Run Action not supported in Adjoint"); exit(-1);
+	} else {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
+			ERROR("Run Action not supported in Adjoint"); exit(-1);
+			break;
+                case ITER_NORM:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+				RunAction(action, Snap, (Snap+1) % 2, iter_type);
+				Iter ++;
+				container->iter ++;
+			}
+			break;
+                case ITER_OPT:
+			ERROR("Run Action not supported in Adjoint"); exit(-1);
                         break;
 		}
 	}

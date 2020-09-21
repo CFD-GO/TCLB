@@ -112,7 +112,11 @@ AC_ARG_WITH([python],
 
 AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
-		[Set python(2)-config binary to call]))
+		[Set python-config binary to call]))
+
+AC_ARG_WITH([python_bin],
+	AC_HELP_STRING([--with-python-bin],
+		[Set python binary to call]))
 
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
@@ -120,6 +124,9 @@ AC_ARG_ENABLE([paranoid],
 AC_ARG_ENABLE([profiling],
 	AC_HELP_STRING([--enable-profiling],
 		[enable profiling for R in rtemplate]))		
+AC_ARG_ENABLE([keepcode],
+	AC_HELP_STRING([--enable-keepcode],
+		[keeps the R code for rtemplate along with the generated file]))
 
 AC_ARG_WITH([cpp-flags],
 	AC_HELP_STRING([--with-cpp-flags=FLAGS],
@@ -143,7 +150,7 @@ AC_PROG_CXX
 AC_PROG_CC
 
 # Checks for header files.
-AC_CHECK_HEADERS([float.h malloc.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
+AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
 if test "x${enable_double}" != "xno"
@@ -366,7 +373,7 @@ if test "x${with_hdf5}" != "xno"; then
 	fi
 	has_hdf5="yes"
 	AC_CHECK_HEADERS([hdf5.h],[],[has_hdf5="no"])
-	AC_CHECK_LIB([${hdf5_lib_name}], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
+	AC_CHECK_LIB([hdf5], [H5Pset_fapl_mpio],[],[has_hdf5="no"])
 	if test "x${has_hdf5}" == "xyes"; then
 		AC_DEFINE([WITH_HDF5], [1], [Using HDF5])
 	else
@@ -380,18 +387,27 @@ fi
 if  test "x${with_python}" == "xyes"; then
    
     AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
+    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python)
     
+
     AC_MSG_NOTICE([python config: ${python_config}])
+    AC_MSG_NOTICE([python: ${python_bin}])
+
 
     AC_MSG_CHECKING([python embandinng: linker flags])
-    PF=$(${python_config} --ldflags)
+
+	if ${python_config} --ldflags --embed; then
+	    PF=$(${python_config} --ldflags --embed)
+	else
+	    PF=$(${python_config} --ldflags)
+	fi 
 	
     LDFLAGS="${LDFLAGS} ${PF}"
 
     AC_MSG_RESULT([${PF}])
 
 	AC_MSG_CHECKING([Python - numpy additional include path])
-	PYINC="$(python -c 'import numpy; print(numpy.get_include())')"
+	PYINC="$(${python_bin} -c 'import numpy; print(numpy.get_include())')"
 	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
     AC_MSG_RESULT([${PYINC}])
     
@@ -709,6 +725,11 @@ fi
 if test "x${enable_profiling}" == "xyes"
 then
 	RTOPT="${RTOPT} -p"
+fi
+
+if test "x${enable_keepcode}" == "xyes"
+then
+	RTOPT="${RTOPT} --keep-code"
 fi
 
 # Checks for typedefs, structures, and compiler characteristics.

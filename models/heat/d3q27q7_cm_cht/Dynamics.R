@@ -98,23 +98,23 @@ AddQuantity(name="RawU", 			 unit="m/s", vector=T )
 
 
 #	Boundary things
-AddNodeType("ForceMeasurmentZone",	group="OBJECTIVEFORCE")
-AddNodeType("FluxMeasurmentZone1",  group="OBJECTIVEFLUX")
-AddNodeType("FluxMeasurmentZone2",  group="OBJECTIVEFLUX")
+AddNodeType(name="ForceMeasurmentZone", 	group="OBJECTIVEFORCE")
+AddNodeType(name="FluxMeasurmentZone1", group="OBJECTIVEFLUX")
+AddNodeType(name="FluxMeasurmentZone2", group="OBJECTIVEFLUX")
 
 AddNodeType(name="DarcySolid", group="ADDITIONALS")
-AddNodeType(name="Smoothing",  group="ADDITIONALS")
+AddNodeType(name="Smoothing", group="ADDITIONALS")
 
-AddNodeType(name="HeaterDirichletTemperatureEQ",  group="ADDITIONALS_HEAT")
+AddNodeType(name="HeaterDirichletTemperatureEQ", group="ADDITIONALS_HEAT")
 AddNodeType(name="HeaterDirichletTemperatureABB", group="ADDITIONALS_HEAT")
 AddNodeType(name="HeaterSource", 				  group="ADDITIONALS_HEAT")
 AddNodeType(name="HeaterNeumannHeatFluxCylinder", group="ADDITIONALS_HEAT")
 AddNodeType(name="HeaterNeumannHeatFluxEast", 	  group="ADDITIONALS_HEAT")
 
-AddNodeType(name="CM",						group="COLLISION")
-#AddNodeType(name="CM_HIGHER",				group="COLLISION")
-AddNodeType(name="CM_NONLINEAR",			group="COLLISION")
-#AddNodeType(name="Cumulants",				group="COLLISION")
+AddNodeType(name="CM", 						group="COLLISION")
+#AddNodeType(name="CM_HIGHER", 				group="COLLISION")
+AddNodeType(name="CM_NONLINEAR", 			group="COLLISION")
+#AddNodeType(name="Cumulants", 				group="COLLISION")
 
 
 #	Benchmark things
@@ -132,7 +132,7 @@ if(Options$IBB){
 	for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
 	for (h in hname) AddField(h,dx=0,dy=0,dz=0) # Make h accessible also in present node (not only streamed)
 	
-	AddNodeType("HeaterDirichletTemperatureIABB", group="HO_BOUNDARY_HEAT") 
+	AddNodeType(name="HeaterDirichletTemperatureIABB", group="HO_BOUNDARY_HEAT") 
 	AddNodeType("ThermalIBB", 					  group="HO_BOUNDARY_HEAT") 
 	AddNodeType("HydroIBB", 					  group="HO_BOUNDARY_HYDRO") 
 }
@@ -214,3 +214,11 @@ if (Options$AVG) {
 	AddField(name="avgUY",		dy=c(-1,1),average=TRUE)
 	AddField(name="avgUZ",		dz=c(1,-1),average=TRUE)
 }
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")
+AddNodeType(name="Body", group="BODY")

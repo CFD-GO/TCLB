@@ -31,8 +31,8 @@ int conFieldParameter::Init () {
 			if (where == "<?%s n$name ?>") { flag_value = NODE_<?%s n$name ?>; flag_mask = NODE_<?%s n$group ?>; }
 			<?R } ?>
 		} else {
-			flag_value = NODE_None;
-			flag_mask = NODE_NONE;
+			flag_value = 0;
+			flag_mask = 0;
 		}
 		attr = node.attribute("zone");
 		if (attr) {

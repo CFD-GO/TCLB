@@ -4,7 +4,7 @@ library(jsonlite)
 library(yaml)
 library(XML)
 
-# NEED_OFFSETS = FALSE
+NEED_OFFSETS = FALSE
 source("conf.R")
 
 data = yaml::yaml.load_file("doc/elements.yaml")

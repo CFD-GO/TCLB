@@ -31,15 +31,15 @@ AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
 AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")
 AddGlobal(name="Lateral", comment='Force exerted on body in Y-direction', unit="N")
 
-AddNodeType("Buffer", "BOUNDARY")
-AddNodeType("WVelocityTurbulent", "BOUNDARY")
-AddNodeType("NVelocity", "BOUNDARY")
-AddNodeType("SVelocity", "BOUNDARY")
-AddNodeType("NPressure", "BOUNDARY")
-AddNodeType("SPressure", "BOUNDARY")
-AddNodeType("NSymmetry", "ADDITIONALS")
-AddNodeType("SSymmetry", "ADDITIONALS")
-AddNodeType("Body", "BODY")
+AddNodeType(name="Buffer", group="BOUNDARY")
+AddNodeType(name="WVelocityTurbulent", group="BOUNDARY")
+AddNodeType(name="NVelocity", group="BOUNDARY")
+AddNodeType(name="SVelocity", group="BOUNDARY")
+AddNodeType(name="NPressure", group="BOUNDARY")
+AddNodeType(name="SPressure", group="BOUNDARY")
+AddNodeType(name="NSymmetry", group="ADDITIONALS")
+AddNodeType(name="SSymmetry", group="ADDITIONALS")
+AddNodeType(name="Body", group="BODY")
 
 
 for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
@@ -53,7 +53,7 @@ if(Options$SMAG){
 
 #Interpolated BounceBack Node
 if(Options$IB){
-	AddNodeType("IB", group="HO_BOUNDARY")
+	AddNodeType(name="IB", group="HO_BOUNDARY")
 }
 
 #Averaging values
@@ -83,3 +83,10 @@ AddField(name="avgUX",dx=c(-1,1),average=TRUE)
 AddField(name="avgUY",dy=c(-1,1),average=TRUE)
 AddField(name="avgUZ",dz=c(1,-1),average=TRUE)
 }
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

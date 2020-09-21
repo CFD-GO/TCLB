@@ -111,6 +111,18 @@ Solve:
    Main solution element. It runs a prescribed number of iterations.
   type: action
 
+RunAction:
+  comment: >
+   Main solution element. It runs a prescribed number of iterations.
+  type: action
+  attr:
+    - name: name
+      optional: false
+      val:
+        select:
+          - special: Actions
+      comment: The name of the action to run
+
 VTK:
   comment: Export VTK data
   example: <VTK Iterations="1000" what="U,Rho"/>
@@ -560,6 +572,16 @@ Repeat:
       val:
         numeric: int
       comment: Numer of Times to repeat a segment
+
+Container:
+  type: action
+  comment: A simple container element
+  example: |
+    <Container>
+      <VTK Iterations="10"/>
+      <Solve Iterations="1000"/>
+    </Container>
+  attr:
 
 Control:
   type: setup

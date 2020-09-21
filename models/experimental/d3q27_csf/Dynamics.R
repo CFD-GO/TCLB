@@ -127,5 +127,9 @@ AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 
 
 
-#AddNodeType("NSymmetry", "BOUNDARY")
-#AddNodeType("ISymmetry", "BOUNDARY
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")
