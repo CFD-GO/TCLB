@@ -44,7 +44,9 @@ SOURCE_PLAN+=<?R cat(h,sep=" ") ?>
 SOURCE_PLAN+=CommonHandler.h Handlers.h
 SOURCE_PLAN+=Factory.h HandlerFactory.h
 SOURCE_PLAN+=SUMMARY
-SOURCE_PLAN+=conf.doxygen
+SOURCE_PLAN+=docs-by-doxygen/conf.doxygen
+SOURCE_PLAN+=docs-by-doxygen/cfd-go-logo.png
+SOURCE_PLAN+=docs-by-doxygen/README.md
 SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
 SOURCE_REST=makefile dep.mk
 ADDITIONALS=README.md dictionary.h
@@ -180,10 +182,11 @@ for (d in destinations) {
 	@echo ""
 	@cat <?%s d ?>/<?%s m ?>/SUMMARY	
 
-<?%s m ?>/doc: <?%s m ?>/source
-	@cd <?%s d ?>/<?%s m ?>; doxygen conf.doxygen
+<?%s m ?>/docs: <?%s m ?>/source
+	@cd <?%s d ?>/<?%s m ?>; doxygen docs-by-doxygen/conf.doxygen
 	@echo "  DONE       $@"
-
+	@echo "  Open CLB/<?%s m ?>/docs-by-doxygen/output/html/index.html in your browser."
+	
 <?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
 	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
 
