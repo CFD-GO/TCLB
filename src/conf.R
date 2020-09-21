@@ -100,6 +100,7 @@ ZoneSettings = data.frame()
 Quantities = data.frame()
 NodeTypes = data.frame()
 Fields = data.frame()
+Stages=NULL
 
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
@@ -168,6 +169,9 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			Fields$minz[i] <<- min(Fields$minz[i], d$minz)
 			Fields$maxz[i] <<- max(Fields$maxz[i], d$maxz)
 		} else {
+		  if (!is.null(Stages)) {
+		    stop("It seems, that you added Field after Stage in Dynamics.R - this will not parse")
+		  }
 			Fields <<- rbind(Fields, d)
 		}
 }
@@ -287,7 +291,6 @@ AddDescription = function(short, long) {
 	)
 }
 
-Stages=NULL
 
 AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE) {
 	s = data.frame(
