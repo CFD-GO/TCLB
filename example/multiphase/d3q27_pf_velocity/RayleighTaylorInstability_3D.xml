@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<!-- 3D RTI Test Case
+	Run with d3q27_pf_velocity model
+ -->
+    <Geometry nx="128" ny="512" nz="128">
+		<MRT><Box /></MRT>
+       <Wall mask="ALL">
+        	<Box dy="-1" />
+        </Wall>
+	<Wall mask="ALL" name="Lower">
+		<Box ny="1"/>
+	</Wall>
+    </Geometry>
+    <Model>
+	<Params
+			Density_h="1" 	 Density_l="0.33333333" 
+    			PhaseField="1.0" PhaseField-Lower="0.0"
+				/>
+        <Params 	IntWidth="5" M="0.00367025" sigma="5.0e-5" />
+        <Params 	Viscosity_l="2.1333333e-2" 
+			Viscosity_h="2.1333333e-2"
+			GravitationY="-3.5555556e-6"
+			RTI_Characteristic_Length="128"
+		/>
+    </Model>
+<VTK/>
+<Failcheck Iterations="3000" />
+<Solve Iterations="24000" output="output/">
+<Log Iterations="50"/>
+<VTK   Iterations="6000" />
+</Solve>
+</CLBConfig>

@@ -1,7 +1,15 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="/scratch/eait/uqtmitc3/thermocapillary/" permissive="true">
-	<!-- MODEL: d3q27_pf_thermocapillary
-     First test of temp field
+<CLBConfig version="2.0" output="output/" permissive="true">
+<!-- 
+	MODEL: d3q27_pf_velocity_thermo
+
+     	Purpose: test bubble migration for paper,
+
+	T. Mitchell et al. Computational modelling of 
+	three-dimensional thermocapillary flow of 
+	recalcitrant bubbles using a coupled lattice 
+	Boltzmann-finite difference method, PRE
+
 	Created: 17/04/2020
      	Responsible: @TravisMitchell
 -->
@@ -37,8 +45,8 @@
 		<Param name="T_init"        value="32" zone="TopWall"/>
         <Param name="cp_h"          value="1"/>
         <Param name="cp_l"			value="1"/>
-        <Param name="k_h" 			value="0.1"/>
-        <Param name="k_l" 			value="0.1"/>
+        <Param name="k_h" 			value="0.001"/>
+        <Param name="k_l" 			value="0.001"/>
 	</Model>
 	<Init/>
 	<Container>
