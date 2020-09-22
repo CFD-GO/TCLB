@@ -114,6 +114,10 @@ AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
 		[Set python-config binary to call]))
 
+AC_ARG_WITH([python_bin],
+	AC_HELP_STRING([--with-python-bin],
+		[Set python binary to call]))
+
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
 		[Makes GCC paranoid.]))
@@ -146,7 +150,7 @@ AC_PROG_CXX
 AC_PROG_CC
 
 # Checks for header files.
-AC_CHECK_HEADERS([float.h malloc.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
+AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
 if test "x${enable_double}" != "xno"
@@ -383,8 +387,12 @@ fi
 if  test "x${with_python}" == "xyes"; then
    
     AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
+    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python)
     
+
     AC_MSG_NOTICE([python config: ${python_config}])
+    AC_MSG_NOTICE([python: ${python_bin}])
+
 
     AC_MSG_CHECKING([python embandinng: linker flags])
 
@@ -399,7 +407,7 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_RESULT([${PF}])
 
 	AC_MSG_CHECKING([Python - numpy additional include path])
-	PYINC="$(python -c 'import numpy; print(numpy.get_include())')"
+	PYINC="$(${python_bin} -c 'import numpy; print(numpy.get_include())')"
 	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
     AC_MSG_RESULT([${PYINC}])
     

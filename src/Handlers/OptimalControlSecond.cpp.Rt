@@ -16,7 +16,7 @@ int OptimalControlSecond::Init () {
 		pugi::xml_attribute attr = node.attribute("what");
 		if (attr) {
 	                par = attr.value();
-                        unsigned int i = par.find_first_of('-');
+                        size_t i = par.find_first_of('-');
                         if (i == string::npos) {
 				ERROR("Can only optimal control a parameters in a specific zone\n");
 				return -1;
