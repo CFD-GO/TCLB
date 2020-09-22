@@ -21,7 +21,7 @@
 		</Smoothing>
 		<None name="bubbles">
 			<OffgridSphere x="700" y="50" z="100" R="32.5"/>
-			<OffgridSphere x="570" y="50" z="100" R="16.25"/>
+			<OffgridSphere x="600" y="50" z="100" R="32.5"/>
 		</None>
 		<WVelocity name="west">
 		    <Box nx="2"/>
@@ -79,9 +79,9 @@
 		<RunAction name="TempToSteadyState"  Iterations="10000"/>
 	</Container>
 	<Failcheck nx="10"	Iterations="1000"/>
-	<Solve 		  Iterations="100000">
-		<Catalyst Iterations="200" script="./example/multiphase/d3q27_pf_velocity/thermocapillary/Recalcitrant_Investigation_interaction.py"/>
-		<Catalyst Iterations="200" script="./example/multiphase/d3q27_pf_velocity/thermocapillary/BubbleInteraction_catalyst.py"/>
+	<Solve 		  Iterations="150000">
+		<Catalyst Iterations="200" script="./example/article/ThermocapillaryFlow/Recalcitrant_Investigation_interaction.py"/>
+		<Catalyst Iterations="200" script="./example/article/ThermocapillaryFlow/BubbleInteraction_catalyst.py"/>
 		<HDF5 	  Iterations="25000"/>
 		<Log	  Iterations="100"/>
 	</Solve>
