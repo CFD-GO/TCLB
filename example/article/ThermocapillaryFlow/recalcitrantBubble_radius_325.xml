@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+<!--
+    MODEL: d3q27_pf_velocity_thermo
+    
+    Purpose: Simulate recalcitrant bubble of a specific radius for paper,
+    
+    T. Mitchell et al., Computational modelling of three-dimensional 
+    thermocapillary flow of recalcitrant bubbles using a coupled 
+    lattice Boltzmann-finite difference method, PRE 
+    
+    Created: 23.06.2020
+    Responsible: @TravisMitchell
+-->
+	<Geometry nx="800" ny="100" nz="200">
+		<MRT>
+			<Box/>
+		</MRT>
+        <WVelocity name="west">
+            <Box nx="2"/>
+        </WVelocity>
+        <EVelocity name="east">
+            <Box dx="-2"/>
+        </EVelocity>
+        <ConstantTemp>
+            <Box nx="2"/>
+            <Box dx="-2"/>
+        </ConstantTemp>
+		<Wall mask="ALL" name="BottomWall">
+			<Box ny="1"/>
+		</Wall>
+		<Wall mask="ALL" name="TopWall">
+			<Box dy="-1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="Radius" 		value="32.5"/>
+		<Param name="CenterX" 		value="600"/>
+		<Param name="CenterY" 		value="50"/>
+		<Param name="CenterZ" 		value="100"/>
+		<Param name="BubbleType" 	value="-1"/>
+        
+		<Param name="Density_h"     value="1"/>
+    	<Param name="Density_l"     value="0.01"/>
+		<Param name="Viscosity_h"   value="1e-2"/>
+		<Param name="Viscosity_l"   value="1e-2"/>
+		<Param name="sigma"         value="1e-4"/>
+		<Param name="sigma_TT" 		value="6e-2"/>
+		<Param name="M"             value="0.1"/>
+		<Param name="IntWidth"      value="4"/>
+        <Param name="T_init"        value="0"/>
+		<Param name="T_ref"        	value="0.5"/>
+		<Param name="dTx"			value="0.00094697"/>
+        <Param name="surfPower"     value="2"/>
+
+        <Param name="cp_h"          value="100"/>
+        <Param name="cp_l"			value="23.81"/>
+        <Param name="k_h" 			value="0.01"/>
+        <Param name="k_l" 			value="0.0005495"/>
+        <Param name="HEIGHT"        value="100" />
+        <Param name="Uavg"          value="1e-4"/>
+		<Param name="developedFlow" value="1"/>
+		<Param name="PhaseField"	value="1"/>
+	</Model>
+	<Init/>
+	<Container>
+		<Stop TempChangeBelow="1e-4" Times="5" Iterations="100"/>
+		<RunAction name="TempToSteadyState"  Iterations="10000"/>
+	</Container>
+    <Solve 		Iterations="150000"/>
+	<Failcheck nx="10"	Iterations="1000"/>
+	<Solve 		Iterations="150000">
+		<HDF5 	Iterations="15000" what="T,U,PhaseField,ST" point_data="true"/>
+		<Log	Iterations="100"/>
+	</Solve>
+</CLBConfig>
