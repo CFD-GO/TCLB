@@ -1,7 +1,15 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="/scratch/eait/uqtmitc3/thermocapillary/" permissive="true">
-	<!-- MODEL: d3q27_pf_thermocapillary
-     First test of temp field
+<CLBConfig version="2.0" output="output/" permissive="true">
+<!-- 
+	MODEL: d3q27_pf_velocity_thermo
+
+     	Purpose: test bubble migration for paper,
+
+	T. Mitchell et al. Computational modelling of 
+	three-dimensional thermocapillary flow of 
+	recalcitrant bubbles using a coupled lattice 
+	Boltzmann-finite difference method, PRE
+
 	Created: 17/04/2020
      	Responsible: @TravisMitchell
 -->
@@ -21,34 +29,34 @@
 		<Param name="CenterX" 		value="80"/>
 		<Param name="CenterY" 		value="160"/>
 		<Param name="CenterZ" 		value="80"/>
-		<Param name="BubbleType" 	value="-1"/>
+		<Param name="BubbleType" 	value="1"/>
 		<Param name="Density_h"     value="1"/>
     	<Param name="Density_l"     value="1"/>
-		<Param name="Viscosity_h"   value="0.1"/>
-		<Param name="Viscosity_l"   value="0.1"/>
-		<Param name="sigma"         value="5e-3"/>
-		<Param name="M"             value="0.05"/>
+		<Param name="Viscosity_h"   value="0.2"/>
+		<Param name="Viscosity_l"   value="0.2"/>
+		<Param name="sigma"         value="2.5e-3"/>
+		<Param name="M"             value="0.005"/>
 		<Param name="IntWidth"      value="4"/>
         <Param name="T_init"        value="16"/>
 		<Param name="T_ref"        	value="16"/>
 		<Param name="dT"			value="0.1"/>
-		<Param name="sigma_T" 		value="-2.5e-4"/>
+		<Param name="sigma_T" 		value="-1e-4"/>
 		<Param name="T_init"        value="0" zone="BottomWall"/>
 		<Param name="T_init"        value="32" zone="TopWall"/>
         <Param name="cp_h"          value="1"/>
         <Param name="cp_l"			value="1"/>
-        <Param name="k_h" 			value="0.001"/>
-        <Param name="k_l" 			value="0.001"/>
+        <Param name="k_h" 			value="0.2"/>
+        <Param name="k_l" 			value="0.2"/>
 	</Model>
 	<Init/>
 	<Container>
 		<Stop TempChangeBelow="1e-4" Times="2" Iterations="100"/>
 		<RunAction name="TempToSteadyState"  Iterations="100000"/>
 	</Container>
-	<VTK what="PhaseField,U,T" />
+	<VTK what="PhaseField,U,T,ST,NPhi" />
 	<Failcheck nx="10"	Iterations="5"/>
-	<Solve 		Iterations="100000">
-		<VTK 	Iterations="50000" what="PhaseField,U,T" />
-		<Log	Iterations="100"/>
+	<Solve 		Iterations="20000">
+		<VTK 	Iterations="20000" what="PhaseField,U,T,ST,NPhi" />
+		<Log	Iterations="1"/>
 	</Solve>
 </CLBConfig>

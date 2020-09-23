@@ -25,7 +25,6 @@ $(DEST)/dep.mk : tools/dep.R
 	@echo "  AUTO-DEP   $@"
 	@$(RS) $<
 
-
 include $(DEST)/config.mk
 include src/lists.mk
 include $(DEST)/handlers.mk
@@ -153,9 +152,10 @@ wiki/% : src/%.Rt
 	@echo ""
 	@cat $(DEST)/<?%s m ?>/SUMMARY	
 
-<?%s m ?>/doc: <?%s m ?>/source
-	@cd $(DEST)/<?%s m ?>; doxygen conf.doxygen
+<?%s m ?>/docs: <?%s m ?>/source
+	@cd <?%s d ?>/<?%s m ?>; doxygen docs-by-doxygen/conf.doxygen
 	@echo "  DONE       $@"
+	@echo "  Open CLB/<?%s m ?>/docs-by-doxygen/output/html/index.html in your browser."
 
 $(BIN)/<?%s m ?>: $(addprefix $(DEST)/, $(SRC_MAIN__OBJ_PRM)) $(addprefix $(DEST)/<?%s m ?>/, $(SRC_MODEL_OBJ_PRM)) CLB/config.mk
 	@$(MKPATH) $@

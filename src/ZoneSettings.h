@@ -30,25 +30,25 @@ public:
     MaxZones=0;
     debug1("time_seg(): %d\n", time_seg());
     cpuValues = (real_t**) malloc(sizeof(real_t*) * time_seg());
-    assert(cpuValues != NULL);
+    assert(time_seg() == 0 || cpuValues != NULL);
     cpuTab = (real_t**) malloc(sizeof(real_t*) * time_seg());
-    assert(cpuTab != NULL);
+    assert(time_seg() == 0 || cpuTab != NULL);
     for (int i=0; i<time_seg(); i++) {
       cpuValues[i] = NULL;
       cpuTab[i] = NULL;
     }
     cpuConst = (real_t*) malloc(sizeof(real_t) * time_seg());
-    assert(cpuConst != NULL);
+    assert(time_seg() == 0 || cpuConst != NULL);
     for (int i=0; i<time_seg(); i++) {
       cpuConst[i] = 0.0;
     }
     DEBUG_M;
     debug0("&gpuTab: %p, size: %ld\n", &gpuTab, sizeof(real_t*) * time_seg());
     CudaMalloc((void**) &gpuTab, sizeof(real_t*) * time_seg());
-    assert(gpuTab != NULL);
+    assert(time_seg() == 0 || gpuTab != NULL);
     DEBUG_M;
     CudaMalloc((void**) &gpuConst,   sizeof(real_t)  * time_seg());
-    assert(gpuConst != NULL);
+    assert(time_seg() == 0 || gpuConst != NULL);
     DEBUG_M;
     CopyToGPU();
     DEBUG_M;

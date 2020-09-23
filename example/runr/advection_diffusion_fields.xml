@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<CLBConfig output="output/" oversubscribe_gpu="true">
+	<Geometry nx="1024" ny="640"/>
+	<Model>
+		<Param name="diff_coeff" value="0.01"/>
+	</Model>
+	<VTK Iterations="1000"/>
+	<RunR>
+		library(png)
+		tab = readPNG("example/data/japan.png")
+		nx = dim(tab)[2]
+		ny = dim(tab)[1]
+		v = as.vector(tab[,,3]^3)
+		x = round(as.vector(Solver$Geometry$X) - 0.5) %% nx
+		y = round(as.vector(Solver$Geometry$Y) - 0.5) %% ny
+		Solver$Fields$phi0[] = v[(ny - 1 - y) + ny*x + 1]
+
+		R = 100
+		maxu = 0.01
+		x = Solver$Geometry$X - 512
+		y = Solver$Geometry$Y - 320
+		r = sqrt(x^2+y^2)
+		w = exp(-r^2/(2*R^2)) / (exp(-1/2)*R) * maxu
+		Solver$Fields$ux[] =  y * w
+		Solver$Fields$uy[] = -x	* w	
+		
+		Solver$Actions$InitFromFields() # Initiate phi from phi0
+	</RunR>
+	<Solve Iterations="100000"/>
+</CLBConfig>
