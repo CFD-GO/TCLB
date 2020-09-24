@@ -161,7 +161,7 @@ if (Options$thermo){
 }
 
 # Stages - processes to run for initialisation and each iteration
-AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
+AddStage("WallInit"  , "Init_wallNorm", save=Fields$group %in% c("nw"))
 AddStage("calcWall"  , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
 
 if (Options$OutFlow){
@@ -180,7 +180,7 @@ if (Options$OutFlow){
 	                                	         load=DensityAll$group %in% c("g","h","Vel","nw","Thermal","PF"))
 } else {
 	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
-    AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
+    AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel"))
     AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
 					         load=DensityAll$group %in% c("g","h","Vel","nw") )
     AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw"), 
