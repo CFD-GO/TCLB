@@ -165,7 +165,7 @@ fi
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_CC
+# AC_PROG_CC
 
 # Checks for header files.
 AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
@@ -764,6 +764,14 @@ fi
 #AC_FUNC_MALLOC
 #AC_FUNC_STRTOD
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
+
+
+AC_MSG_RESULT([CXX      : $CXX])
+AC_MSG_RESULT([CPPFLAGS : $CPPFLAGS])
+AC_MSG_RESULT([LDFLAGS  : $LDFLAGS])
+AC_MSG_RESULT([NVFLAGS  : $NVFLAGS])
+
+
 
 AC_SUBST(CP)
 AC_SUBST(NVFLAGS)
