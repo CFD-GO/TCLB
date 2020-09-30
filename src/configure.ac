@@ -142,8 +142,26 @@ then
 
 fi
 
-test -z "$CXX" && CXX=mpic++
-test -z "$CC" && CC=mpicc
+if test -z "$CXX"
+then
+	if command -v "mpic++"
+	then
+		CXX="mpic++"
+	elif command -v "g++"
+	then
+		CXX="g++"
+	else
+		AC_MSG_ERROR([neither mpic++ or g++ found. You can specify compiler with CXX=...])
+	fi
+fi
+
+mpishow=$($CXX -showme 2>/dev/null)
+if ! test -z "$mpishow"
+then
+	CXX="$(echo "$mpishow" | sed 's/ .*//')"
+	CPPFLAGS="${CPPFLAGS} $(echo "$mpishow" | sed 's/^[[^ ]]*//')"
+	LDFLAGS="${LDFLAGS} $(echo "$mpishow" | sed 's/^[[^ ]]*//')"
+fi
 
 # Checks for programs.
 AC_PROG_CXX
