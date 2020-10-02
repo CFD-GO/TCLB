@@ -635,7 +635,8 @@ CudaDeviceFunction void Init_wallNorm(){
 			nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
 	  	} else { 
 		// no I am not surrounded, so calc normal:
-			int solidFlag[27], maxi;
+			int solidFlag[27]; 
+			int maxi = 0;
 			real_t myNorm[3] = {0.0,0.0,0.0};
 			real_t maxn=0.0, dot;
 
