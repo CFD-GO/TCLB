@@ -134,8 +134,6 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
-
-
 if test "x${COMPILER_BINDIR}" != "x"
 then
 	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
@@ -158,9 +156,7 @@ fi
 mpishow=$($CXX -showme 2>/dev/null)
 if ! test -z "$mpishow"
 then
-	CXX="$(echo "$mpishow" | sed 's/ .*//')"
-	CPPFLAGS="${CPPFLAGS} $(echo "$mpishow" | sed 's/^[[^ ]]*//')"
-	LDFLAGS="${LDFLAGS} $(echo "$mpishow" | sed 's/^[[^ ]]*//')"
+	CPPFLAGS="${CPPFLAGS} $(echo $(echo "$mpishow" | sed -e 's| |\n|g' | grep "^-I"))"
 fi
 
 # Checks for programs.
