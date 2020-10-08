@@ -42,6 +42,11 @@ For the `develop` version, most recent documentation can be found at
 You can contribute to the documentation at
 [CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
 
+### Supported architectures
+This code is designed to run on **Linux**. We strongly recommend using Linux for compilation, computation and postprocessing.
+
+Nevertheless, TCLB can be compiled on Windows (CPU only), using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux). It also can be compiled on MacOS (also CPU only). Both Debian and Red Hat based linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
+
 ### Dependencies
 
 For the code to compile and work you'll need a few things:
