@@ -83,6 +83,19 @@ To run TCLB in parallel (both on multiple CPU and multiple GPU), you can use the
 mpirun -np 8 CLB/d2q9/main example/flow/2d/karman.xml
 ```
 
+### Running of clusters
+To ease the usage of TCLB on HPC clusters (SLURM/PBS), you can use scripts provided in the [TCLB_cluster](https://github.com/CFD-GO/TCLB_cluster) repository.
+
+### LBM-DEM computation
+TCLB code can be coupled with Discrete Element Method (DEM) codes, to enable computation of flow with particles.
+
+The DEM codes that TCLB can be integrated with are:
+- [LIGGGHTS](https://www.cfdem.com/liggghts-open-source-discrete-element-method-particle-simulation-code)
+- [LAMMPS](https://lammps.sandia.gov/)
+- [ESYS-Particle](https://launchpad.net/esys-particle)
+
+Refere to the documentation for instruction on compilation and coupling.
+
 ## About
 
 ### Authors
