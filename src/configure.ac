@@ -114,6 +114,10 @@ AC_ARG_WITH([python_config],
 	AC_HELP_STRING([--with-python-config],
 		[Set python-config binary to call]))
 
+AC_ARG_WITH([python_bin],
+	AC_HELP_STRING([--with-python-bin],
+		[Set python binary to call]))
+
 AC_ARG_ENABLE([paranoid],
 	AC_HELP_STRING([--enable-paranoid],
 		[Makes GCC paranoid.]))
@@ -130,23 +134,37 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
-
-
 if test "x${COMPILER_BINDIR}" != "x"
 then
 	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
 
 fi
 
-test -z "$CXX" && CXX=mpic++
-test -z "$CC" && CC=mpicc
+if test -z "$CXX"
+then
+	if command -v "mpic++"
+	then
+		CXX="mpic++"
+	elif command -v "g++"
+	then
+		CXX="g++"
+	else
+		AC_MSG_ERROR([neither mpic++ or g++ found. You can specify compiler with CXX=...])
+	fi
+fi
+
+mpishow=$($CXX -showme 2>/dev/null)
+if ! test -z "$mpishow"
+then
+	CPPFLAGS="${CPPFLAGS} $(echo $(echo "$mpishow" | sed -e 's| |\n|g' | grep "^-I"))"
+fi
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_CC
+# AC_PROG_CC
 
 # Checks for header files.
-AC_CHECK_HEADERS([float.h malloc.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
+AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
 if test "x${enable_double}" != "xno"
@@ -383,8 +401,12 @@ fi
 if  test "x${with_python}" == "xyes"; then
    
     AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
+    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python)
     
+
     AC_MSG_NOTICE([python config: ${python_config}])
+    AC_MSG_NOTICE([python: ${python_bin}])
+
 
     AC_MSG_CHECKING([python embandinng: linker flags])
 
@@ -399,7 +421,7 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_RESULT([${PF}])
 
 	AC_MSG_CHECKING([Python - numpy additional include path])
-	PYINC="$(python -c 'import numpy; print(numpy.get_include())')"
+	PYINC="$(${python_bin} -c 'import numpy; print(numpy.get_include())')"
 	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
     AC_MSG_RESULT([${PYINC}])
     
@@ -738,6 +760,14 @@ fi
 #AC_FUNC_MALLOC
 #AC_FUNC_STRTOD
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
+
+
+AC_MSG_RESULT([CXX      : $CXX])
+AC_MSG_RESULT([CPPFLAGS : $CPPFLAGS])
+AC_MSG_RESULT([LDFLAGS  : $LDFLAGS])
+AC_MSG_RESULT([NVFLAGS  : $NVFLAGS])
+
+
 
 AC_SUBST(CP)
 AC_SUBST(NVFLAGS)

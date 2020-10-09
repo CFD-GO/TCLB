@@ -48,8 +48,8 @@ AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 AddSetting(name="Temperature", default="0K", comment='Temperature', zonal=TRUE)
 
 
-AddNodeType("NMovingWall", "BOUNDARY")
-AddNodeType("SWall", "BOUNDARY")
+AddNodeType(name="NMovingWall", group="BOUNDARY")
+AddNodeType(name="SWall", group="BOUNDARY")
 
 AddGlobal("TotalTempSqr")
 AddGlobal("CountCells")
@@ -62,3 +62,6 @@ AddGlobal("MovingWallPower")
 AddQuantity(name="RhoB",adjoint=TRUE)
 AddQuantity(name="TB",adjoint=TRUE) 
 
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

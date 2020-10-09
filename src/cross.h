@@ -108,7 +108,6 @@
   #else
     #include <assert.h>
     #include <time.h>
-    #include <malloc.h>
     #include <cstdlib>
     #include <cstring>
     #include <math.h>

@@ -1,0 +1,34 @@
+<CLBConfig version="2.0" output="output/">
+  <!--Created using CLBConfigWriter-->
+  <Geometry predef="none" model="MRT" nx="128.0" ny="128.0">
+    <MRT>
+      <Box/>
+    </MRT>
+    <None name="zwet">
+      <Box nx="20" ny="20" dx="64.0" dy="64.0"/>
+    </None>
+  </Geometry>
+  <Model>
+  
+    <Params Kupershtokh_A="0"/>
+    <Params Kupershtokh_K="0.009"/>
+    <Params LBL_kappa="0.0"/>
+
+    <Params Temperature="0.8"/>
+    <Params Density="1"/>
+    <Params Density-zwet="1.5"/>
+
+    <Params GravitationX="-0.00000"/>
+    <Params GravitationY="-0.00000"/>
+    <Params nu_l="0.166666666667"/>
+    <Params nu_v="0.166666666667"/>
+    <Params density_l="3"/>    
+    <Params density_v="0.1"/>    
+        
+  </Model>
+
+  <Solve Iterations="5000">
+    <VTK Iterations="100"/>
+  </Solve>
+
+</CLBConfig>

@@ -1,0 +1,999 @@
+/**
+@author Michał Dzikowski / mdzik
+
+This model is based on:
+- Kupershtokh - "On equations of state in a lattice Boltzmann method", 10.1016/j.camwa.2009.02.024
+- LycettLuo - "Improved forcing scheme in pseudopotential lattice Boltzmann methods for multiphase flow at arbitrarily high density ratios", 10.1103/PhysRevE.91.023305 
+
+All incorporated in same framework with 
+- possible different collision operators: 
+    - standard SRT, TRT, MRT models 
+    - WMRT "A weighted multiple-relaxation-time lattice Boltzmann method for multiphase flows and its application to partial coalescence cascade" 10.1016/j.jcp.2017.03.062
+    - Cumulant "The cumulant lattice Boltzmann equation in three dimensions: Theory and validation" 10.1016/j.camwa.2015.05.001
+- viscosity-density relations: step on rho=1 or smooth change
+- simple wall boundary handling (prescribed rho at wall nodes) 
+- VirtualRhoWBC after "Implementation of contact angles in pseudopotential lattice Boltzmann simulations with curved boundaries", 10.1103/PhysRevE.100.053313
+- Wall interaction calculation with proper interparticle-potential handling (under prepration)
+
+
+
+**/
+
+
+<?R
+	source("conf.R") ;
+	c_header();
+    library(polyAlgebra);
+	source("lib/feq.R")
+	source("lib/boundary.R")
+	source("lib/FMT.R")
+    
+    # Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy")])
+
+    #ph = PV(paste("phi(",-U[,1],",",-U[,2],")"))
+    ph = PV(paste("phi_neib[",1:9-1,"]"))
+    phnb = PV(paste("phi_neib_mask[",1:9-1,"]"))
+    rhos_n =  PV(paste("rho_n(",-U[,1],",",-U[,2],")"))
+
+    u = PV(paste("u[",1:2-1,"]",sep=""))
+    #uf = PV("uf")
+    #d = PV("d")
+    #usq = PV("usq")
+    #omega = PV("omega")
+    #uf1 = uf;
+    #uf2 = uf;
+    #uf3 = uf;
+    #t1 = 4/9
+    #t2 = 1/9
+    #t3 = 1/36
+    #c_squ = 1/3
+    #tn = diag(c(t1,t2,t2,t2,t2,t3,t3,t3,t3))
+    #bounce = c(0,3,4,1,2,7,8,5,6)
+
+    ################################################################
+	
+
+
+
+	EQ = MRT_eq(U, ortogonal=FALSE)
+    wi_ = subst(EQ$Req, Jx=0, Jy=0, Jz=0)
+    wi_ = subst(wi_, rho=1)
+    wi_ = gapply(wi_,function(x) x$.M, simplify=TRUE)
+    wi_ = wi_ %*% solve(EQ$mat)
+	wi_ = as.vector(wi_)
+
+#	W_ = solve(EQ$mat) %*% diag(1/wi_) %*% solve(t(EQ$mat))
+#	i_ = rev(1:nrow(W_))
+#	H_ = chol(W_[i_,i_])[i_,i_]
+#	H_ = H_ * c(1,sqrt(3)/3,sqrt(3)/3,sqrt(2),sqrt(2),1,sqrt(6)/3,sqrt(6)/3,2)
+#	B_ = EQ$mat %*% t(H_)
+#	EQ = MRT_eq(U, mat=B_)
+   ################################################################
+
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	rho =  PV("rho")
+	J = PV("J",c("x","y"))
+
+
+# C = function (x, y, ..., eq = " = ", sep) 
+# {
+#     x = ToC(x, ...)
+#     if (missing(y)) {
+#         if (missing(sep)) 
+#             sep = ""
+#         cat(x, sep = sep)
+#     }
+#     else {
+#         if (missing(sep)) 
+#             sep = ";\n"
+#         y = ToC(y, ...)
+#         sel = y != x
+#         if (any(sel)) cat(paste0(x[sel], eq, y[sel], sep), sep = "")
+#     }
+# }
+
+
+# Calculating equlibrium density set
+
+	EQ_NO = MRT_eq(U, rho, J, ortogonal=FALSE, order=12);
+	
+	get.M.matrix = function(a) {
+	  an = lapply(a@vec,names)
+	  an = unique(do.call(c,an))
+	  an = setdiff(an,".M")
+	  ret = lapply(a@vec,function(p) { nan = setdiff(an,names(p)); p[,nan] = 0; p})
+	  n = length(ret)
+	  for (i in seq_len(n)) names(ret[[i]])[names(ret[[i]]) == ".M"] = paste0(".M",i)
+	  m=ret[[1]]
+	  for (i in seq_len(n-1)+1) m = merge(x=m,y=ret[[i]],all=TRUE,suffixes = c("a","b"))
+	  m[is.na(m)] = 0
+	  as.matrix(m[,paste0(".M",1:n)])
+	}
+	
+	M = EQ_NO$mat
+	  if (Options$TRT) {
+	  } else if (Options$BGK) {
+	  	M = diag(nrow(M))
+	  } else if (Options$WMRT) {
+		A = get.M.matrix(EQ_NO$Req)
+		R = diag(nrow = ncol(A))
+		R[1:nrow(A),] = qr.R(qr(A))
+		R = R / diag(R)
+		M = EQ_NO$mat %*% solve(R)
+	  } else {
+	  }
+
+	
+	if (Options$HiOrd) {
+		EQ = MRT_eq(U, rho, J, ortogonal=FALSE, order=12,mat=M);
+	} else {
+		EQ = MRT_eq(U, rho, J, ortogonal=FALSE, mat=M);
+	}
+#############################################
+### END CONFIG
+#############################################
+
+?>
+
+
+#define pi 3.141592653589793116
+
+// store neib. potential - rho is streamed
+real_t phi_neib[9];
+// store neib. mask - wall/fluid
+bool phi_neib_mask[9];
+
+vector_t debug;
+bool near_wall, inWall;
+
+
+
+CudaDeviceFunction vector_t getDEBUG(){
+    initPhi();
+    vector_t debug;
+    debug.x = 0;
+    debug.y = 0;
+    const real_t rho = getRho();
+    const real_t omega = evalOmega(rho);
+    <?R
+    #epsilon0 = 2
+    #phi = ph
+    #rho = PV("rho")
+    #omega = PV("omega")
+    #kappa = PV("LBL_kappa")
+    #C(PV("debug.z"),  1 - 0.25*omega + 0.5*(5-kappa)*(rho*epsilon0)*phi[1]^-2*omega*36^-1)
+    ?>
+    debug.z = omega;
+    if (IamWall) {
+    <?R
+        Force = PV(c("debug.x","debug.y"));
+        C(Force, (2.*(1 - phnb)* f) %*% U );
+    ?>
+    }
+    return debug;
+}
+
+
+CudaDeviceFunction real_t getRho(){
+	real_t rho2 = 0;
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+	case NODE_MovingWall:
+	case NODE_EVelocity:
+	case NODE_WPressure:
+	case NODE_WVelocity:
+	case NODE_EPressure:
+        rho2 = Density;
+    case NODE_NSymmetry:
+        NSymmetry();
+	    rho2 = <?R C(sum(f)) ?>;
+    break;
+    case NODE_SSymmetry:
+        SSymmetry();
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    case NODE_ESymmetry:
+        ESymmetry();
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    default:
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    }
+
+    return rho2;
+   
+}
+
+//################################################################################################
+// Export-only functions
+//################################################################################################
+
+CudaDeviceFunction vector_t getU(){
+    initPhi();
+	real_t d = getRho();
+	vector_t u;
+<?R 
+    C(PV(c("u.x","u.y")) , f %*% U)
+?>
+	vector_t F;
+	F = realGetF();
+    u.x = u.x+F.x*0.5;
+    u.y = u.y+F.y*0.5;
+	u.x /= d;
+	u.y /= d;
+	u.z = 0;
+	return u;
+}
+
+CudaDeviceFunction vector_t getF() {
+    initPhi();
+	vector_t F;
+
+    if ( (inWall == 0) && ((NodeType & NODE_BOUNDARY) == NODE_Wall) )    {
+
+        F = realGetF();
+        <?R
+            Force = PV(c("F.x","F.y"));
+            C(Force, Force +  ((2.*(1 - phnb)* f) %*%U) );
+        ?>
+
+        return F;
+    } else {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;        
+        return F;
+    }
+
+    
+}
+
+CudaDeviceFunction vector_t getFinternal() {
+    initPhi();
+	vector_t F;
+
+    if ( IamWall )    {
+        F.x = 0;
+        F.y = 0;
+        F.z = 0;        
+        return F;
+
+    } else {
+        F = realGetF();
+        return F;
+    }
+}
+
+CudaDeviceFunction real_t getP(){
+    #define a2 3.852462271644162
+    #define b2 0.1304438860971524 * 4.0 
+    #define c2 2.785855170470555
+    #define t Temperature
+    real_t p;
+	real_t rho2 = 0;
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+	case NODE_MovingWall:		
+        rho2 = Density;
+		break;
+    default:
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    }
+	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
+	return Kupershtokh_K*p;
+
+}
+
+CudaDeviceFunction real_t getFObjX() { 
+        vector_t F;
+        if ( inWall == 0 )    {
+            F = realGetF();
+            F.x = F.x +  <?%s ToC(((2.*(1 - phnb)* f) %*%U[,1])) ?>;            
+        } else {
+            F.x = 0;
+        }
+        return F.x;
+}        
+
+CudaDeviceFunction real_t getFObjY() { 
+        vector_t F;
+        if ( inWall == 0 )    {
+            F = realGetF();
+            F.y = F.y +  <?%s ToC(((2.*(1 - phnb)* f) %*%U[,2])) ?>;            
+        } else {
+            F.y = 0;
+        }
+        return F.y;
+} 
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+//	ret.x = (getRho()-1);
+//	ret.x=wb;
+        if (getRho()<1){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
+        }
+//	ret.y=w;
+        return ret;
+}
+
+//################################################################################################
+//END : Export-only functions
+//################################################################################################
+
+
+//################################################################################################
+//Boundary handling
+//################################################################################################
+
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+CudaDeviceFunction void EPressure()
+{
+<?R ZouHeRewrite(EQ, f, c(1, 0), "pressure", rhs=PV("Density")) ?>
+}
+CudaDeviceFunction void WPressure()
+{
+<?R ZouHeRewrite(EQ, f, c(-1, 0), "pressure", rhs=PV("Density")) ?>
+}
+
+
+CudaDeviceFunction void EVelocity()
+{
+    
+    vector_t F = realGetF();
+    
+    vector_t u;
+
+    u.x = Velocity;
+    u.y= 0;
+
+   f[6] = (1.0L/12.0L)*(-6*f[1]*(u.x + 1) - 3*(u.x + 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[5] - 2*f[8]) - 2*(u.x - 3*u.y)*(f[0] +f[1] +f[2] +f[4] +f[5] +f[8]) + (2*u.x + 3*u.y + 3)*(F.x + 2*f[1] + 2*f[5] + 2*f[8]))/(u.x + 1);
+    
+   f[3] = (1.0L/3.0L)*(-u.x*(F.x + 2*f[1] + 2*f[5] + 2*f[8]) - 2*u.x*(f[0] +f[1] +f[2] +f[4] +f[5] +f[8]) + 3*f[1]*(u.x + 1))/(u.x + 1);
+    
+   f[7] = (1.0L/12.0L)*(-6*f[1]*(u.x + 1) + 3*(u.x + 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[5] - 2*f[8]) - 2*(u.x + 3*u.y)*(f[0] +f[1] +f[2] +f[4] +f[5] +f[8]) + (2*u.x - 3*u.y + 3)*(F.x + 2*f[1] + 2*f[5] + 2*f[8]))/(u.x + 1);
+
+}
+
+
+
+CudaDeviceFunction void WVelocity()
+{
+
+vector_t F = realGetF();
+//F.x = 0;
+//F.y = 0;
+vector_t u;
+u.x = Velocity;
+u.y= 0;
+f[8] = (1.0L/12.0L)*(-6*f[3]*(u.x - 1) + 3*(u.x - 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[6] - 2*f[7]) - 2*(u.x - 3*u.y)*(f[0] +f[2] +f[3] +f[4] +f[6] +f[7]) + (2*u.x + 3*u.y - 3)*(-F.x + 2*f[3] + 2*f[6] + 2*f[7]))/(u.x - 1);
+f[5] = -(6*f[3]*(u.x - 1) + 3*(u.x - 1)*(F.y + 2*f[2] - 2*f[4] + 2*f[6] - 2*f[7]) + 2*(u.x + 3*u.y)*(f[0] +f[2] +f[3] +f[4] +f[6] +f[7]) + (-2*u.x + 3*u.y + 3)*(-F.x + 2*f[3] + 2*f[6] + 2*f[7]))/(12*u.x - 12);
+f[1] = (1.0L/3.0L)*(-u.x*(-F.x + 2*f[3] + 2*f[6] + 2*f[7]) - 2*u.x*(f[0] +f[2] +f[3] +f[4] +f[6] +f[7]) + 3*f[3]*(u.x - 1))/(u.x - 1);
+
+}
+
+CudaDeviceFunction void MovingWall()
+{
+	real_t U_0 = MovingWallVelocity;
+    real_t U_1 = 0;
+    vector_t F;
+	F = realGetF();
+    
+                                     
+   f[5] =  -(6*f[4]*(U_1 - 1) + 2*(3*U_0 + U_1)*(f[0] +f[1] +f[3] +f[4] +f[7] +f[8]) + 3*(U_1 - 1)*(F.x + 2*f[1] - 2*f[3] - 2*f[7] + 2*f[8]) + (3*U_0 - 2*U_1 + 3)*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]))/(12*U_1 - 12);
+   f[6] = (1.0L/12.0L)*(-6*f[4]*(U_1 - 1) + 2*(3*U_0 - U_1)*(f[0] +f[1] +f[3] +f[4] +f[7] +f[8]) + 3*(U_1 - 1)*(F.x + 2*f[1] - 2*f[3] - 2*f[7] + 2*f[8]) + (3*U_0 + 2*U_1 - 3)*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]))/(U_1 - 1);
+   f[2] = (1.0L/3.0L)*(-U_1*(-F.y + 2*f[4] + 2*f[7] + 2*f[8]) - 2*U_1*(f[0] +f[1] +f[3] +f[4] +f[7] +f[8]) + 3*f[4]*(U_1 - 1))/(U_1 - 1);
+
+}
+
+CudaDeviceFunction void NSymmetry()
+{
+<?R Symmetry(2, -1) ?>
+}
+
+CudaDeviceFunction void SSymmetry()
+{
+<?R Symmetry(2, 1) ?>
+}
+
+CudaDeviceFunction void WSymmetry()
+{
+<?R Symmetry(1, -1) ?>
+}
+
+CudaDeviceFunction void ESymmetry()
+{
+<?R Symmetry(1, 1) ?>
+}
+
+//################################################################################################
+//Helper functions for SCMP
+//################################################################################################
+
+CudaDeviceFunction real_t evalOmega(const real_t rho){
+    <?R if (!Options$ViscositySmooth) { ?>
+        real_t omega = rho > 1 ? omega_l : omega_v;
+        printf("%f %f %f %f \n", omega,  rho , omega_l, omega_v);
+    <?R } else { ?>
+
+        const real_t mu_v = nu_v * density_v;
+        const real_t mu_l = nu_l * density_l;
+        const real_t mu =  ( mu_l +  (rho - density_l) * (mu_v - mu_l) / (density_v - density_l  + 1E-16) );
+        real_t omega = 1.0/( 3. * mu / rho + 0.5);
+    <?R } ?>
+    return omega;
+}
+CudaDeviceFunction real_t evalViscosity(const real_t rho){
+    return (1./evalOmega(rho) - 0.5) / 3.;
+}
+
+CudaDeviceFunction vector_t realGetF() {
+	vector_t F;
+	real_t R[9];
+
+    F.x = 0;
+    F.y = 0;
+    F.z = 0;
+
+
+
+    <?R
+        R = PV(c(paste("R[",1:9-1,"]",sep="")))
+        C(R , ph);
+    ?>
+
+    switch(NodeType & NODE_BOUNDARY){
+        case NODE_NSymmetry:
+            <?R
+            reflect_to =  c(8,4,7) + 1;
+            reflect_from = c(5,2,6) + 1;
+            for (i in 1:3)
+            {
+                C( R[reflect_to[i]], R[reflect_from[i]] )
+            }
+        ?>
+        break;
+
+        case NODE_SSymmetry:
+            <?R
+            reflect_to = c(5,2,6) + 1;
+            reflect_from = c(8,4,7) + 1;
+            for (i in 1:3)
+            {
+                C( R[reflect_to[i]], R[reflect_from[i]] )
+            }
+        ?>
+        break;
+
+
+        case NODE_ESymmetry:
+            <?R
+            reflect_to =  c(6,3,7) + 1;
+            reflect_from = c(5,1,8) + 1;
+            for (i in 1:3)
+            {
+                C( R[reflect_to[i]], R[reflect_from[i]] )
+            }
+        ?>
+        break;
+    }
+
+
+    <?R
+        Force = PV(c("F.x","F.y"));
+        gs = c(0,1,1,1,1,1/4,1/4,1/4,1/4);
+        A = PV("Kupershtokh_A")
+
+    ?>
+    <?R C(R[-1] , (R * R  * A + R * R[1] * (A*(-2)+1))[-1],float=F) ?>
+    if (IamWall) {
+        <?R C(R[-1] , (R[-1] + (R[1]*R[1]*A)),float=F) ?>
+        <?R C(R, R*(1 - phnb)) ?>
+    }
+    <?R
+        C(Force , Force -(0.666666666666666666)*(R*gs) %*% U)
+    ?>
+
+	switch(NodeType & NODE_BOUNDARY) {
+        case NODE_WPressure:
+        case NODE_EPressure:
+        case NODE_WVelocity:
+        case NODE_EVelocity:
+                F.x = 0;
+                F.y = 0;
+    }       
+
+    F.z = 0;
+
+	return F;
+}
+
+CudaDeviceFunction void initPhi(){
+    inWall = IamWall;
+    <?R C( phnb, PV("rho_n(",-U[,1],",",-U[,2],") <= 0 ? 1 : 0")) ?>
+    <?R C(PV(rep(c("inWall"),times=9)), PV("inWall")*phnb )  ?>
+
+    //printf(" --> %f\n", inWall); 
+
+    if ( ! IamWall ) {
+    <?R 
+        C(ph, PV("realCalcPhi(rho_n(",-U[,1],",",-U[,2],"))"))
+    ?>
+    } else {
+        <?R C(ph, PV("rho_n(",-U[,1],",",-U[,2],") > 0 ? realCalcPhi(rho_n(",-U[,1],",",-U[,2],")) : realCalcPhi(rho_n(0,0))")) ?>
+        
+    }
+}
+
+CudaDeviceFunction real_t realCalcPhi(const real_t& rho2_ ) {
+
+    const real_t rho2 = rho2_ > 0 ? rho2_ : -rho2_;
+    #define a2 3.852462271644162
+    #define b2 0.1304438860971524 * 4.0 
+    #define c2 2.785855170470555
+    #define t Temperature
+    real_t p;
+	p =((rho2*(-pow(b2,3)*pow(rho2,3)/64.+b2*b2*rho2*rho2/16.+b2*rho2/4.+1)*t*c2)/pow(1-b2*rho2/4.,3)-a2*rho2*rho2);
+	p = Kupershtokh_K*p;
+
+	return sqrt( -p + rho2/(3.) );
+}
+
+//################################################################################################
+//Stages
+//################################################################################################
+
+CudaDeviceFunction void Init() {
+    const real_t rho = Density;
+    const real_t Jx = Density*Velocity;
+    const real_t Jy = 0;
+    const real_t Jz = 0;
+    
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+	
+    <?R  if(Options$VirtualRhoWBC) { ?>
+        switch (NodeType & NODE_BOUNDARY) {
+        case NODE_Solid:
+        case NODE_Wall:
+        case NODE_MovingWall:
+                rho_n = -Density;
+            break;
+        default:
+                rho_n = Density;
+            break;
+        }
+    <?R } else { ?>
+        rho_n = Density;
+    <?R } ?>
+
+}
+CudaDeviceFunction void CalcRhoSC() {
+	real_t rho2 = 0;
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+	case NODE_MovingWall:
+        
+        <?R if(Options$VirtualRhoWBC) { 
+            C( ph, PV("rho_n(",-U[,1],",",-U[,2],") <= 0 ? 0 : ", wi_))
+            C( PV('rho2'), sum(ph) )
+        ?>            
+            if (rho2 != 0) { 
+                
+                rho2 = 1./rho2;
+                <?R
+                C( PV('rho2'), (ph%*%rhos_n)*PV('rho2') )
+                ?> 
+                
+                if (LVRho_phi_dr < 1) {
+                    rho2 = rho2 - LVRho_phi_dr;
+                } else {
+                    rho2 = rho2 * LVRho_phi_dr;       
+                }
+
+                if ( rho2 > LVRho_ulimit)  rho2 = LVRho_ulimit;
+                if ( rho2 < LVRho_llimit)  rho2 = LVRho_llimit;
+
+                // to mark rhos originating inside wall           
+                rho2 = rho2 > 0 ? -rho2 : rho2; 
+            } else {
+                rho2 = -Density; 
+            }
+
+            <?R
+        } else { ?>
+            rho2 = Density;
+        <?R } ?>
+		
+        break;
+	case NODE_EVelocity:
+	case NODE_WPressure:
+	case NODE_WVelocity:
+	case NODE_EPressure:
+        rho2 = Density;
+    case NODE_NSymmetry:
+        NSymmetry();
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    case NODE_SSymmetry:
+        SSymmetry();
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    case NODE_ESymmetry:
+        ESymmetry();
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    default:
+	    rho2 = <?R C(sum(f)) ?>;
+        break;
+    }
+
+    rho_n = rho2;
+   
+}
+     
+
+CudaDeviceFunction void Run() {
+    initPhi();
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+
+        switch (NodeType & NODE_OBJECTIVE) {
+            case NODE_SolidBoundary1:
+                AddToWallForce1X(getFObjX());
+                AddToWallForce1Y(getFObjY());
+            break;
+            case NODE_SolidBoundary2:
+                AddToWallForce2X(getFObjX());
+                AddToWallForce2Y(getFObjY());          
+            break;
+            case NODE_SolidBoundary3:
+                AddToWallForce3X(getFObjX());
+                AddToWallForce3Y(getFObjY());               
+            break;
+        };
+
+		BounceBack();
+
+
+		break;
+	case NODE_MovingWall:
+		MovingWall();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+     case NODE_NSymmetry:
+        NSymmetry();
+    break;
+     case NODE_SSymmetry:
+        SSymmetry();
+        break;
+    case NODE_ESymmetry:
+        ESymmetry();
+        break;
+
+    }
+    switch (NodeType & NODE_COLLISION) {
+        case NODE_BGK:
+        case NODE_MRT:
+                <?R if (Options$CUM) { ?>
+                CollisionCumulant();
+                <?R } else { ?>
+                CollisionMRT();
+                <?R }?>                
+                break;
+    }
+}
+
+//################################################################################################
+// Collision Handling
+//################################################################################################
+
+<?R if (!Options$CUM) { ?>
+
+CudaDeviceFunction void CollisionMRT()
+{	
+<?R
+	
+	get.M.matrix = function(a) {
+	  an = lapply(a@vec,names)
+	  an = unique(do.call(c,an))
+	  an = setdiff(an,".M")
+	  ret = lapply(a@vec,function(p) { nan = setdiff(an,names(p)); p[,nan] = 0; p})
+	  n = length(ret)
+	  for (i in seq_len(n)) names(ret[[i]])[names(ret[[i]]) == ".M"] = paste0(".M",i)
+	  m=ret[[1]]
+	  for (i in seq_len(n-1)+1) m = merge(x=m,y=ret[[i]],all=TRUE,suffixes = c("a","b"))
+	  m[is.na(m)] = 0
+	  as.matrix(m[,paste0(".M",1:n)])
+	}
+
+
+  Omega = PV(rep("omega",nrow(U)))
+  if (Options$TRT) {
+	Omega[EQ$order %% 2 == 1] = PV("omega2")
+  } else if (Options$BGK) {
+  
+  } else if (Options$WMRT) {
+
+  } else {
+  	Omega[EQ$order > 2] = PV(1)
+  }
+
+  if (any(EQ$order < 2)) Omega[EQ$order < 2] = PV(1)
+  
+
+  meq = EQ$Req
+  
+  if (Options$FMT) {
+	I = do.call(expand.grid,list(0:2,0:2))
+	M = do.call(PV,c("f",unclass(I)))
+	sel = ToC(M) %in% ToC(f)
+	FMT(I, M, sel)
+	m = M[sel]
+	m = m[EQ_NO$canonical]
+	C(m, m %*% solve(EQ_NO$mat) %*% EQ$mat)
+  } else {
+  	m = PV("m",1:ncol(EQ$mat)-1)
+  	cat("real_t",paste(ToC(m),collapse=","),";\n")
+  	C(m, f %*% EQ$mat)
+  }
+
+?>
+	real_t rho, Jx, Jy;
+<?R
+  C(PV(c("rho","Jx","Jy")), m %*% solve(EQ$mat) %*% cbind(1,U))
+?>
+	real_t omega = evalOmega(rho);
+	real_t omega2 = (2.0 - omega)/(1 + 2*(Magic-0.25)*omega);
+<?R
+
+  C(m, m - meq)
+  C(m, m*(1-Omega))
+
+
+?>  
+  vector_t F = realGetF();
+
+<?R 
+    if (Options$Kupershtokh) {
+    ###### EDM        
+?>
+
+
+  Jx = Jx + F.x + (GravitationX*rho);
+  Jy = Jy + F.y + (GravitationY*rho); 
+
+// This is equall to  EDM (but faster): C(m, (m - meq)*(1-Omega) + meg + meq_du - meq )
+<?R 
+    ###### EDM
+    dF = 0
+    } else if (Options$LycettLuo) {
+    ###### Lycett-Brown / Luo
+
+        df_LBL = PV(paste("tmp[",1:9-1,"]",sep=""))
+        gamma = PV('gamma')
+        cs2 = 1/3
+        Fx = Force[1]
+        Fy = Force[2]
+        
+        G = PV("G")
+        omega = PV('omega')
+        tau = omega^-1
+        kappa = PV("LBL_kappa")
+
+        pow <- function(s,c) {
+        temp_C = s
+        for (ii in 1:(c-1)){ temp_C = temp_C * s}
+        return(temp_C)
+        }
+
+        Phi_xx = PV("Phi_xx")
+        Phi_xy = PV("Phi_xy")
+        Phi_yx = PV("Phi_yx")
+        Phi_yy = PV("Phi_yy")
+
+        epsilon0 = PV("LBL_epsilon0")
+        
+        for (i in 1:9){
+            vx = U[i,1]
+            vy = U[i,2]
+            Ux = J[1]*rho^-1
+            Uy = J[2]*rho^-1
+            wi = wi_[i]
+
+            df_LBL[i] = (3.0/2.0)*wi*(0-gamma*tau*(pow(Fx, 2) + pow(Fy, 2) - 3*pow(Fx*vx + Fy*vy, 2)) - 2*rho*tau*(Fx*(Ux - vx) + Fy*(Uy - vy) - 3*(Fx*vx + Fy*vy)*(Ux*vx + Uy*vy)) + rho*(Phi_xx*(3*pow(vx, 2) - 1) + 3*Phi_xy*vx*vy + 3*Phi_yx*vx*vy + Phi_yy*(3*pow(vy, 2) - 1)))*(rho*tau)^-1
+        }
+        dF = df_LBL%*% EQ$mat
+
+        phi = ph
+
+
+        writePhi_XX <- function(i,j, comp){
+            t1 = (phi-phi[[1]])*U[,i]*U[,j]
+            t2 = 2*(phi-phi[1])
+            G = -1**cs2^-1
+            C( comp, G*cs2*phi[1]*(0-kappa*0.5*(wi_%*%t1)) + G*cs2*phi[1]*(kappa+1)*(1*(i==j))*(wi_%*%t2)*(12^-1) )
+        }
+        #writePhi_XX(1,1, PV("const real_t Phi_xx"))
+        #writePhi_XX(1,2, PV("const real_t Phi_xy"))
+        #writePhi_XX(2,1, PV("const real_t Phi_yx"))
+        #writePhi_XX(2,2, PV("const real_t Phi_yy"))
+        
+        C(PV("const real_t Phi_xx"), 0)
+        C(PV("const real_t Phi_xy"), 0)
+        C(PV("const real_t Phi_yx"), 0)
+        C(PV("const real_t Phi_yy"), 0)
+
+        
+        C(PV("const real_t gamma"), 1 - 0.25*omega + 0.5*(5-kappa)*(rho*epsilon0)*phi[1]^-2*omega*36^-1)
+
+    }
+
+  C(m, m + meq + dF)
+
+  if (Options$FMT) {
+	C(m, m %*% solve(EQ$mat) %*% EQ_NO$mat)
+	FMT(I, M, sel, inverse = TRUE)
+  } else {
+  	C(f, m %*% solve(EQ$mat))
+  }
+?>
+
+}
+
+<?R } else { ?>
+
+
+CudaDeviceFunction void CollisionCumulant()
+{
+//First determing moments from density-probability function
+real_t c[9],d;
+<?R C(PV('d'), sum(f)) ?>
+
+const real_t rho = d;
+real_t Usq = 0;
+const real_t omega = evalOmega(rho);
+
+ //momentum collision
+
+ real_t  w[5] = {omega,1.,1.,1.,1.0};  // defining relaxation rate for first cummulants
+ if ((NodeType & NODE_BOUNDARY) != 0) {
+    if ( ( (NodeType & NODE_BOUNDARY) != NODE_NSymmetry ) && ( (NodeType & NODE_BOUNDARY) != NODE_SSymmetry ) ) {
+        w[0] = 1.0/(3*nubuffer+0.5);
+    }
+ }
+
+  f[0] = f[3] + f[1] + f[0]; 
+  f[1] = -f[3] + f[1];
+  f[3] = f[1] + f[3]*2.; 
+  f[2] = f[6] + f[5] + f[2];
+  f[5] = -f[6] + f[5];
+  f[6] = f[5] + f[6]*2.; 
+  f[4] = f[7] + f[8] + f[4];
+  f[8] = -f[7] + f[8];
+  f[7] = f[8] + f[7]*2.; 
+  f[0] = f[4] + f[2] + f[0];
+  f[2] = -f[4] + f[2];
+  f[4] = f[2] + f[4]*2.; 
+  f[1] = f[8] + f[5] + f[1];
+  f[5] = -f[8] + f[5];
+  f[8] = f[5] + f[8]*2.; 
+  f[3] = f[7] + f[6] + f[3];
+  f[6] = -f[7] + f[6];
+  f[7] = f[6] + f[7]*2.; 
+  
+//Cumulant calculation from moments
+  c[0] = f[0];
+  c[1] = f[1]/f[0];
+  c[3] = ( -c[1]*f[1] + f[3] )/f[0];
+  c[2] = f[2]/f[0];
+  c[5] = ( -c[1]*f[2] + f[5] )/f[0];
+  c[6] = ( -c[5]*f[1] - c[3]*f[2] - c[1]*f[5] + f[6] )/f[0];
+  c[4] = ( -c[2]*f[2] + f[4] )/f[0];
+  c[8] = ( -c[1]*f[4] + f[8] - c[5]*f[2]*2. )/f[0];
+  c[7] = ( -c[8]*f[1] - c[3]*f[4] - c[1]*f[8] + f[7] + ( -c[6]*f[2] - c[5]*f[5] )*2. )/f[0];
+
+//Cumulant relaxation:
+ const real_t  a = (c[3] + c[4]);
+ const real_t  b = (c[3] - c[4]);
+        
+<?R 
+Jc=c(PV("c[1]"),PV("c[2]"))    
+
+?>
+
+ vector_t F = realGetF();
+ F.x = F.x / rho + (GravitationX );
+ F.y = F.y / rho + (GravitationY ); 
+
+ 
+    
+ c[1] = c[1] + F.x;
+ c[2] = c[2] + F.y;
+
+
+//Forcing
+//  c[1] = c[1] + ForceX;
+//  c[2] = c[2] + ForceY;
+//END Forcing
+ 
+ //real_t Dxu = - w[0]*(2*c[3] - c[4])/(2.*d) - w[1]*(c[3] + c[4])/d;
+ //real_t Dyv =  - w[0]*(2*c[4] - c[3])/(2.*d) - w[1]*(c[3] + c[4])/d;
+// c[1] = -c[1];
+  // c[3] = (1 - w[0])*c[3] + w[0]*1./3;
+  c[3] = ((1 - w[1])*a + w[1]*2./3. + (1 - w[0])*b)/2.;
+// c[2] =-c[2];
+  // c[4] = (1 - w[0])*c[4] + w[0]*1./3;
+  c[4] = ((1 - w[1])*a + w[1]*2./3. - (1 - w[0])*b)/2.;
+  c[5] =  (1- w[0])*c[5];
+  c[6] =  (1 - w[2])*c[6];
+  c[7] =  (1 - w[3])*c[7];
+  c[8] = (1 - w[2])*c[8]; 
+
+
+// Moment calculation from cummulants
+
+  f[0] = f[0];
+  f[1] = c[1]*f[0];
+  f[3] = c[3]*f[0] + c[1]*f[1];
+  f[2] = c[2]*f[0];
+  f[5] = c[5]*f[0] + c[1]*f[2];
+  f[6] = c[6]*f[0] + c[5]*f[1] + c[3]*f[2] + c[1]*f[5];
+  f[4] = c[4]*f[0] + c[2]*f[2];
+  f[8] = c[8]*f[0] + c[1]*f[4] + c[5]*f[2]*2.;
+  f[7] = c[7]*f[0] + c[8]*f[1] + c[3]*f[4] + c[1]*f[8] + ( c[6]*f[2] + c[5]*f[5] )*2.;
+ 
+ //Transformation from moment to density distribution function
+
+  f[0] = -f[3] + f[0];
+  f[1] = ( f[3] + f[1] )/2.;
+  f[3] = f[3] - f[1]; 
+  f[2] = -f[6] + f[2];
+  f[5] = ( f[6] + f[5] )/2.;
+  f[6] = f[6] - f[5]; 
+  f[4] = -f[7] + f[4];
+  f[8] = ( f[7] + f[8] )/2.;
+  f[7] = f[7] - f[8]; 
+  f[0] = -f[4] + f[0];
+  f[2] = ( f[4] + f[2] )/2.;
+  f[4] = f[4] - f[2]; 
+  f[1] = -f[8] + f[1];
+  f[5] = ( f[8] + f[5] )/2.;
+  f[8] = f[8] - f[5]; 
+  f[3] = -f[7] + f[3];
+  f[6] = ( f[7] + f[6] )/2.;
+  f[7] = f[7] - f[6]; 
+
+}
+
+<?R }?>    

@@ -22,6 +22,8 @@ const char* xml_definition = "<Geometry>\
 	</Zone>\
 	<Zone name='Tunnel'> <Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
 	<Zone name='Inlet'><Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
+	<Mask name='NONE' value='0'/>\
+	<Type name='None' value='0' mask='NONE'/>\
 <?R for (i in 1:length(Node_Group)) {
 ?>	<Mask name='<?%s names(Node_Group)[i]?>' value='<?%f Node_Group[i]?>'/>\
 <?R }

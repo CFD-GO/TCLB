@@ -78,3 +78,8 @@ AddStage("CalcF", save=c("ux","uy","sol"), load = DensityAll$group == "u", parti
 
 AddAction("Iteration", c("BaseIteration","CalcU", "CalcF"))
 AddAction("Init", c("BaseInit","CalcU", "CalcF"))
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")
+AddNodeType(name="Inlet", group="OBJECTIVE")
+AddNodeType(name="Outlet", group="OBJECTIVE")

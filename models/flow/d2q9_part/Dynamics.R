@@ -81,3 +81,6 @@ AddStage("BaseIteration", "Run", particle=TRUE, load=TRUE, save=TRUE)
 
 AddNodeType(name="Inlet", group="OBJECTIVE")
 AddNodeType(name="Outlet", group="OBJECTIVE")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="MRT", group="COLLISION")

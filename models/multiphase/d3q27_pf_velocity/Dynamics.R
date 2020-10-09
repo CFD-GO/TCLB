@@ -118,22 +118,20 @@ if (Options$thermo){
 	AddField("Cond",stencil3d=1, group="Thermal")
 	AddField("SurfaceTension",stencil3d=1, group="Thermal")
 
-	#AddDensity("gradPhix", dx=0, dy=0, dz=0, group="Thermal")
-	#AddDensity("gradPhiy", dx=0, dy=0, dz=0, group="Thermal")
-	#AddDensity("gradPhiz", dx=0, dy=0, dz=0, group="Thermal")
-	#AddField("gradPhix",stencil3d=1, group="Thermal")
-	#AddField("gradPhiy",stencil3d=1, group="Thermal")
-	#AddField("gradPhiz",stencil3d=1, group="Thermal")
-
 	AddQuantity(name="T",unit="K")
-	AddSetting("sigma_T",			comment="Derivative describing how surface tension changes with temp")
-	AddSetting("T_ref",				comment="Reference temperature at which sigma is set")
-	AddSetting("T_init",zonal=T, 	comment="Initial temperature field")
-	AddSetting("cp_h",				comment="specific heat for heavy phase")
-	AddSetting("cp_l",				comment="specific heat for light phase")
-	AddSetting("k_h", 				comment="thermal conductivity for heavy phase")
-	AddSetting("k_l", 				comment="thermal conductivity for light phase")
-	AddSetting("dT",				comment="Application of vertical temp gradient to speed up initialisation")
+	AddQuantity(name="ST",unit="N/m")
+	AddSetting("surfPower",	default="1", comment="Use for parabolic representation of surface tension")
+	AddSetting("sigma_T",			comment="Derivative describing how surface tension changes with temp unit=[N/m2]")
+	AddSetting("sigma_TT",			comment="Derivative describing how surface tension changes with temp unit=[N/m3]")
+	AddSetting("T_ref",				comment="Reference temperature at which sigma is set unit=[K]")
+	AddSetting("T_init",zonal=T, 	comment="Initial temperature field unit=[K]")
+	AddSetting("cp_h",				comment="specific heat for heavy phase unit=[J/kg/K]")
+	AddSetting("cp_l",				comment="specific heat for light phase unit=[J/kg/K]")
+	AddSetting("k_h", 				comment="thermal conductivity for heavy phase unit=[W/m/K]")
+	AddSetting("k_l", 				comment="thermal conductivity for light phase unit=[W/m/K]")
+	AddSetting("dT",				comment="Application of vertical temp gradient to speed up initialisation unit=[K]")
+	AddSetting("dTx", default="0",	comment="Application of horizontal temp gradient to speed up initialisation unit=[K]")	
+	AddSetting("stabiliser", default="1",	comment="If not solving flow field, can adjust temperature timestep")	
 	AddGlobal("TempChange")
 	if (Options$planarBenchmark){
 		AddSetting("T_c", default="10")
@@ -153,41 +151,57 @@ if (Options$thermo){
 	AddField("RK3",stencil3d=1, group="Thermal")
 
 	AddStage("CopyDistributions", "TempCopy",  save=Fields$group %in% c("g","h","Vel","nw", "PF","Thermal"))
-	AddStage("RK_1", "TempUpdate1", save=Fields$name=="RK1", load=DensityAll$group=="Vel")
-	AddStage("RK_2", "TempUpdate2", save=Fields$name=="RK2", load=DensityAll$name %in% c("U","V","W","RK1"))
-	AddStage("RK_3", "TempUpdate3", save=Fields$name=="RK3", load=DensityAll$name %in% c("U","V","W","RK1","RK2"))
-	AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("U","V","W","RK1","RK2","RK3"))
-	AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4"))	
+	AddStage("CopyThermal","ThermalCopy", save=Fields$name %in% c("Temp","Cond","SurfaceTension"), load=DensityAll$name %in% c("Temp","Cond","SurfaceTension"))
+	AddStage("RK_1", "TempUpdate1", save=Fields$name=="RK1", load=DensityAll$name %in% c("U","V","W","Cond","PhaseF","Temp"))
+	AddStage("RK_2", "TempUpdate2", save=Fields$name=="RK2", load=DensityAll$name %in% c("U","V","W","RK1","Cond","PhaseF","Temp"))
+	AddStage("RK_3", "TempUpdate3", save=Fields$name=="RK3", load=DensityAll$name %in% c("U","V","W","RK1","RK2","Cond","PhaseF","Temp"))
+	AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("U","V","W","RK1","RK2","RK3","Cond","PhaseF","Temp"))	
+
+	AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
+	AddNodeType("ConstantTemp",group="ADDITIONALS")
+	AddNodeType("EAdiabatic",group="ADDITIONALS")
 }
 
+AddSetting("HEIGHT", default="0",	comment="Height of channel for 2D Poiseuille flow")
+AddSetting("Uavg", default="0",	zonal=T, comment="Average velocity of channel for 2D Poiseuille flow")
+AddSetting("developedFlow", default="0",	comment="set greater than 0 for fully developed flow in the domain (x-direction)")
 # Stages - processes to run for initialisation and each iteration
 AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
 AddStage("calcWall"  , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
 
-if (Options$OutFlow){
-	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
+if (Options$OutFlow & Options$thermo){
+    AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
+    AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","gold","hold","Vel","PF"))
+    AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
+					                             load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw") )
+    AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","gold","hold","Vel","nw","Thermal"), 
+	                                	         load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw","Thermal","PF"))
+} else if (Options$OutFlow){
+    AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
     AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold","PF"))
     AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
                                                  load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
-    AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
+    AddStage("BaseIter"  , "Run"       ,     save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
 	                                         load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold","nw"))
 } else if (Options$thermo){
-	AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
+    AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
     AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
     AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
 					                             load=DensityAll$group %in% c("g","h","Vel","nw") )
     AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","Thermal"), 
 	                                	         load=DensityAll$group %in% c("g","h","Vel","nw","Thermal","PF"))
 } else {
-	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
+    AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
     AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
     AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
 					         load=DensityAll$group %in% c("g","h","Vel","nw") )
     AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw"), 
 	                                	 load=DensityAll$group %in% c("g","h","Vel","nw"))
 }
-if (Options$thermo){
-	AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4"))
+if (Options$thermo){	
+	AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
+	AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
+	AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
 	AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
 } else {
 	AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
@@ -209,7 +223,7 @@ AddSetting(name="PhaseField", 	   comment='Initial PhaseField distribution', zon
 AddSetting(name="IntWidth", default=4,    comment='Anti-diffusivity coeff')
 AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
-AddSetting(name="sigma", 		   comment='surface tension')
+AddSetting(name="sigma", comment='surface tension')
 
 AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
 AddSetting(name='radAngle', comment='Conversion to rads for calcs')
@@ -251,9 +265,9 @@ AddNodeType("Centerline",group="ADDITIONALS")
 # Allow for smoothing of sharp interface initiation by diffusion
 AddNodeType("Smoothing",group="ADDITIONALS")
 #  For RTI interface tracking
-AddNodeType("Spiketrack",group="ADDITIONALS")
-AddNodeType("Saddletrack",group="ADDITIONALS")
-AddNodeType("Bubbletrack",group="ADDITIONALS")
+AddNodeType(name="Spiketrack", group="ADDITIONALS")
+AddNodeType(name="Saddletrack", group="ADDITIONALS")
+AddNodeType(name="Bubbletrack", group="ADDITIONALS")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
@@ -276,6 +290,8 @@ AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
 AddGlobal(name="KineticEnergy",comment='Measure of kinetic energy', unit="J")
 
+AddGlobal("XLocation", comment='tracking of x-centroid of the gas regions in domain', unit="m")
+
 AddGlobal(name="GasTotalVelocity", comment='use to determine avg velocity of bubbles', unit="m/s")
 AddGlobal(name="GasTotalVelocityX", comment='use to determine avg velocity of bubbles', unit="m/s")
 AddGlobal(name="GasTotalVelocityY", comment='use to determine avg velocity of bubbles', unit="m/s")
@@ -288,3 +304,11 @@ AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of dr
 AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
 AddGlobal(name="LiqCells",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
 AddGlobal(name="DropFront",	op="MAX",  comment='Highest location of droplet', unit="m")
+AddNodeType(name="EPressure", group="BOUNDARY")
+AddNodeType(name="EVelocity", group="BOUNDARY")
+AddNodeType(name="Solid", group="BOUNDARY")
+AddNodeType(name="Wall", group="BOUNDARY")
+AddNodeType(name="WPressure", group="BOUNDARY")
+AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="BGK", group="COLLISION")
+AddNodeType(name="MRT", group="COLLISION")
