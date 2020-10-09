@@ -2,7 +2,7 @@
 
 TCLB Solver
 ===
-TCLB is a MPI+CUDA or MPI+CPU high-performance Conputational Fluid Dynamics simulation code, based on Lattice Boltzmann Method.
+TCLB is a MPI+CUDA or MPI+CPU high-performance Computational Fluid Dynamics simulation code, based on the Lattice Boltzmann Method.
 It provides a clear interface for calculation of complex physics, and the implementation of new models.
 
 - Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=master)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3672102.svg)](https://doi.org/10.5281/zenodo.3973739)
@@ -36,7 +36,7 @@ CLB/d2q9/main example/flow/2d/karman.xml
 The documentation (including tutorials) is published at
 [docs.tclb.io](https://docs.tclb.io/).
 
-For the `develop` version, most recent documentation can be found at
+For the `develop` version, the most recent documentation can be found at
 [develop.docs.tclb.io](https://develop.docs.tclb.io/).
 
 You can contribute to the documentation at
@@ -45,18 +45,19 @@ You can contribute to the documentation at
 ### Supported architectures
 This code is designed to run on **Linux**. We strongly recommend using Linux for compilation, computation and postprocessing.
 
-Nevertheless, TCLB can be compiled on Windows (CPU only), using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux). It also can be compiled on MacOS (also CPU only). Both Debian and Red Hat based linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
+Nevertheless, TCLB can be compiled on Windows (CPU only), using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux). It also can be compiled on MacOS (also CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
 
 ### Dependencies
 
 For the code to compile and work you'll need a few things:
 - [R](https://www.r-project.org/) and some R packages ([optparse](https://cran.r-project.org/package=optparse), [numbers](https://cran.r-project.org/package=numbers), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra))
 - [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface). We recommend [OpenMPI](http://www.open-mpi.org/)
-- If you want to use your GPU, you'll need [nVidia CUDA](https://developer.nvidia.com/cuda-zone)
-- If you want to integrate TCLB with Python, you'll need [python](https://www.python.org/), [numpy](http://www.numpy.org/) with headers and stuff
-- If you want to develop a model using Python, you'll need [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython)
+- To use your GPU, you'll need [nVidia CUDA](https://developer.nvidia.com/cuda-zone)
+- To integrate TCLB with R, you'll need R package [rinside](https://github.com/eddelbuettel/rinside)
+- To integrate TCLB with Python, you'll need [python](https://www.python.org/), [numpy](http://www.numpy.org/) with libraries and headers
+- To develop a model using Python, you'll need [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython)
 
-You can install many of these with the provided `tools/install.sh` script (note it requires sudo):
+You can install many of these with the provided `tools/install.sh` script (note that this requires sudo):
 ```bash
 sudo tools/install.sh essentials   # Installs essential system packages needed by TCLB
 sudo tools/install.sh r            # Installs R
@@ -84,7 +85,7 @@ mpirun -np 8 CLB/d2q9/main example/flow/2d/karman.xml
 ```
 
 ### Running of clusters
-To ease the usage of TCLB on HPC clusters (SLURM/PBS), you can use scripts provided in the [TCLB_cluster](https://github.com/CFD-GO/TCLB_cluster) repository.
+To assist with using TCLB on HPC clusters (SLURM/PBS), there are scripts provided in the [TCLB_cluster](https://github.com/CFD-GO/TCLB_cluster) repository.
 
 ### LBM-DEM computation
 TCLB code can be coupled with Discrete Element Method (DEM) codes, to enable computation of flow with particles.
@@ -94,13 +95,13 @@ The DEM codes that TCLB can be integrated with are:
 - [LAMMPS](https://lammps.sandia.gov/)
 - [ESYS-Particle](https://launchpad.net/esys-particle)
 
-Refere to the documentation for instruction on compilation and coupling.
+Refer to the documentation for instructions on compilation and coupling.
 
 ## About
 
 ### Authors
 
-TCLB is developed from 2012 with the aim at providing a framework for efficient CFD computations with LBM, mainly for research.
+TCLB began development in 2012 with the aim at providing a framework for efficient CFD computations with LBM, mainly for research.
 
 Author: [Łukasz Łaniewski-Wołłk](https://github.com/llaniewski)
 
