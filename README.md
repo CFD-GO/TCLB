@@ -1,11 +1,11 @@
 ![TCLB Solver Header](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/header.png)
 
-TCLB Solver
+TCLB Solver [![ZENADO DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3550331.svg)](https://doi.org/10.5281/zenodo.3550331) [![Article](https://zenodo.org/badge/DOI/10.1016/j.camwa.2015.12.043.svg)](https://doi.org/10.1016/j.camwa.2015.12.043)
 ===
 TCLB is a MPI+CUDA or MPI+CPU high-performance Computational Fluid Dynamics simulation code, based on the Lattice Boltzmann Method.
 It provides a clear interface for calculation of complex physics, and the implementation of new models.
 
-- Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=master)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3672102.svg)](https://doi.org/10.5281/zenodo.3973739)
+- Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=master)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) 
 - Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop):<br/>[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/)
 
 ## How to use it
@@ -120,6 +120,11 @@ Contributors:
 Developed at:
 - [Zakład Aerodynamiki](https://meil.pw.edu.pl/ZA/) at [Politechnika Warszawska (Warsaw University of Technology)](http://pw.edu.pl/)
 - [School of Mechanical & Mining Engineering](https://www.mechmining.uq.edu.au/) at [University of Queensland](http://uq.edu.au/)
+
+
+### Citation
+Please use **appropriate citations if using this software** in any research publication. The publication should cite [the original paper about TCLB](https://doi.org/10.1016/j.camwa.2015.12.043) and papers which describe the used LMB models. You can find the list of TCLB publications at [docs.tclb.io/general-info/publications/](https://docs.tclb.io/general-info/publications/). You can also find the information about published articles in the source code of the models.
+The code can be cited additionally, by its [Zenodo DOI](https://doi.org/10.5281/zenodo.3550331).
 
 ### License
 
