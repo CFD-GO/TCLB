@@ -84,7 +84,7 @@ To run TCLB in parallel (both on multiple CPU and multiple GPU), you can use the
 mpirun -np 8 CLB/d2q9/main example/flow/2d/karman.xml
 ```
 
-### Running of clusters
+### Running on clusters
 To assist with using TCLB on HPC clusters (SLURM/PBS), there are scripts provided in the [TCLB_cluster](https://github.com/CFD-GO/TCLB_cluster) repository.
 
 ### LBM-DEM computation
