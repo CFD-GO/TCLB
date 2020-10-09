@@ -134,20 +134,34 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
-
-
 if test "x${COMPILER_BINDIR}" != "x"
 then
 	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
 
 fi
 
-test -z "$CXX" && CXX=mpic++
-test -z "$CC" && CC=mpicc
+if test -z "$CXX"
+then
+	if command -v "mpic++"
+	then
+		CXX="mpic++"
+	elif command -v "g++"
+	then
+		CXX="g++"
+	else
+		AC_MSG_ERROR([neither mpic++ or g++ found. You can specify compiler with CXX=...])
+	fi
+fi
+
+mpishow=$($CXX -showme 2>/dev/null)
+if ! test -z "$mpishow"
+then
+	CPPFLAGS="${CPPFLAGS} $(echo $(echo "$mpishow" | sed -e 's| |\n|g' | grep "^-I"))"
+fi
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_CC
+# AC_PROG_CC
 
 # Checks for header files.
 AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
@@ -747,6 +761,14 @@ fi
 #AC_FUNC_MALLOC
 #AC_FUNC_STRTOD
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
+
+
+AC_MSG_RESULT([CXX      : $CXX])
+AC_MSG_RESULT([CPPFLAGS : $CPPFLAGS])
+AC_MSG_RESULT([LDFLAGS  : $LDFLAGS])
+AC_MSG_RESULT([NVFLAGS  : $NVFLAGS])
+
+
 
 AC_SUBST(CP)
 AC_SUBST(NVFLAGS)
