@@ -613,8 +613,29 @@ GetMargins = function(dx,dy,dz) {
 	)
 }
 
+globMinX = 1
+globMinY = 1
+globMinZ = 1
+globMaxX = -1
+globMaxY = -1
+globMaxZ = -1
+# compute range of all fields
+for (f in rows(Fields)) {
+	globMinX = min(globMinX, f$minx)
+	globMinY = min(globMinY, f$miny)
+	globMinZ = min(globMinZ, f$minz)
+	globMaxX = max(globMaxX, f$maxx)
+	globMaxY = max(globMaxY, f$maxy)
+	globMaxZ = max(globMaxZ, f$maxz)
+}
+# function to return the offset in the connectivity matrix for that streaming direction - must agree with preprocessor
+DirectionOffset= function(dx, dy, dz) {
+	os = (dx - globMinX) + ((dy - globMinY) * (globMaxX - globMinX + 1)) + ((dz - globMinZ) * (globMaxX - globMinX + 1) * (globMaxY - globMinY + 1))
+}
+
 NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
 NonEmptyMargin = Margin[NonEmptyMargin]
+
 
 
 Settings$FunName = paste("SetConst",Settings$name,sep="_")

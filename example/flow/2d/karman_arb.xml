@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<ArbitraryLattice file="example/data/connectivity.cxn">
+	</ArbitraryLattice>
+	<Model>
+		<Param name="VelocityX" value="0.01"/>
+		<Param name="Viscosity" value="0.02"/>
+		<Param name="Smag" value="0.16"/>
+		<Param name="PressDiffInObj" value="1"/>
+		<Param name="EOSScale" value="0.05"/>
+		<Param name="Tension" value="0.01"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="1"/>
+	</Model>
+	<VTK Iterations="1000"/>
+	<Solve Iterations="4000"/>
+</CLBConfig>

@@ -11,6 +11,7 @@
 class LatticeContainer;
 #include "vtkLattice.h"
 #include "Geometry.h"
+#include "Connectivity.h"
 #include "def.h"
 #include "utils.h"
 #include "unit.h"
@@ -208,8 +209,18 @@ void MainFree( Solver *d);
 	int Solver::writeVTK(const char * nm, name_set * s) {
 		print("writing vtk");
 		char filename[2*STRING_LEN];
-		outIterFile(nm, ".vti", filename);
-		int ret = vtkWriteLattice(filename, lattice, units, s);
+		int ret;
+		if(latticeType == 0) { // cartesian lattice output function
+			outIterFile(nm, ".vti", filename);
+			ret = vtkWriteLattice(filename, lattice, units, s);
+		} else if(latticeType == 1 && !connectivity->cellDataOutput) {
+			outIterFile(nm, ".vtp", filename);
+			
+			ret = vtkWriteLatticeArbitrary(filename, latticeSize, lattice, units, s);
+		} else if(latticeType == 1 && connectivity->cellDataOutput) {
+			outIterFile(nm, ".vtu", filename);
+			ret = vtkWriteLatticeArbitraryUG(filename, latticeSize, lattice, connectivity, units, s);
+		}
 		return ret;
 	}
 
@@ -250,11 +261,14 @@ void MainFree( Solver *d);
 	\param ny Y size of the lattice
 	\param nz Z size of the lattice (1 for 3D)
 	\param ns Number of Snapshots allocated
+	\param latticeSize total size of the lattice (will be different for arbitraryLattices)
+	\param latticeType (0 = Cartesian, 1 = Arbitrary)
 */
-	int Solver::setSize(int nx, int ny, int nz, int ns) {
+	int Solver::setSize(int nx, int ny, int nz, int ns, size_t latticeSize_, int latticeType_) {
 		info.region.nx = nx;
 		info.region.ny = ny;
 		info.region.nz = nz;
+		latticeSize = latticeSize_;
 		output("Global lattice size: %dx%dx%d\n", info.region.nx, info.region.ny, info.region.nz);
 //		if (info.region.nx < info.xsdim) {
 //			info.xsdim = info.region.nx - 1 + 32 - ((info.region.nx - 1) % 32);
@@ -262,7 +276,7 @@ void MainFree( Solver *d);
 //		}
 		info.region.nx += info.xsdim - 1 - ((info.region.nx - 1) % info.xsdim);
 		MPIDivision();
-		InitAll(ns);
+		InitAll(ns, latticeType_, latticeSize_);
 		// Setting settings to default
 		for (ModelBase::Settings::const_iterator it=lattice->model->settings.begin(); it !=lattice->model->settings.end(); it++) {
 			if (! it->isDerived) {
@@ -364,7 +378,7 @@ void MainFree( Solver *d);
 	Initializes Lattice, settings, etc.
 	\param ns Number of Snapshots to allocate
 */
-	int Solver::InitAll(int ns) {
+	int Solver::InitAll(int ns, int latticeType_, size_t latticeSize_) {
 	        // Making a window
 	        #ifdef GRAPHICS
 	        	NOTICE("Running graphics at %dx%d\n", region.nx, region.ny);
@@ -379,6 +393,8 @@ void MainFree( Solver *d);
 		prom.region = region;
 		prom.mpi = mpi;
 		prom.ns = ns;
+		prom.latticeType = latticeType_;
+		prom.latticeSize = latticeSize_;
 //		lattice = new Lattice(region, mpi, ns);
 		lattice = LatticeFactory::Produce(prom);
 		if (lattice == 0) {
@@ -398,9 +414,9 @@ void MainFree( Solver *d);
 		for (ModelBase::ZoneSettings::const_iterator it=lattice->model->zonesettings.begin(); it != lattice->model->zonesettings.end(); it++) {
 			lattice->zSet.set(it->id, -1, units.alt(it->defaultValue));
 		}
-
+		latticeType = latticeType_;
 		geometry = new Geometry(region, mpi.totalregion, units, lattice->model);
-
+		connectivity = new Connectivity(region, mpi.totalregion, units, lattice->model);
 		return 0;
 	}
 

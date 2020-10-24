@@ -19,29 +19,29 @@
 #define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
 #define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
 
-int _xsdim = 0;
-int _ysdim = 1;
+/*int _xsdim = 0;
+int _ysdim = 1;*/
 
 /// Fast modulo for one k
-CudaDeviceFunction inline int mymod(int x, int k){
+/*CudaDeviceFunction inline int mymod(int x, int k){
         if (x >= k) return x-k;   
         if (x < 0) return x+k;
         return x;
-}
+}*/
 
 /// Clear mem (unused)
-CudaGlobalFunction void clearmem(real_t* ptr) {
+/*CudaGlobalFunction void clearmem(real_t* ptr) {
 	ptr[CudaBlock.x] = 0.0;
-}
+}*/
 
 /// Init Settings with 0 in GPU constant memory
-void initSettings() {
+/*void initSettings() {
 	real_t val = 0;
 <?R for (v in rows(Settings)) {
 	if (is.na(v$derived)) { ?>
 			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
 	}} ?>
-}
+}*/
 
 /// Set Setting in GPU constant memory
 /**
@@ -49,7 +49,7 @@ void initSettings() {
   \param i Index of the Setting
   \param tmp value of the Setting
 */
-void setConstSetting(int i, real_t tmp) {
+/*void setConstSetting(int i, real_t tmp) {
 	switch (i) {
 <?R
         for (v in rows(Settings)) if (is.na(v$derived)) { ?>
@@ -58,10 +58,10 @@ void setConstSetting(int i, real_t tmp) {
 		break; <?R
         } ?>
 	}
-}
+}*/
 
 /// Get maximal number of threads for all the kernels on runtime
-template < class N > dim3 GetThreads() {
+/*template < class N > dim3 GetThreads() {
 	dim3 ret;
 	CudaFuncAttributes * attr = new CudaFuncAttributes;
 	CudaFuncGetAttributes(attr, RunKernel<N>) ;
@@ -75,10 +75,10 @@ template < class N > dim3 GetThreads() {
 	ret.y = attr->maxThreadsPerBlock/ret.x;
 	ret.z = 1;
 	return ret;
-}
+}*/
 
 
-template < class N > class ThreadNumber {
+/*template < class N > class ThreadNumber {
   public:
   static unsigned int ky, sy, maxy;
   static std::string name;
@@ -103,15 +103,15 @@ template < class N > class ThreadNumber {
 	output( "  %3dx%-3d  | %s\n", X_BLOCK, sy, name.c_str());
     }
   }
-};
-
+};*/
+/*
 template < class N > unsigned int ThreadNumber< N >::ky = 0;
 template < class N > unsigned int ThreadNumber< N >::sy = 0;
 template < class N > unsigned int ThreadNumber< N >::maxy = 0;
-template < class N > std::string ThreadNumber< N >::name = "";
+template < class N > std::string ThreadNumber< N >::name = "";*/
   
 /// Initialize Thread/Block number variables
-int InitDim(int ny) {
+/*int InitDim(int ny) {
 	MPI_Barrier(MPMD.local);
         output( "  Threads  |      Action\n");
 <?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
@@ -119,10 +119,10 @@ int InitDim(int ny) {
 	}; ifdef(); ?>
 	MPI_Barrier(MPMD.local);
         return 0;
-}
+}*/
 
 /// Allocation of a GPU memory Buffer
-void * BAlloc(size_t size) {
+/*void * BAlloc(size_t size) {
   char * tmp = NULL;
     ALLOCPRINT1;
     #ifdef DIRECT_MEM
@@ -133,12 +133,12 @@ void * BAlloc(size_t size) {
     ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); 
 	return (void *) tmp;
-}
+}*/
 
 /// Preallocation of a buffer (combines allocation into one big allocation)
-void BPreAlloc(void ** ptr, size_t size) {
+/*void BPreAlloc(void ** ptr, size_t size) {
     CudaMalloc( ptr, size );
-}
+}*/
 
 /// Allocation of memory for an FTabs
 void FTabs::Alloc(int nx,int ny,int nz) {
@@ -180,7 +180,7 @@ void FTabs::Clear(int nx,int ny,int nz) {
 }
 
 /// NULL-safe free
-inline void MyFree(void * ptr) {
+/*inline void MyFree(void * ptr) {
     if (ptr != NULL) {
         #ifdef DIRECT_MEM
 	    CudaFreeHost( ptr );
@@ -189,7 +189,7 @@ inline void MyFree(void * ptr) {
 	#endif
 	ptr = NULL;
     }
-}
+}*/
 
 /// Free FTabs memory
 void FTabs::Free() { <?R
@@ -209,7 +209,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     kx = nx/X_BLOCK;
     ky = ny;
 
-    InitDim(ny);
+    InitDim<CartesianLatticeContainerAccessor>(ny);
 
     char * tmp=NULL;
     size_t size;
@@ -262,17 +262,17 @@ void LatticeContainer::Free()
   iterates over all elements and runs them with RunElement function.
   constContainer.dx/dy is to calculate only internal nodes
 */
-template <class N> CudaGlobalFunction void RunKernel()
+/*template <class N> CudaGlobalFunction void RunKernel()
 {
 	N now;
-	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
-	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
-	now.z_ = CudaBlock.y+constContainer.dz;
+	now.idx_.x = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
+	now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
+	now.idx_.z = CudaBlock.y+constContainer.dz;
 	#ifndef GRID3D
-		for (; now.x_ < constContainer.nx; now.x_ += CudaNumberOfThreads.x) {
+		for (; now.idx_.x < constContainer.nx; now.idx_.x += CudaNumberOfThreads.x) {
 	#endif
 		now.Pre();
-		if (now.y_ < constContainer.fy) {
+		if (now.idx_.y < constContainer.fy) {
 			now.RunElement();
 		} else {
 			now.OutOfDomain();
@@ -281,7 +281,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 	#ifndef GRID3D
 		}
 	#endif
-}
+}*/
 
 /// BORDER_Z defines if we need to take Z direction in consiredation border/interior
 //   if a model is 2D everything in the Z direction is interior
@@ -296,41 +296,41 @@ template <class N> CudaGlobalFunction void RunKernel()
 /**
   iterates over border elements and runs them with RunElement function
 */
-template <class N> CudaGlobalFunction void RunBorderKernel()
+/*template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	N now;
-	now.x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.z_ = CudaBlock.x;
+	now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+	now.idx_.z = CudaBlock.x;
 	now.Pre();
 <?R if (tmaxy > tminy) { ?>
-	if (now.z_ < constContainer.nz) {
+	if (now.idx_.z < constContainer.nz) {
 <?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		now.y_ = <?%d y - 1 ?>;
+		now.idx_.y = <?%d y - 1 ?>;
 		now.RunElement();
 <?R	} else if (y < 0) { ?>
-		now.y_ = constContainer.ny - <?%d -y ?>;
+		now.idx_.y = constContainer.ny - <?%d -y ?>;
 		now.RunElement();
 <?R	} ?>
 	}
 <?R }
     if (tmaxz > tminz) { ?>
-	now.y_ = CudaBlock.x;
-	if ((now.y_ < constContainer.fy) && (now.y_ >= constContainer.dy)) {
+	now.idx_.y = CudaBlock.x;
+	if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
 <?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-		now.z_ = <?%d z - 1 ?>;
+		now.idx_.z = <?%d z - 1 ?>;
 		now.RunElement();
 <?R	} else if (z < 0) { ?>
-		now.z_ = constContainer.nz - <?%d -z ?>;
+		now.idx_.z = constContainer.nz - <?%d -z ?>;
 		now.RunElement();
 <?R	} ?>
 	}
 <?R } ?>
 	now.Glob();
-}
+}*/
 
 
-template <class N> CudaGlobalFunction void RunParticlesKernel()
-{
+/*template <class N> CudaGlobalFunction void RunParticlesKernel()
+{*/
 /*	N now;
 	Particle p(0.0,0.0,0.0);
 	size_t i = CudaBlock.x;
@@ -363,12 +363,12 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
                 int pnz = ceil(p.pos.z + p.rad) + 1 - constContainer.pz;
                 if (pdz < 0) pdz = 0;
                 if (pnz > constContainer.nz) pnz = constContainer.nz;
-                for (now.z_ = pdz; now.z_ < pnz; now.z_++) {	
-                for (now.y_ = pdy+CudaThread.y; now.y_ < pny; now.y_+=CudaNumberOfThreads.y) {	
-                for (now.x_ = pdx+CudaThread.x; now.x_ < pnx; now.x_+=CudaNumberOfThreads.x) {
-                        p.diff.x = p.pos.x - now.x_ - constContainer.px;
-                        p.diff.y = p.pos.y - now.y_ - constContainer.py;
-                        p.diff.z = p.pos.z - now.z_ - constContainer.pz;
+                for (now.idx_.z = pdz; now.idx_.z < pnz; now.idx_.z++) {	
+                for (now.idx_.y = pdy+CudaThread.y; now.idx_.y < pny; now.idx_.y+=CudaNumberOfThreads.y) {	
+                for (now.idx_.x = pdx+CudaThread.x; now.idx_.x < pnx; now.idx_.x+=CudaNumberOfThreads.x) {
+                        p.diff.x = p.pos.x - now.idx_.x - constContainer.px;
+                        p.diff.y = p.pos.y - now.idx_.y - constContainer.py;
+                        p.diff.z = p.pos.z - now.idx_.z - constContainer.pz;
                         p.dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                         p.cvel.x = p.vel.x + p.angvel.y*p.diff.z - p.angvel.z*p.diff.y;
                         p.cvel.y = p.vel.y + p.angvel.z*p.diff.x - p.angvel.x*p.diff.z;
@@ -405,7 +405,7 @@ template <class N> CudaGlobalFunction void RunParticlesKernel()
 
 	}
 	*/
-}
+//}
 
 
 /// Copy oneself to the GPU constant memory
@@ -430,9 +430,9 @@ void LatticeContainer::CopyToConst() {
 */
 template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
     #ifdef BORDER_Z
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
+	    CudaKernelRunNoWait( (RunBorderKernel<N, CartesianLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
     #else
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
+	    CudaKernelRunNoWait( (RunBorderKernel<N, CartesianLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
     #endif
 };
 
@@ -443,12 +443,12 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderS
 */
 template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
     int nnz;
-    ky = ThreadNumber< N >::getKY();
+    ky = ThreadNumber< N, CartesianLatticeContainerAccessor >::getKY();
     nnz = fz - dz;
     #ifdef GRID3D
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
+        CudaKernelRunNoWait( (RunKernel<N, CartesianLatticeContainerAccessor>) , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N, CartesianLatticeContainerAccessor >::getSY()),(),interiorStream);
     #else
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
+        CudaKernelRunNoWait( (RunKernel<N, CartesianLatticeContainerAccessor>) , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N, CartesianLatticeContainerAccessor >::getSY()),(),interiorStream);
     #endif
 };
 
@@ -464,11 +464,11 @@ template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t inte
 
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < CartesianLatticeContainerAccessor, I, G, S > >(stream); };
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < CartesianLatticeContainerAccessor, I, G, S > >(stream); };
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunParticles(CudaStream_t stream) { RunParticlesT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunParticles(CudaStream_t stream) { RunParticlesT< Node_Run < CartesianLatticeContainerAccessor, I, G, S > >(stream); };
 
 
   
@@ -476,7 +476,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S >
 /**
   calculates the color for one node
 */
-template <class N>
+/*template <class N>
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
     int offset = x+y*constContainer.nx;
@@ -489,9 +489,9 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     if (x >= constContainer.nx) return;
     if (y >= constContainer.ny) return;
     if (z >= constContainer.nz) return;
-    now.x_ = x;
-    now.y_ = y;
-    now.z_ = z;
+    now.idx_.x = x;
+    now.idx_.y = y;
+    now.idx_.z = z;
     constContainer.getType(now);
     constContainer.pop(now);
     {
@@ -523,10 +523,10 @@ if (ISFINITE(l)) {
     optr[offset].y = g;  
     optr[offset].z = b;  
     optr[offset].w = 255;
-}
+}*/
 
 /// Kernel for graphics output
-CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
+/*CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
   NodeToColor< Node_Run< Primal, NoGlobals, Get > >(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
@@ -534,7 +534,7 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
     z,
     optr
   );
-}
+}*/
 
 /// Runs kernel for rendering graphics
 /**
@@ -543,7 +543,7 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 */
 void LatticeContainer::Color( uchar4 *optr ) {
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( ColorKernel , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr, nz/2));
+   CudaKernelRun( (ColorKernel<CartesianLatticeContainerAccessor>) , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr, nz/2));
 };
 
 // Functions for getting quantities
@@ -558,7 +558,7 @@ void LatticeContainer::Color( uchar4 *optr ) {
   \param tab buffor to put the calculated result
   \param scale Scale to rescale the result (for units)
 */
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
+/*CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy; <?R
@@ -569,9 +569,9 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         }?>
 	int z;
 	for (z = r.dz; z < r.dz + r.nz; z ++) {
-		now.x_ = x;
-		now.y_ = y;
-		now.z_ = z;
+		now.idx_.x = x;
+		now.idx_.y = y;
+		now.idx_.z = z;
 		constContainer.getType(now);
 		<?%s q$type ?> w;
 //		if (now.NodeType) {
@@ -598,7 +598,7 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 //		}
 		tab[r.offset(x,y,z)] = w;
 	}
-}
+}*/
 <?R
         }
         ifdef();

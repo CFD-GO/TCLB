@@ -50,6 +50,121 @@ int vtkWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_
 	return 0;
 }
 
+/**
+ * Function to write lattice data out as PolyData - set of coordinates and pointdata values
+ * 
+ **/
+int vtkWriteLatticeArbitrary(char * filename, size_t latticeSize, LatticeBase * lattice, UnitEnv units, name_set * what)
+{
+	size_t size;
+	lbRegion reg = lattice->region;
+	size = latticeSize;
+	vtpFileOut vtpFile(MPMD.local);
+	if (vtpFile.Open(filename)) {return -1;}
+	double spacing = 1/units.alt("m");	
+	vtpFile.Init(lattice->mpi.totalregion, reg, latticeSize, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
+
+	{	big_flag_t * NodeType = new big_flag_t[size];
+		lattice->GetFlags(reg, NodeType);
+		if (what->explicitlyIn("flag")) {
+			vtpFile.WriteField("flag",NodeType);
+		}
+		unsigned char * small = new unsigned char[size];
+		for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
+			if ((what->all && it->isSave) || what->explicitlyIn(it->name)) {
+				for (size_t i=0;i<size;i++) {
+					small[i] = (NodeType[i] & it->flag) >> it->shift;
+				}
+				vtpFile.WriteField(it->name.c_str(),small);
+			}
+		}
+		delete[] small;
+		delete[] NodeType;
+	}
+
+	for (ModelBase::Quantities::const_iterator it = lattice->model->quantities.begin(); it != lattice->model->quantities.end(); it++) {
+		if (what->in(it->name)) {
+			double v = units.alt(it->unit);
+			int comp = 1;
+			if (it->isVector) comp = 3;
+	                real_t* tmp = new real_t[size*comp];
+                        lattice->GetQuantity(it->id, reg, tmp, 1/v);
+			vtpFile.WriteField(it->name.c_str(), tmp, comp);
+			delete[] tmp;
+		}
+	}
+	
+	vtpFile.FinishCellData();
+	vtpFile.WritePointsHeader();
+	
+	real_t* temp = new real_t[size * 3];
+	lattice->GetCoords(temp);
+
+	vtpFile.WriteField("coords", temp, 3);
+	delete[] temp;
+	vtpFile.Finish();
+
+	vtpFile.Close();
+	return 0;
+}
+
+/**
+ * Function to write data out as an unstructured grid - set of points, cells defined as edges of points, celldata
+ * 
+ **/
+int vtkWriteLatticeArbitraryUG(char * filename, size_t latticeSize, LatticeBase * lattice, Connectivity * connectivity, UnitEnv units, name_set * what)
+{
+	size_t size;
+	lbRegion reg = lattice->region;
+	size = latticeSize;
+	vtuFileOut vtuFile(MPMD.local);
+	if (vtuFile.Open(filename)) {return -1;}
+	double spacing = 1/units.alt("m");	
+	vtuFile.Init(lattice->mpi.totalregion, reg, connectivity->nPoints, connectivity->nCells, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
+
+	{	big_flag_t * NodeType = new big_flag_t[size];
+		lattice->GetFlags(reg, NodeType);
+		if (what->explicitlyIn("flag")) {
+			vtuFile.WriteField("flag",NodeType);
+		}
+		unsigned char * small = new unsigned char[size];
+		for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
+			if ((what->all && it->isSave) || what->explicitlyIn(it->name)) {
+				for (size_t i=0;i<size;i++) {
+					small[i] = (NodeType[i] & it->flag) >> it->shift;
+				}
+				vtuFile.WriteField(it->name.c_str(),small);
+			}
+		}
+		delete[] small;
+		delete[] NodeType;
+	}
+
+	for (ModelBase::Quantities::const_iterator it = lattice->model->quantities.begin(); it != lattice->model->quantities.end(); it++) {
+		if (what->in(it->name)) {
+			double v = units.alt(it->unit);
+			int comp = 1;
+			if (it->isVector) comp = 3;
+	                real_t* tmp = new real_t[size*comp];
+                        lattice->GetQuantity(it->id, reg, tmp, 1/v);
+			vtuFile.WriteField(it->name.c_str(), tmp, comp);
+			delete[] tmp;
+		}
+	}
+	
+	vtuFile.FinishCellData();
+	vtuFile.WritePointsHeader();
+	vtuFile.WriteField("Points", (void*)connectivity->pointData, sizeof(real_t)*3, connectivity->nPoints, "Float64", 3);
+	vtuFile.WritePointsFooter();
+	vtuFile.WriteCellsHeader();
+	vtuFile.WriteField("connectivity", (void*)connectivity->cellConnectivity, sizeof(size_t), connectivity->nCells * 8, "Int64", 1);
+	vtuFile.WriteField("offsets", (void*)connectivity->cellOffsets, sizeof(size_t), connectivity->nCells, "Int64", 1);
+	vtuFile.WriteField("types", (void*)connectivity->cellTypes, sizeof(unsigned char), connectivity->nCells, "UInt8", 1);
+	vtuFile.WriteCellsFooter();
+	vtuFile.Finish();
+	vtuFile.Close();
+	return 0;
+}
 
 int binWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units)
 {
