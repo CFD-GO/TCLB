@@ -275,7 +275,8 @@ do
 		;;
 	rpython)
 		install_rpackage rjson
-		install_rpackage rPython
+		echo "rPython not supported anymore"
+		# install_rpackage rPython
 		;;
 	rinside)
 		if $GITHUB
