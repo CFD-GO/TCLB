@@ -74,7 +74,9 @@ function install_rpackage {
 			dir.create(p,recursive=TRUE);
 			.libPaths(p);
 		}
+		if (! "$name" %in% available.packages()[,1]) stop("$name not available on CRAN");
 		install.packages('$name', method="wget");
+		if (! require('$name')) stop("Failed to load $name");
 EOF
 }
 
@@ -245,6 +247,7 @@ do
 		#try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
 		;;
 	-r|--rpackage)
+		shift
 		test -z "$1" && error "usage tools/install.sh [--github] --rpackage package_name"
 		if $GITHUB
 		then
@@ -283,6 +286,7 @@ do
 		fi
 		;;
 	cuda)
+		shift
 		test -z "$1" && error "Version number needed for cuda install"
 		CUDA=$1
 		shift
