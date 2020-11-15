@@ -37,6 +37,16 @@ AC_ARG_WITH([hdf5-include],
 	AC_HELP_STRING([--with-hdf5-include=hdf5],
 		[specify the full path to your hdf5 installation (headers)]))
 
+AC_ARG_WITH([adios_dir],
+	AC_HELP_STRING([--with-adios_dir=adios_dir],
+		[specify the directory containing bin/adios_config /usr/local/adios2]),
+	[ADIOS_DIR="$withval"])
+
+AC_ARG_WITH([adios],
+	AC_HELP_STRING([--enable-adios],
+		[Enable ADIOS2 support (experimental)]),
+	[with_adios="$withval"])
+
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
 		[make a GUI version]))
@@ -379,6 +389,24 @@ if test "x${with_hdf5}" != "xno"; then
 	fi
 fi
 
+if test "x${with_adios}" != "xno"; then
+	adios2_config="${ADIOS_DIR}/bin/adios2-config"
+	AC_CHECK_PROG(adios2_config,${adios2_config},${adios2_config},adios2-config)
+
+	AC_MSG_NOTICE([ADIOS2 config: ${adios2_config}])
+
+	AC_MSG_CHECKING([ADIOS2 embandinng: linker flags])
+	LD=$(${adios2_config} --cxx-libs)
+	LDFLAGS="${LDFLAGS} ${LD}"
+	AC_MSG_RESULT(["${LD}"])
+
+
+	AC_MSG_CHECKING([ADIOS2 embandinng: linker flags])
+	LD=$(${adios2_config} --cxx-flags)
+
+	CPPFLAGS="${CPPFLAGS} ${LD}"
+	AC_MSG_RESULT(["${LD}"])
+fi
 
 if  test "x${with_python}" == "xyes"; then
    

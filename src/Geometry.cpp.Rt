@@ -4,6 +4,12 @@
     #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #endif
 
+
+#ifdef ADIOS2_USE_MPI
+	#include <adios2.h>
+#endif
+
+
 <?R
  library(gvector,quiet=TRUE,warn.conflicts=FALSE)
  library(polyAlgebra,quiet=TRUE,warn.conflicts=FALSE)
@@ -1038,6 +1044,137 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 		    }
 	    fclose(f);
+	} else if (strcmp(n.name(), "ADIOS2") == 0) {
+	    lbRegion crop = getRegion(n.parent());
+	    crop = region.intersect(crop);
+	    crop.print();
+	    if (!n.attribute("IOName")) {
+			error("No 'IOName' attribute in 'ADIOS2' element in xml conf\n");
+			return -1;
+	    }
+
+
+	    if (!n.attribute("Stream")) {
+			error("No 'Stream' attribute in 'ADIOS2' element in xml conf\n");
+			return -1;
+	    }
+
+	    if (!n.attribute("Variable")) {
+			error("No 'Variable' attribute in 'ADIOS2' element in xml conf\n");
+			return -1;
+	    }
+
+	    if (!n.attribute("AdiosConfig")) {
+			error("No 'AdiosConfig' attribute in 'ADIOS2' element in xml conf\n");
+			return -1;
+	    }
+
+        /** ADIOS class factory of IO class objects */
+
+        adios2::ADIOS adios(n.attribute("AdiosConfig").value(),MPI_COMM_WORLD);
+
+        /*** IO class object: settings and factory of Settings: Variables,
+         * Parameters, Transports, and Execution: Engines */
+        adios2::IO adioIO = adios.DeclareIO(n.attribute("IOName").value());
+
+       	/** Engine derived class, spawned to start IO operations */
+        adios2::Engine AdiosReader = adioIO.Open(n.attribute("Stream").value(), adios2::Mode::Read);
+
+        const std::map<std::string, adios2::Params> variables = adioIO.AvailableVariables();
+
+        for (const auto variablePair : variables)
+        {
+            std::cout << "Name: " << variablePair.first;
+
+            for (const auto &parameter : variablePair.second)
+            {
+                std::cout << "\t" << parameter.first << ": " << parameter.second
+                          << "\n";
+            }
+        }
+
+        /** Write variable for buffering */
+		typedef std::uint8_t FTYPE; //TODO: this should be char_to_bool to save A LOT memory
+		
+		adios2::Variable<FTYPE> Flags;
+      
+	    if (true) 
+        {
+
+
+			std::cout << reg.dy << " R " << reg.ny<< std::endl;
+			std::cout << crop.dy << " C " << crop.ny<< std::endl;
+
+			size_t local_y0 = crop.dy - reg.dy;
+			size_t local_ny = crop.ny;
+			
+			std::cout <<  "I need Y: " << local_y0 << " COUNT "<< local_ny << std::endl;
+
+
+            std::vector<FTYPE> FlagsBuffer((size_t)reg.nx*local_ny);
+
+            // read only the chunk corresponding to our rank
+            // myFloats.data is pre-allocated
+
+
+			for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+				
+				size_t index = 0;
+
+				adios2::StepStatus status = AdiosReader.BeginStep(adios2::StepMode::Read, 60.0f);
+				if (status != adios2::StepStatus::OK)
+				{
+					ERROR("ADIOS stream ended or broken - NZ > Number of steps avalible");
+					break;
+				}
+		
+		        Flags = adioIO.InquireVariable<FTYPE>(n.attribute("Variable").value());
+
+
+
+        	    Flags.SetSelection({{0,local_y0}, {(size_t)reg.nx, local_ny}});
+
+				AdiosReader.Get<FTYPE>(Flags, FlagsBuffer.data());
+
+				AdiosReader.EndStep();
+
+				size_t white = 0;
+
+
+				 
+
+				for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+				for (int y = reg.dy; y < reg.dy + reg.ny; y++){
+					if (crop.isIn(x, y, z)){
+						const bool v = FlagsBuffer[index] == 1;
+						white = white + FlagsBuffer[index];
+						if (v) Dot(x, y, z);
+						index++;
+					}
+				}
+
+				std::cout << "I've read: MARKED: " << white << "  ALL: " << index << std::endl;
+
+			}
+
+        }
+		AdiosReader.Close();
+	    /** 
+		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
+		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+			int v;
+			int ret = fscanf(f, "%d", &v);
+                        if (ret == EOF) {
+                            ERROR("File (%s) ended while reading\n", n.attribute("file").value());
+                            return -1;
+                        }
+			if ((v != 0) && (crop.isIn(x, y, z)))
+			    Dot(x, y, z);
+		    }
+		**/
+
+
 	} else {
 	    pugi::xml_node node = fg_xml.find_child_by_attribute("Zone", "name", n.name());
 	    if (node) {
