@@ -393,6 +393,29 @@ do
 		try "Leaving module directory" cd ..
 		try "Remember to restart terminal" . ~/.bashrc	
 		;;
+	tapenade)
+		if echo "$2" | grep -Eq '^[0-9]*[.][0-9]*$'
+		then
+			shift
+			VER="$1"
+		else
+			VER="3.16"
+		fi
+		if test -d ../tapenade
+		then
+			echo "Looks like tapenade already is installed at '$(cd ../tapenadel; pwd))'"
+			exit -1
+		fi
+		try "Downloading Tapenade ($VER)" wget $WGETOPT http://www-sop.inria.fr/ecuador/tapenade/distrib/tapenade_$VER.tar
+		try "Unpacking Tapenade" tar xf tapenade_$VER.tar
+		if test -d tapenade_$VER
+		then
+			mv tapenade_$VER ../tapenade
+			echo "Installed Tapenade at '$(cd ../tapenade; pwd)'"
+		else
+			echo "Tapenade installation failed"
+		fi
+		;;
 	-*)
 		echo "Unknown option $1" ; usage ;;
 	*)		
