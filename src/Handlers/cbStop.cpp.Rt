@@ -66,8 +66,8 @@ int cbStop::DoIt () {
 					if (D_MPI_RANK == 0) output("    change:      %4lg < %4lg", fabs(old[i] - v), limit[i]);
 					break;
 				case STOP_PERCENTCHANGE:
-					if (fabs(old[i] - v)/v > limit[i]) any++;
-					if (D_MPI_RANK == 0) output("    change:      %4lg < %4lg", fabs(old[i] - v), limit[i]);
+					if (fabs((old[i] - v)/v) > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    change:    %4lg%% < %4lg%%", 100.0 * fabs((old[i] - v)/v), 100.0 * limit[i]);
 					break;
 				case STOP_ABOVE:
 					if (v < limit[i]) any++;
