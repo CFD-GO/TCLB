@@ -9,6 +9,7 @@
 #define STOP_CHANGE 0x01
 #define STOP_ABOVE 0x02
 #define STOP_BELOW 0x03
+#define STOP_PERCENTCHANGE 0x04
 
 class  cbStop  : public  Callback  {
         std::vector< int > what;
