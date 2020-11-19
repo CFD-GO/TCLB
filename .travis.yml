@@ -52,7 +52,7 @@ before_install:
     - tools/install.sh rinside
     - sudo tools/install.sh python-dev
     - tools/install.sh submodules
-    - "[[ $MODEL =~ _adj$ ]] && tools/install.sh tapenade"
+    - "[[ ! $MODEL =~ _adj$ ]] || tools/install.sh tapenade"
 
 install:
     - nvcc --version
