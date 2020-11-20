@@ -211,7 +211,7 @@ wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <
 
 <?%s d ?>/<?%s m ?>/tapenade.run : tools/makeAD <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh <?%s d ?>/<?%s m ?>/ADpost.sed
 	@echo "  TAPENADE   $<"
-	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD)
+	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD "$(TAPENADE)")
 
 <?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
 	@echo "  AUTO-DEP   $@"
