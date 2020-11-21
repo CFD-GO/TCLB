@@ -84,7 +84,7 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
 	// just read the first 2 lines to get the values we want
 	int nx, ny, nz;
 	size_t latticeSize;
-	fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
+	fscanf(cxnFile, "LATTICESIZE %lu\n", &latticeSize);
 	fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
 
 	fclose(cxnFile);
@@ -92,6 +92,7 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
 	ny_ = ny;
 	nz_ = nz;
 	latticeSize_ = latticeSize;
+	printf("lattice size: %lu\n", latticeSize);
 
 };
 

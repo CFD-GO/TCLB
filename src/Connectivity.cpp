@@ -59,7 +59,7 @@ int Connectivity::load(pugi::xml_node & node) {
     char buffer[20];
 
     // read header information
-    ret = fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
+    ret = fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize);
     ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
     ret = fscanf(cxnFile, "d %d\n", &d);
     ret = fscanf(cxnFile, "Q %d\n", &Q);
