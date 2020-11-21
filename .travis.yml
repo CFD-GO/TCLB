@@ -45,13 +45,14 @@ env:
     - MODEL=d3q27 
     - MODEL=d3q27_cumulant 
     - MODEL=d3q27_cumulant_AVG_IB_SMAG
+    - MODEL=d2q9_adj
 
 before_install:
     - tools/install.sh rdep
     - tools/install.sh rinside
     - sudo tools/install.sh python-dev
-    - tools/install.sh rpython
     - tools/install.sh submodules
+    - "[[ ! $MODEL =~ _adj$ ]] || tools/install.sh tapenade"
 
 install:
     - nvcc --version

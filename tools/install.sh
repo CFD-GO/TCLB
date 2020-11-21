@@ -74,7 +74,9 @@ function install_rpackage {
 			dir.create(p,recursive=TRUE);
 			.libPaths(p);
 		}
+		if (! "$name" %in% available.packages()[,1]) stop("$name not available on CRAN");
 		install.packages('$name', method="wget");
+		if (! require('$name')) stop("Failed to load $name");
 EOF
 }
 
@@ -245,6 +247,7 @@ do
 		#try "Changing access to R lib paths" chmod 2777 /usr/local/lib/R /usr/local/lib/R/site-library
 		;;
 	-r|--rpackage)
+		shift
 		test -z "$1" && error "usage tools/install.sh [--github] --rpackage package_name"
 		if $GITHUB
 		then
@@ -272,7 +275,8 @@ do
 		;;
 	rpython)
 		install_rpackage rjson
-		install_rpackage rPython
+		echo "rPython not supported anymore"
+		# install_rpackage rPython
 		;;
 	rinside)
 		if $GITHUB
@@ -283,6 +287,7 @@ do
 		fi
 		;;
 	cuda)
+		shift
 		test -z "$1" && error "Version number needed for cuda install"
 		CUDA=$1
 		shift
@@ -387,6 +392,29 @@ do
 		try "make install" make install
 		try "Leaving module directory" cd ..
 		try "Remember to restart terminal" . ~/.bashrc	
+		;;
+	tapenade)
+		if echo "$2" | grep -Eq '^[0-9]*[.][0-9]*$'
+		then
+			shift
+			VER="$1"
+		else
+			VER="3.16"
+		fi
+		if test -d ../tapenade
+		then
+			echo "Looks like tapenade already is installed at '$(cd ../tapenadel; pwd))'"
+			exit -1
+		fi
+		try "Downloading Tapenade ($VER)" wget $WGETOPT http://www-sop.inria.fr/ecuador/tapenade/distrib/tapenade_$VER.tar
+		try "Unpacking Tapenade" tar xf tapenade_$VER.tar
+		if test -d tapenade_$VER
+		then
+			mv tapenade_$VER ../tapenade
+			echo "Installed Tapenade at '$(cd ../tapenade; pwd)'"
+		else
+			echo "Tapenade installation failed"
+		fi
 		;;
 	-*)
 		echo "Unknown option $1" ; usage ;;

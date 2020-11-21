@@ -175,7 +175,7 @@ wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <
 
 $(DEST)/<?%s m ?>/tapenade.run : tools/makeAD $(DEST)/<?%s m ?>/Dynamics.c $(DEST)/<?%s m ?>/ADpre.h $(DEST)/<?%s m ?>/ADpre_b.h $(DEST)/<?%s m ?>/templates/Dynamics.h $(DEST)/<?%s m ?>/Consts.h $(DEST)/<?%s m ?>/types.h $(DEST)/<?%s m ?>/ADset.sh $(DEST)/<?%s m ?>/ADpost.sed
 	@echo "  TAPENADE   $<"
-	@(cd $(DEST)/<?%s m ?>; ../../tools/makeAD)
+	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD "$(TAPENADE)")
 
 $(DEST)/<?%s m ?>/%:   $(SRC)/templates/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@$(MKPATH) $@
