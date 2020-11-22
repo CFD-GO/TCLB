@@ -57,13 +57,14 @@ int Connectivity::load(pugi::xml_node & node) {
         return -1;
     }
     char buffer[20];
-
+    DEBUG_M;
     // read header information
     ret = fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize);
     ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
     ret = fscanf(cxnFile, "d %d\n", &d);
     ret = fscanf(cxnFile, "Q %d\n", &Q);
     ret = fscanf(cxnFile, "OFFSET_DIRECTIONS\n");
+    DEBUG_M;
 
     // allocate the table of offsets
     connectivityDirections = (int*) malloc(Q * 3 * sizeof(int));
@@ -75,6 +76,7 @@ int Connectivity::load(pugi::xml_node & node) {
         else
             fscanf(cxnFile, "\n");
     }
+    DEBUG_M;
     // initialise the max/min variables -- note: assumes we never stream further away than -1 -> +1.. should be -MAX_INT, +MAX_INT to be perfectly correct
     mindx = 1;
     mindy = 1;
@@ -113,6 +115,7 @@ int Connectivity::load(pugi::xml_node & node) {
     // get rid of old connectivity array and set to new tmp matrix form
     free(connectivityDirections);
     connectivityDirections = tmp;
+    DEBUG_M;
 
     //ret = fscanf(cxnFile, "MASK %s\n", buffer);
     ret = fscanf(cxnFile, "NODES\n");
@@ -144,12 +147,12 @@ int Connectivity::load(pugi::xml_node & node) {
 
         // now read the labels on each node
         int nlabels;
-        char label[20];
+        char label[200];
         // read in the number of labels we have
         ret = fscanf(cxnFile, "%d", &nlabels);
         // read in our labels after that
         for(int j = 0; j < nlabels; j++) {
-            ret = fscanf(cxnFile, " %s", &label);
+            ret = fscanf(cxnFile, " %s", label);
             // see if we have this label in our mapping
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
@@ -162,6 +165,7 @@ int Connectivity::load(pugi::xml_node & node) {
 
         ret = fscanf(cxnFile, "\n");
     }
+    DEBUG_M;
 
     fclose(cxnFile);
 
@@ -195,4 +199,5 @@ int Connectivity::load(pugi::xml_node & node) {
         }
         printf("Loaded cell connectivity\n");
     }
+    return 0;
 }

@@ -93,7 +93,7 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
 	nz_ = nz;
 	latticeSize_ = latticeSize;
 	printf("lattice size: %lu\n", latticeSize);
-
+	return 0;
 };
 
 CudaEvent_t     start, stop; // CUDA events to measure time

@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0" output="output/" permissive="true">
 	<ArbitraryLattice file="example/data/connectivity.cxn">
+		<MRT group="Main"/>
+		<MRT group="Inlet"/>
+		<MRT group="Outlet"/>
+		<WVelocity group="Inlet"/>
+		<EPressure group="Outlet"/>
+		<Wall group="Wall"/>
 	</ArbitraryLattice>
 	<Model>
 		<Param name="VelocityX" value="0.01"/>
@@ -16,5 +22,5 @@
 		<Param name="InletTemperature" value="1"/>
 	</Model>
 	<VTK Iterations="1000"/>
-	<Solve Iterations="4000"/>
+	<Solve Iterations="40000"/>
 </CLBConfig>
