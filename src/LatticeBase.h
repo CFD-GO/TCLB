@@ -60,7 +60,7 @@ public:
   MPIInfo mpi; ///< MPI information
   typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t, pinned_allocator<real_t> > rfi_t;
   rfi_t RFI;
-  char snapFileName[STRING_LEN];
+  char snapFileName[STRING_LEN*2];
   virtual ~LatticeBase ();
   virtual void Color(uchar4 *) = 0;
   virtual void FlagOverwrite(big_flag_t *, lbRegion) = 0;

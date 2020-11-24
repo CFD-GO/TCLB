@@ -68,7 +68,7 @@ void vtuFileOut::Init(lbRegion regiontot, lbRegion region, size_t nPoints, size_
     fprintf(f, "<?xml version=\"1.0\"?>\n");
 	fprintf(f, "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
 	fprintf(f, "<UnstructuredGrid>\n");
-	fprintf(f, "<Piece NumberOfPoints=\"%d\" NumberOfCells=\"%d\">\n", nPoints, nCells);
+	fprintf(f, "<Piece NumberOfPoints=\"%lx\" NumberOfCells=\"%lx\">\n", nPoints, nCells);
 	fprintf(f, "<PointData>\n");
 	fprintf(f, "</PointData>\n");
 	fprintf(f, "<CellData>\n");
@@ -88,7 +88,7 @@ void vtuFileOut::Init(lbRegion regiontot, lbRegion region, size_t nPoints, size_
 		strcpy(buf, name);
 		MPI_Bcast(buf, name_size, MPI_CHAR, i, comm);
 		if (fp != NULL) {
-			fprintf(fp, "<Piece NumberOfPoints=\"%d\" NumberOfCells=\"%d\" Source=\"%s\"/>\n", nPoints, nCells, buf);
+			fprintf(fp, "<Piece NumberOfPoints=\"%lx\" NumberOfCells=\"%lx\" Source=\"%s\"/>\n", nPoints, nCells, buf);
 		}
 	}
 	delete[] buf;

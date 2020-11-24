@@ -29,6 +29,9 @@
 #include "xpath_modification.h"
 #include "mpitools.hpp"
 
+#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
+
+
 // Reads units from configure file and applies them to the solver
 int readUnits(pugi::xml_node config, Solver* solver) {
 	pugi::xml_node set = config.child("Units");
@@ -84,8 +87,8 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
 	// just read the first 2 lines to get the values we want
 	int nx, ny, nz;
 	size_t latticeSize;
-	fscanf(cxnFile, "LATTICESIZE %lu\n", &latticeSize);
-	fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
+	HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %lu\n", &latticeSize));
+	HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz));
 
 	fclose(cxnFile);
 	nx_ = nx;

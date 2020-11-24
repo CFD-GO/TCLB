@@ -254,7 +254,7 @@ int txtWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_
 				f = fopen(fn,"w");
 				break;
 			case 1:
-				char com[STRING_LEN];
+				char com[STRING_LEN*2];
 				sprintf(com, "gzip > %s.gz", fn);
 				f = popen(com, "w");
 				break;

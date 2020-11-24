@@ -68,7 +68,7 @@ void vtpFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, c
     fprintf(f, "<?xml version=\"1.0\"?>\n");
 	fprintf(f, "<VTKFile type=\"PolyData\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
 	fprintf(f, "<PolyData>\n");
-	fprintf(f, "<Piece NumberOfPoints=\"%d\" NumberOfVerts=\"0\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n", latticeSize);
+	fprintf(f, "<Piece NumberOfPoints=\"%lx\" NumberOfVerts=\"0\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\">\n", latticeSize);
 	fprintf(f, "<PointData %s>\n", selection);
 	if (fp != NULL) {
         fprintf(fp, "<?xml version=\"1.0\"?>\n");
@@ -85,8 +85,10 @@ void vtpFileOut::Init(lbRegion regiontot, lbRegion region, size_t latticeSize, c
 		MPI_Bcast(&reg, 6, MPI_INT, i, comm);
 		strcpy(buf, name);
 		MPI_Bcast(buf, name_size, MPI_CHAR, i, comm);
+		size_t locSize = latticeSize;
+		MPI_Bcast(&locSize, 1, MPI_UNSIGNED_LONG, i, comm);
 		if (fp != NULL) {
-			fprintf(fp, "<Piece NumberOfPoints=\"%d\" NumberOfVerts=\"0\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\" Source=\"%s\"/>\n", buf);
+			fprintf(fp, "<Piece NumberOfPoints=\"%lx\" NumberOfVerts=\"0\" NumberOfLines=\"0\" NumberOfStrips=\"0\" NumberOfPolys=\"0\" Source=\"%s\"/>\n", locSize, buf);
 		}
 	}
 	delete[] buf;

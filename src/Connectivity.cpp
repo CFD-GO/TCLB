@@ -10,6 +10,9 @@
 #include "Global.h"
 #include "def.h"
 
+#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
+
+
 Connectivity::Connectivity(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, ModelBase * model_):model(model_), region(r), totalregion(tr), units(units_)
 {  
     // memory allocation is done in the load() function where we know the size of the lattice
@@ -59,22 +62,23 @@ int Connectivity::load(pugi::xml_node & node) {
     char buffer[20];
     DEBUG_M;
     // read header information
-    ret = fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize);
-    ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
-    ret = fscanf(cxnFile, "d %d\n", &d);
-    ret = fscanf(cxnFile, "Q %d\n", &Q);
-    ret = fscanf(cxnFile, "OFFSET_DIRECTIONS\n");
+    HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize));
+    HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz));
+    HANDLE_IOERR(fscanf(cxnFile, "d %d\n", &d));
+    HANDLE_IOERR(fscanf(cxnFile, "Q %d\n", &Q));
+    HANDLE_IOERR(fscanf(cxnFile, "OFFSET_DIRECTIONS\n"));
     DEBUG_M;
 
     // allocate the table of offsets
     connectivityDirections = (int*) malloc(Q * 3 * sizeof(int));
     // read the order of offsets
     for(int q = 0; q < Q; q++) {
-        ret = fscanf(cxnFile, "[%d,%d,%d]", &connectivityDirections[3*q], &connectivityDirections[3*q + 1], &connectivityDirections[3*q + 2]);
-        if(q < Q-1)
-            fscanf(cxnFile, ","); // move the file pointer past the ,
-        else
-            fscanf(cxnFile, "\n");
+        HANDLE_IOERR(fscanf(cxnFile, "[%d,%d,%d]", &connectivityDirections[3*q], &connectivityDirections[3*q + 1], &connectivityDirections[3*q + 2]));
+        if(q < Q-1) {
+            HANDLE_IOERR(fscanf(cxnFile, ",")); // move the file pointer past the ,
+        } else {
+            HANDLE_IOERR(fscanf(cxnFile, "\n"));
+        }
     }
     DEBUG_M;
     // initialise the max/min variables -- note: assumes we never stream further away than -1 -> +1.. should be -MAX_INT, +MAX_INT to be perfectly correct
@@ -117,8 +121,8 @@ int Connectivity::load(pugi::xml_node & node) {
     connectivityDirections = tmp;
     DEBUG_M;
 
-    //ret = fscanf(cxnFile, "MASK %s\n", buffer);
-    ret = fscanf(cxnFile, "NODES\n");
+    //HANDLE_IOERR(fscanf(cxnFile, "MASK %s\n", buffer));
+    HANDLE_IOERR(fscanf(cxnFile, "NODES\n"));
 
     // allocate memory for connectivity / nodetype matrices
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
@@ -132,7 +136,7 @@ int Connectivity::load(pugi::xml_node & node) {
         size_t nid;
 
         // first scan for the nid, nodetype, coords
-        ret = fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z);
+        HANDLE_IOERR(fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z));
         // can't fscan a float into a real_t so use intermediate vars
         vector_t w;
         w.x = x;
@@ -142,17 +146,17 @@ int Connectivity::load(pugi::xml_node & node) {
 
         // next scan in the connectivity - have to scan an unknown number of integers
         for(int q = 0; q < Q; q++) {
-            ret = fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]);
+            HANDLE_IOERR(fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]));
         }
 
         // now read the labels on each node
         int nlabels;
         char label[200];
         // read in the number of labels we have
-        ret = fscanf(cxnFile, "%d", &nlabels);
+        HANDLE_IOERR(fscanf(cxnFile, "%d", &nlabels));
         // read in our labels after that
         for(int j = 0; j < nlabels; j++) {
-            ret = fscanf(cxnFile, " %s", label);
+            HANDLE_IOERR(fscanf(cxnFile, " %s", label));
             // see if we have this label in our mapping
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
@@ -163,7 +167,7 @@ int Connectivity::load(pugi::xml_node & node) {
             }
         }
 
-        ret = fscanf(cxnFile, "\n");
+        HANDLE_IOERR(fscanf(cxnFile, "\n"));
     }
     DEBUG_M;
 
@@ -173,27 +177,26 @@ int Connectivity::load(pugi::xml_node & node) {
 
         FILE* cellFile = fopen(node.attribute("cellData").value(), "rb");
 
-        ret = fscanf(cellFile, "N_POINTS %zu\n", &nPoints);
-        ret = fscanf(cellFile, "N_CELLS %zu\n", &nCells);
+        HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints));
+        HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells));
 
         pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
         cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
         cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
         cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
-        ret = fscanf(cellFile, "POINTS\n");
+        HANDLE_IOERR(fscanf(cellFile, "POINTS\n"));
 
-        for(int i = 0; i < nPoints; i++) {
+        for(size_t i = 0; i < nPoints; i++) {
             float x, y, z;
-            ret = fscanf(cellFile, "%e %e %e\n", &x, &y, &z);
+            HANDLE_IOERR(fscanf(cellFile, "%e %e %e\n", &x, &y, &z));
             pointData[3*i] = x;
             pointData[3*i + 1] = y;
             pointData[3*i + 2] = z;
         }
         
-        ret = fscanf(cellFile, "CELLS\n");
-        for(int i = 0; i < nCells; i++) {
-            ret = fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], 
-                                                                &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]);
+        HANDLE_IOERR(fscanf(cellFile, "CELLS\n"));
+        for(size_t i = 0; i < nCells; i++) {
+            HANDLE_IOERR(fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]));
             cellOffsets[i] = 8*(i+1);
             cellTypes[i] = 12;
         }
