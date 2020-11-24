@@ -445,7 +445,7 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
     int nnz;
     ky = ThreadNumber< N, CartesianLatticeContainerAccessor >::getKY();
     nnz = fz - dz;
-    #ifdef GRID_3D
+    #ifdef GRID3D
         CudaKernelRunNoWait( (RunKernel<N, CartesianLatticeContainerAccessor>) , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N, CartesianLatticeContainerAccessor >::getSY()),(),interiorStream);
     #else
         CudaKernelRunNoWait( (RunKernel<N, CartesianLatticeContainerAccessor>) , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N, CartesianLatticeContainerAccessor >::getSY()),(),interiorStream);

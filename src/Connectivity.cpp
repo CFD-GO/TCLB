@@ -14,7 +14,30 @@ Connectivity::Connectivity(const lbRegion & r, const lbRegion & tr, const UnitEn
 {  
     // memory allocation is done in the load() function where we know the size of the lattice
     output("Initialising connectivity");
+    SettingZones["DefaultZone"] = 0;
 }
+
+
+/**
+ * Add new zone to our zone list ZoneSettings
+ **/
+int Connectivity::setZone(const pugi::char_t * name) {
+    int ZoneNumber;
+    if (SettingZones.count(name) > 0) {
+        ZoneNumber = SettingZones[name];
+    } else {
+        ZoneNumber = SettingZones.size();
+        debug1("Setting new zone: %s -> %d\n", name, ZoneNumber);
+        SettingZones[name] = ZoneNumber;
+    }
+    // not sure about if we need this part - will investigate more
+    //assert(ZoneNumber < model->settingzones.capacity);
+    //fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift);
+    //fg_mask =  fg_mask |   model->settingzones.flag;
+
+    return 0;
+}
+
 
 int Connectivity::load(pugi::xml_node & node) {
     int ret;
@@ -31,7 +54,7 @@ int Connectivity::load(pugi::xml_node & node) {
             return -1;
         }
         //printf("Flag found for %s: %d\n", z.name(), it->flag);
-        // give this group
+        // get the group tag of this node
         pugi::xml_attribute group = z.attribute("group");
         if(group) {
             if(GroupsToNodeTypes.count(group.value()) > 0)
@@ -39,7 +62,22 @@ int Connectivity::load(pugi::xml_node & node) {
             else
                 GroupsToNodeTypes[group.value()] = it->flag;
         }
+        // see if this node also has a zone tag
+        pugi::xml_attribute zone = z.attribute("name");
+        if(zone && group) {
+            // if it does, link the group to the zone - I think we assume it's one-to-one at the moment but will probably have to change this
+            GroupsToZones[group.value()] = zone.value();
+            // call function to add to SettingZones table
+            setZone(zone.value());
+        }
         
+    }
+
+    // iterate over map and read mappings
+    std::map<std::string, std::string>::iterator gzit;
+    for(gzit = GroupsToZones.begin(); gzit != GroupsToZones.end(); gzit++) {
+        //printf("%s: %s\n", gzit->first, gzit->second);
+        std::cout << gzit->first << ": " << gzit->second << "\n";
     }
 
     if(!node.attribute("file")) {
@@ -121,6 +159,7 @@ int Connectivity::load(pugi::xml_node & node) {
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
     geom = (big_flag_t*) malloc(latticeSize * sizeof(big_flag_t));
     coords = (vector_t*) malloc(latticeSize * sizeof(vector_t));
+    memset(geom, 0, latticeSize * sizeof(big_flag_t));
     
     // read in node connectivity data from file
     for(size_t i = 0; i < latticeSize; i++) {
@@ -140,6 +179,7 @@ int Connectivity::load(pugi::xml_node & node) {
         // next scan in the connectivity - have to scan an unknown number of integers
         for(int q = 0; q < Q; q++) {
             ret = fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]);
+            //ret = fscanf(cxnFile, "%zu ", &connectivity[q + (i * Q)]); // TEMP - changed to AoS
         }
 
         // now read the labels on each node
@@ -154,10 +194,26 @@ int Connectivity::load(pugi::xml_node & node) {
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
                 geom[i] |= GroupsToNodeTypes[label];
+                
             } else {
                 ERROR("Unknown group label (in connectivity file): %s\n", label);
                 return -1;
             }
+            // see if we have this label in our mapping from groups to zones
+            if(GroupsToZones.count(label) > 0) {
+                if(SettingZones.count(GroupsToZones[label]) > 0) {
+                    int zoneNum = SettingZones[GroupsToZones[label]];
+                    geom[i] |= zoneNum << model->settingzones.shift;
+                }
+                // fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift); need to do something like this
+            }
+        }
+
+        if(x == -1 && y == 10 && z == 10) {
+            printf("At %e, %e, %e, geom[i] is: %d\n", x, y, z, geom[i]);
+        }
+        if(x == 0 && y == -1 && z == 20) {
+            printf("At %e, %e, %e, geom[i] is: %d\n", x, y, z, geom[i]);
         }
 
         ret = fscanf(cxnFile, "\n");

@@ -98,6 +98,7 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeS
 void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_, int ndx_, int ndy_, int ndz_) {
   size_t size;
   char * tmp=NULL;
+  nQ = Q_;
   // allocate for connectivity matrix
     size = (size_t) latticeSize_* Q_ * sizeof(size_t);
 	ALLOCPRINT1;
@@ -251,6 +252,7 @@ template <class N> inline void ArbitraryLatticeContainer::RunInteriorT(CudaStrea
         CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
     #else
         // 2d grid - side length: bnx = sqrt(latticeSize / blockSize)
+        //CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
         CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
     #endif
 };

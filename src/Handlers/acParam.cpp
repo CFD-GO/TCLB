@@ -19,12 +19,22 @@ int acParam::Init () {
 		attr = context_attribute("permissive");
 		if (attr) permissive = attr.as_bool();
 		if (zone != "") {
-			if (solver->geometry->SettingZones.count(zone) > 0) { 
+			if(solver->latticeType == 0) {
+				if (solver->geometry->SettingZones.count(zone) > 0) { 
 				zone_number = solver->geometry->SettingZones[zone];
+				} else {
+					ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+					return -1;
+				}
 			} else {
-				ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
-				return -1;
+				if (solver->connectivity->SettingZones.count(zone) > 0) { 
+				zone_number = solver->connectivity->SettingZones[zone];
+				} else {
+					ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+					return -1;
+				}
 			}
+			
 		}
 		double val = solver->units.alt(value);
 		if (par == "") {
