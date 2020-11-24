@@ -79,7 +79,7 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
         error("No 'file' attribute in ArbitraryLattice element in xml conf\n");
     }
 	// open the file if there's one listed in the tag
-	FILE* cxnFile = fopen(arbLatticeNode.attribute("file").value(), "rb");
+	FILE* cxnFile = fopen_gz(arbLatticeNode.attribute("file").value(), "r");
 	if(cxnFile == NULL) {
 		error("Connection file can't be opened\n");
 		return -1;

@@ -9,6 +9,7 @@
 #include "Connectivity.h"
 #include "Global.h"
 #include "def.h"
+#include "utils.h"
 
 #define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
 
@@ -54,7 +55,7 @@ int Connectivity::load(pugi::xml_node & node) {
         printf("found the cell data attr\n");
     }
 
-    FILE* cxnFile = fopen(node.attribute("file").value(), "rb");
+    FILE* cxnFile = fopen_gz(node.attribute("file").value(), "rb");
     if(cxnFile == NULL) {
         error("Connection file can't be opened\n");
         return -1;
@@ -175,7 +176,7 @@ int Connectivity::load(pugi::xml_node & node) {
 
     if(cellDataOutput) {
 
-        FILE* cellFile = fopen(node.attribute("cellData").value(), "rb");
+        FILE* cellFile = fopen_gz(node.attribute("cellData").value(), "rb");
 
         HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints));
         HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells));
