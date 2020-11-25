@@ -1072,7 +1072,7 @@ void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big
 	// Put the nodetype data into a new matrix with type flag_t
 	flag_t* temp;
 	temp = new flag_t[latticeSize];
-	for(int i = 0; i < latticeSize; i++)
+	for(size_t i = 0; i < latticeSize; i++)
 		temp[i] = nodeTypes[i];
 	
 	// then copy these to cuda memory
@@ -1128,7 +1128,7 @@ void ArbitraryLattice::GetFlags(lbRegion over, big_flag_t* mask_) {
 	flag_t* tempFlags;
 	tempFlags = new flag_t[container->latticeSize];
 	CudaMemcpy2D(tempFlags, sizeof(flag_t), container->NodeType, sizeof(flag_t), sizeof(flag_t), container->latticeSize, cudaMemcpyDeviceToHost);
-	for(int i = 0; i < container->latticeSize; i++) mask_[i] = tempFlags[i];
+	for(size_t i = 0; i < container->latticeSize; i++) mask_[i] = tempFlags[i];
 	//delete[] tempFlags;
 
 }

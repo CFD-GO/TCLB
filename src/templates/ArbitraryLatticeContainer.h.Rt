@@ -112,6 +112,9 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
   <?R } ?>
   
 	template<class N>  CudaDeviceFunction void getType(N & f);
+  CudaDeviceFunction real_t getX(const index& idx);
+  CudaDeviceFunction real_t getY(const index& idx);
+  CudaDeviceFunction real_t getZ(const index& idx);
   
   //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
 	for (f in rows(Fields)) {

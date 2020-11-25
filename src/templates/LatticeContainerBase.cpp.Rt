@@ -431,8 +431,6 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
     } else { ?>
       Node_Run< ArbitraryLatticeContainerAccessor, Primal, NoGlobals, Get > now; <?R
     }?>
-    int z;
-    for (z = r.dz; z < r.dz + r.nz; z ++) {
       // compute the node id from the cuda block coordinates
       now.idx_.id = CudaBlock.x + (CudaBlock.y * constArbitraryContainer.getDimx);
       // check that we haven't gone off the lattice
@@ -466,7 +464,6 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         
       }
       // do nothing if we are off the lattice
-    }
   }
 }
 <?R

@@ -11,7 +11,7 @@
 #include "def.h"
 #include "utils.h"
 
-#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
+#define HANDLE_IOERR(x,n) if ((x) != n) { error("Error in fscanf (2).\n"); return -1; }
 
 
 Connectivity::Connectivity(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, ModelBase * model_):model(model_), region(r), totalregion(tr), units(units_)
@@ -63,22 +63,22 @@ int Connectivity::load(pugi::xml_node & node) {
     char buffer[20];
     DEBUG_M;
     // read header information
-    HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize));
-    HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz));
-    HANDLE_IOERR(fscanf(cxnFile, "d %d\n", &d));
-    HANDLE_IOERR(fscanf(cxnFile, "Q %d\n", &Q));
-    HANDLE_IOERR(fscanf(cxnFile, "OFFSET_DIRECTIONS\n"));
+    HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize),1);
+    HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz),3);
+    HANDLE_IOERR(fscanf(cxnFile, "d %d\n", &d),1);
+    HANDLE_IOERR(fscanf(cxnFile, "Q %d\n", &Q),1);
+    HANDLE_IOERR(fscanf(cxnFile, "OFFSET_DIRECTIONS\n"),0);
     DEBUG_M;
 
     // allocate the table of offsets
     connectivityDirections = (int*) malloc(Q * 3 * sizeof(int));
     // read the order of offsets
     for(int q = 0; q < Q; q++) {
-        HANDLE_IOERR(fscanf(cxnFile, "[%d,%d,%d]", &connectivityDirections[3*q], &connectivityDirections[3*q + 1], &connectivityDirections[3*q + 2]));
+        HANDLE_IOERR(fscanf(cxnFile, "[%d,%d,%d]", &connectivityDirections[3*q], &connectivityDirections[3*q + 1], &connectivityDirections[3*q + 2]),3);
         if(q < Q-1) {
-            HANDLE_IOERR(fscanf(cxnFile, ",")); // move the file pointer past the ,
+            HANDLE_IOERR(fscanf(cxnFile, ","),0); // move the file pointer past the ,
         } else {
-            HANDLE_IOERR(fscanf(cxnFile, "\n"));
+            HANDLE_IOERR(fscanf(cxnFile, "\n"),0);
         }
     }
     DEBUG_M;
@@ -117,13 +117,19 @@ int Connectivity::load(pugi::xml_node & node) {
     for(int q = 0; q < Q; q++) {
         tmp[(connectivityDirections[3*q] - mindx) + ((connectivityDirections[3*q + 1] - mindy) * ndx) + ((connectivityDirections[3*q + 2] - mindz) * ndx * ndy)] = q;
     }
+    for(int q = 0; q < ndx * ndy * ndz; q++) {
+        if (tmp[q] < 0) {
+            error("Some directions not filled by the connectivity file\n");
+            return -1;
+        }
+    }
     // get rid of old connectivity array and set to new tmp matrix form
     free(connectivityDirections);
     connectivityDirections = tmp;
     DEBUG_M;
 
     //HANDLE_IOERR(fscanf(cxnFile, "MASK %s\n", buffer));
-    HANDLE_IOERR(fscanf(cxnFile, "NODES\n"));
+    HANDLE_IOERR(fscanf(cxnFile, "NODES\n"),0);
 
     // allocate memory for connectivity / nodetype matrices
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
@@ -137,7 +143,7 @@ int Connectivity::load(pugi::xml_node & node) {
         size_t nid;
 
         // first scan for the nid, nodetype, coords
-        HANDLE_IOERR(fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z));
+        HANDLE_IOERR(fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z),4);
         // can't fscan a float into a real_t so use intermediate vars
         vector_t w;
         w.x = x;
@@ -147,17 +153,17 @@ int Connectivity::load(pugi::xml_node & node) {
 
         // next scan in the connectivity - have to scan an unknown number of integers
         for(int q = 0; q < Q; q++) {
-            HANDLE_IOERR(fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]));
+            HANDLE_IOERR(fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]),1);
         }
 
         // now read the labels on each node
         int nlabels;
         char label[200];
         // read in the number of labels we have
-        HANDLE_IOERR(fscanf(cxnFile, "%d", &nlabels));
+        HANDLE_IOERR(fscanf(cxnFile, "%d", &nlabels),1);
         // read in our labels after that
         for(int j = 0; j < nlabels; j++) {
-            HANDLE_IOERR(fscanf(cxnFile, " %s", label));
+            HANDLE_IOERR(fscanf(cxnFile, " %s", label),1);
             // see if we have this label in our mapping
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
@@ -168,7 +174,7 @@ int Connectivity::load(pugi::xml_node & node) {
             }
         }
 
-        HANDLE_IOERR(fscanf(cxnFile, "\n"));
+        HANDLE_IOERR(fscanf(cxnFile, "\n"),0);
     }
     DEBUG_M;
 
@@ -178,26 +184,26 @@ int Connectivity::load(pugi::xml_node & node) {
 
         FILE* cellFile = fopen_gz(node.attribute("cellData").value(), "rb");
 
-        HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints));
-        HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells));
+        HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints),1);
+        HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells),1);
 
         pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
         cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
         cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
         cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
-        HANDLE_IOERR(fscanf(cellFile, "POINTS\n"));
+        HANDLE_IOERR(fscanf(cellFile, "POINTS\n"),0);
 
         for(size_t i = 0; i < nPoints; i++) {
             float x, y, z;
-            HANDLE_IOERR(fscanf(cellFile, "%e %e %e\n", &x, &y, &z));
+            HANDLE_IOERR(fscanf(cellFile, "%e %e %e\n", &x, &y, &z),3);
             pointData[3*i] = x;
             pointData[3*i + 1] = y;
             pointData[3*i + 2] = z;
         }
         
-        HANDLE_IOERR(fscanf(cellFile, "CELLS\n"));
+        HANDLE_IOERR(fscanf(cellFile, "CELLS\n"),0);
         for(size_t i = 0; i < nCells; i++) {
-            HANDLE_IOERR(fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]));
+            HANDLE_IOERR(fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]),8);
             cellOffsets[i] = 8*(i+1);
             cellTypes[i] = 12;
         }

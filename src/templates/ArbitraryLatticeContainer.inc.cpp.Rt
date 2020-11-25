@@ -77,7 +77,7 @@ void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeS
     bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
 
     getDimx = sqrt(latticeSize) + 1;
-    getDimy = latticeSize / getDimx; + 1;
+    getDimy = latticeSize / getDimx;
 
     char * tmp=NULL;
     size_t size;

@@ -56,9 +56,9 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
 
-#define X ((real_t) idx_.x + Accessor::container().px + 0.5)
-#define Y ((real_t) idx_.y + Accessor::container().py + 0.5)
-#define Z ((real_t) idx_.z + Accessor::container().pz + 0.5)
+#define X Accessor::container().getX(idx_)
+#define Y Accessor::container().getY(idx_)
+#define Z Accessor::container().getZ(idx_)
 #define Time (Accessor::container().iter)
 #define SyntheticTurbulence(x__,y__,z__) Accessor::container().getST(x__,y__,z__)
 #define average_iter (Accessor::container().iter - Accessor::container().reset_iter)  //Look nicer in Dynamics
