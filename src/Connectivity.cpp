@@ -83,12 +83,12 @@ int Connectivity::load(pugi::xml_node & node) {
     }
     DEBUG_M;
     // initialise the max/min variables -- note: assumes we never stream further away than -1 -> +1.. should be -MAX_INT, +MAX_INT to be perfectly correct
-    mindx = 1;
-    mindy = 1;
-    mindz = 1;
-    maxdx = -1;
-    maxdy = -1;
-    maxdz = -1;
+    mindx = 0;
+    mindy = 0;
+    mindz = 0;
+    maxdx = 0;
+    maxdy = 0;
+    maxdz = 0;
     // determine max/min connectivity directions
     for(int q = 0; q < Q; q++) {
         if(connectivityDirections[3*q] < mindx)
@@ -150,6 +150,7 @@ int Connectivity::load(pugi::xml_node & node) {
         w.y = y;
         w.z = z;
         coords[i] = w;
+        geom[i] = 0;
 
         // next scan in the connectivity - have to scan an unknown number of integers
         for(int q = 0; q < Q; q++) {

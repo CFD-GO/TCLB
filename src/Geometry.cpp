@@ -1027,12 +1027,47 @@ int Geometry::Draw(pugi::xml_node & node)
 		return -1;
 	    }
 	    output("Reading file %s\n", n.attribute("file").value());
-	    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+	    int p[3], dp[3], np[3], xp=-1, yp=-1, zp=-1;
+	    dp[0] = 0; np[0] = 1; dp[1] = 0; np[1] = 1; dp[2] = 0; np[2] = 1;
+	    if (n.attribute("order")) {
+	    	const char * ord = n.attribute("order").value();
+	    	int len = strlen(ord);
+	    	if (len != 3) {
+	    		ERROR("order attribute in Text has to have 3 characters\n");
+	    		return -1;
+		}
+	    	for (int k=0;k<len;k++) {
+	    		if (ord[k] == 'x' && xp == -1) {
+	    			xp = k;
+			} else if (ord[k] == 'y' && yp == -1) {
+	    			yp = k;
+			} else if (ord[k] == 'z' && zp == -1) {
+	    			zp = k;
+			} else {
+		    		ERROR("wrong characters in order attribute in Text: '%s'\n", ord);
+		    		return -1;
+			}
+		}
+	    } else {
+	    	xp = 0;
+	    	yp = 1;
+		zp = 2;
+	    }
+	    dp[xp] = reg.dx;
+	    np[xp] = reg.nx;
+	    dp[yp] = reg.dy;
+	    np[yp] = reg.ny;
+	    dp[zp] = reg.dz;
+	    np[zp] = reg.nz;
+	    for (p[0] = dp[0]; p[0] < dp[0]+np[0]; p[0]++)
+	        for (p[1] = dp[1]; p[1] < dp[1]+np[1]; p[1]++)
+		    for (p[2] = dp[2]; p[2] < dp[2]+np[2]; p[2]++) {
+		    	int x = p[xp];
+		    	int y = p[yp];
+		    	int z = p[zp];
 			int v;
 			int ret = fscanf(f, "%d", &v);
-                        if (ret == EOF) {
+                        if (ret != 1) {
                             ERROR("File (%s) ended while reading\n", n.attribute("file").value());
                             return -1;
                         }
