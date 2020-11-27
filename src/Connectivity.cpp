@@ -18,6 +18,22 @@ Connectivity::Connectivity(const lbRegion & r, const lbRegion & tr, const UnitEn
 {  
     // memory allocation is done in the load() function where we know the size of the lattice
     output("Initialising connectivity");
+    geom = NULL; ///< Main table of flags/NodeType's
+    connectivity = NULL; ///< Main connectivity matrix
+    latticeSize = 0; ///< Number of nodes in the arbitrary lattice
+    d=0;
+    Q=0;
+    nx=0; ny=0; nz = 0;
+    coords = NULL; ///< Table of coordinates of each node
+    cellDataOutput = false;
+    nPoints = 0;
+    nCells = 0;
+    pointData = NULL;
+    cellConnectivity = NULL;
+    cellOffsets = NULL;
+    connectivityDirections = NULL;
+    cellTypes = NULL;
+    cellMapping = NULL;
 }
 
 int Connectivity::load(pugi::xml_node & node) {
@@ -54,6 +70,39 @@ int Connectivity::load(pugi::xml_node & node) {
         cellDataOutput = true;
         printf("found the cell data attr\n");
     }
+
+    if(cellDataOutput) {
+
+        FILE* cellFile = fopen_gz(node.attribute("cellData").value(), "rb");
+
+        HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints),1);
+        HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells),1);
+
+        pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
+        cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
+        cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
+        cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
+        cellMapping = (size_t*) malloc(nCells * sizeof(size_t));
+        
+        HANDLE_IOERR(fscanf(cellFile, "POINTS\n"),0);
+
+        for(size_t i = 0; i < nPoints; i++) {
+            float x, y, z;
+            HANDLE_IOERR(fscanf(cellFile, "%e %e %e\n", &x, &y, &z),3);
+            pointData[3*i] = x;
+            pointData[3*i + 1] = y;
+            pointData[3*i + 2] = z;
+        }
+        
+        HANDLE_IOERR(fscanf(cellFile, "CELLS\n"),0);
+        for(size_t i = 0; i < nCells; i++) {
+            HANDLE_IOERR(fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]),8);
+            cellOffsets[i] = 8*(i+1);
+            cellTypes[i] = 12;
+        }
+        printf("Loaded cell connectivity\n");
+    }
+
 
     FILE* cxnFile = fopen_gz(node.attribute("file").value(), "rb");
     if(cxnFile == NULL) {
@@ -137,6 +186,7 @@ int Connectivity::load(pugi::xml_node & node) {
     coords = (vector_t*) malloc(latticeSize * sizeof(vector_t));
     
     // read in node connectivity data from file
+    size_t cell_id = 0;
     for(size_t i = 0; i < latticeSize; i++) {
         char nodeType[20];
         float x, y, z;
@@ -163,52 +213,41 @@ int Connectivity::load(pugi::xml_node & node) {
         // read in the number of labels we have
         HANDLE_IOERR(fscanf(cxnFile, "%d", &nlabels),1);
         // read in our labels after that
+        bool export_vtu = true;
         for(int j = 0; j < nlabels; j++) {
             HANDLE_IOERR(fscanf(cxnFile, " %s", label),1);
             // see if we have this label in our mapping
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
                 geom[i] |= GroupsToNodeTypes[label];
+            } else if (strcmp(label, "HIDE") == 0) {
+                export_vtu = false;
             } else {
                 ERROR("Unknown group label (in connectivity file): %s\n", label);
                 return -1;
             }
         }
-
+        if (export_vtu) {
+            if (cellMapping != NULL) {
+                if (cell_id < nCells) {
+                    cellMapping[cell_id] = i;
+                } else {
+                    ERROR("There is more non-hidden cells then declared in cellData file\n");
+                    return -1;
+                }
+            }
+            cell_id++;
+        }
         HANDLE_IOERR(fscanf(cxnFile, "\n"),0);
     }
     DEBUG_M;
-
+    if (cellMapping != NULL) {
+        if (cell_id != nCells) {
+            ERROR("Number of non-hidden cells doesn't match the number of cells in cellData file\n");
+            return -1;
+        }
+    }
     fclose(cxnFile);
 
-    if(cellDataOutput) {
-
-        FILE* cellFile = fopen_gz(node.attribute("cellData").value(), "rb");
-
-        HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints),1);
-        HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells),1);
-
-        pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
-        cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
-        cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
-        cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
-        HANDLE_IOERR(fscanf(cellFile, "POINTS\n"),0);
-
-        for(size_t i = 0; i < nPoints; i++) {
-            float x, y, z;
-            HANDLE_IOERR(fscanf(cellFile, "%e %e %e\n", &x, &y, &z),3);
-            pointData[3*i] = x;
-            pointData[3*i + 1] = y;
-            pointData[3*i + 2] = z;
-        }
-        
-        HANDLE_IOERR(fscanf(cellFile, "CELLS\n"),0);
-        for(size_t i = 0; i < nCells; i++) {
-            HANDLE_IOERR(fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]),8);
-            cellOffsets[i] = 8*(i+1);
-            cellTypes[i] = 12;
-        }
-        printf("Loaded cell connectivity\n");
-    }
     return 0;
 }

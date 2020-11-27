@@ -21,6 +21,7 @@ public:
     real_t * pointData;
     size_t * cellConnectivity;
     size_t * cellOffsets;
+    size_t * cellMapping;
     std::map<std::string,big_flag_t> GroupsToNodeTypes;
     int * connectivityDirections;
     int ndx, ndy, ndz, mindx, mindy, mindz, maxdx, maxdy, maxdz;
