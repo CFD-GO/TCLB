@@ -268,7 +268,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 	now.x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
 	now.y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
 	now.z_ = CudaBlock.y+constContainer.dz;
-	#ifndef GRID_3D
+	#ifndef GRID3D
 		for (; now.x_ < constContainer.nx; now.x_ += CudaNumberOfThreads.x) {
 	#endif
 		now.Pre();
@@ -278,7 +278,7 @@ template <class N> CudaGlobalFunction void RunKernel()
 			now.OutOfDomain();
 		}
 		now.Glob();
-	#ifndef GRID_3D
+	#ifndef GRID3D
 		}
 	#endif
 }
@@ -445,7 +445,7 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t inter
     int nnz;
     ky = ThreadNumber< N >::getKY();
     nnz = fz - dz;
-    #ifdef GRID_3D
+    #ifdef GRID3D
         CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
     #else
         CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);

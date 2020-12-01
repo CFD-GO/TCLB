@@ -76,6 +76,10 @@ AC_ARG_WITH([lammps],
 AC_ARG_WITH([lammps-lib],
 	AC_HELP_STRING([--with-lammps-lib=libfile],
 		[specify the name of the lammps/liggghts library (.so/.a)]))
+
+AC_ARG_WITH([tapenade],
+	AC_HELP_STRING([--with-tapenade=path],
+		[use tapenade for code differentiation for adjoint]))
 		
 
 AC_ARG_WITH([verbosity_level],
@@ -134,20 +138,34 @@ AC_ARG_WITH([cpp-flags],
 	[CONF_CPPFLAGS="$withval"])		
 NVFLAGS=""
 
-
-
 if test "x${COMPILER_BINDIR}" != "x"
 then
 	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
 
 fi
 
-test -z "$CXX" && CXX=mpic++
-test -z "$CC" && CC=mpicc
+if test -z "$CXX"
+then
+	if command -v "mpic++"
+	then
+		CXX="mpic++"
+	elif command -v "g++"
+	then
+		CXX="g++"
+	else
+		AC_MSG_ERROR([neither mpic++ or g++ found. You can specify compiler with CXX=...])
+	fi
+fi
+
+mpishow=$($CXX -showme 2>/dev/null)
+if ! test -z "$mpishow"
+then
+	CPPFLAGS="${CPPFLAGS} $(echo $(echo "$mpishow" | sed -e 's| |\n|g' | grep "^-I"))"
+fi
 
 # Checks for programs.
 AC_PROG_CXX
-AC_PROG_CC
+# AC_PROG_CC
 
 # Checks for header files.
 AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
@@ -641,6 +659,44 @@ then
 	fi
 fi
 
+if test "x${with_tapenade}" != "xno"
+then
+	if test "x${with_tapenade}" == "xyes" || test "x${with_tapenade}" == "x"
+	then
+		if test -f "tapenade/bin/tapenade"
+		then
+			TAPENADE="$PWD/tapenade/bin/tapenade"
+		else
+			TAPENADE="tapenade"
+		fi
+	else
+		if test -d "${with_tapenade}"
+		then
+			TAPENADE="$(cd ${with_tapenade}; pwd)/bin/tapenade"
+		else
+			AC_MSG_ERROR([Path '${with_tapenade}' is not a directory])
+		fi
+	fi
+	
+	
+	AC_MSG_CHECKING([for tapenade])
+	if command -v "${TAPENADE}" >/dev/null 2>&1
+	then
+		AC_MSG_RESULT([yes])
+		TAPENADE="$(command -v "${TAPENADE}")"
+	else
+		AC_MSG_RESULT([no])
+		TAPENADE=""
+		if test "x${with_tapenade}" != "x"
+		then
+			AC_MSG_ERROR([Tapenade '$TAPENADE' is not a valid executable])
+		fi
+	fi
+fi
+		
+		
+
+
 if test "x${enable_debug}" == "xyes"
 then
 	if test "x${with_verbosity_level}" == "x"
@@ -747,6 +803,14 @@ fi
 #AC_FUNC_STRTOD
 #AC_CHECK_FUNCS([floor memmove memset pow sqrt strchr strstr strtol strtoul])
 
+
+AC_MSG_RESULT([CXX      : $CXX])
+AC_MSG_RESULT([CPPFLAGS : $CPPFLAGS])
+AC_MSG_RESULT([LDFLAGS  : $LDFLAGS])
+AC_MSG_RESULT([NVFLAGS  : $NVFLAGS])
+
+
+
 AC_SUBST(CP)
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
@@ -757,6 +821,7 @@ AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
 AC_SUBST(WITH_LAMMPS)
 AC_SUBST(WITH_R)
+AC_SUBST(TAPENADE)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
