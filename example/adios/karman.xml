@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <CLBConfig version="2.0" output="output/" permissive="true">
-	<Geometry nx="800" ny="800" nz="50">
+	<Geometry nx="800" ny="800" nz="1">
 		<MRT>
 			<Box/>
 		</MRT>
@@ -19,11 +19,8 @@
 		</Outlet> -->
 		<Wall mask="ALL" dx="33" dy="10" nx="734" ny="734">
 			<Channel/>
-			<ADIOS2 Stream="/home/mdzik/projekty/TCLB_tools/ADIOS2/globalArray" Variable="GlobalArray" IOName="FlaggedGeometry" AdiosConfig="karman.adios.xml"/>
-			<!-- <Wedge dx="120" nx="20" dy="50" ny="20" direction="LowerRight"/>
-			<Wedge dx="120" nx="20" dy="30" ny="20" direction="UpperRight"/>
-			<Wedge dx="140" nx="20" dy="50" ny="20" direction="LowerLeft"/>
-			<Wedge dx="140" nx="20" dy="30" ny="20" direction="UpperLeft"/> -->
+                        <ADIOS2 Stream="globalArray" Variable="GlobalArray" IOName="FlaggedGeometry" AdiosConfig="karman.adios.xml"/>
+
 		</Wall>
 	</Geometry>
 	<Model>
