@@ -114,6 +114,7 @@ int vtkWriteLatticeArbitrary(char * filename, size_t latticeSize, LatticeBase * 
  **/
 int vtkWriteLatticeArbitraryUG(char * filename, size_t latticeSize, LatticeBase * lattice, Connectivity * connectivity, UnitEnv units, name_set * what)
 {
+	
 	size_t size;
 	lbRegion reg = lattice->region;
 	size_t nCells = connectivity->nCells;
@@ -167,6 +168,7 @@ int vtkWriteLatticeArbitraryUG(char * filename, size_t latticeSize, LatticeBase 
 	vtuFile.WriteCellsFooter();
 	vtuFile.Finish();
 	vtuFile.Close();
+
 	return 0;
 }
 

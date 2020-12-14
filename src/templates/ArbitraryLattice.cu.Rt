@@ -414,6 +414,7 @@ void ArbitraryLattice::RunAction(int act, int iter_type) {
 void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 {
 	DEBUG_PROF_PUSH("<?%s n ?>");
+	
 	real_t * tmp;
 	int size, from, to;
 	MPI_Status status;
@@ -505,6 +506,7 @@ void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), cudaMemcpyHostToDevice, kernelStream);
 		}
 <?R } ?>
+	
 	container->CopyToConst();
 	DEBUG_PROF_PUSH("Calculation");
 	switch(iter_type & ITER_INTEG){

@@ -34,7 +34,30 @@ Connectivity::Connectivity(const lbRegion & r, const lbRegion & tr, const UnitEn
     connectivityDirections = NULL;
     cellTypes = NULL;
     cellMapping = NULL;
+    SettingZones["DefaultZone"] = 0;
 }
+
+
+/**
+ * Add new zone to our zone list ZoneSettings
+ **/
+int Connectivity::setZone(const pugi::char_t * name) {
+    int ZoneNumber;
+    if (SettingZones.count(name) > 0) {
+        ZoneNumber = SettingZones[name];
+    } else {
+        ZoneNumber = SettingZones.size();
+        debug1("Setting new zone: %s -> %d\n", name, ZoneNumber);
+        SettingZones[name] = ZoneNumber;
+    }
+    // not sure about if we need this part - will investigate more
+    //assert(ZoneNumber < model->settingzones.capacity);
+    //fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift);
+    //fg_mask =  fg_mask |   model->settingzones.flag;
+
+    return 0;
+}
+
 
 int Connectivity::load(pugi::xml_node & node) {
     int ret;
@@ -51,7 +74,7 @@ int Connectivity::load(pugi::xml_node & node) {
             return -1;
         }
         //printf("Flag found for %s: %d\n", z.name(), it->flag);
-        // give this group
+        // get the group tag of this node
         pugi::xml_attribute group = z.attribute("group");
         if(group) {
             if(GroupsToNodeTypes.count(group.value()) > 0)
@@ -59,7 +82,22 @@ int Connectivity::load(pugi::xml_node & node) {
             else
                 GroupsToNodeTypes[group.value()] = it->flag;
         }
+        // see if this node also has a zone tag
+        pugi::xml_attribute zone = z.attribute("name");
+        if(zone && group) {
+            // if it does, link the group to the zone - I think we assume it's one-to-one at the moment but will probably have to change this
+            GroupsToZones[group.value()] = zone.value();
+            // call function to add to SettingZones table
+            setZone(zone.value());
+        }
         
+    }
+
+    // iterate over map and read mappings
+    std::map<std::string, std::string>::iterator gzit;
+    for(gzit = GroupsToZones.begin(); gzit != GroupsToZones.end(); gzit++) {
+        //printf("%s: %s\n", gzit->first, gzit->second);
+        std::cout << gzit->first << ": " << gzit->second << "\n";
     }
 
     if(!node.attribute("file")) {

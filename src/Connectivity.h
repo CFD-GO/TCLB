@@ -23,6 +23,8 @@ public:
     size_t * cellOffsets;
     size_t * cellMapping;
     std::map<std::string,big_flag_t> GroupsToNodeTypes;
+    std::map<std::string,std::string> GroupsToZones;
+    std::map<std::string,int> SettingZones;
     int * connectivityDirections;
     int ndx, ndy, ndz, mindx, mindy, mindz, maxdx, maxdy, maxdz;
     unsigned char * cellTypes;
@@ -31,6 +33,7 @@ public:
     UnitEnv units; ///< Units object for unit calculations
 
     Connectivity(const lbRegion& r, const lbRegion& tr, const UnitEnv& units_, ModelBase * model_);
+    int setZone(const pugi::char_t * name);
     int load(pugi::xml_node&);
 };
 

@@ -184,7 +184,7 @@ template <class N, class Accessor> CudaGlobalFunction void RunKernel() {
 	now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + Accessor::container().dy;
   now.idx_.z = CudaBlock.y+Accessor::container().dz;
 
-	#ifndef GRID_3D
+	#ifndef GRID3D
 		for (; now.idx_.x < Accessor::container().nx; now.idx_.x += CudaNumberOfThreads.x) {
 	#endif
 		now.Pre();
@@ -194,7 +194,7 @@ template <class N, class Accessor> CudaGlobalFunction void RunKernel() {
 			now.OutOfDomain();
 		}
 		now.Glob();
-	#ifndef GRID_3D
+	#ifndef GRID3D
 		}
 	#endif
 }
