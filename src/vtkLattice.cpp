@@ -117,21 +117,24 @@ int vtkWriteLatticeArbitraryUG(char * filename, size_t latticeSize, LatticeBase 
 	
 	size_t size;
 	lbRegion reg = lattice->region;
+	size_t nCells = connectivity->nCells;
+	size_t* map = connectivity->cellMapping;
 	size = latticeSize;
 	vtuFileOut vtuFile(MPMD.local);
 	if (vtuFile.Open(filename)) {return -1;}
 	double spacing = 1/units.alt("m");	
-	vtuFile.Init(lattice->mpi.totalregion, reg, connectivity->nPoints, connectivity->nCells, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
+	vtuFile.Init(lattice->mpi.totalregion, reg, connectivity->nPoints, nCells, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
 	{	big_flag_t * NodeType = new big_flag_t[size];
 		lattice->GetFlags(reg, NodeType);
+		for (size_t i=0; i<nCells; i++) NodeType[i] = NodeType[map[i]];
 		if (what->explicitlyIn("flag")) {
 			vtuFile.WriteField("flag",NodeType);
 		}
-		unsigned char * small = new unsigned char[size];
+		unsigned char * small = new unsigned char[nCells];
 		for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
 			if ((what->all && it->isSave) || what->explicitlyIn(it->name)) {
-				for (size_t i=0;i<size;i++) {
+				for (size_t i=0;i<nCells;i++) {
 					small[i] = (NodeType[i] & it->flag) >> it->shift;
 				}
 				vtuFile.WriteField(it->name.c_str(),small);
@@ -148,6 +151,7 @@ int vtkWriteLatticeArbitraryUG(char * filename, size_t latticeSize, LatticeBase 
 			if (it->isVector) comp = 3;
 	                real_t* tmp = new real_t[size*comp];
                         lattice->GetQuantity(it->id, reg, tmp, 1/v);
+			for (size_t i=0; i<nCells; i++) for (int k=0; k<comp; k++) tmp[comp*i+k] = tmp[comp*map[i]+k];
 			vtuFile.WriteField(it->name.c_str(), tmp, comp);
 			delete[] tmp;
 		}
@@ -256,7 +260,7 @@ int txtWriteLattice(char * filename, LatticeBase * lattice, UnitEnv units, name_
 				f = fopen(fn,"w");
 				break;
 			case 1:
-				char com[STRING_LEN];
+				char com[STRING_LEN*2];
 				sprintf(com, "gzip > %s.gz", fn);
 				f = popen(com, "w");
 				break;

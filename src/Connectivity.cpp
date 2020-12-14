@@ -9,11 +9,31 @@
 #include "Connectivity.h"
 #include "Global.h"
 #include "def.h"
+#include "utils.h"
+
+#define HANDLE_IOERR(x,n) if ((x) != n) { error("Error in fscanf (2).\n"); return -1; }
+
 
 Connectivity::Connectivity(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, ModelBase * model_):model(model_), region(r), totalregion(tr), units(units_)
 {  
     // memory allocation is done in the load() function where we know the size of the lattice
     output("Initialising connectivity");
+    geom = NULL; ///< Main table of flags/NodeType's
+    connectivity = NULL; ///< Main connectivity matrix
+    latticeSize = 0; ///< Number of nodes in the arbitrary lattice
+    d=0;
+    Q=0;
+    nx=0; ny=0; nz = 0;
+    coords = NULL; ///< Table of coordinates of each node
+    cellDataOutput = false;
+    nPoints = 0;
+    nCells = 0;
+    pointData = NULL;
+    cellConnectivity = NULL;
+    cellOffsets = NULL;
+    connectivityDirections = NULL;
+    cellTypes = NULL;
+    cellMapping = NULL;
     SettingZones["DefaultZone"] = 0;
 }
 
@@ -89,37 +109,73 @@ int Connectivity::load(pugi::xml_node & node) {
         printf("found the cell data attr\n");
     }
 
-    FILE* cxnFile = fopen(node.attribute("file").value(), "rb");
+    if(cellDataOutput) {
+
+        FILE* cellFile = fopen_gz(node.attribute("cellData").value(), "rb");
+
+        HANDLE_IOERR(fscanf(cellFile, "N_POINTS %zu\n", &nPoints),1);
+        HANDLE_IOERR(fscanf(cellFile, "N_CELLS %zu\n", &nCells),1);
+
+        pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
+        cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
+        cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
+        cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
+        cellMapping = (size_t*) malloc(nCells * sizeof(size_t));
+        
+        HANDLE_IOERR(fscanf(cellFile, "POINTS\n"),0);
+
+        for(size_t i = 0; i < nPoints; i++) {
+            float x, y, z;
+            HANDLE_IOERR(fscanf(cellFile, "%e %e %e\n", &x, &y, &z),3);
+            pointData[3*i] = x;
+            pointData[3*i + 1] = y;
+            pointData[3*i + 2] = z;
+        }
+        
+        HANDLE_IOERR(fscanf(cellFile, "CELLS\n"),0);
+        for(size_t i = 0; i < nCells; i++) {
+            HANDLE_IOERR(fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]),8);
+            cellOffsets[i] = 8*(i+1);
+            cellTypes[i] = 12;
+        }
+        printf("Loaded cell connectivity\n");
+    }
+
+
+    FILE* cxnFile = fopen_gz(node.attribute("file").value(), "rb");
     if(cxnFile == NULL) {
         error("Connection file can't be opened\n");
         return -1;
     }
     char buffer[20];
-
+    DEBUG_M;
     // read header information
-    ret = fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
-    ret = fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
-    ret = fscanf(cxnFile, "d %d\n", &d);
-    ret = fscanf(cxnFile, "Q %d\n", &Q);
-    ret = fscanf(cxnFile, "OFFSET_DIRECTIONS\n");
+    HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %zu\n", &latticeSize),1);
+    HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz),3);
+    HANDLE_IOERR(fscanf(cxnFile, "d %d\n", &d),1);
+    HANDLE_IOERR(fscanf(cxnFile, "Q %d\n", &Q),1);
+    HANDLE_IOERR(fscanf(cxnFile, "OFFSET_DIRECTIONS\n"),0);
+    DEBUG_M;
 
     // allocate the table of offsets
     connectivityDirections = (int*) malloc(Q * 3 * sizeof(int));
     // read the order of offsets
     for(int q = 0; q < Q; q++) {
-        ret = fscanf(cxnFile, "[%d,%d,%d]", &connectivityDirections[3*q], &connectivityDirections[3*q + 1], &connectivityDirections[3*q + 2]);
-        if(q < Q-1)
-            fscanf(cxnFile, ","); // move the file pointer past the ,
-        else
-            fscanf(cxnFile, "\n");
+        HANDLE_IOERR(fscanf(cxnFile, "[%d,%d,%d]", &connectivityDirections[3*q], &connectivityDirections[3*q + 1], &connectivityDirections[3*q + 2]),3);
+        if(q < Q-1) {
+            HANDLE_IOERR(fscanf(cxnFile, ","),0); // move the file pointer past the ,
+        } else {
+            HANDLE_IOERR(fscanf(cxnFile, "\n"),0);
+        }
     }
+    DEBUG_M;
     // initialise the max/min variables -- note: assumes we never stream further away than -1 -> +1.. should be -MAX_INT, +MAX_INT to be perfectly correct
-    mindx = 1;
-    mindy = 1;
-    mindz = 1;
-    maxdx = -1;
-    maxdy = -1;
-    maxdz = -1;
+    mindx = 0;
+    mindy = 0;
+    mindz = 0;
+    maxdx = 0;
+    maxdy = 0;
+    maxdz = 0;
     // determine max/min connectivity directions
     for(int q = 0; q < Q; q++) {
         if(connectivityDirections[3*q] < mindx)
@@ -148,107 +204,88 @@ int Connectivity::load(pugi::xml_node & node) {
     for(int q = 0; q < Q; q++) {
         tmp[(connectivityDirections[3*q] - mindx) + ((connectivityDirections[3*q + 1] - mindy) * ndx) + ((connectivityDirections[3*q + 2] - mindz) * ndx * ndy)] = q;
     }
+    for(int q = 0; q < ndx * ndy * ndz; q++) {
+        if (tmp[q] < 0) {
+            error("Some directions not filled by the connectivity file\n");
+            return -1;
+        }
+    }
     // get rid of old connectivity array and set to new tmp matrix form
     free(connectivityDirections);
     connectivityDirections = tmp;
+    DEBUG_M;
 
-    //ret = fscanf(cxnFile, "MASK %s\n", buffer);
-    ret = fscanf(cxnFile, "NODES\n");
+    //HANDLE_IOERR(fscanf(cxnFile, "MASK %s\n", buffer));
+    HANDLE_IOERR(fscanf(cxnFile, "NODES\n"),0);
 
     // allocate memory for connectivity / nodetype matrices
     connectivity = (size_t*) malloc(latticeSize * Q * sizeof(size_t));
     geom = (big_flag_t*) malloc(latticeSize * sizeof(big_flag_t));
     coords = (vector_t*) malloc(latticeSize * sizeof(vector_t));
-    memset(geom, 0, latticeSize * sizeof(big_flag_t));
     
     // read in node connectivity data from file
+    size_t cell_id = 0;
     for(size_t i = 0; i < latticeSize; i++) {
         char nodeType[20];
         float x, y, z;
         size_t nid;
 
         // first scan for the nid, nodetype, coords
-        ret = fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z);
+        HANDLE_IOERR(fscanf(cxnFile, "%zu %e %e %e ", &nid, &x, &y, &z),4);
         // can't fscan a float into a real_t so use intermediate vars
         vector_t w;
         w.x = x;
         w.y = y;
         w.z = z;
         coords[i] = w;
+        geom[i] = 0;
 
         // next scan in the connectivity - have to scan an unknown number of integers
         for(int q = 0; q < Q; q++) {
-            ret = fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]);
-            //ret = fscanf(cxnFile, "%zu ", &connectivity[q + (i * Q)]); // TEMP - changed to AoS
+            HANDLE_IOERR(fscanf(cxnFile, "%zu ", &connectivity[(q * latticeSize) + i]),1);
         }
 
         // now read the labels on each node
         int nlabels;
-        char label[20];
+        char label[200];
         // read in the number of labels we have
-        ret = fscanf(cxnFile, "%d", &nlabels);
+        HANDLE_IOERR(fscanf(cxnFile, "%d", &nlabels),1);
         // read in our labels after that
+        bool export_vtu = true;
         for(int j = 0; j < nlabels; j++) {
-            ret = fscanf(cxnFile, " %s", &label);
+            HANDLE_IOERR(fscanf(cxnFile, " %s", label),1);
             // see if we have this label in our mapping
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
                 geom[i] |= GroupsToNodeTypes[label];
-                
+            } else if (strcmp(label, "HIDE") == 0) {
+                export_vtu = false;
             } else {
                 ERROR("Unknown group label (in connectivity file): %s\n", label);
                 return -1;
             }
-            // see if we have this label in our mapping from groups to zones
-            if(GroupsToZones.count(label) > 0) {
-                if(SettingZones.count(GroupsToZones[label]) > 0) {
-                    int zoneNum = SettingZones[GroupsToZones[label]];
-                    geom[i] |= zoneNum << model->settingzones.shift;
+        }
+        if (export_vtu) {
+            if (cellMapping != NULL) {
+                if (cell_id < nCells) {
+                    cellMapping[cell_id] = i;
+                } else {
+                    ERROR("There is more non-hidden cells then declared in cellData file\n");
+                    return -1;
                 }
-                // fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift); need to do something like this
             }
+            cell_id++;
         }
-
-        if(x == -1 && y == 10 && z == 10) {
-            printf("At %e, %e, %e, geom[i] is: %d\n", x, y, z, geom[i]);
-        }
-        if(x == 0 && y == -1 && z == 20) {
-            printf("At %e, %e, %e, geom[i] is: %d\n", x, y, z, geom[i]);
-        }
-
-        ret = fscanf(cxnFile, "\n");
+        HANDLE_IOERR(fscanf(cxnFile, "\n"),0);
     }
-
+    DEBUG_M;
+    if (cellMapping != NULL) {
+        if (cell_id != nCells) {
+            ERROR("Number of non-hidden cells doesn't match the number of cells in cellData file\n");
+            return -1;
+        }
+    }
     fclose(cxnFile);
 
-    if(cellDataOutput) {
-
-        FILE* cellFile = fopen(node.attribute("cellData").value(), "rb");
-
-        ret = fscanf(cellFile, "N_POINTS %zu\n", &nPoints);
-        ret = fscanf(cellFile, "N_CELLS %zu\n", &nCells);
-
-        pointData = (real_t*) malloc(nPoints *3* sizeof(real_t));
-        cellConnectivity = (size_t*) malloc(nCells * 8 * sizeof(size_t));
-        cellOffsets = (size_t*) malloc(nCells * sizeof(size_t));
-        cellTypes = (unsigned char*) malloc(nCells * sizeof(unsigned char));
-        ret = fscanf(cellFile, "POINTS\n");
-
-        for(int i = 0; i < nPoints; i++) {
-            float x, y, z;
-            ret = fscanf(cellFile, "%e %e %e\n", &x, &y, &z);
-            pointData[3*i] = x;
-            pointData[3*i + 1] = y;
-            pointData[3*i + 2] = z;
-        }
-        
-        ret = fscanf(cellFile, "CELLS\n");
-        for(int i = 0; i < nCells; i++) {
-            ret = fscanf(cellFile, "%zu %zu %zu %zu %zu %zu %zu %zu\n", &cellConnectivity[8*i], &cellConnectivity[8*i + 1], &cellConnectivity[8*i + 2], &cellConnectivity[8*i + 3], &cellConnectivity[8*i + 4], 
-                                                                &cellConnectivity[8*i + 5], &cellConnectivity[8*i + 6], &cellConnectivity[8*i + 7]);
-            cellOffsets[i] = 8*(i+1);
-            cellTypes[i] = 12;
-        }
-        printf("Loaded cell connectivity\n");
-    }
+    return 0;
 }

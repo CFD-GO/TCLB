@@ -3,10 +3,10 @@
 options(width=150)
 
 setwd("src/")
-f = pipe("find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'")
+f = pipe("find -regex '.*[.]\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'")
 fs = readLines(f)
 close(f)
-f = pipe("grep -o '#[\\t ]*include[\\t ]*\"[^\"]*\"' `find -regex '.*\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'` | sed -n 's/^\\([^:]*\\):#[ \\t]*include[ \\t]*\"\\([^\"]*\\)\"/\\1,\\2/gp'")
+f = pipe("grep -o '#[\\t ]*include[\\t ]*\"[^\"]*\"' `find -regex '.*[.]\\(c\\|cu\\|cpp\\|h\\|hpp\\)\\(\\|\\.Rt\\)'` | sed -n 's/^\\([^:]*\\):#[ \\t]*include[ \\t]*\"\\([^\"]*\\)\"/\\1,\\2/gp'")
 w = read.csv(f,col.names=c("file","dep"), stringsAsFactors=FALSE);
 
 # function reducing the . and ..

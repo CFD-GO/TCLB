@@ -1,7 +1,15 @@
 <?xml version="1.0"?>
-<CLBConfig version="2.0" output="/scratch/eait/uqtmitc3/thermocapillary/" permissive="true">
-	<!-- MODEL: d3q27_pf_thermocapillary
-     First test of temp field
+<CLBConfig version="2.0" output="output/" permissive="true">
+<!-- 
+	MODEL: d3q27_pf_velocity_thermo
+
+     	Purpose: test bubble migration for paper,
+
+	T. Mitchell et al. Computational modelling of 
+	three-dimensional thermocapillary flow of 
+	recalcitrant bubbles using a coupled lattice 
+	Boltzmann-finite difference method, PRE
+
 	Created: 17/04/2020
      	Responsible: @TravisMitchell
 -->
@@ -23,22 +31,22 @@
 		<Param name="CenterZ" 		value="80"/>
 		<Param name="BubbleType" 	value="-1"/>
 		<Param name="Density_h"     value="1"/>
-    	<Param name="Density_l"     value="1"/>
+    		<Param name="Density_l"     value="1"/>
 		<Param name="Viscosity_h"   value="0.1"/>
 		<Param name="Viscosity_l"   value="0.1"/>
 		<Param name="sigma"         value="5e-3"/>
 		<Param name="M"             value="0.05"/>
 		<Param name="IntWidth"      value="4"/>
-        <Param name="T_init"        value="16"/>
-		<Param name="T_ref"        	value="16"/>
-		<Param name="dT"			value="0.1"/>
-		<Param name="sigma_T" 		value="-2.5e-4"/>
-		<Param name="T_init"        value="0" zone="BottomWall"/>
-		<Param name="T_init"        value="32" zone="TopWall"/>
-        <Param name="cp_h"          value="1"/>
-        <Param name="cp_l"			value="1"/>
-        <Param name="k_h" 			value="0.01"/>
-        <Param name="k_l" 			value="0.01"/>
+        	<Param name="T_init"        value="16"/>
+		<Param name="T_ref"    	value="16"/>
+		<Param name="dT"	value="0.1"/>
+		<Param name="sigma_T" 	value="-2.5e-4"/>
+		<Param name="T_init"    value="0" zone="BottomWall"/>
+		<Param name="T_init"    value="32" zone="TopWall"/>
+		<Param name="cp_h"      value="1"/>
+		<Param name="cp_l"	value="1"/>
+		<Param name="k_h" 	value="0.1"/>
+		<Param name="k_l" 	value="0.1"/>
 	</Model>
 	<Init/>
 	<Container>

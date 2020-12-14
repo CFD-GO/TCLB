@@ -31,7 +31,7 @@ int acFDTest::OptimizerInit () {
 		par_num = Pars;
 		if (attr) {
 			std::string par = attr.value();
-                        unsigned int i = par.find_first_of(':');
+                        size_t i = par.find_first_of(':');
                         if (i == string::npos) {
 				par_start = attr.as_int();
                         } else {

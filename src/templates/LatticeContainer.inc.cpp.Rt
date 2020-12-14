@@ -268,7 +268,7 @@ void LatticeContainer::Free()
 	now.idx_.x = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
 	now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
 	now.idx_.z = CudaBlock.y+constContainer.dz;
-	#ifndef GRID_3D
+	#ifndef GRID3D
 		for (; now.idx_.x < constContainer.nx; now.idx_.x += CudaNumberOfThreads.x) {
 	#endif
 		now.Pre();
@@ -278,7 +278,7 @@ void LatticeContainer::Free()
 			now.OutOfDomain();
 		}
 		now.Glob();
-	#ifndef GRID_3D
+	#ifndef GRID3D
 		}
 	#endif
 }*/

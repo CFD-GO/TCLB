@@ -108,7 +108,6 @@
   #else
     #include <assert.h>
     #include <time.h>
-    #include <malloc.h>
     #include <cstdlib>
     #include <cstring>
     #include <math.h>
@@ -165,10 +164,10 @@
     #define CudaSyncThreadsOr(x__) x__
     #define CudaSyncWarpOr(x__) x__
     #ifdef CROSS_OPENMP
-      #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
+      #define OMP_PARALLEL_FOR _Pragma("omp parallel for")
       #define CudaKernelRun(a__,b__,c__,d__) \
                                       OMP_PARALLEL_FOR \
-                                       for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
+                                       for (unsigned int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                          a__ d__; \
                                        }

@@ -29,6 +29,9 @@
 #include "xpath_modification.h"
 #include "mpitools.hpp"
 
+#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
+
+
 // Reads units from configure file and applies them to the solver
 int readUnits(pugi::xml_node config, Solver* solver) {
 	pugi::xml_node set = config.child("Units");
@@ -76,7 +79,7 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
         error("No 'file' attribute in ArbitraryLattice element in xml conf\n");
     }
 	// open the file if there's one listed in the tag
-	FILE* cxnFile = fopen(arbLatticeNode.attribute("file").value(), "rb");
+	FILE* cxnFile = fopen_gz(arbLatticeNode.attribute("file").value(), "r");
 	if(cxnFile == NULL) {
 		error("Connection file can't be opened\n");
 		return -1;
@@ -84,15 +87,16 @@ int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, 
 	// just read the first 2 lines to get the values we want
 	int nx, ny, nz;
 	size_t latticeSize;
-	fscanf(cxnFile, "LATTICESIZE %d\n", &latticeSize);
-	fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz);
+	HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %lu\n", &latticeSize));
+	HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz));
 
 	fclose(cxnFile);
 	nx_ = nx;
 	ny_ = ny;
 	nz_ = nz;
 	latticeSize_ = latticeSize;
-
+	printf("lattice size: %lu\n", latticeSize);
+	return 0;
 };
 
 CudaEvent_t     start, stop; // CUDA events to measure time
@@ -485,10 +489,12 @@ int main ( int argc, char * argv[] )
 	solver->lattice->Callback((int(*)(int, int, void*)) MainCallback, (void*) solver);
 
 	// Running main handler (it makes all the magic)
-	Handler hand(config, solver);
-	if (!hand) {
-		error("Something went wrong in xml run!\n");
-		return -1;
+	{
+		Handler hand(config, solver);
+		if (!hand) {
+			error("Something went wrong in xml run!\n");
+			return -1;
+		}
 	}
     #ifdef EMBEDED_PYTHON
     Py_Finalize();

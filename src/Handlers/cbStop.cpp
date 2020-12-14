@@ -18,6 +18,9 @@ int cbStop::Init () {
 			nm = it->name + "Change";
 			attr = node.attribute(nm.c_str());
 			if (attr) AddStop(it->id, STOP_CHANGE, attr.as_double());
+			nm = it->name + "PercentChange";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it->id, STOP_PERCENTCHANGE, attr.as_double());
 			nm = it->name + "Above";
 			attr = node.attribute(nm.c_str());
 			if (attr) AddStop(it->id, STOP_ABOVE, attr.as_double());
@@ -59,6 +62,10 @@ int cbStop::DoIt () {
 				case STOP_CHANGE:
 					if (fabs(old[i] - v) > limit[i]) any++;
 					if (D_MPI_RANK == 0) output("    change:      %4lg < %4lg", fabs(old[i] - v), limit[i]);
+					break;
+				case STOP_PERCENTCHANGE:
+					if (fabs((old[i] - v)/v) > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    change:    %4lg%% < %4lg%%", 100.0 * fabs((old[i] - v)/v), 100.0 * limit[i]);
 					break;
 				case STOP_ABOVE:
 					if (v < limit[i]) any++;

@@ -209,13 +209,12 @@ void MainFree( Solver *d);
 	int Solver::writeVTK(const char * nm, name_set * s) {
 		print("writing vtk");
 		char filename[2*STRING_LEN];
-		int ret;
+		int ret = -1;
 		if(latticeType == 0) { // cartesian lattice output function
 			outIterFile(nm, ".vti", filename);
 			ret = vtkWriteLattice(filename, lattice, units, s);
 		} else if(latticeType == 1 && !connectivity->cellDataOutput) {
 			outIterFile(nm, ".vtp", filename);
-			
 			ret = vtkWriteLatticeArbitrary(filename, latticeSize, lattice, units, s);
 		} else if(latticeType == 1 && connectivity->cellDataOutput) {
 			outIterFile(nm, ".vtu", filename);
@@ -456,8 +455,11 @@ void MouseMove( Solver * data, int x, int y, int nx, int ny )
 		data->region.ny - y - 1,
 		0,
 	1,1,1);
-	big_flag_t NodeType = data->lattice->model->nodetypeflags.ByName("Wall")->flag;
-	data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+	ModelBase::NodeTypeFlags::const_iterator it = data->lattice->model->nodetypeflags.ByName("Wall");
+	if (it != data->lattice->model->nodetypeflags.end()) {
+		big_flag_t NodeType = it->flag;
+		data->lattice->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+	}
 }
 
 /// Refresh callback (GUI)
