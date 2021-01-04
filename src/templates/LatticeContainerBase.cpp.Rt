@@ -161,6 +161,7 @@ void BPreAlloc(void ** ptr, size_t size) {
     CudaMalloc( ptr, size );
 }
 
+
 /// NULL-safe free
 inline void MyFree(void * ptr) {
     if (ptr != NULL) {
@@ -173,50 +174,10 @@ inline void MyFree(void * ptr) {
     }
 }
 
-/// Main Kernel for cartesian lattice
-/**
-  iterates over all elements and runs them with RunElement function.
-  constContainer.dx/dy is to calculate only internal nodes
-*/
+// Main kernel for lattice internals - just calls the RunKernel function defined in the Accessor
 template <class N, class Accessor> CudaGlobalFunction void RunKernel() {
-  N now;
-	now.idx_.x = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + Accessor::container().dx;
-	now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + Accessor::container().dy;
-  now.idx_.z = CudaBlock.y+Accessor::container().dz;
-
-	#ifndef GRID3D
-		for (; now.idx_.x < Accessor::container().nx; now.idx_.x += CudaNumberOfThreads.x) {
-	#endif
-		now.Pre();
-		if (now.idx_.y < Accessor::container().fy) {
-			now.RunElement();
-		} else {
-			now.OutOfDomain();
-		}
-		now.Glob();
-	#ifndef GRID3D
-		}
-	#endif
-}
-
-/// Main Kernel for arbitrary lattice
-/**
-  iterates over all elements and runs them with RunElement function.
-  constContainer.dx/dy is to calculate only internal nodes
-*/
-template <class N, class Accessor> CudaGlobalFunction void RunKernel_arb() {
-  N now;
-
-  now.idx_.id = CudaThread.x + (CudaThread.y * CudaNumberOfThreads.x) + 
-                  (CudaBlock.x * CudaNumberOfThreads.x * CudaNumberOfThreads.y) + 
-                  (CudaBlock.y * CudaNumberOfThreads.x * CudaNumberOfThreads.y * Accessor::container().bnx);
-  now.Pre();
-  if(now.idx_.id < Accessor::container().latticeSize) {
-    now.RunElement();
-  } else {
-    now.OutOfDomain();
-  }
-  now.Glob();
+  // use template keyword for disambiguation
+  Accessor::template RunKernel<N>();
 }
 
 /// Border Kernel

@@ -64,7 +64,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	AFTabs adjout; ///< AFTabs used for Adjoint iteration as output
 	AFTabs adjin; ///< AFTabs used for Adjoint iteration as input
   #endif
-  	struct index { size_t id; int x, y, z; }; // don't ask about the x, y, z - pretty sure they're neccessary for now :(
+  	struct index { size_t id;}; // need to remove int x, y, z upon fixing the issues with GetThreads<> class dynamic
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
 	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
 	int connectivityDim; ///< Number of directions defined in Connectivity
