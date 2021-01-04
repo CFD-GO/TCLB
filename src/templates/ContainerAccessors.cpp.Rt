@@ -1,3 +1,13 @@
+<?R
+	source("conf.R")
+        c_header()
+    tminx = min(0,Fields$minx)
+    tmaxx = max(0,Fields$maxx)
+    tminy = min(0,Fields$miny)
+    tmaxy = max(0,Fields$maxy)
+    tminz = min(0,Fields$minz)
+    tmaxz = max(0,Fields$maxz)
+?>
 #include "LatticeContainer.h"
 #include "ArbitraryLatticeContainer.h"
 #include "../cross.h"
@@ -33,6 +43,11 @@ struct ArbitraryLatticeContainerAccessor {
 			now.OutOfDomain();
 		}
 		now.Glob();
+	}
+
+	template <class N> CudaDeviceFunction static void RunBorderKernel() {
+		// function needs to be implemented upon setting up multi-gridding
+		return;
 	}
 };
 
@@ -70,6 +85,42 @@ struct CartesianLatticeContainerAccessor {
 		#ifndef GRID3D
 			}
 		#endif
+	}
+
+	/// Main function called by the border kernel for cartesian lattice
+	/**
+	 iterates over border elements and runs them with RunElement function
+	*/
+	template <class N> CudaDeviceFunction static void RunBorderKernel() {
+		N now;
+		now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+		now.idx_.z = CudaBlock.x;
+		
+			now.Pre();
+		<?R if (tmaxy > tminy) { ?>
+			if (now.idx_.z < constContainer.nz) {
+		<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
+			now.idx_.y = <?%d y - 1 ?>;
+				now.RunElement();
+		<?R	} else if (y < 0) { ?>
+				now.idx_.y = constContainer.ny - <?%d -y ?>;
+				now.RunElement();
+		<?R	} ?>
+			}
+		<?R }
+			if (tmaxz > tminz) { ?>
+			now.idx_.y = CudaBlock.x;
+			if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
+		<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
+				now.idx_.z = <?%d z - 1 ?>;
+				now.RunElement();
+		<?R	} else if (z < 0) { ?>
+				now.idx_.z = constContainer.nz - <?%d -z ?>;
+				now.RunElement();
+		<?R	} ?>
+			}
+		<?R } ?>
+			now.Glob();
 	}
 };
 
