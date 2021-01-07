@@ -180,42 +180,6 @@ void ArbitraryLatticeContainer::Free()
 // The model is 2D (no BORDER_Z)
 <?R } ?>
 
-/// Border Kernel
-/**
-  iterates over border elements and runs them with RunElement function
-*/
-/*template <class N> CudaGlobalFunction void RunBorderKernel()
-{
-	N now;
-	now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.idx_.z = CudaBlock.x;
-	now.Pre();
-<?R if (tmaxy > tminy) { ?>
-	if (now.idx_.z < constContainer.nz) {
-<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		now.idx_.y = <?%d y - 1 ?>;
-		now.RunElement();
-<?R	} else if (y < 0) { ?>
-		now.idx_.y = constContainer.ny - <?%d -y ?>;
-		now.RunElement();
-<?R	} ?>
-	}
-<?R }
-    if (tmaxz > tminz) { ?>
-	now.idx_.y = CudaBlock.x;
-	if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
-<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-		now.idx_.z = <?%d z - 1 ?>;
-		now.RunElement();
-<?R	} else if (z < 0) { ?>
-		now.idx_.z = constContainer.nz - <?%d -z ?>;
-		now.RunElement();
-<?R	} ?>
-	}
-<?R } ?>
-	now.Glob();
-}*/
-
 /// Copy oneself to the GPU constant memory
 /**
   Copiers the container object to constContainer variable
