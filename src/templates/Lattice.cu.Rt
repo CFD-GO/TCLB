@@ -256,31 +256,6 @@ void Lattice::clearDPar()
 ?>
 }
 
-/// Finish unsteady adjoint record
-/**
-        Stops the Adjoint recording process
-*/
-void Lattice::rewindRecord()
-{
-	Record_Iter = 0;
-	IterateTill(Record_Iter, ITER_NORM);
-	debug2("Rewind tape\n");
-}
-
-/// Finish unsteady adjoint record
-/**
-        Stops the Adjoint recording process
-*/
-void Lattice::stopRecord()
-{
-	if (Record_Iter != 0) {
-		WARNING("Record tape is not rewinded (iter = %d)\n",Record_Iter);
-		Record_Iter = 0;
-	}
-	reverse_save = 0;
-	debug2("Stop recording\n");
-}
-
 /// Copy GPU to CPU memory
 inline void Lattice::MPIStream_A()
 {

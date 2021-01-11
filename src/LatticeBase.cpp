@@ -65,3 +65,24 @@ int LatticeBase::getSnap(int i) {
 	int s = SnapLevel(i) + 1;
 	return s;
 }
+
+/**
+	Stops the Adjoint recording process
+*/
+void LatticeBase::rewindRecord() {
+	Record_Iter = 0;
+	IterateTill(Record_Iter, ITER_NORM);
+	debug2("Rewind tape\n");
+}
+
+/**
+	Stops the adjoint recording process
+*/
+void LatticeBase::stopRecord() {
+	if(Record_Iter != 0) {
+		WARNING("Record tape is not rewound (iter = %d)\n", Record_Iter);
+		Record_Iter = 0;
+	}
+	reverse_save = 0;
+	debug2("Stop recording\n");
+}

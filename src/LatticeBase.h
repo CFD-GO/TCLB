@@ -77,8 +77,8 @@ public:
   virtual void loadFromTab(real_t * tab, int snap) = 0;
   inline void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); };
   virtual void startRecord() = 0;
-  virtual void rewindRecord() = 0;
-  virtual void stopRecord() = 0;
+  //virtual void rewindRecord() = 0;
+  //virtual void stopRecord() = 0;
   virtual void clearAdjoint() = 0;
   virtual void clearDPar() = 0;
   int(* callback)(int, int, void*);
@@ -88,8 +88,14 @@ public:
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
 
+  // common variables moved from Lattice/ArbitraryLattice
+  int Record_Iter; ///< Recorded iteration number (Now)
+  int reverse_save; ///< Flag stating if recording (Now)
+
   // common functions moved from Lattice/ArbitraryLattice
   int getSnap(int i);
+  void rewindRecord();
+  void stopRecord();
 
   inline LatticeBase(int zonesettings_, int zones_) : zSet(zonesettings_, zones_) {};
   inline void MarkIteration() {

@@ -274,27 +274,6 @@ void ArbitraryLattice::clearDPar() {
 ?>
 }
 
-/** CBG
-	Stops the Adjoint recording process
-*/
-void ArbitraryLattice::rewindRecord() {
-	Record_Iter = 0;
-	IterateTill(Record_Iter, ITER_NORM);
-	debug2("Rewind tape\n");
-}
-
-/**
-	Stops the adjoint recording process
-*/
-void ArbitraryLattice::stopRecord() {
-	if(Record_Iter != 0) {
-		WARNING("Record tape is not rewound (iter = %d)\n", Record_Iter);
-		Record_Iter = 0;
-	}
-	reverse_save = 0;
-	debug2("Stop recording\n");
-}
-
 /// Copy GPU to CPU memory
 inline void ArbitraryLattice::MPIStream_A()
 {
