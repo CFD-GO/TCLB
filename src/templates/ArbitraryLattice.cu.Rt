@@ -36,30 +36,6 @@
 */
 CudaExternConstantMemory(ArbitraryLatticeContainer constArbitraryContainer);
 
-/// Calculate the Snapshot level for the optimal Checkpoiting technique
-/**
-        C-crazed function for calculating number of zeros at
-        the end of a number written in a binary system
-        /param i The number
-        /return number of zeros at the end of the number written in a binary system
-*/
-int ASnapLevel(unsigned int i) {
-	unsigned int j = 16;
-	unsigned int w = 0;
-	unsigned int k = 0xFFFFu;
-	while(j) {
-		if (i & k) {
-			j = j >> 1;
-			k = k >> j;
-		} else {
-			w = w + j;
-			j = j >> 1;
-			k = k << j;
-		}
-	}
-	return w;
-}
-
 /// Calculation of the offset from X, Y and Z
 int ArbitraryLattice::Offset(int x, int y, int z)
 {
@@ -679,6 +655,7 @@ exit (-1);
 <?R } ?>
 
 /// Function listing all buffers in AFTabs
+// can't be generalised into LatticeBase as this will behave differently for ArbitraryLattice - will depend on how the multi-rank is implemented later on
 void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int n;
@@ -705,14 +682,9 @@ void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** p
 	if (maxsize) if(size) if((*size)[0] > *maxsize) *maxsize = (*size)[0];
 }
 
-// CBG?
+// needs to be implemented for ArbitraryLattice - used in acAndersen.cpp handler
 size_t ArbitraryLattice::sizeOfTab() {
-<?R
-	totsize = 0
-	for (m in NonEmptyMargin) totsize = m$Size + totsize
-?>
-	int nx = region.nx, ny = region.ny, nz = region.nz; // not sure if this line needs to be here
-	return <?R C(totsize,float=F) ?>;	
+	return 0;
 }
 
 // CBG?
@@ -838,13 +810,6 @@ void ArbitraryLattice::Color(uchar4* ptr) {
 void ArbitraryLattice::GenerateST() {
 	ST.Generate();
 	ST.CopyToGPU(container->ST);
-}
-
-// Function for calculating the index of a Snapshot for an iteration
-// CBG
-int ArbitraryLattice::getSnap(int i) {
-	int s = ASnapLevel(i) + 1;
-	return s;
 }
 
 /// Iterate Primal till a specific iteration

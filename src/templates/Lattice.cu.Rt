@@ -34,30 +34,6 @@
 */
 CudaExternConstantMemory(LatticeContainer constContainer);
 
-/// Calculate the Snapshot level for the optimal Checkpoiting technique
-/**
-        C-crazed function for calculating number of zeros at
-        the end of a number written in a binary system
-        /param i The number
-        /return number of zeros at the end of the number written in a binary system
-*/
-int SnapLevel(unsigned int i) {
-	unsigned int j = 16;
-	unsigned int w = 0;
-	unsigned int k = 0xFFFFu;
-	while(j) {
-		if (i & k) {
-			j = j >> 1;
-			k = k >> j;
-		} else {
-			w = w + j;
-			j = j >> 1;
-			k = k << j;
-		}
-	}
-	return w;
-}
-
 /// Calculation of the offset from X, Y and Z
 int Lattice::Offset(int x, int y, int z)
 {
@@ -841,13 +817,6 @@ void Lattice::Init()
 void Lattice::GenerateST() {
 	ST.Generate();
 	ST.CopyToGPU(container->ST);
-}
-
-
-/// Function for calculating the index of a Snapshot for a iteration
-int Lattice::getSnap(int i) {
-	int s = SnapLevel(i) + 1;
-	return s;
 }
 
 /// Iterate Primal till a specific iteration

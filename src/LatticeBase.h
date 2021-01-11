@@ -15,6 +15,7 @@
 class lbRegion;
 class FTabs;
 class LatticeContainer;
+class LatticeContainerBase;
 
 #define ITER_STREAM   0x000
 #define ITER_NORM     0x001
@@ -48,6 +49,7 @@ public:
 class LatticeBase {
 private:
 public:
+  //LatticeContainerBase * container;
   ModelBase * model;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
@@ -85,6 +87,9 @@ public:
   int segment_iterations;
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
+
+  // common functions moved from Lattice/ArbitraryLattice
+  int getSnap(int i);
 
   inline LatticeBase(int zonesettings_, int zones_) : zSet(zonesettings_, zones_) {};
   inline void MarkIteration() {
