@@ -180,47 +180,6 @@ void ArbitraryLattice::Init() {
 	clearGlobals();
 }
 
-// this is mostly used for adjoint I think but will implement it anyway so it compiles
-/** CBG
-	Starts tape recording of the iteration process including:
-	all of the iterations done
-	changes of settings
-*/
-void ArbitraryLattice::startRecord() {
-	if(reverse_save) {
-		ERROR("Nested record! Called startRecord while recording\n");
-		exit(-1);
-	}
-	if(Record_Iter != 0) {
-		ERROR("Record tape is not rewound (iter = %d) maybe last adjoint didn't go all the way\n", Record_Iter);
-		Record_Iter = 0;
-	}
-	debug2("Lattice is starting to record (unsteady adjoint)\n");
-	if(Snap != 0) {
-		warning("Snap = %d at startRecord\n", Snap);
-	}
-	for(int i = 0; i < maxSnaps; i++) {
-		iSnaps[i] = -1;
-	}
-	// not sure if there should be an iterator or if statement here
-	{
-		char filename[4*STRING_LEN];
-		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
-		iSnaps[getSnap(0)] = 0;
-		save(Snaps[Snap], filename);
-	}
-	if(Snap != 0) {
-		warning("Snap = %d. Go through disk\n", Snap);
-	} else {
-		iSnaps[Snap] = 0;
-	}
-	reverse_save = 1;
-	clearAdjoint();
-	clearGlobals();
-	settings_record.clear();
-	settings_i = 0;
-}
-
 // saves soln to binary files -- only used for adjoint AFAIK but may also be used to write primal for normal operation
 /** CBG - if save() can be generalized
 	Dump the primal and adjoint solutions to binary files
@@ -635,7 +594,7 @@ exit (-1);
 
 /// Function listing all buffers in AFTabs
 // can't be generalised into LatticeBase as this will behave differently for ArbitraryLattice - will depend on how the multi-rank is implemented later on
-void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
+void ArbitraryLattice::listTabs(FTabsBase& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -657,7 +616,7 @@ void ArbitraryLattice::listTabs(AFTabs& tab, int* np, size_t ** size, void *** p
 ?>*/
 
 	if (size) (*size)[0] = ((size_t) nx * ny * nz * 9) * sizeof(real_t);
-	if (ptr) (*ptr)[0] = (void*) tab.data;
+	if (ptr) (*ptr)[0] = (void*) ((AFTabs&)tab).data;
 	if (maxsize) if(size) if((*size)[0] > *maxsize) *maxsize = (*size)[0];
 }
 
@@ -698,70 +657,6 @@ void ArbitraryLattice::loadFromTab(real_t* rtab, int snap) {
 	}
 	delete[] size;
 	delete[] ptr;
-}
-
-/// Save a AFTabs
-int ArbitraryLattice::save(AFTabs& tab, const char * filename) {
-	FILE * f = fopen(filename, "w");
-	if (f == NULL) {
-		ERROR("Cannot open %s for output\n", filename);
-		assert(f == NULL);
-		return -1;
-	}
-
-	void ** ptr;
-	void * pt=NULL;
-	size_t * size;
-	size_t maxsize;
-	int n;
-
-	listTabs(tab, &n, &size, &ptr, &maxsize);
-	CudaMallocHost(&pt,maxsize);
-
-	for(int i=0; i<n; i++)
-	{
-        output("Saving data slice %d, size %d", i, size[i]);
-		CudaMemcpy( pt, ptr[i], size[i], cudaMemcpyDeviceToHost);
-		fwrite(pt, size[i], 1, f);
-	}
-
-	CudaFreeHost(pt);
-	fclose(f);
-	delete[] size;
-	delete[] ptr;
-	return 0;
-}
-
-/// Load a AFTabs
-int ArbitraryLattice::load(AFTabs& tab, const char * filename) {
-	FILE * f = fopen(filename, "r");
-	output("Loading Lattice data from %s\n", filename);
-	if (f == NULL) {
-		ERROR("Cannot open %s for output\n", filename);
-		return -1;
-	}
-
-	void ** ptr;
-	void * pt = NULL;
-	size_t * size;
-	size_t maxsize;
-	int n;
-
-	listTabs(tab, &n, &size, &ptr, &maxsize);
-	CudaMallocHost(&pt,maxsize);
-
-	for(int i=0; i<n; i++)
-	{
-		int ret = fread(pt, size[i], 1, f);
-		if (ret != 1) ERROR("Could not read in ArbitraryLattice::load");
-		CudaMemcpy( ptr[i], pt, size[i], cudaMemcpyHostToDevice);
-	}
-
-	CudaFreeHost(pt);
-	fclose(f);
-	delete[] size;
-	delete[] ptr;
-	return 0;
 }
 
 /// Destructor

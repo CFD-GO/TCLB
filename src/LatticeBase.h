@@ -14,6 +14,8 @@
 
 class lbRegion;
 class FTabs;
+class AFTabs;
+//class FTabsBase;
 class LatticeContainer;
 class LatticeContainerBase;
 
@@ -39,6 +41,9 @@ public:
   int ns;
   int latticeType; // 0 = Cartesian lattice, 1 = ArbitraryLattice
   size_t latticeSize;
+};
+
+struct FTabsBase {
 };
 
 /// Class for computations
@@ -76,7 +81,7 @@ public:
   inline void saveToTab(real_t * tab) { saveToTab(tab,Snap); };
   virtual void loadFromTab(real_t * tab, int snap) = 0;
   inline void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); };
-  virtual void startRecord() = 0;
+  //virtual void startRecord() = 0;
   //virtual void rewindRecord() = 0;
   //virtual void stopRecord() = 0;
   virtual void clearAdjoint() = 0;
@@ -91,11 +96,19 @@ public:
   // common variables moved from Lattice/ArbitraryLattice
   int Record_Iter; ///< Recorded iteration number (Now)
   int reverse_save; ///< Flag stating if recording (Now)
+  FTabsBase * Snaps;
+  int * iSnaps;
+  std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record;
+  unsigned int settings_i;
 
   // common functions moved from Lattice/ArbitraryLattice
   int getSnap(int i);
+  void startRecord();
   void rewindRecord();
   void stopRecord();
+  virtual void listTabs(FTabsBase&, int*n, size_t ** size, void *** ptr, size_t * maxsize) = 0;
+  int save(FTabsBase& tab, const char * filename);
+  int load(FTabsBase& tab, const char * filename);
 
   inline LatticeBase(int zonesettings_, int zones_) : zSet(zonesettings_, zones_) {};
   inline void MarkIteration() {

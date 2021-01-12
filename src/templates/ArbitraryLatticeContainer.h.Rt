@@ -9,6 +9,7 @@
 #include "../BallTree.h"
 #include "ModelConsts.h"
 #include "LatticeContainerBase.h"
+#include "../LatticeBase.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -33,7 +34,7 @@
 	in the lattice. It stores the internal part of the fields
 	and margins. TODO: reimplement this struct and its functions to use a listsize
 */
-struct AFTabs {
+struct AFTabs : FTabsBase {
 	real_t* data;
 	void Alloc(size_t);
 	void Clear(size_t);

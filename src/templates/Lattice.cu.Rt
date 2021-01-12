@@ -159,47 +159,6 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	debug2("Done (BUFS: %d)\n", bufnumber);
 }
 
-/// Starting of unsteady adjoint recording
-/**
-        Starts tape recording of the iteration process including:
-        all the iterations done
-        changes of settings
-*/
-void Lattice::startRecord()
-{
-	if (reverse_save) {
-		ERROR("Nested record! Called startRecord while recording\n");
-		exit(-1);
-	}
-	if (Record_Iter != 0) {
-		ERROR("Record tape is not rewinded (iter = %d) maybe last adjoint didn't go all the way\n", Record_Iter);
-		Record_Iter = 0;
-	}
-	debug2("Lattice is starting to record (usteady adjoint)\n");
-	if (Snap != 0) {
-		warning("Snap = %d at startRecord\n", Snap);
-	}
-	for (int i=0; i < maxSnaps; i++) {	
-		iSnaps[i]= -1;
-	}
-	{
-		char filename[4*STRING_LEN];
-		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
-		iSnaps[getSnap(0)] = 0;
-		save(Snaps[Snap], filename);
-	}
-	if (Snap != 0) {
-		warning("Snap = %d. Going through disk\n", Snap);
-	} else {
-		iSnaps[Snap] = 0;
-	}
-	reverse_save = 1;
-	clearAdjoint();
-	clearGlobals();
-	settings_record.clear();
-	settings_i=0;
-}
-
 /// Saves solution to binary files
 /**
         Dump the primal and adjoint solutions to binary files
@@ -608,7 +567,7 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 
 
 /// Function listing all buffers in FTabs
-void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::listTabs(FTabsBase& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -621,7 +580,7 @@ void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t
 	for (m in NonEmptyMargin) {
 ?>
 	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
-	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
+	if (ptr) (*ptr)[j] = (void*) ((FTabs&)tab).<?%s m$name ?>;
 	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
@@ -670,71 +629,6 @@ void Lattice::loadFromTab(real_t * rtab, int snap) {
 	}
 	delete[] size;
 	delete[] ptr;
-}
-
-
-/// Save a FTabs
-int Lattice::save(FTabs& tab, const char * filename) {
-	FILE * f = fopen(filename, "w");
-	if (f == NULL) {
-		ERROR("Cannot open %s for output\n", filename);
-		assert(f == NULL);
-		return -1;
-	}
-
-	void ** ptr;
-	void * pt=NULL;
-	size_t * size;
-	size_t maxsize;
-	int n;
-
-	listTabs(tab, &n, &size, &ptr, &maxsize);
-	CudaMallocHost(&pt,maxsize);
-
-	for(int i=0; i<n; i++)
-	{
-        output("Saving data slice %d, size %d", i, size[i]);
-		CudaMemcpy( pt, ptr[i], size[i], cudaMemcpyDeviceToHost);
-		fwrite(pt, size[i], 1, f);
-	}
-
-	CudaFreeHost(pt);
-	fclose(f);
-	delete[] size;
-	delete[] ptr;
-	return 0;
-}
-
-/// Load a FTabs
-int Lattice::load(FTabs& tab, const char * filename) {
-	FILE * f = fopen(filename, "r");
-	output("Loading Lattice data from %s\n", filename);
-	if (f == NULL) {
-		ERROR("Cannot open %s for output\n", filename);
-		return -1;
-	}
-
-	void ** ptr;
-	void * pt = NULL;
-	size_t * size;
-	size_t maxsize;
-	int n;
-
-	listTabs(tab, &n, &size, &ptr, &maxsize);
-	CudaMallocHost(&pt,maxsize);
-
-	for(int i=0; i<n; i++)
-	{
-		int ret = fread(pt, size[i], 1, f);
-		if (ret != 1) ERROR("Could not read in Lattice::load");
-		CudaMemcpy( ptr[i], pt, size[i], cudaMemcpyHostToDevice);
-	}
-
-	CudaFreeHost(pt);
-	fclose(f);
-	delete[] size;
-	delete[] ptr;
-	return 0;
 }
 
 /// Destructor
