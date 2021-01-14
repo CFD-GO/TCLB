@@ -180,36 +180,6 @@ void ArbitraryLattice::Init() {
 	clearGlobals();
 }
 
-// saves soln to binary files -- only used for adjoint AFAIK but may also be used to write primal for normal operation
-/** CBG - if save() can be generalized
-	Dump the primal and adjoint solutions to binary files
-	\param filename Prefix/path for the dumped binary files
-*/
-void ArbitraryLattice::saveSolution(const char *filename) {
-	char fn[STRING_LEN];
-	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
-	save(Snaps[Snap], fn); // write primal
-#ifdef ADJOINT
-	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
-	save(aSnaps[aSnap], fn);
-#endif
-}
-
-// Loads soln for binary files
-/** CBG - if load() can be generalised
-	Loads the primal and adjoint solutions from binary files
-	\param filename Prefix/path for the dumped binary files
-*/
-void ArbitraryLattice::loadSolution(const char *filename) {
-	char fn[STRING_LEN];
-	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
-	if(load(Snaps[Snap], fn)) exit(-1);
-#ifdef ADJOINT
-	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
-	load(aSnaps[aSnap], fn);
-#endif
-}
-
 /**
 	Clear the Adjoint snapshots
 */
@@ -625,7 +595,7 @@ size_t ArbitraryLattice::sizeOfTab() {
 	return 0;
 }
 
-// CBG?
+// Can't be generalised right now due to the AFTabs declared variable, which isn't available in LatticeBase
 void ArbitraryLattice::saveToTab(real_t * rtab, int snap) {
 	char* vtab = (char*)rtab;
 	void** ptr;
@@ -642,7 +612,7 @@ void ArbitraryLattice::saveToTab(real_t * rtab, int snap) {
 	delete[] ptr;
 }
 
-// CBG?
+// Can't be generalised right now due to the AFTabs declared variable, which isn't available in LatticeBase
 void ArbitraryLattice::loadFromTab(real_t* rtab, int snap) {
 	char* vtab = (char*)rtab;
 	void** ptr;
@@ -1116,7 +1086,7 @@ void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, rea
 	\param nw New value of the setting
 	CBG
 */
-void ArbitraryLattice::push_setting(int i, real_t old, real_t nw) {
+/*void ArbitraryLattice::push_setting(int i, real_t old, real_t nw) {
 	settings_record.push_back(
 		std::pair< int, std::pair<int, std::pair<real_t, real_t> > > (
 			Record_Iter,
@@ -1130,7 +1100,7 @@ void ArbitraryLattice::push_setting(int i, real_t old, real_t nw) {
 		)
 	);
 	settings_i = settings_record.size();
-}
+}*/
 
 /**
 	Reconstruct the values of all the settings
@@ -1138,7 +1108,7 @@ void ArbitraryLattice::push_setting(int i, real_t old, real_t nw) {
 	from the setting stack.
 	CBG
 */
-void ArbitraryLattice::pop_settings() {
+/*void ArbitraryLattice::pop_settings() {
 	while(settings_i > 0) {
 		if(settings_record[settings_i - 1].first <= Record_Iter) break;
 		settings_i --;
@@ -1151,7 +1121,7 @@ void ArbitraryLattice::pop_settings() {
 		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
 		settings_i++;
 	}
-}
+}*/
 
 // push_settings() here - not in LatticeBase
 // pop_settings() here - not in LatticeBase
@@ -1210,7 +1180,6 @@ void ArbitraryLattice::clearGlobals_Adj() { <?R
 }
 
 // Return the objective function value
-// CBG
 double ArbitraryLattice::getObjective() {
 	return globals[<?%s Globals$Index[Globals$name == "Objective"] ?>];
 }
@@ -1219,7 +1188,6 @@ double ArbitraryLattice::getObjective() {
 	Set a specific setting
 	\param i Index of the setting
 	\param tmp Value of the setting
-	CBG
 */
 void ArbitraryLattice::setSetting(int i, real_t tmp) {
 	settings_val[i] = tmp;
@@ -1227,7 +1195,6 @@ void ArbitraryLattice::setSetting(int i, real_t tmp) {
 	setConstSetting(i, tmp);
 }
 
-// CBG
 void ArbitraryLattice::SetSetting(int idx, real_t val) {
 	if(reverse_save) push_setting(idx, settings_val[idx], val);
 	setSetting(idx, val);
@@ -1239,7 +1206,7 @@ void ArbitraryLattice::SetSetting(int idx, real_t val) {
 	}
 }
 
-// CBG
+
 real_t ArbitraryLattice::GetSetting(int idx) {
 	return settings_val[idx];
 }

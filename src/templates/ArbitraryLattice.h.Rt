@@ -29,15 +29,9 @@ private:
   CudaStream_t kernelStream; ///< CUDA Stream for kernel runs
   CudaStream_t inStream; ///< CUDA Stream for CPU->GPU momory copy
   CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
-  //int reverse_save; ///< Flag stating if recording (Now) << moved to base class
     
 public:
     Model_m current_model;
-  //std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record; ///< List of settings changes during the recording <<< moved to base class
-  //unsigned int settings_i; ///< Index in settings_record that is on the CUDA const <<< moved to base class
-  void push_setting(int,real_t,real_t); ///< Set the setting (and push to settings_record if recording)
-  void pop_settings(); ///< Pop the setting from settings_record
-  //int Record_Iter; ///< Recorded iteration number (Now) << moved to base class
   real_t settings_val[SETTINGS];  ///< Table of Settings (Now)
   typedef BallTree< rfi_t > balltree_t;
   balltree_t BT;
@@ -53,18 +47,11 @@ public:
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();
   void listTabs(FTabsBase&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
-  //int save(AFTabs&, const char * filename); << moved to base class
-  //int load(AFTabs&, const char * filename); << moved to base class
-  void saveSolution(const char * filename);
-  void loadSolution(const char * filename);
   size_t sizeOfTab();
   void saveToTab(real_t * tab, int snap);
   inline void saveToTab(real_t * tab) { saveToTab(tab,Snap); };
   void loadFromTab(real_t * tab, int snap);
   inline void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); };
-  //void startRecord();
-  //void rewindRecord(); << moved to base class
-  //void stopRecord(); << moved to base class
   void clearAdjoint();
   void clearDPar();
   void        MPIStream_A();

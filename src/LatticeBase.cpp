@@ -107,6 +107,35 @@ void LatticeBase::startRecord() {
 	settings_i = 0;
 }
 
+/** 
+	Dump the primal and adjoint solutions to binary files
+	\param filename Prefix/path for the dumped binary files
+*/
+void LatticeBase::saveSolution(const char *filename) {
+	char fn[STRING_LEN];
+	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
+	save(Snaps[Snap], fn); // write primal
+#ifdef ADJOINT
+	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
+	save(aSnaps[aSnap], fn);
+#endif
+}
+
+// Loads soln for binary files
+/** 
+	Loads the primal and adjoint solutions from binary files
+	\param filename Prefix/path for the dumped binary files
+*/
+void LatticeBase::loadSolution(const char *filename) {
+	char fn[STRING_LEN];
+	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
+	if(load(Snaps[Snap], fn)) exit(-1);
+#ifdef ADJOINT
+	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
+	load(aSnaps[aSnap], fn);
+#endif
+}
+
 /**
 	Stops the Adjoint recording process
 */
@@ -191,3 +220,49 @@ int LatticeBase::load(FTabsBase& tab, const char * filename) {
 	delete[] ptr;
 	return 0;
 }
+
+/**
+	Push a setting and its value on the stack,
+	during adjoint recording.
+	\param i Index of the setting
+	\param old Old value of the setting
+	\param nw New value of the setting
+	CBG
+*/
+void LatticeBase::push_setting(int i, real_t old, real_t nw) {
+	settings_record.push_back(
+		std::pair< int, std::pair<int, std::pair<real_t, real_t> > > (
+			Record_Iter,
+			std::pair<int, std::pair<real_t, real_t> > (
+				i,
+				std::pair<real_t, real_t> (
+					old,
+					nw
+				)
+			)
+		)
+	);
+	settings_i = settings_record.size();
+}
+
+/**
+	Reconstruct the values of all the settings
+	in a specific iteration of the recorded solution
+	from the setting stack.
+	CBG
+*/
+void LatticeBase::pop_settings() {
+	while(settings_i > 0) {
+		if(settings_record[settings_i - 1].first <= Record_Iter) break;
+		settings_i --;
+		debug1("set %d to (back) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.second, settings_record[settings_i].second.second.first);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
+	}
+	while(settings_i < settings_record.size()) {
+		if(settings_record[settings_i].first > Record_Iter) break;
+		debug1("set %d to (front) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.first, settings_record[settings_i].second.second.second);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
+		settings_i++;
+	}
+}
+
