@@ -66,10 +66,7 @@ ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns, size_
 	globals = new double[GLOBALS];
 	Snaps = new AFTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
-	container->Alloc(_region.nx,_region.ny,_region.nz, latticeSize);
-	container->px = region.dx;
-	container->py = region.dy;
-	container->pz = region.dz;
+	container->Alloc(latticeSize);
 	container->iter = 0;
 	container->reset_iter = 0;
 	DEBUG_M;

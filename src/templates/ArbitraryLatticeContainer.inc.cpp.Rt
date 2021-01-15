@@ -60,18 +60,16 @@ void AFTabs::Free() {
 }
 
 /// Allocation of memory of a container
-void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeSize_)
+void ArbitraryLatticeContainer::Alloc(size_t latticeSize_)
 {
     iter = 0;
-    nx = nx_;
-    ny = ny_;
-    nz = nz_;
 
     latticeSize = latticeSize_;
 
-    InitDim<ArbitraryLatticeContainerAccessor>(ny);
+    // feeding in a dummy value of ny into this for now to see what happens
+    InitDim<ArbitraryLatticeContainerAccessor>(0);
 
-    // todo - update this to the ThreadNumber::sy() when I can figure out the correct sequence of function calls / where to put it
+    // todo - update this to the ThreadNumber::sy() when I can figure out the correct sequence of function calls / where to put it.
     sy_ = 1;
     bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
     bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
@@ -186,12 +184,12 @@ void ArbitraryLatticeContainer::Free()
   in the constant memory of the GPU
 */
 void ArbitraryLatticeContainer::CopyToConst() {
-    dx =  0;
+    /*dx =  0;
     fx = nx;
     dy = <?%d tmaxy ?>;
     fy = ny - <?%d -tminy ?>;
     dz = <?%d tmaxz ?>;
-    fz = nz - <?%d -tminz ?>;
+    fz = nz - <?%d -tminz ?>;*/
     CudaCopyToConstant("constArbitraryContainer", constArbitraryContainer, this, sizeof(ArbitraryLatticeContainer));
 }
 

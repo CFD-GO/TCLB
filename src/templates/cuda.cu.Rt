@@ -77,7 +77,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")
 	for (i in 2:length(Q)) { ?>
-#define <?%s Q[i] ?> Accessor::container().getQ(x_,y_,z_,<?%d i-2 ?>)
+#define <?%s Q[i] ?> Accessor::container().getQ(idx_,<?%d i-2 ?>)
 <?R     } ?>
 
 
