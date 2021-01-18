@@ -70,9 +70,10 @@ void ArbitraryLatticeContainer::Alloc(size_t latticeSize_)
     InitDim<ArbitraryLatticeContainerAccessor>(0);
 
     // todo - update this to the ThreadNumber::sy() when I can figure out the correct sequence of function calls / where to put it.
-    sy_ = 1;
+    /*sy_ = 1;
     bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
-    bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
+    bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;*/
+
 
     getDimx = sqrt(latticeSize) + 1;
     getDimy = latticeSize / getDimx+1;
@@ -131,6 +132,8 @@ void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_, i
   ALLOCPRINT2;
     CudaMemset(tmp, 0, size);
     DirectionOffsets = (int*) tmp;
+
+    outputted = 0; // temp
 
 }
 
@@ -212,13 +215,21 @@ template <class N> inline void ArbitraryLatticeContainer::RunBorderT(CudaStream_
   \param interiorStream CUDA Stream to which add the kernel run
 */
 template <class N> inline void ArbitraryLatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
+    // compute the block height (depends on how many threads we can get per block; block width is fixed at X_BLOCK)
+    sy_ = ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY();
+    // compute the required grid size to fill the lattice
+    bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
+    bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
+
+    // for the CPU version, load grid size into macro variables
+    CudaSetGridSize(bnx,bny,1);
+
     #ifdef GRID_3D
-        // even if we can use 3d grid, will keep this the same as 2d grid for now.
-        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        // even if we can use 3d grid, will keep this the same as 2d grid
+        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,sy_),(),interiorStream);
     #else
         // 2d grid - side length: bnx = sqrt(latticeSize / blockSize)
-        //CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
-        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,sy_),(),interiorStream);
     #endif
 };
 

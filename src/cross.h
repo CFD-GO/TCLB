@@ -47,6 +47,7 @@
       #define CudaBlock blockIdx
       #define CudaThread threadIdx
       #define CudaNumberOfThreads blockDim
+      #define CudaNumberOfBlocks gridDim
     #endif
 
     #define CudaError cudaError_t
@@ -92,6 +93,7 @@
     #define CudaDeviceSynchronize() HANDLE_ERROR( cudaDeviceSynchronize() )
 
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
+    #define CudaSetGridSize(x__,y__,z__)
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
     #define CudaDeviceReset() HANDLE_ERROR( cudaDeviceReset( ) )
 
@@ -182,6 +184,7 @@
     #define CudaBlock CpuBlock
     #define CudaThread CpuThread
     #define CudaNumberOfThreads CpuSize
+    #define CudaNumberOfBlocks CpuGridSize
     #define CudaCopyToConstant(a__,b__,c__,d__) std::memcpy(&b__, c__, d__)
     #define CudaMemcpy2D(a__,b__,c__,d__,e__,f__,g__) memcpy2D(a__, b__, c__, d__, e__, f__)
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
@@ -214,6 +217,7 @@
     #define CudaDeviceSynchronize()
 
     #define CudaSetDevice(a__) CpuSize.x=1;CpuSize.y=1;CpuSize.z=1;
+    #define CudaSetGridSize(x__,y__,z__) CpuGridSize.x=x__;CpuGridSize.y=y__;CpuGridSize.z=z__;
     #define CudaGetDeviceCount(a__) *a__ = 1;
     #define CudaDeviceReset()
 
@@ -224,6 +228,7 @@
     #endif
     extern uint3 CpuThread;
     extern uint3 CpuSize;
+    extern uint3 CpuGridSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
 

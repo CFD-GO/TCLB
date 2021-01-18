@@ -85,7 +85,15 @@ template < class N, class Accessor > dim3 GetThreads() {
 	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
 	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
 	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
-	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
+  debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
+  
+  // print these for debug purposes
+  /*printf( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes);
+	printf( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
+	printf( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
+	printf( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
+	printf( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);*/
+
 	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
 	ret.x = X_BLOCK;
 	ret.y = attr->maxThreadsPerBlock/ret.x;

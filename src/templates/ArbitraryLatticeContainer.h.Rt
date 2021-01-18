@@ -82,6 +82,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	int bnx, bny;
 	int getDimx; // used for the GetQuantity cuda kernel calls
 	int getDimy;
+	int outputted; // temporary var for debugging
 	size_t latticeSize; ///< Total size of the lattice - replaces nx, ny, nz
 	int nQ; ///< Number of densities
 	int iter; ///< Iteration number

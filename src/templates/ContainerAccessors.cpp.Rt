@@ -32,10 +32,11 @@ struct ArbitraryLatticeContainerAccessor {
 	*/
 	template <class N> CudaDeviceFunction static void RunKernel() {
 		N now;
-
+		
 		now.idx_.id = CudaThread.x + (CudaThread.y * CudaNumberOfThreads.x) + 
 						(CudaBlock.x * CudaNumberOfThreads.x * CudaNumberOfThreads.y) + 
-						(CudaBlock.y * CudaNumberOfThreads.x * CudaNumberOfThreads.y * constArbitraryContainer.bnx);
+						(CudaBlock.y * CudaNumberOfThreads.x * CudaNumberOfThreads.y * CudaNumberOfBlocks.x);
+
 		now.Pre();
 		if(now.idx_.id < constArbitraryContainer.latticeSize) {
 			now.RunElement();
@@ -71,6 +72,7 @@ struct CartesianLatticeContainerAccessor {
 		now.idx_.x = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
 		now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
 		now.idx_.z = CudaBlock.y + constContainer.dz;
+
 
 		#ifndef GRID3D
 			for (; now.idx_.x < constContainer.nx; now.idx_.x += CudaNumberOfThreads.x) {
