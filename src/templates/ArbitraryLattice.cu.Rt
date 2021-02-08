@@ -1140,10 +1140,10 @@ void ArbitraryLattice::getGlobals(real_t* tab) {
 					MPMD.local); <?R
 	}) ?>
 }
-// CBG?
 void ArbitraryLattice::calcGlobals() {
 	real_t tab[GLOBALS];
 	getGlobals(tab);
+
 	double obj = 0;
 <?R
 	for(m in rows(Globals)) {
@@ -1160,7 +1160,6 @@ void ArbitraryLattice::calcGlobals() {
 }
 
 // clear the internal globals table
-// CBG
 void ArbitraryLattice::clearGlobals() { <?R
 	for(g in rows(Globals)) if(!g$adjoint) { ?>
 	globals[<?%s g$Index ?>] = 0; <?R

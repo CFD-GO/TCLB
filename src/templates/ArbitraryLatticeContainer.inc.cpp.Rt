@@ -221,9 +221,6 @@ template <class N> inline void ArbitraryLatticeContainer::RunInteriorT(CudaStrea
     bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
     bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
 
-    // for the CPU version, load grid size into macro variables
-    CudaSetGridSize(bnx,bny,1);
-
     #ifdef GRID_3D
         // even if we can use 3d grid, will keep this the same as 2d grid
         CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,sy_),(),interiorStream);

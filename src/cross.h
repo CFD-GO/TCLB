@@ -93,7 +93,6 @@
     #define CudaDeviceSynchronize() HANDLE_ERROR( cudaDeviceSynchronize() )
 
     #define CudaSetDevice(a__) HANDLE_ERROR( cudaSetDevice( a__ ) )
-    #define CudaSetGridSize(x__,y__,z__)
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( cudaGetDeviceCount( a__ ) )
     #define CudaDeviceReset() HANDLE_ERROR( cudaDeviceReset( ) )
 
@@ -168,6 +167,7 @@
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for")
       #define CudaKernelRun(a__,b__,c__,d__) \
+                                      CpuGridSize.x=b__.x;CpuGridSize.y=b__.y;CpuGridSize.z=b__.z;\
                                       OMP_PARALLEL_FOR \
                                        for (unsigned int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
@@ -175,6 +175,7 @@
                                        }
     #else
       #define CudaKernelRun(a__,b__,c__,d__) \
+                                      CpuGridSize.x=b__.x;CpuGridSize.y=b__.y;CpuGridSize.z=b__.z;\
                                       for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                        for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
                                         a__ d__;
@@ -217,7 +218,6 @@
     #define CudaDeviceSynchronize()
 
     #define CudaSetDevice(a__) CpuSize.x=1;CpuSize.y=1;CpuSize.z=1;
-    #define CudaSetGridSize(x__,y__,z__) CpuGridSize.x=x__;CpuGridSize.y=y__;CpuGridSize.z=z__;
     #define CudaGetDeviceCount(a__) *a__ = 1;
     #define CudaDeviceReset()
 

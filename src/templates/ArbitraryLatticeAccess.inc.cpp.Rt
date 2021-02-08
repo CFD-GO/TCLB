@@ -233,7 +233,11 @@ template <class N> CudaDeviceFunction void ArbitraryLatticeContainer::pop<?%s s$
 #TODO  if (Options$autosym) resolve.symmetries(Density[s$load.densities,,drop=FALSE])
     f = rows(Fields)[Fields$name == d$field][[1]] ?>
   neighbour = Connectivity[(latticeSize * GetConnectivityOffset(<?%d -d$dx ?>, <?%d -d$dy ?>, <?%d -d$dz ?>)) + node.idx_.id];
-  node.<?%s d$name ?> = in.data[neighbour + (latticeSize * <?%s f$Index ?>)];
+  // NOTE: un-comment code below to stream boundary node fields to a constant value - neccessary if doing a force balance
+  /*if(neighbour == node.idx_.id && !(<?%d d$dx?> == 0 && <?%d d$dy?> == 0 && <?%d d$dz?> == 0)) // this node is on the edge of the domain.. instead of streaming from itself, just set it to a constant weight
+    node.<?%s d$name ?> = wtCumulant[<?%s f$Index ?>];
+  else*/
+    node.<?%s d$name ?> = in.data[neighbour + (latticeSize * <?%s f$Index ?>)];
 <?R 
 } ?>
 }
@@ -277,7 +281,11 @@ template <>
 CudaDeviceFunction real_t ArbitraryLatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const index & idx, const flag_t & nt) 
 {
   size_t neighbour = Connectivity[(latticeSize * GetConnectivityOffset(<?%d dx ?>, <?%d dy ?>, <?%d dz ?>)) + idx.id];
-  return in.data[neighbour + (latticeSize * <?%s f$Index ?>)];
+  // NOTE: un-comment code below to stream boundary node fields to a constant value - neccessary if doing a force balance
+  /*if(neighbour == idx.id && !(<?%d dx?> == 0 && <?%d dy?> == 0 && <?%d dz?> == 0)) // this node is on the edge of the domain.. instead of streaming from itself, just set it to a constant weight
+    return wtCumulant[<?%s f$Index ?>];
+  else*/
+    return in.data[neighbour + (latticeSize * <?%s f$Index ?>)];
 }
 <?R }}} ?>
 
@@ -319,7 +327,11 @@ CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (c
   dp = PV(c("dx","dy","dz"));
   con=load.field("ret", f, p, dp, con) ?>*/
   size_t neighbour = Connectivity[(latticeSize * GetConnectivityOffset(<?%d dx ?>, <?%d dy ?>, <?%d dz ?>)) + idx.id];
-  ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];
+  // NOTE: un-comment code below to stream boundary node fields to a constant value - neccessary if doing a force balance
+  /* if(neighbour == idx.id && !(<?%d dx?> == 0 && <?%d dy?> == 0 && <?%d dz?> == 0)) // this node is on the edge of the domain.. instead of streaming from itself, just set it to a constant weight
+    ret = wtCumulant[<?%s f$Index ?>];
+  else */
+    ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];
 
   return ret;
 }
