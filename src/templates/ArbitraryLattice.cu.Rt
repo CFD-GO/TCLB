@@ -561,7 +561,7 @@ exit (-1);
 
 /// Function listing all buffers in AFTabs
 // can't be generalised into LatticeBase as this will behave differently for ArbitraryLattice - will depend on how the multi-rank is implemented later on
-void ArbitraryLattice::listTabs(FTabsBase& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
+void ArbitraryLattice::listTabs(int snap, bool adjSnap, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -583,7 +583,16 @@ void ArbitraryLattice::listTabs(FTabsBase& tab, int* np, size_t ** size, void **
 ?>*/
 
 	if (size) (*size)[0] = ((size_t) nx * ny * nz * 9) * sizeof(real_t);
-	if (ptr) (*ptr)[0] = (void*) ((AFTabs&)tab).data;
+	#ifdef ADJOINT
+	if(adjSnap) {
+		if (ptr) (*ptr)[0] = (void*) aSnaps[snap].data;
+	} else {
+	#endif
+		if (ptr) (*ptr)[0] = (void*) Snaps[snap].data;
+	#ifdef ADJOINT
+	}
+	#endif
+	
 	if (maxsize) if(size) if((*size)[0] > *maxsize) *maxsize = (*size)[0];
 }
 
@@ -598,8 +607,7 @@ void ArbitraryLattice::saveToTab(real_t * rtab, int snap) {
 	void** ptr;
 	size_t* size;
 	int n;
-	AFTabs tab = Snaps[snap];
-	listTabs(tab, &n, &size, &ptr, NULL);
+	listTabs(snap, false, &n, &size, &ptr, NULL);
 	for(int i = 0; i < n; i++) {
 		debug1("Save buf %d of size %ld\n", i, size[i]);
 		CudaMemcpy(vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
@@ -615,8 +623,7 @@ void ArbitraryLattice::loadFromTab(real_t* rtab, int snap) {
 	void** ptr;
 	size_t* size;
 	int n;
-	AFTabs tab = Snaps[snap];
-	listTabs(tab, &n, &size, &ptr, NULL);
+	listTabs(snap, false, &n, &size, &ptr, NULL);
 	for(int i = 0; i < n; i++) {
 		debug1("Load buf %d of size %ld\n", i, size[i]);
 		CudaMemcpy(ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
@@ -678,7 +685,7 @@ void ArbitraryLattice::IterateTill(int it, int iter_type) {
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
 			char filename[4*STRING_LEN];
 			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
-			if (load(Snaps[0], filename)) exit(-1);
+			if (load(0, false, filename)) exit(-1);
 		} else {
 			ERROR("I have to read from disk, but reverse_save is not switched on\n");
 			exit (-1);
@@ -701,7 +708,7 @@ void ArbitraryLattice::IterateTill(int it, int iter_type) {
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
 				char filename[4*STRING_LEN];
 				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
-				save(Snaps[0], filename);
+				save(0, false, filename);
 			}
 		}
 		iSnaps[s2] = i+1;

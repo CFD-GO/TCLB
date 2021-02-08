@@ -93,7 +93,7 @@ void LatticeBase::startRecord() {
 		char filename[4*STRING_LEN];
 		sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
 		iSnaps[getSnap(0)] = 0;
-		save(Snaps[Snap], filename);
+		save(Snap, false, filename);
 	}
 	if(Snap != 0) {
 		warning("Snap = %d. Go through disk\n", Snap);
@@ -114,10 +114,10 @@ void LatticeBase::startRecord() {
 void LatticeBase::saveSolution(const char *filename) {
 	char fn[STRING_LEN];
 	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
-	save(Snaps[Snap], fn); // write primal
+	save(Snap, false, fn); // write primal
 #ifdef ADJOINT
 	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
-	save(aSnaps[aSnap], fn);
+	save(aSnap, true, fn);
 #endif
 }
 
@@ -129,10 +129,10 @@ void LatticeBase::saveSolution(const char *filename) {
 void LatticeBase::loadSolution(const char *filename) {
 	char fn[STRING_LEN];
 	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
-	if(load(Snaps[Snap], fn)) exit(-1);
+	if(load(Snap, false, fn)) exit(-1);
 #ifdef ADJOINT
 	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
-	load(aSnaps[aSnap], fn);
+	load(aSnap, true, fn);
 #endif
 }
 
@@ -158,7 +158,7 @@ void LatticeBase::stopRecord() {
 }
 
 /// Save a FTabs or AFTabs
-int LatticeBase::save(FTabsBase& tab, const char * filename) {
+int LatticeBase::save(int snap, bool adjSnap, const char * filename) {
 	FILE * f = fopen(filename, "w");
 	if (f == NULL) {
 		ERROR("Cannot open %s for output\n", filename);
@@ -172,7 +172,7 @@ int LatticeBase::save(FTabsBase& tab, const char * filename) {
 	size_t maxsize;
 	int n;
 
-	listTabs(tab, &n, &size, &ptr, &maxsize);
+	listTabs(snap, adjSnap, &n, &size, &ptr, &maxsize);
 	CudaMallocHost(&pt,maxsize);
 
 	for(int i=0; i<n; i++)
@@ -190,7 +190,7 @@ int LatticeBase::save(FTabsBase& tab, const char * filename) {
 }
 
 /// Load a FTabs or AFTabs
-int LatticeBase::load(FTabsBase& tab, const char * filename) {
+int LatticeBase::load(int snap, bool adjSnap, const char * filename) {
 	FILE * f = fopen(filename, "r");
 	output("Loading Lattice data from %s\n", filename);
 	if (f == NULL) {
@@ -204,7 +204,7 @@ int LatticeBase::load(FTabsBase& tab, const char * filename) {
 	size_t maxsize;
 	int n;
 
-	listTabs(tab, &n, &size, &ptr, &maxsize);
+	listTabs(snap, adjSnap, &n, &size, &ptr, &maxsize);
 	CudaMallocHost(&pt,maxsize);
 
 	for(int i=0; i<n; i++)

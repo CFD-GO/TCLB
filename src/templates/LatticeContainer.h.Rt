@@ -34,7 +34,7 @@
     in the lattice. It stores the internal part of the fields
     and margins.
 */
-    struct FTabs : FTabsBase { <?R
+    struct FTabs { <?R
     for (m in NonEmptyMargin) { ?>
         real_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
     } ?>

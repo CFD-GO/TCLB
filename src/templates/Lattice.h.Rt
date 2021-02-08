@@ -45,7 +45,7 @@ public:
   void FlagOverwrite(big_flag_t *, lbRegion);
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();
-  void listTabs(FTabsBase&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
+  void listTabs(int snap, bool adjSnap, int*n, size_t ** size, void *** ptr, size_t * maxsize);
   size_t sizeOfTab();
   void saveToTab(real_t * tab, int snap);
   inline void saveToTab(real_t * tab) { saveToTab(tab,Snap); };

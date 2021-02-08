@@ -537,7 +537,7 @@ inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int ad
 
 
 /// Function listing all buffers in FTabs
-void Lattice::listTabs(FTabsBase& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
+void Lattice::listTabs(int snap, bool adjSnap, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
 	int j=0;
 	int n;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
@@ -550,7 +550,17 @@ void Lattice::listTabs(FTabsBase& tab, int* np, size_t ** size, void *** ptr, si
 	for (m in NonEmptyMargin) {
 ?>
 	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
-	if (ptr) (*ptr)[j] = (void*) ((FTabs&)tab).<?%s m$name ?>;
+	#ifdef ADJOINT
+	if(adjSnap) {
+		if (ptr) (*ptr)[j] = (void*) aSnaps[snap].<?%s m$name ?>;
+	} else {
+	#endif
+		if (ptr) (*ptr)[j] = (void*) Snaps[snap].<?%s m$name ?>;
+	#ifdef ADJOINT
+	}
+	#endif
+
+	
 	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
 <?R
@@ -573,7 +583,7 @@ void Lattice::saveToTab(real_t * rtab, int snap) {
 	size_t * size;
 	int n;
 	FTabs tab = Snaps[snap];
-	listTabs(tab, &n, &size, &ptr, NULL);
+	listTabs(snap, false, &n, &size, &ptr, NULL);
 	for(int i=0; i<n; i++)
 	{
 		debug1("Save buf %d of size %ld\n",i,size[i]);
@@ -590,7 +600,7 @@ void Lattice::loadFromTab(real_t * rtab, int snap) {
 	size_t * size;
 	int n;
 	FTabs tab = Snaps[snap];
-	listTabs(tab, &n, &size, &ptr, NULL);
+	listTabs(snap, false, &n, &size, &ptr, NULL);
 	for(int i=0; i<n; i++)
 	{
 		debug1("Load buf %d of size %ld\n",i,size[i]);
@@ -683,7 +693,7 @@ void Lattice::IterateTill(int it, int iter_type)
 			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
 			char filename[4*STRING_LEN];
 			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
-			if (load(Snaps[0], filename)) exit(-1);
+			if (load(0, false, filename)) exit(-1);
 		} else {
 			ERROR("I have to read from disk, but reverse_save is not switched on\n");
 			exit (-1);
@@ -706,7 +716,7 @@ void Lattice::IterateTill(int it, int iter_type)
 				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
 				char filename[4*STRING_LEN];
 				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
-				save(Snaps[0], filename);
+				save(0, false, filename);
 			}
 		}
 		iSnaps[s2] = i+1;
