@@ -607,8 +607,9 @@ CudaDeviceFunction void Init() {
 		real_t intLocation = Donut_D * 
 					sqrt( pow(Donut_h,2) 
 					    - pow( DonutTime - sqrt(pow(Y-CenterY,2) + pow(Z-CenterZ,2)), 2) );
-
-		if (  (X < Donut_x0 + intLocation) && (X > Donut_x0 - intLocation) )
+		real_t shifter = atan2( (Z-CenterZ), (Y-CenterY));
+		if (shifter < 0) shifter = shifter + 2*PI;
+		if (  (X < Donut_x0 + intLocation*sin(shifter/2)) && (X > Donut_x0 - intLocation) )
 		{
 			PhaseF = 0.0;
 		} else {
