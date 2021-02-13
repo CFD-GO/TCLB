@@ -328,7 +328,7 @@ CudaDeviceFunction real_t ArbitraryLatticeContainer::load_<?%s f$nicename ?>  (c
   con=load.field("ret", f, p, dp, con) ?>*/
   size_t neighbour = Connectivity[(latticeSize * GetConnectivityOffset(<?%d dx ?>, <?%d dy ?>, <?%d dz ?>)) + idx.id];
   // NOTE: un-comment code below to stream boundary node fields to a constant value - neccessary if doing a force balance
-  /* if(neighbour == idx.id && !(<?%d dx?> == 0 && <?%d dy?> == 0 && <?%d dz?> == 0)) // this node is on the edge of the domain.. instead of streaming from itself, just set it to a constant weight
+  /*if(neighbour == idx.id && !(<?%d dx?> == 0 && <?%d dy?> == 0 && <?%d dz?> == 0)) // this node is on the edge of the domain.. instead of streaming from itself, just set it to a constant weight
     ret = wtCumulant[<?%s f$Index ?>];
   else */
     ret = in.data[neighbour + (latticeSize * <?%d fnum ?>)];

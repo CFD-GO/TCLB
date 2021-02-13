@@ -221,6 +221,7 @@ int LatticeBase::load(int snap, bool adjSnap, const char * filename) {
 	return 0;
 }
 
+
 /**
 	Push a setting and its value on the stack,
 	during adjoint recording.
