@@ -9,6 +9,7 @@
 #include "../BallTree.h"
 #include "ModelConsts.h"
 #include "LatticeContainerBase.h"
+#include "../LatticeBase.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -42,12 +43,12 @@
         void PreAlloc(int,int,int);
         void Free();
 /// Assign operator (no alloc)
-        inline FTabs & operator=(const FTabs & in) { <?R
+/*        inline FTabs & operator=(const FTabs & in) { <?R
     for (m in NonEmptyMargin) { ?>
             <?%s m$name ?> = in. <?%s m$name ?>; <?R
     } ?>
 	    return *this;
-        }
+        }*/
     };
 
 
@@ -157,9 +158,9 @@ class LatticeContainer : public LatticeContainerBase {
     return & w[ZoneIndex];
   }
 
-  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
+  CudaDeviceFunction inline const cut_t getQ(const index idx_, const int & d) {
     if (Q == NULL) return NO_CUT;
-    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+    size_t i = ((((size_t)d)*nz+idx_.z)*ny+idx_.y)*nx+idx_.x;
     return Q[i];
   }
 

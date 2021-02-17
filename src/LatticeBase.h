@@ -14,7 +14,9 @@
 
 class lbRegion;
 class FTabs;
+class AFTabs;
 class LatticeContainer;
+class LatticeContainerBase;
 
 #define ITER_STREAM   0x000
 #define ITER_NORM     0x001
@@ -48,6 +50,7 @@ public:
 class LatticeBase {
 private:
 public:
+  //LatticeContainerBase * container;
   ModelBase * model;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
@@ -67,16 +70,16 @@ public:
   virtual void CutsOverwrite(cut_t * Q, lbRegion over) = 0;
   virtual void LoadLattice(size_t* connectivity_, vector_t* coords, big_flag_t* nodeTypes, int* directionOffsets, size_t latticeSize, int Q, int ndx, int ndy, int ndz, int mindx, int mindy, int mindz) = 0;
   virtual void Init() = 0;
-  virtual void saveSolution(const char * filename) = 0;
-  virtual void loadSolution(const char * filename) = 0;
+  //virtual void saveSolution(const char * filename) = 0;
+  //virtual void loadSolution(const char * filename) = 0;
   virtual size_t sizeOfTab() = 0;
   virtual void saveToTab(real_t * tab, int snap) = 0;
   inline void saveToTab(real_t * tab) { saveToTab(tab,Snap); };
   virtual void loadFromTab(real_t * tab, int snap) = 0;
   inline void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); };
-  virtual void startRecord() = 0;
-  virtual void rewindRecord() = 0;
-  virtual void stopRecord() = 0;
+  //virtual void startRecord() = 0;
+  //virtual void rewindRecord() = 0;
+  //virtual void stopRecord() = 0;
   virtual void clearAdjoint() = 0;
   virtual void clearDPar() = 0;
   int(* callback)(int, int, void*);
@@ -85,6 +88,27 @@ public:
   int segment_iterations;
   int total_iterations; ///< Total iteration number counter
   int callback_iter;
+
+  // common variables moved from Lattice/ArbitraryLattice
+  int Record_Iter; ///< Recorded iteration number (Now)
+  int reverse_save; ///< Flag stating if recording (Now)
+  int * iSnaps;
+  std::vector < std::pair < int, std::pair <int, std::pair<real_t, real_t> > > > settings_record;
+  unsigned int settings_i;
+
+  // common functions moved from Lattice/ArbitraryLattice
+  int getSnap(int i);
+  void startRecord();
+  void saveSolution(const char *filename);
+  void loadSolution(const char *filename);
+  void rewindRecord();
+  void stopRecord();
+  virtual void listTabs(int snap, bool adjSnap, int*n, size_t ** size, void *** ptr, size_t * maxsize) = 0;
+  int save(int snap, bool adjSnap, const char * filename);
+  int load(int snap, bool adjSnap, const char * filename);
+  void push_setting(int,real_t,real_t);
+  void pop_settings();
+  virtual void setSetting(int i, real_t tmp) = 0;
 
   inline LatticeBase(int zonesettings_, int zones_) : zSet(zonesettings_, zones_) {};
   inline void MarkIteration() {

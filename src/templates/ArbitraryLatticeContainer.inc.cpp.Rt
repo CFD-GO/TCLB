@@ -60,21 +60,20 @@ void AFTabs::Free() {
 }
 
 /// Allocation of memory of a container
-void ArbitraryLatticeContainer::Alloc(int nx_, int ny_, int nz_, size_t latticeSize_)
+void ArbitraryLatticeContainer::Alloc(size_t latticeSize_)
 {
     iter = 0;
-    nx = nx_;
-    ny = ny_;
-    nz = nz_;
 
     latticeSize = latticeSize_;
 
-    InitDim<ArbitraryLatticeContainerAccessor>(ny);
+    // feeding in a dummy value of ny into this for now to see what happens
+    InitDim<ArbitraryLatticeContainerAccessor>(0);
 
-    // todo - update this to the ThreadNumber::sy() when I can figure out the correct sequence of function calls / where to put it
-    sy_ = 1;
+    // todo - update this to the ThreadNumber::sy() when I can figure out the correct sequence of function calls / where to put it.
+    /*sy_ = 1;
     bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
-    bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
+    bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;*/
+
 
     getDimx = sqrt(latticeSize) + 1;
     getDimy = latticeSize / getDimx+1;
@@ -134,6 +133,8 @@ void ArbitraryLatticeContainer::AllocConnectivity(size_t latticeSize_, int Q_, i
     CudaMemset(tmp, 0, size);
     DirectionOffsets = (int*) tmp;
 
+    outputted = 0; // temp
+
 }
 
 /**
@@ -180,54 +181,18 @@ void ArbitraryLatticeContainer::Free()
 // The model is 2D (no BORDER_Z)
 <?R } ?>
 
-/// Border Kernel
-/**
-  iterates over border elements and runs them with RunElement function
-*/
-/*template <class N> CudaGlobalFunction void RunBorderKernel()
-{
-	N now;
-	now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
-	now.idx_.z = CudaBlock.x;
-	now.Pre();
-<?R if (tmaxy > tminy) { ?>
-	if (now.idx_.z < constContainer.nz) {
-<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		now.idx_.y = <?%d y - 1 ?>;
-		now.RunElement();
-<?R	} else if (y < 0) { ?>
-		now.idx_.y = constContainer.ny - <?%d -y ?>;
-		now.RunElement();
-<?R	} ?>
-	}
-<?R }
-    if (tmaxz > tminz) { ?>
-	now.idx_.y = CudaBlock.x;
-	if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
-<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-		now.idx_.z = <?%d z - 1 ?>;
-		now.RunElement();
-<?R	} else if (z < 0) { ?>
-		now.idx_.z = constContainer.nz - <?%d -z ?>;
-		now.RunElement();
-<?R	} ?>
-	}
-<?R } ?>
-	now.Glob();
-}*/
-
 /// Copy oneself to the GPU constant memory
 /**
   Copiers the container object to constContainer variable
   in the constant memory of the GPU
 */
 void ArbitraryLatticeContainer::CopyToConst() {
-    dx =  0;
+    /*dx =  0;
     fx = nx;
     dy = <?%d tmaxy ?>;
     fy = ny - <?%d -tminy ?>;
     dz = <?%d tmaxz ?>;
-    fz = nz - <?%d -tminz ?>;
+    fz = nz - <?%d -tminz ?>;*/
     CudaCopyToConstant("constArbitraryContainer", constArbitraryContainer, this, sizeof(ArbitraryLatticeContainer));
 }
 
@@ -238,9 +203,9 @@ void ArbitraryLatticeContainer::CopyToConst() {
 */
 template <class N> inline void ArbitraryLatticeContainer::RunBorderT(CudaStream_t borderStream) {
     /*#ifdef BORDER_Z
-	    CudaKernelRunNoWait( (RunBorderKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
+	    CudaKernelRunNoWait( (RunBorderKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
     #else
-	    CudaKernelRunNoWait( (RunBorderKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
+	    CudaKernelRunNoWait( (RunBorderKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream); // TODO - change to arb
     #endif*/ // TODO - needs revised upon working out parallel implementation
 };
 
@@ -250,13 +215,18 @@ template <class N> inline void ArbitraryLatticeContainer::RunBorderT(CudaStream_
   \param interiorStream CUDA Stream to which add the kernel run
 */
 template <class N> inline void ArbitraryLatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
+    // compute the block height (depends on how many threads we can get per block; block width is fixed at X_BLOCK)
+    sy_ = ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY();
+    // compute the required grid size to fill the lattice
+    bnx = sqrt(latticeSize / (X_BLOCK * sy_)) + 1;
+    bny = latticeSize / (X_BLOCK * sy_ * bnx) + 1;
+
     #ifdef GRID_3D
-        // even if we can use 3d grid, will keep this the same as 2d grid for now.
-        CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        // even if we can use 3d grid, will keep this the same as 2d grid
+        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,sy_),(),interiorStream);
     #else
         // 2d grid - side length: bnx = sqrt(latticeSize / blockSize)
-        //CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
-        CudaKernelRunNoWait( (RunKernel_arb<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,ThreadNumber< N, ArbitraryLatticeContainerAccessor >::getSY()),(),interiorStream);
+        CudaKernelRunNoWait( (RunKernel<N, ArbitraryLatticeContainerAccessor>) , dim3(bnx, bny, 1) , dim3(X_BLOCK,sy_),(),interiorStream);
     #endif
 };
 

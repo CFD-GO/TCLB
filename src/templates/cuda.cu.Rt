@@ -47,11 +47,11 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
 		for (f in rows(Fields)) { ?>
 
-#define <?%s f$nicename ?>_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, z__ > (idx_,NodeType))
-#define <?%s f$nicename ?>_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < x__, y__, 0 > (idx_,NodeType))
+#define <?%s f$nicename ?>_3(x__,y__,z__) (Accessor::container().template load_<?%s f$nicename ?><x__, y__, z__>(idx_,NodeType))
+#define <?%s f$nicename ?>_2(x__,y__) (Accessor::container().template load_<?%s f$nicename ?><x__, y__, 0>(idx_,NodeType))
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
 #define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> (idx_,NodeType,x__, y__, z__))
-#define <?%s f$nicename ?>_dyn_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?> < 0 > (idx_,NodeType,x__, y__))
+#define <?%s f$nicename ?>_dyn_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?>< 0 >(idx_,NodeType,x__, y__))
 #define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
         }
 ?>
@@ -77,7 +77,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")
 	for (i in 2:length(Q)) { ?>
-#define <?%s Q[i] ?> Accessor::container().getQ(x_,y_,z_,<?%d i-2 ?>)
+#define <?%s Q[i] ?> Accessor::container().getQ(idx_,<?%d i-2 ?>)
 <?R     } ?>
 
 

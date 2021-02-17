@@ -47,6 +47,7 @@
       #define CudaBlock blockIdx
       #define CudaThread threadIdx
       #define CudaNumberOfThreads blockDim
+      #define CudaNumberOfBlocks gridDim
     #endif
 
     #define CudaError cudaError_t
@@ -166,6 +167,7 @@
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for")
       #define CudaKernelRun(a__,b__,c__,d__) \
+                                      CpuGridSize.x=b__.x;CpuGridSize.y=b__.y;CpuGridSize.z=b__.z;\
                                       OMP_PARALLEL_FOR \
                                        for (unsigned int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
@@ -173,6 +175,7 @@
                                        }
     #else
       #define CudaKernelRun(a__,b__,c__,d__) \
+                                      CpuGridSize.x=b__.x;CpuGridSize.y=b__.y;CpuGridSize.z=b__.z;\
                                       for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                        for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
                                         a__ d__;
@@ -182,6 +185,7 @@
     #define CudaBlock CpuBlock
     #define CudaThread CpuThread
     #define CudaNumberOfThreads CpuSize
+    #define CudaNumberOfBlocks CpuGridSize
     #define CudaCopyToConstant(a__,b__,c__,d__) std::memcpy(&b__, c__, d__)
     #define CudaMemcpy2D(a__,b__,c__,d__,e__,f__,g__) memcpy2D(a__, b__, c__, d__, e__, f__)
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
@@ -224,6 +228,7 @@
     #endif
     extern uint3 CpuThread;
     extern uint3 CpuSize;
+    extern uint3 CpuGridSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
 

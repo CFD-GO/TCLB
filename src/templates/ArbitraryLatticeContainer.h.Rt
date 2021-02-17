@@ -9,6 +9,7 @@
 #include "../BallTree.h"
 #include "ModelConsts.h"
 #include "LatticeContainerBase.h"
+#include "../LatticeBase.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -39,10 +40,10 @@ struct AFTabs {
 	void Clear(size_t);
 	void PreAlloc(size_t);
 	void Free();
-	inline AFTabs & operator=(const AFTabs & in) {
+/*	inline AFTabs & operator=(const AFTabs & in) {
 		data = in.data;
 		return *this;
-	}
+	} */
 };
 
 template <int,int,int> class A_Cannot_stream_the_field_in_the_direction_ {};
@@ -64,7 +65,7 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	AFTabs adjout; ///< AFTabs used for Adjoint iteration as output
 	AFTabs adjin; ///< AFTabs used for Adjoint iteration as input
   #endif
-  	struct index { size_t id; int x, y, z; }; // don't ask about the x, y, z - pretty sure they're neccessary for now :(
+  	struct index { size_t id;}; // need to remove int x, y, z upon fixing the issues with GetThreads<> class dynamic
 	flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
 	size_t * Connectivity; ///< Table of memory offsets for adjacent nodes
 	int connectivityDim; ///< Number of directions defined in Connectivity
@@ -77,25 +78,21 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	size_t balltree_data_size;
 	tr_elem* balltree_data;
 	real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
-	int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
-	int nx, ny, nz; ///< Size of the Lattice region
-	int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
 	int sy_;
 	int bnx, bny;
 	int getDimx; // used for the GetQuantity cuda kernel calls
 	int getDimy;
+	int outputted; // temporary var for debugging
 	size_t latticeSize; ///< Total size of the lattice - replaces nx, ny, nz
 	int nQ; ///< Number of densities
-	int kx,ky; ///< X and Y thread division
 	int iter; ///< Iteration number
-	  int px,py,pz;
 	int reset_iter; //< number of last average reset,for dynamics 
 	int ZoneIndex;
 	int MaxZones;
 	real_t** ZoneSettings;
 	real_t* ConstZoneSettings;
 	STWaveSet ST;
-	void Alloc (int,int,int,size_t);
+	void Alloc (size_t);
 	void AllocConnectivity (size_t,int,int,int,int);
 	CudaDeviceFunction int GetConnectivityOffset(int dx, int dy, int dz);
 	void GenerateConnectivity(int,int,int);
@@ -165,9 +162,9 @@ class ArbitraryLatticeContainer : public LatticeContainerBase {
 	  return & w[ZoneIndex];
 	}
   
-	CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
+	CudaDeviceFunction inline const cut_t getQ(const index idx_, const int & d) {
 	  if (Q == NULL) return NO_CUT;
-	  size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+	  size_t i = (((size_t)d) * latticeSize) + idx_.id;
 	  return Q[i];
 	}
   
