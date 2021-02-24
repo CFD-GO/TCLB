@@ -22,6 +22,8 @@ int cbStop::Init () {
 		        for (g in rows(Globals)) { ?>
 		attr = node.attribute("<?%s g$name ?>Change");
 		if (attr) AddStop(<?%s g$Index ?>, STOP_CHANGE, attr.as_double());
+		attr = node.attribute("<?%s g$name ?>PercentChange");
+		if (attr) AddStop(<?%s g$Index ?>, STOP_PERCENTCHANGE, attr.as_double());
 		attr = node.attribute("<?%s g$name ?>Above");
 		if (attr) AddStop(<?%s g$Index ?>, STOP_ABOVE, attr.as_double());
 		attr = node.attribute("<?%s g$name ?>Below");
@@ -62,6 +64,10 @@ int cbStop::DoIt () {
 				case STOP_CHANGE:
 					if (fabs(old[i] - v) > limit[i]) any++;
 					if (D_MPI_RANK == 0) output("    change:      %4lg < %4lg", fabs(old[i] - v), limit[i]);
+					break;
+				case STOP_PERCENTCHANGE:
+					if (fabs((old[i] - v)/v) > limit[i]) any++;
+					if (D_MPI_RANK == 0) output("    change:    %4lg%% < %4lg%%", 100.0 * fabs((old[i] - v)/v), 100.0 * limit[i]);
 					break;
 				case STOP_ABOVE:
 					if (v < limit[i]) any++;

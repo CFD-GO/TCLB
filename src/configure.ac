@@ -51,7 +51,7 @@ AC_ARG_ENABLE([cpp11],
 
 AC_ARG_WITH([cuda-arch],
 	AC_HELP_STRING([--with-cuda-arch=arch],
-		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30/sm_60)]))
+		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30/sm_60/sm_75)]))
 
 AC_ARG_WITH([nlopt],
 	AC_HELP_STRING([--with-nlopt=nlopt],
@@ -76,6 +76,10 @@ AC_ARG_WITH([lammps],
 AC_ARG_WITH([lammps-lib],
 	AC_HELP_STRING([--with-lammps-lib=libfile],
 		[specify the name of the lammps/liggghts library (.so/.a)]))
+
+AC_ARG_WITH([tapenade],
+	AC_HELP_STRING([--with-tapenade=path],
+		[use tapenade for code differentiation for adjoint]))
 		
 
 AC_ARG_WITH([verbosity_level],
@@ -281,7 +285,14 @@ then
 		AC_MSG_RESULT([${CUDA_ARCH}])
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
-    CUDA_SUFF="60"
+    	CUDA_SUFF="60"
+	
+	elif test "$CUDA_ARCH" == "sm_75"
+	then
+		AC_MSG_RESULT([${CUDA_ARCH}])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+    	CUDA_SUFF="75"
 	else
 		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
 	fi
@@ -655,6 +666,44 @@ then
 	fi
 fi
 
+if test "x${with_tapenade}" != "xno"
+then
+	if test "x${with_tapenade}" == "xyes" || test "x${with_tapenade}" == "x"
+	then
+		if test -f "tapenade/bin/tapenade"
+		then
+			TAPENADE="$PWD/tapenade/bin/tapenade"
+		else
+			TAPENADE="tapenade"
+		fi
+	else
+		if test -d "${with_tapenade}"
+		then
+			TAPENADE="$(cd ${with_tapenade}; pwd)/bin/tapenade"
+		else
+			AC_MSG_ERROR([Path '${with_tapenade}' is not a directory])
+		fi
+	fi
+	
+	
+	AC_MSG_CHECKING([for tapenade])
+	if command -v "${TAPENADE}" >/dev/null 2>&1
+	then
+		AC_MSG_RESULT([yes])
+		TAPENADE="$(command -v "${TAPENADE}")"
+	else
+		AC_MSG_RESULT([no])
+		TAPENADE=""
+		if test "x${with_tapenade}" != "x"
+		then
+			AC_MSG_ERROR([Tapenade '$TAPENADE' is not a valid executable])
+		fi
+	fi
+fi
+		
+		
+
+
 if test "x${enable_debug}" == "xyes"
 then
 	if test "x${with_verbosity_level}" == "x"
@@ -779,6 +828,7 @@ AC_SUBST(CROSS_CPU)
 AC_SUBST(WITH_CATALYST)
 AC_SUBST(WITH_LAMMPS)
 AC_SUBST(WITH_R)
+AC_SUBST(TAPENADE)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(CPP_OPT)
