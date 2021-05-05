@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/DasC/">
+<!--
+    Simulation of Annular taylor bubble with dimensionless 
+    numbers designed to match the experiment of Das et al. (1998)
+    in Annulus C.
+    Date: 07-04-2021
+
+    @TMitchell
+
+    NOTE: This is a large case, ~130mins on 2xV100 GPUs
+          ~13GB of output files
+-->
+<Geometry nx="1280.000000" ny="130.000000" nz="130.000000">
+    <MRT><Box /></MRT>
+    <Smoothing><Box /></Smoothing>
+    <Wall mask="ALL">
+        <Pipe  dx="1" dy="1" dz="1" nx="1280.000000" ny="128.000000" nz="128.000000" />
+        <Box   nx="1"  />
+        <Box   dx="-1" />
+        <XPipe y="65.000000" z="65.000000" R="32.000000" />
+    </Wall>
+    <Centerline>
+    <Box dy="16.000000" dz="16.000000" ny="1" nz="1"/>
+    </Centerline>
+</Geometry>
+<Model>
+    <Param name="Density_h" value="1.000000"/>
+    <Param name="Density_l" value="0.00120711"/>
+    <Param name="Viscosity_h" value="0.00007645"/>
+    <Param name="Viscosity_l" value="0.00115067"/>
+    <Param name="GravitationX" value="-0.00000044"/>
+
+    <Param name="PhaseField_h" value="1"/>
+    <Param name="PhaseField_l" value="0" />
+    <Param name="PhaseField" value="1"/>
+    <Param name="M" value="0.1"   />
+    <Param name="IntWidth" value="5"    />
+    <Param name="sigma" value="0.00008400"/>
+    <Param name="ContactAngle" value="22"/>
+    
+    <Param name="CenterY" value="65.000000"/>
+    <Param name="CenterZ" value="65.000000"/>
+    <Param name="DonutTime" value="48.0000"/>
+    <Param name="Donut_h" value="10.6667"/>
+    <Param name="Donut_D" value="12.80"/>
+    <Param name="Donut_x0" value="256.000000"/>
+</Model>
+<VTK what="PhaseField,U,P,BOUNDARY,ADDITIONALS"/>
+<Solve Iterations="10"/>
+<Geometry>
+    <None mask="ADDITIONALS">
+        <Box />
+    </None>
+    <Centerline>
+	<Box dy="16.000000" dz="16.000000" ny="1" nz="1"/>
+    </Centerline>
+</Geometry>
+<Solve      Iterations="180000">
+    <Failcheck  Iterations="1000"/>
+    <VTK        Iterations="18000"  what="PhaseField,U,P,BOUNDARY,ADDITIONALS"/>
+    <Log        Iterations="1000"/>
+</Solve>
+</CLBConfig>

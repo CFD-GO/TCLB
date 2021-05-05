@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(OutFlow+BGK+thermo*planarBenchmark)*autosym"
+OPT="(OutFlow+BGK*thermo*planarBenchmark)*autosym"
 # SC: Solid Contact
 # 	This option currently fixes the bottom layer of nodes to be 
 # 	solid with the contact angle defined in input.
