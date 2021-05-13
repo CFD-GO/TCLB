@@ -142,7 +142,7 @@ for (d in destinations) {
 		add = paste("$(addprefix ",dest,"/,$(ADDITIONALS))",sep="")
 		src_all = paste(src_all,add)
 		rtopt = NULL
-		if (adjoint) rtopt = c(rtopt, "MODEL=TRUE")
+		if (adjoint) rtopt = c(rtopt, "ADJOINT=1")
 		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
 		if (length(opts) > 0) {
 			opts = ifelse(opts==0,"FALSE","TRUE")

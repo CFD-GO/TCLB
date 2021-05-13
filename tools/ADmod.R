@@ -35,9 +35,9 @@ begins = which(diff(a)==1)+1
 
 f = file(opt$out)
 open(f,"wt")
-pushi = grep("pushreal",lines)
-looki = grep("lookreal",lines)
-popi = grep("popreal",lines)
+pushi = grep("push[rR]eal",lines)
+looki = grep("look[rR]eal",lines)
+popi = grep("pop[rR]eal",lines)
 
 begins = c(begins,length(lines))
 alli = sort(c(pushi,popi,begins,looki))
@@ -63,7 +63,7 @@ for (i in alli) {
 		decl = 0;
 	} else {
 		l = lines[i]
-		l1 = sub("[ pushpopreallook]*","",l);
+		l1 = sub("[ pushpopRreallook]*","",l);
 		l1 = sub("[_]?\\(.*$","",l1);
 		tp = switch(l1,
 			"4"=list(type="float",array=FALSE),
@@ -92,7 +92,7 @@ for (i in alli) {
 			cat("var: ",var," ----- fixed\n");
 			buf = c(buf, paste("//",l));
 		} else {
-			if (grepl("pushreal", l)) {
+			if (grepl("push", l)) {
 				idx = idx + 1
 				name = paste(tmpname, idx, sep="_")
 				if (idx > decl) {
@@ -100,13 +100,15 @@ for (i in alli) {
 					decl = idx;
 				}
 				buf = c(buf, paste(name,ar_idx," = ", var,ar_idx, "; // ADmod.R: ",l,sep=""));
-			} else if (grepl("lookreal", l)) {
+			} else if (grepl("look", l)) {
 				name = paste(tmpname, idx, sep="_")
 				buf = c(buf, paste(var,ar_idx, " = ", name,ar_idx,"; // ADmod.R: ",l,sep=""));
-			} else {
+			} else if (grepl("pop", l)) {
 				name = paste(tmpname, idx, sep="_")
 				buf = c(buf, paste(var,ar_idx, " = ", name,ar_idx,"; // ADmod.R: ",l,sep=""));
 				idx = idx - 1;
+			} else {
+				stop("Unknown type of push/pop: ",l);
 			}
 		}
 	}

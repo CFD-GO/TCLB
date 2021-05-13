@@ -18,3 +18,7 @@ s/0xFFDF<?%s formatC(v$index, width = 2, format = "d", flag = "0") ?>/<?%s v$nam
 s/0xFFCCFFCC/NodeType/g
 s/\bfloat\b/real_t/g
 s/\bdouble\b/real_t/g
+/#include[ ]*<[ ]*adBuffer.h[ ]*>/d
+<?R for (g in rows(Globals)) if (! g$adjoint) { ?>
+s/<?%s g$name ?>[ ]*[+][=]([^;]*);/AddTo<?%s g$name ?>(\1);/g<?R
+} ?>

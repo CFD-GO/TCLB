@@ -5,3 +5,9 @@
 #define objectiveb 1.0
 <?R for (v in Globals$name) { ?>
 #define <?%s v ?>b <?%s v ?>InObj <?R } ?>
+
+
+#pragma GCC diagnostic warning "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wdangling-else"
+#pragma GCC diagnostic ignored "-Wparentheses"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
