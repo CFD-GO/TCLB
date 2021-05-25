@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 inline void stripbare(char * str)
 {
@@ -127,10 +128,12 @@ inline FILE* fopen_gz(const char* filename, const char * mode) {
 		warning("Opening a gzip file: %s (%s)\n",filename,mode);
 		if (strcmp(mode,"r") == 0) {
 			char cmd[STRING_LEN*2];
+			if (access(filename,R_OK)) return NULL;
 			sprintf(cmd, "gzip -d <%s", filename);
 			return popen(cmd, "r");
 		} else	if (strcmp(mode,"rb") == 0) {
 			char cmd[STRING_LEN*2];
+			if (access(filename,R_OK)) return NULL;
 			sprintf(cmd, "gzip -d <%s", filename);
 			return popen(cmd, "r");
 		} else if (strcmp(mode,"w") == 0) {
