@@ -113,7 +113,7 @@ class LatticeContainer : public LatticeContainerBase {
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) {
     if (! f$big) { ?>
-  template <int DX, int DY, int DZ>
+  template <int DX=0, int DY=0, int DZ=0>
   CudaDeviceFunction real_t load_<?%s f$nicename ?> (const index & idx, const flag_t & nt) {
     typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
     return 0.0;
