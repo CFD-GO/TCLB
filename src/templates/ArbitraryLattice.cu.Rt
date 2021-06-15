@@ -1,0 +1,1414 @@
+<?R
+	source("conf.R")
+	c_header();
+?>
+
+/*  File defining the Arbitrary Lattice                                     */
+/*      Arbitrary Lattice is the low level class defining functionality     */
+/*      of Arbitrary Lattice LBM solver. It realizes all the LBM            */
+/*      calculations and data transfer. Does not currently support          */
+/*      adjoint optimisation.                                               */
+/*--------------------------------------------------------------------------*/
+#include "../Consts.h"
+#include "../cross.h"
+#include "../types.h"
+#include "../Global.h"
+#include "LatticeContainerBase.h"
+#include "ArbitraryLatticeContainer.h"
+#include "ArbitraryLattice.h"
+#include <mpi.h>
+#include <assert.h>
+#include "../BallTree.hpp"
+
+#ifdef ENABLE_NVPROF
+	#include <nvToolsExt.h>
+	#define DEBUG_PROF_PUSH(x__) nvtxRangePushA(x__)
+	#define DEBUG_PROF_POP() nvtxRangePop()
+#else
+	#define DEBUG_PROF_PUSH(x__)
+	#define DEBUG_PROF_POP()
+#endif
+
+/// LatticeContainer stored in the GPU const memory
+/**
+        This is the main container that is stored in the GPU const memory.
+        It is used to pass all the needed information on buffers etc to the kernels
+*/
+CudaExternConstantMemory(ArbitraryLatticeContainer constArbitraryContainer);
+
+/// Calculation of the offset from X, Y and Z
+int ArbitraryLattice::Offset(int x, int y, int z)
+{
+	return x+region.nx*y + region.nx*region.ny*z;
+}
+
+/// Constructor based on size
+/**
+        Main constructor of Lattice
+        \param _region Local region of the Lattice
+        \param mpi_ MPI Information
+        \param ns Number of Snapshots
+*/
+ArbitraryLattice::ArbitraryLattice(lbRegion _region, MPIInfo mpi_, int ns, size_t latticeSize) : LatticeBase(ZONESETTINGS, ZONE_MAX) {
+	region = _region;
+	mpi = mpi_;
+	DEBUG_M;
+	model = &current_model;
+	reverse_save=0;
+	Record_Iter = 0;
+	Iter = 0;
+	total_iterations = 0;
+	segment_iterations = 0;
+	callback_iter = 1;
+	nSnaps = ns;
+	container = new ArbitraryLatticeContainer;
+	sample = new Sampler(this);
+	globals = new double[GLOBALS];
+	Snaps = new AFTabs[nSnaps];
+	iSnaps = new int[maxSnaps];
+	container->Alloc(latticeSize);
+	container->iter = 0;
+	container->reset_iter = 0;
+	DEBUG_M;
+	for (int i=0; i < nSnaps; i++) {
+		Snaps[i].PreAlloc(latticeSize);
+	}
+	for (int i=0; i < maxSnaps; i++) {	
+		iSnaps[i]= -1;
+	}
+#ifdef ADJOINT
+	aSnaps = new AFTabs[2];
+	aSnaps[0].PreAlloc(latticeSize);
+	aSnaps[1].PreAlloc(latticeSize);
+#endif
+	DEBUG_M;
+	MPIInit(mpi);
+	DEBUG_M;
+	CudaAllocFinalize();
+	DEBUG_M;
+
+	container->in = Snaps[0];
+	container->out = Snaps[1];
+#ifdef ADJOINT
+	container->adjout = aSnaps[0];
+#endif
+	aSnap = 0;
+	for (int i=0; i < SETTINGS; i++) {
+		settings_val[i] = 0.0;
+	}
+        CudaStreamCreate(&kernelStream);
+        CudaStreamCreate(&inStream);
+        CudaStreamCreate(&outStream);
+        container->ZoneSettings = zSet.gpuTab;
+        container->ConstZoneSettings = zSet.gpuConst;
+        container->ZoneIndex = 0;
+<?R for (s in rows(ZoneSettings)) { ?>
+//        zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
+<?R } ?>
+        ZoneIter = 0;
+	particle_data_size_max = 0;
+	container->particle_data = NULL;
+	container->particle_data_size = 0;
+	container->balltree_data = NULL;
+	balltree_data_size_max = 0;
+	BT.balls = &RFI;
+	RFI.name = "TCLB";
+	initSettings();
+	
+}
+
+/// Initialization of MPI buffors
+/**
+        Initialize all the buffors needed for the MPI data transfer
+        \param mpi_ MPI Information (connectivity)
+*/
+void ArbitraryLattice::MPIInit(MPIInfo mpi_)
+{
+//--------- Initialize MPI buffors
+	bufnumber = 0;
+#ifndef DIRECT_MEM
+	debug2("Allocating MPI buffors ...\n");
+	real_t * ptr = NULL;
+	int size, from, to;
+	int nx = region.nx, ny=region.ny,  nz=region.nz;
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	size = <?R C(m$Size,float=F) ?> * sizeof(real_t);
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if ((mpi.rank != to) && (size > 0)) {
+		CudaMallocHost(&ptr,size);
+		mpiout[bufnumber] = ptr;
+		gpuout[bufnumber] = NULL; 
+		nodeout[bufnumber] = to;
+		CudaMallocHost(&ptr,size);
+		mpiin[bufnumber] = ptr;
+		BPreAlloc((void**) & (gpubuf[bufnumber]), size);
+		BPreAlloc((void**) & (gpubuf2[bufnumber]), size);
+		nodein[bufnumber] = from;
+		bufsize[bufnumber] = size;
+		bufnumber ++;
+	}
+<?R
+	}
+?>
+#endif
+
+	debug2("Done (BUFS: %d)\n", bufnumber);
+}
+
+/**
+	Initialization of the variables in the lattice nodes
+*/
+void ArbitraryLattice::Init() {
+	output("Initialising Arbitrary Lattice... \n");
+	iSnaps[getSnap(0)] = 0;
+	iSnaps[0] = 0;
+	Record_Iter = 0;
+	Iter = 0;
+	container->iter = 0;
+	Snap = 0;
+	MPI_Barrier(MPMD.local);
+	Action_Init(1, 0, ITER_NO);
+	MPI_Barrier(MPMD.local);
+	Iter = 0;
+	container->iter = 0;
+	clearGlobals();
+}
+
+/**
+	Clear the Adjoint snapshots
+*/
+void ArbitraryLattice::clearAdjoint() {
+#ifdef ADJOINT
+	debug1("Clearing adjoint\n");
+	aSnaps[0].Clear(region.nx, region.ny, region.nz); // TODO: look at this fcn - may have to create a new function in snapshot to handle nodeid setup
+	aSnaps[1].Clear(region.nx, region.ny, region.nz);
+#endif
+	zSet.ClearGrad();
+}
+
+/** CBG
+	Clear the derivative component/density of the adjoint solution
+*/
+void ArbitraryLattice::clearDPar() {
+	<?R
+	for(d in rows(DensityAll)) if ((d$adjoint) && (d$parameter)) { ?>
+	Clear_<?%s d$nicename ?>(); <?R
+	}
+?>
+}
+
+/// Copy GPU to CPU memory
+inline void ArbitraryLattice::MPIStream_A()
+{
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+	}
+}
+
+/// Copy Buffers between processors
+inline void ArbitraryLattice::MPIStream_B(int tag)
+{
+        if (bufnumber > 0) {
+                DEBUG_M;
+                CudaStreamSynchronize(outStream);
+                DEBUG_M;
+        #ifdef CROSS_MPI_OLD
+                MPI_Status status;
+                MPI_Request request;
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPMD.local, &request);
+                }
+                for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPMD.local, &status);
+                        CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                }
+        #else
+                MPI_Status status;
+                MPI_Request request;
+//                MPI_Request recvreq[bufnumber];
+                MPI_Request * recvreq = new MPI_Request[bufnumber];
+                MPI_Request * sendreq = new MPI_Request[bufnumber];
+        //	DEBUG_M;
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i+tag, MPMD.local, &recvreq[i]);
+                }
+        //	DEBUG_M;
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i+tag, MPMD.local, &sendreq[i]);
+                }
+        //	DEBUG_M;
+                #ifdef CROSS_MPI_WAITANY
+        //        	DEBUG_M;
+                        for (int j = 0; j < bufnumber; j++) {
+                                int i;
+                                MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                        }
+                #else
+                        DEBUG_M;
+                        MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
+                        DEBUG_M;
+                        for (int i = 0; i < bufnumber; i++) {
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                        }
+                #endif
+		MPI_Waitall(bufnumber, sendreq, MPI_STATUSES_IGNORE);
+                delete[] recvreq;
+                delete[] sendreq;
+        #endif
+                DEBUG_M;
+                CudaStreamSynchronize(inStream);
+                DEBUG_M;
+        }
+}
+
+void ArbitraryLattice::RunAction(int act, int iter_type) {
+<?R for (i in seq_along(Actions)) {
+	n = names(Actions)[i]
+		a = Actions[[i]]
+		if (n == "Iteration") {
+				FunName = "Iteration"
+		} else {
+				FunName = paste("Action",n,sep="_")
+		} ?>
+	if (act == <?%d i-1 ?>) return <?%s FunName ?>(Snap, (Snap+1) % 2, iter_type);
+<?R } ?>
+}
+
+<?R for (n in names(Actions)) {
+	a = Actions[[n]]
+	if (n == "Iteration") {
+			FunName = "Iteration"
+	} else {
+			FunName = paste("Action",n,sep="_")
+	} ?>
+/// Normal (Primal) Iteration
+/**
+	One Primal Iteration
+	\param tab0 Snapshot from which to start
+	\param tab1 Snapshot in which to put result
+	\param iter_type Type of the iteration
+*/
+void ArbitraryLattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
+{
+	DEBUG_PROF_PUSH("<?%s n ?>");
+	
+	real_t * tmp;
+	int size, from, to;
+	MPI_Status status;
+	MPI_Request request;
+	int i=0;
+	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
+	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+
+	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
+	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	/*from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
+		i ++;
+	} else {
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; -- TODO - used to communicate between MPI nodes, will have to re-do this for arbitrary subdivisions
+	}
+	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;*/
+<?R
+	}
+?>
+	container->out.data = Snaps[tab1].data;
+	container->in.data = Snaps[tab0].data;
+	
+
+<?R
+	old_stage_level = 0
+	action_stages = Stages[a,]
+	sel = which(action_stages$particle)	
+	action_stages$first_particle = FALSE
+	action_stages$first_particle[head(sel,1)] = TRUE
+	action_stages$last_particle = FALSE
+	action_stages$last_particle[tail(sel,1)] = TRUE
+	for (stage in rows(action_stages)) {
+?>
+	DEBUG_PROF_PUSH("<?%s stage$name ?>");
+//---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
+				if (old_stage_level > 0) { 
+					for (m in NonEmptyMargin) { ?>
+	// container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; -- TODO - used for some junk I don't know about, will probably re-write this later <?R
+						} 
+				}
+				old_stage_level = old_stage_level + 1 ?>
+
+<?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
+<?R if (stage$first_particle) { ?>
+	DEBUG_PROF_PUSH("Get Particles");
+	RFI.SendSizes();
+	RFI.SendParticles();
+	DEBUG_PROF_POP();
+	if (RFI.size() > particle_data_size_max) {
+		if (container->particle_data != NULL) CudaFree(container->particle_data);
+		particle_data_size_max = RFI.size();
+		CudaMalloc(&container->particle_data, RFI.mem_size());
+	}
+	container->particle_data_size = RFI.size();
+//		for (int i=0; i<RFI.size(); i++){
+//			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
+//		}
+	if (true) {
+		for (int i=0; i<RFI.size(); i++){
+			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
+		}
+	}
+
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+	}
+	DEBUG_PROF_PUSH("Tree Build");
+		BT.Build();
+	DEBUG_PROF_POP();
+		if (BT.size() > balltree_data_size_max) {
+			if (container->balltree_data != NULL) CudaFree(container->balltree_data);
+			balltree_data_size_max = BT.size();
+			CudaMalloc(&container->balltree_data, BT.mem_size());
+		}
+		container->balltree_data_size = BT.size();
+		if (BT.mem_size() > 0) {
+			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+		}
+<?R } ?>
+	
+	container->CopyToConst();
+	DEBUG_PROF_PUSH("Calculation");
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
+		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
+	case ITER_OBJ:
+#ifdef ADJOINT
+		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+#endif
+				break;
+	}
+		CudaStreamSynchronize(kernelStream);
+
+		MPIStream_A();
+
+	switch(iter_type & ITER_INTEG){
+	case ITER_NO:
+		container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+	case ITER_GLOBS:
+		container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
+	case ITER_OBJ:
+#ifdef ADJOINT
+		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+#endif
+				break;
+	}	
+
+	MPIStream_B();
+	DEBUG_PROF_POP();
+<?R if (stage$last_particle) { ?>
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), cudaMemcpyDeviceToHost, kernelStream);
+	}
+		CudaStreamSynchronize(kernelStream);
+	DEBUG_PROF_PUSH("Testing particles for NaNs");
+	{	int nans = 0;
+		for (int i=0; i<RFI.size(); i++){
+			for (int j=0; j<3; j++){
+				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
+					nans++;
+					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+				}
+			}
+		}
+		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
+	}
+	DEBUG_PROF_POP();
+	RFI.SendForces();
+<?R } ?>
+		CudaDeviceSynchronize();
+<?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
+	DEBUG_PROF_POP();
+<?R } ?>
+	Snap = tab1;
+	MarkIteration();
+	updateAllSamples();	
+	DEBUG_PROF_POP();
+};
+
+/// Adjoint Iteration
+/**
+	One Adjoint Iteration
+	\param tab0 Adjoint Snapshot from which to start
+	\param tab1 Adjoint Snapshot in which to put result
+	\param iter_type Type of the iteration
+*/
+inline void ArbitraryLattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+{
+#ifdef ADJOINT
+real_t * tmp;
+int size, from, to;
+MPI_Status status;
+MPI_Request request;
+int i=0;
+debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
+ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+container->ZoneIndex = ZoneIter;
+container->MaxZones = zSet.MaxZones;
+
+debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
+<?R
+for (m in NonEmptyMargin) {
+?>
+/*to = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+from = mpi.node[mpi.rank].<?%s m$side ?>;
+if (mpi.rank != to) {
+	gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
+	gpuin[i] = container->adjin.<?%s m$name ?> = gpubuf[i];
+	nodeout[i] = to;
+	nodein[i] = from;
+	i ++;
+} else {
+	container->adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
+}
+container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+container->adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;*/ // TODO - revise this when we move on to multiple ranks
+<?R
+} ?>
+container->in.data = Snaps[tab0].data;
+container->adjout.data = aSnaps[adjtab1].data;
+<?R
+for (s in a) {
+			 stage = Stages[s,,drop=F] ?>
+	
+
+	   container->CopyToConst();
+
+	MPIStream_A();
+
+switch(iter_type & ITER_INTEG){
+case ITER_NO:
+		container->RunInterior< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+case ITER_GLOBS:
+		container->RunInterior< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
+case ITER_NO | ITER_STEADY:
+		container->RunInterior< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+case ITER_GLOBS | ITER_STEADY:
+		container->RunInterior< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
+}	
+
+	MPIStream_B();
+
+DEBUG_M;
+switch(iter_type & ITER_INTEG){
+case ITER_NO:
+		container->RunBorder< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+case ITER_GLOBS:
+		container->RunBorder< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
+case ITER_NO | ITER_STEADY:
+		container->RunBorder< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
+case ITER_GLOBS | ITER_STEADY:
+		container->RunBorder< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
+}	
+DEBUG_M;
+	CudaDeviceSynchronize();
+<?R } ?>
+aSnap = adjtab1;
+MarkIteration();
+#else
+ERROR("This model doesn't have adjoint!\n");
+exit (-1);
+#endif
+};
+
+/// Combined Primal+Adjoint Iteration
+/**
+	One combined Primal+Adjoint Iteration (steepest descent included)
+	\param tab0 Snapshot from which to start
+	\param tab1 Snapshot in which to put result
+	\param adjtab0 Adjoint Snapshot from which to start
+	\param adjtab1 Adjoint Snapshot in which to put result
+	\param iter_type Type of the iteration
+*/
+inline void ArbitraryLattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+{
+#ifdef ADJOINT
+	<?%s FunName ?>(tab0, tab1, iter_type);
+	<?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
+	container->RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
+	container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream); 
+	CudaDeviceSynchronize();
+#else
+ERROR("This model doesn't have adjoint!\n");
+exit (-1);
+#endif
+};
+
+<?R } ?>
+
+/// Function listing all buffers in AFTabs
+// can't be generalised into LatticeBase as this will behave differently for ArbitraryLattice - will depend on how the multi-rank is implemented later on
+void ArbitraryLattice::listTabs(int snap, bool adjSnap, int* np, size_t ** size, void *** ptr, size_t * maxsize) {
+	int j=0;
+	int n;
+	int nx = region.nx, ny=region.ny,  nz=region.nz;
+	if (maxsize) *maxsize = 0;
+	n = <?%d length(NonEmptyMargin) ?>;
+	if (np) *np = n;
+	if (size) *size = new size_t[n];
+	if (ptr) *ptr = new void*[n];
+/*
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
+	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
+	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
+	j++;
+<?R
+	}
+?>*/
+
+	if (size) (*size)[0] = ((size_t) nx * ny * nz * 9) * sizeof(real_t);
+	#ifdef ADJOINT
+	if(adjSnap) {
+		if (ptr) (*ptr)[0] = (void*) aSnaps[snap].data;
+	} else {
+	#endif
+		if (ptr) (*ptr)[0] = (void*) Snaps[snap].data;
+	#ifdef ADJOINT
+	}
+	#endif
+	
+	if (maxsize) if(size) if((*size)[0] > *maxsize) *maxsize = (*size)[0];
+}
+
+// needs to be implemented for ArbitraryLattice - used in acAndersen.cpp handler
+size_t ArbitraryLattice::sizeOfTab() {
+	return 0;
+}
+
+// Can't be generalised right now due to the AFTabs declared variable, which isn't available in LatticeBase
+void ArbitraryLattice::saveToTab(real_t * rtab, int snap) {
+	char* vtab = (char*)rtab;
+	void** ptr;
+	size_t* size;
+	int n;
+	listTabs(snap, false, &n, &size, &ptr, NULL);
+	for(int i = 0; i < n; i++) {
+		debug1("Save buf %d of size %ld\n", i, size[i]);
+		CudaMemcpy(vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+// Can't be generalised right now due to the AFTabs declared variable, which isn't available in LatticeBase
+void ArbitraryLattice::loadFromTab(real_t* rtab, int snap) {
+	char* vtab = (char*)rtab;
+	void** ptr;
+	size_t* size;
+	int n;
+	listTabs(snap, false, &n, &size, &ptr, NULL);
+	for(int i = 0; i < n; i++) {
+		debug1("Load buf %d of size %ld\n", i, size[i]);
+		CudaMemcpy(ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+/// Destructor
+/**
+        I think it doesn't leave a big mess
+*/
+ArbitraryLattice::~ArbitraryLattice()
+{
+	RFI.Close();
+        CudaAllocFreeAll();
+	container->Free();
+	for (int i=0; i<nSnaps; i++) {
+		Snaps[i].Free();
+	}
+	delete[] Snaps;	
+	delete[] iSnaps;
+}
+
+// destructor here as well
+// CBG
+void ArbitraryLattice::Color(uchar4* ptr) {
+	container->Color(ptr);
+}
+// CBG
+void ArbitraryLattice::GenerateST() {
+	ST.Generate();
+	ST.CopyToGPU(container->ST);
+}
+
+/// Iterate Primal till a specific iteration
+/**
+        Function which reconstructs a state in iteration "it"
+        by reading a snapshot and iterating from it.
+        Used in usteady adjoint
+        \param it Iteration on which to finish
+        \param iter_type Type of iterations to run
+*/
+void ArbitraryLattice::IterateTill(int it, int iter_type) {
+	int s1, ls1, s2, ls2;
+	int mx = -1, imx = -1, i;
+	for(i = 0; i < maxSnaps; i++) {
+		if((iSnaps[i] > mx) && (iSnaps[i] <= it)) {
+			mx = iSnaps[i];
+			imx = i;
+		}
+	}
+
+	assert(imx >= 1);
+	debug2("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
+	if(imx >= nSnaps) {
+		if(reverse_save) {
+			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
+			char filename[4*STRING_LEN];
+			sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
+			if (load(0, false, filename)) exit(-1);
+		} else {
+			ERROR("I have to read from disk, but reverse_save is not switched on\n");
+			exit (-1);
+		}
+		iSnaps[0] = iSnaps[imx];
+		imx = 0;
+	}
+	s1 = imx;
+	Record_Iter = mx;
+	Snap = s1;
+	for (i = mx; i < it; i++) {
+		int s2 = getSnap(i+1);
+		int s3 = s2;
+		if (s2 >= nSnaps) s3=0;
+		pop_settings();
+		Iteration(s1, s3, iter_type);
+		Record_Iter = i+1;
+		if (s2 >= nSnaps){
+			if (reverse_save) {
+				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
+				char filename[4*STRING_LEN];
+				sprintf(filename, "%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
+				save(0, false, filename);
+			}
+		}
+		iSnaps[s2] = i+1;
+		iSnaps[s3] = i+1;
+		s1 = s3;
+	}
+}
+
+/// Main iteration function.
+/**
+        Makes "niter" iterations of type "iter_type"
+        Dispatches specific iteration methods for each type
+        takes care of calculation of Globals
+        \param niter How many iterations to make
+        \param iter_type What type of iterations to make
+*/
+void ArbitraryLattice::Iterate(int niter, int iter_type) {
+	int last_glob = iter_type & ITER_LASTGLOB;
+	int i;
+	InitialIteration(niter);
+	if (iter_type & ITER_INTEG) last_glob=0;
+	if (reverse_save) {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type = iter_type | ITER_GLOBS;
+				}
+				Record_Iter -= 1;
+				if (Record_Iter < 0) {
+					ERROR("Went below the begining of the tape (usteady adjoint) !");
+					exit(-1);
+				}
+				IterateTill(Record_Iter, ITER_NORM);
+				Iteration_Adj(Snap, (Snap+1) % 2, aSnap % 2, (aSnap+1) % 2, iter_type);
+			}
+			break;
+                case ITER_NORM:
+			if (last_glob) {
+				IterateTill(niter+Record_Iter-1, iter_type);
+				container->clearGlobals();
+				IterateTill(Record_Iter+1, iter_type | ITER_GLOBS);
+			} else {
+				IterateTill(niter+Record_Iter, iter_type);
+			}
+			break;
+                case ITER_OPT:
+                        ERROR("Cannot do a OPT iteration in record mode\n");
+                        exit(-1);
+                        break;
+		}
+	} else {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
+	                iter_type |= ITER_STEADY;
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+				Iteration_Adj(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
+			}
+			break;
+                case ITER_NORM:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+				Iteration(Snap, (Snap+1) % 2, iter_type);
+				Iter ++;
+				container->iter ++;
+			}
+			break;
+                case ITER_OPT:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
+				Iter ++;
+				container->iter ++;
+			}
+                        break;
+		}
+	}
+	if (last_glob) {
+	        switch (iter_type & ITER_TYPE) {
+                case ITER_OPT:
+			clearGlobals();
+	        case ITER_ADJOINT:
+			clearGlobals_Adj();
+			break;
+                case ITER_NORM:
+			clearGlobals();
+			break;
+		}
+		calcGlobals();
+	} else if ( iter_type & ITER_INTEG ) {
+		calcGlobals();
+	}
+	FinalIteration();
+}
+
+/// Run Action
+void ArbitraryLattice::IterateAction(int action, int niter, int iter_type)
+{
+	int last_glob = iter_type & ITER_LASTGLOB;
+	int i;
+	InitialIteration(niter);
+	if (iter_type & ITER_INTEG) last_glob=0;
+	if (reverse_save) {
+		ERROR("Run Action not supported in Adjoint"); exit(-1);
+	} else {
+	        switch (iter_type & ITER_TYPE) {
+	        case ITER_ADJOINT:
+			ERROR("Run Action not supported in Adjoint"); exit(-1);
+			break;
+                case ITER_NORM:
+			for (i=0; i< niter; i++) {
+				if ((last_glob) && (i == niter -1)) {
+					container->clearGlobals();
+					iter_type |= ITER_GLOBS;
+				}
+				RunAction(action, Snap, (Snap+1) % 2, iter_type);
+				Iter ++;
+				container->iter ++;
+			}
+			break;
+                case ITER_OPT:
+			ERROR("Run Action not supported in Adjoint"); exit(-1);
+                        break;
+		}
+	}
+	if (last_glob) {
+	        switch (iter_type & ITER_TYPE) {
+                case ITER_OPT:
+			clearGlobals();
+	        case ITER_ADJOINT:
+			clearGlobals_Adj();
+			break;
+                case ITER_NORM:
+			clearGlobals();
+			break;
+		}
+		calcGlobals();
+	} else if ( iter_type & ITER_INTEG ) {
+		calcGlobals();
+	}
+	FinalIteration();
+};
+
+// Overwrite NodeType in a region
+// TODO: modify this function or its called functions to allow for arbitrary lattice
+void ArbitraryLattice::FlagOverwrite(big_flag_t* mask_, lbRegion over) {
+	lbRegion inter = region.intersect(over);
+	flag_t* mask;
+	mask = new flag_t[inter.nx];
+	for(int y = inter.dy; y < inter.dy + inter.ny; y++)
+	for(int z = inter.dz; z < inter.dz + inter.nz; z++) {
+		for(int x = inter.dx; x < inter.dx + inter.nx; x++) mask[x - inter.dx] = mask_[over.offsetL(x, y, z)];
+		CudaMemcpy2D(&container->NodeType[region.offsetL(inter.dx, y, z)], sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
+	}
+	delete[] mask;
+}
+
+void ArbitraryLattice::LoadLattice(size_t* connectivity_, vector_t* coords_, big_flag_t* nodeTypes, int* directionOffsets, size_t latticeSize, int Q, int ndx, int ndy, int ndz, int mindx, int mindy, int mindz) {
+	// first allocate memory to connectivity matrix (and NodeType matrix)
+	container->AllocConnectivity(latticeSize, Q, ndx, ndy, ndz);
+
+	// now copy everything in connectivity_ over to the latticeContainer matrix
+	CudaMemcpy2D(container->Connectivity, sizeof(size_t), connectivity_, sizeof(size_t), sizeof(size_t), latticeSize * Q, cudaMemcpyHostToDevice);
+
+	// Put the nodetype data into a new matrix with type flag_t
+	flag_t* temp;
+	temp = new flag_t[latticeSize];
+	for(size_t i = 0; i < latticeSize; i++)
+		temp[i] = nodeTypes[i];
+	
+	// then copy these to cuda memory
+	CudaMemcpy2D(container->NodeType, sizeof(flag_t), temp, sizeof(flag_t), sizeof(flag_t), latticeSize, cudaMemcpyHostToDevice);
+	delete[] temp;
+
+	// copy coords over to latticeContainer matrix
+	CudaMemcpy2D(container->coords, sizeof(vector_t), coords_, sizeof(vector_t), sizeof(vector_t), latticeSize, cudaMemcpyHostToDevice);
+
+	//CudaMemcpy(tab, container->coords, container->latticeSize * sizeof(vector_t), cudaMemcpyDeviceToHost);
+	CudaMemcpy(container->DirectionOffsets, directionOffsets, ndx * ndy * ndz * sizeof(int), cudaMemcpyHostToDevice);
+	container->connectivityDim = Q;
+	// set dimensions and offsets of the direction table
+	container->ndx = ndx;
+	container->ndy = ndy;
+	container->ndz = ndz;
+	container->mindx = mindx;
+	container->mindy = mindy;
+	container->mindz = mindz;
+
+	output("Copied connectivity file info to CUDA memory\n");
+}
+
+// TODO: modify this for arb lattice
+void ArbitraryLattice::CutsOverwrite(cut_t* Q, lbRegion over) {
+	if(Q == NULL) return;
+	container->ActivateCuts();
+	lbRegion inter = region.intersect(over);
+	int x = inter.dx;
+	size_t regsize = region.size();
+	size_t oversize = over.size();
+	for(int y = inter.dy; y < inter.dy + inter.ny; y++)
+	for(int z = inter.dz; z < inter.dz + inter.nz; z++)
+	for(int d = 0; d < 26; d++) {
+		CudaMemcpy2D(&container->Q[region.offsetL(x,y,z) + d * regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, cudaMemcpyHostToDevice);
+	}
+}
+
+// TODO: modify this for arb lattice
+void ArbitraryLattice::GetFlags(lbRegion over, big_flag_t* mask_) {
+	/*lbRegion inter = region.intersect(over); // calculate the intersection between the region we want and our domain
+	flag_t* mask;
+	mask = new flag_t[inter.nx]; 
+	for(int y = inter.dy; y < inter.ny + inter.dy; y++)
+	for(int z = inter.dz; z < inter.nz + inter.dz; z++) {
+		// copy each row of x values from memory
+		CudaMemcpy2D(mask, sizeof(flag_t), &container->NodeType[region.offsetL(inter.dx, y, z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+		for(int x = inter.dx; x < inter.dx + inter.nx; x++) mask_[over.offsetL(x, y, z)] = mask[x - inter.dx]; // copy over each nodetype into the inputted pointer
+	}
+	delete[] mask;*/
+
+	// modified to do this all in 1D
+	flag_t* tempFlags;
+	tempFlags = new flag_t[container->latticeSize];
+	CudaMemcpy2D(tempFlags, sizeof(flag_t), container->NodeType, sizeof(flag_t), sizeof(flag_t), container->latticeSize, cudaMemcpyDeviceToHost);
+	for(size_t i = 0; i < container->latticeSize; i++) mask_[i] = tempFlags[i];
+	//delete[] tempFlags;
+
+}
+
+void ArbitraryLattice::GetCoords(real_t* tab) {
+	//vector_t* temp;
+	//temp = new vector_t[container->latticeSize];
+	//CudaMemcpy2D(temp, sizeof(vector_t), container->coords, sizeof(vector_t), sizeof(vector_t), container->latticeSize, cudaMemcpyDeviceToHost);
+	//for(int i = 0; i < container->latticeSize; i++) tab[i] = temp[i];
+	CudaMemcpy(tab, container->coords, container->latticeSize * sizeof(vector_t), cudaMemcpyDeviceToHost);
+
+	//delete[] temp;
+}
+
+// for the appropriate field, call the automatically generated getter for that field
+// CBG
+void ArbitraryLattice::Get_Field(int id, real_t* tab) { <?R
+	for(f in rows(Fields)) if (f$parameter) { ?>
+	if(id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>(tab); <?R
+	} ?>
+}
+
+// same as ^
+// CBG
+void ArbitraryLattice::Get_Field_Adj(int id, real_t* tab) {
+#ifdef ADJOINT <?R
+	for(f in rows(Fields)) if (f$parameter) { ?>
+		if(id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>_Adj(tab); <?R
+	} ?>
+#endif
+}
+
+// call the autogenerated setter for that field, checked by DD
+// CBG
+void ArbitraryLattice::Set_Field(int id, real_t* tab) { <?R
+	for(f in rows(Fields)) if(f$parameter) { ?>
+	if(id == <?%s f$Index ?>) return Set_<?%s f$nicename ?>(tab); <?R
+	} ?>
+}
+
+// this part loops over all fields and generates the following functiosn for each
+// the inner loop loops over TRUE, FALSE for adjoint and runs the code accordingly
+<?R
+	for(f in rows(Fields)[Fields$parameter]) {
+		for(adjoint in c(TRUE, FALSE)) {
+			if(adjoint) {
+				from = "aSnaps[aSnap]";
+				suff = "_Adj"
+			} else {
+				from = "Snaps[Snap]";
+				suff = ""
+			}
+			ifdef(adjoint)
+?>
+
+/**
+	Retrieve the values of the density <?%s f$nicename ?> (<?%s f$comment ?>)
+	from GPU memory
+*/
+void ArbitraryLattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t* tab) {
+	debug2("Pulling all <?%s f$nicename ?>\n");
+	CudaMemcpy(
+		tab,
+		&<?%s from ?>.data[<?%s f$Index ?> * container->latticeSize],
+		container->latticeSize*sizeof(real_t),
+		cudaMemcpyDeviceToHost);
+}
+
+/**
+	Clear (set to zero) the values of 
+	the desity <?%s f$nicename ?> (<?%s f$comment ?>)
+	in the GPU memory
+*/
+void ArbitraryLattice::Clear_<?%s f$nicename ?><?%s suff ?>() {
+	debug2("Clear all <?%s f$nicename ?>\n");
+	CudaMemset(
+		&<?%s from ?>.data[<?%s f$Index ?> * container->latticeSize],
+		0,
+		container->latticeSize * sizeof(real_t));
+}
+
+/**
+	Set the values of the density <?%s f$nicename ?> (<?%s f$comment ?>)
+	in the GPU memory
+*/
+void ArbitraryLattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t* tab) {
+	debug2("Setting all <?%s f$nicename ?>\n");
+	CudaMemcpy(
+		&<?%s from ?>.data[<?%s f$Index ?> * container->latticeSize],
+		tab,
+		container->latticeSize * sizeof(real_t),
+		cudaMemcpyHostToDevice);
+}
+
+<?R }
+ifdef()
+} ?>
+
+/**
+	Retrieve the values of the quantity from the GPU memory
+*/
+void ArbitraryLattice::GetQuantity(int quant, lbRegion over, real_t* tab, real_t scale) {
+	switch(quant) { <?R
+		for(q in rows(Quantities)) { ifdef(q$adjoint);
+	?>
+		case <?%s q$Index ?>: return Get<?%s q$name ?>(over, (<?%s q$type ?> *) tab, scale); <?R
+		} 
+		ifdef();
+	?>
+	}
+}
+
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+
+/**
+	Retrieve the values of the Quantity <?%s q$name ?> (<?%s q$comment ?>)
+	from the GPU memory
+*/
+void ArbitraryLattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?>* tab, real_t scale) {
+	container->in = Snaps[Snap];
+	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
+		container->CopyToConst();
+
+	// allocate some memory to a buffer - do the whole lot at once
+	<?%s q$type ?>* buf = NULL;
+	CudaMalloc((void**)&buf, container->latticeSize * sizeof(<?%s q$type ?>));
+	// dummy region to pass into the get<> function
+	lbRegion small;
+	CudaKernelRun(get<?%s q$name ?>, dim3(container->getDimx, container->getDimy), dim3(1), (small, buf, scale, 1));
+
+	// copy over to host memory
+	CudaMemcpy(tab, buf, container->latticeSize * sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
+	CudaFree(buf);
+
+}
+
+<?R }; ifdef() ?>
+
+/**
+	Push a setting and its value on the stack,
+	during adjoint recording.
+	\param i Index of the setting
+	\param old Old value of the setting
+	\param nw New value of the setting
+	CBG
+*/
+/*void ArbitraryLattice::push_setting(int i, real_t old, real_t nw) {
+	settings_record.push_back(
+		std::pair< int, std::pair<int, std::pair<real_t, real_t> > > (
+			Record_Iter,
+			std::pair<int, std::pair<real_t, real_t> > (
+				i,
+				std::pair<real_t, real_t> (
+					old,
+					nw
+				)
+			)
+		)
+	);
+	settings_i = settings_record.size();
+}*/
+
+/**
+	Reconstruct the values of all the settings
+	in a specific iteration of the recorded solution
+	from the setting stack.
+	CBG
+*/
+/*void ArbitraryLattice::pop_settings() {
+	while(settings_i > 0) {
+		if(settings_record[settings_i - 1].first <= Record_Iter) break;
+		settings_i --;
+		debug1("set %d to (back) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.second, settings_record[settings_i].second.second.first);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
+	}
+	while(settings_i < settings_record.size()) {
+		if(settings_record[settings_i].first > Record_Iter) break;
+		debug1("set %d to (front) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.first, settings_record[settings_i].second.second.second);
+		setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
+		settings_i++;
+	}
+}*/
+
+// push_settings() here - not in LatticeBase
+// pop_settings() here - not in LatticeBase
+
+/**
+	Get the Globals from GPU memory and MPI-reduce them
+	\param tab Vector to store the result
+*/
+void ArbitraryLattice::getGlobals(real_t* tab) {
+	real_t tabl[GLOBALS];
+	container->getGlobals(tabl); <?R 
+	by(Globals, Globals$op, function(G) {n = nrow(G); ?>
+		MPI_Reduce(&tabl[<?%s G$Index[1] ?>],
+					&tab[<?%s G$Index[1] ?>],
+					<?%s G$Index[n] ?> - <?%s G$Index[1] ?> + 1,
+					MPI_REAL_T,
+					MPI_<?%s G$op[1] ?>,
+					0,
+					MPMD.local); <?R
+	}) ?>
+}
+void ArbitraryLattice::calcGlobals() {
+	real_t tab[GLOBALS];
+	getGlobals(tab);
+
+	double obj = 0;
+<?R
+	for(m in rows(Globals)) {
+		i = which(Settings$name == paste(m$name, "InObj", sep=""));
+		if(length(i) == 1) {
+			s = Settings[Settings$name == paste(m$name, "InObj", sep=""),]; ?>
+	obj += settings_val[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
+		}
+	}
+?>
+	tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
+	for(int i = 0; i < GLOBALS; i++) globals[i] += tab[i];
+	container->clearGlobals();
+}
+
+// clear the internal globals table
+void ArbitraryLattice::clearGlobals() { <?R
+	for(g in rows(Globals)) if(!g$adjoint) { ?>
+	globals[<?%s g$Index ?>] = 0; <?R
+	}
+?>
+}
+
+// Clear the internal globals table (derivative part)
+// CBG
+void ArbitraryLattice::clearGlobals_Adj() { <?R
+	for(g in rows(Globals)) if (g$adjoint) { ?>
+	globals[<?%s g$Index ?>] = 0; <?R
+	} ?>
+}
+
+// Return the objective function value
+double ArbitraryLattice::getObjective() {
+	return globals[<?%s Globals$Index[Globals$name == "Objective"] ?>];
+}
+
+/**
+	Set a specific setting
+	\param i Index of the setting
+	\param tmp Value of the setting
+*/
+void ArbitraryLattice::setSetting(int i, real_t tmp) {
+	settings_val[i] = tmp;
+	debug1("[%d] Settings %d to %f\n", D_MPI_RANK, i, tmp);
+	setConstSetting(i, tmp);
+}
+
+void ArbitraryLattice::SetSetting(int idx, real_t val) {
+	if(reverse_save) push_setting(idx, settings_val[idx], val);
+	setSetting(idx, val);
+	ModelBase::Setting& set = model->settings[idx];
+	if(set.isDerived) {
+		int der = set.derivedSetting;
+		double der_val = set.derivedValue(val);
+		SetSetting(der, der_val);
+	}
+}
+
+
+real_t ArbitraryLattice::GetSetting(int idx) {
+	return settings_val[idx];
+}
+
+void ArbitraryLattice::resetAverage() {
+	container->reset_iter = container->iter;
+	<?R for (f in rows(Fields)) if (f$average) { ?>
+	CudaMemset(&Snaps[Snap].data[<?%s f$Index ?> * container->latticeSize], 0, container->latticeSize * sizeof(real_t)); <?R
+	} ?>
+}
+
+// GetSample functions go here
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+void ArbitraryLattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
+{	
+			container->in = Snaps[Snap];
+			<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
+			container->CopyToConst();
+	lbRegion small = region.intersect(over);
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale, 1));
+}
+<?R } ;ifdef() ?>
+
+void ArbitraryLattice::updateAllSamples() {
+	if(sample->size != 0) {
+		for(size_t j = 0; j < sample->spoints.size(); j++) {
+			if(mpi.rank == sample->spoints[j].rank) {
+			<?R for(q in rows(Quantities)) { ifdef(q$adjoint); ?>
+			if(sample->quant->in("<?%s q$name ?>")) {
+				double v = sample->units.alt("<?%s q$unit ?>");
+				GetSample<?%s q$name ?>(sample->spoints[j].location, 1/v, &sample->gpu_buffer[sample->location["<?%s q$name ?>"] + (container->iter - sample->startIter)* sample->size + sample->totalIter * j * sample->size]);
+			}
+			<?R }; ifdef() ?>
+			}
+		}
+	}
+}
+
+/**
+	Save a component / density in a binary file
+	\param filename Path / prefix of the file to save
+	\param comp Density name to save
+	CBG
+*/
+int ArbitraryLattice::saveComp(const char* filename, const char* comp) {
+	int n = container->latticeSize;
+	char fn[STRING_LEN];
+	real_t* buf = new real_t[n];
+	sprintf(fn, "%s_%s_%d.comp", filename, comp, D_MPI_RANK);
+	output("Saving componenet %s to file %s\n", comp, fn);
+	bool somethingWritten = false;
+	<?R
+	for(d in rows(DensityAll)) if (d$parameter) {
+	?>
+	if(strcmp(comp, "<?%s d$name ?>") == 0) {
+		Get_<?%s d$nicename ?>(buf);
+		somethingWritten = true;
+	}
+	<?R
+	}
+	?>
+	if(somethingWritten) {
+		FILE* f = fopen(fn, "wb");
+		assert(f != NULL);
+		fwrite(buf, sizeof(real_t), n, f);
+		fclose(f);
+		delete[] buf;
+		output("...saved %s\n", comp);
+	} else {
+		output("...not saved %s\n", comp);
+	}
+	return 0;
+}
+
+int ArbitraryLattice::getComponentIntoBuffer(const char* comp, real_t* &buf, long int* dim, long int* offsets) {
+	int n = region.size();
+
+	dim[0] = region.nx;
+	dim[1] = region.ny;
+	dim[2] = region.nz;
+	offsets[0] = region.dx;
+	offsets[1] = region.dy;
+	offsets[2] = region.dz;
+
+	buf = new real_t[n];
+
+	output("Providing component %s to buffer..\n", comp);
+	bool somethingWritten = false;
+<?R 
+	for(d in rows(DensityAll)) if (d$parameter) {
+?>
+	if(strcmp(comp, "<?%s d$name ?>") == 0) {
+		Get_<?%s d$nicename ?>(buf);
+		somethingWritten = true;
+	}
+<?R
+}
+?>
+	if(!somethingWritten) {
+		output("Possible densities:\n");
+	<?R
+		for(d in rows(DensityAll)) if(d$parameter) {
+			?> output("-> <?%s d$name ?>\n"); <?R
+		}
+	?>
+	}
+	assert(somethingWritten);
+	if(somethingWritten) {
+		output("...provided %s\n", comp);
+	} else {
+		output("...not saved %s\n", comp);
+	}
+	return n;
+}
+
+int ArbitraryLattice::getQuantityIntoBuffer(const char* comp, real_t* &buf, long int* dim, long int* offsets) {
+	int n = region.size();
+	dim[0] = region.nx;
+	dim[1] = region.ny;
+	dim[2] = region.nz;
+	dim[3] = 1;
+	// TODO - may need to modify for arbitrary structure
+	offsets[0] = region.dx;
+	offsets[1] = region.dy;
+	offsets[2] = region.dz;
+
+	output("Providing quantity %s to buffer..\n", comp);
+	bool somethingWritten = false;
+<?R
+for(q in rows(Quantities)) { ifdef(q$adjoint);
+?>
+	if(strcmp(comp, "<?%s q$name ?>") == 0) {
+		<?%s q$type ?>* tmp_<?%s q$name ?> = new <?%s q$type ?>[n];
+		<?R if (q$type == 'vector_t') { ?>
+			dim[3] = 3;
+		<?R } ?>
+		Get<?%s q$name ?>(region, tmp_<?%s q$name ?>, 1);
+		buf = (real_t*)tmp_<?%s q$name ?>;
+		somethingWritten = true;
+	}
+<?R
+}
+ifdef();
+?>
+	if(!somethingWritten) {
+		output("Possible quantities:\n");
+	<?R
+		for(d in rows(Quantities)) {
+			?> output("-> <?%s d$name ?>\n"); <?R
+		}
+	?>
+	}
+	assert(somethingWritten);
+	if(somethingWritten) {
+		output("...provided %s\n", comp);
+	} else {
+		output("...not saved %s\n", comp);
+	}
+	return n;
+}
+
+int ArbitraryLattice::loadComponentFromBuffer(const char* comp, real_t* buf) {
+	int n = region.size();
+<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
+	if(strcmp(comp, "<?%s d$name ?>") == 0) Set_<?%s d$nicename ?>(buf); <?R
+} ?>
+	delete[] buf;
+	return 0;
+}
+
+/**
+	Loads a component/density from a binary file
+	\param filename Path / prefix of the file to save
+	\param comp Density name to load
+*/
+int ArbitraryLattice::loadComp(const char* filename, const char* comp) {
+	int n = container->latticeSize;
+	char fn[STRING_LEN];
+	real_t* buf = new real_t[n];
+	sprintf(fn, "%s_%d.comp", filename, D_MPI_RANK);
+	output("Loading component %s from file %s\n", comp, fn);
+	FILE* f = fopen(fn, "rb");
+	assert(f != NULL);
+	int nn = fread(buf, sizeof(real_t), n, f);
+	assert(n == nn);
+	fclose(f);
+<?R for(d in rows(DensityAll)) if (d$parameter) { ?>
+	if(strcmp(comp, "<?%s d$name ?>") == 0) Set_<?%s d$nicename ?>(buf); <?R
+} ?>
+	delete[] buf;
+	return 0;
+}
+
+LatticeBase * A_Ask_For_Lattice(const LatticePromise &prom) {
+	if(prom.latticeType == 1)
+		return new ArbitraryLattice(prom.region, prom.mpi, prom.ns, prom.latticeSize);
+	else
+		return NULL;
+}
+
+// register function in the handler factory
+template class LatticeFactory::Register< A_Ask_For_Lattice >;

@@ -287,6 +287,21 @@ CudaDeviceFunction void Init() {
 	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
 	    SetEquilibrum(1.0,0,0,0);}
 	else SetEquilibrum(1.0 + Pressure * 3.0, ST.x, ST.y, ST.z);
+#ifdef OPTIONS_AVG
+	avgP = 0;
+	avgUX = 0;
+	avgUY = 0;
+	avgUZ = 0;
+	varUX = 0;
+	varUY = 0;
+	varUZ = 0;
+	varUXUY = 0;
+	varUXUZ = 0;
+	varUYUZ = 0;
+        avgdxu2 = 0;
+        avgdyv2 = 0;
+        avgdzw2 = 0;
+#endif
 }
 
 CudaDeviceFunction void WVelocityTurbulent() {

@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 inline void stripbare(char * str)
 {
@@ -115,5 +116,42 @@ inline int mkpath(char* file_path_) {
   return mkpath(file_path_, 0775);
 }
 
+inline FILE* fopen_gz(const char* filename, const char * mode) {
+	bool gzip=false;
+	int len = strlen(filename);
+	if (len > 3) {
+		if (strcmp(&filename[len-3], ".gz") == 0) {
+			gzip = true;
+		}
+	}
+	if (gzip) {
+		warning("Opening a gzip file: %s (%s)\n",filename,mode);
+		if (strcmp(mode,"r") == 0) {
+			char cmd[STRING_LEN*2];
+			if (access(filename,R_OK)) return NULL;
+			sprintf(cmd, "gzip -d <%s", filename);
+			return popen(cmd, "r");
+		} else	if (strcmp(mode,"rb") == 0) {
+			char cmd[STRING_LEN*2];
+			if (access(filename,R_OK)) return NULL;
+			sprintf(cmd, "gzip -d <%s", filename);
+			return popen(cmd, "r");
+		} else if (strcmp(mode,"w") == 0) {
+			char cmd[STRING_LEN*2];
+			sprintf(cmd, "gzip >%s", filename);
+			return popen(cmd, "w");
+		} else if (strcmp(mode,"a") == 0) {
+			char cmd[STRING_LEN*2];
+			sprintf(cmd, "gzip >>%s", filename);
+			return popen(cmd, "w");
+		} else {
+			ERROR("Unknown mode for gzip file: fopen_gz('%s','%s')\n", filename, mode);
+			return NULL;
+		}
+	} else {
+		return fopen(filename, mode);
+	}
+	return NULL;
+}
 
 #endif                

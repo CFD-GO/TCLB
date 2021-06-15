@@ -163,7 +163,7 @@ void vtkFileOut::Init(int width, int height) {
 	Init(lbRegion(0,0,0,width,height,1),"");
 };
 
-void vtkFileOut::WriteField(char * name, void * data, int elem, char * tp, int components) {
+void vtkFileOut::WriteField(const char * name, void * data, int elem, const char * tp, int components) {
 	FERR;
 	int len = size*elem;
 	fprintf(f, vtk_field_header, tp, name, components);

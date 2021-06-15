@@ -1,5 +1,4 @@
 ifneq ($(MAKECMDGOALS),configure)
-	include config.main.mk
 	include makefile.main
 endif
 
@@ -7,7 +6,7 @@ makefile.main:src/makefile.main.Rt src/* models/* models/*/*
 	@echo "  RT         $@"
 	@tools/RT -I src/ -q -f $< -o $@
 
-config.main.mk: configure
+CLB/config.mk: configure
 	@echo
 	@echo "   #########################################"
 	@echo "   #        Run ./configure [...]          #"

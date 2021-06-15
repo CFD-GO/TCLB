@@ -12,64 +12,44 @@
 
 #######################################################################################################################
 
+DEST=CLB
+SRC=src
+BIN=bin
+
+.SECONDARY:
+.PHONY: all clean dummy
+.INTERMEDIATE : tapenade.run
+.SUFFIXES:
+
+$(DEST)/dep.mk : tools/dep.R
+	@echo "  AUTO-DEP   $@"
+	@$(RS) $<
+
+include $(DEST)/config.mk
+include src/lists.mk
+include $(DEST)/handlers.mk
+include $(DEST)/dep.mk
+
 all: <?%s paste(Models$name,collapse=" ") ?> 
 
-.PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
-
-
-SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu LatticeContainer.inc.cpp LatticeAccess.inc.cpp
-SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
-SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
-SOURCE_PLAN+=main.cpp
-SOURCE_PLAN+=Global.h gpu_anim.h LatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
-SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp
-SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
-SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
-SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
-SOURCE_PLAN+=BallTree.h BallTree.hpp BallTree.cpp
-SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
-SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
-SOURCE_PLAN+=glue.hpp
-SOURCE_PLAN+=mpitools.hpp
-SOURCE_PLAN+=pinned_allocator.hpp
-SOURCE_PLAN+=compare.cpp
-SOURCE_PLAN+=simplepart.cpp
-
-<?R
-	h = dir("src/Handlers","[.](h|cpp)(|.Rt)$")
-	h = sub(".Rt","",h)
-	h = paste("Handlers",h,sep="/");
-?>
-SOURCE_PLAN+=<?R cat(h,sep=" ") ?>
-SOURCE_PLAN+=CommonHandler.h Handlers.h
-SOURCE_PLAN+=Factory.h HandlerFactory.h
-SOURCE_PLAN+=SUMMARY
-SOURCE_PLAN+=docs-by-doxygen/conf.doxygen
-SOURCE_PLAN+=docs-by-doxygen/cfd-go-logo.png
-SOURCE_PLAN+=docs-by-doxygen/README.md
-SOURCE_ADJ =Dynamics_b.c ADTools.cu Dynamics_adj.c Dynamics_b.h types_b.h ADpre_.h ADpre__b.h
-SOURCE_REST=makefile dep.mk
-ADDITIONALS=README.md dictionary.h
-
-SOURCE_PLAN+=Catalyst.cpp
-SOURCE_PLAN+=Catalyst.h
+define compile =
+	@echo "  C++        $<"
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
+endef
 
 ifdef CPU
-	SOURCE_ALL=$(SOURCE_PLAN:.cu=.cpp)
+define compile_cu =
+	@echo "  C++        $< (cross-compiling)"
+	@cp $< $<.cpp
+	@$(CXX) -c $<.cpp -o $@ $(CPP_OPT) $(OPT); rm $<.cpp
+endef
 else
-	SOURCE_ALL=$(SOURCE_PLAN)
+define compile_cu =
+	@echo "  NVCC       $<"
+	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
+endef
 endif
 
-AOUT=main
-
-rm-files:
-	@echo "  RM         ALL"
-	@./tools/clear
-
-rm:rm-files configure
-	true
-
-clean: <?%s paste(Models$name, "clean", sep="/", collapse=" ") ?>
 	
 wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
 	@echo "  RT         $@"
@@ -83,21 +63,26 @@ wiki/catalog.xml : src/catalog.xml.Rt
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
 
-wiki/% : src/%.Rt
-	@echo "  RT         $@"
+define rtemplate =
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ || rm $@
-
-
-travis : .travis.yml
-
-.travis.yml : src/travis.yml.Rt models/* models/*/* models/*/*/* src/models.R
 	@echo "  RT         $@"
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w $(DEST)/ -o $@ $(RTOPT) || mv $@ $@~
+endef
+
+define copy =
 	@$(MKPATH) $@
-	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
+	@$(CP) $< $@
+endef
+
+define link =
+	@$(MKPATH) $@
+	@echo "  LINKING    $@"
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+endef
 
 
 <?R
+	d = "$(DEST)"
 	by(Models, Models$group, function(m) {
 		if (length(m$opts[[1]]) > 0) {
 			mat = do.call(rbind,m$opts)
@@ -109,7 +94,10 @@ travis : .travis.yml
 		}
 ?>
 
-<?%s m$group[1] ?>/all : <?%s m$name ?>
+.PHONY: <?%s m$group[1] ?>/all <?%s m$group[1] ?>/list
+
+<?%s m$group[1] ?>/all : $(addprefix $(BIN)/, <?%s m$name ?> $(AOUT))
+	@echo "  DONE       $@"
 
 <?%s m$group[1] ?>/list :
 <?R 
@@ -121,26 +109,26 @@ travis : .travis.yml
 	})
 ?>
 
+wiki/Models.md : src/Models.md.Rt <?%s paste("wiki/", Models$model.md, sep="", collapse=" ") ?>
+	@echo "  RT         $@ (model)"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ "MODELS=\"<?%s paste(Models$name,collapse=",")?>\"" || rm $@
+
+wiki/% : src/%.Rt
+	@echo "  RT         $@"
+	@$(MKPATH) $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ || rm $@
+
 ###############################################################################
 ######       AUTO GENERATED CASES for RT                                 ######
 ###############################################################################
 
 <?R
-for (d in destinations) {
 	for (i in 1:nrow(Models)) {
 		m = Models$name[i];
 		model_path = Models$path[i];
 		adjoint = Models$adjoint[i]
 		opts = Models$opts[[i]]
-		dest = paste(d,"/",m,"/",sep="")
-		src = "$(SOURCE_ALL)"
-		if (adjoint) src = paste(src, "$(SOURCE_ADJ)")
-		src_all = paste(src, "$(SOURCE_REST)")
-		src = paste("$(addprefix ",dest,",",src,")",sep="");
-		src_all = paste("$(addprefix ",dest,",",src_all,")",sep="");
-		src_all = paste(dest,src_all)
-		add = paste("$(addprefix ",dest,"/,$(ADDITIONALS))",sep="")
-		src_all = paste(src_all,add)
 		rtopt = NULL
 		if (adjoint) rtopt = c(rtopt, "ADJOINT=1")
 		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
@@ -152,46 +140,29 @@ for (d in destinations) {
 		}
 		opts = paste0("\"Options=list(",opts,")\"")
 		rtopt = c(rtopt,opts)
-		#paste0(names(opts),"=",a,collapse=",")
 ?>
 
-<?%s m ?>: <?%s d ?>/<?%s m ?>/main
+<?%s m ?>: $(addprefix $(BIN)/, <?%s m ?> $(AOUT))
 	@echo "  DONE       $@"
 
-<?%s m ?>/kernel_stats_20:
-	ptxas -v --gpu-name=sm_20 <?%s d ?>/<?%s m ?>/cuda.ptx 
-
-<?%s m ?>/source: <?%s src_all ?>
-	@echo "  DONE       $@"
-
-<?%s m ?>/clean: <?%s d ?>/<?%s m ?>/makefile
-	@echo "  CLEAN      $@"
-	@cd <?%s d ?>/<?%s m ?>; $(MAKE) clean
-
-.PHONY: <?%s m ?>/clean
-
-
-<?%s m ?>/vc: <?%s m ?>/source <?%s d ?>/<?%s m ?>/solver.vcproj
-	@echo "  DONE       $@"
-
-<?%s m ?>/summary: <?%s d ?>/<?%s m ?>/SUMMARY
+<?%s m ?>/summary: $(DEST)/<?%s m ?>/SUMMARY
 	@echo ""
 	@echo "----------------------------------------"
 	@echo "    Summary of model <?%s m ?>"
 	@echo "----------------------------------------"
 	@echo ""
-	@cat <?%s d ?>/<?%s m ?>/SUMMARY	
+	@cat $(DEST)/<?%s m ?>/SUMMARY	
 
 <?%s m ?>/docs: <?%s m ?>/source
 	@cd <?%s d ?>/<?%s m ?>; doxygen docs-by-doxygen/conf.doxygen
 	@echo "  DONE       $@"
 	@echo "  Open CLB/<?%s m ?>/docs-by-doxygen/output/html/index.html in your browser."
-	
-<?%s d ?>/<?%s m ?>/main:<?%s src_all ?>
-	@cd <?%s d ?>/<?%s m ?>; $(MAKE)
 
-<?%s d ?>/<?%s m ?>/ :
+$(BIN)/<?%s m ?>: $(addprefix $(DEST)/, $(SRC_MAIN__OBJ_PRM)) $(addprefix $(DEST)/<?%s m ?>/, $(SRC_MODEL_OBJ_PRM)) CLB/config.mk
 	@$(MKPATH) $@
+	@echo "  LINKING    $@"
+	@$(CXX) $(filter %.o, $^) -o $@ $(LD_OPT)
+	@ln -f -s ../../$@ $(DEST)/<?%s m ?>/main
 
 wiki/<?%s Models$model.md[i] ?>:$(SRC)/Model.md.Rt $(SRC)/conf.R <?%s model_path ?>/*
 	@echo "  RT         $@ (model)"
@@ -203,83 +174,50 @@ wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w ./ -o $@ <?%s rtopt ?> || mv $@ $@~
 
-# for model <?%s m ?> and destination <?%s d ?>
-
-<?%s d ?>/<?%s m ?>/Dynamics_b.c <?%s d ?>/<?%s m ?>/Dynamics_b.h <?%s d ?>/<?%s m ?>/types_b.h <?%s d ?>/<?%s m ?>/ADpre_.h <?%s d ?>/<?%s m ?>/ADpre__b.h : <?%s d ?>/<?%s m ?>/tapenade.run
-
-.INTERMEDIATE : tapenade.run
-
-<?%s d ?>/<?%s m ?>/tapenade.run : tools/makeAD <?%s d ?>/<?%s m ?>/Dynamics.c <?%s d ?>/<?%s m ?>/ADpre.h <?%s d ?>/<?%s m ?>/ADpre_b.h <?%s d ?>/<?%s m ?>/Dynamics.h <?%s d ?>/<?%s m ?>/Consts.h <?%s d ?>/<?%s m ?>/types.h <?%s d ?>/<?%s m ?>/ADset.sh <?%s d ?>/<?%s m ?>/ADpost.sed
+$(DEST)/<?%s m ?>/tapenade.run : tools/makeAD $(DEST)/<?%s m ?>/Dynamics.c $(DEST)/<?%s m ?>/ADpre.h $(DEST)/<?%s m ?>/ADpre_b.h $(DEST)/<?%s m ?>/templates/Dynamics.h $(DEST)/<?%s m ?>/Consts.h $(DEST)/<?%s m ?>/types.h $(DEST)/<?%s m ?>/ADset.sh $(DEST)/<?%s m ?>/ADpost.sed
 	@echo "  TAPENADE   $<"
 	@(cd <?%s d ?>/<?%s m ?>; ../../tools/makeAD "$(TAPENADE)")
 
-<?%s d ?>/<?%s m ?>/dep.mk:tools/dep.R <?%s src ?>
-	@echo "  AUTO-DEP   $@"
-	@$(RS) $< --args -d "<?%s d ?>/<?%s m ?>"
-
-<?%s d ?>/<?%s m ?>/makefile:$(SRC)/makefile.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R <?%s src_all ?>
-	@echo "  RT         $@"
+$(DEST)/<?%s m ?>/%:   $(SRC)/templates/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || mv $@ $@~
-
-
-<?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  RT         $@"
-	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
-
-<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  RT         $@"
-	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
-
-<?%s d ?>/<?%s m ?>/%.cpp:$(SRC)/%.cu <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
-	@echo "  CP         $@"
-	@$(MKPATH) $@
-	@$(CP) $< $@
-
-<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
 	@echo "  RT         $@ (model)"
-	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w $(DEST)/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/%.code:<?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+$(DEST)/<?%s m ?>/%: <?%s model_path ?>/%.Rt <?%s model_path ?>/Dynamics.R $(SRC)/conf.R
+	@$(MKPATH) $@
 	@echo "  RT         $@ (model)"
-	@$(MKPATH) $@
-	@$(RT) -q -c -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || rm $@
+	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w $(DEST)/<?%s m ?>/ -o $@ $(RTOPT) <?%s rtopt ?> || mv $@ $@~
 
-<?%s d ?>/<?%s m ?>/%:<?%s model_path ?>/%
-	@echo "  CP         $@ (model)"
-	@$(MKPATH) $@
-	@$(CP) $< $@
+$(DEST)/<?%s m ?>/%:<?%s model_path ?>/%
+	$(copy)
 
-<?%s d ?>/<?%s m ?>/%:$(SRC)/%
-	@echo "  CP         $@"
-	@$(MKPATH) $@
-	@$(CP) $< $@
+$(DEST)/<?%s m ?>/%:$(SRC)/templates/%
+	$(copy)
 
 <?R } ?>
 
-#configure:$(SRC)/configure.ac
-#	@echo "  AUTOCONF   $@"
-#	@autoconf -o $@ $< && rm -r autom4te.cache 2>/dev/null
+$(BIN)/compare : $(addprefix $(DEST)/, compare.o pugixml.o) CLB/config.mk
+	$(link)
 
-#<?%s d ?>/%:$(SRC)/%
-#	@echo "  CP         $@"
-#	@$(CP) $< $@
+$(BIN)/lammps : $(addprefix $(DEST)/, Global.o lammps.o) CLB/config.mk
+	$(link)
 
-<?%s d ?>/%:$(SRC)/%.Rt
-	@echo "  RT         $@"
+$(BIN)/empty : $(addprefix $(DEST)/, empty.o) CLB/config.mk
+	$(link)
+
+$(DEST)/%:$(SRC)/%
+	$(copy)
+
+$(DEST)/%:$(SRC)/%.Rt
+	$(rtemplate)
+
+CLB/%/DynamicsS_b.c CLB/%/Dynamics_b.c CLB/%/Dynamics_adj.c :
+	@echo "  MISSING    $@"
 	@$(MKPATH) $@
-	@$(RT) -q -f $< -I $(TOOLS) -w $(SRC)/ -o $@ || rm $@
-
-<?R } ?>
+	@touch $@
 
 %_sp.c:%.c
 	@echo "  SP-CONST   $@"
 	@$(MKPATH) $@
 	@cat $< | sed -r 's/([^a-zA-Z0-9][0-9]+\.[0-9]*([eE][-+]?[0-9]+)?)[fL]+/\1f/g' > $@
-
-
-
 

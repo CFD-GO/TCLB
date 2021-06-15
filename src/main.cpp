@@ -29,6 +29,9 @@
 #include "xpath_modification.h"
 #include "mpitools.hpp"
 
+#define HANDLE_IOERR(x) if ((x) == EOF) { error("Error in fscanf.\n"); return -1; }
+
+
 // Reads units from configure file and applies them to the solver
 int readUnits(pugi::xml_node config, Solver* solver) {
 	pugi::xml_node set = config.child("Units");
@@ -61,6 +64,38 @@ int readUnits(pugi::xml_node config, Solver* solver) {
 		i++;
 	}
 	solver->Gauge();
+	return 0;
+};
+
+// reads the dimensions from the first few lines of the connectivity file - assumes we have an ArbitraryLattice node 
+int readConnectivityDim(pugi::xml_node config, int & nx_, int & ny_, int & nz_, size_t & latticeSize_) {
+	// find ArbitraryLattice node
+	pugi::xml_node arbLatticeNode;
+	arbLatticeNode = config.child("ArbitraryLattice");
+	if(!arbLatticeNode)
+		error("Can't find AribtraryLattice element\n");
+	
+	if(!arbLatticeNode.attribute("file")) {
+        error("No 'file' attribute in ArbitraryLattice element in xml conf\n");
+    }
+	// open the file if there's one listed in the tag
+	FILE* cxnFile = fopen_gz(arbLatticeNode.attribute("file").value(), "r");
+	if(cxnFile == NULL) {
+		error("Connection file can't be opened\n");
+		return -1;
+	}
+	// just read the first 2 lines to get the values we want
+	int nx, ny, nz;
+	size_t latticeSize;
+	HANDLE_IOERR(fscanf(cxnFile, "LATTICESIZE %lu\n", &latticeSize));
+	HANDLE_IOERR(fscanf(cxnFile, "BASE_LATTICE_DIM %d %d %d\n", &nx, &ny, &nz));
+
+	fclose(cxnFile);
+	nx_ = nx;
+	ny_ = ny;
+	nz_ = nz;
+	latticeSize_ = latticeSize;
+	printf("lattice size: %lu\n", latticeSize);
 	return 0;
 };
 
@@ -102,9 +137,14 @@ int MainCallback(int seg, int tot, Solver* solver) {
 		}
        		int ups = (float) (1000. * all_iter)/eTime; // Steps made per second
   		double lbups=1.0;
-       		lbups *= solver->info.region.nx;
-		lbups *= solver->info.region.ny;
+		  if(solver->latticeType == 0) {
+			lbups *= solver->info.region.nx;
+			lbups *= solver->info.region.ny;
        		lbups *= solver->info.region.nz;
+		  } else {
+			  lbups *= solver->latticeSize;
+		  }
+       		
        		lbups *= iter;
 		lbups /= elapsedTime;
 		desired_steps = ups/desired_fps; // Desired steps per frame (so that on next frame fps = desired_fps)
@@ -126,7 +166,7 @@ int MainCallback(int seg, int tot, Solver* solver) {
 				sprintf(left,  "%dh %2dm", left_h, left_m);
 			}
 		}
-		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * NUMBER_OF_DENSITIES * sizeof(real_t) + sizeof(flag_t))) / 1e6);
+		sprintf(buf, "%8.1f MLBUps   %7.2f GB/s", ((double)lbups)/1000, ( (double) lbups * ((double) 2 * solver->lattice->model->fields.size() * sizeof(real_t))) / 1e6);
 		int per_len = 20;
 		{
 			int i=0;
@@ -170,6 +210,20 @@ bool find_adjoint(pugi::xml_node node)
 	} else return false;
 }
 
+bool find_geom(pugi::xml_node node)
+{
+	if(strcmp(node.name(), "Geometry") == 0) {
+		return true;
+	} else return false;
+}
+
+bool find_arbitraryLattice(pugi::xml_node node)
+{
+	if(strcmp(node.name(), "ArbitraryLattice") == 0) {
+		return true;
+	} else return false;
+}
+
 
 // Main program function
 int main ( int argc, char * argv[] )
@@ -195,7 +249,6 @@ int main ( int argc, char * argv[] )
 	if (solver->mpi_rank == 0) {
 		NOTICE("-------------------------------------------------------------------------\n");
 		NOTICE("-  CLB version: %25s                               -\n",VERSION);
-		NOTICE("-        Model: %25s                               -\n",MODEL);
 		NOTICE("-------------------------------------------------------------------------\n");
 	}
 	MPI_Barrier(MPMD.local);
@@ -240,7 +293,7 @@ int main ( int argc, char * argv[] )
 	debug0("sizeof(size_t) = %ld\n", sizeof(size_t));
 	debug0("sizeof(real_t) = %ld\n", sizeof(real_t));
 	debug0("sizeof(vector_t) = %ld\n", sizeof(vector_t));
-	debug0("sizeof(flag_t) = %ld\n", sizeof(flag_t));
+	debug0("sizeof(big_flag_t) = %ld\n", sizeof(big_flag_t));
 
 	MPI_Barrier(MPMD.local);
 
@@ -367,14 +420,45 @@ int main ( int argc, char * argv[] )
 		return -1;
 	}
 
-	XMLCHILD(geom, config, "Geometry");
+	//XMLCHILD(geom, config, "Geometry");
+	//if(!geom)
+	//	output("Looks like we don't have the geom object!!\n");
+
+	// first look for the geom node
+	geom = config.find_node(find_geom);
+	
+	// also look for the arbitrary latice node
+	pugi::xml_node arbLattice;
+	int latticeType = 0;
+	arbLattice = config.find_node(find_arbitraryLattice);
+
+	if(arbLattice && geom) {
+		ERROR("Do not use both ArbitraryLattice and Geometry XML tags\n");
+		return -1;
+	} else if(!arbLattice && !geom) {
+		ERROR("Could not find a Geometry or ArbitraryLattice XML tag\n");
+	} else if(arbLattice) {
+		output("Simulation is using an ArbitraryLattice\n");
+		latticeType = 1;
+	} else if(geom) {
+		output("Simulation is using a regular Cartesian Lattice\n");
+		latticeType = 0;
+	}
 
 	// Reading the size of mesh
 	int nx, ny, nz, ns = 2;
-	nx = myround(solver->units.alt(geom.attribute("nx").value(),1));
-	ny = myround(solver->units.alt(geom.attribute("ny").value(),1));
-	nz = myround(solver->units.alt(geom.attribute("nz").value(),1));
-	notice("Mesh size in config file: %dx%dx%d\n",nx,ny,nz);
+	size_t latticeSize;
+	if(latticeType == 0) { // cartesian lattice - read dim from geometry tags
+		nx = myround(solver->units.alt(geom.attribute("nx").value(),1));
+		ny = myround(solver->units.alt(geom.attribute("ny").value(),1));
+		nz = myround(solver->units.alt(geom.attribute("nz").value(),1));
+		latticeSize = nx * ny * nz;
+	} else { // arbitrary lattice 0 read dim from connectivity file
+		readConnectivityDim(config, nx, ny, nz, latticeSize);
+		notice("Mesh size in cxn file: %d\n", latticeSize);
+	}
+	
+	notice("Mesh dimensions in config file: %dx%dx%d\n",nx,ny,nz);
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
@@ -390,8 +474,11 @@ int main ( int argc, char * argv[] )
 		NOTICE("Will be running nonstationary adjoint at %d Snaps\n", D_MPI_RANK, ns);
 	}
 
+	// TODO: may want to construct the lattice promise out here and even pass in the xml node, but will leave it in solver for now
+	// because i'm not 100% sure of which region / mpi to use out here, if these are even defined
+
 	// Initializing the lattice of a specific size
-	if (solver->setSize(nx,ny,nz,ns)) return -1;
+	if (solver->setSize(nx,ny,nz,ns,latticeSize,latticeType)) return -1;
 	solver->setOutput("");
 
 	//Setting settings to default

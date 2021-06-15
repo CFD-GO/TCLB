@@ -2,14 +2,13 @@
 #include "Consts.h"
 #include "cross.h"
 #include "Global.h"
-#include "LatticeContainer.h"
 #include <vector>
 #include <algorithm>
 #include <iostream>
 
 #ifdef CROSS_CPU
 
-uint3 CpuBlock, CpuThread, CpuSize;
+uint3 CpuBlock, CpuThread, CpuSize, CpuGridSize;
 
 void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height) {
 	char * dst = (char*) dst_, *src = (char*) src_;
@@ -50,7 +49,7 @@ cudaError_t HandleError( cudaError_t err,
         std::vector< std::pair< void *, std::vector< ptrpair > > > freelist;
 
         CudaError cudaPreAlloc(void ** ptr, size_t size) {
-                debug1("Preallocation of %d b\n", (int) size);
+                debug1("Preallocation of %lu b\n", size);
                 ptrlist.push_back(ptrpair(ptr, size));
         //	return cudaMalloc(ptr, size);
                 return CudaSuccess;
@@ -72,13 +71,13 @@ cudaError_t HandleError( cudaError_t err,
                 }
                 char * tmp = NULL;
                 if (fullsize > 1e9) {
-                        NOTICE("[%d] Cumulative allocation of %d b (%.1f GB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e9);
+                        NOTICE("[%d] Cumulative allocation of %lu b (%.1f GB)\n", D_MPI_RANK, (size_t) fullsize, ((float) fullsize)/1e9);
                 } else if (fullsize > 1e6) {
-                        NOTICE("[%d] Cumulative allocation of %d b (%.1f MB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e6);
+                        NOTICE("[%d] Cumulative allocation of %lu b (%.1f MB)\n", D_MPI_RANK, (size_t) fullsize, ((float) fullsize)/1e6);
                 } else if (fullsize > 1e3) {
-                        NOTICE("[%d] Cumulative allocation of %d b (%.1f kB)\n", D_MPI_RANK, (int) fullsize, ((float) fullsize)/1e3);
+                        NOTICE("[%d] Cumulative allocation of %lu b (%.1f kB)\n", D_MPI_RANK, (size_t) fullsize, ((float) fullsize)/1e3);
                 } else {
-                        NOTICE("[%d] Cumulative allocation of %d b\n", D_MPI_RANK, (int) fullsize);
+                        NOTICE("[%d] Cumulative allocation of %lu b\n", D_MPI_RANK, (size_t) fullsize);
                 }
                 CudaMalloc((void **) &tmp,fullsize);
                 if (tmp == NULL) {
@@ -90,7 +89,7 @@ cudaError_t HandleError( cudaError_t err,
                 std::vector< ptrpair > tofree;
                 while (!ptrlist.empty()) {
                         ptr = ptrlist.back();
-                        debug1("[%d] Preallocation gave %d b\n", D_MPI_RANK, (int) ptr.size);
+                        debug1("[%d] Preallocation gave %lu b\n", D_MPI_RANK, ptr.size);
         //		cudaMalloc(ptr.ptr,ptr.size);
                         *(ptr.ptr) = (void **)tmp;
                         tmp += ptr.size;
@@ -121,7 +120,7 @@ cudaError_t HandleError( cudaError_t err,
 #else
 
         CudaError cudaPreAlloc(void ** ptr, size_t size) {
-                debug1("Preallocation of %d b\n", (int) size);
+                debug1("Preallocation of %lu b\n", size);
                 CudaError ret = CudaMalloc(ptr, size);
                 CudaMemset( *ptr, 0, size );
                 return ret;

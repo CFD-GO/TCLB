@@ -1,7 +1,3 @@
-<?R
-	source("conf.R")
-	c_header()
-?>
 /**
 	\file Global.cpp
 	Implementation of global functions
@@ -28,15 +24,6 @@ MPMDHelper MPMD;
 std::clock_t global_start;
 int D_MPI_RANK;
 int D_TERMINAL;
-/*
-void initSettings() {
-	real_t val = 0;
-<?R for (v in rows(Settings)) {
-	if (is.na(v$derived)) { ?>
-			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
-	}} ?>
-}
-*/
 
 /// Generate the connectivity information
 /*
@@ -62,8 +49,10 @@ void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 	for (z=0; z<nz; z++) {
 		k = x + y * nx + z * nx * ny;
 <?R
-	for (m in Margin) {
-		sides(m$side, -m$dx, -m$dy, -m$dz);
+	tab = expand.grid(dx=-1:1, dy=-1:1, dz=-1:1)
+	tab$side = paste0("side",1:nrow(tab))
+	for (i in seq_len(nrow(tab))) {
+		sides(tab$side[i], -tab$dx[i], -tab$dy[i], -tab$dz[i]);
 	}
 ?>
 	}

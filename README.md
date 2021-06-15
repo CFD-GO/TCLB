@@ -26,7 +26,7 @@ make d2q9
 ```
 **Run**
 ```bash
-CLB/d2q9/main example/flow/2d/karman.xml
+bin/d2q9 example/flow/2d/karman.xml
 ```
 
 ## More information
@@ -81,7 +81,7 @@ To compile the code for CPU, you can use the `--disable-cuda` option for `./conf
 ### Parallel run
 To run TCLB in parallel (both on multiple CPU and multiple GPU), you can use the standard syntax of MPI parallel run:
 ```bash
-mpirun -np 8 CLB/d2q9/main example/flow/2d/karman.xml
+mpirun -np 8 bin/d2q9 example/flow/2d/karman.xml
 ```
 
 ### Running on clusters

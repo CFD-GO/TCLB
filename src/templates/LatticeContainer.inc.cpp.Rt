@@ -1,0 +1,205 @@
+<?R
+	source("conf.R")
+        c_header()
+    tminx = min(0,Fields$minx)
+    tmaxx = max(0,Fields$maxx)
+    tminy = min(0,Fields$miny)
+    tmaxy = max(0,Fields$maxy)
+    tminz = min(0,Fields$minz)
+    tmaxz = max(0,Fields$maxz)
+?>
+/** \file LatticeContainer.cu
+  File defining LatticeContainer and some additional CUDA functions
+*/
+
+#include "../Consts.h"
+#include "../Global.h"
+#include "Lattice.h"
+#include <mpi.h>
+#define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
+#define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
+
+/// Allocation of memory for an FTabs
+void FTabs::Alloc(int nx,int ny,int nz) {
+  size_t size;
+  char * tmp = NULL;
+  <?R for (m in NonEmptyMargin) { ?>
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    ALLOCPRINT1;
+    #ifdef DIRECT_MEM
+      CudaMallocHost( (void**)&tmp, size );
+    #else
+      CudaMalloc( (void**)&tmp, size );
+    #endif
+    ALLOCPRINT2;
+    CudaMemset( tmp, 0, size ); 
+    <?%s m$name ?>=  (real_t*)tmp;
+  <?R } ?>
+}
+
+/// Preallocation of a FTabs
+/**
+  Aglomerates all the allocation into one big memory chunk
+*/
+void FTabs::PreAlloc(int nx,int ny,int nz) {
+  size_t size;
+  <?R for (m in NonEmptyMargin) { ?>
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    CudaPreAlloc( (void**)&<?%s m$name ?>, size );
+  <?R } ?>
+}
+
+/// Clearing (zero-ing) of a FTabs
+void FTabs::Clear(int nx,int ny,int nz) {
+  size_t size;
+  <?R for (m in NonEmptyMargin) { ?>
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    CudaMemset( <?%s m$name ?>, 0, size );
+  <?R } ?>
+}
+
+/// Free FTabs memory
+void FTabs::Free() { <?R
+    for (m in NonEmptyMargin) { ?>
+    MyFree(<?%s m$name ?>); 
+    <?%s m$name ?> = NULL;<?R
+    } ?>
+}
+
+/// Allocation of memory of a container
+void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
+{
+    iter = 0;
+    nx = nx_;
+    ny = ny_;
+    nz = nz_;
+    kx = nx/X_BLOCK;
+    ky = ny;
+
+    InitDim<CartesianLatticeContainerAccessor>(ny);
+
+    char * tmp=NULL;
+    size_t size;
+
+    size = (size_t) nx*ny*nz*sizeof(flag_t);
+	ALLOCPRINT1;
+    CudaMalloc( (void**)&tmp, size );
+	ALLOCPRINT2;
+    CudaMemset( tmp, 0, size ); 
+    NodeType = (flag_t*)tmp;
+
+    Q = NULL;
+    particle_data_size = 0;
+    particle_data = NULL;
+
+    size = (size_t) GLOBALS * sizeof(real_t);
+	ALLOCPRINT1;
+    CudaMalloc( (void**)&tmp, size );
+	ALLOCPRINT2;
+    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
+    Globals = (real_t*)tmp;
+	ST.setsize(0, ST_GPU);
+}
+
+void LatticeContainer::ActivateCuts() {
+    if (Q == NULL) {
+            void * tmp;
+            size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
+                ALLOCPRINT1;
+            CudaMalloc( (void**)&tmp, size );
+                ALLOCPRINT2;
+            CudaMemset( tmp, 0, size ); 
+            Q = (cut_t*)tmp;
+    }
+}
+
+/// Destroy Container
+/**
+  cannot do a constructor and destructor - because this class lives on GPU
+*/
+void LatticeContainer::Free()
+{
+    CudaFree( NodeType );
+    if (Q != NULL) CudaFree( Q ); 
+}
+
+/// Copy oneself to the GPU constant memory
+/**
+  Copiers the container object to constContainer variable
+  in the constant memory of the GPU
+*/
+void LatticeContainer::CopyToConst() {
+    dx =  0;
+    fx = nx;
+    dy = <?%d tmaxy ?>;
+    fy = ny - <?%d -tminy ?>;
+    dz = <?%d tmaxz ?>;
+    fz = nz - <?%d -tminz ?>;
+    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));
+}
+
+/// Run the border kernel
+/**
+  Dispatch the kernel running RunElement on all border elements of the Lattice
+  \param borderStream CUDA Stream to which add the kernel run
+*/
+template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
+    #ifdef BORDER_Z
+	    CudaKernelRunNoWait( (RunBorderKernel<N, CartesianLatticeContainerAccessor>) , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
+    #else
+	    CudaKernelRunNoWait( (RunBorderKernel<N, CartesianLatticeContainerAccessor>) , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
+    #endif
+};
+
+/// Run the interior kernel
+/**
+  Dispatch the kernel running RunElement on all interior elements of the lattice
+  \param interiorStream CUDA Stream to which add the kernel run
+*/
+template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
+    int nnz;
+    ky = ThreadNumber< N, CartesianLatticeContainerAccessor >::getKY();
+    nnz = fz - dz;
+    #ifdef GRID3D
+        CudaKernelRunNoWait( (RunKernel<N, CartesianLatticeContainerAccessor>) , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N, CartesianLatticeContainerAccessor >::getSY()),(),interiorStream);
+    #else
+        CudaKernelRunNoWait( (RunKernel<N, CartesianLatticeContainerAccessor>) , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N, CartesianLatticeContainerAccessor >::getSY()),(),interiorStream);
+    #endif
+};
+
+/// Run the particle kernel
+/**
+*/
+template <class N> inline void LatticeContainer::RunParticlesT(CudaStream_t interiorStream) {
+	if (particle_data_size > 0) {
+	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) , dim3(32,8),(),interiorStream);
+//	    CudaKernelRunNoWait( RunParticlesKernel<N> , dim3(particle_data_size,1,1) , dim3(1),(),interiorStream);
+	}
+};
+
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < CartesianLatticeContainerAccessor, I, G, S > >(stream); };
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < CartesianLatticeContainerAccessor, I, G, S > >(stream); };
+template < eOperationType I, eCalculateGlobals G, eStage S >
+  void LatticeContainer::RunParticles(CudaStream_t stream) { RunParticlesT< Node_Run < CartesianLatticeContainerAccessor, I, G, S > >(stream); };
+
+/// Runs kernel for rendering graphics
+/**
+  Runs the kernel for rendering graphics 
+  \param optr 4-component graphics buffer
+*/
+void LatticeContainer::Color( uchar4 *optr ) {
+   CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
+   CudaKernelRun( (ColorKernel<CartesianLatticeContainerAccessor>) , dim3(kx,ny,1), dim3(X_BLOCK) ,(optr, nz/2));
+};
+
+<?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { 
+		st = Stages[tp$Stage,,drop=FALSE]
+		ifdef(tp$adjoint) 	
+		?>
+template void LatticeContainer::RunBorder < <?%s tp$TemplateArgs ?> > (CudaStream_t stream);
+template void LatticeContainer::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
+         };
+	ifdef();
+?>

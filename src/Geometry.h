@@ -3,6 +3,9 @@
 
 #include "unit.h"
 #include <map>
+
+#include "Lists.h"
+
 /// STL triangle structure
 #ifdef _WIN32
   struct STL_tri {
@@ -24,20 +27,21 @@ enum draw_mode {
 
 /// Class responsible for constructing the table of flags/NodeTypes
 class Geometry {
+  ModelBase * model;
 public:
-  flag_t * geom; ///< Main table of flags/NodeType's
+  big_flag_t * geom; ///< Main table of flags/NodeType's
   cut_t * Q;
   lbRegion region; ///< Lattive region
   lbRegion totalregion; ///< Global Lattive region
   UnitEnv units; ///< Units object for unit calculations
-  Geometry(const lbRegion& r, const lbRegion& tr, const UnitEnv& units_);
+  Geometry(const lbRegion& r, const lbRegion& tr, const UnitEnv& units_, ModelBase * model_);
   ~Geometry();
   int load(pugi::xml_node&);
   void writeVTI(const char * filename);
   std::map<std::string,int> SettingZones;
 private:
-  flag_t fg; ///< Foreground flag used for filling
-  flag_t fg_mask; ///< Foreground flag mask used for filling
+  big_flag_t fg; ///< Foreground flag used for filling
+  big_flag_t fg_mask; ///< Foreground flag mask used for filling
   draw_mode fg_mode; ///< Foreground flag drawing mode
   pugi::xml_node fg_xml; ///< Foreground flag XML element
   int setFlag(const pugi::char_t * name);
@@ -55,7 +59,7 @@ private:
   int val(pugi::xml_attribute attr);
   int val_p(pugi::xml_attribute attr, char* prefix);
   double val_d(pugi::xml_attribute attr);
-  flag_t Dot(int x, int y, int z);
+  big_flag_t Dot(int x, int y, int z);
   void ActivateCuts();
 };
 

@@ -6,7 +6,6 @@ std::string cbCatalyst::xmlname = "Catalyst";
 
 #include "../Catalyst.h"
 
-
 int cbCatalyst::Init () {
 		Callback::Init();
 		pugi::xml_attribute attr;

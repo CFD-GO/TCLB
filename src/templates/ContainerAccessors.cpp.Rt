@@ -1,0 +1,130 @@
+<?R
+	source("conf.R")
+        c_header()
+    tminx = min(0,Fields$minx)
+    tmaxx = max(0,Fields$maxx)
+    tminy = min(0,Fields$miny)
+    tmaxy = max(0,Fields$maxy)
+    tminz = min(0,Fields$minz)
+    tmaxz = max(0,Fields$maxz)
+?>
+#include "LatticeContainer.h"
+#include "ArbitraryLatticeContainer.h"
+#include "../cross.h"
+
+
+#ifndef CONTAINERACCESSORS
+
+// Accessor for ArbitraryLatticeContainer
+struct ArbitraryLatticeContainerAccessor {
+	typedef ArbitraryLatticeContainerAccessor Accessor;
+	typedef ArbitraryLatticeContainer Container;
+	typedef ArbitraryLatticeContainer::index index;
+
+	CudaDeviceFunction static ArbitraryLatticeContainer& container() {
+		return constArbitraryContainer;
+	}
+
+	/// Main function called by the Kernel for cartesian lattice
+	/**
+	 iterates over all elements and runs them with RunElement function.
+	constContainer.dx/dy is to calculate only internal nodes
+	*/
+	template <class N> CudaDeviceFunction static void RunKernel() {
+		N now;
+		
+		now.idx_.id = CudaThread.x + (CudaThread.y * CudaNumberOfThreads.x) + 
+						(CudaBlock.x * CudaNumberOfThreads.x * CudaNumberOfThreads.y) + 
+						(CudaBlock.y * CudaNumberOfThreads.x * CudaNumberOfThreads.y * CudaNumberOfBlocks.x);
+
+		now.Pre();
+		if(now.idx_.id < constArbitraryContainer.latticeSize) {
+			now.RunElement();
+		} else {
+			now.OutOfDomain();
+		}
+		now.Glob();
+	}
+
+	template <class N> CudaDeviceFunction static void RunBorderKernel() {
+		// function needs to be implemented upon setting up multi-gridding
+		return;
+	}
+};
+
+// Accessor for CartesianLatticeContainer
+struct CartesianLatticeContainerAccessor {
+	typedef CartesianLatticeContainerAccessor Accessor;
+	typedef LatticeContainer Container;
+	typedef LatticeContainer::index index;
+
+	CudaDeviceFunction static LatticeContainer& container() {
+		return constContainer;
+	}
+
+	/// Main function called by the Kernel for arbitrary lattice
+	/**
+	 iterates over all elements and runs them with RunElement function.
+	constContainer.dx/dy is to calculate only internal nodes
+	*/
+	template <class N> CudaDeviceFunction static void RunKernel() {
+		N now;
+		now.idx_.x = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
+		now.idx_.y = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
+		now.idx_.z = CudaBlock.y + constContainer.dz;
+
+
+		#ifndef GRID3D
+			for (; now.idx_.x < constContainer.nx; now.idx_.x += CudaNumberOfThreads.x) {
+		#endif
+			now.Pre();
+			if (now.idx_.y < constContainer.fy) {
+				now.RunElement();
+			} else {
+				now.OutOfDomain();
+			}
+			now.Glob();
+		#ifndef GRID3D
+			}
+		#endif
+	}
+
+	/// Main function called by the border kernel for cartesian lattice
+	/**
+	 iterates over border elements and runs them with RunElement function
+	*/
+	template <class N> CudaDeviceFunction static void RunBorderKernel() {
+		N now;
+		now.idx_.x = CudaThread.x + CudaBlock.y*X_BLOCK;
+		now.idx_.z = CudaBlock.x;
+		
+			now.Pre();
+		<?R if (tmaxy > tminy) { ?>
+			if (now.idx_.z < constContainer.nz) {
+		<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
+			now.idx_.y = <?%d y - 1 ?>;
+				now.RunElement();
+		<?R	} else if (y < 0) { ?>
+				now.idx_.y = constContainer.ny - <?%d -y ?>;
+				now.RunElement();
+		<?R	} ?>
+			}
+		<?R }
+			if (tmaxz > tminz) { ?>
+			now.idx_.y = CudaBlock.x;
+			if ((now.idx_.y < constContainer.fy) && (now.idx_.y >= constContainer.dy)) {
+		<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
+				now.idx_.z = <?%d z - 1 ?>;
+				now.RunElement();
+		<?R	} else if (z < 0) { ?>
+				now.idx_.z = constContainer.nz - <?%d -z ?>;
+				now.RunElement();
+		<?R	} ?>
+			}
+		<?R } ?>
+			now.Glob();
+	}
+};
+
+#define CONTAINERACCESSORS 1
+#endif
