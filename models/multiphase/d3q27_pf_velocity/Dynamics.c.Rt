@@ -529,7 +529,7 @@ CudaDeviceFunction void calc_Fs(real_t *fx, real_t *fy, real_t *fz, real_t mu, v
 		<?R
 			IsotropicGrad('gradT','Temp')
 		?>
-		dotTMP = dotProduct(gradT,gradPhi);
+		dotTMP = dotProduct(gradT,gPhi);
 		if (surfPower < 2) {
 			delta_s = 1.5*IntWidth*sigma_T;
 			*fx = mu * gPhi.x + delta_s*( magnPhi2*gradT.x - dotTMP*gPhi.x );
