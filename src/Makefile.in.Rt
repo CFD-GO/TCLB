@@ -25,7 +25,7 @@ LIBS := @R_LIB@ @LIBS@ @RCPP_LD@ -Xlinker -rpath -Xlinker $(MPI_LIBS) -L$(MPI_LI
 
 TARGETS := CLB.so
 
-NVCC := @CUDA_HOME@/bin/nvcc -gencode arch=compute_10,code=sm_10 -gencode arch=compute_11,code=sm_11 -gencode arch=compute_12,code=sm_12 -gencode arch=compute_13,code=sm_13 -gencode arch=compute_20,code=sm_20  -gencode arch=compute_60,code=sm_60
+NVCC := @CUDA_HOME@/bin/nvcc -gencode arch=compute_10,code=sm_10 -gencode arch=compute_11,code=sm_11 -gencode arch=compute_12,code=sm_12 -gencode arch=compute_13,code=sm_13 -gencode arch=compute_20,code=sm_20  -gencode arch=compute_60,code=sm_60, -gencode arch=compute_75,code=sm_75
 
 all: $(TARGETS) 
 

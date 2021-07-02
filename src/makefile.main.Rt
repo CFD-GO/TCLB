@@ -130,6 +130,7 @@ wiki/% : src/%.Rt
 		adjoint = Models$adjoint[i]
 		opts = Models$opts[[i]]
 		rtopt = NULL
+		if (adjoint) rtopt = c(rtopt, "ADJOINT=1")
 		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
 		if (length(opts) > 0) {
 			opts = ifelse(opts==0,"FALSE","TRUE")

@@ -3,11 +3,17 @@
 CudaSharedMemory int pushcontrol[MAX_THREADS];
 
 #define pushcontrol1b(x__) pushcontrol1b_(x__)
+#define pushControl1b(x__) pushcontrol1b_(x__)
 #define pushcontrol2b(x__) pushcontrol2b_(x__)
+#define pushControl2b(x__) pushcontrol2b_(x__)
 #define pushcontrol3b(x__) pushcontrol3b_(x__)
+#define pushControl3b(x__) pushcontrol3b_(x__)
 #define popcontrol1b(x__)  popcontrol1b_(x__)
+#define popControl1b(x__)  popcontrol1b_(x__)
 #define popcontrol2b(x__)  popcontrol2b_(x__)
+#define popControl2b(x__)  popcontrol2b_(x__)
 #define popcontrol3b(x__)  popcontrol3b_(x__)
+#define popControl3b(x__)  popcontrol3b_(x__)
 
 
 inline CudaDeviceFunction void pushcontrol1b_(int i) {
