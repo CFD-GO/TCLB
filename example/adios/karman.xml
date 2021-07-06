@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="800" ny="800" nz="1">
+		<MRT>
+			<Box/>
+		</MRT>
+		<!-- <WVelocity name="Inlet">
+			<Inlet/>
+		</WVelocity>
+		<EPressure name="Outlet">
+			<Outlet/>
+		</EPressure>
+		<Inlet nx="1" dx="5">
+			<Box/>
+		</Inlet>
+		<Outlet nx="1" dx="-5">
+			<Box/>
+		</Outlet> -->
+		<Wall mask="ALL" dx="33" dy="10" nx="734" ny="734">
+			<Channel/>
+                        <ADIOS2 Stream="globalArray" Variable="GlobalArray" IOName="FlaggedGeometry" AdiosConfig="karman.adios.xml"/>
+
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="VelocityX" value="0.01"/>
+		<Param name="Viscosity" value="0.02"/>
+		<Param name="Smag" value="0.16"/>
+		<Param name="PressDiffInObj" value="1"/>
+		<Param name="EOSScale" value="0.05"/>
+		<Param name="Tension" value="0.01"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="1"/>
+	</Model>
+	<VTK/>
+	<!-- <Solve Iterations="10000"/> -->
+</CLBConfig>
