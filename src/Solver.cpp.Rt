@@ -209,6 +209,13 @@ void MainFree( Solver *d);
 		output("%8d it %s\n", iter, str);
 	}
 
+/// Writes checkpoint files
+	void Solver::writeSAVECHECKPOINT( const char * nm, char * filename, char * restartfile  ){
+		print("writing checkpoint");
+		outIterFile(nm, "", filename);
+		lattice->saveSolution(filename);
+		outIterFile(nm, ".xml", restartfile);
+	}
 
 ///	Writes state of lattive to VTK.
 /**

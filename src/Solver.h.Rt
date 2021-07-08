@@ -134,6 +134,7 @@ class Solver {
 	void Gauge();
 	int initLog(const char * filename);
 	int writeLog(const char * filename);
+	void writeSAVECHECKPOINT( const char * nm, char * filename, char * restartfile );
 	int writeVTK(const char * nm, name_set * s);
 	int writeTXT(const char * nm, name_set * s, int type);
 	int writeBIN(const char * nm);
