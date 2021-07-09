@@ -29,7 +29,9 @@
 		<Param name="Viscosity" value="0.02"/>
 	</Model>
     <Solve Iterations="10000">
+    </Solve>
+    <Solve Iterations="10000">
 	    <VTK Iterations="1000"/>
-        <SaveCheckpoint Iterations="2000" overwrite="true"/>
+        <SaveCheckpoint Iterations="2000"/>
     </Solve>
 </CLBConfig>
