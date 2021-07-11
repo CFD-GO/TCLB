@@ -20,6 +20,11 @@ int cbSaveCheckpoint::Init () {
 			} else {
 				// If the attr value is not the string all, assume it is an int
 				keep = attr.as_int();
+				if ( keep < 0) {
+					// Check the user hasn't set keep to a negative value
+					error("Keeping a negative no. of chckpnts not allowed, returning default behaviour.");
+					keep = 1;
+				}
 			}
 		} else{
 			keep = 1;
