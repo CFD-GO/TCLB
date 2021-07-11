@@ -52,15 +52,13 @@ int cbSaveCheckpoint::DoIt () {
 		solver->outIterCollectiveFile("restart", ".xml", restartFile);
 		
 		fileStr = solver->lattice->saveSolution(filename);
-
-		myqueue.push( fileStr );
 		if (D_MPI_RANK == 0 ) {
 			writeRestartFile(filename, restartFile);
 			restStr = restartFile;
-			myqueue_rst.push( restStr );
 		}
-
 		if (keep != 0){
+			myqueue.push( fileStr );
+			myqueue_rst.push( restStr );
 			if (myqueue.size() > keep) {
 				// myqueue should only ever reach the size of keep
 				fileStr = myqueue.front();
