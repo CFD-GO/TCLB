@@ -80,12 +80,16 @@ int cbSaveCheckpoint::DoIt () {
 
 int cbSaveCheckpoint::writeRestartFile( const char * fn, const char * rf ) {
 
-		// Check if a LoadBinary attribute exists
-		pugi::xml_node n1 = solver->configfile.child("CLBConfig").child("LoadBinary");
+		pugi::xml_document restartfile;
+		for (pugi::xml_node n = solver->configfile.first_child(); n; n = n.next_sibling()){
+			restartfile.append_copy(n);
+		}
+
+		pugi::xml_node n1 = restartfile.child("CLBConfig").child("LoadBinary");
 		if (!n1){
 			// If it doesn't exist, create it before solve
-			n1 = solver->configfile.child("CLBConfig").child("Solve");
-			pugi::xml_node n2 = solver->configfile.child("CLBConfig").insert_child_before("LoadBinary", n1);
+			n1 = restartfile.child("CLBConfig").child("Solve");
+			pugi::xml_node n2 = restartfile.child("CLBConfig").insert_child_before("LoadBinary", n1);
 			n2.append_attribute("file").set_value(fn);
 		} else {
 			// If it does exist, remove it and replace it with up to date file string
@@ -93,7 +97,7 @@ int cbSaveCheckpoint::writeRestartFile( const char * fn, const char * rf ) {
 			n1.append_attribute("file").set_value(fn);	
 		}
 
-		solver->configfile.save_file( rf );
+		restartfile.save_file( rf );
 
 	
 	return 0;
