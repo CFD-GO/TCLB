@@ -59,7 +59,7 @@ int cbSaveCheckpoint::DoIt () {
 		if (keep != 0){
 			myqueue.push( fileStr );
 			myqueue_rst.push( restStr );
-			if (myqueue.size() > keep) {
+			if (myqueue.size() > (size_t) keep) {
 				// myqueue should only ever reach the size of keep
 				fileStr = myqueue.front();
 				int rm_result = remove( fileStr.c_str() ); //Takes char
