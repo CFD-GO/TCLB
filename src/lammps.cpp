@@ -160,9 +160,9 @@ int main(int argc, char *argv[])
 
    lammps_close(lmp);
    if (RFI.Connected()) {
-    RFI.Close();
-    MPI_Finalize();
+     RFI.Close();
    }
+   MPI_Finalize();
    return 0;
 }
 
