@@ -1,0 +1,548 @@
+// Model for solving the spatial Allen Cahn equation.
+// This model is to compare first (Euler) and second (Trapezoidal) integration scheme for the source term, Q=lambda*phi*(1-phi^2)
+// phi' =  M*lap(phi) + lambda*phi*(1-phi^2)
+// phi_t =  M *(phi_xx + phi_yy) + lambda*phi*(1-phi^2)
+// maintainer: Grzegorz Gruszczynski @ggruszczynski
+// <https://arxiv.org/abs/2107.03962>
+
+<?R  
+	source("conf.R")
+	c_header();
+	source("lib/boundary.R")
+
+  	f = PV(DensityAll$name[DensityAll$group=="f"])
+
+?>
+
+CudaDeviceFunction float2 Color() {
+  float2 ret;
+  ret.x = 0;
+  ret.y = <?R C(sum(f)) ?>;
+  return ret;
+}
+
+// ------------------------ PARAVIEW OUTPUT BLOCK ------------------------
+// Use this functions is only for vtk output.
+// Nodes are created using streamed, post-collision DF.
+// RunBoundaries are called in orded to assign the desired value at the boundary.
+// It can make a difference in convergence study and nicer preview.
+
+CudaDeviceFunction real_t getPhaseField() {
+	return (<?R C(sum(f)) ?>) + getQ() / 2.;
+}
+
+CudaDeviceFunction real_t getQ() 
+{	
+	real_t tilde_phi = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	real_t Q;
+	real_t phi;
+	#ifdef OPTIONS_ExpotentialDecay
+		// https://en.wikipedia.org/wiki/Exponential_decay
+		// this is an alternative mode for Q
+		phi = 2.*tilde_phi/(2.0+lambda);
+		Q = -lambda*phi;
+	#else
+		//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+		const real_t dt = 1.;
+		
+		const real_t  x0 = cbrt(3.) ; 
+		const real_t  x1 = 1/(dt*lambda) ; 
+		const real_t  x2 = dt*lambda - 2 ; 
+		const real_t  x3 = cbrt(-9*tilde_phi*x1 + sqrt(3.)*sqrt((27*pow(tilde_phi, 2) - x1*pow(x2, 3))/(pow(dt, 2)*pow(lambda, 2)))) ; 
+		phi = -1.0/3.0*x0*(x0*x1*x2 + pow(x3, 2))/x3 ;  
+		
+		Q = lambda*phi*(1 - pow(phi, 2));
+		// Q = lambda*tilde_phi*(1 - pow(tilde_phi, 2)) ; // approximate (naive, first order implementation)
+	#endif
+	
+	return Q; 
+}
+
+
+// ------------------------ END OF PARAVIEW OUTPUT BLOCK ------------------------
+
+
+CudaDeviceFunction void RunBoundaries(vector_t u)
+{	
+	phaseField_tilde = phaseField_tilde(0,0);
+	
+	switch (NodeType & NODE_BOUNDARY) {
+		case NODE_Wall:
+			BounceBack();
+			break;
+		case NODE_DirichletEQ:  		
+			// equilibrium scheme for BC - don`t care and impose rho*Teq
+			// see chapter 5.3.4.2, eq 5.34, p191 from The Lattice Boltzmann Method: Principles and Practice
+			// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+			Init_eq(phaseField_tilde,u); 
+			break; 
+	}
+}
+
+CudaDeviceFunction void PhaseFieldSmoothing(vector_t u){
+	// this function is to smooth the boundaries after initialization.
+	real_t lap_pf = phaseField_tilde(-1,0) + phaseField_tilde(1,0) + phaseField_tilde(0,-1) + phaseField_tilde(0,1) - 4*phaseField_tilde(0,0);
+	real_t grad_phi[2];
+	grad_phi[0] = (phaseField_tilde(1,0)-phaseField_tilde(-1,0))/2;
+	grad_phi[1] = (phaseField_tilde(0,1)-phaseField_tilde(0,-1))/2;
+
+	real_t temp = phase_field_smoothing_coeff * phase_field_smoothing_coeff * lap_pf - u.x*grad_phi[0] - u.y*grad_phi[1];
+	phaseField_tilde = phaseField_tilde(0,0) + temp;
+}
+
+CudaDeviceFunction real_t CalcInit_pf_tilde(real_t ipfe)
+{
+	// ipfe - init phase field external (i.e. place runr/xml raw pf, the Dynamics.c will convert it for initialization).
+	// pf_tilde = ipfe - Q/2.;
+
+	real_t Q;
+	#ifdef OPTIONS_ExpotentialDecay
+		// this is an alternative mode for Q
+		real_t phi = 2.*ipfe/(2.0+lambda);
+		Q = -lambda*phi;
+	#else
+		Q = lambda*ipfe*(1-ipfe*ipfe);
+	#endif
+
+	real_t pf_tilde  = ipfe - Q/2.;
+	return pf_tilde;
+}
+
+CudaDeviceFunction void InitFromFieldsStage() { 
+	vector_t u;
+	u.x = Init_UX;
+	u.y = Init_UY;
+
+	// u.x = Init_UX_External;
+	// u.y = Init_UY_External;
+	real_t ipfe = Init_PhaseField_External;
+	real_t pf_tilde = CalcInit_pf_tilde(ipfe);
+
+	Init_eq(pf_tilde,u);
+}
+
+CudaDeviceFunction void Init() { 
+	vector_t u;
+	u.x = Init_UX;
+	u.y = Init_UY;
+
+	real_t ipfe = Init_PhaseField;
+	real_t pf_tilde = CalcInit_pf_tilde(ipfe);
+	phaseField_tilde = pf_tilde;
+		
+	Init_eq(phaseField_tilde,u);
+}
+
+CudaDeviceFunction void Run() {
+	vector_t u;
+	u.x = Init_UX;
+	u.y = Init_UY;
+	// u.x = Init_UX_External;
+	// u.y = Init_UY_External;
+	//RunBoundaries(u);
+	if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing){
+		PhaseFieldSmoothing(u);
+		Init_eq(phaseField_tilde, u);
+	}
+	else{
+		real_t omega_phi_soi=1.0/(3*diffusivity_phi+0.5);
+		switch (NodeType & NODE_COLLISION) {
+			case NODE_SRT_DF_SOI:
+				relax_and_collide_SRT_DF_SOI(omega_phi_soi,u);
+				break;    
+			case NODE_SRT_M_SOI:
+				relax_and_collide_SRT_M_SOI(omega_phi_soi,u);
+				// relax_and_collide_SRT_M_SOI_obsolete_without_u(omega_phi_soi);
+				break;
+			case NODE_TRT_M_SOI:
+				relax_and_collide_TRT_M_SOI(omega_phi_soi,u);
+				// relax_and_collide_TRT_M_SOI_obsolete_without_u(omega_phi_soi);
+				break;
+			case NODE_TRT_CM_SOI:
+				relax_and_collide_TRT_CM_SOI(omega_phi_soi,u);
+				break;
+		}
+
+		AddToPhaseFieldIntegral(getPhaseField());   
+	}
+ }
+
+ CudaDeviceFunction void BounceBack()
+ {
+	<?R 
+		FullBounceBack()
+   	?> 
+ }
+
+ CudaDeviceFunction void Init_eq(real_t Init_Phi, vector_t u) 
+ {	
+
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	real_t Sigma2 = 0.3333333333333333;
+	//equilibrium in raw moment space
+	real_t mf_eq_000 = Init_Phi;
+	real_t mf_eq_100 = Init_Phi*u.x;
+	real_t mf_eq_010 = Init_Phi*u.y;
+	real_t mf_eq_200 = Init_Phi*(Sigma2 + ux2);
+	real_t mf_eq_020 = Init_Phi*(Sigma2 + uy2);
+	real_t mf_eq_110 = Init_Phi*uxuy;
+	real_t mf_eq_210 = Init_Phi*u.y*(Sigma2 + ux2);
+	real_t mf_eq_120 = Init_Phi*u.x*(Sigma2 + uy2);
+	real_t mf_eq_220 = Init_Phi*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+	//back to density-probability functions
+	f000 = mf_eq_000 - mf_eq_020 - mf_eq_200 + mf_eq_220;
+	f100 = 1/2.*mf_eq_100 - 1/2.*mf_eq_120 + 1/2.*mf_eq_200 - 1/2.*mf_eq_220;
+	f200 = -1/2.*mf_eq_100 + 1/2.*mf_eq_120 + 1/2.*mf_eq_200 - 1/2.*mf_eq_220;
+	f010 = 1/2.*mf_eq_010 + 1/2.*mf_eq_020 - 1/2.*mf_eq_210 - 1/2.*mf_eq_220;
+	f110 = 1/4.*mf_eq_110 + 1/4.*mf_eq_120 + 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+	f210 = -1/4.*mf_eq_110 - 1/4.*mf_eq_120 + 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+	f020 = -1/2.*mf_eq_010 + 1/2.*mf_eq_020 + 1/2.*mf_eq_210 - 1/2.*mf_eq_220;
+	f120 = -1/4.*mf_eq_110 + 1/4.*mf_eq_120 - 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+	f220 = 1/4.*mf_eq_110 - 1/4.*mf_eq_120 - 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+ }
+
+
+CudaDeviceFunction void relax_and_collide_SRT_DF_SOI(real_t omega_ade, vector_t u) 
+{
+	real_t tilde_phi = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	real_t Q = getQ();
+	real_t Sigma2 = 0.3333333333333333;
+
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	// real_t q000 = Q*4./9.;
+	// real_t q100 = Q*1./9.;
+	// real_t q200 = Q*1./9.;
+	// real_t q010 = Q*1./9.;
+	// real_t q110 = Q*1./36.;
+	// real_t q210 = Q*1./36.;
+	// real_t q020 = Q*1./9.;
+	// real_t q120 = Q*1./36.;
+	// real_t q220 = Q*1./36.;
+
+	//Q - equilibrium in raw moment space
+	real_t mq_eq_000 = Q;
+	real_t mq_eq_100 = Q*u.x;
+	real_t mq_eq_010 = Q*u.y;
+	real_t mq_eq_200 = Q*(Sigma2 + ux2);
+	real_t mq_eq_020 = Q*(Sigma2 + uy2);
+	real_t mq_eq_110 = Q*uxuy;
+	real_t mq_eq_210 = Q*u.y*(Sigma2 + ux2);
+	real_t mq_eq_120 = Q*u.x*(Sigma2 + uy2);
+	real_t mq_eq_220 = Q*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+	//back to density-probability functions
+	real_t q000 = mq_eq_000 - mq_eq_020 - mq_eq_200 + mq_eq_220;
+	real_t q100 = 1/2.*mq_eq_100 - 1/2.*mq_eq_120 + 1/2.*mq_eq_200 - 1/2.*mq_eq_220;
+	real_t q200 = -1/2.*mq_eq_100 + 1/2.*mq_eq_120 + 1/2.*mq_eq_200 - 1/2.*mq_eq_220;
+	real_t q010 = 1/2.*mq_eq_010 + 1/2.*mq_eq_020 - 1/2.*mq_eq_210 - 1/2.*mq_eq_220;
+	real_t q110 = 1/4.*mq_eq_110 + 1/4.*mq_eq_120 + 1/4.*mq_eq_210 + 1/4.*mq_eq_220;
+	real_t q210 = -1/4.*mq_eq_110 - 1/4.*mq_eq_120 + 1/4.*mq_eq_210 + 1/4.*mq_eq_220;
+	real_t q020 = -1/2.*mq_eq_010 + 1/2.*mq_eq_020 + 1/2.*mq_eq_210 - 1/2.*mq_eq_220;
+	real_t q120 = -1/4.*mq_eq_110 + 1/4.*mq_eq_120 - 1/4.*mq_eq_210 + 1/4.*mq_eq_220;
+	real_t q220 = 1/4.*mq_eq_110 - 1/4.*mq_eq_120 - 1/4.*mq_eq_210 + 1/4.*mq_eq_220;
+
+	// equilibrium in density-probability space
+	// real_t feq000 = tilde_phi*4./9.;
+	// real_t feq100 = tilde_phi*1./9.;
+	// real_t feq200 = tilde_phi*1./9.;
+	// real_t feq010 = tilde_phi*1./9.;
+	// real_t feq110 = tilde_phi*1./36.;
+	// real_t feq210 = tilde_phi*1./36.;
+	// real_t feq020 = tilde_phi*1./9.;
+	// real_t feq120 = tilde_phi*1./36.;
+	// real_t feq220 = tilde_phi*1./36.;
+
+	//equilibrium in raw moment space
+	real_t mf_eq_000 = tilde_phi;
+	real_t mf_eq_100 = tilde_phi*u.x;
+	real_t mf_eq_010 = tilde_phi*u.y;
+	real_t mf_eq_200 = tilde_phi*(Sigma2 + ux2);
+	real_t mf_eq_020 = tilde_phi*(Sigma2 + uy2);
+	real_t mf_eq_110 = tilde_phi*uxuy;
+	real_t mf_eq_210 = tilde_phi*u.y*(Sigma2 + ux2);
+	real_t mf_eq_120 = tilde_phi*u.x*(Sigma2 + uy2);
+	real_t mf_eq_220 = tilde_phi*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+	//back to density-probability functions
+	real_t feq000 = mf_eq_000 - mf_eq_020 - mf_eq_200 + mf_eq_220;
+	real_t feq100 = 1/2.*mf_eq_100 - 1/2.*mf_eq_120 + 1/2.*mf_eq_200 - 1/2.*mf_eq_220;
+	real_t feq200 = -1/2.*mf_eq_100 + 1/2.*mf_eq_120 + 1/2.*mf_eq_200 - 1/2.*mf_eq_220;
+	real_t feq010 = 1/2.*mf_eq_010 + 1/2.*mf_eq_020 - 1/2.*mf_eq_210 - 1/2.*mf_eq_220;
+	real_t feq110 = 1/4.*mf_eq_110 + 1/4.*mf_eq_120 + 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+	real_t feq210 = -1/4.*mf_eq_110 - 1/4.*mf_eq_120 + 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+	real_t feq020 = -1/2.*mf_eq_010 + 1/2.*mf_eq_020 + 1/2.*mf_eq_210 - 1/2.*mf_eq_220;
+	real_t feq120 = -1/4.*mf_eq_110 + 1/4.*mf_eq_120 - 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+	real_t feq220 = 1/4.*mf_eq_110 - 1/4.*mf_eq_120 - 1/4.*mf_eq_210 + 1/4.*mf_eq_220;
+
+	// alternatively_A - part I
+	feq000 += q000/2.;
+	feq100 += q100/2.;
+	feq200 += q200/2.;
+	feq010 += q010/2.;
+	feq110 += q110/2.;
+	feq210 += q210/2.;
+	feq020 += q020/2.;
+	feq120 += q120/2.;
+	feq220 += q220/2.;
+
+	f000 = f000 + omega_ade*(feq000-f000);
+	f100 = f100 + omega_ade*(feq100-f100);
+	f010 = f010 + omega_ade*(feq010-f010);
+	f200 = f200 + omega_ade*(feq200-f200);
+	f020 = f020 + omega_ade*(feq020-f020);
+	f110 = f110 + omega_ade*(feq110-f110);
+	f210 = f210 + omega_ade*(feq210-f210);
+	f120 = f120 + omega_ade*(feq120-f120);
+	f220 = f220 + omega_ade*(feq220-f220);
+
+	// alternatively_B
+	// f000 += q000;
+	// f100 += q100;
+	// f010 += q010;
+	// f200 += q200;
+	// f020 += q020;
+	// f110 += q110;
+	// f210 += q210;
+	// f120 += q120;
+	// f220 += q220;
+
+	// alternatively_A - part II
+	f000 += (1-omega_ade/2.)*q000;
+	f100 += (1-omega_ade/2.)*q100;
+	f010 += (1-omega_ade/2.)*q010;
+	f200 += (1-omega_ade/2.)*q200;
+	f020 += (1-omega_ade/2.)*q020;
+	f110 += (1-omega_ade/2.)*q110;
+	f210 += (1-omega_ade/2.)*q210;
+	f120 += (1-omega_ade/2.)*q120;
+	f220 += (1-omega_ade/2.)*q220;
+}
+
+
+CudaDeviceFunction void relax_and_collide_SRT_M_SOI(real_t omega_ade, vector_t u) 
+{		
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+
+	real_t Sigma2 = 0.3333333333333333;
+	real_t Q = getQ();
+	real_t tilde_phi = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+
+	//raw moments from density-probability functions
+	real_t m000 = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m100 = f100 + f110 + f120 - f200 - f210 - f220;
+	real_t m010 = f010 - f020 + f110 - f120 + f210 - f220;
+	real_t m200 = f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m020 = f010 + f020 + f110 + f120 + f210 + f220;
+	real_t m110 = f110 - f120 - f210 + f220;
+	real_t m210 = f110 - f120 + f210 - f220;
+	real_t m120 = f110 + f120 - f210 - f220;
+	real_t m220 = f110 + f120 + f210 + f220;
+
+	//raw equilibrium moments 
+	real_t mf_eq_000 = tilde_phi;
+	real_t mf_eq_100 = tilde_phi*u.x;
+	real_t mf_eq_010 = tilde_phi*u.y;
+	real_t mf_eq_200 = tilde_phi*(Sigma2 + ux2);
+	real_t mf_eq_020 = tilde_phi*(Sigma2 + uy2);
+	real_t mf_eq_110 = tilde_phi*uxuy;
+	real_t mf_eq_210 = tilde_phi*u.y*(Sigma2 + ux2);
+	real_t mf_eq_120 = tilde_phi*u.x*(Sigma2 + uy2);
+	real_t mf_eq_220 = tilde_phi*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+
+	real_t mq_eq_000 = Q;
+	real_t mq_eq_100 = Q*u.x;
+	real_t mq_eq_010 = Q*u.y;
+	real_t mq_eq_200 = Q*(Sigma2 + ux2);
+	real_t mq_eq_020 = Q*(Sigma2 + uy2);
+	real_t mq_eq_110 = Q*uxuy;
+	real_t mq_eq_210 = Q*u.y*(Sigma2 + ux2);
+	real_t mq_eq_120 = Q*u.x*(Sigma2 + uy2);
+	real_t mq_eq_220 = Q*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+
+	//collide
+	real_t m_star_000 = -m000*(omega_ade - 1.) + mf_eq_000*omega_ade + mq_eq_000;
+	real_t m_star_100 = -m100*(omega_ade - 1.) + mf_eq_100*omega_ade + mq_eq_100;
+	real_t m_star_010 = -m010*(omega_ade - 1.) + mf_eq_010*omega_ade + mq_eq_010;
+	real_t m_star_200 = -m200*(omega_ade - 1.) + mf_eq_200*omega_ade + mq_eq_200;
+	real_t m_star_020 = -m020*(omega_ade - 1.) + mf_eq_020*omega_ade + mq_eq_020;
+	real_t m_star_110 = -m110*(omega_ade - 1.) + mf_eq_110*omega_ade + mq_eq_110;
+	real_t m_star_210 = -m210*(omega_ade - 1.) + mf_eq_210*omega_ade + mq_eq_210;
+	real_t m_star_120 = -m120*(omega_ade - 1.) + mf_eq_120*omega_ade + mq_eq_120;
+	real_t m_star_220 = -m220*(omega_ade - 1.) + mf_eq_220*omega_ade + mq_eq_220;
+
+	//back to density-probability functions
+	f000 = m_star_000 - m_star_020 - m_star_200 + m_star_220;
+	f100 = 1/2.*m_star_100 - 1/2.*m_star_120 + 1/2.*m_star_200 - 1/2.*m_star_220;
+	f200 = -1/2.*m_star_100 + 1/2.*m_star_120 + 1/2.*m_star_200 - 1/2.*m_star_220;
+	f010 = 1/2.*m_star_010 + 1/2.*m_star_020 - 1/2.*m_star_210 - 1/2.*m_star_220;
+	f110 = 1/4.*m_star_110 + 1/4.*m_star_120 + 1/4.*m_star_210 + 1/4.*m_star_220;
+	f210 = -1/4.*m_star_110 - 1/4.*m_star_120 + 1/4.*m_star_210 + 1/4.*m_star_220;
+	f020 = -1/2.*m_star_010 + 1/2.*m_star_020 + 1/2.*m_star_210 - 1/2.*m_star_220;
+	f120 = -1/4.*m_star_110 + 1/4.*m_star_120 - 1/4.*m_star_210 + 1/4.*m_star_220;
+	f220 = 1/4.*m_star_110 - 1/4.*m_star_120 - 1/4.*m_star_210 + 1/4.*m_star_220;
+}
+
+ 
+CudaDeviceFunction void relax_and_collide_TRT_M_SOI(real_t omega_ade, vector_t u) 
+{	
+	// see eq. 7 from
+	// "Optimal Stability of Advection-Diffusion Lattice Boltzmann Models 
+	//  with Two Relaxation Times for Positive/Negative Equilibrium"
+	// by I. Ginzburg, D. d’Humières, A. Kuzmin, 2010
+	real_t omega_even = 2.*(2.-omega_ade)/(omega_ade*(4.*magic_parameter-1.)+2.);
+	// real_t omega_even = 1.;
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	real_t Sigma2 = 0.3333333333333333;
+	real_t Q = getQ();
+	real_t tilde_phi = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	//raw moments from density-probability functions
+	real_t m000 = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m100 = f100 + f110 + f120 - f200 - f210 - f220;
+	real_t m010 = f010 - f020 + f110 - f120 + f210 - f220;
+	real_t m200 = f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m020 = f010 + f020 + f110 + f120 + f210 + f220;
+	real_t m110 = f110 - f120 - f210 + f220;
+	real_t m210 = f110 - f120 + f210 - f220;
+	real_t m120 = f110 + f120 - f210 - f220;
+	real_t m220 = f110 + f120 + f210 + f220;
+
+	//raw equilibrium moments 
+	real_t mf_eq_000 = tilde_phi;
+	real_t mf_eq_100 = tilde_phi*u.x;
+	real_t mf_eq_010 = tilde_phi*u.y;
+	real_t mf_eq_200 = tilde_phi*(Sigma2 + ux2);
+	real_t mf_eq_020 = tilde_phi*(Sigma2 + uy2);
+	real_t mf_eq_110 = tilde_phi*uxuy;
+	real_t mf_eq_210 = tilde_phi*u.y*(Sigma2 + ux2);
+	real_t mf_eq_120 = tilde_phi*u.x*(Sigma2 + uy2);
+	real_t mf_eq_220 = tilde_phi*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+
+	real_t mq_eq_000 = Q;
+	real_t mq_eq_100 = Q*u.x;
+	real_t mq_eq_010 = Q*u.y;
+	real_t mq_eq_200 = Q*(Sigma2 + ux2);
+	real_t mq_eq_020 = Q*(Sigma2 + uy2);
+	real_t mq_eq_110 = Q*uxuy;
+	real_t mq_eq_210 = Q*u.y*(Sigma2 + ux2);
+	real_t mq_eq_120 = Q*u.x*(Sigma2 + uy2);
+	real_t mq_eq_220 = Q*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+
+	//collide
+	real_t m_star_000 = -m000*(omega_even - 1.) + mf_eq_000*omega_even + mq_eq_000;
+	real_t m_star_100 = -m100*(omega_ade - 1.) + mf_eq_100*omega_ade + mq_eq_100;
+	real_t m_star_010 = -m010*(omega_ade - 1.) + mf_eq_010*omega_ade + mq_eq_010;
+	real_t m_star_200 = -m200*(omega_even - 1.) + mf_eq_200*omega_even + mq_eq_200;
+	real_t m_star_020 = -m020*(omega_even - 1.) + mf_eq_020*omega_even + mq_eq_020;
+	real_t m_star_110 = -m110*(omega_even - 1.) + mf_eq_110*omega_even + mq_eq_110;
+	real_t m_star_210 = -m210*(omega_ade - 1.) + mf_eq_210*omega_ade + mq_eq_210;
+	real_t m_star_120 = -m120*(omega_ade - 1.) + mf_eq_120*omega_ade + mq_eq_120;
+	real_t m_star_220 = -m220*(omega_even - 1.) + mf_eq_220*omega_even + mq_eq_220;
+
+	//back to density-probability functions
+	f000 = m_star_000 - m_star_020 - m_star_200 + m_star_220;
+	f100 = 1/2.*m_star_100 - 1/2.*m_star_120 + 1/2.*m_star_200 - 1/2.*m_star_220;
+	f200 = -1/2.*m_star_100 + 1/2.*m_star_120 + 1/2.*m_star_200 - 1/2.*m_star_220;
+	f010 = 1/2.*m_star_010 + 1/2.*m_star_020 - 1/2.*m_star_210 - 1/2.*m_star_220;
+	f110 = 1/4.*m_star_110 + 1/4.*m_star_120 + 1/4.*m_star_210 + 1/4.*m_star_220;
+	f210 = -1/4.*m_star_110 - 1/4.*m_star_120 + 1/4.*m_star_210 + 1/4.*m_star_220;
+	f020 = -1/2.*m_star_010 + 1/2.*m_star_020 + 1/2.*m_star_210 - 1/2.*m_star_220;
+	f120 = -1/4.*m_star_110 + 1/4.*m_star_120 - 1/4.*m_star_210 + 1/4.*m_star_220;
+	f220 = 1/4.*m_star_110 - 1/4.*m_star_120 - 1/4.*m_star_210 + 1/4.*m_star_220;
+	
+}
+
+CudaDeviceFunction void relax_and_collide_TRT_CM_SOI(real_t omega_ade, vector_t u) 
+{
+	// real_t omega_even = omega_ade;
+	// real_t omega_even = 2.*(2.-omega_ade)/(omega_ade*(4.*magic_parameter-1.)+2.);
+	real_t omega_even = 1.;
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	real_t Sigma2 = 0.3333333333333333;
+	real_t Q = getQ();
+
+	real_t tilde_phi = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	//raw moments from density-probability functions
+	real_t m_f_000 = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m_f_100 = f100 + f110 + f120 - f200 - f210 - f220;
+	real_t m_f_010 = f010 - f020 + f110 - f120 + f210 - f220;
+	real_t m_f_200 = f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m_f_020 = f010 + f020 + f110 + f120 + f210 + f220;
+	real_t m_f_110 = f110 - f120 - f210 + f220;
+	real_t m_f_210 = f110 - f120 + f210 - f220;
+	real_t m_f_120 = f110 + f120 - f210 - f220;
+	real_t m_f_220 = f110 + f120 + f210 + f220;
+	//central moments from raw moments
+	real_t cm_f_000 = m_f_000;
+	real_t cm_f_100 = -m_f_000*u.x + m_f_100;
+	real_t cm_f_010 = -m_f_000*u.y + m_f_010;
+	real_t cm_f_200 = m_f_000*ux2 - 2.*m_f_100*u.x + m_f_200;
+	real_t cm_f_020 = m_f_000*uy2 - 2.*m_f_010*u.y + m_f_020;
+	real_t cm_f_110 = m_f_000*uxuy - m_f_010*u.x - m_f_100*u.y + m_f_110;
+	real_t cm_f_210 = -m_f_000*ux2*u.y + m_f_010*ux2 + 2.*m_f_100*uxuy - 2.*m_f_110*u.x - m_f_200*u.y + m_f_210;
+	real_t cm_f_120 = -m_f_000*u.x*uy2 + 2.*m_f_010*uxuy - m_f_020*u.x + m_f_100*uy2 - 2.*m_f_110*u.y + m_f_120;
+	real_t cm_f_220 = m_f_000*ux2*uy2 - 2.*m_f_010*ux2*u.y + m_f_020*ux2 - 2.*m_f_100*u.x*uy2 + 4.*m_f_110*uxuy - 2.*m_f_120*u.x + m_f_200*uy2 - 2.*m_f_210*u.y + m_f_220;
+
+	//cm equilibrium moments 
+	real_t cm_f_eq_000 = tilde_phi;
+	real_t cm_f_eq_100 = 0;
+	real_t cm_f_eq_010 = 0;
+	real_t cm_f_eq_200 = Sigma2*tilde_phi;
+	real_t cm_f_eq_020 = Sigma2*tilde_phi;
+	real_t cm_f_eq_110 = 0;
+	real_t cm_f_eq_210 = 0;
+	real_t cm_f_eq_120 = 0;
+	real_t cm_f_eq_220 = Sigma2*Sigma2*tilde_phi;
+
+	real_t cm_q_eq_000 = Q;
+	real_t cm_q_eq_100 = 0;
+	real_t cm_q_eq_010 = 0;
+	real_t cm_q_eq_200 = Q*Sigma2;
+	real_t cm_q_eq_020 = Q*Sigma2;
+	real_t cm_q_eq_110 = 0;
+	real_t cm_q_eq_210 = 0;
+	real_t cm_q_eq_120 = 0;
+	real_t cm_q_eq_220 = Q*Sigma2*Sigma2;
+	//collide
+	real_t cm_star_000 = cm_f_eq_000*omega_even + cm_q_eq_000 - cm_f_000*(omega_even - 1.);
+	real_t cm_star_100 = cm_f_eq_100*omega_ade + cm_q_eq_100 - cm_f_100*(omega_ade - 1.);
+	real_t cm_star_010 = cm_f_eq_010*omega_ade + cm_q_eq_010 - cm_f_010*(omega_ade - 1.);
+	real_t cm_star_200 = cm_f_eq_200*omega_even + cm_q_eq_200 - cm_f_200*(omega_even - 1.);
+	real_t cm_star_020 = cm_f_eq_020*omega_even + cm_q_eq_020 - cm_f_020*(omega_even - 1.);
+	real_t cm_star_110 = cm_f_eq_110*omega_even + cm_q_eq_110 - cm_f_110*(omega_even - 1.);
+	real_t cm_star_210 = cm_f_eq_210*omega_ade + cm_q_eq_210 - cm_f_210*(omega_ade - 1.);
+	real_t cm_star_120 = cm_f_eq_120*omega_ade + cm_q_eq_120 - cm_f_120*(omega_ade - 1.);
+	real_t cm_star_220 = cm_f_eq_220*omega_even + cm_q_eq_220 - cm_f_220*(omega_even - 1.);
+	//back to raw moments
+	m_f_000 = cm_star_000;
+	m_f_100 = cm_star_000*u.x + cm_star_100;
+	m_f_010 = cm_star_000*u.y + cm_star_010;
+	m_f_200 = cm_star_000*ux2 + 2.*cm_star_100*u.x + cm_star_200;
+	m_f_020 = cm_star_000*uy2 + 2.*cm_star_010*u.y + cm_star_020;
+	m_f_110 = cm_star_000*uxuy + cm_star_010*u.x + cm_star_100*u.y + cm_star_110;
+	m_f_210 = cm_star_000*ux2*u.y + cm_star_010*ux2 + 2.*cm_star_100*uxuy + 2.*cm_star_110*u.x + cm_star_200*u.y + cm_star_210;
+	m_f_120 = cm_star_000*u.x*uy2 + 2.*cm_star_010*uxuy + cm_star_020*u.x + cm_star_100*uy2 + 2.*cm_star_110*u.y + cm_star_120;
+	m_f_220 = cm_star_000*ux2*uy2 + 2.*cm_star_010*ux2*u.y + cm_star_020*ux2 + 2.*cm_star_100*u.x*uy2 + 4.*cm_star_110*uxuy + 2.*cm_star_120*u.x + cm_star_200*uy2 + 2.*cm_star_210*u.y + cm_star_220;
+	//back to density-probability functions
+	f000 = m_f_000 - m_f_020 - m_f_200 + m_f_220;
+	f100 = 1/2.*m_f_100 - 1/2.*m_f_120 + 1/2.*m_f_200 - 1/2.*m_f_220;
+	f200 = -1/2.*m_f_100 + 1/2.*m_f_120 + 1/2.*m_f_200 - 1/2.*m_f_220;
+	f010 = 1/2.*m_f_010 + 1/2.*m_f_020 - 1/2.*m_f_210 - 1/2.*m_f_220;
+	f110 = 1/4.*m_f_110 + 1/4.*m_f_120 + 1/4.*m_f_210 + 1/4.*m_f_220;
+	f210 = -1/4.*m_f_110 - 1/4.*m_f_120 + 1/4.*m_f_210 + 1/4.*m_f_220;
+	f020 = -1/2.*m_f_010 + 1/2.*m_f_020 + 1/2.*m_f_210 - 1/2.*m_f_220;
+	f120 = -1/4.*m_f_110 + 1/4.*m_f_120 - 1/4.*m_f_210 + 1/4.*m_f_220;
+	f220 = 1/4.*m_f_110 - 1/4.*m_f_120 - 1/4.*m_f_210 + 1/4.*m_f_220;
+}
+

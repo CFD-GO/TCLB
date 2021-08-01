@@ -1,0 +1,45 @@
+<CLBConfig version="2.0" output="output/AC_TRT/">
+  <Geometry predef="none" nx="256" ny="256">
+    <!-- <SRT_DF_SOI><Box/></SRT_DF_SOI>  -->
+    <!-- <SRT_M_SOI><Box/></SRT_M_SOI> -->
+    <TRT_M_SOI><Box/></TRT_M_SOI>
+    <!-- <TRT_CM_SOI><Box/></TRT_CM_SOI> -->
+    <None name="up">
+      <Box dx="37" dy="107" nx="50" ny="50"/>
+    </None>
+    <None name="down">
+      <Box dx="12" dy="72" nx="50" ny="50"/>
+    </None>
+  </Geometry>
+  <Model>
+    <Param name="diffusivity_phi" value="0.01666666"/> <!-- compare SRT with TRT for diffusivity_phi = 0.001666666  -->
+
+    <Param name="magic_parameter" value="0.08333333333333333"/> 
+    <!-- <Param name="magic_parameter" value="0.16666666"/> -->
+    <!-- <Param name="magic_parameter" value="0.1875"/>  -->
+    <!-- <Param name="magic_parameter" value="0.25"/>  -->
+
+    <Param name="lambda" value="0.01"/>
+    <Param name="Init_PhaseField" value="0."/>
+    <Param name="phase_field_smoothing_coeff" value="0.1"/>
+    <Param name="Init_PhaseField" value="0.9" zone="up"/>
+    <Param name="Init_PhaseField" value="-0.9" zone="down"/>
+    <Param name="Init_UX" value="0.1"/>
+    <Param name="Init_UY" value="0."/>
+  </Model>
+  <Solve Iterations="10"><VTK Iterations="1"/></Solve>
+  <Solve Iterations="12800"><VTK Iterations="640"/></Solve>
+  <VTK/>
+</CLBConfig>
+
+
+
+<!-- 
+According to chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
+by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+There are certain values of magic_parameter that show distinctive properties:
+• magic_parameter 1./12 = 0.08(3) cancels the third-order spatial error, leading to optimal results for pure advection problems.
+• magic_parameter 1./6 = 0.1(6) cancels the fourth-order spatial error, providing the most accurate results for the pure diffusion equation.
+• magic_parameter 3./16 = 0.1875 results in the boundary wall location implemented via bounce-back for the Poiseuille flow exactly in the middle between horizontal walls and fluid nodes.
+• magic_parameter 1./4 = 0.25 provides the most stable simulations. 
+-->
