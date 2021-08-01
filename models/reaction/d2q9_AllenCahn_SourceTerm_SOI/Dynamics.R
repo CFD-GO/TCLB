@@ -22,10 +22,10 @@ AddField(name="phaseField_tilde",                 stencil2d=1)
 
 #	Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="PhaseFieldIntegral", comment='Total amount of phasefield', unit="1.")
+
 # 	Outputs:
 AddQuantity(name="PhaseField", unit="1.")
 AddQuantity(name="Q", unit="1.")
-
 
 AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
 AddAction(name="InitFromFields", "InitFromFieldsStage")
@@ -55,8 +55,8 @@ AddSetting(name="CylinderCenterY_GH",	default="0", comment='Y coord of Gaussian 
 AddSetting(name="Sigma_GH", 		 	default="1", comment='Initial width of the Gaussian Hill', zonal=T)
 
 #	CFD enhancements ;)
-AddNodeType(name="Smoothing",               group="ADDITIONALS")  #  To smooth population density during initialization.
-AddSetting(name="phase_field_smoothing_coeff", default=0.)     #  To smooth population density during initialization.
+AddNodeType(name="Smoothing",               	group="ADDITIONALS")  #  To smooth the boundaries after initialization.
+AddSetting(name="phase_field_smoothing_coeff", 	default=0.)        #  To smooth the boundaries after initialization.
 
 
 # see chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
