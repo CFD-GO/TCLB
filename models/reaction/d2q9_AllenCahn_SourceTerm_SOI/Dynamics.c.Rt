@@ -2,8 +2,17 @@
 // This model is to compare first (Euler) and second (Trapezoidal) integration scheme for the source term, Q=lambda*phi*(1-phi^2)
 // phi' =  M*lap(phi) + lambda*phi*(1-phi^2)
 // phi_t =  M *(phi_xx + phi_yy) + lambda*phi*(1-phi^2)
+
 // maintainer: Grzegorz Gruszczynski @ggruszczynski
+
+// Preprint:
 // <https://arxiv.org/abs/2107.03962>
+
+// Solver for implicit source term:
+// https://github.com/CFD-GO/TCLB_tools/blob/master/Python/symbolic_tools/SymbolicCollisions/examples/lb_code_generic_generators/allen_cahn_source_term_soi/source_term_solver.py
+
+// Some benchmarks:
+// https://github.com/CFD-GO/TCLB_tools/tree/master/Examples_And_Papers/on_recovering_2nd_order_convergence_of_LBM_with_reaction_type_source_terms/
 
 <?R  
 	source("conf.R")
