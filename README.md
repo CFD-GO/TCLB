@@ -120,7 +120,7 @@ Contributors:
 Developed at:
 - [Zakład Aerodynamiki](https://meil.pw.edu.pl/ZA/) at [Politechnika Warszawska (Warsaw University of Technology)](http://pw.edu.pl/)
 - [School of Mechanical & Mining Engineering](https://www.mechmining.uq.edu.au/) at [University of Queensland](http://uq.edu.au/)
-
+- [Interdisciplinary Centre for Mathematical and Computational Modelling](https://icm.edu.pl/en) at [University of Warsaw](https://www.uw.edu.pl/)
 
 ### Citation
 Please use **appropriate citations if using this software** in any research publication. The publication should cite [the original paper about TCLB](https://doi.org/10.1016/j.camwa.2015.12.043) and papers which describe the used LMB models. You can find the list of TCLB publications at [docs.tclb.io/general-info/publications/](https://docs.tclb.io/general-info/publications/). You can also find the information about published articles in the source code of the models.
