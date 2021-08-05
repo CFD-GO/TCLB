@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output='output/'>
+	<Geometry nx="100" ny="100">
+
+		<None name="city">
+			<Box dx="45" dy="45" nx="10" ny="10"/>
+		</None> 
+
+	</Geometry>
+	<Model>
+		<Param name="Diffusivity_DRE_1" value="0.1666"/>
+
+
+		<Param name="C_1" value="5"/>  <!-- R0 -->
+		<Param name="C_2" value="2"/>  <!-- Beta -->
+		<Param name="C_3" value="0.001"/>  <!-- dt -->
+		
+
+		
+
+        
+		<!-- Init_DRE_1 and Init_ODE_2 should start the same -->
+		<Param name="Init_DRE_1" value="0." />	 <!-- W -->
+
+		<Param name="Init_ODE_1" value="0.9" />	<!-- S -->		
+		<Param name="Init_ODE_2" value="0." />	 <!-- I -->
+		<Param name="Init_ODE_3" value="0.1"/>	<!-- R -->
+
+
+
+		
+        <!-- Those should start the same -->
+		<Param name="Init_DRE_1" value="0.1" zone="city"/>	 <!-- W -->
+		<Param name="Init_ODE_2" value="0.1" zone="city"/>	 <!-- I -->
+
+		<Param name="Init_ODE_1" value="0.9" zone="city"/>	<!-- S -->
+
+    </Model>
+
+	<HDF5/>
+    <Solve Iterations="10000">
+	<HDF5 Iterations="100"/>
+	</Solve> 
+    
+</CLBConfig>
