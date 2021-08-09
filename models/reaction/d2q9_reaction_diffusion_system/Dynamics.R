@@ -1,20 +1,24 @@
-
-
-# Qname = 'Allen-Cahn'
-# NumberOfDREs = 1
-# NumberOfODEs = 0
-# NumberOfAdditionalParams = 1
-
-# Qname = 'SIR_SimpleLaplace'
-# NumberOfDREs = 3
-# NumberOfODEs = 0
-# NumberOfAdditionalParams = 2
-
-Qname = 'SIR_ModifiedPeng'
-NumberOfDREs = 1
-NumberOfODEs = 3
-NumberOfAdditionalParams = 3
-
+if (Options$AllenCahn) {
+ 	Qname = 'Allen-Cahn'
+ 	NumberOfDREs = 1
+ 	NumberOfODEs = 0
+ 	NumberOfAdditionalParams = 1
+} else if (Options$SIR_SimpleLaplace) {
+    Qname = 'SIR_SimpleLaplace'
+	NumberOfDREs = 3
+	NumberOfODEs = 0
+	NumberOfAdditionalParams = 2
+} else if (Options$SIR_ModifiedPeng) {
+   	Qname = 'SIR_ModifiedPeng'
+	NumberOfDREs = 1
+	NumberOfODEs = 3
+	NumberOfAdditionalParams = 3
+} else if (Options$SimpleDiffusion) {
+   	Qname = 'SimpleDiffusion'
+	NumberOfDREs = 1
+	NumberOfODEs = 0
+	NumberOfAdditionalParams = 1
+}
 
 ##END MANUAL CONFIG
 

@@ -429,3 +429,19 @@ CudaDeviceFunction void SRT(real_t diffusivity, const real_t q)
 <?R		
 	}
 ?>
+
+
+<?R 
+	if (Qname == 'SimpleDiffusion') {
+?>
+	CudaDeviceFunction void CalcPhi() 
+	{	
+		phi[0] = <?%s  C(sum(fs[[1]])) ?>;
+	}
+	CudaDeviceFunction void CalcQ() 
+	{	
+		q[0] = 0;
+	}
+<?R		
+	}
+?>
