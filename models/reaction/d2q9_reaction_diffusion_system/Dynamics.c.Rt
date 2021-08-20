@@ -118,6 +118,45 @@ CudaDeviceFunction void Init() {
 
 }
 
+CudaDeviceFunction void InitFromExternal() { 
+	<?R
+
+
+	dre_loop( function(i) {
+		?>
+		phi[<?%s i-1 ?>] = Init_DRE_<?%s i ?>_External(0,0);
+		<?R
+	})
+
+	ode_loop( function(i) {
+		?>
+		phi[<?%s NumberOfDREs+i-1 ?>] = Init_ODE_<?%s i ?>_External(0,0);
+		<?R		
+	})
+
+	?>
+
+	CalcQ();
+
+	<?R
+
+
+	dre_loop( function(i) {
+		?>
+		Init_eq(Init_DRE_<?%s i ?>_External(0,0) - 0.5*q[<?%s i-1 ?>]);
+		<?R
+		C(fs[[i]], f_tmp)
+	})
+
+	ode_loop( function(i) {
+		C(odes[[i]], PV(paste('Init_ODE',i,'External(0,0)',sep='_')) - 0.5*qs[NumberOfDREs+i] );
+	})
+
+	?>
+	CalcPhi();
+
+}
+
 
 	
 CudaDeviceFunction void Run() {

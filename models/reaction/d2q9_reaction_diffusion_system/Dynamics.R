@@ -63,6 +63,8 @@ dre_loop(function(i){
 	)
 })
 
+
+
 ode_loop(function(i) {
 	bname = paste('ode', i, sep="_")
 	AddField(name=bname, dx=c(-1,1), dy=c(-1,1)) # same as AddField(name="phi", stencil2d=1)
@@ -90,7 +92,8 @@ ode_loop(function(i) {
 	AddSetting(name=bname, zonal=TRUE)	
 })
 
-
+AddStage(name="InitFromExternal", load.densities=TRUE, save.fields=TRUE)
+AddAction(name="InitFromExternalAction", "InitFromExternal")
 
 
 #	Boundary things:
@@ -113,3 +116,5 @@ for (i in seq(1, NumberOfAdditionalParams)){
 	comment = paste('Model parameter C', i, sep="_")
 	AddSetting(name=bname, default=0.0, comment=comment)
 }
+
+
