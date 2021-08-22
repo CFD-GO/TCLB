@@ -9,6 +9,7 @@
 #include "def.h"
 #include "utils.h"
 #include "unit.h"
+#include "Solver.h"
 
 #include <fstream>
 #include <iostream>
@@ -16,6 +17,6 @@
 #include <iomanip>
 #include <assert.h>
 
-int toArbitrary(Geometry * geom, UnitEnv * units);
+int toArbitrary(Solver* solver, ModelBase* model);
 
 #endif

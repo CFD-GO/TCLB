@@ -427,7 +427,7 @@ int main ( int argc, char * argv[] )
 			ERROR("Requested conversion to ArbitraryLattice, but the lattice is of wrong type");
 			return -1;
 		}
-		return solver->toArb(nx,ny,nz);
+		return solver->toArb(nx,ny,nz, geom);
 	}
 
 		// After the configfile comes the numbers of GPU selected for each processor (starting with 0)

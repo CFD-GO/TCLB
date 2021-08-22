@@ -131,7 +131,7 @@ class Solver {
 	int writeTXT(const char * nm, name_set * s, int type);
 	int writeBIN(const char * nm);
 	int setSize(int,int,int,int,size_t,int);
-	int toArb(int,int,int);
+	int toArb(int,int,int, pugi::xml_node);
 	int MPIDivision();
 	int InitAll(int, int, size_t);
 	int RunMainLoop();

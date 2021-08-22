@@ -428,7 +428,7 @@ void MainFree( Solver *d);
 	\param ny Y size of the lattice
 	\param nz Z size of the lattice (1 for 3D)
 */
-	int Solver::toArb(int nx, int ny, int nz) {
+	int Solver::toArb(int nx, int ny, int nz, pugi::xml_node geom) {
 		info.region.nx = nx;
 		info.region.ny = ny;
 		info.region.nz = nz;
@@ -443,7 +443,11 @@ void MainFree( Solver *d);
 	        ModelBase * model = new Model_m();
 		output("Converting to ArbitraryLattice (model: %s)\n", model->name.c_str());
 		geometry = new Geometry(info.region, info.region, units, model);
-		return toArbitrary(geometry, &units);
+		if (geometry->load(geom)) {
+			error("Error while loading geometry\n");
+			return -1;
+		}
+		return toArbitrary(this, model);
 	}
 
 
