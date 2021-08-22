@@ -199,17 +199,24 @@ int toArbitrary(Solver* solver, ModelBase* model) {
             (0.5+lattice[i].p.y) * spacing,
             (0.5+lattice[i].p.z) * spacing);
         for (int k=0; k<27; k++) fprintf(f," %lu", lattice[i].con[k]);
-        char* label = "NA";
-        if (lattice[i].interior) {
-            label = "Interior";
-        } else {
-            label = "Wall";
+        std::vector<std::string> groups;
+        big_flag_t flag = getFlag(solver->geometry, lattice[i].p);
+        for (ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.begin(); it != model->nodetypeflags.end(); it++) {
+            if (it->flag == 0) continue;
+            if ((flag & it->group_flag) == it->flag) groups.push_back(it->name);
         }
-        if (lattice[i].vtu_export) {
-            fprintf(f," 1 %s\n", label);
-        } else {
-            fprintf(f," 2 %s %s\n", label, "HIDE");
+        int z = (flag & model->settingzones.flag) >> model->settingzones.shift;
+        if (z != 0) {
+            for (std::map<std::string, int>::const_iterator it = solver->geometry->SettingZones.begin(); it != solver->geometry->SettingZones.end(); it++) {
+                if (z == it->second) groups.push_back("Z_" + it->first);
+            }
         }
+        if (! lattice[i].vtu_export) groups.push_back("HIDE");
+        fprintf(f," %d", groups.size());
+        for (std::vector<std::string>::const_iterator it = groups.begin(); it != groups.end(); it++) {
+            fprintf(f," %s", it->c_str());
+        }
+        fprintf(f,"\n", groups.size());
         pb_tick(i+1,lattice.size());
     }
     fclose(f);
@@ -244,5 +251,32 @@ int toArbitrary(Solver* solver, ModelBase* model) {
         k++;
     }
     fclose(f);
+
+    pugi::xml_document restartfile;
+	for (pugi::xml_node n = solver->configfile.first_child(); n; n = n.next_sibling()) restartfile.append_copy(n);
+	pugi::xml_node n1 = restartfile.child("CLBConfig").child("Geometry");
+    if (!n1){
+        ERROR("No geometry node in xml - this should not happen");
+        return -1;
+    }
+	pugi::xml_node n2 = restartfile.child("CLBConfig").insert_child_before("ArbitraryLattice", n1);
+    restartfile.child("CLBConfig").remove_child(n1);
+	n2.append_attribute("file").set_value(cxnString);
+    n2.append_attribute("cellData").set_value(cellString);
+    for (ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.begin(); it != model->nodetypeflags.end(); it++) {
+        if (it->flag == 0) continue;
+        pugi::xml_node n3 = n2.append_child(it->name.c_str());
+        n3.append_attribute("group").set_value(it->name.c_str());
+    }
+    for (std::map<std::string, int>::const_iterator it = solver->geometry->SettingZones.begin(); it != solver->geometry->SettingZones.end(); it++) {
+        if (it->second == 0) continue;
+        pugi::xml_node n3 = n2.append_child("None");
+        n3.append_attribute("group").set_value(("Z_" + it->first).c_str());
+        n3.append_attribute("name").set_value(it->first.c_str());
+    }
+    char rstString[STRING_LEN];
+    solver->outGlobalFile("ARB",".xml",rstString);
+	restartfile.save_file( rstString );
+
     return 0;
 }
