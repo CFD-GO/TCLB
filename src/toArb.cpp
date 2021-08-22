@@ -55,6 +55,7 @@ big_flag_t getFlag(Geometry * geom, const point& p) {
 
 
 int toArbitrary(Solver* solver, ModelBase* model) {
+    pugi::xml_attribute attr;
     id_map_t id_map;
     id_map_t point_map;
     std::vector<element> lattice;
@@ -71,13 +72,26 @@ int toArbitrary(Solver* solver, ModelBase* model) {
 
     exportInteriorOnly = true;
 
-    ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.ByName("Wall"); // TODO
-    if (it == model->nodetypeflags.end()) {
-            ERROR("Unknown flag (in xml): %s\n", "Wall"); // TODO
-            return -1;
+    big_flag_t bulk_flag, bulk_mask;
+    
+	const char * remove_bulk = NULL;
+    attr = solver->configfile.child("CLBConfig").attribute("remove_bulk");
+    if (attr) {
+        remove_bulk = attr.value();
     }
-    big_flag_t bulk_flag = it->flag;
-    big_flag_t bulk_mask = it->group_flag;
+    
+    if (remove_bulk != NULL) {
+        ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.ByName(remove_bulk); // TODO
+        if (it == model->nodetypeflags.end()) {
+                ERROR("Unknown flag (in xml): %s\n", remove_bulk); // TODO
+                return -1;
+        }
+        bulk_flag = it->flag;
+        bulk_mask = it->group_flag;
+    } else {
+        bulk_flag = -1; //Nothing will match
+        bulk_mask = 0;
+    }
 
     printf("Generating interior:\n");
     for (long int z = 0; z<region.nz; z++) {
@@ -254,13 +268,17 @@ int toArbitrary(Solver* solver, ModelBase* model) {
 
     pugi::xml_document restartfile;
 	for (pugi::xml_node n = solver->configfile.first_child(); n; n = n.next_sibling()) restartfile.append_copy(n);
-	pugi::xml_node n1 = restartfile.child("CLBConfig").child("Geometry");
+    pugi::xml_node n0 = restartfile.child("CLBConfig");
+	pugi::xml_node n1 = n0.child("Geometry");
     if (!n1){
         ERROR("No geometry node in xml - this should not happen");
         return -1;
     }
-	pugi::xml_node n2 = restartfile.child("CLBConfig").insert_child_before("ArbitraryLattice", n1);
-    restartfile.child("CLBConfig").remove_child(n1);
+    
+    attr = n0.attribute("toArb"); if (attr) n0.remove_attribute(attr);
+    attr = n0.attribute("remove_bulk"); if (attr) n0.remove_attribute(attr);
+	pugi::xml_node n2 = n0.insert_child_before("ArbitraryLattice", n1);
+    n0.remove_child(n1);
 	n2.append_attribute("file").set_value(cxnString);
     n2.append_attribute("cellData").set_value(cellString);
     for (ModelBase::NodeTypeFlags::const_iterator it = model->nodetypeflags.begin(); it != model->nodetypeflags.end(); it++) {
