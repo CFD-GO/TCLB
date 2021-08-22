@@ -23,6 +23,7 @@ class LatticeContainer;
 #include <assert.h>
 
 #include "Solver.h"
+#include "toArb.h"
 
 using namespace std;
 
@@ -418,6 +419,34 @@ void MainFree( Solver *d);
 		connectivity = new Connectivity(region, mpi.totalregion, units, lattice->model);
 		return 0;
 	}
+
+
+///	Convert to ArbitraryLattice
+/**
+	Converts the xml to ArbitraryLattice
+	\param nx X size of the lattice
+	\param ny Y size of the lattice
+	\param nz Z size of the lattice (1 for 3D)
+*/
+	int Solver::toArb(int nx, int ny, int nz) {
+		info.region.nx = nx;
+		info.region.ny = ny;
+		info.region.nz = nz;
+		output("Global lattice size: %dx%dx%d\n", info.region.nx, info.region.ny, info.region.nz);
+		if (mpi_size != 1) {
+			ERROR("Conversion to ArbitraryLattice can only be run on single cpu");
+			return -1;
+		}
+		region = info.region;
+	        mpi.totalregion = info.region;
+
+	        ModelBase * model = new Model_m();
+		output("Converting to ArbitraryLattice (model: %s)\n", model->name.c_str());
+		geometry = new Geometry(info.region, info.region, units, model);
+		return toArbitrary(geometry, &units);
+	}
+
+
 
 /// Runs the main loop (GUI)
 /**

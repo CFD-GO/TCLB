@@ -376,44 +376,6 @@ int main ( int argc, char * argv[] )
 		}
 	}
 
-	// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
-	{
-		#ifndef CROSS_CPU
-			int count, dev;
-			CudaGetDeviceCount( &count );
-			{
-				MPI_Comm comm = MPMD.local;
-				std::string nodename = mpitools::MPI_Nodename(comm);
-				MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
-				dev = mpitools::MPI_Rank(nodecomm);
-				MPI_Comm_free(&nodecomm);
-			}
-			if (dev >= count) {
-				bool oversubscribe = false;
-				pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
-				if (attr) oversubscribe = attr.as_bool();
-				if (!oversubscribe) {
-					ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
-					return -1;
-				} else {
-					WARNING("Oversubscribing GPUs.");
-				}
-				dev = dev % count;
-			}
-			output_all("Selecting device %d/%d\n", dev, count);
-			CudaSetDevice( dev );
-			solver->mpi.gpu = dev;
-			debug2("Initializing device\n");
-			cudaFree(0);
-		#else
-			output_all("Running on CPU\n");
-			CudaSetDevice(0);
-			solver->mpi.gpu = 0;
-		#endif
-	}
-	MPI_Barrier(MPMD.local);
-	DEBUG_M;
-
 	
 	if (readUnits(config, solver)) {
 		ERROR("Wrong Units\n");
@@ -459,6 +421,53 @@ int main ( int argc, char * argv[] )
 	}
 	
 	notice("Mesh dimensions in config file: %dx%dx%d\n",nx,ny,nz);
+
+	if (config.attribute("toArb")) {
+		if (latticeType != 0) {
+			ERROR("Requested conversion to ArbitraryLattice, but the lattice is of wrong type");
+			return -1;
+		}
+		return solver->toArb(nx,ny,nz);
+	}
+
+		// After the configfile comes the numbers of GPU selected for each processor (starting with 0)
+	{
+		#ifndef CROSS_CPU
+			int count, dev;
+			CudaGetDeviceCount( &count );
+			{
+				MPI_Comm comm = MPMD.local;
+				std::string nodename = mpitools::MPI_Nodename(comm);
+				MPI_Comm nodecomm = mpitools::MPI_Split(nodename, comm);
+				dev = mpitools::MPI_Rank(nodecomm);
+				MPI_Comm_free(&nodecomm);
+			}
+			if (dev >= count) {
+				bool oversubscribe = false;
+				pugi::xml_attribute attr = config.attribute("oversubscribe_gpu");
+				if (attr) oversubscribe = attr.as_bool();
+				if (!oversubscribe) {
+					ERROR("Oversubscribing GPUs. This is not a good idea, but if you want to do it, add oversubscribe_gpu=\"true\" to the config file");
+					return -1;
+				} else {
+					WARNING("Oversubscribing GPUs.");
+				}
+				dev = dev % count;
+			}
+			output_all("Selecting device %d/%d\n", dev, count);
+			CudaSetDevice( dev );
+			solver->mpi.gpu = dev;
+			debug2("Initializing device\n");
+			cudaFree(0);
+		#else
+			output_all("Running on CPU\n");
+			CudaSetDevice(0);
+			solver->mpi.gpu = 0;
+		#endif
+	}
+	MPI_Barrier(MPMD.local);
+	DEBUG_M;
+
 
 	// Finding the adjoint element
 	pugi::xml_node adj;
