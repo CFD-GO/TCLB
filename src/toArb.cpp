@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <math.h>
+#include <array>
 
 struct point {
     long int x,y,z;
