@@ -8,7 +8,6 @@
 #include <map>
 #include <set>
 #include <math.h>
-#include <array>
 
 struct point {
     long int x,y,z;
@@ -29,8 +28,8 @@ struct element {
     point p;
     bool interior;
     bool vtu_export;
-    std::array<size_t, 27> con;
-    std::array<size_t, 8> cell;
+    size_t con[27];
+    size_t cell[27];
 };
 
 const int pb_len=80;
