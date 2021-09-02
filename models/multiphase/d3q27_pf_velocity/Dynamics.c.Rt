@@ -289,10 +289,10 @@ CudaDeviceFunction void Init() {
 CudaDeviceFunction void specialCases_Init(){
 	#ifdef OPTIONS_thermo
 		Temp   = T_init;
-		if (dT > 0){
+		if (fabs(dT) > 0){
 			Temp = T_init + dT*Y;
 		}
-		if (dTx > 0){
+		if (fabs(dTx) > 0){
 			Temp = T_init + dTx*X;
 		}
 		#ifdef OPTIONS_planarBenchmark
@@ -733,6 +733,27 @@ CudaDeviceFunction void EVelocity(){
 	}
 }
 
+CudaDeviceFunction void Velocity_Y_neg(){
+	U = VelocityX;
+	V = VelocityY;
+	W = VelocityZ;
+	<?R
+		n = c(0,-1,0)
+			geq = EQ$feq
+			bounce = Bounce(U)
+			sel = as.vector( (U %*% n) < 0)
+
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
+		Unknowns = 1.0/9.0
+
+		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
+	?>
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(0,-1,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
+}
+
 CudaDeviceFunction void NVelocity(){
 	U = VelocityX;
 	V = VelocityY;
@@ -963,6 +984,9 @@ CudaDeviceFunction void updateBoundary(){
 			break;
 		case NODE_NVelocity:
 			NVelocity();
+			break;
+		case NODE_Velocity_Y_neg:
+			Velocity_Y_neg();
 			break;
 		case NODE_EPressure:
 			EPressure();

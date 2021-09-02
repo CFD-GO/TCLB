@@ -228,8 +228,8 @@ if (Options$thermo){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
-	AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
-	AddSetting(name='radAngle', comment='Conversion to rads for calcs')
+	AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees', zonal=T)
+	AddSetting(name='radAngle', comment='Conversion to rads for calcs', zonal=T)
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
@@ -288,6 +288,7 @@ if (Options$thermo){
 	AddNodeType(name="EPressure", group="BOUNDARY")
 	AddNodeType(name="WPressure", group="BOUNDARY")
 	AddNodeType(name="NVelocity", group="BOUNDARY")
+	AddNodeType(name="Velocity_Y_neg", group="BOUNDARY")
 	AddNodeType(name="EVelocity", group="BOUNDARY")
 	AddNodeType(name="WVelocity", group="BOUNDARY")
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
