@@ -134,6 +134,21 @@
 #define PI 3.14159265
 
 //######EXPORTABLE QUANTITIES######//
+#ifdef OPTIONS_ML
+<?R
+for (myDensity in 0:26){
+	cat(paste0("CudaDeviceFunction real_t getg",myDensity,"(){\n"))
+	cat(paste0("\t return g",myDensity,";\n"))
+	cat("}\n")
+}
+for (myDensity in 0:14){
+	cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
+	cat(paste0("\t return h",myDensity,";\n"))
+	cat("}\n")
+}
+?>
+#endif
+
 CudaDeviceFunction real_t getRho(){
 	return Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
 }

@@ -45,6 +45,13 @@ AddDensity( name="h12",dx=-1, dy= 1, dz=-1, group="h")
 AddDensity( name="h13",dx= 1, dy=-1, dz=-1, group="h")
 AddDensity( name="h14",dx=-1, dy=-1, dz=-1, group="h")
 
+if (Options$ML){
+	for (d in rows(DensityAll)){
+		AddQuantity(name=d$name)
+	}
+}
+
+
 if (Options$OutFlow){
 	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
 	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
