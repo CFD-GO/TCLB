@@ -230,7 +230,7 @@ CudaDeviceFunction void calcWallPhase(){
 			// If I am not surrounded, but contact angle is 90
 			PhaseF = pf_f;
 		} else {
-			a = -h * (4.0/IntWidth) * cos(radAngle);
+			a = -h * (4.0/IntWidth) * cos( ContactAngle*PI / 180.0  );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 		}
 	} 
