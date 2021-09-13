@@ -226,11 +226,11 @@ CudaDeviceFunction void calcWallPhase(){
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			// or my normal points towards a solid node.
 			PhaseF = 1;
-		} else if (ContactAngle == 90){
-			// If I am not surrounded, but contact angle is 90
+		} else if (fabs(radAngle - PI/2.0) < 1e-4){
+			// If I am not surrounded, but contact angle is pi/2 (90d)
 			PhaseF = pf_f;
 		} else {
-			a = -h * (4.0/IntWidth) * cos( ContactAngle*PI / 180.0  );
+			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 		}
 	} 
