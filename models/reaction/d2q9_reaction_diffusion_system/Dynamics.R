@@ -98,6 +98,7 @@ AddAction(name="InitFromExternalAction", "InitFromExternal")
 
 #	Boundary things:
 AddNodeType(name="SRT",	        group="COLLISION")
+AddNodeType(name="Wall",	        group="BOUNDARY")
 
 # Inputs: Flow Properties
 

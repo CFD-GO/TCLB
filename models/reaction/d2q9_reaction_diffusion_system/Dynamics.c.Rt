@@ -57,7 +57,7 @@ CudaDeviceFunction float2 Color() {
 dre_loop( function(i) {
 ?>
 CudaDeviceFunction real_t getDRE_<?%s i ?>() {
-	CalcPhi();
+	DispatchCalcPhi();
 	return phi[<?%s i-1 ?>];
 }
 <?R
@@ -68,7 +68,7 @@ CudaDeviceFunction real_t getDRE_<?%s i ?>() {
 ode_loop( function(i) {
 ?>
 CudaDeviceFunction real_t getODE_<?%s i ?>() {
-	CalcPhi();
+	DispatchCalcPhi();
 	return phi[<?%s NumberOfDREs+i-1 ?>];
 }
 <?R
@@ -97,7 +97,7 @@ CudaDeviceFunction void Init() {
 
 	?>
 
-	CalcQ();
+	DispatchCalcQ();
 
 	<?R
 
@@ -114,7 +114,7 @@ CudaDeviceFunction void Init() {
 	})
 
 	?>
-	CalcPhi();
+	DispatchCalcPhi();
 
 }
 
@@ -136,7 +136,7 @@ CudaDeviceFunction void InitFromExternal() {
 
 	?>
 
-	CalcQ();
+	DispatchCalcQ();
 
 	<?R
 
@@ -153,15 +153,24 @@ CudaDeviceFunction void InitFromExternal() {
 	})
 
 	?>
-	CalcPhi();
+	DispatchCalcPhi();
 
 }
 
 
 	
 CudaDeviceFunction void Run() {
-	CalcPhi();
-	CalcQ();
+	DispatchCalcPhi();
+	DispatchCalcQ();
+
+
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Wall:
+		BounceBack();
+		return;
+		break;
+	}
 	<?R
 
 	dre_loop( function(i) {
@@ -180,6 +189,14 @@ CudaDeviceFunction void Run() {
 	?>
 
  }
+
+
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
 
  CudaDeviceFunction void Init_eq(real_t Init_Phi_Tilde) 
  {
@@ -214,6 +231,51 @@ CudaDeviceFunction void SRT(real_t diffusivity, const real_t q)
 
 	?>
 }
+
+
+
+CudaDeviceFunction void DispatchCalcPhi() 
+{	
+
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Wall:
+
+		<?R
+
+
+		dre_loop( function(i) {
+			?>
+			phi[<?%s i-1 ?>] = 0;
+			<?R
+		})
+
+		ode_loop( function(i) {
+			?>
+			phi[<?%s NumberOfDREs+i-1 ?>] = 0;
+			<?R		
+		})
+
+		?>
+
+		return;
+		break;
+	}
+
+	CalcPhi();
+}
+CudaDeviceFunction void DispatchCalcQ() 
+{	
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Wall:
+
+
+		return;
+		break;
+	}
+
+	CalcQ();
+}
+
 
 
 
