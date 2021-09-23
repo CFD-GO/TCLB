@@ -1,8 +1,8 @@
 # Density - table of variables of LB Node to stream
 #	Velocity-based Evolution d3q27:
-if (Options$d27){
+if (Options$q27){
 	source("d3q27q27.R")
-else {
+} else {
 	source("d3q27q15.R")
 }
 

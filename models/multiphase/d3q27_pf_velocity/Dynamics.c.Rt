@@ -51,7 +51,11 @@
     U = as.matrix(DensityAll[DensityAll$group=="g",c("dx","dy","dz")])
     u = PV(c("U","V","W"))
     absCi2 = (U[,1]*U[,1]+U[,2]*U[,2]+U[,3]*U[,3])
-
+    if (Options$q27){
+	PF_velocities = 27
+    } else {
+	PF_velocities = 15
+    }
 	# Formulate Weighted-MRT matrix
     m0 = matrix(1, 1, 27)
     
@@ -93,18 +97,14 @@
 
 	geq = PV(c(paste("geq[",1:27-1,"]",sep="")))
 	Fi  = PV(c(paste("F_i[",1:27-1,"]",sep="")))
-	if (Options$d27){
-		h   = PV(c(paste("h",1:27-1,sep="")))
-		heq  = PV(c(paste("heq[",1:27-1,"]",sep="")))
-		Fphi = PV(c(paste("F_phi[",1:27-1,"]",sep="")))
-		gammah = PV(c(paste("Gamma[",1:27-1,"]",sep="")))
+	h   = PV(c(paste("h",1:PF_velocities-1,sep="")))
+	heq  = PV(c(paste("heq[",1:PF_velocities-1,"]",sep="")))
+	Fphi = PV(c(paste("F_phi[",1:PF_velocities-1,"]",sep="")))
+	gammah = PV(c(paste("Gamma[",1:PF_velocities-1,"]",sep="")))
+	if (Options$q27){
 		w_h = PV(c(paste("wg[",1:27-1,"]",sep="")))
 	} else {
-		h   = PV(c(paste("h",1:15-1,sep="")))
-		heq  = PV(c(paste("heq[",1:15-1,"]",sep="")))
-		Fphi = PV(c(paste("F_phi[",1:15-1,"]",sep="")))
 		w_h = c(0.75, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0)
-		gammah = PV(c(paste("Gamma[",1:15-1,"]",sep="")))
 	}
 	omega = PV("omega_phi")
 	phase = PV("PhaseF")
@@ -149,7 +149,7 @@ for (myDensity in 0:26){
 	cat(paste0("\t return g",myDensity,";\n"))
 	cat("}\n")
 }
-for (myDensity in 0:14){
+for (myDensity in 0:(PF_velocities-1)){
 	cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
 	cat(paste0("\t return h",myDensity,";\n"))
 	cat("}\n")
@@ -245,11 +245,11 @@ CudaDeviceFunction void calcWallPhase(){
 			// If I am not surrounded, but contact angle is pi/2 (90d)
 			PhaseF = pf_f;
 		} else {
-			// h*\Theta
-			// h*(-sqrt(2*beta/kappa)*cos(theta))
-			//-h*(sqrt((2*12*sigma/W) / (3*sigma*W/2))*cos(theta))
-			//-h*(sqrt(48 / (3*W))*cos(theta))
-			//-h*(sqrt(16 / W^2)*cos(theta))
+			// h*Theta
+			// =  h*(-sqrt(2*beta/kappa)*cos(theta))
+			// = -h*( sqrt((2*12*sigma/W) / (3*sigma*W/2))*cos(theta))
+			// = -h*( sqrt(48 / (3*W^2))*cos(theta))
+			// = -h*( sqrt(16 / W^2)*cos(theta))
 			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 		}
@@ -313,7 +313,7 @@ CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t 
 
 CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, real_t nz){
 	real_t f_phi;
-#ifdef OPTIONS_d27
+#ifdef OPTIONS_q27
 	f_phi = wg[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
 #else
 	f_phi = wh[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
@@ -555,7 +555,7 @@ CudaDeviceFunction void calc_Fp(real_t *fx, real_t *fy, real_t *fz, real_t press
 	*fz = (-1.0/3.0) * pressure * (Density_h-Density_l) * gPhi.z;
 }
 CudaDeviceFunction void calc_Fb(real_t *fx, real_t *fy, real_t *fz, real_t rho){
-    *fx = (Density_h-rho)*BuoyancyX + rho*GravitationX;
+        *fx = (Density_h-rho)*BuoyancyX + rho*GravitationX;
 	*fy = (Density_h-rho)*BuoyancyY + rho*GravitationY;
 	*fz = (Density_h-rho)*BuoyancyZ + rho*GravitationZ;
 }
@@ -670,22 +670,17 @@ CudaDeviceFunction void CollisionMRT(){
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	<?R
-		if (OPTIONS$d27){
-			EQ_h = MRT_eq(U[1:27,],PV(1),u)
-			C(heq, EQ_h$feq * PV("C"))
-			n = PV("n",c(".x",".y",".z"))
-			EQ_h = MRT_eq(U[1:27,],PV(1),PV(c(0,0,0)))
-			wh = EQ_h$feq
-			C(Fphi, wh * PV("tmp1") * (U[1:27,] %*% n))
+		#EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),u)
+		#C(heq, EQ_h$feq * PV("C"))
+		#n = PV("n",c(".x",".y",".z"))
+		#EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),PV(c(0,0,0)))
+		if (OPTIONS$q27){
+		#	wh = EQ_h$feq
 		} else {
-			EQ_h = MRT_eq(U[1:15,],PV(1),u)
-			C(heq, EQ_h$feq * PV("C"))
-			n = PV("n",c(".x",".y",".z"))
-			EQ_h = MRT_eq(U[1:15,],PV(1),PV(c(0,0,0)))
 			wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))    #EQ_h$feq
-			C(Fphi, wh * PV("tmp1") * (U[1:15,] %*% n))
 		}
-		C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
+		#C(Fphi, wh * PV("tmp1") * (U[1:PF_velocities,] %*% n))
+		#C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
 
 		mF = PV(rep(0,27))
 		mF[2:4] = F_total * rho.inv
@@ -908,6 +903,14 @@ CudaDeviceFunction void BounceBack(){
 	tmp = h8; h8 = h13; h13 = tmp;
 	tmp = h9; h9 = h12; h12 = tmp;
 	tmp = h10; h10 = h11; h11 = tmp;
+#ifdef OPTIONS_q27
+	tmp = h15; h15 = h18; h18 = tmp;
+	tmp = h16; h16 = h17; h17 = tmp;
+	tmp = h19; h19 = h22; h22 = tmp;
+	tmp = h20; h20 = h21; h21 = tmp;
+	tmp = h23; h23 = h26; h26 = tmp;
+	tmp = h24; h24 = h25; h25 = tmp;
+#endif
 }
 //############//
 
