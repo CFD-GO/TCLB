@@ -93,14 +93,21 @@
 
 	geq = PV(c(paste("geq[",1:27-1,"]",sep="")))
 	Fi  = PV(c(paste("F_i[",1:27-1,"]",sep="")))
-	h   = PV(c(paste("h",1:15-1,sep="")))
+	if (Options$d27){
+		h   = PV(c(paste("h",1:27-1,sep="")))
+		heq  = PV(c(paste("heq[",1:27-1,"]",sep="")))
+		Fphi = PV(c(paste("F_phi[",1:27-1,"]",sep="")))
+		gammah = PV(c(paste("Gamma[",1:27-1,"]",sep="")))
+		w_h = PV(c(paste("wg[",1:27-1,"]",sep="")))
+	} else {
+		h   = PV(c(paste("h",1:15-1,sep="")))
+		heq  = PV(c(paste("heq[",1:15-1,"]",sep="")))
+		Fphi = PV(c(paste("F_phi[",1:15-1,"]",sep="")))
+		w_h = c(0.75, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0)
+		gammah = PV(c(paste("Gamma[",1:15-1,"]",sep="")))
+	}
 	omega = PV("omega_phi")
-	heq  = PV(c(paste("heq[",1:15-1,"]",sep="")))
-	Fphi = PV(c(paste("F_phi[",1:15-1,"]",sep="")))
-	w_h = c(0.75, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0)
-
 	phase = PV("PhaseF")
-	gammah = PV(c(paste("Gamma[",1:15-1,"]",sep="")))
 	gammag = PV(c(paste("Gamma[",1:27-1,"]",sep="")))
 
 	if (Options$OutFlow) {
@@ -132,19 +139,38 @@
 
 #include <math.h>
 #define PI 3.14159265
+#define hPops 15
 
 //######EXPORTABLE QUANTITIES######//
+#ifdef OPTIONS_ML
+<?R
+for (myDensity in 0:26){
+	cat(paste0("CudaDeviceFunction real_t getg",myDensity,"(){\n"))
+	cat(paste0("\t return g",myDensity,";\n"))
+	cat("}\n")
+}
+for (myDensity in 0:14){
+	cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
+	cat(paste0("\t return h",myDensity,";\n"))
+	cat("}\n")
+}
+?>
+#endif
+
 CudaDeviceFunction real_t getRho(){
 	return Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
 }
 CudaDeviceFunction real_t getPhaseField(){
-	return PhaseF(0,0,0);
+	// return PhaseF(0,0,0);
+	return <?R C(sum(h))?> ;
 }
 CudaDeviceFunction vector_t getU(){
 	vector_t u;
-	u.x = U;
-	u.y = V;
-	u.z = W;
+    if ( IamWall || IamSolid ) {
+        u.x = 0.0; u.y = 0.0; u.z = 0.0;
+    } else {
+	    u.x = U; u.y = V; u.z = W;
+    }
 	return u;
 }
 CudaDeviceFunction real_t getP(){
@@ -187,15 +213,19 @@ CudaDeviceFunction vector_t calcGradPhi(){
 			?>
 		}
 	#else
-		<?R
+	    if ( IamWall || IamSolid ) {
+			gradPhi.x = 0.0;gradPhi.y = 0.0;gradPhi.z = 0.0;
+		} else {	
+		    <?R
 			IsotropicGrad('gradPhi', 'PhaseF')
-		?>
+		    ?>
+        }
 	#endif	
 	return gradPhi;
 }
 
 CudaDeviceFunction void calcPhaseF(){
-    updateBoundary();
+	updateBoundary();
 	PhaseF = <?R C(sum(h))?>;
 }
 
@@ -211,11 +241,16 @@ CudaDeviceFunction void calcWallPhase(){
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			// or my normal points towards a solid node.
 			PhaseF = 1;
-		} else if (ContactAngle == 90){
-			// If I am not surrounded, but contact angle is 90
+		} else if (fabs(radAngle - PI/2.0) < 1e-4){
+			// If I am not surrounded, but contact angle is pi/2 (90d)
 			PhaseF = pf_f;
 		} else {
-			a = -h * (4.0/IntWidth) * cos(radAngle);
+			// h*\Theta
+			// h*(-sqrt(2*beta/kappa)*cos(theta))
+			//-h*(sqrt((2*12*sigma/W) / (3*sigma*W/2))*cos(theta))
+			//-h*(sqrt(48 / (3*W))*cos(theta))
+			//-h*(sqrt(16 / W^2)*cos(theta))
+			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 		}
 	} 
@@ -250,9 +285,13 @@ CudaDeviceFunction real_t calcMu(real_t C){
 			?>
 		}
 	#else
+        if (IamWall || IamSolid){
+            lpPhi = 0.0;
+        } else {
 			<?R
 				myLaplace('lpPhi', 'PhaseF')
 			?>
+        }
 	#endif
 	#ifdef OPTIONS_thermo
 		mu = 4.0*(12.0*SurfaceTension(0,0,0)/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
@@ -274,8 +313,11 @@ CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t 
 
 CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, real_t nz){
 	real_t f_phi;
-
+#ifdef OPTIONS_d27
+	f_phi = wg[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
+#else
 	f_phi = wh[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
+#endif
 	return f_phi;
 }
 
@@ -289,10 +331,10 @@ CudaDeviceFunction void Init() {
 CudaDeviceFunction void specialCases_Init(){
 	#ifdef OPTIONS_thermo
 		Temp   = T_init;
-		if (dT > 0){
+		if (fabs(dT) > 0){
 			Temp = T_init + dT*Y;
 		}
-		if (dTx > 0){
+		if (fabs(dTx) > 0){
 			Temp = T_init + dTx*X;
 		}
 		#ifdef OPTIONS_planarBenchmark
@@ -434,16 +476,16 @@ CudaDeviceFunction void Init_distributions(){
 	real_t mag = U*U + V*V + W*W;
 	real_t Gamma[27];
 	// ##### heq
-	real_t F_phi[15]; 
+	real_t F_phi[hPops]; 
 	real_t tmp1 = (1.0 - 4.0*(PhaseF - C0)*(PhaseF - C0))/IntWidth;
 	for (i=0; i< 27; i++){
 		Gamma[i] = calcGamma(i, U, V, W, mag);
-		if (i < 15) F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz);
+		if (i < hPops) F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz);
 	}
 
 	<?R
-		C(h, w_h * phase * gammah - 0.5 * Fphi)
-	#	C(h, w_h * phase * gammah )
+	#	C(h, w_h * phase * gammah - 0.5 * Fphi)
+		C(h, w_h * phase * gammah )
 	?>
 		
 	// ##### geq
@@ -563,7 +605,7 @@ CudaDeviceFunction void CollisionMRT(){
 	real_t magnPhi;							// Normals
 	real_t F_pressure[3], F_body[3], F_mu[3], F_surf[3], F_total[3]; // Forces
 	real_t tmp1, stress[6]={0.0,0.0,0.0,0.0,0.0,0.0};     // Stress tensor calculation
-	real_t F_phi[15], heq[15];				// Phase field collision terms
+	real_t F_phi[hPops], heq[hPops];				// Phase field collision terms
 	real_t F_i[27];							// Momentum distribution forcing term
 	real_t m[27]; 							//MRT Details
 
@@ -628,13 +670,21 @@ CudaDeviceFunction void CollisionMRT(){
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	<?R
-		EQ_h = MRT_eq(U[1:15,],PV(1),u)
-		C(heq, EQ_h$feq * PV("C"))
-		n = PV("n",c(".x",".y",".z"))
-		EQ_h = MRT_eq(U[1:15,],PV(1),PV(c(0,0,0)))
-		wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))    #EQ_h$feq
-		C(Fphi, wh * PV("tmp1") * (U[1:15,] %*% n))
-		
+		if (OPTIONS$d27){
+			EQ_h = MRT_eq(U[1:27,],PV(1),u)
+			C(heq, EQ_h$feq * PV("C"))
+			n = PV("n",c(".x",".y",".z"))
+			EQ_h = MRT_eq(U[1:27,],PV(1),PV(c(0,0,0)))
+			wh = EQ_h$feq
+			C(Fphi, wh * PV("tmp1") * (U[1:27,] %*% n))
+		} else {
+			EQ_h = MRT_eq(U[1:15,],PV(1),u)
+			C(heq, EQ_h$feq * PV("C"))
+			n = PV("n",c(".x",".y",".z"))
+			EQ_h = MRT_eq(U[1:15,],PV(1),PV(c(0,0,0)))
+			wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))    #EQ_h$feq
+			C(Fphi, wh * PV("tmp1") * (U[1:15,] %*% n))
+		}
 		C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
 
 		mF = PV(rep(0,27))
@@ -730,6 +780,27 @@ CudaDeviceFunction void EVelocity(){
 	?>
 	{
 		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
+}
+
+CudaDeviceFunction void Velocity_Y_neg(){
+	U = VelocityX;
+	V = VelocityY;
+	W = VelocityZ;
+	<?R
+		n = c(0,-1,0)
+			geq = EQ$feq
+			bounce = Bounce(U)
+			sel = as.vector( (U %*% n) < 0)
+
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
+		Unknowns = 1.0/9.0
+
+		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
+	?>
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(0,-1,0),"pressure", rhs=PV("PhaseField")) ?>
 	}
 }
 
@@ -868,7 +939,7 @@ CudaDeviceFunction void CollisionBGK(){
 	real_t Gamma[27], geq[27], mag;			// equilibrium, pressure equilibrium, velocity magnitude
 	real_t F_surf[3], F_pressure[3], F_body[3], F_mu[3], F_total[3]; // Forces
 	real_t tmp1, stress[6]={0.0,0.0,0.0,0.0,0.0,0.0};     // Stress tensor calculation
-	real_t F_phi[15], heq[15];			// Phase field collision terms
+	real_t F_phi[hPops], heq[hPops];			// Phase field collision terms
 	real_t F_i[27];					// Momentum distribution forcing term
 
 	// Find Macroscopic Details
@@ -928,7 +999,7 @@ CudaDeviceFunction void CollisionBGK(){
 
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
-	for (i=0; i< 15; i++){
+	for (i=0; i< hPops; i++){
 		F_phi[i] = calcF_phi(i, tmp1, nx, ny, nz); 		// Forcing Terms
 		heq[i] = C * Gamma[i];      	// heq
 	}
@@ -963,6 +1034,9 @@ CudaDeviceFunction void updateBoundary(){
 			break;
 		case NODE_NVelocity:
 			NVelocity();
+			break;
+		case NODE_Velocity_Y_neg:
+			Velocity_Y_neg();
 			break;
 		case NODE_EPressure:
 			EPressure();

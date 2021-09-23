@@ -1,53 +1,15 @@
 # Density - table of variables of LB Node to stream
 #	Velocity-based Evolution d3q27:
-AddDensity( name="g0", dx= 0, dy= 0, dz= 0, group="g")
-AddDensity( name="g1", dx= 1, dy= 0, dz= 0, group="g")
-AddDensity( name="g2", dx=-1, dy= 0, dz= 0, group="g")
-AddDensity( name="g3", dx= 0, dy= 1, dz= 0, group="g")
-AddDensity( name="g4", dx= 0, dy=-1, dz= 0, group="g")
-AddDensity( name="g5", dx= 0, dy= 0, dz= 1, group="g")
-AddDensity( name="g6", dx= 0, dy= 0, dz=-1, group="g")
-AddDensity( name="g7", dx= 1, dy= 1, dz= 1, group="g")
-AddDensity( name="g8", dx=-1, dy= 1, dz= 1, group="g")
-AddDensity( name="g9", dx= 1, dy=-1, dz= 1, group="g")
-AddDensity( name="g10",dx=-1, dy=-1, dz= 1, group="g")
-AddDensity( name="g11",dx= 1, dy= 1, dz=-1, group="g")
-AddDensity( name="g12",dx=-1, dy= 1, dz=-1, group="g")
-AddDensity( name="g13",dx= 1, dy=-1, dz=-1, group="g")
-AddDensity( name="g14",dx=-1, dy=-1, dz=-1, group="g")
-AddDensity( name="g15",dx= 1, dy= 1, dz= 0, group="g")
-AddDensity( name="g16",dx=-1, dy= 1, dz= 0, group="g")
-AddDensity( name="g17",dx= 1, dy=-1, dz= 0, group="g")
-AddDensity( name="g18",dx=-1, dy=-1, dz= 0, group="g")
-AddDensity( name="g19",dx= 1, dy= 0, dz= 1, group="g")
-AddDensity( name="g20",dx=-1, dy= 0, dz= 1, group="g")
-AddDensity( name="g21",dx= 1, dy= 0, dz=-1, group="g")
-AddDensity( name="g22",dx=-1, dy= 0, dz=-1, group="g")
-AddDensity( name="g23",dx= 0, dy= 1, dz= 1, group="g")
-AddDensity( name="g24",dx= 0, dy=-1, dz= 1, group="g")
-AddDensity( name="g25",dx= 0, dy= 1, dz=-1, group="g")
-AddDensity( name="g26",dx= 0, dy=-1, dz=-1, group="g")
+if (Options$d27){
+	source("d3q27q27.R")
+else {
+	source("d3q27q15.R")
+}
 
-#	Phase Field Evolution d3q15:
-AddDensity( name="h0", dx= 0, dy= 0, dz= 0, group="h")
-AddDensity( name="h1", dx= 1, dy= 0, dz= 0, group="h")
-AddDensity( name="h2", dx=-1, dy= 0, dz= 0, group="h")
-AddDensity( name="h3", dx= 0, dy= 1, dz= 0, group="h")
-AddDensity( name="h4", dx= 0, dy=-1, dz= 0, group="h")
-AddDensity( name="h5", dx= 0, dy= 0, dz= 1, group="h")
-AddDensity( name="h6", dx= 0, dy= 0, dz=-1, group="h")
-AddDensity( name="h7", dx= 1, dy= 1, dz= 1, group="h")
-AddDensity( name="h8", dx=-1, dy= 1, dz= 1, group="h")
-AddDensity( name="h9", dx= 1, dy=-1, dz= 1, group="h")
-AddDensity( name="h10",dx=-1, dy=-1, dz= 1, group="h")
-AddDensity( name="h11",dx= 1, dy= 1, dz=-1, group="h")
-AddDensity( name="h12",dx=-1, dy= 1, dz=-1, group="h")
-AddDensity( name="h13",dx= 1, dy=-1, dz=-1, group="h")
-AddDensity( name="h14",dx=-1, dy=-1, dz=-1, group="h")
-
-if (Options$OutFlow){
-	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
-	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
+if (Options$ML){
+	for (d in rows(DensityAll)){
+		AddQuantity(name=d$name)
+	}
 }
 
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
@@ -70,132 +32,42 @@ if (Options$OutFlow){
 ########THERMOCAPILLARY########
 ###############################
 if (Options$thermo){
-	AddField( name="g0" , group="g")
-	AddField( name="g1" , group="g")
-	AddField( name="g2" , group="g")
-	AddField( name="g3" , group="g")
-	AddField( name="g4" , group="g")
-	AddField( name="g5" , group="g")
-	AddField( name="g6" , group="g")
-	AddField( name="g7" , group="g")
-	AddField( name="g8" , group="g")
-	AddField( name="g9" , group="g")
-	AddField( name="g10", group="g")
-	AddField( name="g11", group="g")
-	AddField( name="g12", group="g")
-	AddField( name="g13", group="g")
-	AddField( name="g14", group="g")
-	AddField( name="g15", group="g")
-	AddField( name="g16", group="g")
-	AddField( name="g17", group="g")
-	AddField( name="g18", group="g")
-	AddField( name="g19", group="g")
-	AddField( name="g20", group="g")
-	AddField( name="g21", group="g")
-	AddField( name="g22", group="g")
-	AddField( name="g23", group="g")
-	AddField( name="g24", group="g")
-	AddField( name="g25", group="g")
-	AddField( name="g26", group="g")
-	AddField( name="h0", group="h")
-	AddField( name="h1", group="h")
-	AddField( name="h2", group="h")
-	AddField( name="h3", group="h")
-	AddField( name="h4", group="h")
-	AddField( name="h5", group="h")
-	AddField( name="h6", group="h")
-	AddField( name="h7", group="h")
-	AddField( name="h8", group="h")
-	AddField( name="h9", group="h")
-	AddField( name="h10",group="h")
-	AddField( name="h11",group="h")
-	AddField( name="h12",group="h")
-	AddField( name="h13",group="h")
-	AddField( name="h14",group="h")
-	AddDensity("Temp", dx=0, dy=0, dz=0, group="Thermal")
-	AddDensity("Cond", dx=0, dy=0, dz=0, group="Thermal")
-	AddDensity("SurfaceTension", dx=0, dy=0, dz=0, group="Thermal")
-	AddField("Temp",stencil3d=1, group="Thermal")
-	AddField("Cond",stencil3d=1, group="Thermal")
-	AddField("SurfaceTension",stencil3d=1, group="Thermal")
-
-	AddQuantity(name="T",unit="K")
-	AddQuantity(name="ST",unit="N/m")
-	AddSetting("surfPower",	default="1", comment="Use for parabolic representation of surface tension")
-	AddSetting("sigma_T",			comment="Derivative describing how surface tension changes with temp unit=[N/m2]")
-	AddSetting("sigma_TT",			comment="Derivative describing how surface tension changes with temp unit=[N/m3]")
-	AddSetting("T_ref",				comment="Reference temperature at which sigma is set unit=[K]")
-	AddSetting("T_init",zonal=T, 	comment="Initial temperature field unit=[K]")
-	AddSetting("cp_h",				comment="specific heat for heavy phase unit=[J/kg/K]")
-	AddSetting("cp_l",				comment="specific heat for light phase unit=[J/kg/K]")
-	AddSetting("k_h", 				comment="thermal conductivity for heavy phase unit=[W/m/K]")
-	AddSetting("k_l", 				comment="thermal conductivity for light phase unit=[W/m/K]")
-	AddSetting("dT",				comment="Application of vertical temp gradient to speed up initialisation unit=[K]")
-	AddSetting("dTx", default="0",	comment="Application of horizontal temp gradient to speed up initialisation unit=[K]")	
-	AddSetting("stabiliser", default="1",	comment="If not solving flow field, can adjust temperature timestep")	
-	AddGlobal("TempChange")
-	if (Options$planarBenchmark){
-		AddSetting("T_c", default="10")
-		AddSetting("T_h", default="20")
-		AddSetting("T_0", default="4")
-		AddSetting("myL", default="100")
-		AddSetting("MIDPOINT", default="51")
-		AddSetting("PLUSMINUS", default="1")
-		AddNodeType("BWall",group="ADDITIONALS")
-		AddNodeType("TWall",group="ADDITIONALS")
-	}
-	AddDensity("RK1", dx=0, dy=0, dz=0, group="Thermal")
-	AddDensity("RK2", dx=0, dy=0, dz=0, group="Thermal")
-	AddDensity("RK3", dx=0, dy=0, dz=0, group="Thermal")
-	AddField("RK1",stencil3d=1, group="Thermal")
-	AddField("RK2",stencil3d=1, group="Thermal")
-	AddField("RK3",stencil3d=1, group="Thermal")
-
-	AddStage("CopyDistributions", "TempCopy",  save=Fields$group %in% c("g","h","Vel","nw", "PF","Thermal"))
-	AddStage("CopyThermal","ThermalCopy", save=Fields$name %in% c("Temp","Cond","SurfaceTension"), load=DensityAll$name %in% c("Temp","Cond","SurfaceTension"))
-	AddStage("RK_1", "TempUpdate1", save=Fields$name=="RK1", load=DensityAll$name %in% c("U","V","W","Cond","PhaseF","Temp"))
-	AddStage("RK_2", "TempUpdate2", save=Fields$name=="RK2", load=DensityAll$name %in% c("U","V","W","RK1","Cond","PhaseF","Temp"))
-	AddStage("RK_3", "TempUpdate3", save=Fields$name=="RK3", load=DensityAll$name %in% c("U","V","W","RK1","RK2","Cond","PhaseF","Temp"))
-	AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("U","V","W","RK1","RK2","RK3","Cond","PhaseF","Temp"))	
-
-	AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
-	AddNodeType("ConstantTemp",group="ADDITIONALS")
-	AddNodeType("EAdiabatic",group="ADDITIONALS")
+    source("thermocapillary.R")
 }
 ######################
 ########STAGES########
 ######################
-	AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
-	AddStage("calcWall"  , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
-	if (Options$OutFlow & Options$thermo){
-		AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
-		AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","gold","hold","Vel","PF"))
-		AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
-													load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw") )
-		AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","gold","hold","Vel","nw","Thermal"), 
-													load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw","Thermal","PF"))
-	} else if (Options$OutFlow){
-		AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
-		AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold","PF"))
-		AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
-													load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
-		AddStage("BaseIter"  , "Run"       ,     save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
+AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
+AddStage("calcWall"  , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
+if (Options$OutFlow & Options$thermo){
+	AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
+	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","gold","hold","Vel","PF"))
+	AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
+  												 load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw") )
+	AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","gold","hold","Vel","nw","Thermal"), 
+												 load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw","Thermal","PF"))
+} else if (Options$OutFlow){
+	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
+	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold","PF"))
+	AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
+												load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
+	AddStage("BaseIter"  , "Run"       ,     save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
 												load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold","nw"))
-	} else if (Options$thermo){
-		AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
-		AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
-		AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
-													load=DensityAll$group %in% c("g","h","Vel","nw") )
-		AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","Thermal"), 
-													load=DensityAll$group %in% c("g","h","Vel","nw","Thermal","PF"))
-	} else {
-		AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
-		AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
-		AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
+} else if (Options$thermo){
+	AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
+	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
+	AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
+												load=DensityAll$group %in% c("g","h","Vel","nw") )
+	AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","Thermal"), 
+												load=DensityAll$group %in% c("g","h","Vel","nw","Thermal","PF"))
+} else {
+	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
+	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
+	AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
 								load=DensityAll$group %in% c("g","h","Vel","nw") )
-		AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw"), 
+	AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw"), 
 											load=DensityAll$group %in% c("g","h","Vel","nw"))
-	}
+}
 #######################
 ########ACTIONS########
 #######################
@@ -228,8 +100,7 @@ if (Options$thermo){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
-	AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
-	AddSetting(name='radAngle', comment='Conversion to rads for calcs')
+	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
@@ -288,6 +159,7 @@ if (Options$thermo){
 	AddNodeType(name="EPressure", group="BOUNDARY")
 	AddNodeType(name="WPressure", group="BOUNDARY")
 	AddNodeType(name="NVelocity", group="BOUNDARY")
+	AddNodeType(name="Velocity_Y_neg", group="BOUNDARY")
 	AddNodeType(name="EVelocity", group="BOUNDARY")
 	AddNodeType(name="WVelocity", group="BOUNDARY")
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
