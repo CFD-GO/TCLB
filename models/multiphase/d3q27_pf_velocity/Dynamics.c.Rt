@@ -15,11 +15,7 @@
 //		01/04/2017: Development starts...
 //			    Plan is d3q27 for hydrodynamics
 //			    and d3q15 for interface dynamics
-//		08/04/2017: Development status update ...
-//			    Code builds and runs stable for density
-//			    ratio up to 100, but layered Poiseuille
-//			    flow does not appear symmetric,#DebugFunTimes
-//			    - #DebugFunTimes have passed, validated with:
+//		08/04/2017: Verification and validation 
 //				- Layered Poiseuille flow
 //				- Rayleigh Taylor up to water-air like properties and Re=3000
 //				- Validated with air Taylor bubble rising through olive oil
@@ -37,7 +33,6 @@
 //		28/04/2020: Added thermocapillary effects option
 //		07/04/2021: Code clean up
 //				- thermocapillary moved to the bottom of the file to separate
-//				  as much as possible from normal model
 //				- forces broken up into individual functions, set up so that additional
 //				  physics can be added simply if only a force needs to be altered
 // 				- edge case for wall phase calculation in which normal direction points
@@ -52,25 +47,21 @@
     u = PV(c("U","V","W"))
     absCi2 = (U[,1]*U[,1]+U[,2]*U[,2]+U[,3]*U[,3])
     if (Options$q27){
-	PF_velocities = 27
+	    PF_velocities = 27
     } else {
-	PF_velocities = 15
+	    PF_velocities = 15
     }
 	# Formulate Weighted-MRT matrix
     m0 = matrix(1, 1, 27)
-    
     m1 = U[,1]
     m2 = U[,2]
     m3 = U[,3]
-
     m4 = U[,1]*U[,2]
     m5 = U[,2]*U[,3]
     m6 = U[,3]*U[,1]
     m7 = 3*U[,1]*U[,1] - absCi2
     m8 = U[,2]*U[,2] - U[,3]*U[,3]
-
     m9 = absCi2 - 1
-
     m10 = U[,1] * (3*absCi2 - 5)
     m11 = U[,2] * (3*absCi2 - 5)
     m12 = U[,3] * (3*absCi2 - 5)
@@ -78,14 +69,12 @@
     m14 = U[,2] * (U[,3]*U[,3] - U[,1]*U[,1])
     m15 = U[,3] * (U[,1]*U[,1] - U[,2]*U[,2])
     m16 = U[,1]*U[,2]*U[,3]
-
     m17 = 0.5 * (3*absCi2*absCi2 - 7*absCi2+2)
     m18 = (3*absCi2 - 4) * (3*U[,1]*U[,1] - absCi2)
     m19 = (3*absCi2 - 4) * (U[,2]*U[,2] - U[,3]*U[,3])
     m20 = U[,1]*U[,2]*(3*absCi2 - 7)
     m21 = U[,2]*U[,3]*(3*absCi2 - 7)
     m22 = U[,3]*U[,1]*(3*absCi2 - 7)
-
     m23 = 0.5 * U[,1]*(9*absCi2*absCi2 - 33*absCi2 + 26)
     m24 = 0.5 * U[,2]*(9*absCi2*absCi2 - 33*absCi2 + 26)
     m25 = 0.5 * U[,3]*(9*absCi2*absCi2 - 33*absCi2 + 26)
@@ -139,8 +128,11 @@
 
 #include <math.h>
 #define PI 3.14159265
+#ifdef OPTIONS_q27
+#define hPops 27 
+#else
 #define hPops 15
-
+#endif
 //######EXPORTABLE QUANTITIES######//
 #ifdef OPTIONS_ML
 <?R
@@ -161,8 +153,8 @@ CudaDeviceFunction real_t getRho(){
 	return Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
 }
 CudaDeviceFunction real_t getPhaseField(){
-	// return PhaseF(0,0,0);
-	return <?R C(sum(h))?> ;
+	return PhaseF(0,0,0);
+	//return <?R C(sum(h))?> ;
 }
 CudaDeviceFunction vector_t getU(){
 	vector_t u;
@@ -213,13 +205,9 @@ CudaDeviceFunction vector_t calcGradPhi(){
 			?>
 		}
 	#else
-	    if ( IamWall || IamSolid ) {
-			gradPhi.x = 0.0;gradPhi.y = 0.0;gradPhi.z = 0.0;
-		} else {	
 		    <?R
 			IsotropicGrad('gradPhi', 'PhaseF')
 		    ?>
-        }
 	#endif	
 	return gradPhi;
 }
@@ -285,13 +273,9 @@ CudaDeviceFunction real_t calcMu(real_t C){
 			?>
 		}
 	#else
-        if (IamWall || IamSolid){
-            lpPhi = 0.0;
-        } else {
 			<?R
 				myLaplace('lpPhi', 'PhaseF')
 			?>
-        }
 	#endif
 	#ifdef OPTIONS_thermo
 		mu = 4.0*(12.0*SurfaceTension(0,0,0)/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
@@ -484,8 +468,12 @@ CudaDeviceFunction void Init_distributions(){
 	}
 
 	<?R
+    if (Options$q27){
 	#	C(h, w_h * phase * gammah - 0.5 * Fphi)
+		C(h, phase * gammah )
+    } else {
 		C(h, w_h * phase * gammah )
+    }
 	?>
 		
 	// ##### geq
@@ -670,17 +658,18 @@ CudaDeviceFunction void CollisionMRT(){
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	<?R
-		#EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),u)
-		#C(heq, EQ_h$feq * PV("C"))
-		#n = PV("n",c(".x",".y",".z"))
-		#EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),PV(c(0,0,0)))
-		if (OPTIONS$q27){
-		#	wh = EQ_h$feq
+		n = PV("n",c(".x",".y",".z"))
+		EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),u)
+		C(heq, EQ_h$feq * PV("C"))
+		EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),PV(c(0,0,0)))
+		if (Options$q27){
+			wh = EQ_h$feq
+		    EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),u)
 		} else {
-			wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))    #EQ_h$feq
-		}
-		#C(Fphi, wh * PV("tmp1") * (U[1:PF_velocities,] %*% n))
-		#C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
+			wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))
+        }
+		C(Fphi, wh * PV("tmp1") * (U[1:PF_velocities,] %*% n))
+    	C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
 
 		mF = PV(rep(0,27))
 		mF[2:4] = F_total * rho.inv
@@ -735,21 +724,30 @@ CudaDeviceFunction void WVelocity(){
 	}
 	<?R
 		n = c(-1,0,0)
-			geq = EQ$feq
-			bounce = Bounce(U)
-			sel = as.vector( (U %*% n) < 0)
+		geq = EQ$feq
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
 
 		sel2 = as.vector( ( U %*% n) == 0)	
 		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
-		Unknowns = 1.0/9.0
+        Unknowns = 1.0/max(colSums(U[sel2,]^2)) # should be 6 for q27, 4 for q15
+        Nmat = t(U[sel,]) %*% U[sel,]
 
-		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
+		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - 0.5* (exM %*% solve(Nmat) %*% t(U))[sel])
 	?>
+	<?R
+        pf = PV("PhaseField")
+		n = c(-1,0,0)
+		heq = pf * EQ_h$feq
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
 
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
 
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(-1,0,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
+		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
 }
 
 CudaDeviceFunction void EVelocity(){
@@ -763,19 +761,30 @@ CudaDeviceFunction void EVelocity(){
 	}
 	<?R
 		n = c(1,0,0)
-			geq = EQ$feq
-			bounce = Bounce(U)
-			sel = as.vector( (U %*% n) < 0)
+		geq = EQ$feq
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
 
 		sel2 = as.vector( ( U %*% n) == 0)	
 		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
-		Unknowns = 1.0/9.0
+        Unknowns = 1.0/max(colSums(U[sel2,]^2)) 
+        Nmat = t(U[sel,]) %*% U[sel,]
 
-		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
+		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - 0.5 * (exM %*% solve(Nmat) %*% t(U))[sel])
 	?>
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
+	<?R
+        pf = PV("PhaseField")
+		n = c(1,0,0)
+		heq = pf * EQ_h$feq
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
+
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
+
+		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
 }
 
 CudaDeviceFunction void Velocity_Y_neg(){
@@ -850,12 +859,15 @@ CudaDeviceFunction void MovingNWall(){
 	g10 = g11 - VelocityX/36.0;
 	g14 = g7  - VelocityX/36.0;
 	g18 = g15 - VelocityX/9.0;
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
 
-	h4  = h3 ;
-	h9  = h12;
-	h10 = h11;
-	h13 = h8 ;
-	h14 = h7 ;
+//	h4  = h3 ;
+//	h9  = h12;
+//	h10 = h11;
+//	h13 = h8 ;
+//	h14 = h7 ;
 }
 
 CudaDeviceFunction void MovingSWall(){
@@ -870,12 +882,15 @@ CudaDeviceFunction void MovingSWall(){
 	g11 = g10 + VelocityX/36.0;
 	g7  = g14 + VelocityX/36.0;
 	g15 = g18 + VelocityX/9.0;
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
 
-	h3  = h4 ;
-	h12 = h9 ;
-	h11 = h10;
-	h8  = h13 ;
-	h7  = h14 ;
+//	h3  = h4 ;
+//	h12 = h9 ;
+//	h11 = h10;
+//	h8  = h13 ;
+//	h7  = h14 ;
 }
 
 CudaDeviceFunction void BounceBack(){
