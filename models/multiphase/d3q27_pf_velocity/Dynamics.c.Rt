@@ -128,55 +128,56 @@
 
 #include <math.h>
 #define PI 3.14159265
+#define cs2 0.33333333
 #ifdef OPTIONS_q27
 #define hPops 27 
 #else
 #define hPops 15
 #endif
 //######EXPORTABLE QUANTITIES######//
-#ifdef OPTIONS_ML
 <?R
-for (myDensity in 0:26){
-	cat(paste0("CudaDeviceFunction real_t getg",myDensity,"(){\n"))
-	cat(paste0("\t return g",myDensity,";\n"))
-	cat("}\n")
-}
-for (myDensity in 0:(PF_velocities-1)){
-	cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
-	cat(paste0("\t return h",myDensity,";\n"))
-	cat("}\n")
+if (Options$ML){
+	for (myDensity in 0:26){
+		cat(paste0("CudaDeviceFunction real_t getg",myDensity,"(){\n"))
+		cat(paste0("\t return g",myDensity,";\n"))
+		cat("}\n")
+	}
+	for (myDensity in 0:(PF_velocities-1)){
+		cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
+		cat(paste0("\t return h",myDensity,";\n"))
+		cat("}\n")
+	}
 }
 ?>
-#endif
 
 CudaDeviceFunction real_t getRho(){
-	return Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
+	if ( IamWall || IamSolid) {
+		return 0.0;
+	} else {
+		return Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
+	}
 }
 CudaDeviceFunction real_t getPhaseField(){
 	return PhaseF(0,0,0);
-	//return <?R C(sum(h))?> ;
 }
 CudaDeviceFunction vector_t getU(){
 	vector_t u;
-    if ( IamWall || IamSolid ) {
-        u.x = 0.0; u.y = 0.0; u.z = 0.0;
-    } else {
-	    u.x = U; u.y = V; u.z = W;
-    }
+	if ( IamWall || IamSolid ) {
+		u.x = 0.0; u.y = 0.0; u.z = 0.0;
+	} else {
+		u.x = U; u.y = V; u.z = W;
+	}
 	return u;
 }
 CudaDeviceFunction real_t getP(){
+//May need to update this to not work off of streamed populations
 	real_t   p = <?R C(sum(g)) ?>; // Normalised pressure p* = p/(rho.cs^2)
-	real_t   d = <?R C(sum(h)) ?>; // Phase Field
+	real_t   d = getRho(); 
 
-	p = p*(Density_h + (d - PhaseField_l)*(Density_h-Density_l))/3.0;
-	return p;
+	return p*d*cs2;
 }
 CudaDeviceFunction vector_t getNormal(){
-	vector_t n;
-	n.x = nw_x;
-	n.y = nw_y;
-	n.z = nw_z;
+	vector_t n = {nw_x, nw_y, nw_z};
 	return n;
 }
 
@@ -736,13 +737,14 @@ CudaDeviceFunction void WVelocity(){
 		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - 0.5* (exM %*% solve(Nmat) %*% t(U))[sel])
 	?>
 	<?R
-        pf = PV("PhaseField")
+		U_PF = U[1:PF_velocities,]
+        	pf = PV("PhaseField")
 		n = c(-1,0,0)
 		heq = pf * EQ_h$feq
-		bounce = Bounce(U)
-		sel = as.vector( (U %*% n) < 0)
+		bounce = Bounce(U_PF)
+		sel = as.vector( (U_PF %*% n) < 0)
 
-		sel2 = as.vector( ( U %*% n) == 0)	
+		sel2 = as.vector( ( U_PF %*% n) == 0)	
 		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
 		Unknowns = 1.0/sum(sel)
 
@@ -773,13 +775,14 @@ CudaDeviceFunction void EVelocity(){
 		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - 0.5 * (exM %*% solve(Nmat) %*% t(U))[sel])
 	?>
 	<?R
-        pf = PV("PhaseField")
+		U_PF = U[1:PF_velocities,]
+        	pf = PV("PhaseField")
 		n = c(1,0,0)
 		heq = pf * EQ_h$feq
-		bounce = Bounce(U)
-		sel = as.vector( (U %*% n) < 0)
+		bounce = Bounce(U_PF)
+		sel = as.vector( (U_PF %*% n) < 0)
 
-		sel2 = as.vector( ( U %*% n) == 0)	
+		sel2 = as.vector( ( U_PF %*% n) == 0)	
 		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
 		Unknowns = 1.0/sum(sel)
 
