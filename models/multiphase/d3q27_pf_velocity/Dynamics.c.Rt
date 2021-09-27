@@ -356,7 +356,11 @@ CudaDeviceFunction void specialCases_Init(){
 	if (RTI_Characteristic_Length > 0){
 		real_t d = RTI_Characteristic_Length;
 		real_t ycutoff;
-		ycutoff = 2.0*d + 0.05*d*(cos(2.0*PI*X/d) + cos(2.0*PI*Z/d));
+        if (pseudo2D > 0.5){
+		    ycutoff = 2.0*d + 0.1*d*(cos(2.0*PI*X/d));
+        } else {
+		    ycutoff = 2.0*d + 0.05*d*(cos(2.0*PI*X/d) + cos(2.0*PI*Z/d));
+        }
 		if (Y < ycutoff) {PhaseF = 0.0; }
 		else             {PhaseF = 1.0;	}
 	}

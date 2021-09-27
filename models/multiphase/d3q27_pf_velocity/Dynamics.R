@@ -104,7 +104,8 @@ if (Options$OutFlow & Options$thermo){
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
-	# Single droplet/bubble
+	    AddSetting(name="pseudo2D", default="0", comment="if 1, assume model is pseduo2D")
+    # Single droplet/bubble
 		AddSetting(name="Radius", default=0.0, comment='Diffuse Sphere Radius')
 		AddSetting(name="CenterX", default=0.0, comment='Diffuse sphere center_x')
 		AddSetting(name="CenterY", default=0.0, comment='Diffuse sphere center_y')
