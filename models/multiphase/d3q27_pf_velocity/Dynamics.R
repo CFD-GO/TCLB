@@ -122,6 +122,10 @@ if (Options$OutFlow & Options$thermo){
 		AddSetting("HEIGHT", default=0,	comment="Height of channel for 2D Poiseuille flow")
 		AddSetting("Uavg", default=0,	zonal=T, comment="Average velocity of channel for 2D Poiseuille flow")
 		AddSetting("developedFlow", default=0,	comment="set greater than 0 for fully developed flow in the domain (x-direction)")
+		AddSetting("developedPipeFlow_X", default=0,	comment="set greater than 0 for fully developed pipe flow in the domain (x-direction)")
+        AddSetting("pipeRadius", default=0, comment="radius of pipe for developed pipe flow")
+        AddSetting("pipeCentre_Y", default=0, comment="pipe centre Y co-ord for developed pipe flow")
+        AddSetting("pipeCentre_Z", default=0, comment="pipe centre Z co-ord for developed pipe flow")
 ##############################
 ########INPUTS - FLUID########
 ##############################
