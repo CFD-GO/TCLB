@@ -148,9 +148,9 @@ if (Options$OutFlow & Options$thermo){
 	AddGlobal("InterfacePosition",comment='trackPosition')
 	AddGlobal("Vfront",comment='velocity infront of bubble')
 	AddGlobal("Vback",comment='velocity behind bubble')
-	AddGlobal("RTISpike", comment='SpikeTracker ')
-	AddGlobal("RTIBubble",comment='BubbleTracker')
-	AddGlobal("RTISaddle",comment='SaddleTracker')
+	AddGlobal("RTISpike", op="MAX", comment='SpikeTracker ')
+	AddGlobal("RTIBubble",op="MAX", comment='BubbleTracker')
+	AddGlobal("RTISaddle",op="MAX", comment='SaddleTracker')
 	AddGlobal("XLocation", comment='tracking of x-centroid of the gas regions in domain', unit="m")
 	AddGlobal(name="DropFront",	op="MAX",  comment='Highest location of droplet', unit="m")
 ##########################
