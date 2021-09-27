@@ -12,6 +12,7 @@ if (Options$ML){
 	}
 }
 
+AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
@@ -87,6 +88,7 @@ if (Options$OutFlow & Options$thermo){
 	AddQuantity(name="PhaseField",unit="1")
 	AddQuantity(name="U",	  unit="m/s",vector=T)
 	AddQuantity(name="P",	  unit="Pa")
+	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
 ###################################
 ########INPUTS - PHASEFIELD########

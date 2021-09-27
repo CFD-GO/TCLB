@@ -169,12 +169,14 @@ CudaDeviceFunction vector_t getU(){
 	}
 	return u;
 }
+CudaDeviceFunction real_t getPstar(){
+	return pnorm; 
+}
 CudaDeviceFunction real_t getP(){
 //May need to update this to not work off of streamed populations
-	real_t   p = <?R C(sum(g)) ?>; // Normalised pressure p* = p/(rho.cs^2)
 	real_t   d = getRho(); 
 
-	return p*d*cs2;
+	return pnorm*d*cs2;
 }
 CudaDeviceFunction vector_t getNormal(){
 	vector_t n = {nw_x, nw_y, nw_z};
@@ -445,6 +447,8 @@ CudaDeviceFunction void Init_distributions(){
 	int i;
 	real_t C0 = 0.5*(PhaseField_h - PhaseField_l);
 	PhaseF = PhaseF(0,0,0);
+	real_t d = Density_l + (Density_h-Density_l) * (PhaseF - PhaseField_l)/(PhaseField_h - PhaseField_l);
+    pnorm = Pressure / (d*cs2);
 
 	// Gradients and phasefield normals:
 	real_t nx, ny, nz, magnPhi;
@@ -484,10 +488,10 @@ CudaDeviceFunction void Init_distributions(){
 	// ##### geq
 	<?R
 		w_g = PV(c(paste("wg[",1:27-1,"]",sep="")))
-		press = PV("Pressure")
+		press = PV("pnorm")
 		C(g, press*w_g + (gammag-w_g) )
 	?>
-
+        pnorm  = <?R C(sum(g)) ?>;
 		PhaseF = <?R C(sum(h)) ?>;
 	#ifdef OPTIONS_thermo
 		Temp   = Temp(0,0,0);
@@ -521,6 +525,7 @@ CudaDeviceFunction void Run() {
 			} 
 		#endif
 	}
+        pnorm  = <?R C(sum(g)) ?>;
 }
 
 CudaDeviceFunction real_t calcTau(real_t pf){
