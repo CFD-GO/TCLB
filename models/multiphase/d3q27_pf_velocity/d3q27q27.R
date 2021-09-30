@@ -26,7 +26,7 @@ AddDensity( name="g24",dx= 0, dy=-1, dz= 1, group="g")
 AddDensity( name="g25",dx= 0, dy= 1, dz=-1, group="g")
 AddDensity( name="g26",dx= 0, dy=-1, dz=-1, group="g")
 
-#   Phase Field Evolution d3q15:
+#   Phase Field Evolution d3q27:
 AddDensity( name="h0", dx= 0, dy= 0, dz= 0, group="h")
 AddDensity( name="h1", dx= 1, dy= 0, dz= 0, group="h")
 AddDensity( name="h2", dx=-1, dy= 0, dz= 0, group="h")
