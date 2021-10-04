@@ -11,8 +11,8 @@ if (Options$AllenCahn) {
 } else if (Options$SIR_ModifiedPeng) {
    	Qname = 'SIR_ModifiedPeng'
 	NumberOfDREs = 1
-	NumberOfODEs = 3
-	NumberOfAdditionalParams = 3
+	NumberOfODEs = 3+1
+	NumberOfAdditionalParams = 4
 } else if (Options$SimpleDiffusion) {
    	Qname = 'SimpleDiffusion'
 	NumberOfDREs = 1
@@ -68,7 +68,8 @@ dre_loop(function(i){
 ode_loop(function(i) {
 	bname = paste('ode', i, sep="_")
 	AddField(name=bname, dx=c(-1,1), dy=c(-1,1)) # same as AddField(name="phi", stencil2d=1)
-	i = i + 1
+
+	bname = paste('ODE', i, sep="_")
 	exname = paste('Init', bname, 'External', sep="_")
 	AddDensity(name=exname, group="init", dx=0,dy=0,dz=0, parameter=TRUE)
 })
