@@ -1,7 +1,8 @@
 <?xml version="1.0"?>
 <CLBConfig version="2.0" output="output/allen_cahn/">
-	<Geometry nx="512" ny="512">
-
+  <Geometry predef="none" nx="256" ny="256">
+    <SRT_DF><Box/></SRT_DF> 
+     <!-- <TRT_M><Box/></TRT_M> -->
 		<None name="city">
 			<!-- <Sphere dx="40" dy="40" nx="150" ny="150"/> -->
 			<Box dx="0" dy="0" nx="50" ny="50"/>
@@ -28,9 +29,9 @@
 
     </Model>
 
-	<HDF5/>
-    <Solve Iterations="50">
-	<HDF5 Iterations="5"/>
+	<VTK/>
+    <Solve Iterations="5000">
+	<VTK Iterations="500"/>
 	</Solve>
     
 </CLBConfig>
