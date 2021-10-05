@@ -453,11 +453,15 @@ CudaDeviceFunction void Init_distributions(){
 	// Gradients and phasefield normals:
 	real_t nx, ny, nz, magnPhi;
 	vector_t gradPhi = calcGradPhi();
-	magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z + 1e-32);
+	magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z);
 
-	nx = gradPhi.x/magnPhi;
-	ny = gradPhi.y/magnPhi;
-	nz = gradPhi.z/magnPhi;
+	if (magnPhi < minGradient){
+		nx=0.0; ny=0.0; nz=0.0;
+	} else {
+		nx = gradPhi.x/magnPhi;
+		ny = gradPhi.y/magnPhi;
+		nz = gradPhi.z/magnPhi;
+	}
 
 	// Define Equilibrium, then initialise all da things
 	if (developedFlow > 0.1) {
@@ -569,7 +573,7 @@ CudaDeviceFunction void calc_Fs(real_t *fx, real_t *fy, real_t *fz, real_t mu, v
 		SurfaceTension = SurfaceTension(0,0,0);
 		Cond = Cond(0,0,0);
 		real_t tmpSig, delta_s, dotTMP, magnPhi, magnPhi2;
-		magnPhi = sqrt(gPhi.x*gPhi.x + gPhi.y*gPhi.y + gPhi.z*gPhi.z + 1e-32);
+		magnPhi = sqrt(gPhi.x*gPhi.x + gPhi.y*gPhi.y + gPhi.z*gPhi.z);
 		magnPhi2 = magnPhi*magnPhi;
 		vector_t gradT;
 		<?R
@@ -639,10 +643,19 @@ CudaDeviceFunction void CollisionMRT(){
 
 	// GRADIENTS AND NORMALS
 	gradPhi = calcGradPhi();
-	magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z + 1e-32);
-	n.x = gradPhi.x/magnPhi;
-	n.y = gradPhi.y/magnPhi;
-	n.z = gradPhi.z/magnPhi;
+	magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z);
+
+	if (magnPhi < minGradient){
+		n.x=0.0; n.y=0.0; n.z=0.0;
+	} else {
+		n.x = gradPhi.x/magnPhi;
+		n.y = gradPhi.y/magnPhi;
+		n.z = gradPhi.z/magnPhi;
+	}
+	//magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z + 1e-2);
+	//n.x = gradPhi.x/magnPhi;
+	//n.y = gradPhi.y/magnPhi;
+	//n.z = gradPhi.z/magnPhi;
 
 	// CALCULATE FORCES:
     calc_Fp(&F_pressure[0], &F_pressure[1], &F_pressure[2], p, gradPhi);
@@ -683,9 +696,9 @@ CudaDeviceFunction void CollisionMRT(){
 		    EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),u)
 		} else {
 			wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))
-        }
+        	}
 		C(Fphi, wh * PV("tmp1") * (U[1:PF_velocities,] %*% n))
-    	C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
+    		C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
 
 		mF = PV(rep(0,27))
 		mF[2:4] = F_total * rho.inv

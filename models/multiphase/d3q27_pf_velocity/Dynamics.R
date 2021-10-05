@@ -103,6 +103,7 @@ if (Options$OutFlow & Options$thermo){
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
+	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
