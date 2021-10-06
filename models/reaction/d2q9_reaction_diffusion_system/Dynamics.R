@@ -120,3 +120,10 @@ for (i in seq(1, NumberOfAdditionalParams)){
 }
 
 
+Extra_Dynamics_C_Header = "
+
+#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+
+#include <Eigen/Dense>
+
+"

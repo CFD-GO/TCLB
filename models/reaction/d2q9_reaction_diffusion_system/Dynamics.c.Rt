@@ -37,6 +37,9 @@
 	qs = c(PV(paste('q[',seq(0,NumberOfODEs + NumberOfDREs),']', sep='')))
 
 ?>
+
+
+
 //this is object-wide variable
 real_t f_tmp[9];
 real_t q[<?%s NumberOfODEs + NumberOfDREs ?>];
@@ -435,67 +438,65 @@ CudaDeviceFunction void DispatchCalcQ()
 
 	CudaDeviceFunction void CalcPhi() 
 	{	
+
 		const real_t x0 = <?%s  C(sum(fs[[1]])) ?>;
 		const real_t x1 = <?%s  C(odes[[1]]) ?>(0,0);
 		const real_t x2 = <?%s  C(odes[[2]]) ?>(0,0);
 		const real_t x3 = <?%s  C(odes[[3]]) ?>(0,0);
-		const real_t x4 = <?%s  C(odes[[4]]) ?>(0,0);
-		phi[4] = x4; // N
+		const real_t N = <?%s  C(odes[[4]]) ?>(0,0);
+		phi[4] = N;
+
+
+		const real_t Beta = C_1;
+		const real_t Beta_w = C_2; 
+		const real_t gamma = C_3;
 		
-		real_t X1[3], X2[3], f1[3], f2[3];
-		
 
-		X1[0] = fabs(x0);
-		X1[1] = fabs(x1);
-		X1[2] = fabs(x2);
+		Eigen::Matrix3d Jacobian;
 
-		localCalcQ(X1, f1, x4);
+		Eigen::Vector3d Xn, dX, X0, F;
+		Xn(0) = x0/N;
+		Xn(1) = x1/N;
+		Xn(2) = x2/N;
 
-		X2[0] = fabs(X1[0] + f1[0]/2.);
-		X2[1] = fabs(X1[1] + f1[1]/2.);
-		X2[2] = fabs(X1[2] + f1[2]/2.);
+		X0 = Xn;
 
-		for(int i =0; i < 50; i++) {
-			localCalcQ(X1, f1, x4);
-	
-			f1[0] = x0 + f1[0]/2. - X1[0]; 
-			f1[1] = x1 + f1[1]/2. - X1[1];
-			f1[2] = x2 + f1[2]/2. - X1[2];
+		Jacobian(0,0) =  -1.0/2.0*Beta_w - 1 ;
+		Jacobian(1,0) =  0 ;
+		Jacobian(2,0) =  (1.0/2.0)*Beta_w ;
+		Jacobian(2,1) =  0 ;
+		Jacobian(2,2) =  -1.0/2.0*gamma - 1 ;
 
-			real_t epsilon_step = 0;
-			for(int k=0; k < 3; k++){
-				if ( fabs(f1[k]) > epsilon_step ) {
-					epsilon_step = fabs(f1[k]);
-				}
-			}
-			if (epsilon_step < 1E-8){
+		for (int i=0; i < 20; i++) {
 
-				for(int k=0; k < 3; k++){
-					X1[k] = fabs(X1[k]);
-				}
-				phi[0] = X1[0];
-				phi[1] = X1[1];
-				phi[2] = X1[2];
-				phi[3] = X1[2]*C_3/2. + x3;
-							
-				return;
+			F(0) =  (1.0/2.0)*Beta_w*(-Xn(0) + Xn(2)) - Xn(0) + X0(0) ;
+			F(1) =  -1.0/2.0*Beta*Xn(0)*Xn(1) - Xn(1) + X0(1) ;
+			F(2) =  (1.0/2.0)*Beta*Xn(0)*Xn(1) - 1.0/2.0*Xn(2)*gamma - Xn(2) + X0(2) ;
+			if (F.norm() < 1E-5) {
+				break;
 			}
 
-			localCalcQ(X2, f2, x4);
+			Jacobian(0,1) =  -1.0/2.0*Beta*Xn(1) ;
+			Jacobian(0,2) =  (1.0/2.0)*Beta*Xn(1) ;
+			Jacobian(1,1) =  -1.0/2.0*Beta*Xn(0) - 1 ;
+			Jacobian(1,2) =  (1.0/2.0)*Beta*Xn(0) ;
 
-			f2[0] = x0 + f2[0]/2. - X2[0]; 
-			f2[1] = x1 + f2[1]/2. - X2[1];
-			f2[2] = x2 + f2[2]/2. - X2[2];
-			
-			for(int k=0; k < 3; k++){
-				const real_t tt = X1[k];
-				X1[k] = X1[k] - f1[k] * (X1[k] - X2[k]) / (f1[k] - f2[k]);
-				X2[k] = tt;
-			}
+			dX = Jacobian.ldlt().solve(-F);
+
+			Xn = Xn + dX;
 
 		}
+		Xn =  N*Xn;
+		for(int k=0; k < 3; k++){
+			Xn(k) = fabs(Xn(k));
+		}
+		phi[0] = Xn(0);
+		phi[1] = Xn(1);
+		phi[2] = Xn(2);
+		phi[3] = Xn(2)*C_3/2. + x3;
+							
 
-		assert(0);
+		return;
 
 	}
 
