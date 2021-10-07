@@ -102,6 +102,8 @@ if (Options$OutFlow & Options$thermo){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
+    AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
+    AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS
@@ -152,7 +154,7 @@ if (Options$OutFlow & Options$thermo){
 	AddNodeType(name="Spiketrack", group="ADDITIONALS")
 	AddNodeType(name="Saddletrack", group="ADDITIONALS")
 	AddNodeType(name="Bubbletrack", group="ADDITIONALS")
-	AddGlobal("InterfacePosition",comment='trackPosition')
+	AddGlobal("InterfacePosition", op="MAX", comment='trackPosition')
 	AddGlobal("Vfront",comment='velocity infront of bubble')
 	AddGlobal("Vback",comment='velocity behind bubble')
 	AddGlobal("RTISpike", op="MAX", comment='SpikeTracker ')

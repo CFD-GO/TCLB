@@ -366,7 +366,7 @@ CudaDeviceFunction void specialCases_Init(){
 		if (Y < ycutoff) {PhaseF = 0.0; }
 		else             {PhaseF = 1.0;	}
 	}
-
+    // Annular Taylor bubble set up
 	if ( DonutTime > 0){
 		real_t intLocation = Donut_D * 
 					sqrt( pow(Donut_h,2) 
@@ -379,6 +379,11 @@ CudaDeviceFunction void specialCases_Init(){
 		} else {
 			PhaseF = 1.0;
 		}
+	}
+    // Washburn Law test setup
+    if ((Washburn_start > 0) && (Washburn_end > 0) ) {
+		PhaseF = 1 - 0.5 *  ( tanh( 2.0 * ( X - Washburn_start ) / IntWidth ) -
+						   tanh( 2.0 * ( X - Washburn_end  )  / IntWidth ));
 	}
 }
 
@@ -1169,41 +1174,49 @@ CudaDeviceFunction void updateTrackers(real_t C){
 		case NODE_Centerline:
 		    if ( fabs(xyzTrack-1) < 1e-3 )
 		    {  // track along X
-			if (C < 0.5 && PhaseF(1,0,0) > 0.5)
-			{
-				location = X + (C-0.5)/(C-PhaseF(1,0,0));
-				AddToInterfacePosition(location);
-				AddToVback(U);
-			}
-			if (C >0.5 && PhaseF(-1,0,0) < 0.5)
-			{
-				AddToVfront(U);
-			}
+                if (C < 0.5 && PhaseF(1,0,0) > 0.5)
+                {
+                    location = X + (C-0.5)/(C-PhaseF(1,0,0));
+                    AddToInterfacePosition(location);
+                    AddToVback(U);
+                }
+                if (C >0.5 && PhaseF(-1,0,0) < 0.5)
+                {
+                    AddToVfront(U);
+                }
 		    } else if ( fabs(xyzTrack-2) < 1e-3)
 		    { // track along Y
-			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
-			{
-				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
-				AddToInterfacePosition(location);
-				AddToVback(V);
-			}
-			if (C >0.5 && PhaseF(0,-1,0) < 0.5)
-			{
-				AddToVfront(V);
-			}
+                if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+                {
+                    location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+                    AddToInterfacePosition(location);
+                    AddToVback(V);
+                }
+                if (C >0.5 && PhaseF(0,-1,0) < 0.5)
+                {
+                    AddToVfront(V);
+                }
 		    } else if ( fabs(xyzTrack-3) < 1e-3)
 		    { // track along Z
 			if (C < 0.5 && PhaseF(0,0,1) > 0.5)
-			{
-				location = Z + (C-0.5)/(C-PhaseF(0,0,1));
-				AddToInterfacePosition(location);
-				AddToVback(W);
-			}
-			if (C >0.5 && PhaseF(0,0,-1) < 0.5)
-			{
-				AddToVfront(W);
-			}
-		    }
+                {
+                    location = Z + (C-0.5)/(C-PhaseF(0,0,1));
+                    AddToInterfacePosition(location);
+                    AddToVback(W);
+                }
+                if (C >0.5 && PhaseF(0,0,-1) < 0.5)
+                {
+                    AddToVfront(W);
+                }
+		    } else if ( fabs(xyzTrack-4) < 1e-3 )
+		    {  // track reverse along X
+                if (C < 0.5 && PhaseF(-1,0,0) > 0.5)
+                {
+                    location = X - (C-0.5)/(C-PhaseF(-1,0,0));
+                    AddToInterfacePosition(location);
+				    AddToVback(U);
+			    }
+            }
 		case NODE_Spiketrack:
 			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
 			{
