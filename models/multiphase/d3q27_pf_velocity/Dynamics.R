@@ -45,6 +45,13 @@ AddDensity( name="h12",dx=-1, dy= 1, dz=-1, group="h")
 AddDensity( name="h13",dx= 1, dy=-1, dz=-1, group="h")
 AddDensity( name="h14",dx=-1, dy=-1, dz=-1, group="h")
 
+if (Options$ML){
+	for (d in rows(DensityAll)){
+		AddQuantity(name=d$name)
+	}
+}
+
+
 if (Options$OutFlow){
 	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
 	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
@@ -228,8 +235,7 @@ if (Options$thermo){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
-	AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90', comment='Contact angle in degrees')
-	AddSetting(name='radAngle', comment='Conversion to rads for calcs')
+	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
@@ -288,6 +294,7 @@ if (Options$thermo){
 	AddNodeType(name="EPressure", group="BOUNDARY")
 	AddNodeType(name="WPressure", group="BOUNDARY")
 	AddNodeType(name="NVelocity", group="BOUNDARY")
+	AddNodeType(name="Velocity_Y_neg", group="BOUNDARY")
 	AddNodeType(name="EVelocity", group="BOUNDARY")
 	AddNodeType(name="WVelocity", group="BOUNDARY")
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")

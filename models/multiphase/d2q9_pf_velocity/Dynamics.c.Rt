@@ -508,9 +508,9 @@ CudaDeviceFunction void calcWallPhaseIter(){
 		myPhase = PhaseF_dyn(nw_x, nw_y);
 		myH = sqrt(nw_x*nw_x + nw_y*nw_y );
 
-		if (ContactAngle == 90) { PhaseF = myPhase; } 
+		if (fabs(radAngle - PI/2) < 1e-4) { PhaseF = myPhase; } 
 		else {   
-			myA = 1.0 - 0.5*myH * (4.0/W)  * cos(radAngle);
+			myA = 1.0 - 0.5*myH * (4.0/W)  * cos( radAngle );
 			PhaseF = (myA - sqrt( myA*myA - 4.0 * (myA-1.0)*myPhase))/(myA-1.0) - myPhase;
 		}
 	} 	 
