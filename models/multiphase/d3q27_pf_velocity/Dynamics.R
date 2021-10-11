@@ -21,54 +21,69 @@ AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
-AddField("PhaseF",stencil3d=1, group="PF")
+save_initial_PF = c("PF")
+save_initial    = c("g","h","Vel","PF")
+save_iteration  = c("g","h","Vel","nw")
+load_iteration  = c("g","h","Vel","nw")
+load_phase      = c("g","h","Vel","nw")
 
+if (Options$altContactAngle){
+    AddDensity(name="n_k", dx=0, dy=0, dz=0, group="nw")
+    AddDensity(name="der_tangent_1_wall", dx=0, dy=0, dz=0)
+    AddDensity(name="der_tangent_2_wall", dx=0, dy=0, dz=0)
+    # Debugging
+    AddDensity(name="perpVal", dx=0, dy=0, dz=0)
+    AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
+    AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
+    AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
+    AddField("IsBoundary", stencil3d=1, group="debug_boundary")
+
+    AddDensity(name="TangentWallVector1_x", dx=0, dy=0, dz=0)
+    AddDensity(name="TangentWallVector2_x", dx=0, dy=0, dz=0)
+    AddDensity(name="TangentWallVector1_y", dx=0, dy=0, dz=0)
+    AddDensity(name="TangentWallVector2_y", dx=0, dy=0, dz=0)
+    AddDensity(name="TangentWallVector1_z", dx=0, dy=0, dz=0)
+    AddDensity(name="TangentWallVector2_z", dx=0, dy=0, dz=0)
+    AddField("PhaseF",stencil3d=3, group="PF")
+
+    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "debug_boundary"))
+    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF", "der_tangent_1_wall", "der_tangent_2_wall", "TangentWallVector1_x", "TangentWallVector2_x", "TangentWallVector1_y", "TangentWallVector2_y", "TangentWallVector1_z", "TangentWallVector2_z", "perpVal"), load=DensityAll$group %in% c("nw", "gradPhi", "PF"))
+
+    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
+} else {
+    AddField("PhaseF",stencil3d=1, group="PF")
+}
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
 		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
 	}
 	AddField(name="U",dx=c(-1,0,0))
+
+    save_initial   = c(save_initial,  "gold","hold")
+    save_iteration = c(save_iteration,"gold","hold")
+    load_iteration = c(load_iteration,"gold","hold")
+    load_phase     = c(load_phase,    "gold","hold")
 }
 ###############################
 ########THERMOCAPILLARY########
 ###############################
 if (Options$thermo){
     source("thermocapillary.R")
+
+    save_initial_PF = c(save_initial_PF,"Thermal")
+    save_iteration  = c(save_iteration, "Thermal")
+    load_iteration  = c(load_iteration, "Thermal")
 }
 ######################
 ########STAGES########
 ######################
-AddStage("WallInit"  , "Init_wallNorm", save=Fields$group=="nw")
-AddStage("calcWall"  , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
-if (Options$OutFlow & Options$thermo){
-	AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
-	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","gold","hold","Vel","PF"))
-	AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
-  												 load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw") )
-	AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","gold","hold","Vel","nw","Thermal"), 
-												 load=DensityAll$group %in% c("g","h","gold","hold","Vel","nw","Thermal","PF"))
-} else if (Options$OutFlow){
-	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
-	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","gold","hold","PF"))
-	AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
-												load=DensityAll$group %in% c("g","h","Vel","gold","hold","nw"))
-	AddStage("BaseIter"  , "Run"       ,     save=Fields$group %in% c("g","h","Vel","nw","gold","hold","nw"), 
-												load=DensityAll$group %in% c("g","h","Vel","nw","gold","hold","nw"))
-} else if (Options$thermo){
-	AddStage("PhaseInit" , "Init", save=Fields$group %in% c("PF","Thermal") )
-	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
-	AddStage("calcPhase" , "calcPhaseF",	     save=Fields$name=="PhaseF", 
-												load=DensityAll$group %in% c("g","h","Vel","nw") )
-	AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw","Thermal"), 
-												load=DensityAll$group %in% c("g","h","Vel","nw","Thermal","PF"))
-} else {
-	AddStage("PhaseInit" , "Init", save=Fields$name=="PhaseF")
-	AddStage("BaseInit"  , "Init_distributions", save=Fields$group %in% c("g","h","Vel","PF"))
-	AddStage("calcPhase" , "calcPhaseF",	 save=Fields$name=="PhaseF", 
-								load=DensityAll$group %in% c("g","h","Vel","nw") )
-	AddStage("BaseIter"  , "Run"       ,         save=Fields$group %in% c("g","h","Vel","nw"), 
-											load=DensityAll$group %in% c("g","h","Vel","nw"))
-}
+AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
+AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
+AddStage("PhaseInit", "Init", save=Fields$group %in% save_initial_PF)
+AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
+AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
+AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
 #######################
 ########ACTIONS########
 #######################
@@ -77,7 +92,10 @@ if (Options$OutFlow & Options$thermo){
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
-	} else {
+	} else if (Options$altContactAngle) {
+        AddAction("Iteration", c("BaseIter", "calcPhase",    "calcPhaseGrad", "calcWall_CA"))
+	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
+    } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
 	}
@@ -90,6 +108,15 @@ if (Options$OutFlow & Options$thermo){
 	AddQuantity(name="P",	  unit="Pa")
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
+if (Options$altContactAngle){
+    AddQuantity(name="TangentWallVector1", unit=1, vector=T)
+    AddQuantity(name="TangentWallVector2", unit=1, vector=T)
+    AddQuantity(name="Tangent1Wall", unit="1")
+    AddQuantity(name="Tangent2Wall", unit="1")
+    AddQuantity(name="GradPhi", unit=1, vector=T)
+    AddQuantity(name="PerpVal", unit="1")
+    AddQuantity(name="IsItBoundary", unit="1")
+}
 ###################################
 ########INPUTS - PHASEFIELD########
 ###################################
@@ -134,6 +161,7 @@ if (Options$OutFlow & Options$thermo){
 ##############################
 	AddSetting(name="tau_l", comment='relaxation time (low density fluid)')
 	AddSetting(name="tau_h", comment='relaxation time (high density fluid)')
+    AddSetting(name="tauUpdate", default="1", comment="Interpolation: 1-linear, 2- inverse, 3- dyn viscosity")
 	AddSetting(name="Viscosity_l", tau_l='(3*Viscosity_l)', default=0.16666666, comment='kinematic viscosity')
 	AddSetting(name="Viscosity_h", tau_h='(3*Viscosity_h)', default=0.16666666, comment='kinematic viscosity')
 	AddSetting(name="VelocityX", default=0.0, comment='inlet/outlet/init velocity', zonal=T)

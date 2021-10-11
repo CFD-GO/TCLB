@@ -150,6 +150,96 @@ if (Options$ML){
 }
 ?>
 
+#ifdef OPTIONS_altContactAngle
+CudaDeviceFunction real_t getTangent1Wall(){
+	return der_tangent_1_wall;
+}
+CudaDeviceFunction real_t getTangent2Wall(){
+	return der_tangent_2_wall;
+}
+CudaDeviceFunction vector_t getTangentWallVector1(){
+	vector_t tangent;
+	tangent.x = TangentWallVector1_x;
+	tangent.y = TangentWallVector1_y;
+	tangent.z = TangentWallVector1_z;
+	return tangent;
+}
+CudaDeviceFunction vector_t getTangentWallVector2(){
+	vector_t tangent;
+	tangent.x = TangentWallVector2_x;
+	tangent.y = TangentWallVector2_y;
+	tangent.z = TangentWallVector2_z;
+	return tangent;
+}
+CudaDeviceFunction vector_t getGradPhi() {
+	vector_t gradPhi;
+	gradPhi.x = gradPhiVal_x(0,0,0); //gradPhiVal_x;
+	gradPhi.y = gradPhiVal_y(0,0,0); //gradPhiVal_y;
+	gradPhi.z = gradPhiVal_z(0,0,0); //gradPhiVal_z;
+	return gradPhi;
+}
+
+CudaDeviceFunction real_t getPerpVal() {
+	return perpVal;
+}
+CudaDeviceFunction real_t getIsItBoundary() {
+	return IsBoundary(0, 0, 0);
+}
+
+CudaDeviceFunction void calcPhaseGrad(){
+    vector_t gradPhi;
+    <?R
+        IsotropicGrad('gradPhi', 'PhaseF')
+    ?>
+    gradPhiVal_x = gradPhi.x;
+    gradPhiVal_y = gradPhi.y;
+    gradPhiVal_z = gradPhi.z;
+    if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+}
+CudaDeviceFunction void calcPhaseGrad_init(){
+    real_t h = 1.0;
+
+	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
+	gradPhiVal_y = gradPhiVal_y(0, 0, 0);
+	gradPhiVal_z = gradPhiVal_z(0, 0, 0);
+
+	gradPhiVal_x = (PhaseF(1, 0, 0) - PhaseF(-1, 0, 0) )/ (2.0*h);
+	gradPhiVal_y = (PhaseF(0, 1, 0) - PhaseF(0, -1, 0) )/ (2.0*h);
+	gradPhiVal_z = (PhaseF(0, 0, 1) - PhaseF(0, 0, -1) )/ (2.0*h);
+
+	// handle boundaries
+	if (IsBoundary(1, 0, 0)) {
+		gradPhiVal_x = -(4*PhaseF(-1, 0, 0) - PhaseF(-2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(-1, 0, 0)) {
+		gradPhiVal_x = (4*PhaseF(1, 0, 0) - PhaseF(2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 1, 0)) {
+		gradPhiVal_y = -(4*PhaseF(0, -1, 0) - PhaseF(0, -2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, -1, 0)) {
+		gradPhiVal_y = (4*PhaseF(0, 1, 0) - PhaseF(0, 2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 0, 1)) {
+		gradPhiVal_z = -(4*PhaseF(0, 0, -1) - PhaseF(0, 0, -2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, 0, -1)) {
+		gradPhiVal_z = (4*PhaseF(0, 0, 1) - PhaseF(0, 0, 2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+}
+#endif
+
 CudaDeviceFunction real_t getRho(){
 	if ( IamWall || IamSolid) {
 		return 0.0;
@@ -222,6 +312,17 @@ CudaDeviceFunction void calcPhaseF(){
 
 CudaDeviceFunction void calcWallPhase(){
 	PhaseF = PhaseF(0,0,0); //For fluid nodes.
+#ifdef OPTIONS_altContactAngle
+    der_tangent_1_wall = 0;
+	der_tangent_2_wall = 0;
+	TangentWallVector2_x = 0;
+	TangentWallVector2_y = 0;
+	TangentWallVector2_z = 0;
+	TangentWallVector1_x = 0;
+	TangentWallVector1_y = 0;
+	TangentWallVector1_z = 0;
+	perpVal = 0.;
+#endif
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
 
@@ -236,6 +337,63 @@ CudaDeviceFunction void calcWallPhase(){
 			// If I am not surrounded, but contact angle is pi/2 (90d)
 			PhaseF = pf_f;
 		} else {
+#ifdef OPTIONS_altContactAngle
+			// get first normal in another plane to
+			// the current normal
+			real_t t1_x = d3q27_n1_ex[int(n_k)];
+			real_t t1_y = d3q27_n1_ey[int(n_k)];
+			real_t t1_z = d3q27_n1_ez[int(n_k)];
+
+			// get second normal in another plane to the current
+			// normal
+			real_t t2_x = d3q27_n2_ex[int(n_k)];
+			real_t t2_y = d3q27_n2_ey[int(n_k)];
+			real_t t2_z = d3q27_n2_ez[int(n_k)];
+			// project into the proper direction
+
+			// Get gradients on the nodes for interpolation
+			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
+			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
+			real_t der_z_1 = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
+
+			real_t der_x_2 = gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_y_2 = gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_z_2 = gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			// Method 2: Simply use normal vector to calculate projection onto the solid boundary plane
+			// and extrapolate
+
+			// project the phase field gradient onto the boundary plane
+			real_t norm = nw_x*nw_x + nw_y * nw_y + nw_z * nw_z;
+			real_t coeff = (der_x_1 * nw_x + der_y_1 * nw_y + der_z_1 * nw_z)/norm;
+			vector_t proj_grad_1 = {der_x_1 - coeff*nw_x, der_y_1 - coeff*nw_y, der_z_1 - coeff * nw_z};
+
+			coeff = (der_x_2 * nw_x + der_y_2 * nw_y + der_z_2 * nw_z)/norm;
+			vector_t proj_grad_2 = {der_x_2 - coeff*nw_x, der_y_2 - coeff*nw_y, der_z_2 - coeff * nw_z};
+
+
+			real_t vec_1 = sqrt(proj_grad_1.x * proj_grad_1.x + proj_grad_1.y * proj_grad_1.y + proj_grad_1.z * proj_grad_1.z);
+			real_t vec_2 = sqrt(proj_grad_2.x * proj_grad_2.x + proj_grad_2.y * proj_grad_2.y + proj_grad_2.z * proj_grad_2.z);
+
+			// -> extrapolate from two points onto the third point on the wall
+			// NOTE: pretty sure this can be improved
+			real_t grad_tangent = fabs(1.5 * vec_1 - 0.5 * vec_2);
+
+			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
+
+			// debugging
+			der_tangent_1_wall = vec_1;
+			der_tangent_2_wall = vec_2;
+
+			TangentWallVector2_x = der_x_2;
+			TangentWallVector2_y = der_y_2;
+			TangentWallVector2_z = der_z_2;
+
+			TangentWallVector1_x = der_x_1;
+			TangentWallVector1_y = der_y_1;
+			TangentWallVector1_z = der_z_1;
+
+			perpVal = grad_tangent;
+#else
 			// h*Theta
 			// =  h*(-sqrt(2*beta/kappa)*cos(theta))
 			// = -h*( sqrt((2*12*sigma/W) / (3*sigma*W/2))*cos(theta))
@@ -243,6 +401,7 @@ CudaDeviceFunction void calcWallPhase(){
 			// = -h*( sqrt(16 / W^2)*cos(theta))
 			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
+#endif
 		}
 	} 
 }
@@ -389,8 +548,9 @@ CudaDeviceFunction void specialCases_Init(){
 
 CudaDeviceFunction void Init_wallNorm(){
 	PhaseF = PhaseF(0,0,0);
-
+    IsBoundary = 0.0;
 	if ( IamWall || IamSolid ) {
+        IsBoundary = 1.0;
 	// Am I surrounded by solid nodes?
 		int i,j,k;
 	  	real_t tmp = 0.0;
@@ -437,8 +597,14 @@ CudaDeviceFunction void Init_wallNorm(){
 			if (maxi < 0) {
 				// This should not happen ?
 				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+#ifdef OPTIONS_altContactAngle
+                n_k = 0;
+#endif
 			} else {
 				nw_x = d3q27_ex[maxi];nw_y = d3q27_ey[maxi];nw_z = d3q27_ez[maxi];
+#ifdef OPTIONS_altContactAngle
+                n_k = maxi;
+#endif
 			}
 	  	}
 	} else {
@@ -460,6 +626,11 @@ CudaDeviceFunction void Init_distributions(){
 	vector_t gradPhi = calcGradPhi();
 	magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z);
 
+#ifdef OPTIONS_altContactAngle
+    gradPhiVal_x = gradPhi.x;
+	gradPhiVal_y = gradPhi.y;
+	gradPhiVal_z = gradPhi.z;
+#endif
 	if (magnPhi < minGradient){
 		nx=0.0; ny=0.0; nz=0.0;
 	} else {
@@ -550,14 +721,18 @@ CudaDeviceFunction real_t calcTau(real_t pf){
 	} else if (pf > PhaseField_h) {
 		tau = tau_h + 0.5;
 	} else {
-	// Inverse update:
-		//tau = (C - PhaseField_l)/(PhaseField_h - PhaseField_l) * (1.0/tau_h - 1.0/tau_l) + 1.0/tau_l;
-		//tau = 1.0/tau + 0.5;
-	// Linear update:
-		tau = 0.5 + tau_l + (pf-PhaseField_l)*(tau_h - tau_l)/(PhaseField_h - PhaseField_l);
-	// Viscosity update:
-		//DynVisc = Density_l*Viscosity_l + C * (Density_h*Viscosity_h - Density_l*Viscosity_l);
-		//tau = 3.0 * DynVisc / rho + 0.5;
+	    if (tauUpdate == 1) { // Linear update:
+            tau = 0.5 + tau_l + (pf-PhaseField_l)*(tau_h - tau_l)/(PhaseField_h - PhaseField_l);
+        } else if (tauUpdate == 2){ // Inverse update:
+		    tau = (pf - PhaseField_l)/(PhaseField_h - PhaseField_l) * (1.0/tau_h - 1.0/tau_l) + 1.0/tau_l;
+		    tau = 1.0/tau + 0.5;
+        } else if (tauUpdate == 3){	// Viscosity update:
+		    real_t DynVisc = Density_l*Viscosity_l + pf * (Density_h*Viscosity_h - Density_l*Viscosity_l);
+            real_t rho = getRho();
+		    tau = 3.0 * DynVisc / rho + 0.5;
+        } else { // default to linear...
+            tau = 0.5 + tau_l + (pf-PhaseField_l)*(tau_h - tau_l)/(PhaseField_h - PhaseField_l);
+        }
 	}
 	return tau;
 }
