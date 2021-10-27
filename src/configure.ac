@@ -17,6 +17,10 @@ AC_ARG_ENABLE([cuda],
 	AC_HELP_STRING([--enable-cuda=cuda_home],
 		[specify the root of your cuda install, e.g. /usr/local/cuda]))
 
+AC_ARG_ENABLE([hip],
+	AC_HELP_STRING([--enable-hip=rocm_home],
+		[specify the root of your rocm install, e.g. /opt/rocm]))
+
 AC_ARG_WITH([mpi-include],
 	AC_HELP_STRING([--with-mpi-include=mpi_include],
 		[specify the full path to your mpi headers, e.g. /usr/include/mpi]),
@@ -181,7 +185,15 @@ test "x${with_openmp}" == "xno" && OPENMP=""
 test "x${with_openmp}" == "x" && OPENMP=""
 test "x${with_openmp}" == "xyes" && OPENMP="-fopenmp"	
 
-if test "x${enable_cuda}" != "xno"
+if test "x${enable_hip}" == "xyes"
+then
+	AC_DEFINE([CROSS_HIP], [1], [Making a CPU version])
+	CROSS_HIP=1
+	if test "x${enable_graphics}" == "xyes"
+	then
+		AC_MSG_ERROR([Cannot make GLUT graphics with HIP version])
+	fi
+elif test "x${enable_cuda}" != "xno"
 then
 
     if test "x{debug-kernel}" == "xyes"
@@ -825,6 +837,7 @@ AC_SUBST(PV_BUILD)
 AC_SUBST(PV_BUILD_INC)
 AC_SUBST(PV_SOURCE)
 AC_SUBST(CROSS_CPU)
+AC_SUBST(CROSS_HIP)
 AC_SUBST(WITH_CATALYST)
 AC_SUBST(WITH_LAMMPS)
 AC_SUBST(WITH_R)

@@ -57,11 +57,11 @@ else
 
 %.o:%.cu
 	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
+	@$(NVCC) -c $< -o $@ $(NV_OPT) $(OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
-	@$(CXX) $^  -lcudart -o $@ $(LD_OPT)
+	@$(CXX) $^  -o $@ $(LD_OPT)
 #	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
 
 endif

@@ -125,7 +125,7 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
 	}
 }
 
-#elif CUDART_VERSION >= 7000
+#elif CUDART_VERSION >= 7000 || defined(CROSS_HIP)
 
 __device__ inline void atomicSumWarp(real_t * sum, real_t val)
 {
