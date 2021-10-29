@@ -42,7 +42,7 @@ ifdef CPU
 	cp $< $@
 
 %.o:%.cpp
-	@echo "  G++        $<"
+	@echo "  $(CXXTXT)  $<"
 	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
 main:main.o $(OBJ)
@@ -52,11 +52,11 @@ main:main.o $(OBJ)
 else
 
 %.o:%.cpp
-	@echo "  G++        $<"
+	@echo "  $(CXXTXT)  $<"
 	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
 %.o:%.cu
-	@echo "  NVCC       $<"
+	@echo "  $(NVCCTXT)  $<"
 	@$(NVCC) -c $< -o $@ $(NV_OPT) $(OPT)
 
 main:main.o $(OBJ)
