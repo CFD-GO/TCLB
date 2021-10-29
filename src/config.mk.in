@@ -1,6 +1,5 @@
 
-OPT = @CPPFLAGS@
-CPP_OPT = @CPP_OPT@
+CPP_OPT = @CPPFLAGS@
 LD_OPT = @LDFLAGS@ @LIBS@
 NV_OPT = -D_FORCE_INLINES  @NVFLAGS@
 CPU = @CROSS_CPU@
@@ -33,7 +32,9 @@ ifeq '$(strip $(HIP))' '1'
         CC=hipcc
         CXX=hipcc
 else
-	NVCC=nvcc --disable-warnings --compiler-options="$(OPT)"
+	NV_OPT += --disable-warnings --compiler-options="$(CPP_OPT)"
+	LD_OPT += -lcudart
+	NVCC=nvcc
 	CCTXT=NVCC
         CC=@CC@
         CXX=@CXX@
