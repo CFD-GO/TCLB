@@ -59,7 +59,7 @@ CudaDeviceFunction float2 Color() {
 <?R
 dre_loop( function(i) {
 ?>
-CudaDeviceFunction real_t getDRE_<?%s i ?>() {
+CudaDeviceFunction real_t get<?%s DREs[i] ?>() {
 	DispatchCalcPhi();
 	return phi[<?%s i-1 ?>];
 }
@@ -70,7 +70,7 @@ CudaDeviceFunction real_t getDRE_<?%s i ?>() {
 <?R
 ode_loop( function(i) {
 ?>
-CudaDeviceFunction real_t getODE_<?%s i ?>() {
+CudaDeviceFunction real_t get<?%s ODEs[i] ?>() {
 	DispatchCalcPhi();
 	return phi[<?%s NumberOfDREs+i-1 ?>];
 }
@@ -88,13 +88,13 @@ CudaDeviceFunction void Init() {
 
 	dre_loop( function(i) {
 		?>
-		phi[<?%s i-1 ?>] = Init_DRE_<?%s i ?>;
+		phi[<?%s i-1 ?>] = Init_<?%s DREs[i] ?>;
 		<?R
 	})
 
 	ode_loop( function(i) {
 		?>
-		phi[<?%s NumberOfDREs+i-1 ?>] = Init_ODE_<?%s i ?>;
+		phi[<?%s NumberOfDREs+i-1 ?>] = Init_<?%s ODEs[i] ?>;
 		<?R		
 	})
 
@@ -107,13 +107,13 @@ CudaDeviceFunction void Init() {
 
 	dre_loop( function(i) {
 		?>
-		Init_eq(Init_DRE_<?%s i ?> - 0.5*q[<?%s i-1 ?>]);
+		Init_eq(Init_<?%s DREs[i] ?> - 0.5*q[<?%s i-1 ?>]);
 		<?R
 		C(fs[[i]], f_tmp)
 	})
 
-	ode_loop( function(i) {
-		C(odes[[i]], PV(paste('Init_ODE_',i,sep='')) - 0.5*qs[NumberOfDREs+i] );
+	ode_loop( function(i) {	
+		C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) - 0.5*qs[NumberOfDREs+i] );
 	})
 
 	?>
@@ -127,13 +127,13 @@ CudaDeviceFunction void InitFromExternal() {
 
 	dre_loop( function(i) {
 		?>
-		phi[<?%s i-1 ?>] = Init_DRE_<?%s i ?>_External(0,0);
+		phi[<?%s i-1 ?>] = Init_<?%s DREs[i] ?>_External(0,0);
 		<?R
 	})
 
 	ode_loop( function(i) {
 		?>
-		phi[<?%s NumberOfDREs+i-1 ?>] = Init_ODE_<?%s i ?>_External(0,0);
+		phi[<?%s NumberOfDREs+i-1 ?>] = Init_<?%s ODEs[i] ?>_External(0,0);
 		<?R		
 	})
 
@@ -146,13 +146,13 @@ CudaDeviceFunction void InitFromExternal() {
 
 	dre_loop( function(i) {
 		?>
-		Init_eq(Init_DRE_<?%s i ?>_External(0,0) - 0.5*q[<?%s i-1 ?>]);
+		Init_eq(Init_<?%s DREs[i] ?>_External(0,0) - 0.5*q[<?%s i-1 ?>]);
 		<?R
 		C(fs[[i]], f_tmp)
 	})
 
 	ode_loop( function(i) {
-		C(odes[[i]], PV(paste('Init_ODE',i,'External(0,0)',sep='_')) - 0.5*qs[NumberOfDREs+i] );
+		C(odes[[i]], PV(paste('Init',ODEs[i],'External(0,0)',sep='_')) - 0.5*qs[NumberOfDREs+i] );
 	})
 
 	?>
@@ -179,7 +179,7 @@ CudaDeviceFunction void Run() {
 	dre_loop( function(i) {
 		C(f_tmp,fs[[i]])
 		?>
-		SRT(Diffusivity_DRE_<?%s i ?>, q[<?%s i-1 ?>]);
+		SRT(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
 		<?R
 		C(fs[[i]], f_tmp)
 	})
@@ -306,7 +306,6 @@ CudaDeviceFunction void DispatchCalcQ()
 		real_t tilde_phi = <?%s  C(sum(fs[[1]])) ?>;
 
 		const real_t dt = 1.;
-		const real_t lambda = C_1;
 		const real_t  x0 = cbrt(3.) ; 
 		const real_t  x1 = 1/(dt*lambda) ; 
 		const real_t  x2 = dt*lambda - 2 ; 
@@ -420,10 +419,6 @@ CudaDeviceFunction void DispatchCalcQ()
 	CudaDeviceFunction void localCalcQ(real_t* localPhi, real_t* localQ, real_t N) 
 	{	
 		
-		const real_t Beta = C_1;
-		const real_t Beta_w = C_2; 
-		const real_t Gamma = C_3;
-
 		const real_t W = localPhi[0];
 		const real_t S = localPhi[1];
 		const real_t I = localPhi[2];
@@ -447,11 +442,6 @@ CudaDeviceFunction void DispatchCalcQ()
 		phi[4] = N;
 
 
-		const real_t Beta = C_1;
-		const real_t Beta_w = C_2; 
-		const real_t gamma = C_3;
-		
-
 		Eigen::Matrix3d Jacobian;
 
 		Eigen::Vector3d Xn, dX, X0, F;
@@ -465,13 +455,13 @@ CudaDeviceFunction void DispatchCalcQ()
 		Jacobian(1,0) =  0 ;
 		Jacobian(2,0) =  (1.0/2.0)*Beta_w ;
 		Jacobian(2,1) =  0 ;
-		Jacobian(2,2) =  -1.0/2.0*gamma - 1 ;
+		Jacobian(2,2) =  -1.0/2.0*Gamma - 1 ;
 
 		for (int i=0; i < 20; i++) {
 
 			F(0) =  (1.0/2.0)*Beta_w*(-Xn(0) + Xn(2)) - Xn(0) + X0(0) ;
 			F(1) =  -1.0/2.0*Beta*Xn(0)*Xn(1) - Xn(1) + X0(1) ;
-			F(2) =  (1.0/2.0)*Beta*Xn(0)*Xn(1) - 1.0/2.0*Xn(2)*gamma - Xn(2) + X0(2) ;
+			F(2) =  (1.0/2.0)*Beta*Xn(0)*Xn(1) - 1.0/2.0*Xn(2)*Gamma - Xn(2) + X0(2) ;
 			if (F.norm() < 1E-5) {
 				break;
 			}
@@ -493,7 +483,7 @@ CudaDeviceFunction void DispatchCalcQ()
 		phi[0] = Xn(0);
 		phi[1] = Xn(1);
 		phi[2] = Xn(2);
-		phi[3] = Xn(2)*C_3/2. + x3;
+		phi[3] = Xn(2)*Gamma/2. + x3;
 							
 
 		return;
@@ -506,12 +496,7 @@ CudaDeviceFunction void DispatchCalcQ()
 
 	CudaDeviceFunction void CalcQ() 
 	{	
-		
-		const real_t Beta = C_1;
-		const real_t Beta_w = C_2; 
-		const real_t Gamma = C_3;
 
- 
 
 		const real_t W = phi[0];
 		const real_t S = phi[1];
