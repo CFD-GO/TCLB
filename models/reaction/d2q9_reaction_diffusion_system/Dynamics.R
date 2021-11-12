@@ -20,39 +20,42 @@ if (Options$AllenCahn) {
 
 	DREs  <- c("W")
 	ODEs  <- c("S", "I", "R", "N")
-	Params  <- c("Beta", "Beta_w", "Gamma", "BetaW")
+	Params  <- c("Beta", "Beta_w", "Gamma")
 
 
 } else if (Options$SimpleDiffusion) {
    	Qname = 'SimpleDiffusion'
-	NumberOfDREs = 1
-	NumberOfODEs = 0
-	NumberOfAdditionalParams = 1
+	DREs <- ('PHI')
 
- 	DREs = 'PHI'
+	NumberOfAdditionalParams = 0	
  	NumberOfODEs = 0
-# 	NumberOfAdditionalParams = 1
-	#Params  <- c("lambda")	
+
 }
 
 ##END MANUAL CONFIG
 
 
-if (exists('DREs')) {
+if (exists('DREs'))  {
 	NumberOfDREs = length(DREs)
-} else {
+} 
+	
+if (!exists('DREs') && NumberOfDREs > 0 )  {
 	DREs = paste('DRE', seq(1, NumberOfDREs, 1), sep="_" )
 }
 
-if (exists('ODEs')) {
+if (exists('ODEs') ) {
 	NumberOfODEs = length(ODEs)
-} else {
+} 
+	
+if (!exists('ODEs') && NumberOfODEs > 0 )  {
 	ODEs = paste('ODE', seq(1, NumberOfODEs, 1), sep="_" )
 }
 
 if (exists('Params')) {
 	NumberOfAdditionalParams = length(Params)
-} else {
+} 
+	
+if (!exists('Params') && NumberOfAdditionalParams > 0 )  {
 	Params = paste('C', seq(1, NumberOfAdditionalParams, 1), sep="_" )
 }
 
@@ -147,12 +150,13 @@ dre_loop(function(i) {
 	AddSetting(name=bname,	default=0.02, comment=comment)
 })
 
-for (i in seq(1, NumberOfAdditionalParams)){
-	bname = Params[i]
-	comment = paste('Model parameter ', Params[i])
-	AddSetting(name=bname, default=0.0, comment=comment)
+if (NumberOfAdditionalParams > 0) {
+	for (i in seq(1, NumberOfAdditionalParams)){
+		bname = Params[i]
+		comment = paste('Model parameter ', Params[i])
+		AddSetting(name=bname, default=0.0, comment=comment)
+	}
 }
-
 
 Extra_Dynamics_C_Header = "
 
