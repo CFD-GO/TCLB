@@ -307,15 +307,14 @@ CudaDeviceFunction void DispatchCalcQ()
 
 		const real_t dt = 1.;
 		const real_t  x0 = cbrt(3.) ; 
-		const real_t  x1 = 1/(dt*lambda) ; 
-		const real_t  x2 = dt*lambda - 2 ; 
-		const real_t  x3 = cbrt(-9*tilde_phi*x1 + sqrt(3.)*sqrt((27*pow(tilde_phi, 2) - x1*pow(x2, 3))/(pow(dt, 2)*pow(lambda, 2)))) ; 
+		const real_t  x1 = 1/(dt*Lambda) ; 
+		const real_t  x2 = dt*Lambda - 2 ; 
+		const real_t  x3 = cbrt(-9*tilde_phi*x1 + sqrt(3.)*sqrt((27*pow(tilde_phi, 2) - x1*pow(x2, 3))/(pow(dt, 2)*pow(Lambda, 2)))) ; 
 		phi[0] = -1.0/3.0*x0*(x0*x1*x2 + pow(x3, 2))/x3 ;  
 	}
 	CudaDeviceFunction void CalcQ() 
 	{	
-		const real_t lambda = C_1;
-		q[0] = lambda*phi[0]*(1 - pow(phi[0], 2)) ;
+		q[0] = Lambda*phi[0]*(1 - pow(phi[0], 2)) ;
 	}
 <?R		
 	}
