@@ -149,6 +149,7 @@ if (Options$altContactAngle){
 		AddSetting(name="Donut_D",   default=0.0, comment='Dilation factor along the x-axis')
 		AddSetting(name="Donut_x0",  default=0.0, comment='Position along x-axis')
 	# Poiseuille flow in 2D channel (flow in x direction)
+		AddSetting("shearFlow", default=0, comment="shear cell")
 		AddSetting("HEIGHT", default=0,	comment="Height of channel for 2D Poiseuille flow")
 		AddSetting("Uavg", default=0,	zonal=T, comment="Average velocity of channel for 2D Poiseuille flow")
 		AddSetting("developedFlow", default=0,	comment="set greater than 0 for fully developed flow in the domain (x-direction)")
