@@ -1,6 +1,6 @@
 if (Options$AllenCahn) {
  	Qname = 'Allen-Cahn'
- 	DREs = 'PHI'
+	DREs <- ('PHI')
  	NumberOfODEs = 0
 # 	NumberOfAdditionalParams = 1
 	Params  <- c("Lambda")
