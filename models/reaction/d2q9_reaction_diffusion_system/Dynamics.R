@@ -135,11 +135,13 @@ AddAction(name="InitFromExternalAction", "InitFromExternal")
 
 
 #	Boundary things:
-AddNodeType(name="SRT",	        group="COLLISION")
-AddNodeType(name="Wall",	        group="BOUNDARY")
+AddNodeType(name="Wall",	    group="BOUNDARY")
+
+AddNodeType(name="SRT_DF",	    group="COLLISION")
+AddNodeType(name="TRT_M",	    group="COLLISION")
 
 # Inputs: Flow Properties
-
+AddSetting(name="magic_parameter",      default=1./6., comment='to control relaxation frequency of even moments in TRT collision kernel')
 
 dre_loop(function(i) {
 	bname = paste('Init', DREs[i], sep="_")
@@ -164,4 +166,10 @@ Extra_Dynamics_C_Header = "
 
 #include <Eigen/Dense>
 
-"
+# see chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
+# by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+# There are certain values of magic_parameter that show distinctive properties:
+# • magic_parameter 1./12 cancels the third-order spatial error, leading to optimal results for pure advection problems.
+# • magic_parameter 1./6 cancels the fourth-order spatial error, providing the most accurate results for the pure diffusion equation.
+# • magic_parameter 3./16 results in the boundary wall location implemented via bounce-back for the Poiseuille flow exactly in the middle between horizontal walls and fluid nodes.
+# • magic_parameter 1./4 provides the most stable simulations.

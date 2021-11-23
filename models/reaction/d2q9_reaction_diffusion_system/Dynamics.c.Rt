@@ -36,7 +36,6 @@
 	f_tmp = c(PV(paste('f_tmp[',seq(0,8),']', sep='')))
 	qs = c(PV(paste('q[',seq(0,NumberOfODEs + NumberOfDREs),']', sep='')))
 
-?>
 
 
 
@@ -174,21 +173,40 @@ CudaDeviceFunction void Run() {
 		return;
 		break;
 	}
+
+	switch (NodeType & NODE_COLLISION) {  
+		case NODE_TRT_M:
+			<?R
+			dre_loop( function(i) {
+				C(f_tmp,fs[[i]])
+				?>
+				relax_and_collide_TRT_M(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+				<?R
+				C(fs[[i]], f_tmp)
+			})
+			?>
+			break;
+		case NODE_SRT_DF:
+    default:
+			<?R
+			dre_loop( function(i) {
+				C(f_tmp,fs[[i]])
+				?>
+				relax_and_collide_SRT_DF(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+				<?R
+				C(fs[[i]], f_tmp)
+			})
+			?>
+			break;      
+	}
+
+
+	
 	<?R
-
-	dre_loop( function(i) {
-		C(f_tmp,fs[[i]])
-		?>
-		SRT(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
-		<?R
-		C(fs[[i]], f_tmp)
-	})
-
 	ode_loop( function(i) {
 		accessor = PV( paste('ode_', i, '(0,0)', sep=''))
 		C(odes[[i]], accessor  + qs[NumberOfDREs+i] );
 	})
-
 	?>
 
  }
@@ -214,7 +232,7 @@ CudaDeviceFunction void BounceBack()
 
  }
 
-CudaDeviceFunction void SRT(real_t diffusivity, const real_t q) 
+CudaDeviceFunction void relax_and_collide_SRT_DF(real_t diffusivity, const real_t q) 
 {
 
 
@@ -235,7 +253,107 @@ CudaDeviceFunction void SRT(real_t diffusivity, const real_t q)
 	?>
 }
 
+CudaDeviceFunction void relax_and_collide_TRT_M(real_t diffusivity, real_t Q) 
+{	
 
+	// see eq. 7 from
+	// "Optimal Stability of Advection-Diffusion Lattice Boltzmann Models 
+	//  with Two Relaxation Times for Positive/Negative Equilibrium"
+	// by I. Ginzburg, D. d’Humières, A. Kuzmin, 2010
+
+	real_t omega_ade = 1.0/(3*diffusivity+0.5);
+	real_t omega_even = 2.*(2.-omega_ade)/(omega_ade*(4.*magic_parameter-1.)+2.);
+	// real_t omega_even = 1.;
+
+	// **to match notations **
+	vector_t u; // disable advection
+	u.x = 0;
+	u.y = 0;
+	u.z = 0;
+	real_t f000 = f_tmp[0];
+	real_t f100 = f_tmp[1];
+	real_t f200 = f_tmp[2];
+	real_t f010 = f_tmp[3];
+	real_t f110 = f_tmp[4];
+	real_t f210 = f_tmp[5];
+	real_t f020 = f_tmp[6];
+	real_t f120 = f_tmp[7];
+	real_t f220 = f_tmp[8];
+	// end of **to match notations **
+
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	real_t Sigma2 = 0.3333333333333333;
+	
+	real_t tilde_phi = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	//raw moments from density-probability functions
+	real_t m000 = f000 + f010 + f020 + f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m100 = f100 + f110 + f120 - f200 - f210 - f220;
+	real_t m010 = f010 - f020 + f110 - f120 + f210 - f220;
+	real_t m200 = f100 + f110 + f120 + f200 + f210 + f220;
+	real_t m020 = f010 + f020 + f110 + f120 + f210 + f220;
+	real_t m110 = f110 - f120 - f210 + f220;
+	real_t m210 = f110 - f120 + f210 - f220;
+	real_t m120 = f110 + f120 - f210 - f220;
+	real_t m220 = f110 + f120 + f210 + f220;
+
+	//raw equilibrium moments 
+	real_t mf_eq_000 = tilde_phi;
+	real_t mf_eq_100 = tilde_phi*u.x;
+	real_t mf_eq_010 = tilde_phi*u.y;
+	real_t mf_eq_200 = tilde_phi*(Sigma2 + ux2);
+	real_t mf_eq_020 = tilde_phi*(Sigma2 + uy2);
+	real_t mf_eq_110 = tilde_phi*uxuy;
+	real_t mf_eq_210 = tilde_phi*u.y*(Sigma2 + ux2);
+	real_t mf_eq_120 = tilde_phi*u.x*(Sigma2 + uy2);
+	real_t mf_eq_220 = tilde_phi*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+
+	real_t mq_eq_000 = Q;
+	real_t mq_eq_100 = Q*u.x;
+	real_t mq_eq_010 = Q*u.y;
+	real_t mq_eq_200 = Q*(Sigma2 + ux2);
+	real_t mq_eq_020 = Q*(Sigma2 + uy2);
+	real_t mq_eq_110 = Q*uxuy;
+	real_t mq_eq_210 = Q*u.y*(Sigma2 + ux2);
+	real_t mq_eq_120 = Q*u.x*(Sigma2 + uy2);
+	real_t mq_eq_220 = Q*(Sigma2*Sigma2 + Sigma2*ux2 + Sigma2*uy2 + ux2*uy2);
+
+	//collide
+	real_t m_star_000 = -m000*(omega_even - 1.) + mf_eq_000*omega_even + mq_eq_000;
+	real_t m_star_100 = -m100*(omega_ade - 1.) + mf_eq_100*omega_ade + mq_eq_100;
+	real_t m_star_010 = -m010*(omega_ade - 1.) + mf_eq_010*omega_ade + mq_eq_010;
+	real_t m_star_200 = -m200*(omega_even - 1.) + mf_eq_200*omega_even + mq_eq_200;
+	real_t m_star_020 = -m020*(omega_even - 1.) + mf_eq_020*omega_even + mq_eq_020;
+	real_t m_star_110 = -m110*(omega_even - 1.) + mf_eq_110*omega_even + mq_eq_110;
+	real_t m_star_210 = -m210*(omega_ade - 1.) + mf_eq_210*omega_ade + mq_eq_210;
+	real_t m_star_120 = -m120*(omega_ade - 1.) + mf_eq_120*omega_ade + mq_eq_120;
+	real_t m_star_220 = -m220*(omega_even - 1.) + mf_eq_220*omega_even + mq_eq_220;
+
+	//back to density-probability functions
+	f000 = m_star_000 - m_star_020 - m_star_200 + m_star_220;
+	f100 = 1/2.*m_star_100 - 1/2.*m_star_120 + 1/2.*m_star_200 - 1/2.*m_star_220;
+	f200 = -1/2.*m_star_100 + 1/2.*m_star_120 + 1/2.*m_star_200 - 1/2.*m_star_220;
+	f010 = 1/2.*m_star_010 + 1/2.*m_star_020 - 1/2.*m_star_210 - 1/2.*m_star_220;
+	f110 = 1/4.*m_star_110 + 1/4.*m_star_120 + 1/4.*m_star_210 + 1/4.*m_star_220;
+	f210 = -1/4.*m_star_110 - 1/4.*m_star_120 + 1/4.*m_star_210 + 1/4.*m_star_220;
+	f020 = -1/2.*m_star_010 + 1/2.*m_star_020 + 1/2.*m_star_210 - 1/2.*m_star_220;
+	f120 = -1/4.*m_star_110 + 1/4.*m_star_120 - 1/4.*m_star_210 + 1/4.*m_star_220;
+	f220 = 1/4.*m_star_110 - 1/4.*m_star_120 - 1/4.*m_star_210 + 1/4.*m_star_220;
+	
+	// **to match notations **
+	f_tmp[0] = f000;
+	f_tmp[1] = f100;
+	f_tmp[2] = f200;
+	f_tmp[3] = f010;
+	f_tmp[4] = f110;
+	f_tmp[5] = f210;
+	f_tmp[6] = f020;
+	f_tmp[7] = f120;
+	f_tmp[8] = f220;
+	// end of **to match notations **
+}
 
 CudaDeviceFunction void DispatchCalcPhi() 
 {	
