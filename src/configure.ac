@@ -38,7 +38,7 @@ AC_ARG_WITH([hdf5-include],
 		[specify the full path to your hdf5 installation (headers)]))
 
 AC_ARG_WITH([eigen],
-	AC_HELP_STRING([--with-eigen=hdf5],
+	AC_HELP_STRING([--with-eigen=eigen],
 		[specify the full path to your Eigen installation (headers)]))
 
 AC_ARG_ENABLE([graphics],
