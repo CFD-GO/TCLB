@@ -469,8 +469,8 @@ CudaDeviceFunction void DispatchCalcQ()
 		phi[1] = Xn(1);
 		phi[2] = Xn(2);
 		phi[3] = Xn(2)*Gamma/2. - x3;
-		printf("CalcPhi PhiTilde %lf %lf %lf %lf\n", x0, x1, x2, x3);					
-		printf("CalcPhi Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
+		//printf("CalcPhi PhiTilde %lf %lf %lf %lf\n", x0, x1, x2, x3);					
+		//printf("CalcPhi Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
 
 		return;
 
@@ -497,8 +497,8 @@ CudaDeviceFunction void DispatchCalcQ()
 		q[2] =   (Beta*S*W/N - Gamma*I); 
 		q[3] =   Gamma*I;
 		q[4] = 0;		 //N
-		printf("CalcQ Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
-		printf("CalcQ Q %lf %lf %lf %lf\n", q[0], q[1], q[2], q[3]);
+		//printf("CalcQ Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
+		//printf("CalcQ Q %lf %lf %lf %lf\n", q[0], q[1], q[2], q[3]);
 	}
 <?R		
 	}
