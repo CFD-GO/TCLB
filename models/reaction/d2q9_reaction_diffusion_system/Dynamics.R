@@ -1,26 +1,63 @@
 if (Options$AllenCahn) {
  	Qname = 'Allen-Cahn'
- 	NumberOfDREs = 1
+	DREs <- ('PHI')
  	NumberOfODEs = 0
- 	NumberOfAdditionalParams = 1
+# 	NumberOfAdditionalParams = 1
+	Params  <- c("Lambda")
+
 } else if (Options$SIR_SimpleLaplace) {
     Qname = 'SIR_SimpleLaplace'
-	NumberOfDREs = 3
+	#NumberOfDREs = 3
+	DREs  <- c("S", "I", "R")
 	NumberOfODEs = 0
-	NumberOfAdditionalParams = 2
+	Params  <- c("Beta", "Gamma")
+
 } else if (Options$SIR_ModifiedPeng) {
    	Qname = 'SIR_ModifiedPeng'
-	NumberOfDREs = 1
-	NumberOfODEs = 3+1
-	NumberOfAdditionalParams = 4
+	# NumberOfDREs = 1
+	# NumberOfODEs = 3+1
+	# NumberOfAdditionalParams = 4
+
+	DREs  <- c("W")
+	ODEs  <- c("S", "I", "R", "N")
+	Params  <- c("Beta", "Beta_w", "Gamma")
+
+
 } else if (Options$SimpleDiffusion) {
    	Qname = 'SimpleDiffusion'
-	NumberOfDREs = 1
-	NumberOfODEs = 0
-	NumberOfAdditionalParams = 1
+	DREs <- ('PHI')
+
+	NumberOfAdditionalParams = 0	
+ 	NumberOfODEs = 0
+
 }
 
 ##END MANUAL CONFIG
+
+
+if (exists('DREs'))  {
+	NumberOfDREs = length(DREs)
+} 
+	
+if (!exists('DREs') && NumberOfDREs > 0 )  {
+	DREs = paste('DRE', seq(1, NumberOfDREs, 1), sep="_" )
+}
+
+if (exists('ODEs') ) {
+	NumberOfODEs = length(ODEs)
+} 
+	
+if (!exists('ODEs') && NumberOfODEs > 0 )  {
+	ODEs = paste('ODE', seq(1, NumberOfODEs, 1), sep="_" )
+}
+
+if (exists('Params')) {
+	NumberOfAdditionalParams = length(Params)
+} 
+	
+if (!exists('Params') && NumberOfAdditionalParams > 0 )  {
+	Params = paste('C', seq(1, NumberOfAdditionalParams, 1), sep="_" )
+}
 
 
 if (NumberOfDREs > 0){
@@ -69,7 +106,7 @@ ode_loop(function(i) {
 	bname = paste('ode', i, sep="_")
 	AddField(name=bname, dx=c(-1,1), dy=c(-1,1)) # same as AddField(name="phi", stencil2d=1)
 
-	bname = paste('ODE', i, sep="_")
+	bname = ODEs[i]
 	exname = paste('Init', bname, 'External', sep="_")
 	AddDensity(name=exname, group="init", dx=0,dy=0,dz=0, parameter=TRUE)
 })
@@ -77,7 +114,7 @@ ode_loop(function(i) {
 # 	Outputs:
 
 dre_loop(function(i){
-	bname = paste('DRE', i, sep="_")
+	bname = DREs[i]
 	AddQuantity(name=bname, unit="1.")
 	
 	exname = paste('Init', bname, 'External', sep="_")
@@ -86,10 +123,10 @@ dre_loop(function(i){
 
 
 ode_loop(function(i) {
-	bname = paste('ODE', i, sep="_")
+	bname = ODEs[i]
 	AddQuantity(name=bname, unit="1.")
 
-	bname = paste('Init', 'ODE', i, sep="_")
+	bname = paste('Init', ODEs[i] , sep="_")
 	AddSetting(name=bname, zonal=TRUE)	
 })
 
@@ -107,20 +144,27 @@ AddNodeType(name="TRT_M",	    group="COLLISION")
 AddSetting(name="magic_parameter",      default=1./6., comment='to control relaxation frequency of even moments in TRT collision kernel')
 
 dre_loop(function(i) {
-	bname = paste('Init', 'DRE', i, sep="_")
+	bname = paste('Init', DREs[i], sep="_")
 	AddSetting(name=bname, zonal=TRUE)
 
-	bname = paste('Diffusivity', 'DRE', i, sep="_")
-	comment = paste('Diffusivity for  DRE', i, sep="_")
+	bname = paste('Diffusivity',  DREs[i] , sep="_")
+	comment = paste('Diffusivity for ', DREs[i], sep="_")
 	AddSetting(name=bname,	default=0.02, comment=comment)
 })
 
-for (i in seq(1, NumberOfAdditionalParams)){
-	bname = paste('C',  i, sep="_")
-	comment = paste('Model parameter C', i, sep="_")
-	AddSetting(name=bname, default=0.0, comment=comment)
+if (NumberOfAdditionalParams > 0) {
+	for (i in seq(1, NumberOfAdditionalParams)){
+		bname = Params[i]
+		comment = paste('Model parameter ', Params[i])
+		AddSetting(name=bname, default=0.0, comment=comment)
+	}
 }
 
+Extra_Dynamics_C_Header = "
+
+#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+
+#include <Eigen/Dense>
 
 # see chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
 # by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
