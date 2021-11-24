@@ -35,7 +35,7 @@
 
 	f_tmp = c(PV(paste('f_tmp[',seq(0,8),']', sep='')))
 	qs = c(PV(paste('q[',seq(0,NumberOfODEs + NumberOfDREs),']', sep='')))
-
+?>
 
 
 
@@ -187,7 +187,7 @@ CudaDeviceFunction void Run() {
 			?>
 			break;
 		case NODE_SRT_DF:
-    default:
+    	default:
 			<?R
 			dre_loop( function(i) {
 				C(f_tmp,fs[[i]])
@@ -586,7 +586,7 @@ CudaDeviceFunction void DispatchCalcQ()
 		phi[0] = Xn(0);
 		phi[1] = Xn(1);
 		phi[2] = Xn(2);
-		phi[3] = Xn(2)*Gamma/2. - x3;
+		phi[3] = Xn(2)*Gamma/2. + x3;
 		//printf("CalcPhi PhiTilde %lf %lf %lf %lf\n", x0, x1, x2, x3);					
 		//printf("CalcPhi Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
 

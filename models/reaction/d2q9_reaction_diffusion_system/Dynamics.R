@@ -161,10 +161,9 @@ if (NumberOfAdditionalParams > 0) {
 }
 
 Extra_Dynamics_C_Header = "
-
 #define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
-
 #include <Eigen/Dense>
+"
 
 # see chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
 # by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
