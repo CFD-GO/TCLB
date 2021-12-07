@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/SIR_SimpleLaplace/">
+	<Geometry nx="100" ny="100">
+
+		<None name="city">
+			<Box dx="45" dy="45" nx="10" ny="10"/>
+		</None>
+
+		<!-- <None name="desert"> 
+			<Box dx="300" dy="340" nx="100" ny="100"/>
+		</None> -->
+	</Geometry>
+	<Model>
+		<Param name="Diffusivity_DRE_1" value="0.001"/><!-- S -->
+		<Param name="Diffusivity_DRE_2" value="0.1"/><!-- I -->
+		<Param name="Diffusivity_DRE_3" value="0.001"/><!-- R -->
+
+		<Param name="C_1" value="1."/> <!-- R0 -->
+		<Param name="C_2" value="0.001"/> <!-- dt -->
+		
+
+        	 
+
+		<Param name="Init_DRE_1" value="0.8" />		<!-- S -->
+		<Param name="Init_DRE_2" value="0.1" />		<!-- I -->
+        <Param name="Init_DRE_3" value="0.1"/>		<!-- R -->
+
+        <Param name="Init_DRE_1" value="0.5" zone="city"/><!-- S -->
+		<Param name="Init_DRE_2" value="0.5" zone="city"/><!-- I -->
+
+    </Model>
+
+	<HDF5/>
+    <Solve Iterations="5000">
+	<HDF5 Iterations="50"/>
+	</Solve> 
+
+    
+</CLBConfig>
