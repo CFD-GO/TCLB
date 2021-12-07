@@ -12,6 +12,11 @@ if (Options$ML){
 	}
 }
 
+if (Options$OutFlow){
+	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
+	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
+}
+
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
@@ -129,8 +134,8 @@ if (Options$altContactAngle){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
-    AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
-    AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
+  AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
+  AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS

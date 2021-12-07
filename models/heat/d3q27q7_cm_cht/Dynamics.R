@@ -113,7 +113,7 @@ AddNodeType(name="HeaterNeumannHeatFluxEast", 	  group="ADDITIONALS_HEAT")
 
 AddNodeType(name="CM", 						group="COLLISION")
 #AddNodeType(name="CM_HIGHER", 				group="COLLISION")
-AddNodeType(name="CM_NONLINEAR", 			group="COLLISION")
+AddNodeType(name="CM_PROB", 			group="COLLISION")
 #AddNodeType(name="Cumulants", 				group="COLLISION")
 
 

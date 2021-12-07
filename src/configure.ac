@@ -37,6 +37,10 @@ AC_ARG_WITH([hdf5-include],
 	AC_HELP_STRING([--with-hdf5-include=hdf5],
 		[specify the full path to your hdf5 installation (headers)]))
 
+AC_ARG_WITH([eigen],
+	AC_HELP_STRING([--with-eigen=eigen],
+		[specify the full path to your Eigen installation (headers)]))
+
 AC_ARG_ENABLE([graphics],
 	AC_HELP_STRING([--enable-graphics],
 		[make a GUI version]))
@@ -355,6 +359,25 @@ AC_CHECK_LIB([mpi], [MPI_Recv],[],[
 		AC_MSG_ERROR([Didn't find MPI Library])
 	])
 ])
+
+
+AC_MSG_CHECKING([EIGEN path])
+
+if test "x${with_eigen}" != "xno"; then
+	if test "x${with_eigen}" != "x"; then
+		EIGEN_INCLUDE="${with_eigen}"
+		if test -d "${EIGEN_INCLUDE}"
+		then
+			CPPFLAGS="${CPPFLAGS} -I${EIGEN_INCLUDE}"
+		else
+			AC_MSG_ERROR([${EIGEN_INCLUDE}: No such directory])
+		fi
+	fi
+
+	AC_CHECK_HEADERS([Eigen/Dense],[],[has_hdf5="no"])
+	AC_DEFINE([WITH_EIGEN], [1], [Using Eigen])
+
+fi
 
 
 AC_MSG_CHECKING([HDF5 path])

@@ -622,6 +622,7 @@ int RunR::Init() {
 
 	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
 	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
+	R["[[.CLB"]          = Rcpp::InternalFunction( &CLBDollar );
 	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
 	R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
 	R["names.CLB"]       = Rcpp::InternalFunction( &CLBNames );
