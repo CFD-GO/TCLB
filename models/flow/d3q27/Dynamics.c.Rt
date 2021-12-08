@@ -43,6 +43,16 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 
+CudaDeviceFunction vector_t getFd(){
+	vector_t force;
+if ((NodeType & NODE_BOUNDARY) == NODE_Wall){
+	<?R C(PV(c("force.x","force.y", "force.z")), -2.0 * (f %*% U)) ?>
+} else {
+	<?R C(PV(c("force.x","force.y", "force.z")), c(0,0,0)) ?>
+}
+	return force;
+}
+
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
@@ -58,6 +68,17 @@ CudaDeviceFunction float2 Color() {
 CudaDeviceFunction void BounceBack()
 {
 <?R FullBounceBack() ?>
+
+// Extract drag force in X, Y, Z dirn for perm calcs
+//  Here we use the momentum exchange method of Ladd
+vector_t force;
+<?R
+	force = PV(paste0("force",c(".x",".y",".z")))
+	C(force, 2.0 * ( f %*% U ))
+?>
+AddToXDragForce( force.x );
+AddToYDragForce( force.y );
+AddToZDragForce( force.z );
 }
 
 CudaDeviceFunction void NSymmetry()
@@ -207,7 +228,9 @@ CudaDeviceFunction void CollisionMRT()
 	Jx += ForceX;
 	Jy += ForceY;
 	Jz += ForceZ;
-    	AddToFlux((Jx+ForceX/2)/rho);
+    	AddToXFlux((Jx+ForceX/2)/rho);
+    	AddToYFlux((Jy+ForceY/2)/rho);
+    	AddToZFlux((Jz+ForceZ/2)/rho);
 	if ((NodeType & NODE_BOUNDARY) == NODE_Solid) {
 		Jx = 0;
 		Jy = 0;
