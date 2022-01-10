@@ -238,6 +238,7 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 		gradPhiVal_z = 0.;
 	}
 }
+#endif
 
 #ifdef OPTIONS_ML
 <?R
@@ -1019,27 +1020,6 @@ CudaDeviceFunction void EVelocity(){
 
 		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
 	?>
-}
-
-CudaDeviceFunction void Velocity_Y_neg(){
-	U = VelocityX;
-	V = VelocityY;
-	W = VelocityZ;
-	<?R
-		n = c(0,-1,0)
-			geq = EQ$feq
-			bounce = Bounce(U)
-			sel = as.vector( (U %*% n) < 0)
-
-		sel2 = as.vector( ( U %*% n) == 0)	
-		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
-		Unknowns = 1.0/9.0
-
-		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
-	?>
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(0,-1,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
 }
 
 CudaDeviceFunction void Velocity_Y_neg(){
