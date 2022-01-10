@@ -12,11 +12,6 @@ if (Options$ML){
 	}
 }
 
-if (Options$OutFlow){
-	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
-	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
-}
-
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")

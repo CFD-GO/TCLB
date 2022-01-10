@@ -240,21 +240,6 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 }
 #endif
 
-#ifdef OPTIONS_ML
-<?R
-for (myDensity in 0:26){
-	cat(paste0("CudaDeviceFunction real_t getg",myDensity,"(){\n"))
-	cat(paste0("\t return g",myDensity,";\n"))
-	cat("}\n")
-}
-for (myDensity in 0:14){
-	cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
-	cat(paste0("\t return h",myDensity,";\n"))
-	cat("}\n")
-}
-?>
-#endif
-
 CudaDeviceFunction real_t getRho(){
 	if ( IamWall || IamSolid) {
 		return 0.0;
@@ -1243,10 +1228,13 @@ CudaDeviceFunction void CollisionBGK(){
         mag = U*U + V*V + W*W;
         for (i=0; i< 27; i++){
             Gamma[i] = calcGamma(i, U, V, W, mag);
-            geq[i] = wg[i]*p + Gamma[i] - wg[i];
+            geq[i] = wg[i]*p + Gamma[i] - wg[i]; 
         }
 
-    <?R 	C( geq, g - geq ) ?>
+    <?R 
+        geq_bgk <- PV(paste0("geq[",1:27-1,"]")) 	
+        C( geq_bgk, g - geq_bgk ) 
+    ?>
             // Stress/strain Tensor
         for (i=0; i< 6 ; i++)
         {
@@ -1290,7 +1278,7 @@ CudaDeviceFunction void CollisionBGK(){
 	real_t omega_g = 1.0/tau;
 	<?R	
 		om= PV("omega_g")
-		C(g, g - (geq+0.5*Fi)*om + Fi)
+		C(g, g - (geq_bgk+0.5*Fi)*om + Fi)
 	?>
     updateTrackers( C );
 }
