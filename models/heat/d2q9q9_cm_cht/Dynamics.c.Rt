@@ -912,15 +912,12 @@ CudaDeviceFunction void Run() {
 		case NODE_Cumulants:
 			CollisionCumulants();
 			break;
-		// case NODE_CM_HIGHER_NONLINEAR:
-		// 	CollisionCM_HIGHER_NONLINEAR();
-		// 	break;
-		// case NODE_CM:
-		// 	CollisionCM();
-		// 	break;
-		// case NODE_BGK:
-		// 	Collision_thermalBGK();
-		// 	break;
+		case NODE_CM_HIGHER_PROB:
+			CollisionCM_HIGHER_PROB();
+			break;	
+		case NODE_CM_HIGHER_PROB_M_EQ:
+			CollisionCM_HIGHER_PROB_M_EQ();
+			break;
 	}
 
 	if((NodeType & NODE_OBJECTIVEFORCE) == NODE_ForceMeasurmentZone) {
@@ -1117,6 +1114,185 @@ CudaDeviceFunction void relax_and_collide_ADE_Cumulants(real_t rho, real_t omega
 	h220 = h220 - h210;
 }
 
+CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER_PROB(real_t rho, real_t omega_ade, vector_t u_hydro) 
+{
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+
+	real_t H = h000 + h010 + h020 + h100 + h110 + h120 + h200 + h210 + h220;
+	real_t temp000 = h000;
+	real_t temp100 = h100;
+	real_t temp010 = h010;
+	real_t temp200 = h200;
+	real_t temp020 = h020;
+	real_t temp110 = h110;
+	real_t temp210 = h210;
+	real_t temp120 = h120;
+	real_t temp220 = h220;
+	//raw moments from density-probability functions
+	h000 = temp000 + temp010 + temp020 + temp100 + temp110 + temp120 + temp200 + temp210 + temp220;
+	h100 = temp100 + temp110 + temp120 - temp200 - temp210 - temp220;
+	h010 = temp010 - temp020 + temp110 - temp120 + temp210 - temp220;
+	h200 = temp100 + temp110 + temp120 + temp200 + temp210 + temp220;
+	h020 = temp010 + temp020 + temp110 + temp120 + temp210 + temp220;
+	h110 = temp110 - temp120 - temp210 + temp220;
+	h210 = temp110 - temp120 + temp210 - temp220;
+	h120 = temp110 + temp120 - temp210 - temp220;
+	h220 = temp110 + temp120 + temp210 + temp220;
+
+	vector_t u;
+	u.x = h100/h000;
+	u.y = h010/h000;
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	//central moments from raw moments
+	temp000 = h000;
+	temp100 = -h000*u.x + h100;
+	temp010 = -h000*u.y + h010;
+	temp200 = h000*ux2 - 2.*h100*u.x + h200;
+	temp020 = h000*uy2 - 2.*h010*u.y + h020;
+	temp110 = h000*uxuy - h010*u.x - h100*u.y + h110;
+	temp210 = -h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy - 2.*h110*u.x - h200*u.y + h210;
+	temp120 = -h000*u.x*uy2 + 2.*h010*uxuy - h020*u.x + h100*uy2 - 2.*h110*u.y + h120;
+	temp220 = h000*ux2*uy2 - 2.*h010*ux2*u.y + h020*ux2 - 2.*h100*u.x*uy2 + 4.*h110*uxuy - 2.*h120*u.x + h200*uy2 - 2.*h210*u.y + h220;
+	//collision in central moments space
+	//collide
+	h000 = H;
+	h100 = -temp100*(omega_ade - 1.);
+	h010 = -temp010*(omega_ade - 1.);
+	h200 = H*Sigma2;
+	h020 = H*Sigma2;
+	h110 = 0;
+	h210 = -temp210*(omega_ade - 1.);
+	h120 = -temp120*(omega_ade - 1.);
+	h220 = H*Sigma2*Sigma2;
+
+	vector_t u_new;
+	u_new.x = u_hydro.x*omega_ade+u.x*(1.0-omega_ade);
+	u_new.y = u_hydro.y*omega_ade+u.y*(1.0-omega_ade);
+
+	u.x = u_new.x;
+	u.y = u_new.y;
+	uxuy = u.x*u.y;
+	ux2 = u.x*u.x;
+	uy2 = u.y*u.y;
+
+
+	//back to raw moments
+	temp000 = h000;
+	temp100 = h000*u.x + h100;
+	temp010 = h000*u.y + h010;
+	temp200 = h000*ux2 + 2.*h100*u.x + h200;
+	temp020 = h000*uy2 + 2.*h010*u.y + h020;
+	temp110 = h000*uxuy + h010*u.x + h100*u.y + h110;
+	temp210 = h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy + 2.*h110*u.x + h200*u.y + h210;
+	temp120 = h000*u.x*uy2 + 2.*h010*uxuy + h020*u.x + h100*uy2 + 2.*h110*u.y + h120;
+	temp220 = h000*ux2*uy2 + 2.*h010*ux2*u.y + h020*ux2 + 2.*h100*u.x*uy2 + 4.*h110*uxuy + 2.*h120*u.x + h200*uy2 + 2.*h210*u.y + h220;
+	//back to density-probability functions
+	h000 = temp000 - temp020 - temp200 + temp220;
+	h100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	h110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	h120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	h220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+}
+
+CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER_PROB_M_EQ(real_t rho, real_t omega_ade, vector_t u_hydro) 
+{
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	#ifdef OPTIONS_CHT
+		real_t Sigma2 = 1./3.*h_stability_enhancement/(cp*rho);
+	#else
+		real_t Sigma2 = 1./3.;
+	#endif
+
+	real_t H = h000 + h010 + h020 + h100 + h110 + h120 + h200 + h210 + h220;
+	real_t temp000 = h000;
+	real_t temp100 = h100;
+	real_t temp010 = h010;
+	real_t temp200 = h200;
+	real_t temp020 = h020;
+	real_t temp110 = h110;
+	real_t temp210 = h210;
+	real_t temp120 = h120;
+	real_t temp220 = h220;
+	//raw moments from density-probability functions
+	h000 = temp000 + temp010 + temp020 + temp100 + temp110 + temp120 + temp200 + temp210 + temp220;
+	h100 = temp100 + temp110 + temp120 - temp200 - temp210 - temp220;
+	h010 = temp010 - temp020 + temp110 - temp120 + temp210 - temp220;
+	h200 = temp100 + temp110 + temp120 + temp200 + temp210 + temp220;
+	h020 = temp010 + temp020 + temp110 + temp120 + temp210 + temp220;
+	h110 = temp110 - temp120 - temp210 + temp220;
+	h210 = temp110 - temp120 + temp210 - temp220;
+	h120 = temp110 + temp120 - temp210 - temp220;
+	h220 = temp110 + temp120 + temp210 + temp220;
+
+	vector_t u;
+	u.x = h100/h000;
+	u.y = h010/h000;
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	//central moments from raw moments
+	temp000 = h000;
+	temp100 = -h000*u.x + h100;
+	temp010 = -h000*u.y + h010;
+	temp200 = h000*ux2 - 2.*h100*u.x + h200;
+	temp020 = h000*uy2 - 2.*h010*u.y + h020;
+	temp110 = h000*uxuy - h010*u.x - h100*u.y + h110;
+	temp210 = -h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy - 2.*h110*u.x - h200*u.y + h210;
+	temp120 = -h000*u.x*uy2 + 2.*h010*uxuy - h020*u.x + h100*uy2 - 2.*h110*u.y + h120;
+	temp220 = h000*ux2*uy2 - 2.*h010*ux2*u.y + h020*ux2 - 2.*h100*u.x*uy2 + 4.*h110*uxuy - 2.*h120*u.x + h200*uy2 - 2.*h210*u.y + h220;
+	
+	//collision in central moments space
+	//collide
+	vector_t du;
+	du.x = u_hydro.x -u.x;
+	du.y = u_hydro.y -u.y;
+	real_t duxuy = du.x*du.y;
+    real_t dux2 = du.x*du.x;
+    real_t duy2 = du.y*du.y;
+
+	h000 = H;
+	h100 = H*du.x*omega_ade-temp100*(omega_ade - 1.);
+	h010 = H*du.y*omega_ade-temp010*(omega_ade - 1.);
+	h200 = H*(Sigma2 + dux2);
+	h020 = H*(Sigma2 + duy2);
+	h110 = H*duxuy;
+	h210 = H*du.y*(dux2 + Sigma2)*omega_ade-temp210*(omega_ade - 1.);
+	h120 = H*du.x*(duy2 + Sigma2)*omega_ade-temp120*(omega_ade - 1.);
+	h220 = H*(dux2*duy2 + Sigma2*dux2 + Sigma2*duy2 + Sigma2*Sigma2);
+
+	//back to raw moments
+	temp000 = h000;
+	temp100 = h000*u.x + h100;
+	temp010 = h000*u.y + h010;
+	temp200 = h000*ux2 + 2.*h100*u.x + h200;
+	temp020 = h000*uy2 + 2.*h010*u.y + h020;
+	temp110 = h000*uxuy + h010*u.x + h100*u.y + h110;
+	temp210 = h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy + 2.*h110*u.x + h200*u.y + h210;
+	temp120 = h000*u.x*uy2 + 2.*h010*uxuy + h020*u.x + h100*uy2 + 2.*h110*u.y + h120;
+	temp220 = h000*ux2*uy2 + 2.*h010*ux2*u.y + h020*ux2 + 2.*h100*u.x*uy2 + 4.*h110*uxuy + 2.*h120*u.x + h200*uy2 + 2.*h210*u.y + h220;
+	//back to density-probability functions
+	h000 = temp000 - temp020 - temp200 + temp220;
+	h100 = 1/2.*temp100 - 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h200 = -1/2.*temp100 + 1/2.*temp120 + 1/2.*temp200 - 1/2.*temp220;
+	h010 = 1/2.*temp010 + 1/2.*temp020 - 1/2.*temp210 - 1/2.*temp220;
+	h110 = 1/4.*temp110 + 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h210 = -1/4.*temp110 - 1/4.*temp120 + 1/4.*temp210 + 1/4.*temp220;
+	h020 = -1/2.*temp010 + 1/2.*temp020 + 1/2.*temp210 - 1/2.*temp220;
+	h120 = -1/4.*temp110 + 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+	h220 = 1/4.*temp110 - 1/4.*temp120 - 1/4.*temp210 + 1/4.*temp220;
+}
+
 CudaDeviceFunction void relax_and_collide_ADE_CM_HIGHER(real_t rho, real_t omega_ade, vector_t u) 
 {
 	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
@@ -1305,10 +1481,9 @@ CudaDeviceFunction vector_t getForce(real_t localTemp, real_t rho)
 	return Force;
 }
 
-
-CudaDeviceFunction void CollisionCM_HIGHER(){
+CudaDeviceFunction vector_t hydro_collision_wrapper(real_t rho)
+{
 	real_t localTemperature = getT_();
-	real_t rho = getRho_();
 	vector_t Force = getForce(localTemperature, rho);
 
 	// add Darcy force to stop flow within solid regions
@@ -1332,42 +1507,37 @@ CudaDeviceFunction void CollisionCM_HIGHER(){
 		U = u.x;
 	#endif	
 
+	return u;
+}
+
+CudaDeviceFunction void CollisionCM_HIGHER(){
+	real_t rho = getRho_();
+	vector_t u = hydro_collision_wrapper(rho);
 	real_t omega_k = 1.0/(3*conductivity+0.5);
 	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
-
 	relax_and_collide_ADE_CM_HIGHER(rho, omega_k, u);
+}
 
+CudaDeviceFunction void CollisionCM_HIGHER_PROB(){
+	real_t rho = getRho_();
+	vector_t u = hydro_collision_wrapper(rho);
+	real_t omega_k = 1.0/(3*conductivity+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
+	relax_and_collide_ADE_CM_HIGHER_PROB(rho, omega_k, u);
+}
+
+CudaDeviceFunction void CollisionCM_HIGHER_PROB_M_EQ(){
+	real_t rho = getRho_();
+	vector_t u = hydro_collision_wrapper(rho);
+	real_t omega_k = 1.0/(3*conductivity+0.5);
+	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
+	relax_and_collide_ADE_CM_HIGHER_PROB_M_EQ(rho, omega_k, u);
 }
 
 CudaDeviceFunction void CollisionCumulants(){
-	real_t localTemperature = getT_();
 	real_t rho = getRho_();
-	vector_t Force = getForce(localTemperature, rho);
-
-	// add Darcy force to stop flow within solid regions
-	if ((NodeType & NODE_ADDITIONALS) == NODE_DarcySolid) 
-	{
-		vector_t u_temp = getRawU();
-		u_temp.x += Force.x/(2*rho);
-		u_temp.y += Force.y/(2*rho);
-		u_temp.z += Force.z/(2*rho);
-
-		vector_t fDarcyStoper = get_fDarcyStoper(rho,  u_temp);
-		Force.x += fDarcyStoper.x;
-		Force.y += fDarcyStoper.y;
-		Force.z += fDarcyStoper.z;
-	} 
-
-	real_t omega_nu = 1.0/(3*nu+0.5);
-	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
-	vector_t u = relax_and_collide_hydro(Force, omega_nu);
-
-	#ifdef OPTIONS_OutFlowConvective
-		U = u.x; 
-	#endif	
-
+	vector_t u = hydro_collision_wrapper(rho);
 	real_t omega_k = 1.0/(3*conductivity+0.5);
 	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
-
 	relax_and_collide_ADE_Cumulants(rho, omega_k, u);
 }
