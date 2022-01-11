@@ -20,6 +20,7 @@ AddDensity( name="h[5]", dx= 1, dy= 1, group="h")
 AddDensity( name="h[6]", dx=-1, dy= 1, group="h")
 AddDensity( name="h[7]", dx=-1, dy=-1, group="h")
 AddDensity( name="h[8]", dx= 1, dy=-1, group="h")
+
 if (Options$Outflow) {
 	AddDensity( name=paste("gold",0:8,sep=""), dx=0, dy=0, group="gold")
 	AddDensity( name=paste("hold",0:8,sep=""), dx=0, dy=0, group="hold")
@@ -93,6 +94,15 @@ AddQuantity(name="U",	  unit="m/s",vector=T)
 AddQuantity(name="NormalizedPressure",	  unit="Pa")
 AddQuantity(name="Pressure",	  unit="Pa")
 AddQuantity(name="Normal", unit="1", vector=T)
+
+if (Options$ML){
+    gPops <- paste0("g",1:9-1)
+    hPops <- paste0("h",1:9-1)
+    for (d in 1:length(gPops)){
+        AddQuantity(name=gPops[d])
+        AddQuantity(name=hPops[d])
+    }
+}
 
 #	Initialisation States
 AddSetting(name="Period", default="0", comment='Number of cells per cos wave')
@@ -183,6 +193,7 @@ AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="WVelocity", group="BOUNDARY")
+AddNodeType(name="EOutflow_ML", group="BOUNDARY")
 
 AddNodeType(name="Body", group="BODY")  # To measure force exerted on the body.
 
