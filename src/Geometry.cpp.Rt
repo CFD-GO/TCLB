@@ -956,7 +956,7 @@ int Geometry::Draw(pugi::xml_node & node)
 	reg.nx = 2*Rx + 10;
 	reg.ny = 2*Ry + 10;
 
-	    debug1("Filling YPipe with flag %d (%d)\n, with center at (%lf,%lfi,%f) radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Rx, Rz);
+	    debug1("Filling YPipe with flag %d (%d)\n, with center at (%lf,%lfi,%f) radius (%lf,%lf)", fg, fg_mask, x0, y0, z0, Rx, Ry);
 	    DEBUG1(reg.print();)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 		for (int z = reg.dz; z < reg.dz + reg.nz; z++)
