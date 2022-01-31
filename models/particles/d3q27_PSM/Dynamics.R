@@ -62,11 +62,20 @@ AddSetting(name="AccelX", default=0.0, comment='body acceleration X', unit="m/s2
 AddSetting(name="AccelY", default=0.0, comment='body acceleration Y', unit="m/s2")
 AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z', unit="m/s2")
 
+AddNodeType("RegionMeasureX",group="ADDITIONALS")
+AddNodeType("RegionMeasureY",group="ADDITIONALS")
+AddNodeType("RegionMeasureZ",group="ADDITIONALS")
+AddNodeType("PressureMeasure",group="ADDITIONALS")
+
 AddGlobal(name="TotalFluidMomentumX", unit="kgm/s")
 AddGlobal(name="TotalFluidMomentumY", unit="kgm/s")
 AddGlobal(name="TotalFluidMomentumZ", unit="kgm/s")
 AddGlobal(name="TotalFluidMass", unit="kg")
 AddGlobal(name="TotalFluidVolume", unit="m3")
+AddGlobal(name="FlowRateX", unit="m/s")
+AddGlobal(name="FlowRateY", unit="m/s")
+AddGlobal(name="FlowRateZ", unit="m/s")
+AddGlobal(name="PressureGauge", unit="Pa")
 
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")

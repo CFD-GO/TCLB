@@ -584,6 +584,17 @@ CudaDeviceFunction void Collision_PSM() {
 	C( f, RL %*% solve(EQ$mat))
 	
 ?>
+
+    switch (NodeType & NODE_ADDITIONALS) {
+        case NODE_RegionMeasureX:
+            AddToFlowRateX(u[0]);
+        case NODE_RegionMeasureY:
+            AddToFlowRateY(u[1]);
+        case NODE_RegionMeasureZ:
+            AddToFlowRateZ(u[2]);
+        case NODE_PressureMeasure:
+            AddToPressureGauge(getRho());
+    }
 }
 
 CudaDeviceFunction float2 Color() {
