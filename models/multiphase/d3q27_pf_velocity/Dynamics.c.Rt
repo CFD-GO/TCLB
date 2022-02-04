@@ -151,36 +151,15 @@ if (Options$ML){
 ?>
 
 #ifdef OPTIONS_altContactAngle
-CudaDeviceFunction real_t getTangent1Wall(){
-	return der_tangent_1_wall;
-}
-CudaDeviceFunction real_t getTangent2Wall(){
-	return der_tangent_2_wall;
-}
-CudaDeviceFunction vector_t getTangentWallVector1(){
-	vector_t tangent;
-	tangent.x = TangentWallVector1_x;
-	tangent.y = TangentWallVector1_y;
-	tangent.z = TangentWallVector1_z;
-	return tangent;
-}
-CudaDeviceFunction vector_t getTangentWallVector2(){
-	vector_t tangent;
-	tangent.x = TangentWallVector2_x;
-	tangent.y = TangentWallVector2_y;
-	tangent.z = TangentWallVector2_z;
-	return tangent;
-}
+
+// Geometric contact angle stuff
+
 CudaDeviceFunction vector_t getGradPhi() {
 	vector_t gradPhi;
-	gradPhi.x = gradPhiVal_x(0,0,0); //gradPhiVal_x;
-	gradPhi.y = gradPhiVal_y(0,0,0); //gradPhiVal_y;
-	gradPhi.z = gradPhiVal_z(0,0,0); //gradPhiVal_z;
+	gradPhi.x = gradPhiVal_x(0,0,0);
+	gradPhi.y = gradPhiVal_y(0,0,0);
+	gradPhi.z = gradPhiVal_z(0,0,0);
 	return gradPhi;
-}
-
-CudaDeviceFunction real_t getPerpVal() {
-	return perpVal;
 }
 CudaDeviceFunction real_t getIsItBoundary() {
 	return IsBoundary(0, 0, 0);
@@ -200,7 +179,13 @@ CudaDeviceFunction void calcPhaseGrad(){
 		gradPhiVal_z = 0.;
 	}
 }
+
 CudaDeviceFunction void calcPhaseGrad_init(){
+	// NOTE: Need to initialize gradients at the first time step,
+	// because isotropic gradients would not work, as the wall values have no
+	// Phase field values just yet
+	//
+	// Might be improved
     real_t h = 1.0;
 
 	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
@@ -238,6 +223,7 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 		gradPhiVal_z = 0.;
 	}
 }
+#endif
 
 #ifdef OPTIONS_ML
 <?R
@@ -327,15 +313,6 @@ CudaDeviceFunction void calcPhaseF(){
 CudaDeviceFunction void calcWallPhase(){
 	PhaseF = PhaseF(0,0,0); //For fluid nodes.
 #ifdef OPTIONS_altContactAngle
-    der_tangent_1_wall = 0;
-	der_tangent_2_wall = 0;
-	TangentWallVector2_x = 0;
-	TangentWallVector2_y = 0;
-	TangentWallVector2_z = 0;
-	TangentWallVector1_x = 0;
-	TangentWallVector1_y = 0;
-	TangentWallVector1_z = 0;
-	perpVal = 0.;
 #endif
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
@@ -352,29 +329,18 @@ CudaDeviceFunction void calcWallPhase(){
 			PhaseF = pf_f;
 		} else {
 #ifdef OPTIONS_altContactAngle
-			// get first normal in another plane to
-			// the current normal
-			real_t t1_x = d3q27_n1_ex[int(n_k)];
-			real_t t1_y = d3q27_n1_ey[int(n_k)];
-			real_t t1_z = d3q27_n1_ez[int(n_k)];
-
-			// get second normal in another plane to the current
-			// normal
-			real_t t2_x = d3q27_n2_ex[int(n_k)];
-			real_t t2_y = d3q27_n2_ey[int(n_k)];
-			real_t t2_z = d3q27_n2_ez[int(n_k)];
-			// project into the proper direction
-
-			// Get gradients on the nodes for interpolation
+			// Get gradient on the first node in the normal direction
 			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
 			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
 			real_t der_z_1 = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
 
+			// Get gradient on the second node in the normal direction
 			real_t der_x_2 = gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
 			real_t der_y_2 = gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
 			real_t der_z_2 = gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			// Method 2: Simply use normal vector to calculate projection onto the solid boundary plane
-			// and extrapolate
+
+			// Simply use normal vector to calculate projection onto the solid boundary plane
+			// and extrapolate to the wall
 
 			// project the phase field gradient onto the boundary plane
 			real_t norm = nw_x*nw_x + nw_y * nw_y + nw_z * nw_z;
@@ -384,29 +350,15 @@ CudaDeviceFunction void calcWallPhase(){
 			coeff = (der_x_2 * nw_x + der_y_2 * nw_y + der_z_2 * nw_z)/norm;
 			vector_t proj_grad_2 = {der_x_2 - coeff*nw_x, der_y_2 - coeff*nw_y, der_z_2 - coeff * nw_z};
 
-
 			real_t vec_1 = sqrt(proj_grad_1.x * proj_grad_1.x + proj_grad_1.y * proj_grad_1.y + proj_grad_1.z * proj_grad_1.z);
 			real_t vec_2 = sqrt(proj_grad_2.x * proj_grad_2.x + proj_grad_2.y * proj_grad_2.y + proj_grad_2.z * proj_grad_2.z);
 
 			// -> extrapolate from two points onto the third point on the wall
-			// NOTE: pretty sure this can be improved
+			// NOTE: pretty sure this can be improved by different
+			// ways of extrapolating the gradient onto the node
 			real_t grad_tangent = fabs(1.5 * vec_1 - 0.5 * vec_2);
 
 			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
-
-			// debugging
-			der_tangent_1_wall = vec_1;
-			der_tangent_2_wall = vec_2;
-
-			TangentWallVector2_x = der_x_2;
-			TangentWallVector2_y = der_y_2;
-			TangentWallVector2_z = der_z_2;
-
-			TangentWallVector1_x = der_x_1;
-			TangentWallVector1_y = der_y_1;
-			TangentWallVector1_z = der_z_1;
-
-			perpVal = grad_tangent;
 #else
 			// h*Theta
 			// =  h*(-sqrt(2*beta/kappa)*cos(theta))
@@ -615,14 +567,8 @@ CudaDeviceFunction void Init_wallNorm(){
 			if (maxi < 0) {
 				// This should not happen ?
 				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
-#ifdef OPTIONS_altContactAngle
-                n_k = 0;
-#endif
 			} else {
 				nw_x = d3q27_ex[maxi];nw_y = d3q27_ey[maxi];nw_z = d3q27_ez[maxi];
-#ifdef OPTIONS_altContactAngle
-                n_k = maxi;
-#endif
 			}
 	  	}
 	} else {
@@ -1019,27 +965,6 @@ CudaDeviceFunction void EVelocity(){
 
 		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
 	?>
-}
-
-CudaDeviceFunction void Velocity_Y_neg(){
-	U = VelocityX;
-	V = VelocityY;
-	W = VelocityZ;
-	<?R
-		n = c(0,-1,0)
-			geq = EQ$feq
-			bounce = Bounce(U)
-			sel = as.vector( (U %*% n) < 0)
-
-		sel2 = as.vector( ( U %*% n) == 0)	
-		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
-		Unknowns = 1.0/9.0
-
-		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - Unknowns * (exM %*% t(U))[sel])
-	?>
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(0,-1,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
 }
 
 CudaDeviceFunction void Velocity_Y_neg(){

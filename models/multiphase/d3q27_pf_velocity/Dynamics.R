@@ -33,31 +33,23 @@ load_iteration  = c("g","h","Vel","nw")
 load_phase      = c("g","h","Vel","nw")
 
 if (Options$altContactAngle){
-    AddDensity(name="n_k", dx=0, dy=0, dz=0, group="nw")
-    AddDensity(name="der_tangent_1_wall", dx=0, dy=0, dz=0)
-    AddDensity(name="der_tangent_2_wall", dx=0, dy=0, dz=0)
-    # Debugging
-    AddDensity(name="perpVal", dx=0, dy=0, dz=0)
+
     AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
-    AddField("IsBoundary", stencil3d=1, group="debug_boundary")
+    AddField("IsBoundary", stencil3d=1, group="solid_boundary")
 
-    AddDensity(name="TangentWallVector1_x", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector2_x", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector1_y", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector2_y", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector1_z", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector2_z", dx=0, dy=0, dz=0)
-    AddField("PhaseF",stencil3d=3, group="PF")
+    AddField("PhaseF",stencil3d=2, group="PF")
 
-    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "debug_boundary"))
-    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF", "der_tangent_1_wall", "der_tangent_2_wall", "TangentWallVector1_x", "TangentWallVector2_x", "TangentWallVector1_y", "TangentWallVector2_y", "TangentWallVector1_z", "TangentWallVector2_z", "perpVal"), load=DensityAll$group %in% c("nw", "gradPhi", "PF"))
+    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary"))
+    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF"))
 
     AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
     AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
+    AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
+    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
 }
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -83,8 +75,6 @@ if (Options$thermo){
 ######################
 ########STAGES########
 ######################
-AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
-AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
 AddStage("PhaseInit", "Init", save=Fields$group %in% save_initial_PF)
 AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
 AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
@@ -98,7 +88,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
 	} else if (Options$altContactAngle) {
-        AddAction("Iteration", c("BaseIter", "calcPhase",    "calcPhaseGrad", "calcWall_CA"))
+        AddAction("Iteration", c("BaseIter", "calcPhase",  "calcPhaseGrad", "calcWall_CA"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
