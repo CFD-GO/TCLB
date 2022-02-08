@@ -612,6 +612,10 @@ CudaDeviceFunction void Init_distributions(){
 		U = 2.0 * Uavg * (1 - pow( (sqrt(pow((Y-pipeCentre_Y),2) + pow((Z-pipeCentre_Z),2)) / pipeRadius),2));
 		V = 0.0;
 		W = 0.0;
+	} else if (shearFlow > 0.1) {
+		U = Y*VelocityX / HEIGHT;
+		V = 0;
+		W = 0;
 	} else {
 		U = VelocityX;	V = VelocityY;	W = VelocityZ;
 	}
@@ -1458,6 +1462,15 @@ CudaDeviceFunction void updateTrackers(real_t C){
 		SurfaceTension = SurfaceTension(0,0,0);
 	}
 
+	CudaDeviceFunction real_t exp_thermal_source(real_t x, real_t y){
+		real_t distance_sqr = ((x-ts_X)*(x-ts_X) + (y-ts_Y)*(y-ts_Y));
+		if ( distance_sqr <= ts_dia*ts_dia) {
+			return (thermal_source * exp( -2.0 * distance_sqr / (ts_ws*ts_ws) ));
+		} else {
+			return 0.0;
+		}
+	}
+
 	CudaDeviceFunction void TempUpdate1(){
 		PhaseF = PhaseF(0,0,0);
 		if ( IamWall || IamSolid || ((NodeType & NODE_ADDITIONALS) == NODE_ConstantTemp) ) {
@@ -1552,7 +1565,11 @@ CudaDeviceFunction void updateTrackers(real_t C){
 			?>  
 
 			UpdateT = Temp(0,0,0);
-			Temp = (1-4.0/3.0)*UpdateT + (2*RK1(0,0,0) + 4*RK2(0,0,0) + 2*RK3(0,0,0) - stabiliser*(1.0*dotProduct(vel, gradT) + (1.0/(rho*myCp)) * (dotProduct(gradK,gradT) + Cond(0,0,0)*lapT)))/6.0;
+			Temp = (1-4.0/3.0)*UpdateT + (2*RK1(0,0,0) + 4*RK2(0,0,0) + 2*RK3(0,0,0) - 
+			         stabiliser*(1.0*dotProduct(vel, gradT) + (1.0/(rho*myCp)) * (dotProduct(gradK,gradT) + Cond(0,0,0)*lapT )))/6.0;
+			
+			Temp = Temp + stabiliser*exp_thermal_source(X, Y);
+
 			AddToTempChange( (Temp-UpdateT)*(Temp-UpdateT)  );
 		}
 		if (surfPower > 1) {
@@ -1565,6 +1582,8 @@ CudaDeviceFunction void updateTrackers(real_t C){
 	CudaDeviceFunction void BoundUpdate(){
 		if ((NodeType & NODE_ADDITIONALS) == NODE_EAdiabatic) {
 			Temp = Temp(-1,0,0);
+		} else if ((NodeType & NODE_ADDITIONALS) == NODE_WAdiabatic){
+			Temp = Temp(1,0,0);
 		} else {
 			Temp = Temp(0,0,0);
 		}
