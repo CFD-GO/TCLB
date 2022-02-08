@@ -44,8 +44,8 @@ if (Options$altContactAngle){
     AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary"))
     AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF"))
 
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
     AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
@@ -88,7 +88,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
 	} else if (Options$altContactAngle) {
-        AddAction("Iteration", c("BaseIter", "calcPhase",  "calcPhaseGrad", "calcWall_CA"))
+        AddAction("Iteration", c("BaseIter", "calcPhase",  "calcPhaseGrad_init", "calcWall_CA"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
@@ -104,12 +104,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
 if (Options$altContactAngle){
-    AddQuantity(name="TangentWallVector1", unit=1, vector=T)
-    AddQuantity(name="TangentWallVector2", unit=1, vector=T)
-    AddQuantity(name="Tangent1Wall", unit="1")
-    AddQuantity(name="Tangent2Wall", unit="1")
     AddQuantity(name="GradPhi", unit=1, vector=T)
-    AddQuantity(name="PerpVal", unit="1")
     AddQuantity(name="IsItBoundary", unit="1")
 }
 ###################################
