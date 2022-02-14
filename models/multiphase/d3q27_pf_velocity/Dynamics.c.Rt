@@ -484,12 +484,14 @@ CudaDeviceFunction void specialCases_Init(){
 		real_t d = RTI_Characteristic_Length;
 		real_t ycutoff;
         if (pseudo2D > 0.5){
-		    ycutoff = 2.0*d + 0.1*d*(cos(2.0*PI*X/d));
+		ycutoff = 2.0*d + Perturbation*d*(cos(2.0*PI*X/d));
+		PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
+                   	+ 0.5 * (PhaseField_h - PhaseField_l) * tanh(2.0 * (Y - ycutoff)/IntWidth);
         } else {
-		    ycutoff = 2.0*d + 0.05*d*(cos(2.0*PI*X/d) + cos(2.0*PI*Z/d));
-        }
+		ycutoff = 2.0*d + Perturbation*d*(cos(2.0*PI*X/d) + cos(2.0*PI*Z/d));
 		if (Y < ycutoff) {PhaseF = 0.0; }
 		else             {PhaseF = 1.0;	}
+        }
 	}
     // Annular Taylor bubble set up
 	if ( DonutTime > 0){

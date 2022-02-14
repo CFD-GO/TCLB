@@ -126,6 +126,7 @@ if (Options$altContactAngle){
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
+		AddSetting(name="Perturbation", default=0.1, comment='Perturbation for RTI instability as a fraction of characteristic length')
 	    AddSetting(name="pseudo2D", default="0", comment="if 1, assume model is pseduo2D")
     # Single droplet/bubble
 		AddSetting(name="Radius", default=0.0, comment='Diffuse Sphere Radius')
