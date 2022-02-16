@@ -12,11 +12,6 @@ if (Options$ML){
 	}
 }
 
-if (Options$OutFlow){
-	AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
-	AddDensity( name=paste("hold",0:14,sep=""), dx=0,dy=0,dz=0,group="hold")
-}
-
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
@@ -31,6 +26,19 @@ save_initial    = c("g","h","Vel","PF")
 save_iteration  = c("g","h","Vel","nw")
 load_iteration  = c("g","h","Vel","nw")
 load_phase      = c("g","h","Vel","nw")
+
+if (Options$OutFlow){
+	for (d in rows(DensityAll)) {
+		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+	}
+	
+	AddField(name="U",dx=c(-1,0,0))
+
+    save_initial   = c(save_initial,  "gold","hold")
+    save_iteration = c(save_iteration,"gold","hold")
+    load_iteration = c(load_iteration,"gold","hold")
+    load_phase     = c(load_phase,    "gold","hold")
+}
 
 if (Options$altContactAngle){
 
@@ -51,17 +59,7 @@ if (Options$altContactAngle){
     AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
     AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
 }
-if (Options$OutFlow){
-	for (d in rows(DensityAll)) {
-		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
-	}
-	AddField(name="U",dx=c(-1,0,0))
 
-    save_initial   = c(save_initial,  "gold","hold")
-    save_iteration = c(save_iteration,"gold","hold")
-    load_iteration = c(load_iteration,"gold","hold")
-    load_phase     = c(load_phase,    "gold","hold")
-}
 ###############################
 ########THERMOCAPILLARY########
 ###############################

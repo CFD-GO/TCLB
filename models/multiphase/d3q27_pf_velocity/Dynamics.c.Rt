@@ -312,8 +312,6 @@ CudaDeviceFunction void calcPhaseF(){
 
 CudaDeviceFunction void calcWallPhase(){
 	PhaseF = PhaseF(0,0,0); //For fluid nodes.
-#ifdef OPTIONS_altContactAngle
-#endif
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
 
