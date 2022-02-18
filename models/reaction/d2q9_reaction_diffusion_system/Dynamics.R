@@ -33,7 +33,13 @@ if (Options$AllenCahn) {
 }
 
 ##END MANUAL CONFIG
-
+if (Options$Heun) {
+	QIntegrator = 'Heun'
+} else if (Options$Euler) {
+	QIntegrator = 'Euler'
+} else {
+	QIntegrator = 'Trapezoid'
+}
 
 if (exists('DREs'))  {
 	NumberOfDREs = length(DREs)
