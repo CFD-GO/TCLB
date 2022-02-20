@@ -32,7 +32,7 @@ public:
                         return;
                 }
 
-                pinned_allocator() throw(): std::allocator<T>() { fprintf(stderr, "Hello allocator!\n"); }
+                pinned_allocator() throw(): std::allocator<T>() { debug0("Creating pinned allocator...\n"); }
                 pinned_allocator(const pinned_allocator &a) throw(): std::allocator<T>(a) { }
                 template <class U>                    
                 pinned_allocator(const pinned_allocator<U> &a) throw(): std::allocator<T>(a) { }

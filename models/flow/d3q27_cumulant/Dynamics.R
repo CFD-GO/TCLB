@@ -14,6 +14,7 @@ AddDensity(
 
 AddQuantity(name="P",unit="Pa")
 AddQuantity(name="U",unit="m/s",vector=T)
+AddQuantity(name="Solid",unit="1")
 
 AddSetting(name="nu", default=0.16666666, comment='Viscosity')
 AddSetting(name="nubuffer",default=0.01, comment='Viscosity in the buffer layer')
@@ -26,10 +27,15 @@ AddSetting(name="ForceY", default=0, comment='Force force Y')
 AddSetting(name="ForceZ", default=0, comment='Force force Z')
 AddSetting(name="Omega", default=1, comment='relaxation rate for 3rd order cumulants')
 
+AddGlobal(name="Density", comment='system density', unit="kg/m3")
 AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
 AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
 AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")
 AddGlobal(name="Lateral", comment='Force exerted on body in Y-direction', unit="N")
+AddGlobal(name="Mass", comment="Integral of density over the domain", unit="kg")
+AddGlobal(name="XMomentum", comment='Integral of momentum in X', unit="kgm/s")
+AddGlobal(name="YMomentum", comment='Integral of momentum in Y', unit="kgm/s")
+AddGlobal(name="ZMomentum", comment='Integral of momentum in Z', unit="kgm/s")
 
 AddNodeType(name="Buffer", group="BOUNDARY")
 AddNodeType(name="WVelocityTurbulent", group="BOUNDARY")
