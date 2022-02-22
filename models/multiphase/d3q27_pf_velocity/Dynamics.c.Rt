@@ -436,6 +436,31 @@ CudaDeviceFunction void Init() {
 	PhaseF = PhaseField;
 	specialCases_Init();
 	if ( IamWall || IamSolid ) PhaseF = -999;
+
+	if (developedFlow > 0.1) {
+		U = 6.0 * Uavg * Y*(HEIGHT - Y)/(HEIGHT*HEIGHT);
+        	V = 0.0;
+        	W = 0.0;
+	} else if ( developedPipeFlow_X > 0.1 ){
+		U = 2.0 * Uavg * (1 - pow( (sqrt(pow((Y-pipeCentre_Y),2) + pow((Z-pipeCentre_Z),2)) / pipeRadius),2));
+		V = 0.0;
+		W = 0.0;
+	} else if (shearFlow > 0.1) {
+		U = Y*VelocityX / HEIGHT;
+		V = 0;
+		W = 0;
+	} else {
+		U = VelocityX;	V = VelocityY;	W = VelocityZ;
+	}
+
+}
+
+CudaDeviceFunction void InitFromFieldsStage(){
+	PhaseF = Init_PhaseField_External;
+	U = Init_UX_External;
+	V = Init_UY_External;
+	W = Init_UZ_External;
+	if ( IamWall || IamSolid ) PhaseF = -999;
 }
 
 CudaDeviceFunction void specialCases_Init(){
@@ -603,22 +628,9 @@ CudaDeviceFunction void Init_distributions(){
 		nz = gradPhi.z/magnPhi;
 	}
 
-	// Define Equilibrium, then initialise all da things
-	if (developedFlow > 0.1) {
-		U = 6.0 * Uavg * Y*(HEIGHT - Y)/(HEIGHT*HEIGHT);
-        V = 0.0;
-        W = 0.0;
-	} else if ( developedPipeFlow_X > 0.1 ){
-		U = 2.0 * Uavg * (1 - pow( (sqrt(pow((Y-pipeCentre_Y),2) + pow((Z-pipeCentre_Z),2)) / pipeRadius),2));
-		V = 0.0;
-		W = 0.0;
-	} else if (shearFlow > 0.1) {
-		U = Y*VelocityX / HEIGHT;
-		V = 0;
-		W = 0;
-	} else {
-		U = VelocityX;	V = VelocityY;	W = VelocityZ;
-	}
+	U = U(0,0,0);
+	V = V(0,0,0);
+	W = W(0,0,0);
 
 	real_t mag = U*U + V*V + W*W;
 	real_t Gamma[27];

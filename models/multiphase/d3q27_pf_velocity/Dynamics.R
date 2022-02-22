@@ -12,6 +12,11 @@ if (Options$ML){
 	}
 }
 
+AddDensity(name="Init_UX_External", group="init", comment="free stream velocity", parameter=TRUE)
+AddDensity(name="Init_UY_External", group="init", comment="free stream velocity", parameter=TRUE)
+AddDensity(name="Init_UZ_External", group="init", comment="free stream velocity", parameter=TRUE)
+AddDensity(name="Init_PhaseField_External", group="init", dx=0,dy=0,dz=0, parameter=TRUE)
+
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
@@ -21,8 +26,8 @@ AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
-save_initial_PF = c("PF")
-save_initial    = c("g","h","Vel","PF")
+save_initial_PF = c("PF","Vel")
+save_initial    = c("g","h","PF")
 save_iteration  = c("g","h","Vel","nw")
 load_iteration  = c("g","h","Vel","nw")
 load_phase      = c("g","h","Vel","nw")
@@ -60,6 +65,8 @@ if (Options$altContactAngle){
     AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
 }
 
+AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
+
 ###############################
 ########THERMOCAPILLARY########
 ###############################
@@ -88,9 +95,11 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 	} else if (Options$altContactAngle) {
         AddAction("Iteration", c("BaseIter", "calcPhase",  "calcPhaseGrad_init", "calcWall_CA"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
+	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
+		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall","BaseInit"))
 	}
 #######################
 ########OUTPUTS########
