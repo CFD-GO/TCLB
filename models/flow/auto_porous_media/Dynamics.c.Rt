@@ -1,0 +1,212 @@
+<?R
+	#setwd('/home/mdzik/_TCLB/TCLB')
+	#source('CLB/auto_porous_media_d3q19_TRT_GinzburgEqOrd1/Dynamics.c.code.R')
+
+	source("conf.R")
+	c_header();
+
+	f = PV(DensityAll$name[DensityAll$group=="f"])
+	rho0 =  PV("rho0")
+	p =  PV("p")
+	V = PV("V",c("x","y","z"))
+	Force = PV("Force",c("X","Y","Z"))
+	J = rho0 * V
+
+# Extracting velocity set
+	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+
+# C = function (x, y, ..., eq = " = ", sep) 
+# {
+#     x = ToC(x, ...)
+#     if (missing(y)) {
+#         if (missing(sep)) 
+#             sep = ""
+#         cat(x, sep = sep)
+#     }
+#     else {
+#         if (missing(sep)) 
+#             sep = ";\n"
+#         y = ToC(y, ...)
+#         sel = y != x
+#         if (any(sel)) cat(paste0(x[sel], eq, y[sel], sep), sep = "")
+#     }
+# }
+
+
+# Calculating equlibrium density set
+	source("lib/feq.R")
+	source("lib/boundary.R")
+	source("lib/FMT.R")
+
+	EQ_NO = MRT_eq(U, p, J, ortogonal=FALSE, order=2);
+
+
+	M = EQ_NO$mat
+	if (Options$TRT) {
+
+	} else if (Options$BGK) {
+		M = diag(nrow(M))
+	} else if (Options$WMRT) {
+		A = get.M.matrix(EQ_NO$Req)
+		R = diag(nrow = ncol(A))
+		R[1:nrow(A),] = qr.R(qr(A))
+		R = R / diag(R)
+		M = EQ_NO$mat %*% solve(R)
+	} else {
+
+	}
+
+	
+	EQ = MRT_eq(U, p, rho0*V, ortogonal=FALSE, mat=M);
+	ZERO = PV(c('0'))
+	EQ_FORCE = MRT_eq(U, ZERO, rho0*Force, ortogonal=FALSE, mat=M);
+
+
+	
+
+?>
+
+<?RT models/reaction/d2q9_reaction_diffusion_system/Dynamics.c.Rt ?>
+
+
+#define rho0 1
+
+
+CudaDeviceFunction real_t getP() {
+	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+}
+
+CudaDeviceFunction vector_t getU() {
+        vector_t u;
+		<?R C(PV(c("u.x","u.y", "u.z")), f %*% U ) ?>
+		const real_t k = (rho0 + 0.5 * Viscosity / Permability);
+		u.x = (u.x + fx/2.)/k;
+        u.y = (u.y + fy/2.)/k;
+        u.z = (u.z + fz/2.)/k;
+        return u;
+}
+
+
+
+CudaDeviceFunction real_t getPermability(){
+	return Permability;
+}
+
+CudaDeviceFunction real_t getPorosity(){
+	return 0;
+}
+
+CudaDeviceFunction vector_t getBrinkmanForce(){
+	vector_t force  = getU();
+	<?R C(PV(c("force.x","force.y", "force.z")), 0-PV(c("force.x","force.y", "force.z")) * PV('Viscosity') *  PV('Permability')^-1  )?>
+	return force;
+}
+
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y + u.z*u.z);
+		ret.y = 0;
+        return ret;
+}
+
+CudaDeviceFunction void BounceBack()
+{
+<?R FullBounceBack() ?>
+}
+
+
+CudaDeviceFunction void RunBoundaries() {
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Wall:
+		BounceBack();
+        break;
+    }
+}
+
+CudaDeviceFunction void Run() {
+    RunBoundaries();
+    switch (NodeType & NODE_COLLISION) {
+	case NODE_COLLISION:
+		Collision_MTW_RT();
+		break;
+    }
+}
+
+CudaDeviceFunction void SetEquilibrum(real_t p, real_t Vx, real_t Vy, real_t Vz)
+{
+
+	<?R
+		C(f, EQ$Req %*% solve(EQ$mat));
+	?>
+}
+
+CudaDeviceFunction void Init() {
+	    SetEquilibrum(1.0,0,0,0);
+}
+
+
+
+
+CudaDeviceFunction void Collision_MTW_RT()
+{	
+	
+<?R
+	
+
+  Omega = PV(rep("omega",nrow(U)))
+  LambdaForce = PV(rep("LambdaPlus",nrow(U)))
+
+  if (Options$TRT) {
+	Omega[EQ$order %% 2 == 1] = PV("omega2")
+	LambdaForce[EQ$order %% 2 == 1] = PV("LambdaMinus")
+
+  } else if (Options$BGK) {
+  
+  } else if (Options$WMRT) {
+
+  } else {
+  	Omega[EQ$order > 2] = PV(1)
+  }
+
+  if (any(EQ$order < 2)) Omega[EQ$order < 2] = PV(1)
+  
+
+  meq = EQ$Req + LambdaForce*(EQ_FORCE$feq %*% EQ$mat)
+  
+
+  m = PV("m",1:ncol(EQ$mat)-1)
+  cat("real_t",paste(ToC(m),collapse=","),";\n")
+  C(m, f %*% EQ$mat)
+	#real_t omega = 1/(3*Viscosity+0.5); #symmetric relaxation
+	#real_t omega2 = (2.0 - omega)/(1 + 2*(Magic-0.25)*omega); #non-symmetric relaxation
+
+	# Stokes‐Brinkman Flow Simulation Based on 3‐D μ‐CT Images of Porous Rock Using Grayscale Pore Voxel Permeability
+	# 10.1029/2018WR024179
+	# after (Ginzburg et al., 2015)
+?>
+	const real_t Lambda = Magic;
+	const real_t B = 1. / Permability;
+	const real_t LambdaPlus = 9 * (4 + B) / ( 4 *( 3+2*B*Lambda ) ) * Viscosity;
+	const real_t LambdaMinus = Lambda / 3. /  Viscosity;
+
+	const real_t omega = 1/(  LambdaPlus + 0.5 ); //symmetric relaxation
+	const real_t omega2 = 1/(  LambdaMinus + 0.5 ); //non-symmetric relaxation
+
+
+	real_t p, Vx, Vy, Vz;
+	const real_t k = 1./(rho0 + 0.5 * Viscosity / Permability);
+		
+<?R
+  C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
+  C(PV(c("Vx","Vy","Vz")), (PV(c("Vx","Vy","Vz")) + PV(c("ForceX","ForceY","ForceZ"))*0.5) * PV(c('k')))
+
+  C(m, m - meq)
+  C(m, m*(1-Omega))
+  C(m, m + meq)
+  C(f, m %*% solve(EQ$mat))
+
+
+?>
+
+}

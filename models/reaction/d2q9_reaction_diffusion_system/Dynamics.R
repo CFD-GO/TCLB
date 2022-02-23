@@ -1,37 +1,46 @@
-if (Options$AllenCahn) {
- 	Qname = 'Allen-Cahn'
-	DREs <- ('PHI')
- 	NumberOfODEs = 0
-# 	NumberOfAdditionalParams = 1
-	Params  <- c("Lambda")
 
-} else if (Options$SIR_SimpleLaplace) {
-    Qname = 'SIR_SimpleLaplace'
-	#NumberOfDREs = 3
-	DREs  <- c("S", "I", "R")
-	NumberOfODEs = 0
-	Params  <- c("Beta", "Gamma")
+if (!exists('IncludedADREModel')) {
+	IncludedADREModel = FALSE
+	D3 = FALSE
+	if (Options$AllenCahn) {
+		Qname = 'Allen-Cahn'
+		DREs <- ('PHI')
+		NumberOfODEs = 0
+	# 	NumberOfAdditionalParams = 1
+		Params  <- c("Lambda")
 
-} else if (Options$SIR_ModifiedPeng) {
-   	Qname = 'SIR_ModifiedPeng'
-	# NumberOfDREs = 1
-	# NumberOfODEs = 3+1
-	# NumberOfAdditionalParams = 4
+	} else if (Options$SIR_SimpleLaplace) {
+		Qname = 'SIR_SimpleLaplace'
+		#NumberOfDREs = 3
+		DREs  <- c("S", "I", "R")
+		NumberOfODEs = 0
+		Params  <- c("Beta", "Gamma")
 
-	DREs  <- c("W")
-	ODEs  <- c("S", "I", "R", "N")
-	Params  <- c("Beta", "Beta_w", "Gamma")
+	} else if (Options$SIR_ModifiedPeng) {
+		Qname = 'SIR_ModifiedPeng'
+		# NumberOfDREs = 1
+		# NumberOfODEs = 3+1
+		# NumberOfAdditionalParams = 4
 
+		DREs  <- c("W")
+		ODEs  <- c("S", "I", "R", "N")
+		Params  <- c("Beta", "Beta_w", "Gamma")
 
-} else if (Options$SimpleDiffusion) {
-   	Qname = 'SimpleDiffusion'
-	DREs <- ('PHI')
+		Extra_Dynamics_C_Header = "
+		#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
+		#include <Eigen/Dense>
+		"
 
-	NumberOfAdditionalParams = 0	
- 	NumberOfODEs = 0
+	} else if (Options$SimpleDiffusion) {
+		Qname = 'SimpleDiffusion'
+		DREs <- ('PHI')
+
+		NumberOfAdditionalParams = 0	
+		NumberOfODEs = 0
+
+	} 
 
 }
-
 ##END MANUAL CONFIG
 
 
@@ -81,20 +90,38 @@ if (NumberOfODEs > 0){
 }
 
 # declaration of lattice (velocity) directions
-x = c(0,1,-1);
-P = expand.grid(x=0:2,y=0:2, z=0)
-U = expand.grid(x,x,0)
+
+if (D3) {
+	x = c(0,1,-1);
+	P_ADRE = expand.grid(x=0:2,y=0:2, z=0:2)
+	U_ADRE = expand.grid(x,x,x)
+
+	f_sel = rep(TRUE,nrow(U_ADRE))
+
+	if (D3Q19) {
+		f_sel = rowSums(abs(U_ADRE)) < 3
+	}
+
+	P_ADRE=P_ADRE[f_sel,]
+	U_ADRE=U_ADRE[f_sel,]
+
+} else {
+	x = c(0,1,-1);
+	P_ADRE = expand.grid(x=0:2,y=0:2, z=0)
+	U_ADRE = expand.grid(x,x,0)
+}
 
 dre_loop(function(i){
 # declaration of densities
 	gname = paste("dre",i,sep="_")
 	bname = paste(gname, 'f',sep="_")
-	fname = paste(bname,P$x,P$y,P$z,sep="")
+	fname = paste(bname,P_ADRE$x,P_ADRE$y,P_ADRE$z,sep="")
 
 	AddDensity(
 		name = fname,
-		dx   = U[,1],
-		dy   = U[,2],
+		dx   = U_ADRE[,1],
+		dy   = U_ADRE[,2],
+		dz   = U_ADRE[,3],
 		comment=paste("LB density fields ",gname),
 		group=gname
 	)
@@ -130,18 +157,19 @@ ode_loop(function(i) {
 	AddSetting(name=bname, zonal=TRUE)	
 })
 
-AddStage(name="InitFromExternal", load.densities=TRUE, save.fields=TRUE)
-AddAction(name="InitFromExternalAction", "InitFromExternal")
 
+if (!IncludedADREModel) {
+	AddStage(name="InitFromExternal", load.densities=TRUE, save.fields=TRUE)
+	AddAction(name="InitFromExternalAction", "InitFromExternal")
 
-#	Boundary things:
-AddNodeType(name="Wall",	    group="BOUNDARY")
-
-AddNodeType(name="SRT_DF",	    group="COLLISION")
-AddNodeType(name="TRT_M",	    group="COLLISION")
-
+	AddNodeType(name="Wall",	    group="BOUNDARY")
+	AddNodeType(name="SRT_DF",	    group="COLLISION")
+	if (!D3) {
+		AddNodeType(name="TRT_M",	    group="COLLISION")
+	}
+}
 # Inputs: Flow Properties
-AddSetting(name="magic_parameter",      default=1./6., comment='to control relaxation frequency of even moments in TRT collision kernel')
+AddSetting(name="adre_magic_parameter",      default=1./6., comment='to control relaxation frequency of even moments in TRT collision kernel')
 
 dre_loop(function(i) {
 	bname = paste('Init', DREs[i], sep="_")
@@ -160,10 +188,7 @@ if (NumberOfAdditionalParams > 0) {
 	}
 }
 
-Extra_Dynamics_C_Header = "
-#define EIGEN_DEFAULT_DENSE_INDEX_TYPE int
-#include <Eigen/Dense>
-"
+
 
 # see chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
 # by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen

@@ -262,7 +262,7 @@ CudaDeviceFunction void relax_and_collide_TRT_M(real_t diffusivity, real_t Q)
 	// by I. Ginzburg, D. d’Humières, A. Kuzmin, 2010
 
 	real_t omega_ade = 1.0/(3*diffusivity+0.5);
-	real_t omega_even = 2.*(2.-omega_ade)/(omega_ade*(4.*magic_parameter-1.)+2.);
+	real_t omega_even = 2.*(2.-omega_ade)/(omega_ade*(4.*adre_magic_parameter-1.)+2.);
 	// real_t omega_even = 1.;
 
 	// **to match notations **
