@@ -1,6 +1,6 @@
-name: Testing the test
+name: Building and testing TCLB
 
-on: [ push ]
+on: [ push, workflow_dispatch ]
 
 jobs:
   test:
@@ -9,8 +9,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        model: [d2q9, d3q27_pf_velocity, d3q27_pf_velocity_altContactAngle, d3q27_pf_velocity_q27]
-        test: ['flow/2d/karman.xml']
+        model: [d2q9, d3q27_pf_velocity, d3q27_pf_velocity_altContactAngle, d3q27_pf_velocity_q27, d3q27_pf_velocity_q27_altContactAngle]
+        case: ['example/flow/2d/karman.xml']
     steps:
     - name: Building ${{ matrix.model }}
       uses: CFD-GO/action_TCLB_test@master
@@ -19,6 +19,11 @@ jobs:
         ref: ${{ github.ref }}
         install: true
         model: ${{ matrix.model }}
-    - name: Running ${{ matrix.model}} on ${{ matrix.test }}
+    - name: Looking around and debugging
       run: |
-        CLB/${{ matrix.model }} ${{ test.model }}
+        ls -lshtr
+    - name: Running ${{ matrix.model}} on ${{ matrix.test }}
+      if: ${{ matrix.model }} == 'd2q9'
+      run: |
+        cd TCLB
+        CLB/${{ matrix.model }}/main ${{ matrix.case }}
