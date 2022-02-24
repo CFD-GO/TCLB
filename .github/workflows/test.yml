@@ -6,11 +6,19 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
+        model: [d2q9, d3q27_pf_velocity, d3q27_pf_velocity_altContactAngle, d3q27_pf_velocity_q27]
+        test: ['flow/2d/karman.xml']
     steps:
-    - uses: CFD-GO/action_TCLB_test@master
+    - name: Building ${{ matrix.model }}
+      uses: CFD-GO/action_TCLB_test@master
       with:
         repository: ${{ github.repository }}
         ref: ${{ github.ref }}
         install: true
+        model: ${{ matrix.model }}
+    - name: Running ${{ matrix.model}} on ${{ matrix.test }}
+      run: |
+        CLB/${{ matrix.model }} ${{ test.model }}
