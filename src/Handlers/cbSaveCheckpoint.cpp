@@ -63,13 +63,13 @@ int cbSaveCheckpoint::DoIt () {
 				// myqueue should only ever reach the size of keep
 				fileStr = myqueue.front();
 				int rm_result = remove( fileStr.c_str() ); //Takes char
-				if (rm_result != 0) error("Checkpoint file was not deleted: %s",fileStr);
+				if (rm_result != 0) error("Checkpoint file was not deleted: %s",fileStr.c_str());
 				myqueue.pop();
 
 				if (D_MPI_RANK == 0 ) {
 					restStr = myqueue_rst.front();
 					rm_result = remove( restStr.c_str() );
-					if (rm_result != 0) error("Restart file was not deleted: %s",restStr);
+					if (rm_result != 0) error("Restart file was not deleted: %s",restStr.c_str());
 					myqueue_rst.pop();
 				}
 			}
