@@ -1,0 +1,243 @@
+
+
+<?R 
+	if (Qname == 'Allen-Cahn') {
+?>
+
+
+	CudaDeviceFunction void DoADRE_CalcPhi() 
+	{	
+		real_t tilde_phi = <?%s  C(sum(fs[[1]])) ?>;
+
+		const real_t dt = 1.;
+		const real_t  x0 = cbrt(3.) ; 
+		const real_t  x1 = 1/(dt*Lambda) ; 
+		const real_t  x2 = dt*Lambda - 2 ; 
+		const real_t  x3 = cbrt(-9*tilde_phi*x1 + sqrt(3.)*sqrt((27*pow(tilde_phi, 2) - x1*pow(x2, 3))/(pow(dt, 2)*pow(Lambda, 2)))) ; 
+		phi[0] = -1.0/3.0*x0*(x0*x1*x2 + pow(x3, 2))/x3 ;  
+	}
+	CudaDeviceFunction void DoADRE_CalcQ() 
+	{	
+		q[0] = Lambda*phi[0]*(1 - pow(phi[0], 2)) ;
+	}
+<?R		
+	}
+?>
+
+
+
+<?R 
+	if (Qname == 'SIR_SimpleLaplace') {
+?>
+
+
+	CudaDeviceFunction void DoADRE_CalcPhi() 
+	{	
+		const real_t x0 = <?%s  C(sum(fs[[1]])) ?>;
+		const real_t x1 = <?%s  C(sum(fs[[2]])) ?>;
+		const real_t x2 = <?%s  C(sum(fs[[3]])) ?>;
+
+		// x0 = S^\star
+		// x1 = I^\star
+		// x2 = R^\star
+		const real_t  x3 = Beta;
+		const real_t  x4 = Gamma;
+		const real_t  x5 = 1;
+		// Opers0 =  410
+		const real_t  x6 = x4*x5 ; // 1
+		const real_t  x7 = x3*x5 ; // 1
+		const real_t  x8 = x0*x7 ; // 1
+		const real_t  x9 = x1*x7 ; // 1
+		const real_t  x10 = pow(x4, 2) ; // 1
+		const real_t  x11 = pow(x5, 2) ; // 1
+		const real_t  x12 = 2*x4 ; // 1
+		const real_t  x13 = x11*x12*x3 ; // 2
+		const real_t  x14 = x11*pow(x3, 2) ; // 2
+		const real_t  x15 = sqrt(pow(x0, 2)*x14 + 2*x0*x1*x14 - x0*x13 + pow(x1, 2)*x14 + x1*x13 + x10*x11 + 4*x6 - 4*x8 + 4*x9 + 4) ; // 24
+		const real_t  x16 = x6 + 2 ; // 1
+		const real_t  x17 = x15 + x16 ; // 1
+		const real_t  x18 = x8 + x9 ; // 1
+		const real_t  x19 = 1.0/x3 ; // 1
+		const real_t  x20 = x19/x5 ; // 1
+		const real_t  x21 = (1.0/2.0)*x20 ; // 1
+		const real_t  x22 = 1.0/x16 ; // 1
+		const real_t  x23 = x20*x22 ; // 1
+		const real_t  x24 = x15*x4 ; // 1
+		const real_t  x25 = x2*x3 ; // 1
+		const real_t  x26 = x3*x6 ; // 1
+		const real_t  x27 = x0*x26 + x1*x26 - x10*x5 - x12 + 2*x25*x6 + 4*x25 ; // 11
+		const real_t  x28 = (1.0/2.0)*x19*x22 ; // 2
+		const real_t Sp = x21*(x17 + x18) ; // 2
+		const real_t Ip = x23*(-x17 + x8 + x9) ; // 3
+		const real_t Rp = x28*(-x24 + x27) ; // 2
+		const real_t Sm = x21*(-x15 + x16 + x18) ; // 3
+		const real_t Im = x23*(x15 + x18 - x6 - 2) ; // 4
+		const real_t Rm = x28*(x24 + x27) ; // 2
+		// Opers =  104
+
+
+		const real_t eps = -1E-12;
+		if ( Sp >=eps && Ip >=eps && Rp >=eps ) {
+			phi[0] = Sp < 0 ? 0 : Sp;
+			phi[1] = Ip < 0 ? 0 : Ip;
+			phi[2] = Rp < 0 ? 0 : Rp;
+		} else if ( Sm >=eps&& Im >=eps && Rm >=eps ) {
+			phi[0] = Sm < 0 ? 0 : Sm;
+			phi[1] = Im < 0 ? 0 : Im;
+			phi[2] = Rm < 0 ? 0 : Rm;
+		} else {
+			printf("x3 x4 %f %f \n", x3, x4);
+			printf("s %e %e %e \n", x0, x1, x2);
+			printf("p %e %e %e \n", Sp, Ip, Rp);
+			printf("m %e %e %e \n", Sm, Im, Rm);
+			assert(0);
+		}
+
+
+	}
+	CudaDeviceFunction void DoADRE_CalcQ() 
+	{	
+		const real_t  s = phi[0] ; 
+		const real_t  i = phi[1] ; 
+		const real_t  r = phi[2] ; 
+		q[0] = -Beta*s*i ; 
+		q[1] =  Beta*s*i - Gamma*i;
+		q[2] =  Gamma*i ; 
+
+		// printf("Phi %f %f %f \n", phi[0], phi[1], phi[2]);
+		// printf("Q %f %f %f \n", q[0], q[1], q[2]);
+		
+
+	}
+<?R		
+	}
+?>
+
+
+
+<?R 
+	if (Qname == 'SIR_ModifiedPeng') {
+?>
+
+	CudaDeviceFunction void DoADRE_CalcPhi() 
+	{	
+
+		const real_t x0 = <?%s  C(sum(fs[[1]])) ?>;
+		const real_t x1 = <?%s  C(odes[[1]]) ?>(0,0);
+		const real_t x2 = <?%s  C(odes[[2]]) ?>(0,0);
+		const real_t x3 = <?%s  C(odes[[3]]) ?>(0,0);
+		const real_t N = <?%s  C(odes[[4]]) ?>(0,0);
+
+		phi[4] = N;
+
+
+		Eigen::Matrix3d Jacobian;
+
+		Eigen::Vector3d Xn, dX, X0, F;
+		Xn(0) = x0/N;
+		Xn(1) = x1/N;
+		Xn(2) = x2/N;
+
+		X0 = Xn;
+
+		Jacobian(0,0) =  -1.0/2.0*Beta_w - 1 ;
+		Jacobian(1,0) =  0 ;
+		Jacobian(2,0) =  (1.0/2.0)*Beta_w ;
+		Jacobian(2,1) =  0 ;
+		Jacobian(2,2) =  -1.0/2.0*Gamma - 1 ;
+
+		for (int i=0; i < 20; i++) {
+
+			F(0) =  (1.0/2.0)*Beta_w*(-Xn(0) + Xn(2)) - Xn(0) + X0(0) ;
+			F(1) =  -1.0/2.0*Beta*Xn(0)*Xn(1) - Xn(1) + X0(1) ;
+			F(2) =  (1.0/2.0)*Beta*Xn(0)*Xn(1) - 1.0/2.0*Xn(2)*Gamma - Xn(2) + X0(2) ;
+			if (F.norm() < 1E-5) {
+				break;
+			}
+
+			Jacobian(0,1) =  -1.0/2.0*Beta*Xn(1) ;
+			Jacobian(0,2) =  (1.0/2.0)*Beta*Xn(1) ;
+			Jacobian(1,1) =  -1.0/2.0*Beta*Xn(0) - 1 ;
+			Jacobian(1,2) =  (1.0/2.0)*Beta*Xn(0) ;
+
+			dX = Jacobian.ldlt().solve(-F);
+
+			Xn = Xn + dX;
+
+		}
+		Xn =  N*Xn;
+		for(int k=0; k < 3; k++){
+			Xn(k) = fabs(Xn(k));
+		}
+		phi[0] = Xn(0);
+		phi[1] = Xn(1);
+		phi[2] = Xn(2);
+		phi[3] = Xn(2)*Gamma/2. + x3;
+		//printf("CalcPhi PhiTilde %lf %lf %lf %lf\n", x0, x1, x2, x3);					
+		//printf("CalcPhi Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
+
+		return;
+
+	}
+
+
+
+
+
+	CudaDeviceFunction void DoADRE_CalcQ() 
+	{	
+
+
+		const real_t W = phi[0];
+		const real_t S = phi[1];
+		const real_t I = phi[2];
+		const real_t R = phi[3];
+
+		const real_t N = phi[4];
+
+
+		q[0] =   Beta_w*(I-W);
+		q[1] =  -Beta*S*W / N;
+		q[2] =   (Beta*S*W/N - Gamma*I); 
+		q[3] =   Gamma*I;
+		q[4] = 0;		 //N
+		//printf("DoADRE_CalcQ Phi %lf %lf %lf %lf\n", phi[0], phi[1], phi[2], phi[3]);
+		//printf("DoADRE_CalcQ Q %lf %lf %lf %lf\n", q[0], q[1], q[2], q[3]);
+	}
+<?R		
+	}
+?>
+
+
+<?R 
+	if (Qname == 'SimpleDiffusion') {
+?>
+	CudaDeviceFunction void DoADRE_CalcPhi() 
+	{	
+		phi[0] = <?%s  C(sum(fs[[1]])) ?>;
+	}
+	CudaDeviceFunction void DoADRE_CalcQ() 
+	{	
+		q[0] = 0;
+	}
+<?R		
+	}
+?>
+
+
+<?R 
+	if (Qname == 'LinearReaction') {
+?>
+
+
+	CudaDeviceFunction void DoADRE_CalcPhi() 
+	{	
+		assert(0); // not implemented
+	}
+	CudaDeviceFunction void DoADRE_CalcQ() 
+	{	
+		q[0] = LinearReactionRate*phi[0]*(1 - pow(phi[0], 2)) ;
+	}
+<?R		
+	}
+?>

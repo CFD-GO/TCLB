@@ -66,11 +66,11 @@
 
 ?>
 
-<?RT models/reaction/d2q9_reaction_diffusion_system/Dynamics.c.Rt ?>
 
 
 #define rho0 1
 
+real_t AdvectX, AdvectY, AdvectZ;
 
 CudaDeviceFunction real_t getP() {
 	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
@@ -131,6 +131,8 @@ CudaDeviceFunction void Run() {
 		Collision_MTW_RT();
 		break;
     }
+
+	DoADRE_Run();
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t p, real_t Vx, real_t Vy, real_t Vz)
@@ -143,6 +145,13 @@ CudaDeviceFunction void SetEquilibrum(real_t p, real_t Vx, real_t Vy, real_t Vz)
 
 CudaDeviceFunction void Init() {
 	    SetEquilibrum(1.0,0,0,0);
+		DoADRE_Init();
+}
+
+
+CudaDeviceFunction void InitFromExternal() { 
+	SetEquilibrum(1.0,0,0,0);
+	DoADRE_InitFromExternal();
 }
 
 
@@ -200,7 +209,7 @@ CudaDeviceFunction void Collision_MTW_RT()
 <?R
   C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
   C(PV(c("Vx","Vy","Vz")), (PV(c("Vx","Vy","Vz")) + PV(c("ForceX","ForceY","ForceZ"))*0.5) * PV(c('k')))
-
+  C(PV(c("AdvectX", "AdvectY", "AdvectZ")),PV(c("Vx","Vy","Vz"))) #For reaction coupling
   C(m, m - meq)
   C(m, m*(1-Omega))
   C(m, m + meq)
@@ -210,3 +219,8 @@ CudaDeviceFunction void Collision_MTW_RT()
 ?>
 
 }
+
+
+
+// This should go at the end to avoid name conflicts in R
+<?RT models/reaction/d2q9_reaction_diffusion_system/Dynamics.c.Rt ?>
