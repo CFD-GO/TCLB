@@ -122,22 +122,28 @@ CudaDeviceFunction void DoADRE_Init() {
 		<?R		
 	})
 
-	?>
-
-	DoADRE_DispatchCalcQ();
-
-	<?R
+	if (QIntegrator == 'Trapezoid') { 
+		?> 
+		DoADRE_DispatchCalcQ();
+		<?R
+	}
 
 
 	dre_loop( function(i) {
-		?>
-		DoADRE_Init_eq(Init_<?%s DREs[i] ?> - 0.5*q[<?%s i-1 ?>]);
-		<?R
+		
+		if (QIntegrator == 'Trapezoid') { ?> DoADRE_Init_eq(Init_<?%s DREs[i] ?> - 0.5*adre_q[<?%s i-1 ?>]); <?R }
+		if (QIntegrator == 'Heun') { ?> DoADRE_Init_eq(Init_<?%s DREs[i] ?>); <?R }
+		if (QIntegrator == 'Euler') { ?> DoADRE_Init_eq(Init_<?%s DREs[i] ?>); <?R }
+		
 		C(fs[[i]], adre_f_tmp)
 	})
 
 	ode_loop( function(i) {	
-		C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) - 0.5*adre_qs[NumberOfDREs+i] );
+		
+		if (QIntegrator == 'Trapezoid') { C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) - 0.5*adre_qs[NumberOfDREs+i] ); }
+		if (QIntegrator == 'Heun') { C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) );}
+		if (QIntegrator == 'Euler') { C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) );}
+
 	})
 
 	?>
@@ -161,22 +167,28 @@ CudaDeviceFunction void DoADRE_InitFromExternal() {
 		<?R		
 	})
 
-	?>
 
-	DoADRE_DispatchCalcQ();
-
-	<?R
-
-
-	dre_loop( function(i) {
-		?>
-		Init_eq(Init_<?%s DREs[i] ?>_External(0,0) - 0.5*q[<?%s i-1 ?>]);
+	if (QIntegrator == 'Trapezoid') { 
+		?> 
+		DispatchCalcQ();
 		<?R
+
+	}
+	
+	
+	dre_loop( function(i) {
+		
+		if (QIntegrator == 'Trapezoid') { ?> DoADRE_Init_eq(Init_<?%s DREs[i] ?>_External(0,0) - 0.5*adre_q[<?%s i-1 ?>]); <?R }
+		if (QIntegrator == 'Heun' || QIntegrator == 'Euler') { ?> DoADRE_Init_eq(Init_<?%s DREs[i] ?>_External(0,0)); <?R }
+		
 		C(fs[[i]], adre_f_tmp)
 	})
 
-	ode_loop( function(i) {
-		C(odes[[i]], PV(paste('Init',ODEs[i],'External(0,0)',sep='_')) - 0.5*adre_qs[NumberOfDREs+i] );
+	ode_loop( function(i) {	
+		
+		if (QIntegrator == 'Trapezoid') { C(odes[[i]], PV(paste('Init', ODEs[i],'External(0,0)' , sep="_")) - 0.5*adre_qs[NumberOfDREs+i] ); }
+		if (QIntegrator == 'Heun' || QIntegrator == 'Euler') { C(odes[[i]], PV(paste('Init', ODEs[i],'External(0,0)' , sep="_")) );}
+
 	})
 
 	?>
@@ -416,7 +428,22 @@ CudaDeviceFunction void DoADRE_DispatchCalcPhi()
 		break;
 	}
 
-	CalcPhi();
+	<?R 
+	if (QIntegrator == 'Trapezoid') {
+	?> 
+		CalcPhi();
+	<?R
+
+	}
+	if (QIntegrator == 'Heun' || QIntegrator == 'Euler') {
+		dre_loop( function(i) {
+			C( PV( paste( 'phi[', i-1 ,']', sep='' ) ), sum(fs[[i]]))
+		})
+	}
+	
+	?>
+
+
 }
 CudaDeviceFunction void DoADRE_DispatchCalcQ() 
 {	
@@ -442,8 +469,55 @@ CudaDeviceFunction void DoADRE_DispatchCalcQ()
 		break;
 	}
 
-	DoADRE_CalcQ();
+	<?R
+
+	if (QIntegrator == 'Trapezoid' || QIntegrator == 'Euler') { 
+		?> 
+			DoADRE_CalcQ(phi,q); 
+		<?R
+	}
+
+
+	if (QIntegrator == 'Heun') { 
+		?> 
+			real_t q_tmp[<?%s NumberOfODEs + NumberOfDREs ?>];
+			real_t phi_euler[<?%s NumberOfODEs + NumberOfDREs ?>];
+			DoADRE_CalcQ(phi,q_tmp);
+		<?R
+
+		dre_loop( function(i) {
+			?>
+			phi_euler[<?%s i-1 ?>] = phi[<?%s i-1 ?>] + q_tmp[<?%s i-1 ?>];
+			<?R
+		})
+
+		ode_loop( function(i) {
+			?>
+			phi_euler[<?%s NumberOfDREs+i-1 ?>] = = phi[<?%s NumberOfDREs+i-1 ?>] + q_tmp[<?%s NumberOfDREs+i-1 ?>];
+			<?R		
+		})
+		?> 
+			DoADRE_CalcQ(phi_euler,q);
+		<?R
+
+		dre_loop( function(i) {
+			?>
+			q[<?%s i-1 ?>] = ( q[<?%s i-1 ?>] + q_tmp[<?%s i-1 ?>] ) / 2;
+			<?R
+		})
+
+		ode_loop( function(i) {
+			?>
+			q[<?%s NumberOfDREs+i-1 ?>] = ( q[<?%s NumberOfDREs+i-1 ?>] + q_tmp[<?%s NumberOfDREs+i-1 ?>] ) / 2;
+			<?R		
+		})
+
+	}
+
+	?>
+
 }
+
 
 
 <?RT models/reaction/d2q9_reaction_diffusion_system/ReactionTerms.c.Rt ?>

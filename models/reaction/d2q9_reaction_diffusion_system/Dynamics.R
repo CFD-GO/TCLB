@@ -42,7 +42,15 @@ if (!exists('IncludedADREModel')) {
 
 }
 ##END MANUAL CONFIG
-
+if (!IncludedADREModel){
+	if (Options$Heun) {
+		QIntegrator = 'Heun'
+	} else if (Options$Euler) {
+		QIntegrator = 'Euler'
+	} else {
+		QIntegrator = 'Trapezoid'
+	}
+	}
 
 if (exists('DREs'))  {
 	NumberOfDREs = length(DREs)
@@ -163,11 +171,12 @@ if (!IncludedADREModel) {
 	AddAction(name="InitFromExternalAction", "InitFromExternal")
 
 	AddNodeType(name="Wall",	    group="BOUNDARY")
-	AddNodeType(name="SRT_DF",	    group="COLLISION")
-	if (!D3) {
-		AddNodeType(name="TRT_M",	    group="COLLISION")
-	}
 }
+
+AddNodeType(name="SRT_DF",	    group="COLLISION")
+AddNodeType(name="TRT_M",	    group="COLLISION")
+
+
 # Inputs: Flow Properties
 AddSetting(name="adre_magic_parameter",      default=1./6., comment='to control relaxation frequency of even moments in TRT collision kernel')
 

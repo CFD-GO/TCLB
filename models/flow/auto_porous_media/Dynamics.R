@@ -9,6 +9,7 @@ NumberOfODEs = 0
 Params  <- c("LinearReactionRate")
 D3 = TRUE
 D3Q19 = TRUE
+QIntegrator = 'Heun'
 source("../models/reaction/d2q9_reaction_diffusion_system/Dynamics.R")
 
 
