@@ -10,7 +10,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         model: [d3q27_pf_velocity, d3q27_pf_velocity_altContactAngle, d3q27_pf_velocity_q27, d3q27_pf_velocity_q27_altContactAngle]
-        case: ['example/multiphase/RayleighTaylorInstability_3D.xml']
+        case: ['example/multiphase/d3q27_pf_velocity/RayleighTaylorInstability_3D.xml']
     steps:
     - name: Building ${{ matrix.model }}
       uses: CFD-GO/action_TCLB_test@master
