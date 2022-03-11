@@ -291,7 +291,7 @@ CudaDeviceFunction void DoADRE_relax_and_collide_SRT_DF(real_t diffusivity, cons
 		AdvVel = PV(c('AdvectX','AdvectY','AdvectZ'))
 
 		U = as.matrix(Density[Density$group=='dre_1',c("dx","dy", "dz")])
-		feq = MRT_feq(U, tilde_phi, AdvVel, ortogonal=FALSE)
+		feq = MRT_feq(U, tilde_phi, tilde_phi*AdvVel, ortogonal=FALSE)
 		qeq = MRT_feq(U, q, c(0,0,0), ortogonal=FALSE)
 
 		C(adre_f_tmp, adre_f_tmp - omega*(adre_f_tmp-feq) + qeq)

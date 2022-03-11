@@ -14,7 +14,6 @@ source("../models/reaction/d2q9_reaction_diffusion_system/Dynamics.R")
 
 
 
-
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)
@@ -56,6 +55,8 @@ AddQuantity(name="Permability",unit="1/m2")
 AddQuantity(name="BrinkmanForce",unit="N/m3",vector=TRUE)
 
 
+AddStage(name="InitFromExternal", load.densities=TRUE, save.fields=TRUE)
+AddAction(name="InitFromExternalAction", "InitFromExternal")
 
 AddSetting(name="Viscosity", default=0.16666666, comment='Viscosity')
 AddSetting(name="Magic", default=3/16, comment='Magic parameter')

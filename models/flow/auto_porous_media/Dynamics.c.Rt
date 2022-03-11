@@ -121,7 +121,11 @@ CudaDeviceFunction void RunBoundaries() {
 	case NODE_Wall:
 		BounceBack();
         break;
-    }
+    
+	case NODE_WPressure:
+		DoADRE_Init(); // TODO
+        break;
+    }	
 }
 
 CudaDeviceFunction void Run() {
