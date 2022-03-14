@@ -14,13 +14,15 @@
 		- BGK or TRT collision (BGK is default, for TRT compile with _TRT)
 		- non-equilibirium-bounce-back (_NEBB) or superposition (_SUP) solid collision operators
 
-	Maintainer: Nathan Di Vaira di_vaira@hotmail.com
+	Maintainers: Nathan Di Vaira di_vaira@hotmail.com / Lukasz Laniewski-Wollk l.laniewskiwollk@uq.edu.au
 		
 Code updates:
 	06.11.19 - Moving walls added
 	11.12.19 - PSM coverage and modified weighting functions corrected, now correct 2nd order convergence & improved viscosity dependence
 	10.01.20 - TotalFluidVelocity globals added
 	25.02.20 - Manual periodicity and FullParticleIterator removed to align with TCLB particle update
+    20.05.20 - LLW: Modified to moment-based implementation; consolidated to single collision function with TRT option; corrected CalcF
+    14.03.22 - omegaP removed as setting, replaced with Lambda (TRT magic parameter)
 	
 */
 
@@ -35,20 +37,14 @@ Code updates:
 	
 	uf = PV("uf")
 	d = PV("d")
-	usq = PV("usq")
-	omegaF = PV("omegaF")
-        omegaP = PV("omegaP")
 	uf1 = uf;
-        uf2 = uf;
-        uf3 = uf;
-#	omega = 1.0
+    uf2 = uf;
+    uf3 = uf;
 
 	fh = PV(DensityAll$name[1:27+27])
 
-
 	rho =  PV("rho")
 	J = PV("J",c("x","y","z"))
-	tmp = PV("tmp")
 
 # Calculating equlibrium density set
 
@@ -64,12 +60,7 @@ Code updates:
 	bounce = c(0,2,1,4,3,6,5,10,9,8,7,14,13,12,11,18,17,16,15,26,25,24,23,22,21,20,19)
 	right =  c(0, 4, 3, 1, 2, 2, 1, 9, 7, 10, 8, 12, 14, 11, 13, 17, 15, 18, 16,  9,  7, 10,  8,  8, 10,  7,  9)
 	front = c(0, 5, 5, 5, 5, 3, 3, 5, 5,  5, 5,  3,  3,  3,  3,  1,  1,  1,  1, 22, 21, 20, 19, 26, 25, 24, 23)
-
 ?>
-
-//real_t const d3q27_cx[27] = {0, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1, 1,-1, 1,-1, 0, 0, 0, 0, 1,-1, 1,-1, 1,-1, 1,-1};
-//real_t const d3q27_cy[27] = {0, 0, 0, 1,-1, 0, 0, 1, 1,-1,-1, 0, 0, 0, 0, 1,-1, 1,-1, 1, 1,-1,-1, 1, 1,-1,-1};
-//real_t const d3q27_cz[27] = {0, 0, 0, 0, 0, 1,-1, 0, 0, 0, 0, 1, 1,-1,-1, 1, 1,-1,-1, 1, 1, 1, 1,-1,-1,-1,-1};
 
 CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?> ;
@@ -191,25 +182,19 @@ CudaDeviceFunction void Run() {
 
 }
 
-CudaDeviceFunction void BounceBack()
-{
-     real_t uf, uT;
-     #define dump 1
+CudaDeviceFunction void BounceBack() {
+    real_t uf, uT;
+    #define dump 1
 <?R
-  uT = PV("uT")
-  V = cbind(1:27, bounce+1)
-  sel = V[,1] > V[,2]
-  V = V[sel,]
-  for (i in 1:nrow(V))
-  {
-	   C( uf , f[V[i,1]])
-      C( f[V[i,1]] , f[V[i,2]])
-      C( f[V[i,2]] , uf)
-      #C( uT , h[V[i,1]])
-      #C( h[V[i,1]] , h[V[i,2]])
-      #C( h[V[i,2]] , uT)
-   
-   }
+    uT = PV("uT")
+    V = cbind(1:27, bounce+1)
+    sel = V[,1] > V[,2]
+    V = V[sel,]
+    for (i in 1:nrow(V)) {
+	    C( uf , f[V[i,1]])
+        C( f[V[i,1]] , f[V[i,2]])
+        C( f[V[i,2]] , uf)
+    }
 ?>
 
 }
@@ -219,7 +204,6 @@ CudaDeviceFunction void BounceBack()
 
 <?R
 u_prescribed = PV(c("VelocityX","VelocityY","VelocityZ"))
-
 
 NonEquilibriumExtrapolation = function(adjx,adjy,adjz) {
 ?>
@@ -432,17 +416,17 @@ CudaDeviceFunction void MovingSWall(){
 
 CudaDeviceFunction void CalcEquilibrium(real_t f_tab[27], real_t d, real_t u[3])
 {
-	<?R
-		EQ = MRT_eq(U, d, d*u, ortogonal=FALSE);
-		f_tmp = PV("f_tab[",1:27-1,"]")
-		C(f_tmp, EQ$Req %*% solve(EQ$mat));
-	?>
+<?R
+    EQ = MRT_eq(U, d, d*u, ortogonal=FALSE);
+	f_tmp = PV("f_tab[",1:27-1,"]")
+	C(f_tmp, EQ$Req %*% solve(EQ$mat));
+?>
 }
 
 <?R if (Options$particles) { ?>
 
 CudaDeviceFunction void CalcF() {
-	    real_t u[3], d;
+    real_t u[3], d;
 <?R
 	d = PV("d")
 	u = PV("u[",1:3-1,"]")
@@ -458,41 +442,38 @@ CudaDeviceFunction void CalcF() {
 ?>
 	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
-		    real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
+        real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                     
-		    if ((dist - p.rad)<SQRT_3) {
+        if ((dist - p.rad)<SQRT_3) {
 
-                    real_t localCoverage = 0.0;
+            real_t localCoverage = 0.0;
 
-                    if ((dist - p.rad) < -1.0){
-                        localCoverage = 1.0;
-                    } else{
-                        localCoverage = (p.rad -  0.084/p.rad + 0.5 - dist);
-                    }
+            if ((dist - p.rad) < -1.0){
+                localCoverage = 1.0;
+            } else{
+                localCoverage = (p.rad -  0.084/p.rad + 0.5 - dist);
+            }
 
-                    if (localCoverage > 1.0){ localCoverage =  1.0;}
-                    if (localCoverage < 0.0){ localCoverage =  0.0;}
+            if (localCoverage > 1.0){ localCoverage =  1.0;}
+            if (localCoverage < 0.0){ localCoverage =  0.0;}
 
-			real_t tau = 1.0/omegaF - 0.5;
-		    localCoverage = localCoverage*tau / ((1 - localCoverage) + tau);
-		    //localCoverage = localCoverage*(tau + 2*tau*tau + 3*tau*tau*tau + 4*tau*tau*tau*tau) / ((1 - localCoverage) + (tau + 2*tau*tau + 3*tau*tau*tau + 4*tau*tau*tau*tau));
+            localCoverage = localCoverage*(1.0/omegaF - 0.5) / ((1 - localCoverage) + 1.0/omegaF - 0.5);
 
-
-                    vector_t force;
+            vector_t force;
 <?R
-		uparticle = PV("p.cvel.",c("x","y","z"))
-		force = PV("force.",c("x","y","z"))
-		localCoverage = PV("localCoverage")
-		C( force, d*localCoverage*(u - uparticle) )
+            uparticle = PV("p.cvel.",c("x","y","z"))
+            force = PV("force.",c("x","y","z"))
+            localCoverage = PV("localCoverage")
+            C( force, d*localCoverage*(u - uparticle) )
 ?>
-                p.applyForce(force);
+            p.applyForce(force);
 <?R
-		C( sol, sol + localCoverage )
-		C( uP, uP + localCoverage*uparticle )
+            C( sol, sol + localCoverage )
+            C( uP, uP + localCoverage*uparticle )
 ?>
-                 }
-             
         }
+             
+    }
 
 	if (sol > 1.0) { sol =  1.0; }
 	if (sol > 1.0e-8) {
@@ -510,12 +491,11 @@ CudaDeviceFunction void Collision_PSM() {
 	real_t u[3], d, R[27];
 <?R
 	d = PV("d")
-      u = PV("u[",1:3-1,"]")
-      uP = PV("uP",c("x","y","z"))
-      a = PV("Accel", c("X", "Y", "Z"))
+    u = PV("u[",1:3-1,"]")
+    uP = PV("uP",c("x","y","z"))
+    a = PV("Accel", c("X", "Y", "Z"))
 	R = PV("R[",1:27-1,"]")
 
-#	M = WMRT_mat(U)
 	M = MRT_polyMatrix(U)$mat
 
 	RL = R
@@ -523,17 +503,13 @@ CudaDeviceFunction void Collision_PSM() {
 	R[2:4] = (u-a*0.5)*d
 	EQ   = MRT_eq(U, d, u*d, ortogonal=FALSE, mat=M);
 	EQ_P = MRT_eq(U, d, uP*d, ortogonal=FALSE, mat=M)
-
 	
-      F = ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d
-      feq = EQ$Req %*% solve(EQ$mat)
-      feqP = EQ_P$Req %*% solve(EQ_P$mat)
+    F = ((a %*% t(U)) + (1/c_squ)*(a %*% t(U))*(u %*% t(U)) - (u %*% a)) * diag(tn)*(1/c_squ)*d
+    feq = EQ$Req %*% solve(EQ$mat)
+    feqP = EQ_P$Req %*% solve(EQ_P$mat)
 
 	B = solve(EQ$mat, EQ$mat[bounce+1,]) # Bounce-back matrix
 
-      sol = PV("sol")
-
-	omegaF = PV(c("omegaF"))
 	omegaF1 = PV(c("omegaF1"))
 	omegaP1 = PV(c("omegaP1"))
 
@@ -543,6 +519,7 @@ CudaDeviceFunction void Collision_PSM() {
 <?R
 	if (Options$TRT) {
 ?>
+        real_t omegaP = 1.0/(Lambda/(1.0/omegaF-0.5)+0.5);
 		real_t omegaP1 = 1.0-omegaP;
 <?R
 		omegaF = 1.0 - omegaF1;
@@ -552,22 +529,17 @@ CudaDeviceFunction void Collision_PSM() {
 		omega = omegaF
 	}
 	
-		if (Options$NEBB) {
-                        RomegaS =  R %*% B - R + EQ_P$Req - EQ$Req %*% B #Non-eq bounceback operator
-		      sol = PV("sol")
-		} else if (Options$SUP){
-                        RomegaS =  EQ_P$Req - R + (1.0 - omegaF)*(R - EQ$Req) #Superposition operator
-		      sol = PV("sol")
-                } else {
-			RomegaS = 0
-			sol = 0
-		}
-
+    if (Options$NEBB) {
+        RomegaS =  R %*% B - R + EQ_P$Req - EQ$Req %*% B #Non-eq bounceback operator
+        sol = PV("sol")
+    } else if (Options$SUP){
+        RomegaS =  EQ_P$Req - R + (1.0 - omegaF)*(R - EQ$Req) #Superposition operator
+        sol = PV("sol")
+    } else {
+        RomegaS = 0
+        sol = 0
+    }
 	
-#	  W = MRT_polyMatrix(U)$mat
-#	flip = 27:1
-#	C( RL, f %*% W)
-#	C( RL[flip], (RL %*% solve(W) %*% EQ$mat)[flip])
 	C( RL, f %*% EQ$mat)
 	C( d, RL[1])
 	C( u, RL[2:4]*d^{-1} + a*0.5)
@@ -579,8 +551,6 @@ CudaDeviceFunction void Collision_PSM() {
     AddToTotalFluidVolume(1); 
 <?R
 	C( RL, R + (1.0-sol)*(omega*(EQ$Req - R) + (1.0 - omega*0.5)*(F %*% EQ$mat)) + sol*RomegaS)
-#	C( RL[flip], (RL %*% solve(EQ$mat) %*% W)[flip])
-#	C( f, RL %*% solve(W))
 	C( f, RL %*% solve(EQ$mat))
 	
 ?>

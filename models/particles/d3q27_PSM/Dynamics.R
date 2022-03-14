@@ -49,7 +49,7 @@ AddSetting(name="omegaF", comment='one over F relaxation time')
 AddSetting(name="nu", omegaF='1.0/(3*nu+0.5)', default=0.1, comment='kinetic viscosity in LBM unit')
 
 if (Options$TRT) {
-	AddSetting(name="omegaP", comment='relaxation parameter for odd components in TRT')
+    AddSetting( name="Lambda", comment="TRT Magic Number")
 }
 
 AddSetting(name="VelocityX", default="0.0", zonal=TRUE, comment='wall/inlet/outlet velocity x-direction')
@@ -58,9 +58,9 @@ AddSetting(name="VelocityZ", default="0.0", zonal=TRUE, comment='wall/inlet/outl
 
 AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE, unit="1Pa")
 
-AddSetting(name="AccelX", default=0.0, comment='body acceleration X', unit="m/s2")
-AddSetting(name="AccelY", default=0.0, comment='body acceleration Y', unit="m/s2")
-AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z', unit="m/s2")
+AddSetting(name="AccelX", default=0.0, comment='body acceleration X', zonal=TRUE, unit="m/s2")
+AddSetting(name="AccelY", default=0.0, comment='body acceleration Y', zonal=TRUE, unit="m/s2")
+AddSetting(name="AccelZ", default=0.0, comment='body acceleration Z', zonal=TRUE, unit="m/s2")
 
 AddNodeType("RegionMeasureX",group="ADDITIONALS")
 AddNodeType("RegionMeasureY",group="ADDITIONALS")
