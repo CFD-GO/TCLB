@@ -33,4 +33,4 @@ jobs:
         unzip reference_output/multiphase/d2q9_pf_velocity/RTI_LDR.zip -d reference_output
         output=$( bash tools/generical_numerical_compare.sh reference_output/ output/ | head -n -1 | tail -n +2 )
         echo "$output"
-        if [[ -z "$output" ]]; then exit 0; else exit 0; fi
+        if [[ -z "$output" ]]; then exit 0; else exit 1; fi
