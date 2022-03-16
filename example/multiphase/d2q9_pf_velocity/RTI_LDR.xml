@@ -1,0 +1,44 @@
+
+<?xml version="1.0"?>
+<!--Model:	d2q9_pf_velocity 
+    Created: 	17-01-2020 
+    By:		T.Mitchell -->
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="64.000000" ny="256.000000">
+		<MRT>
+			<Box/>
+		</MRT>
+		<SpikeTrack>
+			<Box dx="32.000000" nx="1" dy="10" fy="246.000000"/>
+		</SpikeTrack>
+		<BubbleTrack>
+			<Box nx="1" dy="10" fy="246.000000"/>
+		</BubbleTrack>
+
+		<Wall mask="ALL">
+			<Box dy="-1"/>
+		</Wall>
+		<Wall mask="ALL">
+			<Box ny="1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="MidPoint" value="128.000000"/>
+		<Param name="Perturbation" value="0.1"/>
+		<Param name="Period" value="64.000000"/>
+		<Param name="sigma" value="0.000008"/>
+		<Param name="M" value="0.000362"/>
+		<Param name="W" value="5.000000"/>
+		<Param name="GravitationY" value="-0.00000050"/>
+		<Param name="Viscosity_h" value="0.00012068"/>
+		<Param name="Viscosity_l" value="0.00012068"/>
+		<Param name="PhaseField_init" value="1.0"/>
+		<Param name="Density_l" value="1.000000"/>
+		<Param name="Density_h" value="3.000000"/>
+	</Model>
+	<VTK/>
+	<Solve Iterations="48000.000000" output="output/">
+		<VTK Iterations="8000.000000"/>
+		<Log Iterations="160.000000" />
+	</Solve>
+</CLBConfig>
