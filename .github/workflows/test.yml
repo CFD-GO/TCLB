@@ -19,11 +19,18 @@ jobs:
         ref: ${{ github.ref }}
         install: true
         model: ${{ matrix.model }}
-    - name: Looking around and debugging
+
+    - name: Comparing ${{ matrix.model }} output of ${{ matrix.test }} to the reference
       run: |
         ls -lshtr
+        cd TCLB
+        unzip reference_output/multiphase/d2q29_pf_velocity/RTI_LDR.zip -d reference_output
+        bash tools/generic_numerical_compare.sh reference_output/ output/
+
+
     - name: Running ${{ matrix.model}} on ${{ matrix.test }}
       if: ${{ matrix.model }} == 'd2q9_pf_velocity'
       run: |
         cd TCLB
         CLB/${{ matrix.model }}/main ${{ matrix.case }}
+
