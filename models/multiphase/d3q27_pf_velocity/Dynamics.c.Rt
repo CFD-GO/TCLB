@@ -165,12 +165,30 @@ CudaDeviceFunction real_t getIsItBoundary() {
 	return IsBoundary(0, 0, 0);
 }
 
-CudaDeviceFunction real_t getActualNormal() {
+CudaDeviceFunction vector_t getActualNormal() {
 	vector_t actualNormal;
 	actualNormal.x = nw_actual_x;
 	actualNormal.y = nw_actual_y;
 	actualNormal.z = nw_actual_z;
 	return actualNormal;
+}
+
+
+CudaDeviceFunction vector_t getTangentialDirection1(){
+	vector_t tangent;
+	tangent.x = d3q27_n1_ex[int(n_k)];
+	tangent.x = d3q27_n1_ey[int(n_k)];
+	tangent.x = d3q27_n1_ez[int(n_k)];
+	return tangent;
+}
+
+
+CudaDeviceFunction vector_t getTangentialDirection2(){
+	vector_t tangent;
+	tangent.x = d3q27_n2_ex[int(n_k)];
+	tangent.y = d3q27_n2_ey[int(n_k)];
+	tangent.z = d3q27_n2_ez[int(n_k)];
+	return tangent;
 }
 
 
@@ -550,6 +568,7 @@ CudaDeviceFunction void Init_wallNorm(){
 	PhaseF = PhaseF(0,0,0);
 #ifdef OPTIONS_altContactAngle
     IsBoundary = 0.0;
+	n_k = 0.0;
 #endif
 	if ( IamWall || IamSolid ) {
 #ifdef OPTIONS_altContactAngle
@@ -573,6 +592,7 @@ CudaDeviceFunction void Init_wallNorm(){
 			real_t maxn=0.0, dot;
 
 			// Calculate the normal direction:
+			// NOTE: We are simply getting solid flags below
 			<?R
 			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
 			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
@@ -605,8 +625,10 @@ CudaDeviceFunction void Init_wallNorm(){
 			if (maxi < 0) {
 				// This should not happen ?
 				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+				n_k = 0;
 			} else {
 				nw_x = d3q27_ex[maxi];nw_y = d3q27_ey[maxi];nw_z = d3q27_ez[maxi];
+				n_k = maxi;
 			}
 	  	}
 	} else {

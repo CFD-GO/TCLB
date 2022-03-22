@@ -22,9 +22,13 @@ AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
 
+# normal direction
 AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
+
+# index of tangential direction
+AddDensity(name="n_k", dx=0, dy=0, dz=0, group="nw")
 
 
 AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
@@ -119,6 +123,8 @@ if (Options$altContactAngle){
     AddQuantity(name="GradPhi", unit=1, vector=T)
     AddQuantity(name="IsItBoundary", unit="1")
     AddQuantity(name="ActualNormal", unit=1, vector=T)
+	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
+	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
 }
 ###################################
 ########INPUTS - PHASEFIELD########
