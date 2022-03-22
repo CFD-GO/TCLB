@@ -165,6 +165,15 @@ CudaDeviceFunction real_t getIsItBoundary() {
 	return IsBoundary(0, 0, 0);
 }
 
+CudaDeviceFunction real_t getActualNormal() {
+	vector_t actualNormal;
+	actualNormal.x = nw_actual_x;
+	actualNormal.y = nw_actual_y;
+	actualNormal.z = nw_actual_z;
+	return actualNormal;
+}
+
+
 CudaDeviceFunction void calcPhaseGrad(){
     vector_t gradPhi;
     <?R
@@ -579,6 +588,10 @@ CudaDeviceFunction void Init_wallNorm(){
 			}
 			myNorm[0] *= -1.0/3.0;myNorm[1] *= -1.0/3.0;myNorm[2] *= -1.0/3.0;
 			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
+
+			nw_actual_x = myNorm[0];
+			nw_actual_y = myNorm[1];
+			nw_actual_z = myNorm[2];
 			
 			// Calculate the closest discrete direction for normal:
 			for (i = 0; i<27; i++) {

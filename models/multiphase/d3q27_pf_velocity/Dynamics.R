@@ -26,11 +26,16 @@ AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
+
+AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
+AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
+AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
+
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
-save_iteration  = c("g","h","Vel","nw")
-load_iteration  = c("g","h","Vel","nw")
-load_phase      = c("g","h","Vel","nw")
+save_iteration  = c("g","h","Vel","nw", "nw_actual")
+load_iteration  = c("g","h","Vel","nw", "nw_actual")
+load_phase      = c("g","h","Vel","nw", "nw_actual")
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -54,11 +59,11 @@ if (Options$altContactAngle){
 
     AddField("PhaseF",stencil3d=2, group="PF")
 
-    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary"))
-    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF"))
+    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", "nw_actual"))
+    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "nw_actual", "gradPhi", "PF"))
 
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
     AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
@@ -113,6 +118,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 if (Options$altContactAngle){
     AddQuantity(name="GradPhi", unit=1, vector=T)
     AddQuantity(name="IsItBoundary", unit="1")
+    AddQuantity(name="ActualNormal", unit=1, vector=T)
 }
 ###################################
 ########INPUTS - PHASEFIELD########
