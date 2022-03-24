@@ -905,7 +905,17 @@ int Geometry::Draw(pugi::xml_node & node)
 				        Dot(x,y,z);
                     }
                 }
-	}
+	} else if (strcmp(n.name(),"ZPipe") == 0) {
+	    debug1("Filling Z-pipe with flag %d (&d)\n",fg,fg_mask);
+	    DEBUG1(reg.print();)
+        for (int z = reg.dz; z < reg.dz + reg.nz; z++)
+            for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+                for (int x = reg.dx - 1; x < reg.dx + reg.nx + 1;x++) {
+                    if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + x - reg.dx) / reg.nx)) {
+				        Dot(x,y,z);
+                    }
+                }
+    }
     else if (strcmp(n.name(),"Cylinder") == 0) {
         debug1("Filling cylinder with flag %d (&d)\n",fg,fg_mask);
         DEBUG1(reg.print();)
