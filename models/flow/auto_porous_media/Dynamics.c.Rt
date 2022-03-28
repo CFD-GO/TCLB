@@ -9,7 +9,7 @@
 	rho0 =  PV("rho0")
 	p =  PV("p")
 	V = PV("V",c("x","y","z"))
-	Force = PV("Force",c("X","Y","Z"))
+	Force = PV("dF",c("X","Y","Z"))
 	J = rho0 * V
 
 # Extracting velocity set
@@ -80,9 +80,9 @@ CudaDeviceFunction vector_t getU() {
         vector_t u;
 		<?R C(PV(c("u.x","u.y", "u.z")), f %*% U ) ?>
 		const real_t k = (rho0 + 0.5 * Viscosity / Permability);
-		u.x = (u.x + fx/2.)/k;
-        u.y = (u.y + fy/2.)/k;
-        u.z = (u.z + fz/2.)/k;
+		u.x = (u.x + ForceX/2.)/k;
+        u.y = (u.y + ForceY/2.)/k;
+        u.z = (u.z + ForceZ/2.)/k;
         return u;
 }
 
@@ -93,8 +93,17 @@ CudaDeviceFunction real_t getPermability(){
 }
 
 CudaDeviceFunction real_t getPorosity(){
-	return 0;
+	return Porosity;
 }
+
+CudaDeviceFunction real_t getInitialPermability(){
+	return InitialPermability;
+}
+
+CudaDeviceFunction real_t getInitialPorosity(){
+	return InitialPorosity;
+}
+
 
 CudaDeviceFunction vector_t getBrinkmanForce(){
 	vector_t force  = getU();
@@ -117,15 +126,30 @@ CudaDeviceFunction void BounceBack()
 
 
 CudaDeviceFunction void RunBoundaries() {
+
+	<?R
+		f_neighbours = Density$nicename[Density$group =="f"]
+		dre_1_neighbours = Density$nicename[Density$group =="dre_1"]
+	?>
+
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Wall:
 		BounceBack();
         break;
-    
-	case NODE_WPressure:
-		DoADRE_Init(); // TODO
+	case NODE_WDirichlet:
+		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(-1, 0, 0), "velocity") ?>}
+		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='dre_1']) , c(-1, 0, 0), "pressure", PV("Init_PHI")) ?>}
         break;
-    }	
+	case NODE_ENeuman:
+		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(1, 0, 0), "pressure") ?>}
+		<?R
+			# C(PV(DensityAll$name[DensityAll$group=='f']), PV(paste0(f_neighbours,"(",-Density$dx[Density$group=="f"]-1,",",-Density$dy[Density$group=="f"],",",-Density$dz[Density$group=="f"],")")))
+			C(PV(DensityAll$name[DensityAll$group=='dre_1']), PV(paste0(dre_1_neighbours,"(",-Density$dx[Density$group=="dre_1"]-1,",",-Density$dy[Density$group=="dre_1"],",",-Density$dz[Density$group=="dre_1"],")")))
+		?>
+		
+
+        break;		
+    }		
 }
 
 CudaDeviceFunction void Run() {
@@ -148,6 +172,10 @@ CudaDeviceFunction void SetEquilibrum(real_t p, real_t Vx, real_t Vy, real_t Vz)
 }
 
 CudaDeviceFunction void Init() {
+		
+		Porosity = InitialPorosity;
+		Permability = InitialPorosity;
+
 	    SetEquilibrum(1.0,0,0,0);
 		DoADRE_Init();
 }
@@ -159,6 +187,9 @@ CudaDeviceFunction void InitFromExternal() {
 }
 
 
+CudaDeviceFunction void GlobasPorosityDissolutionTimeStep() { 
+ 	assert(0)
+}
 
 
 CudaDeviceFunction void Collision_MTW_RT()
@@ -200,20 +231,30 @@ CudaDeviceFunction void Collision_MTW_RT()
 ?>
 	const real_t Lambda = Magic;
 	const real_t B = 1. / Permability;
-	const real_t LambdaPlus = 9 * (4 + B) / ( 4 *( 3+2*B*Lambda ) ) * Viscosity;
-	const real_t LambdaMinus = Lambda / 3. /  Viscosity;
+	//const real_t LambdaPlus = 9 * (4 + B) / ( 4 *( 3+2*B*Lambda ) ) * Viscosity;
+	//const real_t LambdaMinus = Lambda / 3. /  Viscosity;
+
+	const real_t LambdaMinus =  3. *  Viscosity;
+	const real_t LambdaPlus =  3. *  Viscosity;
 
 	const real_t omega = 1/(  LambdaPlus + 0.5 ); //symmetric relaxation
 	const real_t omega2 = 1/(  LambdaMinus + 0.5 ); //non-symmetric relaxation
 
 
-	real_t p, Vx, Vy, Vz;
+	real_t p, Vx, Vy, Vz, dFX, dFY, dFZ;
 	const real_t k = 1./(rho0 + 0.5 * Viscosity / Permability);
 		
 <?R
   C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
+
   C(PV(c("Vx","Vy","Vz")), (PV(c("Vx","Vy","Vz")) + PV(c("ForceX","ForceY","ForceZ"))*0.5) * PV(c('k')))
+
+  C(PV(c("dFX","dFY","dFZ")), PV(c("ForceX","ForceY","ForceZ")) - PV(c("Vx","Vy","Vz"))*PV("Viscosity")*PV("Permability")^-1   )
   C(PV(c("AdvectX", "AdvectY", "AdvectZ")),PV(c("Vx","Vy","Vz"))) #For reaction coupling
+
+#  C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
+
+
   C(m, m - meq)
   C(m, m*(1-Omega))
   C(m, m + meq)
@@ -228,3 +269,50 @@ CudaDeviceFunction void Collision_MTW_RT()
 
 // This should go at the end to avoid name conflicts in R
 <?RT models/reaction/d2q9_reaction_diffusion_system/Dynamics.c.Rt ?>
+
+<?R 
+	if (Qname == 'DissolutionReaction_ForImplicitSteadyState') {
+?>
+
+
+	CudaDeviceFunction void DoADRE_CalcPhi() 
+	{	
+		real_t _q, _phi, _phis;
+		_phis = <?%s  C(sum(fs[[1]])) ?>;
+
+		DoADRE_CalcQ(&_phis, &_q);
+		_phi = _phis + 0.5 * _q;
+
+		for (int i =0; i < 10; i++){
+			DoADRE_CalcQ(&_phi, &_q);
+			_phi = _phis + 0.5 * _q;
+			//printf("%f %f %f\n", _phi, _phis,  _q);
+		}
+
+		phi[0] = _phi;
+
+	}
+	CudaDeviceFunction void DoADRE_CalcQ(const real_t* _phi, real_t* _q) 
+	{	
+		// Predictor
+		const real_t EffectiveSurfaceArea = 4*Porosity*(1-Porosity);
+		real_t flux = EffectiveSurfaceArea*LinearReactionRate*(1 - _phi[0]);
+
+		if (flux*SolidFluidReactionsRate > (1-InitialPorosity)) {
+			flux = (1-InitialPorosity) / SolidFluidReactionsRate;
+		}
+		_q[0] = flux;
+
+		
+
+		Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
+
+        Permability = 1.*1. / 180. * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
+
+
+		//printf("%f %f %f %f %f\n", flux, Porosity, Permability, InitialPorosity, InitialPermability);
+		//Permability = Porosity / InitialPorosity * InitialPermability;
+	}
+<?R		
+	}
+?>

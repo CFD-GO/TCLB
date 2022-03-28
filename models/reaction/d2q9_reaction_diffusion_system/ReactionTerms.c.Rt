@@ -234,7 +234,7 @@
 	}
 	CudaDeviceFunction void DoADRE_CalcQ(const real_t* _phi, real_t* _q) 
 	{	
-		_q[0] = LinearReactionRate*(1 - _phi[0]);
+		_q[0] = LinearReactionRate*_phi[0];
 	}
 <?R		
 	}
