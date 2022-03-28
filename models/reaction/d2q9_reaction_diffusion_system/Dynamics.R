@@ -30,6 +30,13 @@ if (Options$AllenCahn) {
 	NumberOfAdditionalParams = 0	
  	NumberOfODEs = 0
 
+} else if (Options$LinearReaction) {
+   	Qname = 'LinearReaction'
+	DREs <- ('PHI')
+
+	Params  <- c("LinearReactionRate")
+ 	NumberOfODEs = 0
+
 }
 
 ##END MANUAL CONFIG
@@ -37,6 +44,10 @@ if (Options$Heun) {
 	QIntegrator = 'Heun'
 } else if (Options$Euler) {
 	QIntegrator = 'Euler'
+} else if (Options$Trapezoid) {
+	QIntegrator = 'Trapezoid'
+} else if (Options$Midpoint) {
+	QIntegrator = 'Midpoint'
 } else {
 	QIntegrator = 'Trapezoid'
 }
