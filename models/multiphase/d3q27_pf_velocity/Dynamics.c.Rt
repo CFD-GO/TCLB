@@ -150,6 +150,74 @@ if (Options$ML){
 }
 ?>
 
+
+// TODO: This should probably be generated with R or python
+// TODO: Switch some of the values below to int or something
+CudaConstantMemory real_t const d3q27_faces[6][4][3] = \
+		{{{1, -1, -1}, {1, -1, 1}, {1, 1, 1}, {1, 1, -1}},
+		 {{-1, -1, -1}, {-1, -1, 1}, {-1, 1, 1}, {-1, 1, -1}},
+		 {{-1, 1, -1}, {-1, 1, 1}, {1, 1, 1}, {1, 1, -1}},
+		 {{-1, -1, -1}, {-1, -1, 1}, {1, -1, 1}, {1, -1, -1}},
+		 {{-1, -1, 1}, {-1, 1, 1}, {1, 1, 1}, {1, -1, 1}},
+		 {{-1, -1, -1}, {-1, 1, -1}, {1, 1, -1}, {1, -1, -1}}};
+
+
+CudaConstantMemory real_t const d3q27_faces_normals[6][3] = {{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}};
+
+CudaConstantMemory real_t const d3q27_faces_drop_indexes[6] = {0, 0, 1, 1, 2, 2};
+
+CudaConstantMemory real_t const d3q27_triangles[6][8][3][3] = {\
+  {{{1, 0, 0}, {1, 1, 1}, {1, 1, 0.0}},
+  {{1, 0, 0}, {1, 1, 1}, {1, 0.0, 1}},
+  {{1, 0, 0}, {1, -1, 1}, {1, 0.0, 1}},
+  {{1, 0, 0}, {1, -1, 1}, {1, -1, 0.0}},
+  {{1, 0, 0}, {1, -1, -1}, {1, -1, 0.0}},
+  {{1, 0, 0}, {1, -1, -1}, {1, 0.0, -1}},
+  {{1, 0, 0}, {1, 1, -1}, {1, 0.0, -1}},
+  {{1, 0, 0}, {1, 1, -1}, {1, 1, 0.0}}},
+ {{{-1, 0, 0}, {-1, 1, 1}, {-1, 1, 0.0}},
+  {{-1, 0, 0}, {-1, 1, 1}, {-1, 0.0, 1}},
+  {{-1, 0, 0}, {-1, -1, 1}, {-1, 0.0, 1}},
+  {{-1, 0, 0}, {-1, -1, 1}, {-1, -1, 0.0}},
+  {{-1, 0, 0}, {-1, -1, -1}, {-1, -1, 0.0}},
+  {{-1, 0, 0}, {-1, -1, -1}, {-1, 0.0, -1}},
+  {{-1, 0, 0}, {-1, 1, -1}, {-1, 0.0, -1}},
+  {{-1, 0, 0}, {-1, 1, -1}, {-1, 1, 0.0}}},
+ {{{0, 1, 0}, {1, 1, 1}, {1, 1, 0.0}},
+  {{0, 1, 0}, {1, 1, 1}, {0.0, 1, 1}},
+  {{0, 1, 0}, {-1, 1, 1}, {0.0, 1, 1}},
+  {{0, 1, 0}, {-1, 1, 1}, {-1, 1, 0.0}},
+  {{0, 1, 0}, {-1, 1, -1}, {-1, 1, 0.0}},
+  {{0, 1, 0}, {-1, 1, -1}, {0.0, 1, -1}},
+  {{0, 1, 0}, {1, 1, -1}, {0.0, 1, -1}},
+  {{0, 1, 0}, {1, 1, -1}, {1, 1, 0.0}}},
+ {{{0, -1, 0}, {1, -1, 1}, {1, -1, 0.0}},
+  {{0, -1, 0}, {1, -1, 1}, {0.0, -1, 1}},
+  {{0, -1, 0}, {-1, -1, 1}, {0.0, -1, 1}},
+  {{0, -1, 0}, {-1, -1, 1}, {-1, -1, 0.0}},
+  {{0, -1, 0}, {-1, -1, -1}, {-1, -1, 0.0}},
+  {{0, -1, 0}, {-1, -1, -1}, {0.0, -1, -1}},
+  {{0, -1, 0}, {1, -1, -1}, {0.0, -1, -1}},
+  {{0, -1, 0}, {1, -1, -1}, {1, -1, 0.0}}},
+ {{{0, 0, 1}, {1, 1, 1}, {1, 0.0, 1}},
+  {{0, 0, 1}, {1, 1, 1}, {0.0, 1, 1}},
+  {{0, 0, 1}, {-1, 1, 1}, {0.0, 1, 1}},
+  {{0, 0, 1}, {-1, 1, 1}, {-1, 0.0, 1}},
+  {{0, 0, 1}, {-1, -1, 1}, {-1, 0.0, 1}},
+  {{0, 0, 1}, {-1, -1, 1}, {0.0, -1, 1}},
+  {{0, 0, 1}, {1, -1, 1}, {0.0, -1, 1}},
+  {{0, 0, 1}, {1, -1, 1}, {1, 0.0, 1}}},
+ {{{0, 0, -1}, {1, 1, -1}, {1, 0.0, -1}},
+  {{0, 0, -1}, {1, 1, -1}, {0.0, 1, -1}},
+  {{0, 0, -1}, {-1, 1, -1}, {0.0, 1, -1}},
+  {{0, 0, -1}, {-1, 1, -1}, {-1, 0.0, -1}},
+  {{0, 0, -1}, {-1, -1, -1}, {-1, 0.0, -1}},
+  {{0, 0, -1}, {-1, -1, -1}, {0.0, -1, -1}},
+  {{0, 0, -1}, {1, -1, -1}, {0.0, -1, -1}},
+  {{0, 0, -1}, {1, -1, -1}, {1, 0.0, -1}}}
+};
+
+
 #ifdef OPTIONS_altContactAngle
 
 // Geometric contact angle stuff
@@ -354,6 +422,9 @@ CudaDeviceFunction void calcWallPhase(){
 			PhaseF = pf_f;
 		} else {
 #ifdef OPTIONS_altContactAngle
+			// get triangle, that is matching this node
+			real_t triangle[3][3] = d3q27_triangles[int(triangle_index) / 8 ][ int(triangle_index) % 8];
+
 			// Get gradient on the first node in the normal direction
 			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
 			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
@@ -612,6 +683,13 @@ CudaDeviceFunction void Init_wallNorm(){
 			nw_actual_x = myNorm[0];
 			nw_actual_y = myNorm[1];
 			nw_actual_z = myNorm[2];
+
+			int face_index;
+			real_t point[3];
+			int t_index;
+			GetIntersectionTriangleId(myNorm, t_index, face_index, point);
+			triangle_index = triangle_index(0,0,0);
+			triangle_index = t_index;
 			
 			// Calculate the closest discrete direction for normal:
 			for (i = 0; i<27; i++) {
@@ -706,6 +784,57 @@ CudaDeviceFunction void Init_distributions(){
 			}
 	#endif
 }
+
+
+
+CudaDeviceFunction void GetIntersectionTriangleId(
+												  real_t vec[],
+												  int& triangle_index,
+												  int& face_index,
+												  real_t point_i[]) {
+	/* Get the ID of the triangle with which the vector intersects */
+
+	real_t plane_angle = -1;
+
+	for (int i = 0; i < 6; ++i) {
+		// find on which face the point lies
+		// assume it is defined somewhere
+		// face_normal[i] = 0
+		real_t prod = d3q27_faces_normals[i][0]*vec[0] + d3q27_faces_normals[i][1] * vec[1] + d3q27_faces_normals[i][2] * vec[2];
+		// rays in other direction
+		if (prod > 0) continue;
+		real_t point[3] = { - vec[0] / prod,  - vec[1] / prod, - vec[2] / prod };
+		// get coordinate in 2d
+		real_t drop_index = d3q27_faces_drop_indexes[i];
+		real_t point2d[2] = { point[(int(drop_index) + 1) % 3], point[(int(drop_index) + 2) % 3] };
+		if (point2d[0] >= -1 && point2d[0] <= 1 && point2d[1] >= -1 && point2d[1] <= 1) {
+			// it is inside
+			face_index = i;
+
+			// determine in which triangle we lie, based on the plane angle
+			// (similar to identity circle, going anti clockwise by 45 degrees
+			// triangles)
+			real_t x = abs(point2d[0]);
+			real_t y = abs(point2d[1]);
+			real_t angle = atan(x / y) * 180.0 / PI;
+			if (x >= 0 && y >= 0) plane_angle = angle;
+			else if (x <= 0 && y >= 0) plane_angle = 180 - angle;
+			else if (x <= 0 and y <= 0) plane_angle = 180 + angle;
+			else if (x >= 0 and y <= 0) plane_angle = 360 - angle;
+			// find matching triangle index
+			for (int j = 0; j < 8; j++) {
+				if (plane_angle >= j*45 && plane_angle < (j + 1) * 45) {
+					triangle_index = j;
+					break;
+				}
+			}
+			// TODO: Here also, calculation of the barymetric coordinates can be done
+			break;
+		}
+	}
+}
+
+
 
 //	ITERATION:
 CudaDeviceFunction void Run() {
