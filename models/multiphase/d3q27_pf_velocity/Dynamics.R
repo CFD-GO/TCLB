@@ -36,9 +36,9 @@ AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
 AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
 
 # To improve staircase approximation
-AddDensity(name="i_v1", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="i_v2", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="i_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
 AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
 
 save_initial_PF = c("PF","Vel")
