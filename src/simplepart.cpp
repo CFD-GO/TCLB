@@ -301,7 +301,7 @@ int main(int argc, char *argv[]) {
   if (logging && (logging_f != NULL)) fclose(logging_f);
   if (RFI.Connected()) {
     RFI.Close();
-    MPI_Finalize();
   }
+  MPI_Finalize();
   return 0;
 }
