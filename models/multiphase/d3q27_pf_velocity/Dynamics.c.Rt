@@ -805,12 +805,20 @@ CudaDeviceFunction void Init_wallNorm(){
 			}
 			// TODO: Remove! This is just for testing
 			real_t truncated_normals[3] = {nw_x, nw_y, nw_z};
+			real_t intersection_point[3];
 
 			int face_index;
 			real_t coeff[3];
 			int t_index;
 			// TODO: Truncated normals should be replaced with myNorm after testing
-			GetIntersectionTriangleId(myNorm, t_index, face_index, coeff);
+			GetIntersectionTriangleId(myNorm, t_index, face_index, coeff, intersection_point);
+
+			// make sure normal vector is extended to the surface
+			nw_actual_x = intersection_point[0];
+			nw_actual_y = intersection_point[1];
+			nw_actual_z = intersection_point[2];
+
+
 			triangle_index = triangle_index(0,0,0);
             // get triangle index in global index domain
 			triangle_index = t_index + face_index*8;
@@ -909,7 +917,8 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 												  real_t vec[],
 												  int& triangle_index,
 												  int& face_index,
-												  real_t koeff[]) {
+												  real_t koeff[],
+												  real_t intersection_point[]) {
 	/* Get the ID of the triangle with which the vector intersects */
 
 	real_t plane_angle = -1;
@@ -987,7 +996,9 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 			if (koeff_1 < 1e-12) koeff_1 = 0.;
 			if (koeff_2 < 1e-12) koeff_2 = 0.;
 
-
+			intersection_point[0] = point[0];
+			intersection_point[1] = point[1];
+			intersection_point[2] = point[2];
 
             koeff[0] = koeff_1; 
             koeff[1] = koeff_2; 
