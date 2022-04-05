@@ -932,6 +932,7 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 		if (prod > 0) continue;
 		// NOTE: need to properly compare to zero here, otherwise there will be division by zero
 		if (fabs(prod) < 1e-10) continue;
+		// the same direction as the original vector
 		real_t point[3] = { - vec[0] / prod,  - vec[1] / prod, - vec[2] / prod };
 		// get coordinate in 2d
 		real_t drop_index = d3q27_faces_drop_indexes[i];
@@ -952,7 +953,7 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 				if (y  < 0 ) plane_angle = 270;
 				else plane_angle = 90;
 			} else {
-				real_t angle = atan(fabs(x) / fabs(y)) * 180.0 / PI;
+				real_t angle = atan(fabs(y) / fabs(x)) * 180.0 / PI;
 				// not sure if this is correct
 				if (x >= 0 && y >= 0) plane_angle = angle;
 				else if (x <= 0 && y >= 0) plane_angle = 180 - angle;
@@ -1009,6 +1010,29 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 				printf("%lf%lf%lf\n", koeff_1, koeff_2, 1. - koeff_1 - koeff_2);
 			}
 
+
+#if 0
+			real_t coeffs[3] = {koeff_1, koeff_2, 1 - koeff_1 - koeff_2};
+
+			// find maximum coefficient
+			int max_index = 0;
+			for (int k = 0; k < 3; ++k) {
+				if (coeffs[k] > coeffs[max_index]) {
+					max_index = k;
+				}
+			}
+
+			int face_triangle_index = triangle_index;
+
+			int dirs[3] = {int(d3q27_triangles[face_index][face_triangle_index][max_index][0]), int(d3q27_triangles[face_index][face_triangle_index][max_index][1]), int(d3q27_triangles[face_index][face_triangle_index][max_index][2]) };
+			// end of interpolation stuff
+
+			if (coeffs[max_index] > 0 && (dirs[0] != int(nw_x) || dirs[1] != int(nw_y) || dirs[2] != int(nw_z)) && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0))) {
+				printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
+				printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
+				printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
+			}
+#endif
 
 			break;
 		}
