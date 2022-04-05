@@ -131,6 +131,14 @@ if (Options$altContactAngle){
     AddQuantity(name="ActualNormal", unit=1, vector=T)
 	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
 	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
+                                        # Staircase approximation
+    AddQuantity(name="CoeffV", unit=1, vector=T)
+    AddQuantity(name="Triangle_V1", unit=1, vector=T)
+    AddQuantity(name="Triangle_V2", unit=1, vector=T)
+    AddQuantity(name="Triangle_V3", unit=1, vector=T)
+    AddQuantity(name="TriangleIndex", unit=1)
+    AddQuantity(name="FaceIndex", unit=1)
+    AddQuantity(name="TriangleFaceIndex", unit=1)
 }
 ###################################
 ########INPUTS - PHASEFIELD########
