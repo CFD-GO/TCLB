@@ -43,9 +43,10 @@ AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
 
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
+# TODO: I am not sure why I need to add 'st_interpolation here"
 save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
 load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
-load_phase      = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
+load_phase      = c("g","h","Vel","nw", "nw_actual")
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -76,8 +77,8 @@ if (Options$altContactAngle){
     AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
-    AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
-    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
+    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation"))
+    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation"))
 }
 
 AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
@@ -142,7 +143,6 @@ if (Options$altContactAngle){
 }
 ###################################
 ########INPUTS - PHASEFIELD########
-###################################
 	AddSetting(name="Density_h", comment='High density')
 	AddSetting(name="Density_l", comment='Low  density')
 	AddSetting(name="PhaseField_h", default=1, comment='PhaseField in Liquid')

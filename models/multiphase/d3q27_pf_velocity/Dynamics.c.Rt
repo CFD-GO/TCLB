@@ -151,6 +151,13 @@ if (Options$ML){
 ?>
 
 
+#ifdef OPTIONS_DEBUG
+    #define debug_printf(...) printf(__VA_ARGS__)
+#else
+    #define debug_printf(...) do {} while (0)
+#endif
+
+
 // TODO: This should probably be generated with R or python
 // TODO: Switch some of the values below to int or something
 CudaConstantMemory real_t const d3q27_faces[6][4][3] = \
@@ -271,58 +278,6 @@ CudaDeviceFunction vector_t getTriangle_V1(){
 	return triangle;
 }
 
-#endif
-
-
-#if OPTIONS_staircaseimp
-CudaDeviceFunction vector_t getTriangle_V2(){
-	vector_t triangle;
-	int face_index = int(triangle_index) / 8;
-	int face_triangle_index = int(triangle_index) % 8;
-
-	triangle.x = int(d3q27_triangles[face_index][face_triangle_index][1][0]);
-	triangle.y = int(d3q27_triangles[face_index][face_triangle_index][1][1]);
-	triangle.z = int(d3q27_triangles[face_index][face_triangle_index][1][2]);
-	return triangle;
-}
-
-
-CudaDeviceFunction vector_t getTriangle_V3(){
-	vector_t triangle;
-	int face_index = int(triangle_index) / 8;
-	int face_triangle_index = int(triangle_index) % 8;
-
-	triangle.x = int(d3q27_triangles[face_index][face_triangle_index][2][0]);
-	triangle.y = int(d3q27_triangles[face_index][face_triangle_index][2][1]);
-	triangle.z = int(d3q27_triangles[face_index][face_triangle_index][2][2]);
-	return triangle;
-}
-
-
-CudaDeviceFunction vector_t getCoeffV(){
-	vector_t coeff;
-	coeff.x = coeff_v1;
-	coeff.y = coeff_v2;
-	coeff.z = coeff_v3;
-	return coeff;
-}
-
-
-CudaDeviceFunction real_t getTriangleIndex(){
-	return triangle_index;
-}
-
-CudaDeviceFunction real_t getFaceIndex(){
-	int face_index = int(triangle_index) / 8;
-	return face_index;
-}
-
-CudaDeviceFunction real_t getTriangleFaceIndex(){
-	int face_triangle_index = int(triangle_index) % 8;
-	return face_triangle_index;
-}
-
-
 CudaDeviceFunction void calcPhaseGrad(){
     vector_t gradPhi;
     <?R
@@ -380,6 +335,56 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 		gradPhiVal_y = 0.;
 		gradPhiVal_z = 0.;
 	}
+}
+#endif
+
+
+#ifdef OPTIONS_staircaseimp
+CudaDeviceFunction vector_t getTriangle_V2(){
+	vector_t triangle;
+	int face_index = int(triangle_index) / 8;
+	int face_triangle_index = int(triangle_index) % 8;
+
+	triangle.x = int(d3q27_triangles[face_index][face_triangle_index][1][0]);
+	triangle.y = int(d3q27_triangles[face_index][face_triangle_index][1][1]);
+	triangle.z = int(d3q27_triangles[face_index][face_triangle_index][1][2]);
+	return triangle;
+}
+
+
+CudaDeviceFunction vector_t getTriangle_V3(){
+	vector_t triangle;
+	int face_index = int(triangle_index) / 8;
+	int face_triangle_index = int(triangle_index) % 8;
+
+	triangle.x = int(d3q27_triangles[face_index][face_triangle_index][2][0]);
+	triangle.y = int(d3q27_triangles[face_index][face_triangle_index][2][1]);
+	triangle.z = int(d3q27_triangles[face_index][face_triangle_index][2][2]);
+	return triangle;
+}
+
+
+CudaDeviceFunction vector_t getCoeffV(){
+	vector_t coeff;
+	coeff.x = coeff_v1;
+	coeff.y = coeff_v2;
+	coeff.z = coeff_v3;
+	return coeff;
+}
+
+
+CudaDeviceFunction real_t getTriangleIndex(){
+	return triangle_index;
+}
+
+CudaDeviceFunction real_t getFaceIndex(){
+	int face_index = int(triangle_index) / 8;
+	return face_index;
+}
+
+CudaDeviceFunction real_t getTriangleFaceIndex(){
+	int face_triangle_index = int(triangle_index) % 8;
+	return face_triangle_index;
 }
 #endif
 
@@ -473,9 +478,22 @@ CudaDeviceFunction void calcWallPhase(){
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
 
+		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
+		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 
+
+		if (h < 0.001 || pf_f < -100) {
+			// If I am a wall/solid node and I am surrounded by solid nodes
+			// or my normal points towards a solid node.
+			PhaseF = 1;
+		} else if (fabs(radAngle - PI/2.0) < 1e-4){
+			// If I am not surrounded, but contact angle is pi/2 (90d)
+			PhaseF = pf_f;
+		} else {
+
+
+#ifdef OPTIONS_staircaseimp
 		// interpolation stuff
-		// TODO: Can be simplified and rewritten in a better way
 		int face_index = int(triangle_index) / 8;
 		int face_triangle_index = int(triangle_index) % 8;
 
@@ -502,85 +520,16 @@ CudaDeviceFunction void calcWallPhase(){
 		real_t pf_v3 = PhaseF_dyn(v3_x, v3_y, v3_z);
 
 		real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
+
+
 		h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
-
-
-
-		// end of interpolation stuff
-
-#if 1
-		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
-		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
-
-		if (coeff_v1 + coeff_v2 + coeff_v3 < 1 && (!(h < 0.001 || pf_f < -100))) {
-			printf("%lf %lf %lf\n", coeff_v1, coeff_v2, coeff_v3);
-			printf("%d %d %d\n", x_, y_, z_);
-		}
-
-#else
-
-		/*
-		real_t coeffs[3] = {coeff_v1, coeff_v2, coeff_v3};
-
-		// find maximum coefficient
-		int max_index = 0;
-		for (int k = 0; k < 3; ++k) {
-			if (coeffs[k] > coeffs[max_index]) {
-				max_index = k;
-			}
-		}
-
-		int dirs[3] = {int(d3q27_triangles[face_index][face_triangle_index][max_index][0]), int(d3q27_triangles[face_index][face_triangle_index][max_index][1]), int(d3q27_triangles[face_index][face_triangle_index][max_index][2]) };
-		// end of interpolation stuff
-
-		if (coeffs[max_index] >= 0 && (dirs[0] != int(nw_x) || dirs[1] != int(nw_y) || dirs[2] != int(nw_z)) && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0))) {
-		//	printf("WHAT!");
-		//	printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
-		//	printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
-		//	printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
-		}
-
-		real_t another = PhaseF_dyn(nw_x, nw_y, nw_z);
-		real_t current = pf_interpolated;
-
-		if (another != current && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0)) && (fabs(another) >= 1e-12)) {
-			printf("NOO %lf %lf\n", another, current);
-			printf("%lf", another - current);
-			printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
-			printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
-			printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
-		}
-
-		*/
-
-#endif
-
-		if (h < 0.001 || pf_f < -100) { 
-			// If I am a wall/solid node and I am surrounded by solid nodes
-			// or my normal points towards a solid node.
-			PhaseF = 1;
-		} else if (fabs(radAngle - PI/2.0) < 1e-4){
-			// If I am not surrounded, but contact angle is pi/2 (90d)
-			PhaseF = pf_f;
-		} else {
-
 		if (fabs(pf_f - pf_interpolated) > 1e-10) {
-			printf("NOO");
-			printf("%lf\n", pf_f - pf_interpolated);
+			debug_printf("THIS SHOULD NOT HAPPEN\n");
+			debug_printf("%lf %lf\n", pf_f, pf_interpolated);
 		}
-
-		real_t h_new = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
-
-		if (fabs(h - h_new) > 1e-10) {
-			printf("NOO");
-			printf("%lf\n", h - h_new);
-		}
-
-
-		h = h_new;
 		pf_f = pf_interpolated;
-//#ifdef OPTIONS_altContactAngle
-#if 0
+#endif
+#ifdef OPTIONS_altContactAngle
 		/*
 			// Get gradient on the first node in the normal direction
 			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
@@ -797,10 +746,12 @@ CudaDeviceFunction void Init_wallNorm(){
 	PhaseF = PhaseF(0,0,0);
 #ifdef OPTIONS_altContactAngle
     IsBoundary = 0.0;
+#ifdef OPTIONS_staircaseimp
 	n_k = 0.0;
 	coeff_v1 = 0;
 	coeff_v2 = 0;
 	coeff_v3 = 0;
+#endif
 #endif
 	if ( IamWall || IamSolid ) {
 #ifdef OPTIONS_altContactAngle
@@ -816,9 +767,11 @@ CudaDeviceFunction void Init_wallNorm(){
 	  	if ( abs(tmp) > 26000){
 		// yes I am surrounded (sum(pf) = 27*-999 = -26973 if surrounded):
 			nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+#ifdef OPTIONS_staircaseimp
 			nw_actual_x = 0.0;
 			nw_actual_y = 0.0;
 			nw_actual_z = 0.0;
+#endif
 	  	} else { 
 		// no I am not surrounded, so calc normal:
 			int solidFlag[27]; 
@@ -844,12 +797,6 @@ CudaDeviceFunction void Init_wallNorm(){
 			myNorm[0] *= -1.0/3.0;myNorm[1] *= -1.0/3.0;myNorm[2] *= -1.0/3.0;
 			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
 
-			// TODO: Comment back in
-			//nw_actual_x = myNorm[0];
-			//nw_actual_y = myNorm[1];
-			//nw_actual_z = myNorm[2];
-
-
 			// Calculate the closest discrete direction for normal:
 			for (i = 0; i<27; i++) {
 				dot = (myNorm[0]*d3q27_ex[i] + myNorm[1]*d3q27_ey[i] + myNorm[2]*d3q27_ez[i]) /
@@ -869,39 +816,35 @@ CudaDeviceFunction void Init_wallNorm(){
 				//nw_actual_x = d3q27_ex[maxi];nw_actual_y = d3q27_ey[maxi];nw_actual_z = d3q27_ez[maxi];
 				n_k = maxi;
 			}
-			// TODO: Remove! This is just for testing
+
+
+#ifdef OPTIONS_staircaseimp
 			real_t truncated_normals[3] = {nw_x, nw_y, nw_z};
 			real_t intersection_point[3];
-
 			int face_index;
 			real_t coeff[3];
 			int t_index;
 			// TODO: Truncated normals should be replaced with myNorm after testing
 			calcIntersectionTriangleId(truncated_normals, t_index, face_index, coeff, intersection_point);
 
-
-			if (x_ == 195 && y_ == 0 && z_ == 11) {
-				printf("Actual %lf %lf %lf\n", coeff_v1, coeff_v2, coeff_v3);
-			}
-
-			// make sure normal vector is extended to the surface
+			// make sure normal vector is extended to the surface (to use it during interpolation)
 			nw_actual_x = intersection_point[0];
 			nw_actual_y = intersection_point[1];
 			nw_actual_z = intersection_point[2];
-
-
 			triangle_index = triangle_index(0,0,0);
-            // get triangle index in global index domain
 			triangle_index = t_index + face_index*8;
             coeff_v1 = coeff[0];
             coeff_v2 = coeff[1];
             coeff_v3 = coeff[2];
+#endif
+
 	  	}
 	} else {
 	// I am a fluid node, I dont need no solid normal.
 		nw_x = 0.0;
 		nw_y = 0.0;
 		nw_z = 0.0;
+#ifdef OPTIONS_staircaseimp
 		nw_actual_x = 0.0;
 		nw_actual_y = 0.0;
 		nw_actual_z = 0.0;
@@ -909,6 +852,7 @@ CudaDeviceFunction void Init_wallNorm(){
 		coeff_v2 = 0.0;
 		coeff_v3 = 0.0;
 		triangle_index = 0;
+#endif
 	}
 }
 
@@ -991,7 +935,6 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 												  real_t koeff[],
 												  real_t intersection_point[]) {
 	/* Get the ID of the triangle with which the vector intersects */
-
 	real_t plane_angle = -1;
 
 	for (int i = 0; i < 6; ++i) {
@@ -1008,29 +951,19 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 		// get coordinate in 2d
 		real_t drop_index = d3q27_faces_drop_indexes[i];
 		// Mimicing collection.drop()
-		real_t point2d[2] = { point[drop_index == 1 ? 0 : (int(drop_index) + 1) % 3],
-			point[drop_index == 1? 2 : (int(drop_index) + 2) % 3] };
+		real_t point2d[2] = { point[drop_index == 1 ? 0 : (int(drop_index) + 1) % 3], point[drop_index == 1? 2 : (int(drop_index) + 2) % 3] };
 		if (point2d[0] >= -1 && point2d[0] <= 1 && point2d[1] >= -1 && point2d[1] <= 1) {
 			// it is inside
 			face_index = i;
-
 			// determine in which triangle we lie, based on the plane angle
 			// (similar to identity circle, going anti clockwise by 45 degrees
 			// triangles)
 			real_t x = point2d[0];
 			real_t y = point2d[1];
 
-			if (fabs(x) < 1e-12) {
-				if (y  < 0 ) plane_angle = 270;
-				else plane_angle = 90;
-			} else {
-				real_t angle = atan(fabs(y) / fabs(x)) * 180.0 / PI;
-				// not sure if this is correct
-				if (x >= 0 && y >= 0) plane_angle = angle;
-				else if (x <= 0 && y >= 0) plane_angle = 180 - angle;
-				else if (x <= 0 and y <= 0) plane_angle = 180 + angle;
-				else if (x >= 0 and y <= 0) plane_angle = 360 - angle;
-			}
+			plane_angle = atan2(y, x) * 180.0 / PI;
+			plane_angle = plane_angle < 0? plane_angle + 360 : plane_angle;
+
 			// find matching triangle index
 			for (int j = 0; j < 8; j++) {
 				if (plane_angle >= j*45 && plane_angle < (j + 1) * 45) {
@@ -1038,9 +971,6 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 					break;
 				}
 			}
-			// at this point we found triangle and a plane, just need to convert to barycentric coordinates
-
-
             // map triangle to 2D and get barycentric coordinates
             real_t triangle2d[3][2];
             for (int i = 0; i < 3; ++i) {
@@ -1048,10 +978,7 @@ CudaDeviceFunction void calcIntersectionTriangleId(
                 triangle2d[i][0] = d3q27_triangles[face_index][triangle_index][i][drop_index == 1? 0 : (int(drop_index) + 1) % 3];
                 triangle2d[i][1] = d3q27_triangles[face_index][triangle_index][i][drop_index == 1? 2 : (int(drop_index) + 2) % 3];
             }
-
-			// get barycentric coordinates for
-
-			// NOTE: Verify that those formulas are correct
+			// get barycentric coordinates for the points inside triangle
             real_t detT = (triangle2d[1][1] - triangle2d[2][1]) * (triangle2d[0][0] - triangle2d[2][0]) + \
                            (triangle2d[2][0] - triangle2d[1][0]) * (triangle2d[0][1]- triangle2d[2][1]);
 
@@ -1076,51 +1003,8 @@ CudaDeviceFunction void calcIntersectionTriangleId(
             koeff[1] = koeff_2; 
             koeff[2] = 1 - koeff_1 - koeff_2;
 
-//
-//			coeff_v1 = koeff_1;
-//			coeff_v2 = koeff_2;
-//			coeff_v3 = 1 - koeff_1 - koeff_2;
-
-
-			if (fabs(koeff_1) > 1 || fabs(koeff_2) > 1 || koeff_1 < 0 || koeff_2 < 0) {
-				printf("NOO");
-				printf("%lf%lf%lf\n", koeff_1, koeff_2, 1. - koeff_1 - koeff_2);
-			}
-
-
-#if 1
-			real_t coeffs[3] = {koeff_1, koeff_2, 1 - koeff_1 - koeff_2};
-
-			// find maximum coefficient
-			int max_index = 0;
-			for (int k = 0; k < 3; ++k) {
-				if (coeffs[k] > coeffs[max_index]) {
-					max_index = k;
-				}
-			}
-
-			int face_triangle_index = triangle_index;
-
-			int dirs[3] = {int(d3q27_triangles[face_index][face_triangle_index][max_index][0]), int(d3q27_triangles[face_index][face_triangle_index][max_index][1]), int(d3q27_triangles[face_index][face_triangle_index][max_index][2]) };
-			// end of interpolation stuff
-
-			if (coeffs[max_index] >= 0 && (dirs[0] != int(nw_x) || dirs[1] != int(nw_y) || dirs[2] != int(nw_z)) && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0))) {
-				printf("THIS CAN'T BE");
-				printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
-				printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
-				printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
-			}
-#endif
-
 			break;
 		}
-	}
-	if (koeff[0] + koeff[1] + koeff[2] < 1.0) {
-		printf("NOi!");
-		printf("%lf %lf %lf", koeff[0], koeff[1], koeff[2]);
-	}
-	if (plane_angle == -1) {
-		printf("WHHAAT!");
 	}
 }
 
