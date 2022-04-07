@@ -43,9 +43,9 @@ AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
 
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
-save_iteration  = c("g","h","Vel","nw", "nw_actual")
-load_iteration  = c("g","h","Vel","nw", "nw_actual")
-load_phase      = c("g","h","Vel","nw", "nw_actual")
+save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
+load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
+load_phase      = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {

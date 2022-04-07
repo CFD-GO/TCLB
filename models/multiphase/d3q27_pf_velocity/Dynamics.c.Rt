@@ -271,7 +271,10 @@ CudaDeviceFunction vector_t getTriangle_V1(){
 	return triangle;
 }
 
+#endif
 
+
+#if OPTIONS_staircaseimp
 CudaDeviceFunction vector_t getTriangle_V2(){
 	vector_t triangle;
 	int face_index = int(triangle_index) / 8;
@@ -502,14 +505,56 @@ CudaDeviceFunction void calcWallPhase(){
 		h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
 
 
+
 		// end of interpolation stuff
 
-#if 0
+#if 1
 		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
+
+		if (coeff_v1 + coeff_v2 + coeff_v3 < 1 && (!(h < 0.001 || pf_f < -100))) {
+			printf("%lf %lf %lf\n", coeff_v1, coeff_v2, coeff_v3);
+			printf("%d %d %d\n", x_, y_, z_);
+		}
+
+#else
+
+		/*
+		real_t coeffs[3] = {coeff_v1, coeff_v2, coeff_v3};
+
+		// find maximum coefficient
+		int max_index = 0;
+		for (int k = 0; k < 3; ++k) {
+			if (coeffs[k] > coeffs[max_index]) {
+				max_index = k;
+			}
+		}
+
+		int dirs[3] = {int(d3q27_triangles[face_index][face_triangle_index][max_index][0]), int(d3q27_triangles[face_index][face_triangle_index][max_index][1]), int(d3q27_triangles[face_index][face_triangle_index][max_index][2]) };
+		// end of interpolation stuff
+
+		if (coeffs[max_index] >= 0 && (dirs[0] != int(nw_x) || dirs[1] != int(nw_y) || dirs[2] != int(nw_z)) && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0))) {
+		//	printf("WHAT!");
+		//	printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
+		//	printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
+		//	printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
+		}
+
+		real_t another = PhaseF_dyn(nw_x, nw_y, nw_z);
+		real_t current = pf_interpolated;
+
+		if (another != current && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0)) && (fabs(another) >= 1e-12)) {
+			printf("NOO %lf %lf\n", another, current);
+			printf("%lf", another - current);
+			printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
+			printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
+			printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
+		}
+
+		*/
+
 #endif
-		pf_f = pf_interpolated;
-		
+
 		if (h < 0.001 || pf_f < -100) { 
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			// or my normal points towards a solid node.
@@ -518,8 +563,25 @@ CudaDeviceFunction void calcWallPhase(){
 			// If I am not surrounded, but contact angle is pi/2 (90d)
 			PhaseF = pf_f;
 		} else {
+
+		if (fabs(pf_f - pf_interpolated) > 1e-10) {
+			printf("NOO");
+			printf("%lf\n", pf_f - pf_interpolated);
+		}
+
+		real_t h_new = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
+
+		if (fabs(h - h_new) > 1e-10) {
+			printf("NOO");
+			printf("%lf\n", h - h_new);
+		}
+
+
+		h = h_new;
+		pf_f = pf_interpolated;
 //#ifdef OPTIONS_altContactAngle
 #if 0
+		/*
 			// Get gradient on the first node in the normal direction
 			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
 			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
@@ -550,6 +612,7 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t grad_tangent = fabs(1.5 * vec_1 - 0.5 * vec_2);
 
 			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
+			*/
 #else
 			// h*Theta
 			// =  h*(-sqrt(2*beta/kappa)*cos(theta))
@@ -735,6 +798,9 @@ CudaDeviceFunction void Init_wallNorm(){
 #ifdef OPTIONS_altContactAngle
     IsBoundary = 0.0;
 	n_k = 0.0;
+	coeff_v1 = 0;
+	coeff_v2 = 0;
+	coeff_v3 = 0;
 #endif
 	if ( IamWall || IamSolid ) {
 #ifdef OPTIONS_altContactAngle
@@ -779,9 +845,9 @@ CudaDeviceFunction void Init_wallNorm(){
 			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
 
 			// TODO: Comment back in
-			nw_actual_x = myNorm[0];
-			nw_actual_y = myNorm[1];
-			nw_actual_z = myNorm[2];
+			//nw_actual_x = myNorm[0];
+			//nw_actual_y = myNorm[1];
+			//nw_actual_z = myNorm[2];
 
 
 			// Calculate the closest discrete direction for normal:
@@ -811,7 +877,12 @@ CudaDeviceFunction void Init_wallNorm(){
 			real_t coeff[3];
 			int t_index;
 			// TODO: Truncated normals should be replaced with myNorm after testing
-			GetIntersectionTriangleId(myNorm, t_index, face_index, coeff, intersection_point);
+			calcIntersectionTriangleId(truncated_normals, t_index, face_index, coeff, intersection_point);
+
+
+			if (x_ == 195 && y_ == 0 && z_ == 11) {
+				printf("Actual %lf %lf %lf\n", coeff_v1, coeff_v2, coeff_v3);
+			}
 
 			// make sure normal vector is extended to the surface
 			nw_actual_x = intersection_point[0];
@@ -834,9 +905,9 @@ CudaDeviceFunction void Init_wallNorm(){
 		nw_actual_x = 0.0;
 		nw_actual_y = 0.0;
 		nw_actual_z = 0.0;
-		coeff_v1 = 0;
-		coeff_v2 = 0;
-		coeff_v3 = 0;
+		coeff_v1 = 0.0;
+		coeff_v2 = 0.0;
+		coeff_v3 = 0.0;
 		triangle_index = 0;
 	}
 }
@@ -913,7 +984,7 @@ CudaDeviceFunction void Init_distributions(){
 
 
 
-CudaDeviceFunction void GetIntersectionTriangleId(
+CudaDeviceFunction void calcIntersectionTriangleId(
 												  real_t vec[],
 												  int& triangle_index,
 												  int& face_index,
@@ -1005,13 +1076,19 @@ CudaDeviceFunction void GetIntersectionTriangleId(
             koeff[1] = koeff_2; 
             koeff[2] = 1 - koeff_1 - koeff_2;
 
+//
+//			coeff_v1 = koeff_1;
+//			coeff_v2 = koeff_2;
+//			coeff_v3 = 1 - koeff_1 - koeff_2;
+
+
 			if (fabs(koeff_1) > 1 || fabs(koeff_2) > 1 || koeff_1 < 0 || koeff_2 < 0) {
 				printf("NOO");
 				printf("%lf%lf%lf\n", koeff_1, koeff_2, 1. - koeff_1 - koeff_2);
 			}
 
 
-#if 0
+#if 1
 			real_t coeffs[3] = {koeff_1, koeff_2, 1 - koeff_1 - koeff_2};
 
 			// find maximum coefficient
@@ -1027,7 +1104,8 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 			int dirs[3] = {int(d3q27_triangles[face_index][face_triangle_index][max_index][0]), int(d3q27_triangles[face_index][face_triangle_index][max_index][1]), int(d3q27_triangles[face_index][face_triangle_index][max_index][2]) };
 			// end of interpolation stuff
 
-			if (coeffs[max_index] > 0 && (dirs[0] != int(nw_x) || dirs[1] != int(nw_y) || dirs[2] != int(nw_z)) && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0))) {
+			if (coeffs[max_index] >= 0 && (dirs[0] != int(nw_x) || dirs[1] != int(nw_y) || dirs[2] != int(nw_z)) && (!(int(nw_z) == 0 && int(nw_y) == 0 && int(nw_x) == 0))) {
+				printf("THIS CAN'T BE");
 				printf("Coeffs %lf %lf %lf\n", coeffs[0], coeffs[1], coeffs[2]);
 				printf("Dirs are %d %d %d\n", dirs[0], dirs[1], dirs[2]);
 				printf("Actual dirs are %d %d %d\n", int(nw_x), int(nw_y), int(nw_z));
@@ -1036,6 +1114,13 @@ CudaDeviceFunction void GetIntersectionTriangleId(
 
 			break;
 		}
+	}
+	if (koeff[0] + koeff[1] + koeff[2] < 1.0) {
+		printf("NOi!");
+		printf("%lf %lf %lf", koeff[0], koeff[1], koeff[2]);
+	}
+	if (plane_angle == -1) {
+		printf("WHHAAT!");
 	}
 }
 
