@@ -824,8 +824,7 @@ CudaDeviceFunction void Init_wallNorm(){
 			int face_index;
 			real_t coeff[3];
 			int t_index;
-			// TODO: Truncated normals should be replaced with myNorm after testing
-			calcIntersectionTriangleId(truncated_normals, t_index, face_index, coeff, intersection_point);
+			calcIntersectionTriangleId(myNorm, t_index, face_index, coeff, intersection_point);
 
 			// make sure normal vector is extended to the surface (to use it during interpolation)
 			nw_actual_x = intersection_point[0];
