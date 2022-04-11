@@ -637,6 +637,11 @@ CudaDeviceFunction void calcWallPhase(){
 
 			// project the phase field gradient onto the boundary plane
 			real_t norm = nw_x*nw_x + nw_y * nw_y + nw_z * nw_z;
+
+
+
+#ifdef OPTIONS_gupdate1
+			// linear interpolation of magnitudes
 			real_t coeff = (der_x_1 * nw_x + der_y_1 * nw_y + der_z_1 * nw_z)/norm;
 			vector_t proj_grad_1 = {der_x_1 - coeff*nw_x, der_y_1 - coeff*nw_y, der_z_1 - coeff * nw_z};
 
@@ -650,6 +655,40 @@ CudaDeviceFunction void calcWallPhase(){
 			// NOTE: pretty sure this can be improved by different
 			// ways of extrapolating the gradient onto the node
 			real_t grad_tangent = fabs(1.5 * vec_1 - 0.5 * vec_2);
+#endif
+#ifdef OPTIONS_gupdate2
+			// linear interpolation of projected vector directions
+
+			real_t coeff = (der_x_1 * nw_x + der_y_1 * nw_y + der_z_1 * nw_z)/norm;
+			vector_t proj_grad_1 = {der_x_1 - coeff*nw_x, der_y_1 - coeff*nw_y, der_z_1 - coeff * nw_z};
+
+			coeff = (der_x_2 * nw_x + der_y_2 * nw_y + der_z_2 * nw_z)/norm;
+			vector_t proj_grad_2 = {der_x_2 - coeff*nw_x, der_y_2 - coeff*nw_y, der_z_2 - coeff * nw_z};
+
+			vector_t grad_tangent_v = { 1.5 * proj_grad_1.x - 0.5 * proj_grad_2.x,
+										1.5 * proj_grad_1.y - 0.5 * proj_grad_2.y,
+										1.5 * proj_grad_1.z - 0.5 * proj_grad_2.z};
+
+
+			real_t grad_tangent = sqrt(grad_tangent_v.x * grad_tangent_v.x  + \
+									 grad_tangent_v.y * grad_tangent_v.y + \
+									 grad_tangent_v.z * grad_tangent_v.z);
+#endif
+#ifdef OPTIONS_gupdate3
+
+			vector_t grad_tangent_v = { 1.5 * der_x_1 - 0.5 * der_x_2,
+										1.5 * der_y_1 - 0.5 * der_y_2,
+										1.5 * der_z_1 - 0.5 * der_z_2};
+
+
+			real_t coeff = (grad_tangent_v.x * nw_x + grad_tangent_v.y * nw_y + grad_tangent_v.z * nw_z)/norm;
+			vector_t proj_grad = {grad_tangent_v.x - coeff*nw_x, grad_tangent_v.y - coeff*nw_y, grad_tangent_v.z - coeff * nw_z};
+
+			real_t grad_tangent = sqrt(grad_tangent_v.x * grad_tangent_v.x  + \
+									 grad_tangent_v.y * grad_tangent_v.y + \
+									 grad_tangent_v.z * grad_tangent_v.z);
+
+#endif
 
 			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
 #else
