@@ -39,11 +39,18 @@ AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
 AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
 AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
 AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+
+
+# Improvement
+AddDensity(name="coeff2_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff2_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff2_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
+
 AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
 
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
-# TODO: I am not sure why I need to add 'st_interpolation here"
 save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
 load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
 load_phase      = c("g","h","Vel","nw", "nw_actual")
@@ -132,14 +139,20 @@ if (Options$altContactAngle){
     AddQuantity(name="ActualNormal", unit=1, vector=T)
 	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
 	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
-                                        # Staircase approximation
+}
+if (Options$staircaseimp) {
+    # Staircase approximation
     AddQuantity(name="CoeffV", unit=1, vector=T)
+    AddQuantity(name="CoeffV2", unit=1, vector=T)
+    AddQuantity(name="TriangleIndex2", unit=1)
     AddQuantity(name="Triangle_V1", unit=1, vector=T)
     AddQuantity(name="Triangle_V2", unit=1, vector=T)
     AddQuantity(name="Triangle_V3", unit=1, vector=T)
     AddQuantity(name="TriangleIndex", unit=1)
     AddQuantity(name="FaceIndex", unit=1)
+    AddQuantity(name="FaceIndex2", unit=1)
     AddQuantity(name="TriangleFaceIndex", unit=1)
+    AddQuantity(name="TriangleFaceIndex2", unit=1)
 }
 ###################################
 ########INPUTS - PHASEFIELD########
