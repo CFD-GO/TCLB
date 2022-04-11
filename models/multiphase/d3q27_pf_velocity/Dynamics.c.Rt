@@ -574,7 +574,7 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t der_y_2 = coeff_v1*gradPhiVal_y_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_y_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_y_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 			real_t der_z_2 = coeff_v1*gradPhiVal_z_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_z_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_z_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 
-#endif
+#else
 
 		    int face_triangle_index2 = int(triangle_index2) % 8;
 
@@ -596,18 +596,42 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t der_x_2 = coeff2_v1*gradPhiVal_x_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_x_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_x_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
 			real_t der_y_2 = coeff2_v1*gradPhiVal_y_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_y_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_y_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
 			real_t der_z_2 = coeff2_v1*gradPhiVal_z_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_z_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_z_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
+#endif
+
+			// Get gradient on the first node in the normal direction
+			real_t der_x_1_sup = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
+			real_t der_y_1_sup = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
+			real_t der_z_1_sup = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
+
+			// Get gradient on the second node in the normal direction
+			real_t der_x_2_sup= gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_y_2_sup= gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_z_2_sup= gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+
+			if ((fabs(der_x_2 - der_x_2_sup) > 1e-10) || \
+				(fabs(der_y_2 - der_y_2_sup) > 1e-10) || \
+				(fabs(der_z_2 - der_z_2_sup) > 1e-10) || \
+				(fabs(der_x_1 - der_x_1_sup) > 1e-10) || \
+				(fabs(der_y_1 - der_y_1_sup) > 1e-10) || \
+				(fabs(der_z_1 - der_z_1_sup) > 1e-10)) {
+				debug_printf("INVALID_VALUE.THIS SHOULD NOT HAPPEN\n");
+				debug_printf("%lf %lf\n", pf_f, pf_interpolated);
+			}
 
 #else
-			// Get gradient on the first node in the normal direction
+
 			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
 			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
 			real_t der_z_1 = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
 
 			// Get gradient on the second node in the normal direction
-			real_t der_x_2 = gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			real_t der_y_2 = gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			real_t der_z_2 = gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_x_2= gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_y_2= gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_z_2= gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+
 #endif
+
+
 			// Simply use normal vector to calculate projection onto the solid boundary plane
 			// and extrapolate to the wall
 
