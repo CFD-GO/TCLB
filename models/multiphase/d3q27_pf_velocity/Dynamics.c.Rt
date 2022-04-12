@@ -560,6 +560,8 @@ CudaDeviceFunction void calcWallPhase(){
 
 #ifdef OPTIONS_staircaseimp
 
+		    vector_t solid_normal = {nw_actual_x, nw_actual_y, nw_actual_z};
+
 
 			// Get gradient on the first node in the normal direction (interpolated from the neigboring nodes)
 			real_t der_x_1 = coeff_v1*gradPhiVal_x_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_x_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_x_dyn(v3_x, v3_y, v3_z);
@@ -619,6 +621,7 @@ CudaDeviceFunction void calcWallPhase(){
 			}
 
 #else
+		    vector_t solid_normal = {nw_x, nw_y, nw_z};
 
 			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
 			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
@@ -630,23 +633,20 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t der_z_2= gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
 
 #endif
-
-
 			// Simply use normal vector to calculate projection onto the solid boundary plane
 			// and extrapolate to the wall
 
 			// project the phase field gradient onto the boundary plane
-			real_t norm = nw_x*nw_x + nw_y * nw_y + nw_z * nw_z;
-
+			real_t norm = solid_normal.x*solid_normal.x + solid_normal.y * solid_normal.y + solid_normal.z * solid_normal.z;
 
 
 #ifdef OPTIONS_gupdate1
 			// linear interpolation of magnitudes
-			real_t coeff = (der_x_1 * nw_x + der_y_1 * nw_y + der_z_1 * nw_z)/norm;
-			vector_t proj_grad_1 = {der_x_1 - coeff*nw_x, der_y_1 - coeff*nw_y, der_z_1 - coeff * nw_z};
+			real_t coeff = (der_x_1 * solid_normal.x + der_y_1 * solid_normal.y + der_z_1 * solid_normal.z)/norm;
+			vector_t proj_grad_1 = {der_x_1 - coeff*solid_normal.x, der_y_1 - coeff*solid_normal.y, der_z_1 - coeff * solid_normal.z};
 
-			coeff = (der_x_2 * nw_x + der_y_2 * nw_y + der_z_2 * nw_z)/norm;
-			vector_t proj_grad_2 = {der_x_2 - coeff*nw_x, der_y_2 - coeff*nw_y, der_z_2 - coeff * nw_z};
+			coeff = (der_x_2 * solid_normal.x + der_y_2 * solid_normal.y + der_z_2 * solid_normal.z)/norm;
+			vector_t proj_grad_2 = {der_x_2 - coeff*solid_normal.x, der_y_2 - coeff*solid_normal.y, der_z_2 - coeff * solid_normal.z};
 
 			real_t vec_1 = sqrt(proj_grad_1.x * proj_grad_1.x + proj_grad_1.y * proj_grad_1.y + proj_grad_1.z * proj_grad_1.z);
 			real_t vec_2 = sqrt(proj_grad_2.x * proj_grad_2.x + proj_grad_2.y * proj_grad_2.y + proj_grad_2.z * proj_grad_2.z);
@@ -659,11 +659,11 @@ CudaDeviceFunction void calcWallPhase(){
 #ifdef OPTIONS_gupdate2
 			// linear interpolation of projected vector directions
 
-			real_t coeff = (der_x_1 * nw_x + der_y_1 * nw_y + der_z_1 * nw_z)/norm;
-			vector_t proj_grad_1 = {der_x_1 - coeff*nw_x, der_y_1 - coeff*nw_y, der_z_1 - coeff * nw_z};
+			real_t coeff = (der_x_1 * solid_normal.x + der_y_1 * solid_normal.y + der_z_1 * solid_normal.z)/norm;
+			vector_t proj_grad_1 = {der_x_1 - coeff*solid_normal.x, der_y_1 - coeff*solid_normal.y, der_z_1 - coeff * solid_normal.z};
 
-			coeff = (der_x_2 * nw_x + der_y_2 * nw_y + der_z_2 * nw_z)/norm;
-			vector_t proj_grad_2 = {der_x_2 - coeff*nw_x, der_y_2 - coeff*nw_y, der_z_2 - coeff * nw_z};
+			coeff = (der_x_2 * solid_normal.x + der_y_2 * solid_normal.y + der_z_2 * solid_normal.z)/norm;
+			vector_t proj_grad_2 = {der_x_2 - coeff*solid_normal.x, der_y_2 - coeff*solid_normal.y, der_z_2 - coeff * solid_normal.z};
 
 			vector_t grad_tangent_v = { 1.5 * proj_grad_1.x - 0.5 * proj_grad_2.x,
 										1.5 * proj_grad_1.y - 0.5 * proj_grad_2.y,
@@ -681,8 +681,8 @@ CudaDeviceFunction void calcWallPhase(){
 										1.5 * der_z_1 - 0.5 * der_z_2};
 
 
-			real_t coeff = (grad_tangent_v.x * nw_x + grad_tangent_v.y * nw_y + grad_tangent_v.z * nw_z)/norm;
-			vector_t proj_grad = {grad_tangent_v.x - coeff*nw_x, grad_tangent_v.y - coeff*nw_y, grad_tangent_v.z - coeff * nw_z};
+			real_t coeff = (grad_tangent_v.x * solid_normal.x + grad_tangent_v.y * solid_normal.y + grad_tangent_v.z * solid_normal.z)/norm;
+			vector_t proj_grad = {grad_tangent_v.x - coeff*solid_normal.x, grad_tangent_v.y - coeff*solid_normal.y, grad_tangent_v.z - coeff * solid_normal.z};
 
 			real_t grad_tangent = sqrt(grad_tangent_v.x * grad_tangent_v.x  + \
 									 grad_tangent_v.y * grad_tangent_v.y + \
