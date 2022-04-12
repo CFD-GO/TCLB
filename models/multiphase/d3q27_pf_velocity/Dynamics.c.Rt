@@ -569,7 +569,7 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t der_z_1 = coeff_v1*gradPhiVal_z_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_z_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_z_dyn(v3_x, v3_y, v3_z);
 
 // Bigger triangle
-#if 0
+#ifndef OPTIONS_tprec
 
 			// Get gradient on the second node in the normal direction
 			real_t der_x_2 = coeff_v1*gradPhiVal_x_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_x_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_x_dyn(2*v3_x, 2*v3_y, 2*v3_z);
