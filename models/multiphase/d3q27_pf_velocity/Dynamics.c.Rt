@@ -267,17 +267,6 @@ CudaDeviceFunction vector_t getTangentialDirection2(){
 }
 
 
-CudaDeviceFunction vector_t getTriangle_V1(){
-	vector_t triangle;
-	int face_index = int(triangle_index) / 8;
-	int face_triangle_index = int(triangle_index) % 8;
-
-	triangle.x = int(d3q27_triangles[face_index][face_triangle_index][0][0]);
-	triangle.y = int(d3q27_triangles[face_index][face_triangle_index][0][1]);
-	triangle.z = int(d3q27_triangles[face_index][face_triangle_index][0][2]);
-	return triangle;
-}
-
 CudaDeviceFunction void calcPhaseGrad(){
     vector_t gradPhi;
     <?R
@@ -340,6 +329,18 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 
 
 #ifdef OPTIONS_staircaseimp
+
+CudaDeviceFunction vector_t getTriangle_V1(){
+	vector_t triangle;
+	int face_index = int(triangle_index) / 8;
+	int face_triangle_index = int(triangle_index) % 8;
+
+	triangle.x = int(d3q27_triangles[face_index][face_triangle_index][0][0]);
+	triangle.y = int(d3q27_triangles[face_index][face_triangle_index][0][1]);
+	triangle.z = int(d3q27_triangles[face_index][face_triangle_index][0][2]);
+	return triangle;
+}
+
 CudaDeviceFunction vector_t getTriangle_V2(){
 	vector_t triangle;
 	int face_index = int(triangle_index) / 8;
@@ -684,9 +685,9 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t coeff = (grad_tangent_v.x * solid_normal.x + grad_tangent_v.y * solid_normal.y + grad_tangent_v.z * solid_normal.z)/norm;
 			vector_t proj_grad = {grad_tangent_v.x - coeff*solid_normal.x, grad_tangent_v.y - coeff*solid_normal.y, grad_tangent_v.z - coeff * solid_normal.z};
 
-			real_t grad_tangent = sqrt(grad_tangent_v.x * grad_tangent_v.x  + \
-									 grad_tangent_v.y * grad_tangent_v.y + \
-									 grad_tangent_v.z * grad_tangent_v.z);
+			real_t grad_tangent = sqrt(proj_grad.x * proj_grad.x  + \
+									 proj_grad.y * proj_grad.y + \
+									 proj_grad.z * proj_grad.z);
 
 #endif
 

@@ -117,7 +117,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
 	} else if (Options$altContactAngle) {
         AddAction("Iteration", c("BaseIter", "calcPhase",  "calcPhaseGrad_init", "calcWall_CA"))
-	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , if Options$isograd  "calcPhaseGrad" else "calcPhaseGrad_init"  , "calcWall_CA","BaseInit"))
+	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"  , "calcWall_CA","BaseInit"))
 	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
