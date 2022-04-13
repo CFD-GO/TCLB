@@ -131,13 +131,17 @@ CudaDeviceFunction void RunBoundaries() {
 		f_neighbours = Density$nicename[Density$group =="f"]
 		dre_1_neighbours = Density$nicename[Density$group =="dre_1"]
 	?>
+	const real_t k = (rho0 + 0.5 * Viscosity / Permability);
 
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Wall:
 		BounceBack();
         break;
 	case NODE_WDirichlet:
-		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(-1, 0, 0), "velocity") ?>}
+		{
+			const real_t BCVelocity = Velocity*k - ForceX / 2;
+			<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(-1, 0, 0), "first_moment", rhs=PV('BCVelocity')) ?>
+		}
 		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='dre_1']) , c(-1, 0, 0), "pressure", PV("Init_PHI")) ?>}
         break;
 	case NODE_ENeuman:
@@ -188,7 +192,7 @@ CudaDeviceFunction void InitFromExternal() {
 
 
 CudaDeviceFunction void GlobasPorosityDissolutionTimeStep() { 
- 	assert(0)
+ 	assert(0);
 }
 
 
@@ -213,7 +217,7 @@ CudaDeviceFunction void Collision_MTW_RT()
   	Omega[EQ$order > 2] = PV(1)
   }
 
-  if (any(EQ$order < 2)) Omega[EQ$order < 2] = PV(1)
+  #if (any(EQ$order < 2)) Omega[EQ$order < 2] = PV(1)
   
 
   meq = EQ$Req + LambdaForce*(EQ_FORCE$feq %*% EQ$mat)
@@ -231,28 +235,31 @@ CudaDeviceFunction void Collision_MTW_RT()
 ?>
 	const real_t Lambda = Magic;
 	const real_t B = 1. / Permability;
-	//const real_t LambdaPlus = 9 * (4 + B) / ( 4 *( 3+2*B*Lambda ) ) * Viscosity;
-	//const real_t LambdaMinus = Lambda / 3. /  Viscosity;
+	const real_t LambdaPlus = 9. * (4. + B) / ( 4. *( 3.+2.*B*Lambda ) ) * Viscosity;
+	const real_t LambdaMinus = Lambda / 3. /  Viscosity;
 
-	const real_t LambdaMinus =  3. *  Viscosity;
-	const real_t LambdaPlus =  3. *  Viscosity;
+	// const real_t LambdaMinus =  3. *  Viscosity;
+	//const real_t LambdaPlus =  3. *  Viscosity;
 
-	const real_t omega = 1/(  LambdaPlus + 0.5 ); //symmetric relaxation
-	const real_t omega2 = 1/(  LambdaMinus + 0.5 ); //non-symmetric relaxation
+	const real_t omega = 1./(  LambdaPlus + 0.5 ); //symmetric relaxation
+	const real_t omega2 = 1./(  LambdaMinus + 0.5 ); //non-symmetric relaxation
 
 
 	real_t p, Vx, Vy, Vz, dFX, dFY, dFZ;
 	const real_t k = 1./(rho0 + 0.5 * Viscosity / Permability);
 		
 <?R
+
+  Vs = PV(c("Vx","Vy","Vz"))
+  Forces = PV(c("ForceX","ForceY","ForceZ"))
+
   C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
 
-  C(PV(c("Vx","Vy","Vz")), (PV(c("Vx","Vy","Vz")) + PV(c("ForceX","ForceY","ForceZ"))*0.5) * PV(c('k')))
+  C(Vs, (Vs + Forces*0.5) * PV(c('k')))
 
-  C(PV(c("dFX","dFY","dFZ")), PV(c("ForceX","ForceY","ForceZ")) - PV(c("Vx","Vy","Vz"))*PV("Viscosity")*PV("Permability")^-1   )
-  C(PV(c("AdvectX", "AdvectY", "AdvectZ")),PV(c("Vx","Vy","Vz"))) #For reaction coupling
+  C(PV(c("dFX","dFY","dFZ")), Forces - Vs*PV("Viscosity")*PV("Permability")^-1   )
 
-#  C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
+  C(PV(c("AdvectX", "AdvectY", "AdvectZ")),Vs) #For reaction coupling
 
 
   C(m, m - meq)
@@ -305,9 +312,8 @@ CudaDeviceFunction void Collision_MTW_RT()
 
 		
 
-		Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
-
-        Permability = 1.*1. / 180. * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
+		//Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
+        //Permability = 1.*1. / 180. * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
 
 
 		//printf("%f %f %f %f %f\n", flux, Porosity, Permability, InitialPorosity, InitialPermability);

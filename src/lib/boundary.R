@@ -140,7 +140,7 @@ ZouHeNew = function(EQ, f, direction, sign, order, group=f, known="rho",mom) {
   C(f[sel],fs[sel])
 }
 
-ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rhs) {
+ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing","first_moment"), rhs) {
   # --- Prepare arguments
 	type=match.arg(type)
 
@@ -183,6 +183,9 @@ ZouHeRewrite = function(EQ, f, n, type=c("velocity","pressure","do nothing"), rh
           # --- Set all velocity components
 		eqn = V( fs %*% EQ2$U %*% diag(d))
 		rhs = rhs * sum(fs)
+	} else if (type == "first_moment") {
+          # --- Set all velocity components
+		eqn = V( fs %*% EQ2$U %*% diag(d))
 	} else stop("Unknown type in ZouHe")
 	cat("/********* ", type, "-type Zou He boundary condition  ****************/\n",sep="");
 	eqn = eqn - rhs;
