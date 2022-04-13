@@ -305,16 +305,16 @@ CudaDeviceFunction void Collision_MTW_RT()
 		const real_t EffectiveSurfaceArea = 4*Porosity*(1-Porosity);
 		real_t flux = EffectiveSurfaceArea*LinearReactionRate*(1 - _phi[0]);
 
-		if (flux*SolidFluidReactionsRate > (1-InitialPorosity)) {
+		if (flux*	 > (1-InitialPorosity)) {
 			flux = (1-InitialPorosity) / SolidFluidReactionsRate;
 		}
 		_q[0] = flux;
 
 		
-
-		//Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
-        //Permability = 1.*1. / 180. * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
-
+		if (ImpliciteReactionIntegration == 1) {
+			Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
+        	Permability =  KarmanKozenyCoefficient * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
+		}
 
 		//printf("%f %f %f %f %f\n", flux, Porosity, Permability, InitialPorosity, InitialPermability);
 		//Permability = Porosity / InitialPorosity * InitialPermability;

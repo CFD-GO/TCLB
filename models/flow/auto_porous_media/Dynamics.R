@@ -71,7 +71,7 @@ AddSetting(name="Pressure", default="0Pa", comment='Inlet pressure', zonal=TRUE)
 
 AddSetting( name="SolidFluidReactionsRate", default="1", comment='Coefficent between fluid and solid mass flux, with dt ratio', zonal=TRUE)
 AddSetting( name="ImpliciteReactionIntegration", default="0", comment='Fixed point implicit solution in terms of DPer/Dt.', zonal=FALSE)
-
+AddSetting( name="KarmanKozenyCoefficient", default="1", comment='Permability = KKC * Porosity^3 / ((1-Porosity)^2+1E-8)', zonal=FALSE)
 
 AddSetting(name="GalileanCorrection",default=1.,comment='Galilean correction term')
 
