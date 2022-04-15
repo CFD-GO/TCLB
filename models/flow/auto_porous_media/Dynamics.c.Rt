@@ -92,6 +92,18 @@ CudaDeviceFunction real_t getPermability(){
 	return Permability;
 }
 
+CudaDeviceFunction real_t getReactiveFlux(){
+		const real_t phi = getPHI();
+
+		const real_t EffectiveSurfaceArea = 4*Porosity*(1-Porosity);
+		real_t flux = EffectiveSurfaceArea*LinearReactionRate*(1 - phi);
+
+		if (flux*SolidFluidReactionsRate > (1-InitialPorosity)) {
+			flux = - (1-InitialPorosity) / SolidFluidReactionsRate;
+		}
+		return flux; // negative signe when flux is limited
+}
+
 CudaDeviceFunction real_t getPorosity(){
 	return Porosity;
 }
@@ -192,7 +204,8 @@ CudaDeviceFunction void InitFromExternal() {
 
 
 CudaDeviceFunction void GlobasPorosityDissolutionTimeStep() { 
- 	assert(0);
+	InitialPorosity = Porosity;
+    InitialPermability =  KarmanKozenyCoefficient * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
 }
 
 
@@ -305,7 +318,7 @@ CudaDeviceFunction void Collision_MTW_RT()
 		const real_t EffectiveSurfaceArea = 4*Porosity*(1-Porosity);
 		real_t flux = EffectiveSurfaceArea*LinearReactionRate*(1 - _phi[0]);
 
-		if (flux*	 > (1-InitialPorosity)) {
+		if (flux*SolidFluidReactionsRate	 > (1-InitialPorosity)) {
 			flux = (1-InitialPorosity) / SolidFluidReactionsRate;
 		}
 		_q[0] = flux;

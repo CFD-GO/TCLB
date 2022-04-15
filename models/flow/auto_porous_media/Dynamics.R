@@ -54,6 +54,7 @@ AddQuantity(name="U",unit="m/s",vector=T)
 
 AddQuantity(name="Porosity",unit="1")
 AddQuantity(name="Permability",unit="1/m2")
+AddQuantity(name="ReactiveFlux",unit="kg/s")
 AddQuantity(name="BrinkmanForce",unit="N/m3",vector=TRUE)
 
 
