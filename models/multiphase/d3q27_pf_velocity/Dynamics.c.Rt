@@ -571,7 +571,6 @@ CudaDeviceFunction void calcWallPhase(){
 
 // Bigger triangle
 #ifndef OPTIONS_tprec
-
 			// Get gradient on the second node in the normal direction
 			real_t der_x_2 = coeff_v1*gradPhiVal_x_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_x_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_x_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 			real_t der_y_2 = coeff_v1*gradPhiVal_y_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_y_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_y_dyn(2*v3_x, 2*v3_y, 2*v3_z);
@@ -601,6 +600,7 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t der_z_2 = coeff2_v1*gradPhiVal_z_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_z_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_z_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
 #endif
 
+            // Just some helpers
 			// Get gradient on the first node in the normal direction
 			real_t der_x_1_sup = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
 			real_t der_y_1_sup = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
