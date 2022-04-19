@@ -314,11 +314,16 @@ CudaDeviceFunction void Collision_MTW_RT()
 	}
 	CudaDeviceFunction void DoADRE_CalcQ(const real_t* _phi, real_t* _q) 
 	{	
+		if ((_phi[0] > 1) || (_phi[0] < 0)) {
+			_q[0] = 0; 
+			return;
+		}// Limiter 
+		
 		// Predictor
 		const real_t EffectiveSurfaceArea = 4*Porosity*(1-Porosity);
 		real_t flux = EffectiveSurfaceArea*LinearReactionRate*(1 - _phi[0]);
 
-		if (flux*SolidFluidReactionsRate	 > (1-InitialPorosity)) {
+		if (flux*SolidFluidReactionsRate > (1-InitialPorosity)) {
 			flux = (1-InitialPorosity) / SolidFluidReactionsRate;
 		}
 		_q[0] = flux;
