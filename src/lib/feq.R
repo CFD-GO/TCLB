@@ -108,3 +108,17 @@ WMRT_mat = function(U) {
 	M = M %*% solve(R)
 	M
 }
+
+
+get.M.matrix = function(a) {
+  an = lapply(a@vec,names)
+  an = unique(do.call(c,an))
+  an = setdiff(an,".M")
+  ret = lapply(a@vec,function(p) { nan = setdiff(an,names(p)); p[,nan] = 0; p})
+  n = length(ret)
+  for (i in seq_len(n)) names(ret[[i]])[names(ret[[i]]) == ".M"] = paste0(".M",i)
+  m=ret[[1]]
+  for (i in seq_len(n-1)+1) m = merge(x=m,y=ret[[i]],all=TRUE,suffixes = c("a","b"))
+  m[is.na(m)] = 0
+  as.matrix(m[,paste0(".M",1:n)])
+}
