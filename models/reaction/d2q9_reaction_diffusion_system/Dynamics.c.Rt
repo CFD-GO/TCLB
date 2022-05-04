@@ -97,22 +97,27 @@ CudaDeviceFunction void Init() {
 		<?R		
 	})
 
-	?>
 
-	DispatchCalcQ();
-
-	<?R
+	if (QIntegrator == 'Trapezoid') { 
+		?> 
+		DispatchCalcQ();
+		<?R
+	}
 
 
 	dre_loop( function(i) {
-		?>
-		Init_eq(Init_<?%s DREs[i] ?> - 0.5*q[<?%s i-1 ?>]);
-		<?R
+		
+		if (QIntegrator == 'Trapezoid') { ?> Init_eq(Init_<?%s DREs[i] ?> - 0.5*q[<?%s i-1 ?>]); <?R }
+		if (QIntegrator == 'Heun' || QIntegrator == 'Midpoint' || QIntegrator == 'Euler') { ?> Init_eq(Init_<?%s DREs[i] ?>); <?R }
+		
 		C(fs[[i]], f_tmp)
 	})
 
 	ode_loop( function(i) {	
-		C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) - 0.5*qs[NumberOfDREs+i] );
+		
+		if (QIntegrator == 'Trapezoid') { C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) - 0.5*qs[NumberOfDREs+i] ); }
+		if (QIntegrator == 'Heun' || QIntegrator == 'Midpoint' || QIntegrator == 'Euler') { C(odes[[i]], PV(paste('Init', ODEs[i] , sep="_")) );}
+
 	})
 
 	?>
@@ -136,22 +141,27 @@ CudaDeviceFunction void InitFromExternal() {
 		<?R		
 	})
 
-	?>
 
-	DispatchCalcQ();
-
-	<?R
-
-
-	dre_loop( function(i) {
-		?>
-		Init_eq(Init_<?%s DREs[i] ?>_External(0,0) - 0.5*q[<?%s i-1 ?>]);
+	if (QIntegrator == 'Trapezoid') { 
+		?> 
+		DispatchCalcQ();
 		<?R
+	}
+	
+	
+	dre_loop( function(i) {
+		
+		if (QIntegrator == 'Trapezoid') { ?> Init_eq(Init_<?%s DREs[i] ?>_External(0,0) - 0.5*q[<?%s i-1 ?>]); <?R }
+		if (QIntegrator == 'Heun' || QIntegrator == 'Euler' || QIntegrator == 'Midpoint') { ?> Init_eq(Init_<?%s DREs[i] ?>_External(0,0)); <?R }
+		
 		C(fs[[i]], f_tmp)
 	})
 
-	ode_loop( function(i) {
-		C(odes[[i]], PV(paste('Init',ODEs[i],'External(0,0)',sep='_')) - 0.5*qs[NumberOfDREs+i] );
+	ode_loop( function(i) {	
+		
+		if (QIntegrator == 'Trapezoid') { C(odes[[i]], PV(paste('Init', ODEs[i],'External(0,0)' , sep="_")) - 0.5*qs[NumberOfDREs+i] ); }
+		if (QIntegrator == 'Heun' || QIntegrator == 'Euler' || QIntegrator == 'Midpoint') { C(odes[[i]], PV(paste('Init', ODEs[i],'External(0,0)' , sep="_")) );}
+
 	})
 
 	?>
@@ -382,7 +392,22 @@ CudaDeviceFunction void DispatchCalcPhi()
 		break;
 	}
 
-	CalcPhi();
+	<?R 
+	if (QIntegrator == 'Trapezoid') {
+	?> 
+		CalcPhi();
+	<?R
+
+	}
+	if (QIntegrator == 'Heun' || QIntegrator == 'Euler' || QIntegrator == 'Midpoint') {
+		dre_loop( function(i) {
+			C( PV( paste( 'phi[', i-1 ,']', sep='' ) ), sum(fs[[i]]))
+		})
+	}
+	
+	?>
+
+
 }
 CudaDeviceFunction void DispatchCalcQ() 
 {	
@@ -408,7 +433,77 @@ CudaDeviceFunction void DispatchCalcQ()
 		break;
 	}
 
-	CalcQ();
+	<?R
+
+	if (QIntegrator == 'Trapezoid' || QIntegrator == 'Euler') { 
+		?> 
+			CalcQ(phi,q); 
+		<?R
+	}
+
+
+	if (QIntegrator == 'Heun') { 
+		?> 
+			real_t q_tmp[<?%s NumberOfODEs + NumberOfDREs ?>];
+			real_t phi_euler[<?%s NumberOfODEs + NumberOfDREs ?>];
+			CalcQ(phi,q_tmp);
+		<?R
+
+		dre_loop( function(i) {
+			?>
+			phi_euler[<?%s i-1 ?>] = phi[<?%s i-1 ?>] + q_tmp[<?%s i-1 ?>];
+			<?R
+		})
+
+		ode_loop( function(i) {
+			?>
+			phi_euler[<?%s NumberOfDREs+i-1 ?>] = phi[<?%s NumberOfDREs+i-1 ?>] + q_tmp[<?%s NumberOfDREs+i-1 ?>];
+			<?R		
+		})
+		?> 
+			CalcQ(phi_euler,q);
+		<?R
+
+		dre_loop( function(i) {
+			?>
+			q[<?%s i-1 ?>] = ( q[<?%s i-1 ?>] + q_tmp[<?%s i-1 ?>] ) / 2;
+			<?R
+		})
+
+		ode_loop( function(i) {
+			?>
+			q[<?%s NumberOfDREs+i-1 ?>] = ( q[<?%s NumberOfDREs+i-1 ?>] + q_tmp[<?%s NumberOfDREs+i-1 ?>] ) / 2;
+			<?R		
+		})
+
+	}
+
+
+	if (QIntegrator == 'Midpoint') { 
+		?> 
+			real_t q_tmp[<?%s NumberOfODEs + NumberOfDREs ?>];
+			real_t phi_euler[<?%s NumberOfODEs + NumberOfDREs ?>];
+			CalcQ(phi,q_tmp);
+		<?R
+
+		dre_loop( function(i) {
+			?>
+			phi_euler[<?%s i-1 ?>] = phi[<?%s i-1 ?>] + q_tmp[<?%s i-1 ?>] / 2;
+			<?R
+		})
+
+		ode_loop( function(i) {
+			?>
+			phi_euler[<?%s NumberOfDREs+i-1 ?>] = phi[<?%s NumberOfDREs+i-1 ?>] + q_tmp[<?%s NumberOfDREs+i-1 ?>] / 2;
+			<?R		
+		})
+		?> 
+			CalcQ(phi_euler,q);
+		<?R
+	}
+
+	?>
+
 }
 
 
@@ -430,9 +525,9 @@ CudaDeviceFunction void DispatchCalcQ()
 		const real_t  x3 = cbrt(-9*tilde_phi*x1 + sqrt(3.)*sqrt((27*pow(tilde_phi, 2) - x1*pow(x2, 3))/(pow(dt, 2)*pow(Lambda, 2)))) ; 
 		phi[0] = -1.0/3.0*x0*(x0*x1*x2 + pow(x3, 2))/x3 ;  
 	}
-	CudaDeviceFunction void CalcQ() 
+	CudaDeviceFunction void CalcQ(const real_t* _phi, real_t* _q) 
 	{	
-		q[0] = Lambda*phi[0]*(1 - pow(phi[0], 2)) ;
+		_q[0] = Lambda*_phi[0]*(1 - pow(_phi[0], 2)) ;
 	}
 <?R		
 	}
@@ -633,6 +728,26 @@ CudaDeviceFunction void DispatchCalcQ()
 	CudaDeviceFunction void CalcQ() 
 	{	
 		q[0] = 0;
+	}
+<?R		
+	}
+?>
+
+<?R 
+	if (Qname == 'LinearReaction') {
+?>
+
+
+	CudaDeviceFunction void CalcPhi() 
+	{	
+		real_t tilde_phi = <?%s  C(sum(fs[[1]])) ?>;
+
+		phi[0] = 2. / (2. - LinearReactionRate) * tilde_phi;
+
+	}
+	CudaDeviceFunction void CalcQ(const real_t* _phi, real_t* _q) 
+	{	
+		_q[0] = LinearReactionRate*_phi[0];
 	}
 <?R		
 	}
