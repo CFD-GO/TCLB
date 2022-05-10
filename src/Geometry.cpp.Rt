@@ -767,7 +767,7 @@ int Geometry::Draw(pugi::xml_node & node)
 		for (int x = reg.dx; x < reg.dx + reg.nx; x++)
 		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
 		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
-			if (inSphere((.5 + x - reg.dx) / reg.nx, 0.5 - (y - .5  - reg.dy) / reg.ny / 2., (.5 + z - reg.dz) / reg.nz) ) {
+			if (inSphere((.5 + x - reg.dx) / reg.nx, 0.5 - (.5 + y - reg.dy) / reg.ny / 2., (.5 + z - reg.dz) / reg.nz) ) {
 			    Dot(x, y, z);
 			}
 		    }
