@@ -25,6 +25,15 @@ int conControl::Param (pugi::xml_node n) {
                 return -2;
 	}
 
+	if (zone != "") {
+		if (solver->geometry->SettingZones.count(zone) > 0) { 
+			zone_number = solver->geometry->SettingZones[zone];
+		} else {
+			ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
+			return -1;
+		}
+	}
+
         if (par == "") {
                 ERROR("Setting name not specified in Param element\n");
                 return -2;
