@@ -1905,8 +1905,16 @@ CudaDeviceFunction void updateMyGlobals(real_t pf){
 }
 
 CudaDeviceFunction void updateTrackers(real_t C){
+	real_t location;
+
+	// track top of the interface in Y direction, only on actual nodes
+	if ((NodeType & NODE_BGK) || (NodeType & NODE_MRT)) {
+		if ( C < 0.5 && PhaseF(0, -1, 0) > 0.5) {
+			location = Y - (C-0.5)/(C-PhaseF(0,-1,0));
+			AddToInterfaceYTop(location);
+		}
+	}
 	switch (NodeType & NODE_ADDITIONALS) {
-		real_t location;
 		case NODE_Centerline:
 		    if ( fabs(xyzTrack-1) < 1e-3 )
 		    {  // track along X

@@ -222,6 +222,7 @@ if (Options$staircaseimp) {
 	AddNodeType(name="Saddletrack", group="ADDITIONALS")
 	AddNodeType(name="Bubbletrack", group="ADDITIONALS")
 	AddGlobal("InterfacePosition", op="MAX", comment='trackPosition')
+    AddGlobal("InterfaceYTop", op="MAX", comment="Track top position of the interface in Y direction")
 	AddGlobal("Vfront",comment='velocity infront of bubble')
 	AddGlobal("Vback",comment='velocity behind bubble')
 	AddGlobal("RTISpike", op="MAX", comment='SpikeTracker ')
