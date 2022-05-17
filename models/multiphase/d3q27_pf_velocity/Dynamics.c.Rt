@@ -547,78 +547,101 @@ CudaDeviceFunction void calcWallPhase(){
 
 		real_t pf_v3 = PhaseF_dyn(v3_x, v3_y, v3_z);
 
-		real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
+
+		bool will_interpolate_from_the_boundary = IsBoundary_dyn(v1_x, v1_y, v1_z) \
+			|| IsBoundary_dyn(v2_x, v2_y, v2_z) \
+			|| IsBoundary_dyn(v3_x, v3_y, v3_z);
 
 
-		h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
-		if (fabs(pf_f - pf_interpolated) > 1e-10) {
-			debug_printf("THIS SHOULD NOT HAPPEN\n");
-			debug_printf("%lf %lf\n", pf_f, pf_interpolated);
+		if (!will_interpolate_from_the_boundary) {
+			real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
+
+			h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
+			if (fabs(pf_f - pf_interpolated) > 1e-10) {
+				debug_printf("THIS SHOULD NOT HAPPEN\n");
+				debug_printf("%lf %lf\n", pf_f, pf_interpolated);
+			}
+			pf_f = pf_interpolated;
 		}
-		pf_f = pf_interpolated;
 #endif
 #ifdef OPTIONS_altContactAngle
 
 #ifdef OPTIONS_staircaseimp
+		    real_t der_x_1, der_y_1, der_z_1, der_x_2, der_y_2, der_z_2;
+			vector_t solid_normal = {nw_actual_x, nw_actual_y, nw_actual_z};
 
-		    vector_t solid_normal = {nw_actual_x, nw_actual_y, nw_actual_z};
+		    if (!will_interpolate_from_the_boundary) {
+				// Get gradient on the first node in the normal direction (interpolated from the neigboring nodes)
+				der_x_1 = coeff_v1*gradPhiVal_x_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_x_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_x_dyn(v3_x, v3_y, v3_z);
+				der_y_1 = coeff_v1*gradPhiVal_y_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_y_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_y_dyn(v3_x, v3_y, v3_z);
+				der_z_1 = coeff_v1*gradPhiVal_z_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_z_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_z_dyn(v3_x, v3_y, v3_z);
 
-
-			// Get gradient on the first node in the normal direction (interpolated from the neigboring nodes)
-			real_t der_x_1 = coeff_v1*gradPhiVal_x_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_x_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_x_dyn(v3_x, v3_y, v3_z);
-			real_t der_y_1 = coeff_v1*gradPhiVal_y_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_y_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_y_dyn(v3_x, v3_y, v3_z);
-			real_t der_z_1 = coeff_v1*gradPhiVal_z_dyn(v1_x, v1_y, v1_z) + coeff_v2*gradPhiVal_z_dyn(v2_x, v2_y, v2_z) + coeff_v3*gradPhiVal_z_dyn(v3_x, v3_y, v3_z);
-
-// Bigger triangle
+				// Bigger triangle
 #ifndef OPTIONS_tprec
-			// Get gradient on the second node in the normal direction
-			real_t der_x_2 = coeff_v1*gradPhiVal_x_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_x_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_x_dyn(2*v3_x, 2*v3_y, 2*v3_z);
-			real_t der_y_2 = coeff_v1*gradPhiVal_y_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_y_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_y_dyn(2*v3_x, 2*v3_y, 2*v3_z);
-			real_t der_z_2 = coeff_v1*gradPhiVal_z_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_z_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_z_dyn(2*v3_x, 2*v3_y, 2*v3_z);
+				// Get gradient on the second node in the normal direction
+				der_x_2 = coeff_v1*gradPhiVal_x_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_x_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_x_dyn(2*v3_x, 2*v3_y, 2*v3_z);
+				der_y_2 = coeff_v1*gradPhiVal_y_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_y_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_y_dyn(2*v3_x, 2*v3_y, 2*v3_z);
+				der_z_2 = coeff_v1*gradPhiVal_z_dyn(2*v1_x, 2*v1_y, 2*v1_z) + coeff_v2*gradPhiVal_z_dyn(2*v2_x, 2*v2_y, 2*v2_z) + coeff_v3*gradPhiVal_z_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 
 #else
+				int face_triangle_index2 = int(triangle_index2) % 8;
 
-		    int face_triangle_index2 = int(triangle_index2) % 8;
-
-			int v2_1_x = int(d3q27_triangles[face_index][face_triangle_index2][0][0]);
-			int v2_1_y = int(d3q27_triangles[face_index][face_triangle_index2][0][1]);
-			int v2_1_z = int(d3q27_triangles[face_index][face_triangle_index2][0][2]);
-
-
-			int v2_2_x = int(d3q27_triangles[face_index][face_triangle_index2][1][0]);
-			int v2_2_y = int(d3q27_triangles[face_index][face_triangle_index2][1][1]);
-			int v2_2_z = int(d3q27_triangles[face_index][face_triangle_index2][1][2]);
+				int v2_1_x = int(d3q27_triangles[face_index][face_triangle_index2][0][0]);
+				int v2_1_y = int(d3q27_triangles[face_index][face_triangle_index2][0][1]);
+				int v2_1_z = int(d3q27_triangles[face_index][face_triangle_index2][0][2]);
 
 
-			int v2_3_x = int(d3q27_triangles[face_index][face_triangle_index2][2][0]);
-			int v2_3_y = int(d3q27_triangles[face_index][face_triangle_index2][2][1]);
-			int v2_3_z = int(d3q27_triangles[face_index][face_triangle_index2][2][2]);
+				int v2_2_x = int(d3q27_triangles[face_index][face_triangle_index2][1][0]);
+				int v2_2_y = int(d3q27_triangles[face_index][face_triangle_index2][1][1]);
+				int v2_2_z = int(d3q27_triangles[face_index][face_triangle_index2][1][2]);
 
-			// Get gradient on the second node in the normal direction
-			real_t der_x_2 = coeff2_v1*gradPhiVal_x_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_x_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_x_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
-			real_t der_y_2 = coeff2_v1*gradPhiVal_y_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_y_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_y_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
-			real_t der_z_2 = coeff2_v1*gradPhiVal_z_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_z_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_z_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
+
+				int v2_3_x = int(d3q27_triangles[face_index][face_triangle_index2][2][0]);
+				int v2_3_y = int(d3q27_triangles[face_index][face_triangle_index2][2][1]);
+				int v2_3_z = int(d3q27_triangles[face_index][face_triangle_index2][2][2]);
+
+				// Get gradient on the second node in the normal direction
+				der_x_2 = coeff2_v1*gradPhiVal_x_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_x_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_x_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
+				der_y_2 = coeff2_v1*gradPhiVal_y_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_y_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_y_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
+				der_z_2 = coeff2_v1*gradPhiVal_z_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_z_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_z_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
 #endif
+				// Just some helpers
+				// Get gradient on the first node in the normal direction
+				real_t der_x_1_sup = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
+				real_t der_y_1_sup = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
+				real_t der_z_1_sup = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
 
-            // Just some helpers
-			// Get gradient on the first node in the normal direction
-			real_t der_x_1_sup = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
-			real_t der_y_1_sup = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
-			real_t der_z_1_sup = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
+				// Get gradient on the second node in the normal direction
+				real_t der_x_2_sup= gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+				real_t der_y_2_sup= gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+				real_t der_z_2_sup= gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
 
-			// Get gradient on the second node in the normal direction
-			real_t der_x_2_sup= gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			real_t der_y_2_sup= gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			real_t der_z_2_sup= gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+				if ((fabs(der_x_2 - der_x_2_sup) > 1e-10) || \
+					(fabs(der_y_2 - der_y_2_sup) > 1e-10) || \
+					(fabs(der_z_2 - der_z_2_sup) > 1e-10) || \
+					(fabs(der_x_1 - der_x_1_sup) > 1e-10) || \
+					(fabs(der_y_1 - der_y_1_sup) > 1e-10) || \
+					(fabs(der_z_1 - der_z_1_sup) > 1e-10)) {
+					debug_printf("INVALID_VALUE.THIS SHOULD NOT HAPPEN\n");
+					debug_printf("%lf %lf\n", pf_f, pf_interpolated);
+				}
+			} else {
+				// Revert to using "normals rounded to lattice directions" method,
+				// which should not point to solid nodes hopefully
+				// unfortunately code is duplicated between #ifdef branches
+				// and if branches, but I can't see a way around it
+				solid_normal.x = nw_x;
+				solid_normal.y = nw_y;
+				solid_normal.z = nw_z;
 
-			if ((fabs(der_x_2 - der_x_2_sup) > 1e-10) || \
-				(fabs(der_y_2 - der_y_2_sup) > 1e-10) || \
-				(fabs(der_z_2 - der_z_2_sup) > 1e-10) || \
-				(fabs(der_x_1 - der_x_1_sup) > 1e-10) || \
-				(fabs(der_y_1 - der_y_1_sup) > 1e-10) || \
-				(fabs(der_z_1 - der_z_1_sup) > 1e-10)) {
-				debug_printf("INVALID_VALUE.THIS SHOULD NOT HAPPEN\n");
-				debug_printf("%lf %lf\n", pf_f, pf_interpolated);
+				der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
+				der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
+				der_z_1 = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
+
+				// Get gradient on the second node in the normal direction
+				der_x_2= gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+				der_y_2= gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+				der_z_2= gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
 			}
 
 #else
