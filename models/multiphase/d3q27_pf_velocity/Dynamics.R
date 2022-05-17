@@ -49,6 +49,10 @@ AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
 
 AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
 
+# TODO: Only need for staircaseimp / altContactAngle, optimize before finalizing
+# the model
+AddField("IsBoundary", stencil3d=1, group="solid_boundary")
+
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
 save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
@@ -73,7 +77,6 @@ if (Options$altContactAngle){
     AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
-    AddField("IsBoundary", stencil3d=1, group="solid_boundary")
 
     AddField("PhaseF",stencil3d=2, group="PF")
 
@@ -84,8 +87,8 @@ if (Options$altContactAngle){
     AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
-    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation"))
-    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation"))
+    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation", "solid_boundary"))
+    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation", "solid_boundary"))
 }
 
 AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
