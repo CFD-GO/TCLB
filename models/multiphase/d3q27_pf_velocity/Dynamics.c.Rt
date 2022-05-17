@@ -944,7 +944,6 @@ CudaDeviceFunction void specialCases_Init(){
 
 CudaDeviceFunction void Init_wallNorm(){
 	PhaseF = PhaseF(0,0,0);
-#ifdef OPTIONS_altContactAngle
     IsBoundary = 0.0;
 #ifdef OPTIONS_staircaseimp
 	n_k = 0.0;
@@ -952,11 +951,8 @@ CudaDeviceFunction void Init_wallNorm(){
 	coeff_v2 = 0;
 	coeff_v3 = 0;
 #endif
-#endif
 	if ( IamWall || IamSolid ) {
-#ifdef OPTIONS_altContactAngle
         IsBoundary = 1.0;
-#endif
 	// Am I surrounded by solid nodes?
 		int i,j,k;
 	  	real_t tmp = 0.0;
