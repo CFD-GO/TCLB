@@ -684,6 +684,7 @@ then
 		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
 		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
 		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
+		CPPFLAGS="${CPPFLAGS}  -I/home/Student/s4670389/R/x86_64-redhat-linux-gnu-library/4.1/Rcpp/include"
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
