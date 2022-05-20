@@ -685,12 +685,14 @@ then
 		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
 		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
 		CPPFLAGS="${CPPFLAGS}  -I/home/Student/s4670389/R/x86_64-redhat-linux-gnu-library/4.1/Rcpp/include"
+        CPPFLAGS="${CPPFLAGS} -I/home/dsashko/R/x86_64-pc-linux-gnu-library/3.6/Rcpp/include"
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
 		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
 		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
 		CPP_OPT=${CPPFLAGS}
+        AC_MSG_NOTICE([$CPPFLAGS])
 		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --without-rinside]))
 		AC_DEFINE([WITH_R], [1], [Using R])
 	fi
