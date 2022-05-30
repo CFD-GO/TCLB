@@ -1920,6 +1920,7 @@ CudaDeviceFunction void updateMyGlobals(real_t pf){
 	    AddToLiqTotalVelocityY( V*pf );
 	    AddToLiqTotalVelocityZ( W*pf );
 	    AddToLiqTotalPhase( pf );
+	    AddToTotalDensityLiquid( rho );
 	}	
 }
 

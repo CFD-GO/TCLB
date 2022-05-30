@@ -261,6 +261,7 @@ if (Options$staircaseimp) {
 	AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 	AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 	AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
+	AddGlobal(name="TotalDensityLiquid", comment='Total density of liquid', unit="1kg/m3")
 	AddGlobal(name="KineticEnergy",comment='Measure of kinetic energy', unit="J")
 	AddGlobal(name="GasTotalVelocity", comment='use to determine avg velocity of bubbles', unit="m/s")
 	AddGlobal(name="GasTotalVelocityX", comment='use to determine avg velocity of bubbles', unit="m/s")
