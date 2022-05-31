@@ -1050,12 +1050,37 @@ CudaDeviceFunction void NVelocity(){
 }
 
 CudaDeviceFunction void WPressure(){
-	{
-		<?R ZouHeRewrite(EQ, g, c(-1,0,0),"pressure")  ?>
-	}
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(-1,0,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
+    real_t d = getRho();
+	real_t pstar = Pressure / (d*cs2);
+	<?R
+        EQ = MRT_eq(U,PV(1),u,mat=t(M))
+       	pstar = PV("pstar")
+		n = c(-1,0,0)
+		geq = pstar*w_g + (EQ$feq - w_g)
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
+
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (g[sel2] - geq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
+
+		C(g[sel], geq[sel] + geq[bounce][sel] - g[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
+	<?R
+		U_PF = U[1:PF_velocities,]
+       	pf = PV("PhaseField")
+		n = c(-1,0,0)
+		heq = pf * EQ_h$feq
+		bounce = Bounce(U_PF)
+		sel = as.vector( (U_PF %*% n) < 0)
+
+		sel2 = as.vector( ( U_PF %*% n) == 0)	
+		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
+
+		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
+
 }
 
 CudaDeviceFunction void EPressure(){
