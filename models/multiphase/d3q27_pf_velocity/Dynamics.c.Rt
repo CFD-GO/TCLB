@@ -944,7 +944,8 @@ CudaDeviceFunction void specialCases_Init(){
 
 CudaDeviceFunction void Init_wallNorm(){
 	PhaseF = PhaseF(0,0,0);
-    IsBoundary = 0.0;
+    IsBoundary = IsBoundary(0,0,0);
+	IsBoundary = 0.0;
 #ifdef OPTIONS_staircaseimp
 	n_k = 0.0;
 	coeff_v1 = 0;
@@ -1274,6 +1275,8 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 
 //	ITERATION:
 CudaDeviceFunction void Run() {
+	// propagate it into the next iteration
+	IsBoundary = IsBoundary(0,0,0);
 	// If desired, incorporate a smoothing stage, in this we simply let diffusion occur
     if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing) {
 		Init_distributions();

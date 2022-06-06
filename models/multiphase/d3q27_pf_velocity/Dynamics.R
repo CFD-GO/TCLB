@@ -56,8 +56,8 @@ AddField("IsBoundary", stencil3d=1, group="solid_boundary")
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
 # not sure if "solid_boundary" is needed here
-save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
-load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation")
+save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation", "solid_boundary")
+load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation", "solid_boundary")
 load_phase      = c("g","h","Vel","nw", "nw_actual")
 
 if (Options$OutFlow){
