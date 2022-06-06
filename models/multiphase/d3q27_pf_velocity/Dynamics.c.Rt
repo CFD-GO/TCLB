@@ -225,6 +225,10 @@ CudaConstantMemory real_t const d3q27_triangles[6][8][3][3] = {\
 };
 
 
+CudaDeviceFunction real_t getIsItBoundary() {
+	return IsBoundary(0, 0, 0);
+}
+
 #ifdef OPTIONS_altContactAngle
 
 // Geometric contact angle stuff
@@ -235,9 +239,6 @@ CudaDeviceFunction vector_t getGradPhi() {
 	gradPhi.y = gradPhiVal_y(0,0,0);
 	gradPhi.z = gradPhiVal_z(0,0,0);
 	return gradPhi;
-}
-CudaDeviceFunction real_t getIsItBoundary() {
-	return IsBoundary(0, 0, 0);
 }
 
 CudaDeviceFunction vector_t getActualNormal() {

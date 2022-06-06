@@ -88,8 +88,8 @@ if (Options$altContactAngle){
     AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
-    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation", "solid_boundary"))
-    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation", "solid_boundary"))
+    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation", "solid_boundary", "nw_actual"))
+    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation", "solid_boundary", "nw_actual"))
 }
 
 AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
@@ -138,9 +138,9 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 	AddQuantity(name="P",	  unit="Pa")
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
+    AddQuantity(name="IsItBoundary", unit="1")
 if (Options$altContactAngle){
     AddQuantity(name="GradPhi", unit=1, vector=T)
-    AddQuantity(name="IsItBoundary", unit="1")
     AddQuantity(name="ActualNormal", unit=1, vector=T)
 	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
 	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
