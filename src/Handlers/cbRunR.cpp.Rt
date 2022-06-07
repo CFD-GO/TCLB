@@ -304,6 +304,7 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
+		ret.push_back("Iteration");
 		<?R for (q in rows(Globals)) { ifdef(q$adjoint); ?>
 		ret.push_back("<?%s q$name ?>");
 		ret.push_back("<?%s q$name ?>.si");

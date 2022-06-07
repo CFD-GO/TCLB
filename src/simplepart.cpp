@@ -11,16 +11,17 @@ struct Particle {
   double m;
   double v[3];
   double f[3];
+  double favg[3];
   size_t n;
   bool logging;
   Particle() {
     n = 0;
-    x[0] = 0;
-    x[1] = 0;
-    x[2] = 0;
-    v[0] = 0;
-    v[1] = 0;
-    v[2] = 0;
+    for (int i=0; i<3; i++) {
+      x[i] = 0;
+      v[i] = 0;
+      f[i] = 0;
+      favg[i] = 0;
+    }
     m = 0;
     r = 0;
     logging = false;
@@ -60,6 +61,7 @@ int main(int argc, char *argv[]) {
   std::string logging_filename;
   int logging_iter = 1;
   FILE* logging_f = NULL;
+  bool avg = false;
 
   double periodicity[3];
   bool periodic[3];
@@ -164,6 +166,9 @@ int main(int argc, char *argv[]) {
             ERROR("The '%s' attribute in '%s' have to be higher then 1", attr.name(), node.name());
             return -1;
           }
+        } else if (attr_name == "average") {
+          avg = attr.as_bool();
+          if (avg) notice("SIMPLEPART: Particle force averaging is ON");
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
@@ -286,11 +291,17 @@ int main(int argc, char *argv[]) {
       for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
         for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->x[i]);
         for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->v[i]);
-        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+        if (avg) {
+          for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->favg[i]/logging_iter);
+        } else {
+          for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+        }
+        for (int i=0; i<3; i++) p->favg[i] = 0;
       }
       fprintf(logging_f, "\n");
     }
     for (Particles::iterator p = particles.begin(); p != particles.end(); p++) {
+      for (int i=0; i<3; i++) p->favg[i] = p->favg[i] + p->f[i];
       if (p->m > 0.0) {
         for (int i=0; i<3; i++) p->v[i] = p->v[i] + p->f[i] / p->m * dt;
       }
