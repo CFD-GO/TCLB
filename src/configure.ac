@@ -55,7 +55,7 @@ AC_ARG_ENABLE([cpp11],
 
 AC_ARG_WITH([cuda-arch],
 	AS_HELP_STRING([--with-cuda-arch=arch],
-		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30/sm_60/sm_75/sm_80)]))
+		[specify the desired CUDA architecture (sm_11/sm_13/sm_20/sm_30/sm_60/sm_70/sm_75/sm_80)]))
 
 AC_ARG_WITH([nlopt],
 	AS_HELP_STRING([--with-nlopt=nlopt],
@@ -290,7 +290,12 @@ then
 		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 
     	CUDA_SUFF="60"
-	
+    elif test "$CUDA_ARCH" == "sm_70"
+    then
+        AC_MSG_RESULT([${CUDA_ARCH}])
+        AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+
+        CUDA_SUFF="70"
 	elif test "$CUDA_ARCH" == "sm_75"
 	then
 		AC_MSG_RESULT([${CUDA_ARCH}])
