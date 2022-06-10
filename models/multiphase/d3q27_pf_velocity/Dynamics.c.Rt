@@ -276,6 +276,41 @@ CudaDeviceFunction void calcPhaseGrad(){
     gradPhiVal_x = gradPhi.x;
     gradPhiVal_y = gradPhi.y;
     gradPhiVal_z = gradPhi.z;
+
+
+
+	// handle boundaries
+	// NOTE: we don't want to use them because the boundary values
+	// are already calculated based on the phase field
+	// gradient, we don't want to have implicit linking
+
+    real_t h = 1.0;
+	if (IsBoundary(1, 0, 0)) {
+		gradPhiVal_x = -(4*PhaseF(-1, 0, 0) - PhaseF(-2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(-1, 0, 0)) {
+		gradPhiVal_x = (4*PhaseF(1, 0, 0) - PhaseF(2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 1, 0)) {
+		gradPhiVal_y = -(4*PhaseF(0, -1, 0) - PhaseF(0, -2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, -1, 0)) {
+		gradPhiVal_y = (4*PhaseF(0, 1, 0) - PhaseF(0, 2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 0, 1)) {
+		gradPhiVal_z = -(4*PhaseF(0, 0, -1) - PhaseF(0, 0, -2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, 0, -1)) {
+		gradPhiVal_z = (4*PhaseF(0, 0, 1) - PhaseF(0, 0, 2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+
     if (IsBoundary(0,0,0)) {
 		gradPhiVal_x = 0.;
 		gradPhiVal_y = 0.;
@@ -586,22 +621,20 @@ CudaDeviceFunction void calcWallPhase(){
 
 #else
 				int face_triangle_index2 = int(triangle_index2) % 8;
-
+				// get new triangle vertices in relation to the vertice of the previous triangle
 				int v2_1_x = int(d3q27_triangles[face_index][face_triangle_index2][0][0]);
 				int v2_1_y = int(d3q27_triangles[face_index][face_triangle_index2][0][1]);
 				int v2_1_z = int(d3q27_triangles[face_index][face_triangle_index2][0][2]);
-
 
 				int v2_2_x = int(d3q27_triangles[face_index][face_triangle_index2][1][0]);
 				int v2_2_y = int(d3q27_triangles[face_index][face_triangle_index2][1][1]);
 				int v2_2_z = int(d3q27_triangles[face_index][face_triangle_index2][1][2]);
 
-
 				int v2_3_x = int(d3q27_triangles[face_index][face_triangle_index2][2][0]);
 				int v2_3_y = int(d3q27_triangles[face_index][face_triangle_index2][2][1]);
 				int v2_3_z = int(d3q27_triangles[face_index][face_triangle_index2][2][2]);
 
-				// Get gradient on the second node in the normal direction
+				// Get gradient on the second node in the normal direction (triangle indexing relative to the second node of the first triangle becaseu it is the closest)
 				der_x_2 = coeff2_v1*gradPhiVal_x_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_x_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_x_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
 				der_y_2 = coeff2_v1*gradPhiVal_y_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_y_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_y_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
 				der_z_2 = coeff2_v1*gradPhiVal_z_dyn(v2_1_x + v2_x, v2_1_y + v2_y, v2_1_z + v2_z) + coeff2_v2*gradPhiVal_z_dyn(v2_2_x + v2_x, v2_2_y + v2_y, v2_2_z + v2_z) + coeff2_v3*gradPhiVal_z_dyn(v2_3_x + v2_x, v2_3_y + v2_y, v2_3_z + v2_z);
@@ -1222,13 +1255,12 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 			// TODO: Duplicate code to be removed
 			// ----------------------------------
 
-			// get coordinate point in the new reference plane, further distanced
+			// get coordinate point in the new reference plane, relative to the point / vertex of the first triangle of the
+			// form (-1, -1) (1, -1), etc, the poin2d coordinates relative it should always be in the range (-1, 1), as we want it
 			real_t point2_2d[2] = {2*point2d[0] - triangle2d[1][0], 2*point2d[1] - triangle2d[1][1] };
 			x = point2_2d[0];
 			y = point2_2d[1];
 
-			// What is the "i" index here -- should be "1", one of the corners of the plane
-			// according to my implementation
 			real_t plane_angle2 = atan2(y, x) * 180.0 / PI;
 			plane_angle2 = plane_angle2 < 0? plane_angle2 + 360 : plane_angle2;
 			// find matching triangle index
