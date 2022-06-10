@@ -229,16 +229,6 @@ CudaDeviceFunction real_t getIsItBoundary() {
 	return IsBoundary(0, 0, 0);
 }
 
-#ifdef OPTIONS_staircaseimp
-CudaDeviceFunction vector_t getActualNormal() {
-	vector_t actualNormal;
-	actualNormal.x = nw_actual_x;
-	actualNormal.y = nw_actual_y;
-	actualNormal.z = nw_actual_z;
-	return actualNormal;
-}
-#endif
-
 #ifdef OPTIONS_altContactAngle
 
 // Geometric contact angle stuff
@@ -249,6 +239,32 @@ CudaDeviceFunction vector_t getGradPhi() {
 	gradPhi.y = gradPhiVal_y(0,0,0);
 	gradPhi.z = gradPhiVal_z(0,0,0);
 	return gradPhi;
+}
+
+CudaDeviceFunction vector_t getActualNormal() {
+	vector_t actualNormal;
+	actualNormal.x = nw_actual_x;
+	actualNormal.y = nw_actual_y;
+	actualNormal.z = nw_actual_z;
+	return actualNormal;
+}
+
+
+CudaDeviceFunction vector_t getTangentialDirection1(){
+	vector_t tangent;
+	tangent.x = d3q27_n1_ex[int(n_k)];
+	tangent.x = d3q27_n1_ey[int(n_k)];
+	tangent.x = d3q27_n1_ez[int(n_k)];
+	return tangent;
+}
+
+
+CudaDeviceFunction vector_t getTangentialDirection2(){
+	vector_t tangent;
+	tangent.x = d3q27_n2_ex[int(n_k)];
+	tangent.y = d3q27_n2_ey[int(n_k)];
+	tangent.z = d3q27_n2_ez[int(n_k)];
+	return tangent;
 }
 
 
@@ -358,8 +374,6 @@ CudaDeviceFunction vector_t getCoeffV(){
 	return coeff;
 }
 
-#ifdef OPTIONS_tprec
-
 CudaDeviceFunction vector_t getCoeffV2(){
 	vector_t coeff;
 	coeff.x = coeff2_v1;
@@ -368,27 +382,15 @@ CudaDeviceFunction vector_t getCoeffV2(){
 	return coeff;
 }
 
-CudaDeviceFunction real_t getTriangleIndex2(){
-	return triangle_index2;
-}
-
-CudaDeviceFunction real_t getFaceIndex2(){
-	int face_index = int(triangle_index2) / 8;
-	return face_index;
-}
-
-CudaDeviceFunction real_t getTriangleFaceIndex2(){
-	int face_triangle_index = int(triangle_index2) % 8;
-	return face_triangle_index;
-}
-
-#endif
 
 CudaDeviceFunction real_t getTriangleIndex(){
 	return triangle_index;
 }
 
 
+CudaDeviceFunction real_t getTriangleIndex2(){
+	return triangle_index;
+}
 
 CudaDeviceFunction real_t getFaceIndex(){
 	int face_index = int(triangle_index) / 8;
@@ -396,6 +398,10 @@ CudaDeviceFunction real_t getFaceIndex(){
 }
 
 
+CudaDeviceFunction real_t getFaceIndex2(){
+	int face_index = int(triangle_index2) / 8;
+	return face_index;
+}
 
 
 CudaDeviceFunction real_t getTriangleFaceIndex(){
@@ -404,6 +410,10 @@ CudaDeviceFunction real_t getTriangleFaceIndex(){
 }
 
 
+CudaDeviceFunction real_t getTriangleFaceIndex2(){
+	int face_triangle_index = int(triangle_index2) % 8;
+	return face_triangle_index;
+}
 
 #endif
 
@@ -510,6 +520,7 @@ CudaDeviceFunction void calcWallPhase(){
 			PhaseF = pf_f;
 		} else {
 
+#ifndef OPTIONS_altTangDir
 #ifdef OPTIONS_staircaseimp
 		// interpolation stuff
 		int face_index = int(triangle_index) / 8;
@@ -715,6 +726,52 @@ CudaDeviceFunction void calcWallPhase(){
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 #endif
 
+
+
+#else
+			// Standard method, frequently used in papers (end of first #if)
+			// get first tangential vector in the solid plane to the current normal
+			real_t t1_x = d3q27_n1_ex[int(n_k)];
+			real_t t1_y = d3q27_n1_ey[int(n_k)];
+			real_t t1_z = d3q27_n1_ez[int(n_k)];
+
+			// get second tangential vector in the solid plane to the current normal
+			real_t t2_x = d3q27_n2_ex[int(n_k)];
+			real_t t2_y = d3q27_n2_ey[int(n_k)];
+			real_t t2_z = d3q27_n2_ez[int(n_k)];
+			// project into the proper direction
+
+			// get gradients on the nodes in the normal direction
+			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
+			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
+			real_t der_z_1 = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
+
+			real_t der_x_2 = gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_y_2 = gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			real_t der_z_2 = gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+
+
+			// Transform gradients into coordinate frame aligned with the solid wall
+   			vector_t proj_grad_1 = { nw_x*der_x_1 + t1_x*der_y_1 + t2_x*der_z_1,\
+									 nw_y*der_x_1 + t1_y*der_y_1 + t2_y*der_z_1,\
+									 nw_z*der_x_1 + t1_z*der_y_1 + t2_z*der_z_1};
+
+   			vector_t proj_grad_2 = { nw_x*der_x_2 + t1_x*der_y_2 + t2_x*der_z_2,\
+									 nw_y*der_x_2 + t1_y*der_y_2 + t2_y*der_z_2,\
+									 nw_z*der_x_2 + t1_z*der_y_2 + t2_z*der_z_2};
+
+
+			// Interpolate tangential (solid-wall lying components) along the normal direction
+			real_t a = fabs((1.5 * proj_grad_1.y) - (0.5 * proj_grad_2.y));
+			real_t b = fabs((1.5 * proj_grad_1.z) - (0.5 * proj_grad_2.z));
+
+			// Finally calculate based on geometric angle formula
+			real_t grad_tangent = sqrt(a*a + b*b);
+
+			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
+#endif
+
+
 		}
 	} 
 }
@@ -891,6 +948,7 @@ CudaDeviceFunction void Init_wallNorm(){
     IsBoundary = IsBoundary(0,0,0);
 	IsBoundary = 0.0;
 #ifdef OPTIONS_staircaseimp
+	n_k = 0.0;
 	coeff_v1 = 0;
 	coeff_v2 = 0;
 	coeff_v3 = 0;
@@ -949,8 +1007,12 @@ CudaDeviceFunction void Init_wallNorm(){
 			if (maxi < 0) {
 				// This should not happen ?
 				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+			//	nw_actual_x = 0.0;nw_actual_y = 0.0;nw_actual_z = 0.0;
+				n_k = 0;
 			} else {
 				nw_x = d3q27_ex[maxi];nw_y = d3q27_ey[maxi];nw_z = d3q27_ez[maxi];
+				//nw_actual_x = d3q27_ex[maxi];nw_actual_y = d3q27_ey[maxi];nw_actual_z = d3q27_ez[maxi];
+				n_k = maxi;
 			}
 
 
@@ -974,19 +1036,17 @@ CudaDeviceFunction void Init_wallNorm(){
 			triangle_index = t_index + face_index*8;
 
 
+			triangle_index2 = triangle_index2(0,0,0);
+			triangle_index2 = t_index2 + face_index*8;
 
             coeff_v1 = coeff[0];
             coeff_v2 = coeff[1];
             coeff_v3 = coeff[2];
 
 
-#ifdef OPTIONS_tprec
-			triangle_index2 = triangle_index2(0,0,0);
-			triangle_index2 = t_index2 + face_index*8;
             coeff2_v1 = coeff2[0];
             coeff2_v2 = coeff2[1];
             coeff2_v3 = coeff2[2];
-#endif
 #endif
 
 	  	}

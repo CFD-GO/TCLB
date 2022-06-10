@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(q27 + ML + OutFlow  + BGK + thermo + planarBenchmark + autosym)*altContactAngle*staircaseimp*DEBUG*(gupdate1 + gupdate2 + gupdate3)*isograd*tprec"
+OPT="(q27 + ML + OutFlow  + BGK + thermo + planarBenchmark + autosym)*altContactAngle*altTangDir*staircaseimp*DEBUG*(gupdate1 + gupdate2 + gupdate3)*isograd*tprec"
 # q27 - Q27 lattice structure for phasefield
 # ML  - export densities for machine learning
 # OutFlow - include extra velocity stencil for outflowing boundaries

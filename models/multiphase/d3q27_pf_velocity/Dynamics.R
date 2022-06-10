@@ -27,47 +27,38 @@ AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
+# index of tangential direction
+AddDensity(name="n_k", dx=0, dy=0, dz=0, group="nw")
+
+
+AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
+AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
+AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
+
+# To improve staircase approximation
+AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+
+
+# Improvement
+AddDensity(name="coeff2_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff2_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="coeff2_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
+
+AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
+
+# TODO: Only need for staircaseimp / altContactAngle, optimize before finalizing
+# the model
+AddField("IsBoundary", stencil3d=1, group="solid_boundary")
+
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
 # not sure if "solid_boundary" is needed here
 save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation", "solid_boundary")
 load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation", "solid_boundary")
 load_phase      = c("g","h","Vel","nw", "nw_actual")
-
-
-staircase_groups <- c()
-if (Options$staircaseimp) {
-
-    # add actual normal directions
-    AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
-    AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
-    AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
-
-    # actual cofficients of the angle from which we are interpolating
-    AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
-    AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
-    AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
-
-    # the angle itself
-    AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
-
-   if (Options$tprec) {
-        # Improvement -> use precice triangle for interpolation
-        AddDensity(name="coeff2_v1", dx=0, dy=0, dz=0, group="st_interpolation")
-        AddDensity(name="coeff2_v2", dx=0, dy=0, dz=0, group="st_interpolation")
-        AddDensity(name="coeff2_v3", dx=0, dy=0, dz=0, group="st_interpolation")
-        AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
-    }
-
-  staircase_groups <- c('st_interpolation', 'nw_actual')
-
-  save_iteration <- c(save_iteration, staircase_groups)
-  load_iteration <- c(load_iteration, staircase_groups)
-}
-
-
-AddField("IsBoundary", stencil3d=1, group="solid_boundary")
-
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -90,15 +81,15 @@ if (Options$altContactAngle){
 
     AddField("PhaseF",stencil3d=2, group="PF")
 
-    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", staircase_groups))
-    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", staircase_groups))
+    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", "nw_actual", "st_interpolation"))
+    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "nw_actual", "gradPhi", "PF", "st_interpolation", "solid_boundary"))
 
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
-    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", staircase_groups))
-    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw","solid_boundary", staircase_groups))
+    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation", "solid_boundary", "nw_actual"))
+    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation", "solid_boundary", "nw_actual"))
 }
 
 AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
@@ -150,24 +141,23 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
     AddQuantity(name="IsItBoundary", unit="1")
 if (Options$altContactAngle){
     AddQuantity(name="GradPhi", unit=1, vector=T)
+    AddQuantity(name="ActualNormal", unit=1, vector=T)
+	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
+	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
 }
 if (Options$staircaseimp) {
     # Staircase approximation
-    AddQuantity(name="ActualNormal", unit=1, vector=T)
     AddQuantity(name="CoeffV", unit=1, vector=T)
+    AddQuantity(name="CoeffV2", unit=1, vector=T)
+    AddQuantity(name="TriangleIndex2", unit=1)
     AddQuantity(name="Triangle_V1", unit=1, vector=T)
     AddQuantity(name="Triangle_V2", unit=1, vector=T)
     AddQuantity(name="Triangle_V3", unit=1, vector=T)
     AddQuantity(name="TriangleIndex", unit=1)
-    AddQuantity(name="TriangleFaceIndex", unit=1)
     AddQuantity(name="FaceIndex", unit=1)
-
-    if (Options$tprec) {
-        AddQuantity(name="TriangleIndex2", unit=1)
-        AddQuantity(name="FaceIndex2", unit=1)
-        AddQuantity(name="TriangleFaceIndex2", unit=1)
-        AddQuantity(name="CoeffV2", unit=1, vector=T)
-    }
+    AddQuantity(name="FaceIndex2", unit=1)
+    AddQuantity(name="TriangleFaceIndex", unit=1)
+    AddQuantity(name="TriangleFaceIndex2", unit=1)
 }
 ###################################
 ########INPUTS - PHASEFIELD########
