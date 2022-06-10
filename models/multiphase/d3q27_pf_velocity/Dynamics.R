@@ -141,9 +141,6 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
     AddQuantity(name="IsItBoundary", unit="1")
 if (Options$altContactAngle){
     AddQuantity(name="GradPhi", unit=1, vector=T)
-    AddQuantity(name="ActualNormal", unit=1, vector=T)
-	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
-	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
 }
 if (Options$staircaseimp) {
     # Staircase approximation
@@ -158,6 +155,9 @@ if (Options$staircaseimp) {
     AddQuantity(name="FaceIndex2", unit=1)
     AddQuantity(name="TriangleFaceIndex", unit=1)
     AddQuantity(name="TriangleFaceIndex2", unit=1)
+    AddQuantity(name="ActualNormal", unit=1, vector=T)
+	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
+	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
 }
 ###################################
 ########INPUTS - PHASEFIELD########

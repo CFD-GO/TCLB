@@ -229,17 +229,8 @@ CudaDeviceFunction real_t getIsItBoundary() {
 	return IsBoundary(0, 0, 0);
 }
 
-#ifdef OPTIONS_altContactAngle
 
-// Geometric contact angle stuff
-
-CudaDeviceFunction vector_t getGradPhi() {
-	vector_t gradPhi;
-	gradPhi.x = gradPhiVal_x(0,0,0);
-	gradPhi.y = gradPhiVal_y(0,0,0);
-	gradPhi.z = gradPhiVal_z(0,0,0);
-	return gradPhi;
-}
+#ifdef OPTIONS_staircaseimp
 
 CudaDeviceFunction vector_t getActualNormal() {
 	vector_t actualNormal;
@@ -265,6 +256,21 @@ CudaDeviceFunction vector_t getTangentialDirection2(){
 	tangent.y = d3q27_n2_ey[int(n_k)];
 	tangent.z = d3q27_n2_ez[int(n_k)];
 	return tangent;
+}
+
+#endif
+
+
+#ifdef OPTIONS_altContactAngle
+
+// Geometric contact angle stuff
+
+CudaDeviceFunction vector_t getGradPhi() {
+	vector_t gradPhi;
+	gradPhi.x = gradPhiVal_x(0,0,0);
+	gradPhi.y = gradPhiVal_y(0,0,0);
+	gradPhi.z = gradPhiVal_z(0,0,0);
+	return gradPhi;
 }
 
 
