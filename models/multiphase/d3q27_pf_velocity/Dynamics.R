@@ -145,19 +145,20 @@ if (Options$altContactAngle){
 if (Options$staircaseimp) {
     # Staircase approximation
     AddQuantity(name="CoeffV", unit=1, vector=T)
-    AddQuantity(name="CoeffV2", unit=1, vector=T)
-    AddQuantity(name="TriangleIndex2", unit=1)
     AddQuantity(name="Triangle_V1", unit=1, vector=T)
     AddQuantity(name="Triangle_V2", unit=1, vector=T)
     AddQuantity(name="Triangle_V3", unit=1, vector=T)
-    AddQuantity(name="TriangleIndex", unit=1)
-    AddQuantity(name="FaceIndex", unit=1)
-    AddQuantity(name="FaceIndex2", unit=1)
-    AddQuantity(name="TriangleFaceIndex", unit=1)
-    AddQuantity(name="TriangleFaceIndex2", unit=1)
     AddQuantity(name="ActualNormal", unit=1, vector=T)
-	AddQuantity(name="TangentialDirection1", unit=1, vector=T)
-	AddQuantity(name="TangentialDirection2", unit=1, vector=T)
+    AddQuantity(name="TriangleIndex", unit=1)
+    AddQuantity(name="TriangleFaceIndex", unit=1)
+    AddQuantity(name="FaceIndex", unit=1)
+
+if (Options$tprec) {
+    AddQuantity(name="CoeffV2", unit=1, vector=T)
+    AddQuantity(name="FaceIndex2", unit=1)
+    AddQuantity(name="TriangleIndex2", unit=1)
+    AddQuantity(name="TriangleFaceIndex2", unit=1)
+    }
 }
 ###################################
 ########INPUTS - PHASEFIELD########

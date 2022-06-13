@@ -240,24 +240,6 @@ CudaDeviceFunction vector_t getActualNormal() {
 	return actualNormal;
 }
 
-
-CudaDeviceFunction vector_t getTangentialDirection1(){
-	vector_t tangent;
-	tangent.x = d3q27_n1_ex[int(n_k)];
-	tangent.x = d3q27_n1_ey[int(n_k)];
-	tangent.x = d3q27_n1_ez[int(n_k)];
-	return tangent;
-}
-
-
-CudaDeviceFunction vector_t getTangentialDirection2(){
-	vector_t tangent;
-	tangent.x = d3q27_n2_ex[int(n_k)];
-	tangent.y = d3q27_n2_ey[int(n_k)];
-	tangent.z = d3q27_n2_ez[int(n_k)];
-	return tangent;
-}
-
 #endif
 
 
@@ -415,6 +397,29 @@ CudaDeviceFunction vector_t getCoeffV(){
 	return coeff;
 }
 
+
+CudaDeviceFunction real_t getTriangleIndex(){
+	return triangle_index;
+}
+
+
+CudaDeviceFunction real_t getFaceIndex(){
+	int face_index = int(triangle_index) / 8;
+	return face_index;
+}
+
+CudaDeviceFunction real_t getTriangleFaceIndex(){
+	int face_triangle_index = int(triangle_index) % 8;
+	return face_triangle_index;
+}
+
+
+#ifdef OPTIONS_tprec
+
+CudaDeviceFunction real_t getTriangleIndex2(){
+	return triangle_index2;
+}
+
 CudaDeviceFunction vector_t getCoeffV2(){
 	vector_t coeff;
 	coeff.x = coeff2_v1;
@@ -424,20 +429,6 @@ CudaDeviceFunction vector_t getCoeffV2(){
 }
 
 
-CudaDeviceFunction real_t getTriangleIndex(){
-	return triangle_index;
-}
-
-
-CudaDeviceFunction real_t getTriangleIndex2(){
-	return triangle_index;
-}
-
-CudaDeviceFunction real_t getFaceIndex(){
-	int face_index = int(triangle_index) / 8;
-	return face_index;
-}
-
 
 CudaDeviceFunction real_t getFaceIndex2(){
 	int face_index = int(triangle_index2) / 8;
@@ -445,16 +436,13 @@ CudaDeviceFunction real_t getFaceIndex2(){
 }
 
 
-CudaDeviceFunction real_t getTriangleFaceIndex(){
-	int face_triangle_index = int(triangle_index) % 8;
-	return face_triangle_index;
-}
-
-
 CudaDeviceFunction real_t getTriangleFaceIndex2(){
 	int face_triangle_index = int(triangle_index2) % 8;
 	return face_triangle_index;
 }
+
+
+#endif
 
 #endif
 
