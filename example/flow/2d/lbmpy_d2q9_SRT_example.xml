@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="1024" ny="100">
+		<BGK>
+			<Box/>
+		</BGK>
+		<WVelocity name="Inlet">
+			<Box nx="1"/>
+		</WVelocity>
+		<EPressure name="Outlet">
+			<Box dx="-1"/>
+		</EPressure>
+		<Wall>
+			<Box ny="1"/>
+			<Box dy="-1"/>
+			<Wedge dx="120" nx="20" dy="50" ny="20" direction="LowerRight"/>
+			<Wedge dx="120" nx="20" dy="30" ny="20" direction="UpperRight"/>
+			<Wedge dx="140" nx="20" dy="50" ny="20" direction="LowerLeft"/>
+			<Wedge dx="140" nx="20" dy="30" ny="20" direction="UpperLeft"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="VelocityX" value="0.01"/>
+		<Param name="nu" value="0.02"/>
+	</Model>
+	<VTK Iterations="1000"/>
+	<Solve Iterations="10000"/>
+</CLBConfig>
