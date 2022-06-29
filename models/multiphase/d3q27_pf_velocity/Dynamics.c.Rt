@@ -1989,6 +1989,17 @@ CudaDeviceFunction void updateTrackers(real_t C){
 			AddToInterfaceYTop(location);
 		}
 	}
+
+	// interface must be around here
+	// TODO: Adjust the position
+	if (IamSolid && !IsBoundary(-1, 0, 0) && PhaseF(-1, 0, 0) > 0.5) {
+		AddToDropletLeftInterfaceBottomY(-Y);
+	}
+
+	if (IamSolid && !IsBoundary(1, 0, 0) && PhaseF(1, 0, 0) > 0.5) {
+		AddToDropletRightInterfaceBottomY(-Y);
+	}
+
 	switch (NodeType & NODE_ADDITIONALS) {
 		case NODE_Centerline:
 		    if ( fabs(xyzTrack-1) < 1e-3 )

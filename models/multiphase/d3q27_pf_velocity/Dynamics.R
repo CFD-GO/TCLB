@@ -229,6 +229,8 @@ if (Options$tprec) {
 	AddNodeType(name="Bubbletrack", group="ADDITIONALS")
 	AddGlobal("InterfacePosition", op="MAX", comment='trackPosition')
     AddGlobal("InterfaceYTop", op="MAX", comment="Track top position of the interface in Y direction")
+    AddGlobal("DropletLeftInterfaceBottomY", op="MAX", comment="Lowest point of the droplet interface interacting with the boundary from the left")
+    AddGlobal("DropletRightInterfaceBottomY", op="MAX", comment="Lowest point of the droplet interface interacting with the boundary from the right")
 	AddGlobal("Vfront",comment='velocity infront of bubble')
 	AddGlobal("Vback",comment='velocity behind bubble')
 	AddGlobal("RTISpike", op="MAX", comment='SpikeTracker ')
