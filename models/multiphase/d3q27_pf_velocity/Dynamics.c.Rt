@@ -1992,11 +1992,11 @@ CudaDeviceFunction void updateTrackers(real_t C){
 
 	// interface must be around here
 	// TODO: Adjust the position
-	if (IamSolid && !IsBoundary(-1, 0, 0) && PhaseF(-1, 0, 0) > 0.5) {
+	if ((IamWall || IamSolid) && !IsBoundary(-1, 0, 0) && PhaseF(-1, 0, 0) > 0.5) {
 		AddToDropletLeftInterfaceBottomY(-Y);
 	}
 
-	if (IamSolid && !IsBoundary(1, 0, 0) && PhaseF(1, 0, 0) > 0.5) {
+	if ((IamWall || IamSolid) && !IsBoundary(1, 0, 0) && PhaseF(1, 0, 0) > 0.5) {
 		AddToDropletRightInterfaceBottomY(-Y);
 	}
 
