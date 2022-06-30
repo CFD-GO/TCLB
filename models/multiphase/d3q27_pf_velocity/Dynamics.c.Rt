@@ -349,6 +349,31 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 		gradPhiVal_z = 0.;
 	}
 }
+
+
+CudaDeviceFunction void calcPhaseGradCentral(){
+	// NOTE: Need to initialize gradients at the first time step,
+	// because isotropic gradients would not work, as the wall values have no
+	// Phase field values just yet
+	//
+	// Might be improved
+    real_t h = 1.0;
+
+	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
+	gradPhiVal_y = gradPhiVal_y(0, 0, 0);
+	gradPhiVal_z = gradPhiVal_z(0, 0, 0);
+
+	gradPhiVal_x = (PhaseF(1, 0, 0) - PhaseF(-1, 0, 0) )/ (2.0*h);
+	gradPhiVal_y = (PhaseF(0, 1, 0) - PhaseF(0, -1, 0) )/ (2.0*h);
+	gradPhiVal_z = (PhaseF(0, 0, 1) - PhaseF(0, 0, -1) )/ (2.0*h);
+	if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+}
+
+
 #endif
 
 
