@@ -1965,14 +1965,18 @@ CudaDeviceFunction void updateTrackers(real_t C){
 		}
 	}
 
-	// interface must be around here
-	// TODO: Adjust the position
-	if (IamSolid && !IsBoundary(-1, 0, 0) && PhaseF(-1, 0, 0) > 0.5) {
-		AddToDropletLeftInterfaceBottomY(-Y);
+	// TODO: Adjust the position to be more precice
+	// If my value if above 0.5 and next node is solid
+	// taking minimum of those positions on Y direction
+	// we obtaine the most bottom point of the interface
+	if (IsBoundary(1, 0, 0) && PhaseF(0, 0, 0) > 0.5) {
+		real_t distance_to_top = constContainer.ny - Y;
+		AddToDropletLeftInterfaceBottomY(distance_to_top);
 	}
 
-	if (IamSolid && !IsBoundary(1, 0, 0) && PhaseF(1, 0, 0) > 0.5) {
-		AddToDropletRightInterfaceBottomY(-Y);
+	if (IsBoundary(-1, 0, 0) && PhaseF(0, 0, 0) > 0.5) {
+		real_t distance_to_top = constContainer.ny - Y;
+		AddToDropletRightInterfaceBottomY(distance_to_top);
 	}
 
 	switch (NodeType & NODE_ADDITIONALS) {
