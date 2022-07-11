@@ -144,7 +144,7 @@ CudaDeviceFunction void RunBoundaries() {
 		dre_1_neighbours = Density$nicename[Density$group =="dre_1"]
 	?>
 	const real_t k = (rho0 + 0.5 * Viscosity / Permability);
-
+	real_t _phi_tmp;
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Wall:
 		BounceBack();
@@ -154,14 +154,25 @@ CudaDeviceFunction void RunBoundaries() {
 			const real_t BCVelocity = Velocity*k - ForceX / 2;
 			<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(-1, 0, 0), "first_moment", rhs=PV('BCVelocity')) ?>
 		}
-		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='dre_1']) , c(-1, 0, 0), "pressure", PV("Init_PHI")) ?>}
+		{<?R 
+			U_ADE = as.matrix(Density[Density$group=='dre_1',c("dx","dy", "dz")])
+			EQ_ADRE = MRT_eq(U_ADE, PV("Init_PHI"), PV("Init_PHI")*PV(c('AdvectX','AdvectY','AdvectZ')), ortogonal=FALSE)
+			ZouHeRewrite(EQ_ADRE, PV(DensityAll$name[DensityAll$group=='dre_1']) , c(-1, 0, 0), "pressure", PV("Init_PHI")) 
+			?>
+		}
         break;
 	case NODE_ENeuman:
 		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(1, 0, 0), "pressure") ?>}
 		<?R
 			# C(PV(DensityAll$name[DensityAll$group=='f']), PV(paste0(f_neighbours,"(",-Density$dx[Density$group=="f"]-1,",",-Density$dy[Density$group=="f"],",",-Density$dz[Density$group=="f"],")")))
 			C(PV(DensityAll$name[DensityAll$group=='dre_1']), PV(paste0(dre_1_neighbours,"(",-Density$dx[Density$group=="dre_1"]-1,",",-Density$dy[Density$group=="dre_1"],",",-Density$dz[Density$group=="dre_1"],")")))
+			C(PV("_phi_tmp"), sum(PV(DensityAll$name[DensityAll$group=='dre_1'])))
 		?>
+			if (_phi_tmp > 1) {
+				<?R 
+					C(	PV(DensityAll$name[DensityAll$group=='dre_1']), PV(DensityAll$name[DensityAll$group=='dre_1']) * PV("_phi_tmp")^-1 )
+				?>
+			}
 		
 
         break;		

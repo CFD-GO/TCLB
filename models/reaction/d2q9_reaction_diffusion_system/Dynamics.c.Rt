@@ -35,13 +35,14 @@
 		}	
 	}
 
-	adre_f_tmp = c(PV(paste('adre_f_tmp[',seq(0,length(U[,1])-1),']', sep='')))
+	U_ADE = as.matrix(Density[Density$group=='dre_1',c("dx","dy", "dz")])
+	adre_f_tmp = c(PV(paste('adre_f_tmp[',seq(0,length(U_ADE[,1])-1),']', sep='')))
 	adre_qs = c(PV(paste('q[',seq(0,NumberOfODEs + NumberOfDREs),']', sep='')))
 ?>
 
 
 //this is object-wide variable
-real_t adre_f_tmp[<?%s length(U[,1]) ?>];
+real_t adre_f_tmp[<?%s length(U_ADE[,1]) ?>];
 real_t q[<?%s NumberOfODEs + NumberOfDREs ?>];
 real_t phi[<?%s NumberOfODEs + NumberOfDREs ?>];
 
@@ -231,7 +232,8 @@ CudaDeviceFunction void  DoADRE_Run() {
 			dre_loop( function(i) {
 				C(adre_f_tmp,fs[[i]])
 				?>
-				DoADRE_relax_and_collide_TRT_M(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+				//DoADRE_relax_and_collide_TRT(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+				DoADRE_relax_and_collide_ADE_CM(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
 				<?R
 				C(fs[[i]], adre_f_tmp)
 			})
@@ -277,6 +279,249 @@ CudaDeviceFunction void DoADRE_BounceBack()
 
  }
 
+CudaDeviceFunction void DoADRE_relax_and_collide_TRT(real_t diffusivity, const real_t q) 
+{
+
+
+	real_t omega_ade = 1.0/(3*diffusivity+0.5);
+	real_t omega_even = 2.*(2.-omega_ade)/(omega_ade*(4.*adre_magic_parameter-1.)+2.);
+	real_t tilde_phi = <?%s  C(sum(adre_f_tmp)) ?>;
+	<?R
+
+		
+
+  
+		tilde_phi = PV('tilde_phi')
+		q = PV('q')
+
+		AdvVel = PV(c('AdvectX','AdvectY','AdvectZ'))
+
+		U_ADE= as.matrix(Density[Density$group=='dre_1',c("dx","dy", "dz")])
+		# feq = MRT_feq(U, tilde_phi, tilde_phi*AdvVel, ortogonal=FALSE)
+
+		EQ_ADRE = MRT_eq(U, tilde_phi, tilde_phi*AdvVel, ortogonal=FALSE)
+		OmegaAde = PV(rep("omega_ade",nrow(U)))
+    	OmegaAde[EQ_ADRE$order %% 2 == 1] = PV("omega_even")
+
+		qeq = MRT_feq(U, q, c(0,0,0), ortogonal=FALSE)
+
+		#C(adre_f_tmp, adre_f_tmp - omega*(adre_f_tmp-feq) + qeq)
+
+
+		m = PV("m",1:ncol(EQ_ADRE$mat)-1)
+		cat("real_t",paste(ToC(m),collapse=","),";\n")
+		C(m, adre_f_tmp %*% EQ_ADRE$mat)		
+		C(m, m - EQ_ADRE$Req)
+		C(m, m*(1-OmegaAde))
+		C(m, m +  EQ_ADRE$Req)
+		C(adre_f_tmp, m %*% solve(EQ_ADRE$mat) + qeq)
+
+
+	?>
+}
+
+
+CudaDeviceFunction void DoADRE_relax_and_collide_ADE_CM(real_t diffusivity, const real_t q)
+//(real_t rho, real_t omega_ade, vector_t u) 
+{
+	const real_t omega_ade = 1.0/(3*diffusivity+0.5);
+	vector_t u;
+
+	<?R
+		P = expand.grid(x=0:2,y=0:2,z=0:2)	
+		h = PV(paste("h",P$x,P$y,P$z,sep=""))
+		cat("real_t",paste(ToC(h),collapse=","),";\n")
+		C(h, adre_f_tmp)
+		
+		C(PV(c('u.x','u.y','u.z')), PV(c('AdvectX','AdvectY','AdvectZ')))
+	?>	
+	const real_t rho = 1.;
+		
+	real_t Sigma2 = 1/3.;
+	
+	//=== THIS IS AUTOMATICALLY GENERATED CODE ===
+	real_t uxuy = u.x*u.y;
+	real_t ux2 = u.x*u.x;
+	real_t uy2 = u.y*u.y;
+	real_t uxuz = u.x*u.z;
+	real_t uyuz = u.y*u.z;
+	real_t uz2 = u.z*u.z;
+	real_t H = h000 + h001 + h002 + h010 + h011 + h012 + h020 + h021 + h022 + h100 + h101 + h102 + h110 + h111 + h112 + h120 + h121 + h122 + h200 + h201 + h202 + h210 + h211 + h212 + h220 + h221 + h222;
+	real_t temp000 = h000;
+	real_t temp100 = h100;
+	real_t temp010 = h010;
+	real_t temp001 = h001;
+	real_t temp110 = h110;
+	real_t temp101 = h101;
+	real_t temp011 = h011;
+	real_t temp200 = h200;
+	real_t temp020 = h020;
+	real_t temp002 = h002;
+	real_t temp120 = h120;
+	real_t temp102 = h102;
+	real_t temp210 = h210;
+	real_t temp201 = h201;
+	real_t temp012 = h012;
+	real_t temp021 = h021;
+	real_t temp111 = h111;
+	real_t temp220 = h220;
+	real_t temp202 = h202;
+	real_t temp022 = h022;
+	real_t temp211 = h211;
+	real_t temp121 = h121;
+	real_t temp112 = h112;
+	real_t temp122 = h122;
+	real_t temp212 = h212;
+	real_t temp221 = h221;
+	real_t temp222 = h222;
+	//raw moments from density-probability functions
+	h000 = temp000 + temp001 + temp002 + temp010 + temp011 + temp012 + temp020 + temp021 + temp022 + temp100 + temp101 + temp102 + temp110 + temp111 + temp112 + temp120 + temp121 + temp122 + temp200 + temp201 + temp202 + temp210 + temp211 + temp212 + temp220 + temp221 + temp222;
+	h100 = temp100 + temp101 + temp102 + temp110 + temp111 + temp112 + temp120 + temp121 + temp122 - temp200 - temp201 - temp202 - temp210 - temp211 - temp212 - temp220 - temp221 - temp222;
+	h010 = temp010 + temp011 + temp012 - temp020 - temp021 - temp022 + temp110 + temp111 + temp112 - temp120 - temp121 - temp122 + temp210 + temp211 + temp212 - temp220 - temp221 - temp222;
+	h001 = temp001 - temp002 + temp011 - temp012 + temp021 - temp022 + temp101 - temp102 + temp111 - temp112 + temp121 - temp122 + temp201 - temp202 + temp211 - temp212 + temp221 - temp222;
+	h110 = temp110 + temp111 + temp112 - temp120 - temp121 - temp122 - temp210 - temp211 - temp212 + temp220 + temp221 + temp222;
+	h101 = temp101 - temp102 + temp111 - temp112 + temp121 - temp122 - temp201 + temp202 - temp211 + temp212 - temp221 + temp222;
+	h011 = temp011 - temp012 - temp021 + temp022 + temp111 - temp112 - temp121 + temp122 + temp211 - temp212 - temp221 + temp222;
+	h200 = temp100 + temp101 + temp102 + temp110 + temp111 + temp112 + temp120 + temp121 + temp122 + temp200 + temp201 + temp202 + temp210 + temp211 + temp212 + temp220 + temp221 + temp222;
+	h020 = temp010 + temp011 + temp012 + temp020 + temp021 + temp022 + temp110 + temp111 + temp112 + temp120 + temp121 + temp122 + temp210 + temp211 + temp212 + temp220 + temp221 + temp222;
+	h002 = temp001 + temp002 + temp011 + temp012 + temp021 + temp022 + temp101 + temp102 + temp111 + temp112 + temp121 + temp122 + temp201 + temp202 + temp211 + temp212 + temp221 + temp222;
+	h120 = temp110 + temp111 + temp112 + temp120 + temp121 + temp122 - temp210 - temp211 - temp212 - temp220 - temp221 - temp222;
+	h102 = temp101 + temp102 + temp111 + temp112 + temp121 + temp122 - temp201 - temp202 - temp211 - temp212 - temp221 - temp222;
+	h210 = temp110 + temp111 + temp112 - temp120 - temp121 - temp122 + temp210 + temp211 + temp212 - temp220 - temp221 - temp222;
+	h201 = temp101 - temp102 + temp111 - temp112 + temp121 - temp122 + temp201 - temp202 + temp211 - temp212 + temp221 - temp222;
+	h012 = temp011 + temp012 - temp021 - temp022 + temp111 + temp112 - temp121 - temp122 + temp211 + temp212 - temp221 - temp222;
+	h021 = temp011 - temp012 + temp021 - temp022 + temp111 - temp112 + temp121 - temp122 + temp211 - temp212 + temp221 - temp222;
+	h111 = temp111 - temp112 - temp121 + temp122 - temp211 + temp212 + temp221 - temp222;
+	h220 = temp110 + temp111 + temp112 + temp120 + temp121 + temp122 + temp210 + temp211 + temp212 + temp220 + temp221 + temp222;
+	h202 = temp101 + temp102 + temp111 + temp112 + temp121 + temp122 + temp201 + temp202 + temp211 + temp212 + temp221 + temp222;
+	h022 = temp011 + temp012 + temp021 + temp022 + temp111 + temp112 + temp121 + temp122 + temp211 + temp212 + temp221 + temp222;
+	h211 = temp111 - temp112 - temp121 + temp122 + temp211 - temp212 - temp221 + temp222;
+	h121 = temp111 - temp112 + temp121 - temp122 - temp211 + temp212 - temp221 + temp222;
+	h112 = temp111 + temp112 - temp121 - temp122 - temp211 - temp212 + temp221 + temp222;
+	h122 = temp111 + temp112 + temp121 + temp122 - temp211 - temp212 - temp221 - temp222;
+	h212 = temp111 + temp112 - temp121 - temp122 + temp211 + temp212 - temp221 - temp222;
+	h221 = temp111 - temp112 + temp121 - temp122 + temp211 - temp212 + temp221 - temp222;
+	h222 = temp111 + temp112 + temp121 + temp122 + temp211 + temp212 + temp221 + temp222;
+	//central moments from raw moments
+	temp000 = h000;
+	temp100 = -h000*u.x + h100;
+	temp010 = -h000*u.y + h010;
+	temp001 = -h000*u.z + h001;
+	temp110 = h000*uxuy - h010*u.x - h100*u.y + h110;
+	temp101 = h000*uxuz - h001*u.x - h100*u.z + h101;
+	temp011 = h000*uyuz - h001*u.y - h010*u.z + h011;
+	temp200 = h000*ux2 - 2.*h100*u.x + h200;
+	temp020 = h000*uy2 - 2.*h010*u.y + h020;
+	temp002 = h000*uz2 - 2.*h001*u.z + h002;
+	temp120 = -h000*u.x*uy2 + 2.*h010*uxuy - h020*u.x + h100*uy2 - 2.*h110*u.y + h120;
+	temp102 = -h000*u.x*uz2 + 2.*h001*uxuz - h002*u.x + h100*uz2 - 2.*h101*u.z + h102;
+	temp210 = -h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy - 2.*h110*u.x - h200*u.y + h210;
+	temp201 = -h000*ux2*u.z + h001*ux2 + 2.*h100*uxuz - 2.*h101*u.x - h200*u.z + h201;
+	temp012 = -h000*u.y*uz2 + 2.*h001*uyuz - h002*u.y + h010*uz2 - 2.*h011*u.z + h012;
+	temp021 = -h000*uy2*u.z + h001*uy2 + 2.*h010*uyuz - 2.*h011*u.y - h020*u.z + h021;
+	temp111 = -h000*uxuy*u.z + h001*uxuy + h010*uxuz - h011*u.x + h100*uyuz - h101*u.y - h110*u.z + h111;
+	temp220 = h000*ux2*uy2 - 2.*h010*ux2*u.y + h020*ux2 - 2.*h100*u.x*uy2 + 4.*h110*uxuy - 2.*h120*u.x + h200*uy2 - 2.*h210*u.y + h220;
+	temp202 = h000*ux2*uz2 - 2.*h001*ux2*u.z + h002*ux2 - 2.*h100*u.x*uz2 + 4.*h101*uxuz - 2.*h102*u.x + h200*uz2 - 2.*h201*u.z + h202;
+	temp022 = h000*uy2*uz2 - 2.*h001*uy2*u.z + h002*uy2 - 2.*h010*u.y*uz2 + 4.*h011*uyuz - 2.*h012*u.y + h020*uz2 - 2.*h021*u.z + h022;
+	temp211 = h000*ux2*uyuz - h001*ux2*u.y - h010*ux2*u.z + h011*ux2 - 2.*h100*uxuy*u.z + 2.*h101*uxuy + 2.*h110*uxuz - 2.*h111*u.x + h200*uyuz - h201*u.y - h210*u.z + h211;
+	temp121 = h000*u.x*uy2*u.z - h001*u.x*uy2 - 2.*h010*uxuy*u.z + 2.*h011*uxuy + h020*uxuz - h021*u.x - h100*uy2*u.z + h101*uy2 + 2.*h110*uyuz - 2.*h111*u.y - h120*u.z + h121;
+	temp112 = h000*uxuy*uz2 - 2.*h001*uxuy*u.z + h002*uxuy - h010*u.x*uz2 + 2.*h011*uxuz - h012*u.x - h100*u.y*uz2 + 2.*h101*uyuz - h102*u.y + h110*uz2 - 2.*h111*u.z + h112;
+	temp122 = -h000*u.x*uy2*uz2 + 2.*h001*u.x*uy2*u.z - h002*u.x*uy2 + 2.*h010*uxuy*uz2 - 4.*h011*uxuy*u.z + 2.*h012*uxuy - h020*u.x*uz2 + 2.*h021*uxuz - h022*u.x + h100*uy2*uz2 - 2.*h101*uy2*u.z + h102*uy2 - 2.*h110*u.y*uz2 + 4.*h111*uyuz - 2.*h112*u.y + h120*uz2 - 2.*h121*u.z + h122;
+	temp212 = -h000*ux2*u.y*uz2 + 2.*h001*ux2*uyuz - h002*ux2*u.y + h010*ux2*uz2 - 2.*h011*ux2*u.z + h012*ux2 + 2.*h100*uxuy*uz2 - 4.*h101*uxuy*u.z + 2.*h102*uxuy - 2.*h110*u.x*uz2 + 4.*h111*uxuz - 2.*h112*u.x - h200*u.y*uz2 + 2.*h201*uyuz - h202*u.y + h210*uz2 - 2.*h211*u.z + h212;
+	temp221 = -h000*ux2*uy2*u.z + h001*ux2*uy2 + 2.*h010*ux2*uyuz - 2.*h011*ux2*u.y - h020*ux2*u.z + h021*ux2 + 2.*h100*u.x*uy2*u.z - 2.*h101*u.x*uy2 - 4.*h110*uxuy*u.z + 4.*h111*uxuy + 2.*h120*uxuz - 2.*h121*u.x - h200*uy2*u.z + h201*uy2 + 2.*h210*uyuz - 2.*h211*u.y - h220*u.z + h221;
+	temp222 = h000*ux2*uy2*uz2 - 2.*h001*ux2*uy2*u.z + h002*ux2*uy2 - 2.*h010*ux2*u.y*uz2 + 4.*h011*ux2*uyuz - 2.*h012*ux2*u.y + h020*ux2*uz2 - 2.*h021*ux2*u.z + h022*ux2 - 2.*h100*u.x*uy2*uz2 + 4.*h101*u.x*uy2*u.z - 2.*h102*u.x*uy2 + 4.*h110*uxuy*uz2 - 8.*h111*uxuy*u.z + 4.*h112*uxuy - 2.*h120*u.x*uz2 + 4.*h121*uxuz - 2.*h122*u.x + h200*uy2*uz2 - 2.*h201*uy2*u.z + h202*uy2 - 2.*h210*u.y*uz2 + 4.*h211*uyuz - 2.*h212*u.y + h220*uz2 - 2.*h221*u.z + h222;
+	//collision in central moments space
+	//collide
+	h000 = H;
+	h100 = -temp100*(omega_ade - 1.);
+	h010 = -temp010*(omega_ade - 1.);
+	h001 = -temp001*(omega_ade - 1.);
+	h110 = 0;
+	h101 = 0;
+	h011 = 0;
+	h200 = H*Sigma2;
+	h020 = H*Sigma2;
+	h002 = H*Sigma2;
+	h120 = 0;
+	h102 = 0;
+	h210 = 0;
+	h201 = 0;
+	h012 = 0;
+	h021 = 0;
+	h111 = 0;
+	h220 = H*Sigma2*Sigma2;
+	h202 = H*Sigma2*Sigma2;
+	h022 = H*Sigma2*Sigma2;
+	h211 = 0;
+	h121 = 0;
+	h112 = 0;
+	h122 = 0;
+	h212 = 0;
+	h221 = 0;
+	h222 = H*Sigma2*Sigma2*Sigma2;
+	//back to raw moments
+	temp000 = h000;
+	temp100 = h000*u.x + h100;
+	temp010 = h000*u.y + h010;
+	temp001 = h000*u.z + h001;
+	temp110 = h000*uxuy + h010*u.x + h100*u.y + h110;
+	temp101 = h000*uxuz + h001*u.x + h100*u.z + h101;
+	temp011 = h000*uyuz + h001*u.y + h010*u.z + h011;
+	temp200 = h000*ux2 + 2.*h100*u.x + h200;
+	temp020 = h000*uy2 + 2.*h010*u.y + h020;
+	temp002 = h000*uz2 + 2.*h001*u.z + h002;
+	temp120 = h000*u.x*uy2 + 2.*h010*uxuy + h020*u.x + h100*uy2 + 2.*h110*u.y + h120;
+	temp102 = h000*u.x*uz2 + 2.*h001*uxuz + h002*u.x + h100*uz2 + 2.*h101*u.z + h102;
+	temp210 = h000*ux2*u.y + h010*ux2 + 2.*h100*uxuy + 2.*h110*u.x + h200*u.y + h210;
+	temp201 = h000*ux2*u.z + h001*ux2 + 2.*h100*uxuz + 2.*h101*u.x + h200*u.z + h201;
+	temp012 = h000*u.y*uz2 + 2.*h001*uyuz + h002*u.y + h010*uz2 + 2.*h011*u.z + h012;
+	temp021 = h000*uy2*u.z + h001*uy2 + 2.*h010*uyuz + 2.*h011*u.y + h020*u.z + h021;
+	temp111 = h000*uxuy*u.z + h001*uxuy + h010*uxuz + h011*u.x + h100*uyuz + h101*u.y + h110*u.z + h111;
+	temp220 = h000*ux2*uy2 + 2.*h010*ux2*u.y + h020*ux2 + 2.*h100*u.x*uy2 + 4.*h110*uxuy + 2.*h120*u.x + h200*uy2 + 2.*h210*u.y + h220;
+	temp202 = h000*ux2*uz2 + 2.*h001*ux2*u.z + h002*ux2 + 2.*h100*u.x*uz2 + 4.*h101*uxuz + 2.*h102*u.x + h200*uz2 + 2.*h201*u.z + h202;
+	temp022 = h000*uy2*uz2 + 2.*h001*uy2*u.z + h002*uy2 + 2.*h010*u.y*uz2 + 4.*h011*uyuz + 2.*h012*u.y + h020*uz2 + 2.*h021*u.z + h022;
+	temp211 = h000*ux2*uyuz + h001*ux2*u.y + h010*ux2*u.z + h011*ux2 + 2.*h100*uxuy*u.z + 2.*h101*uxuy + 2.*h110*uxuz + 2.*h111*u.x + h200*uyuz + h201*u.y + h210*u.z + h211;
+	temp121 = h000*u.x*uy2*u.z + h001*u.x*uy2 + 2.*h010*uxuy*u.z + 2.*h011*uxuy + h020*uxuz + h021*u.x + h100*uy2*u.z + h101*uy2 + 2.*h110*uyuz + 2.*h111*u.y + h120*u.z + h121;
+	temp112 = h000*uxuy*uz2 + 2.*h001*uxuy*u.z + h002*uxuy + h010*u.x*uz2 + 2.*h011*uxuz + h012*u.x + h100*u.y*uz2 + 2.*h101*uyuz + h102*u.y + h110*uz2 + 2.*h111*u.z + h112;
+	temp122 = h000*u.x*uy2*uz2 + 2.*h001*u.x*uy2*u.z + h002*u.x*uy2 + 2.*h010*uxuy*uz2 + 4.*h011*uxuy*u.z + 2.*h012*uxuy + h020*u.x*uz2 + 2.*h021*uxuz + h022*u.x + h100*uy2*uz2 + 2.*h101*uy2*u.z + h102*uy2 + 2.*h110*u.y*uz2 + 4.*h111*uyuz + 2.*h112*u.y + h120*uz2 + 2.*h121*u.z + h122;
+	temp212 = h000*ux2*u.y*uz2 + 2.*h001*ux2*uyuz + h002*ux2*u.y + h010*ux2*uz2 + 2.*h011*ux2*u.z + h012*ux2 + 2.*h100*uxuy*uz2 + 4.*h101*uxuy*u.z + 2.*h102*uxuy + 2.*h110*u.x*uz2 + 4.*h111*uxuz + 2.*h112*u.x + h200*u.y*uz2 + 2.*h201*uyuz + h202*u.y + h210*uz2 + 2.*h211*u.z + h212;
+	temp221 = h000*ux2*uy2*u.z + h001*ux2*uy2 + 2.*h010*ux2*uyuz + 2.*h011*ux2*u.y + h020*ux2*u.z + h021*ux2 + 2.*h100*u.x*uy2*u.z + 2.*h101*u.x*uy2 + 4.*h110*uxuy*u.z + 4.*h111*uxuy + 2.*h120*uxuz + 2.*h121*u.x + h200*uy2*u.z + h201*uy2 + 2.*h210*uyuz + 2.*h211*u.y + h220*u.z + h221;
+	temp222 = h000*ux2*uy2*uz2 + 2.*h001*ux2*uy2*u.z + h002*ux2*uy2 + 2.*h010*ux2*u.y*uz2 + 4.*h011*ux2*uyuz + 2.*h012*ux2*u.y + h020*ux2*uz2 + 2.*h021*ux2*u.z + h022*ux2 + 2.*h100*u.x*uy2*uz2 + 4.*h101*u.x*uy2*u.z + 2.*h102*u.x*uy2 + 4.*h110*uxuy*uz2 + 8.*h111*uxuy*u.z + 4.*h112*uxuy + 2.*h120*u.x*uz2 + 4.*h121*uxuz + 2.*h122*u.x + h200*uy2*uz2 + 2.*h201*uy2*u.z + h202*uy2 + 2.*h210*u.y*uz2 + 4.*h211*uyuz + 2.*h212*u.y + h220*uz2 + 2.*h221*u.z + h222;
+	//back to density-probability functions
+	h000 = temp000 - temp002 - temp020 + temp022 - temp200 + temp202 + temp220 - temp222;
+	h100 = 1/2.*temp100 - 1/2.*temp102 - 1/2.*temp120 + 1/2.*temp122 + 1/2.*temp200 - 1/2.*temp202 - 1/2.*temp220 + 1/2.*temp222;
+	h200 = -1/2.*temp100 + 1/2.*temp102 + 1/2.*temp120 - 1/2.*temp122 + 1/2.*temp200 - 1/2.*temp202 - 1/2.*temp220 + 1/2.*temp222;
+	h010 = 1/2.*temp010 - 1/2.*temp012 + 1/2.*temp020 - 1/2.*temp022 - 1/2.*temp210 + 1/2.*temp212 - 1/2.*temp220 + 1/2.*temp222;
+	h110 = 1/4.*temp110 - 1/4.*temp112 + 1/4.*temp120 - 1/4.*temp122 + 1/4.*temp210 - 1/4.*temp212 + 1/4.*temp220 - 1/4.*temp222;
+	h210 = -1/4.*temp110 + 1/4.*temp112 - 1/4.*temp120 + 1/4.*temp122 + 1/4.*temp210 - 1/4.*temp212 + 1/4.*temp220 - 1/4.*temp222;
+	h020 = -1/2.*temp010 + 1/2.*temp012 + 1/2.*temp020 - 1/2.*temp022 + 1/2.*temp210 - 1/2.*temp212 - 1/2.*temp220 + 1/2.*temp222;
+	h120 = -1/4.*temp110 + 1/4.*temp112 + 1/4.*temp120 - 1/4.*temp122 - 1/4.*temp210 + 1/4.*temp212 + 1/4.*temp220 - 1/4.*temp222;
+	h220 = 1/4.*temp110 - 1/4.*temp112 - 1/4.*temp120 + 1/4.*temp122 - 1/4.*temp210 + 1/4.*temp212 + 1/4.*temp220 - 1/4.*temp222;
+	h001 = 1/2.*temp001 + 1/2.*temp002 - 1/2.*temp021 - 1/2.*temp022 - 1/2.*temp201 - 1/2.*temp202 + 1/2.*temp221 + 1/2.*temp222;
+	h101 = 1/4.*temp101 + 1/4.*temp102 - 1/4.*temp121 - 1/4.*temp122 + 1/4.*temp201 + 1/4.*temp202 - 1/4.*temp221 - 1/4.*temp222;
+	h201 = -1/4.*temp101 - 1/4.*temp102 + 1/4.*temp121 + 1/4.*temp122 + 1/4.*temp201 + 1/4.*temp202 - 1/4.*temp221 - 1/4.*temp222;
+	h011 = 1/4.*temp011 + 1/4.*temp012 + 1/4.*temp021 + 1/4.*temp022 - 1/4.*temp211 - 1/4.*temp212 - 1/4.*temp221 - 1/4.*temp222;
+	h111 = 1/8.*temp111 + 1/8.*temp112 + 1/8.*temp121 + 1/8.*temp122 + 1/8.*temp211 + 1/8.*temp212 + 1/8.*temp221 + 1/8.*temp222;
+	h211 = -1/8.*temp111 - 1/8.*temp112 - 1/8.*temp121 - 1/8.*temp122 + 1/8.*temp211 + 1/8.*temp212 + 1/8.*temp221 + 1/8.*temp222;
+	h021 = -1/4.*temp011 - 1/4.*temp012 + 1/4.*temp021 + 1/4.*temp022 + 1/4.*temp211 + 1/4.*temp212 - 1/4.*temp221 - 1/4.*temp222;
+	h121 = -1/8.*temp111 - 1/8.*temp112 + 1/8.*temp121 + 1/8.*temp122 - 1/8.*temp211 - 1/8.*temp212 + 1/8.*temp221 + 1/8.*temp222;
+	h221 = 1/8.*temp111 + 1/8.*temp112 - 1/8.*temp121 - 1/8.*temp122 - 1/8.*temp211 - 1/8.*temp212 + 1/8.*temp221 + 1/8.*temp222;
+	h002 = -1/2.*temp001 + 1/2.*temp002 + 1/2.*temp021 - 1/2.*temp022 + 1/2.*temp201 - 1/2.*temp202 - 1/2.*temp221 + 1/2.*temp222;
+	h102 = -1/4.*temp101 + 1/4.*temp102 + 1/4.*temp121 - 1/4.*temp122 - 1/4.*temp201 + 1/4.*temp202 + 1/4.*temp221 - 1/4.*temp222;
+	h202 = 1/4.*temp101 - 1/4.*temp102 - 1/4.*temp121 + 1/4.*temp122 - 1/4.*temp201 + 1/4.*temp202 + 1/4.*temp221 - 1/4.*temp222;
+	h012 = -1/4.*temp011 + 1/4.*temp012 - 1/4.*temp021 + 1/4.*temp022 + 1/4.*temp211 - 1/4.*temp212 + 1/4.*temp221 - 1/4.*temp222;
+	h112 = -1/8.*temp111 + 1/8.*temp112 - 1/8.*temp121 + 1/8.*temp122 - 1/8.*temp211 + 1/8.*temp212 - 1/8.*temp221 + 1/8.*temp222;
+	h212 = 1/8.*temp111 - 1/8.*temp112 + 1/8.*temp121 - 1/8.*temp122 - 1/8.*temp211 + 1/8.*temp212 - 1/8.*temp221 + 1/8.*temp222;
+	h022 = 1/4.*temp011 - 1/4.*temp012 - 1/4.*temp021 + 1/4.*temp022 - 1/4.*temp211 + 1/4.*temp212 + 1/4.*temp221 - 1/4.*temp222;
+	h122 = 1/8.*temp111 - 1/8.*temp112 - 1/8.*temp121 + 1/8.*temp122 + 1/8.*temp211 - 1/8.*temp212 - 1/8.*temp221 + 1/8.*temp222;
+	h222 = -1/8.*temp111 + 1/8.*temp112 + 1/8.*temp121 - 1/8.*temp122 + 1/8.*temp211 - 1/8.*temp212 - 1/8.*temp221 + 1/8.*temp222;
+
+	<?R 
+		qeq = MRT_feq(U_ADE, q, c(0,0,0), ortogonal=FALSE)
+		C(adre_f_tmp, h + qeq)
+	?>
+}
+
 CudaDeviceFunction void DoADRE_relax_and_collide_SRT_DF(real_t diffusivity, const real_t q) 
 {
 
@@ -296,7 +541,7 @@ CudaDeviceFunction void DoADRE_relax_and_collide_SRT_DF(real_t diffusivity, cons
 		feq = MRT_feq(U, tilde_phi, tilde_phi*AdvVel, ortogonal=FALSE)
 		qeq = MRT_feq(U, q, c(0,0,0), ortogonal=FALSE)
 
-		C(adre_f_tmp, adre_f_tmp - omega*(adre_f_tmp-feq) + qeq)
+		# C(adre_f_tmp, adre_f_tmp - omega*(adre_f_tmp-feq) + qeq)
 
 	?>
 }

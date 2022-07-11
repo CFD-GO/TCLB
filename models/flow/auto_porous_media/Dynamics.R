@@ -8,7 +8,7 @@ DREs <- ('PHI')
 NumberOfODEs = 0
 Params  <- c("LinearReactionRate")
 D3 = TRUE
-D3Q19 = TRUE
+D3Q19 = FALSE #For advection solver
 QIntegrator = 'Heun'
 #QIntegrator = 'Trapezoid'
 source("../models/reaction/d2q9_reaction_diffusion_system/Dynamics.R")
