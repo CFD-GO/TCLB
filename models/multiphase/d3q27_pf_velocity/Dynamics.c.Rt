@@ -1361,11 +1361,20 @@ CudaDeviceFunction real_t calcTau(real_t pf){
         } else if (tauUpdate == 2){ // Inverse update:
 		    tau = (pf - PhaseField_l)/(PhaseField_h - PhaseField_l) * (1.0/tau_h - 1.0/tau_l) + 1.0/tau_l;
 		    tau = 1.0/tau + 0.5;
+		// NOTE: For some reason Viscosity_h and Viscosity_l are set to zero. Deduce it from tau here
+		// instead for tauUpdate 3 and tauUpdate 4
         } else if (tauUpdate == 3){	// Viscosity update:
-		    real_t DynVisc = Density_l*Viscosity_l + pf * (Density_h*Viscosity_h - Density_l*Viscosity_l);
+		    real_t DynVisc = Density_l*tau_l / 3.0 + pf * (tau_h*Viscosity_h/3.0 - Density_l*tau_l/3);
             real_t rho = getRho();
 		    tau = 3.0 * DynVisc / rho + 0.5;
-        } else { // default to linear...
+        } else if (tauUpdate == 4) { // update from Zu-He 2013
+			real_t mu_l = Density_l * tau_l / 3.0;
+			real_t mu_h = Density_h * tau_h / 3.0;
+		    real_t DynVisc = mu_l * mu_h * (PhaseField_h - PhaseField_l) / ((pf - PhaseField_l)*mu_l  + (PhaseField_h - pf)*mu_h);
+            real_t rho = getRho();
+			tau = 3.0 * DynVisc / rho + 0.5;
+			//printf("Viscosity is %lf %lf", tau_l/3, tau_h/3);
+		} else {
             tau = 0.5 + tau_l + (pf-PhaseField_l)*(tau_h - tau_l)/(PhaseField_h - PhaseField_l);
         }
 	}
