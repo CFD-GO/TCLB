@@ -1364,7 +1364,7 @@ CudaDeviceFunction real_t calcTau(real_t pf){
 		// NOTE: For some reason Viscosity_h and Viscosity_l are set to zero. Deduce it from tau here
 		// instead for tauUpdate 3 and tauUpdate 4
         } else if (tauUpdate == 3){	// Viscosity update:
-		    real_t DynVisc = Density_l*tau_l / 3.0 + pf * (tau_h*Viscosity_h/3.0 - Density_l*tau_l/3);
+		    real_t DynVisc = Density_l*tau_l / 3.0 + pf * (tau_h*Density_h/3.0 - Density_l*tau_l/3.0);
             real_t rho = getRho();
 		    tau = 3.0 * DynVisc / rho + 0.5;
         } else if (tauUpdate == 4) { // update from Zu-He 2013
