@@ -2059,7 +2059,16 @@ CudaDeviceFunction void updateTrackers(real_t C){
                     AddToInterfacePosition(location);
 				    AddToVback(U);
 			    }
+            } else if ( fabs(xyzTrack-5) < 1e-3 )
+		    {  // track reverse along Y (e.g. tracking north pole of the droplet
+			   // as it is falling)
+                if (C < 0.5 && PhaseF(0,-1,0) > 0.5)
+                {
+                    location = Y - (C-0.5)/(C-PhaseF(0,-1,0));
+                    AddToInterfacePosition(location);
+			    }
             }
+
 		case NODE_Spiketrack:
 			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
 			{
