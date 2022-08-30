@@ -111,7 +111,7 @@ void LatticeBase::startRecord() {
 	Dump the primal and adjoint solutions to binary files
 	\param filename Prefix/path for the dumped binary files
 */
-void LatticeBase::saveSolution(const char *filename) {
+std::string LatticeBase::saveSolution(const char *filename) {
 	char fn[STRING_LEN];
 	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
 	save(Snap, false, fn); // write primal
@@ -119,6 +119,7 @@ void LatticeBase::saveSolution(const char *filename) {
 	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
 	save(aSnap, true, fn);
 #endif
+	return fn;
 }
 
 // Loads soln for binary files
