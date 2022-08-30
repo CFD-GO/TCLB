@@ -276,6 +276,12 @@ class rGlobals : public rWrapper {
 public:
 	std::string print() { return "Globals"; }
 	SEXP Dollar(std::string name) {
+		Rcpp::NumericVector ret(1);
+		if (name == "Iteration") {
+			ret[0] = solver->lattice->Iter;
+			return ret;
+		}
+
 		bool si = false;
 		std::string glob = name;
 		size_t last_index = name.find_last_not_of(".");
@@ -292,7 +298,6 @@ public:
 			return Rcpp::NumericVector(0);
 		}
 
-		Rcpp::NumericVector ret(1);
 		double v = 1;
 		if (si) v = solver->units.alt(it->unit);
 		ret[0] = v * solver->lattice->globals[it->id];
@@ -300,6 +305,7 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
+		ret.push_back("Iteration");
 		for (ModelBase::Globals::const_iterator it = solver->lattice->model->globals.begin(); it != solver->lattice->model->globals.end(); it++) {
 #ifndef ADJOINT
 			if (it->isAdjoint) continue;
@@ -606,6 +612,7 @@ int RunR::Init() {
 
 	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
 	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
+	R["[[.CLB"]          = Rcpp::InternalFunction( &CLBDollar );
 	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
 	R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
 	R["names.CLB"]       = Rcpp::InternalFunction( &CLBNames );

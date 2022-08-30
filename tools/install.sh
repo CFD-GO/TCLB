@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [--dry] [--skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|module [VERSION]"
+	echo "install.sh [--dry] [--skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|reticulate|module [VERSION]"
 	exit -2
 }
 
@@ -173,7 +173,8 @@ do
 		echo "    python-dev *: Install Python libraries and headers for compiling TCLB with Python"
 		echo ""
 		echo "  Other things to install:"
-		echo "    rpython     : Install Python backend for R/RTemplate"
+		echo "    rpython     : Install Python backend for R/RTemplate, noting that rPython is deprecated and reticulate is required"
+		echo "    reticulate  : Install Python backend for R/RTemplate"
 		echo "    lcov       *: Install coverage analyzing software 'lcov'"
 		echo "    submodules  : Update github submodules"
 		echo "    gitdep      : Update files copied from other git repositories"
@@ -275,8 +276,12 @@ do
 		;;
 	rpython)
 		install_rpackage rjson
-		echo "rPython not supported anymore"
-		# install_rpackage rPython
+		echo "rPython not supported anymore, installing reticulate instead"
+		install_rpackage reticulate
+		;;
+	reticulate)
+		install_rpackage rjson
+		install_rpackage reticulate
 		;;
 	rinside)
 		if $GITHUB

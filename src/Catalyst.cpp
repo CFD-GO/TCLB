@@ -10,6 +10,8 @@
 #include <vtkCPPythonScriptPipeline.h>
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkUnsignedIntArray.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkPoints.h>
@@ -20,7 +22,9 @@
 #else
   typedef vtkFloatArray vtkRealTArray;
 #endif
-              
+
+typedef vtkUnsignedIntArray vtkFlagTArray;
+typedef vtkUnsignedCharArray vtkGeomTArray;              
 
 namespace
 {
@@ -118,6 +122,34 @@ namespace
     if(numberOf == 0)
     {
       debug2("Creating Catalyst VTK objects\n");
+      
+      debug1("Creating Catalyst VTK object for flag");
+      vtkIdType size = static_cast<vtkIdType> (reg.size());
+      vtkNew<vtkFlagTArray> myArray;
+      myArray->SetName("flag");        
+      myArray->SetNumberOfComponents(1);
+      myArray->SetNumberOfValues(size);
+      if (exportCellData) {
+        VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
+      } else {
+        VTKGrid->GetPointData()->AddArray(myArray.GetPointer());
+      }        
+
+      for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
+        debug1("Creating Catalyst VTK object for %s\n", it->name.c_str());
+        vtkIdType size = static_cast<vtkIdType> (reg.size());
+        vtkNew<vtkGeomTArray> myArray;
+        myArray->SetName(it->name.c_str());
+        myArray->SetNumberOfComponents(1);
+        myArray->SetNumberOfValues(size);
+        if (exportCellData) {
+          VTKGrid->GetCellData()->AddArray(myArray.GetPointer());
+        } else {
+          VTKGrid->GetPointData()->AddArray(myArray.GetPointer());
+        }  
+      }
+    
+
 	for (ModelBase::Quantities::const_iterator it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
 #ifndef ADJOINT
 	  if (it->isAdjoint) continue;
@@ -137,6 +169,52 @@ namespace
           }        
 	}
     }
+
+
+    debug2("Filling Catalyst VTK object for flag\n");
+    vtkIdType size = reg.size();
+    vtkFlagTArray* myArray;
+    if (exportCellData) {
+      myArray = vtkFlagTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray("flag"));
+    } else {
+      myArray = vtkFlagTArray::SafeDownCast(VTKGrid->GetPointData()->GetArray("flag"));
+    }      
+    unsigned int * myArrayData = myArray->WritePointer(0,size);
+    flag_t * NodeType = new flag_t[size];
+    solver.lattice->GetFlags(reg, NodeType);
+    
+    for (size_t i=0;i<size;i++) {
+      myArrayData[i] = (unsigned int) NodeType[i];
+    }
+
+    lbRegion old = solver.lattice->region;      
+    if (! exportCellData) {
+      fixPointData(old, reg, myArrayData, sizeof(real_t));
+    }      
+
+    unsigned char * small = new unsigned char[size];
+    for (ModelBase::NodeTypeGroupFlags::const_iterator it = lattice->model->nodetypegroupflags.begin(); it != lattice->model->nodetypegroupflags.end(); it++) {
+      debug2("Filling Catalyst VTK object for %s\n", it->name.c_str());
+      vtkIdType size = reg.size();
+      vtkGeomTArray* myArray;
+      if (exportCellData) {
+        myArray = vtkGeomTArray::SafeDownCast(VTKGrid->GetCellData()->GetArray(it->name.c_str()));
+      } else {
+        myArray = vtkGeomTArray::SafeDownCast(VTKGrid->GetPointData()->GetArray(it->name.c_str()));
+      }      
+      unsigned char * myArrayData = myArray->WritePointer(0,size);
+      for (size_t i=0;i<size;i++) {
+          myArrayData[i] = (unsigned char) (NodeType[i] & it->flag) >> it->shift;
+      }
+      
+      lbRegion old = solver.lattice->region;      
+      if (! exportCellData) {
+        fixPointData(old, reg, myArrayData, sizeof(real_t));
+      }      
+    }
+    delete[] small;
+    delete[] NodeType;
+
 	for (ModelBase::Quantities::const_iterator it=solver->lattice->model->quantities.begin(); it!=solver->lattice->model->quantities.end(); it++) {
 #ifndef ADJOINT
 	  if (it->isAdjoint) continue;

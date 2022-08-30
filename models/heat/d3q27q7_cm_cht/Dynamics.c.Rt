@@ -892,8 +892,8 @@ CudaDeviceFunction void Run() {
 		case NODE_BGK:
 			Collision_thermalBGK();
 			break;
-		case NODE_CM_NONLINEAR:
-			CollisionCM_NONLINEAR();
+		case NODE_CM_PROB:
+			Collision_CM_PROB();
 			break;
 	}
 
@@ -1003,7 +1003,7 @@ CudaDeviceFunction void SetEquilibriumHeat(real_t H, real_t rho, vector_t u)
 }
 
 
-CudaDeviceFunction void relax_and_collide_ADE_CM_NONLINEAR(real_t rho, real_t omega_ade, vector_t u_hydro) 
+CudaDeviceFunction void relax_and_collide_ADE_CM_PROB(real_t rho, real_t omega_ade, vector_t u_hydro) 
 {
 	#ifdef OPTIONS_CHT
 		real_t Sigma2 = 1/3.*h_stability_enhancement/(cp*rho);
@@ -1432,9 +1432,9 @@ CudaDeviceFunction vector_t getForce(real_t localTemp, real_t rho)
 	return Force;
 }
 
-CudaDeviceFunction void CollisionCM(){
+CudaDeviceFunction vector_t hydro_collision_wrapper(real_t rho)
+{
 	real_t localTemperature = getT_();
-	real_t rho = getRho_();
 	vector_t Force = getForce(localTemperature, rho);
 
 	// add Darcy force to stop flow within solid regions
@@ -1455,77 +1455,33 @@ CudaDeviceFunction void CollisionCM(){
 	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
 	vector_t u = relax_and_collide_hydro(Force, omega_nu);
 	#ifdef OPTIONS_OutFlowConvective
-		U = u.x; // for convective outlet BC
+		U = u.x;
 	#endif	
 
+	return u;
+}
+
+CudaDeviceFunction void CollisionCM(){
+	real_t rho = getRho_();
+	vector_t u = hydro_collision_wrapper(rho);
 	real_t omega_k = 1.0/(3*conductivity+0.5);
 	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
-
 	relax_and_collide_ADE_CM(rho, omega_k, u);
 }
 
 
-CudaDeviceFunction void CollisionCM_NONLINEAR(){
-	real_t localTemperature = getT_();
+CudaDeviceFunction void Collision_CM_PROB(){
 	real_t rho = getRho_();
-	vector_t Force = getForce(localTemperature, rho);
-
-	// add Darcy force to stop flow within solid regions
-	if ((NodeType & NODE_ADDITIONALS) == NODE_DarcySolid) 
-	{
-		vector_t u_temp = getRawU();
-		u_temp.x += Force.x/(2*rho);
-		u_temp.y += Force.y/(2*rho);
-		u_temp.z += Force.z/(2*rho);
-
-		vector_t fDarcyStoper = get_fDarcyStoper(rho,  u_temp);
-		Force.x += fDarcyStoper.x;
-		Force.y += fDarcyStoper.y;
-		Force.z += fDarcyStoper.z;
-	} 
-
-	real_t omega_nu = 1.0/(3*nu+0.5);
-	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
-	vector_t u = relax_and_collide_hydro(Force, omega_nu);
-	#ifdef OPTIONS_OutFlowConvective
-		U = u.x; 
-	#endif	
-
+	vector_t u = hydro_collision_wrapper(rho);
 	real_t omega_k = 1.0/(3*conductivity+0.5);
 	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
-
-	relax_and_collide_ADE_CM_NONLINEAR(rho, omega_k, u);
+	relax_and_collide_ADE_CM_PROB(rho, omega_k, u);
 }
 
 CudaDeviceFunction void Collision_thermalBGK(){
-	real_t localTemperature = getT_();
 	real_t rho = getRho_();
-	vector_t Force = getForce(localTemperature, rho);
-
-	// add Darcy force to stop flow within solid regions
-	if ((NodeType & NODE_ADDITIONALS) == NODE_DarcySolid) 
-	{
-		vector_t u_temp = getRawU();
-		u_temp.x += Force.x/(2*rho);
-		u_temp.y += Force.y/(2*rho);
-		u_temp.z += Force.z/(2*rho);
-
-		vector_t fDarcyStoper = get_fDarcyStoper(rho,  u_temp);
-		Force.x += fDarcyStoper.x;
-		Force.y += fDarcyStoper.y;
-		Force.z += fDarcyStoper.z;
-	} 
-
-	real_t omega_nu = 1.0/(3*nu+0.5);
-	if ((NodeType & NODE_BOUNDARY) != 0) omega_nu = 1.0/(3*nu_buffer+0.5);
-	vector_t u = relax_and_collide_hydro(Force, omega_nu);
-	#ifdef OPTIONS_OutFlowConvective
-		U = u.x; // for convective outlet BC
-	#endif	
-
-	
+	vector_t u = hydro_collision_wrapper(rho);
 	real_t omega_k = 1.0/(3*conductivity+0.5);
 	if ((NodeType & NODE_BOUNDARY) != 0) omega_k = 1.0/(3*conductivity_buffer+0.5);
-	
 	relax_and_collide_ADE_SRT_from_cm_eq(rho, omega_k, u);
 }

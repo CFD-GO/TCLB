@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/allen_cahn_runr/">
+	<Geometry nx="512" ny="512">
+		<!-- <SRT_DF_SOI><Box/></SRT_DF_SOI> -->
+		<!-- <SRT_M_SOI><Box/></SRT_M_SOI>	 -->
+		<TRT_M_SOI><Box/></TRT_M_SOI>
+		<!-- <TRT_CM_SOI><Box/></TRT_CM_SOI> -->
+	</Geometry>
+	<Model>
+		<Param name="diffusivity_phi" value="0.001666"/>
+		<Param name="magic_parameter" value="0.083333"/>
+		
+		<Param name="lambda" value="0.000250"/>
+
+		<Param name="Init_PhaseField" value="1" />
+		<Param name="Init_UX" value="0.0"/>
+    	<Param name="Init_UY" value="0.0"/>
+    </Model>
+
+ 	<RunR>
+	 	x = Solver$Geometry$X 
+		y = Solver$Geometry$Y
+		domain_size = max(max(x - 0.5)) # get rid of the 'cell center shift'
+		x = (x - 0.5)/ domain_size
+		y = (y - 0.5)/ domain_size
+		Solver$Fields$Init_PhaseField_External[] =  exp(sin(2*pi*x)) + 2*exp(sin(4*pi*y))
+
+
+		R = 100
+		Umax = 0.005
+		x = Solver$Geometry$X - domain_size/2.
+		y = Solver$Geometry$Y - domain_size/2.
+		r = sqrt(x^2+y^2)
+		w = exp(-r^2/(2*R^2)) / (exp(-1/2)*R) * Umax
+		Solver$Fields$Init_UX_External[] = y * w
+		Solver$Fields$Init_UY_External[] = -x * w	
+	
+		U = r*Umax/(domain_size/2.) 
+		alfa = atan(y/x)
+	
+		#Solver$Fields$Init_UX_External[] = U*sin(alfa)/10000000000000  # compile with Init_UX_External
+		#Solver$Fields$Init_UY_External[] = U*cos(alfa)/1000000000000000
+
+		Solver$Actions$InitFromFields()   
+	</RunR> 
+	<!-- <Solve Iterations="10"><VTK Iterations="1"/></Solve> -->
+    <Solve Iterations="512"><VTK Iterations="50"/></Solve>
+	<VTK/>
+
+</CLBConfig>

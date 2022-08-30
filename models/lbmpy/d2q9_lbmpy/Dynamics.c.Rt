@@ -1,0 +1,201 @@
+/*-------------------------------------------------------------*/
+/*  CLB - Cudne LB - Stencil Version                           */
+/*     CUDA based Adjoint Lattice Boltzmann Solver             */
+/*     Author: Lukasz Laniewski-Wollk                          */
+/*     Developed at: Warsaw University of Technology - 2012    */
+/*-------------------------------------------------------------*/
+
+/*
+Model created by Travis Mitchell 21-06-2022. 
+ - Looks to provide first working example of lbmpy coupling
+*/
+
+<?python
+# --------------------------------
+# import required libraries
+# - users should have:
+# -- lbmpy
+# -- pystencils
+# -- sympy
+# - as a minimum
+# --------------------------------
+import sympy as sp
+import pystencils as ps
+from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil
+from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_update_rule
+
+stencil = LBStencil(Stencil.D2Q9,ordering='counterclockwise')
+omega = sp.Symbol('omega')
+layout = 'fzyx'
+
+#   PDF Fields
+pdfs, pdfs_tmp = ps.fields(f'f({stencil.Q}), f_tmp({stencil.Q}): [2D]', layout=layout)
+
+#   Velocity Output Field
+velocity = ps.fields(f"velocity({stencil.D}): [2D]", layout=layout)
+output = {'velocity': velocity}
+
+#   Optimization
+lbm_opt = LBMOptimisation(cse_global=True,                      \
+                          symbolic_field=pdfs,                  \
+                          symbolic_temporary_field=pdfs_tmp,    \
+                          field_layout=layout)
+
+lbm_config = LBMConfig(stencil=stencil,                         \
+                        method=Method.CUMULANT,                 \
+                        force=[sp.Symbol('GravitationX'),sp.Symbol('GravitationY')], \
+                        zero_centered=False,                    \
+                        relaxation_rate=omega,                  \
+                        compressible=True,                      \
+                        output=output)
+
+lbm_update_rule = create_lb_update_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
+lbm_method = lbm_update_rule.method
+?>
+
+CudaDeviceFunction float2 Color() {
+// used for graphics - can usually ignore function
+        float2 ret;
+        vector_t u = getU();
+        ret.x = sqrt(u.x*u.x + u.y*u.y);
+        ret.y = 1;
+        return ret;
+}
+
+CudaDeviceFunction void Init() {
+// Initialise the velocity at each node 
+    real_t u_0 = VelocityX;
+    real_t u_1 = VelocityY;
+    real_t rho = Density;
+	
+<?python
+for eq, f in zip(lbm_method.get_equilibrium_terms(),lbm_method.pre_collision_pdf_symbols):
+    print(sp.ccode(eq,assign_to=f))
+?>
+
+}
+ 
+CudaDeviceFunction void Run() {
+// This defines the dynamics that we run at each node in the domain.
+    switch (NodeType & NODE_BOUNDARY) {
+	case NODE_Solid:
+	case NODE_Wall:
+		BounceBack();
+		break;
+	case NODE_EVelocity:
+		EVelocity();
+		break;
+	case NODE_WPressure:
+		WPressure();
+		break;
+	case NODE_WVelocity:
+		WVelocity();
+		break;
+	case NODE_EPressure:
+		EPressure();
+		break;
+//	case NODE_NVelocity:
+//		NVelocity();
+//		break;
+    }
+	if (NodeType & NODE_BGK) 
+	{
+		CollisionBGK();
+	} 
+}
+
+CudaDeviceFunction void CollisionBGK() {
+// Here we perform a single relaxation time collision operation.
+<?python
+for line in lbm_method.get_collision_rule():
+    print("real_t",line.lhs,";")
+
+subs_dict = {}
+for ii in range(len(lbm_method.pre_collision_pdf_symbols)):
+    subs_dict[lbm_method.post_collision_pdf_symbols[ii]] = lbm_method.pre_collision_pdf_symbols[ii]
+for line in lbm_method.get_collision_rule():
+    print(sp.ccode(line.subs(subs_dict)))
+?>
+}
+
+CudaDeviceFunction void BounceBack() {
+// Method to reverse distribution functions along the bounding nodes.
+   	real_t uf;
+	uf = f_3;
+	f_3 = f_1;
+	f_1 = uf;
+	uf = f_4;
+	f_4 = f_2;
+	f_2 = uf;
+	uf = f_7;
+	f_7 = f_5;
+	f_5 = uf;
+	uf = f_8;
+	f_8 = f_6;
+	f_6 = uf;
+}
+	
+
+CudaDeviceFunction real_t getRho() {
+// This function defines the macroscopic density at the current node.
+	return f_8+f_7+f_6+f_5+f_4+f_3+f_2+f_1+f_0;
+}
+
+CudaDeviceFunction vector_t getU() {
+// This function defines the macroscopic velocity at the current node.
+	real_t d =f_8+f_7+f_6+f_5+f_4+f_3+f_2+f_1+f_0;
+	vector_t u;
+	// pv = pu + G/2
+	u.x = (( f_8-f_7-f_6+f_5-f_3+f_1 )/d + GravitationX*0.5 );
+	u.y = ((-f_8-f_7+f_6+f_5-f_4+f_2 )/d + GravitationY*0.5 );
+	u.z = 0;
+	return u;
+}
+
+CudaDeviceFunction void EVelocity()
+{
+    real_t rho, ru;
+	real_t ux0 = VelocityX;
+	rho = ( f_0 + f_2 + f_4 + 2.*(f_1 + f_5 + f_8) ) / (1. + ux0);
+	ru = rho * ux0;
+	f_3 = f_1 - (2./3.) * ru;
+	f_7 = f_5 - (1./6.) * ru + (1./2.)*(f_2 - f_4);
+	f_6 = f_8 - (1./6.) * ru + (1./2.)*(f_4 - f_2);
+}
+
+CudaDeviceFunction void WPressure()
+{
+        real_t ru, ux0;
+	real_t rho = Density;
+	ux0 = -1. + ( f_0 + f_2 + f_4 + 2.*(f_3 + f_7 + f_6) ) / rho;
+	ru = rho * ux0;
+
+	f_1 = f_3 - (2./3.) * ru;
+	f_5 = f_7 - (1./6.) * ru + (1./2.)*(f_4 - f_2);
+	f_8 = f_6 - (1./6.) * ru + (1./2.)*(f_2 - f_4);
+}
+
+CudaDeviceFunction void WVelocity()
+{
+        real_t rho, ru;
+	real_t u = VelocityX;
+	rho = ( f_0 + f_2 + f_4 + 2.*(f_3 + f_7 + f_6) ) / (1. - u);
+	ru = rho * u;
+	f_1 = f_3 + (2./3.) * ru;
+	f_5 = f_7 + (1./6.) * ru + (1./2.)*(f_4 - f_2);
+	f_8 = f_6 + (1./6.) * ru + (1./2.)*(f_2 - f_4);
+}
+
+CudaDeviceFunction void EPressure()
+{
+        real_t ru, ux0;
+	real_t rho = Density;
+	ux0 = -1. + ( f_0 + f_2 + f_4 + 2.*(f_1 + f_5 + f_8) ) / rho;
+	ru = rho * ux0;
+
+	f_3 = f_1 - (2./3.) * ru;
+	f_7 = f_5 - (1./6.) * ru + (1./2.)*(f_2 - f_4);
+	f_6 = f_8 - (1./6.) * ru + (1./2.)*(f_4 - f_2);
+}
+
+

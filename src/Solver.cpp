@@ -200,8 +200,7 @@ void MainFree( Solver *d);
 		output("%8d it %s\n", iter, str);
 	}
 
-
-///	Writes state of lattive to VTK.
+///	Writes state of lattice to VTK.
 /**
 	Writes all Quantities and Geometry features to a VTI file with vtkWriteLattice
 	\param nm Appendix added to the name of the vti file written
@@ -224,7 +223,7 @@ void MainFree( Solver *d);
 		return ret;
 	}
 
-///	Writes state of lattive to txt files.
+///	Writes state of lattice to txt files.
 /**
 	Writes all Quantities  to a set of txt files
 	\param nm Appendix added to the name of the txt file written
@@ -241,7 +240,7 @@ void MainFree( Solver *d);
 
 
 
-///	Writes state of lattive to a binary file.
+///	Writes state of lattice to a binary file.
 /**
 	Writes all the data of the lattice with vtkWriteLattice
 	\param nm Appendix added to the name of the bin file written

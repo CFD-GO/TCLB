@@ -77,11 +77,24 @@ AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho-rho_h)*BuoyancyX
 AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho-rho_h)*BuoyancyY')
 AddSetting(name="GmatchedX", default=0.0, comment='applied (1-phi)*GmatchedX')
 AddSetting(name="GmatchedY", default=0.0, comment='applied (1-phi)*GmatchedY')
+
+AddSetting(name="Radius" , default="0", comment='Radius of diffuse interface circle')
+AddSetting(name="CenterX", default="0", comment='Circle center x-coord')
+AddSetting(name="CenterY", default="0", comment='Circle Center y-coord')
+AddSetting(name="BubbleType", default="1", comment='Drop/bubble')
+
 # Globals - table of global integrals that can be monitored and optimized
 AddGlobal(name="PressureLoss", comment='pressure loss', unit="1mPa")
 AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
+
+AddGlobal(name="BubbleVelocityX", comment='Bubble velocity in the x direction')
+AddGlobal(name="BubbleVelocityY", comment='Bubble velocity in the y direction')
+AddGlobal(name="BubbleVelocityZ", comment='Bubble velocity in the z direction')
+AddGlobal(name="BubbleLocationY", comment='Bubble Location in the y direction')
+AddGlobal(name="SumPhiGas", comment='Summation of (1-phi) in all gas cells')
+
 
 AddNodeType(name="EPressure", group="BOUNDARY")
 AddNodeType(name="EVelocity", group="BOUNDARY")
