@@ -133,7 +133,7 @@ CudaDeviceFunction float2 Color() {
 
 CudaDeviceFunction void BounceBack()
 {
-<?R FullBounceBack() ?>
+<?R FullBounceBack(group='f') ?>
 }
 
 
@@ -148,6 +148,7 @@ CudaDeviceFunction void RunBoundaries() {
     switch (NodeType & NODE_BOUNDARY) {
 	case NODE_Wall:
 		BounceBack();
+        DoADRE_BounceBack();
         break;
 	case NODE_WDirichlet:
 		{
@@ -184,10 +185,10 @@ CudaDeviceFunction void Run() {
     switch (NodeType & NODE_COLLISION) {
 	case NODE_COLLISION:
 		Collision_MTW_RT();
+        DoADRE_Run();
 		break;
     }
 
-	DoADRE_Run();
 }
 
 CudaDeviceFunction void SetEquilibrum(real_t p, real_t Vx, real_t Vy, real_t Vz)

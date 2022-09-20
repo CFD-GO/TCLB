@@ -259,7 +259,7 @@ CudaDeviceFunction void DoADRE_BounceBack()
 	<?R 
 		dre_loop( function(i) {
 			gname = paste("dre",i,sep="_")
-			FullBounceBack()
+			FullBounceBack(group=gname)
 		})
 
 ?>
