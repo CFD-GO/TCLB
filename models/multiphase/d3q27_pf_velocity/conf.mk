@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="q27*ML*OutFlow*altContactAngle*BGK*thermo*planarBenchmark*autosym"
+OPT="q27*OutFlow*altContactAngle*BGK*thermo*planarBenchmark*autosym"
 # q27 - Q27 lattice structure for phasefield
 # ML  - export densities for machine learning
 # OutFlow - include extra velocity stencil for outflowing boundaries

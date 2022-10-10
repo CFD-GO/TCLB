@@ -6,12 +6,6 @@ if (Options$q27){
 	source("d3q27q15.R")
 }
 
-if (Options$ML){
-	for (d in rows(DensityAll)){
-		AddQuantity(name=d$name)
-	}
-}
-
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
@@ -57,8 +51,18 @@ if (Options$altContactAngle){
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
 		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+		AddField( name=d$name, dx=-d$dx+1, dy=-d$dy, dz=-d$dz )
+		## AddField( name=d$name, dx=-d$dx, dy=-d$dy-1, dz=-d$dz )
+		## AddField( name=d$name, dx=-d$dx, dy=-d$dy+1, dz=-d$dz )
+		## AddField( name=d$name, dx=-d$dx, dy=-d$dy, dz=-d$dz-1 )
+		## AddField( name=d$name, dx=-d$dx, dy=-d$dy, dz=-d$dz+1 )
 	}
 	AddField(name="U",dx=c(-1,0,0))
+	AddField(name="U",dx=c(1,0,0))
+	## AddField(name="U",dx=c(0,-1,0))
+	## AddField(name="U",dx=c(0,1,0))
+	## AddField(name="U",dx=c(0,0,-1))
+	## AddField(name="U",dx=c(0,0,1))
 
     save_initial   = c(save_initial,  "gold","hold")
     save_iteration = c(save_iteration,"gold","hold")
@@ -152,7 +156,7 @@ if (Options$altContactAngle){
 		AddSetting("HEIGHT", default=0,	comment="Height of channel for 2D Poiseuille flow")
 		AddSetting("Uavg", default=0,	zonal=T, comment="Average velocity of channel for 2D Poiseuille flow")
 		AddSetting("developedFlow", default=0,	comment="set greater than 0 for fully developed flow in the domain (x-direction)")
-		AddSetting("developedPipeFlow_X", default=0,	comment="set greater than 0 for fully developed pipe flow in the domain (x-direction)")
+		AddSetting("developedPipeFlow", default=0,	comment="set greater than 0 for fully developed pipe flow in the domain (x-direction)")
         AddSetting("pipeRadius", default=0, comment="radius of pipe for developed pipe flow")
         AddSetting("pipeCentre_Y", default=0, comment="pipe centre Y co-ord for developed pipe flow")
         AddSetting("pipeCentre_Z", default=0, comment="pipe centre Z co-ord for developed pipe flow")
@@ -194,12 +198,12 @@ if (Options$altContactAngle){
 ########NODE TYPES########
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
-	AddNodeType(name="EPressure", group="BOUNDARY")
-	AddNodeType(name="WPressure", group="BOUNDARY")
-	AddNodeType(name="NVelocity", group="BOUNDARY")
-	AddNodeType(name="Velocity_Y_neg", group="BOUNDARY")
-	AddNodeType(name="EVelocity", group="BOUNDARY")
-	AddNodeType(name="WVelocity", group="BOUNDARY")
+	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
+    dotR_my_pressure_boundaries = paste0(c("N","E","S","W","F","B"),"Pressure")
+    for (ii in 1:6){
+        AddNodeType(name=dotR_my_velocity_boundaries[ii], group="BOUNDARY")
+        AddNodeType(name=dotR_my_pressure_boundaries[ii], group="BOUNDARY")
+    }
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
 	AddNodeType(name="MovingWall_S", group="BOUNDARY")
 	AddNodeType(name="Solid", group="BOUNDARY")
@@ -208,7 +212,17 @@ if (Options$altContactAngle){
 	AddNodeType(name="MRT", group="COLLISION")
 	if (Options$OutFlow){
 		AddNodeType(name="ENeumann", group="BOUNDARY")
+		AddNodeType(name="WNeumann", group="BOUNDARY")
 		AddNodeType(name="EConvect", group="BOUNDARY")
+		AddNodeType(name="WConvect", group="BOUNDARY")
+		## AddNodeType(name="NNeumann", group="BOUNDARY")
+		## AddNodeType(name="SNeumann", group="BOUNDARY")
+		## AddNodeType(name="FNeumann", group="BOUNDARY")
+		## AddNodeType(name="BNeumann", group="BOUNDARY")
+		## AddNodeType(name="NConvect", group="BOUNDARY")
+		## AddNodeType(name="SConvect", group="BOUNDARY")
+		## AddNodeType(name="FConvect", group="BOUNDARY")
+		## AddNodeType(name="BConvect", group="BOUNDARY")
 	}
 #######################
 ########GLOBALS########
