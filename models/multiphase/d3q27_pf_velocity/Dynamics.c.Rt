@@ -240,7 +240,7 @@ CudaDeviceFunction real_t getRho(){
 	}
 }
 CudaDeviceFunction real_t getPhaseField(){
-	return <?R C(sum(h)) ?>;
+	return PhaseF(0,0,0);
 }
 CudaDeviceFunction vector_t getU(){
 	vector_t u;
@@ -252,12 +252,12 @@ CudaDeviceFunction vector_t getU(){
 	return u;
 }
 CudaDeviceFunction real_t getPstar(){
-	return pnorm; 
+	return <?R C(sum(g)) ?>;
 }
 CudaDeviceFunction real_t getP(){
-	real_t   d = getRho(); 
-
-	return pnorm*d*cs2;
+	real_t d = getRho();
+	real_t pstar = getPstar();
+	return pstar*d*cs2;
 }
 CudaDeviceFunction vector_t getNormal(){
 	vector_t n = {nw_x, nw_y, nw_z};
