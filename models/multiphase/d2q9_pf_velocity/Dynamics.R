@@ -95,15 +95,6 @@ AddQuantity(name="NormalizedPressure",	  unit="Pa")
 AddQuantity(name="Pressure",	  unit="Pa")
 AddQuantity(name="Normal", unit="1", vector=T)
 
-if (Options$ML){
-    gPops <- paste0("g",1:9-1)
-    hPops <- paste0("h",1:9-1)
-    for (d in 1:length(gPops)){
-        AddQuantity(name=gPops[d])
-        AddQuantity(name=hPops[d])
-    }
-}
-
 #	Initialisation States
 AddSetting(name="Period", default="0", comment='Number of cells per cos wave')
 AddSetting(name="Perturbation", default="0", comment='Size of wave perturbation, Perturbation Period')
@@ -197,7 +188,6 @@ AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
 AddNodeType(name="NVelocity", group="BOUNDARY")
 AddNodeType(name="WVelocity", group="BOUNDARY")
-AddNodeType(name="EOutflow_ML", group="BOUNDARY")
 
 AddNodeType(name="Body", group="BODY")  # To measure force exerted on the body.
 

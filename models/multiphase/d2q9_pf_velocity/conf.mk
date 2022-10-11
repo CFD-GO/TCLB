@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="ML*(GF+RT+Outflow+GuoCM+debug+BGK+CM)*autosym"
+OPT="(GF+RT+Outflow+GuoCM+debug+BGK+CM)*autosym"
 
 # GF: Guo Forcing - feature in MRT model;
 #	This is using a higher order Forcing scheme

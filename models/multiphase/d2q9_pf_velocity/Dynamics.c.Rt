@@ -59,18 +59,6 @@ if (Options$Outflow){
 }
 ?>
 //	EXPORTABLE QUANTITIES:
-<?R if(Options$ML){
-        for (myDensity in 0:8){
-            cat(paste0("CudaDeviceFunction real_t getg",myDensity,"(){\n"))
-            cat(paste0("\t return g[",myDensity,"];\n"))
-            cat("}\n")
-            cat(paste0("CudaDeviceFunction real_t geth",myDensity,"(){\n"))
-            cat(paste0("\t return h[",myDensity,"];\n"))
-            cat("}\n")
-        }
-    }
-?>
-
 CudaDeviceFunction real_t getRho(){
 	real_t rho;
 	rho = Density_l + (Density_h-Density_l) * (PhaseF(0,0) - PhaseField_l)/(PhaseField_h - PhaseField_l);
@@ -420,9 +408,6 @@ CudaDeviceFunction void BC_Switcher ()
 			break;
 		case NODE_WVelocity:
 			WVelocity();
-			break;
-		case NODE_EOutflow_ML:
-			Outflow_East_ML();
 			break;
 
 	#ifdef OPTIONS_Outflow
@@ -1118,7 +1103,7 @@ CudaDeviceFunction void CollisionMRT(){
 	real_t nx = gradPhi.x/gradPhi.z;  // GradPhi normalized in x, y direction
 	real_t ny = gradPhi.y/gradPhi.z;
 
-	real_t p = getNormalizedPressure(); // normlized pressure
+	real_t p = getNormalizedPressure(); // normalized pressure
 	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
 
 	// PHASE FIELD POPULATION UPDATE:
@@ -1200,99 +1185,6 @@ CudaDeviceFunction float2 Color() {
 
 
 //	BOUNDARY CONDITIONS:
-CudaDeviceFunction void Outflow_East_ML()
-{
-// Python generated code
-    real_t m,neuron0_inter,neuron1_inter,neuron2_inter,neuron3_inter,neuron4_inter,neuron5_inter,neuron6_inter,neuron7_inter,neuron8_inter,neuron9_inter,neuron10_inter,neuron11_inter,neuron12_inter,neuron13_inter,neuron14_inter,neuron15_inter,neuron16_inter,neuron17_inter,neuron18_inter,neuron19_inter,neuron20_inter,neuron21_inter,neuron22_inter,neuron23_inter;
-real_t t,neuron0_hidden1,neuron1_hidden1,neuron2_hidden1,neuron3_hidden1,neuron4_hidden1,neuron5_hidden1,neuron6_hidden1,neuron7_hidden1,neuron8_hidden1,neuron9_hidden1,neuron10_hidden1,neuron11_hidden1,neuron12_hidden1,neuron13_hidden1,neuron14_hidden1,neuron15_hidden1,neuron16_hidden1,neuron17_hidden1,neuron18_hidden1,neuron19_hidden1,neuron20_hidden1,neuron21_hidden1,neuron22_hidden1,neuron23_hidden1;
-real_t g0_tmp, g1_tmp, g2_tmp, g3_tmp, g4_tmp, g5_tmp, g6_tmp, g7_tmp, g8_tmp, h0_tmp, h1_tmp, h2_tmp, h3_tmp, h4_tmp, h5_tmp, h6_tmp, h7_tmp, h8_tmp;
-
-    g0_tmp = g[0]*8155.91426041 + -15.22584061;
-    g1_tmp = g[1]*1135.06521550 + -0.55205172;
-    g2_tmp = g[2]*1999.07094907 + -0.48979649;
-    g4_tmp = g[4]*1999.18125559 + -0.48348294;
-    g5_tmp = g[5]*4399.88986145 + -0.49014102;
-    g8_tmp = g[8]*4274.56529220 + -0.47616677;
-    h0_tmp = h[0]*2.24998892 + -0.00000045;
-    h1_tmp = h[1]*8.93447710 + -0.00000045;
-    h2_tmp = h[2]*8.99480997 + -0.00000045;
-    h4_tmp = h[4]*8.99485037 + -0.00000045;
-    h5_tmp = h[5]*35.73785468 + -0.00000045;
-    h8_tmp = h[8]*35.73750543 + -0.00000045;
-    
-neuron0_inter=-0.558469*g0_tmp - 0.370158*g1_tmp - 0.0136927*g2_tmp - 0.591664*g4_tmp - 0.251223*g5_tmp - 0.546138*g8_tmp - 0.247615*h0_tmp - 0.571804*h1_tmp + 0.0141903*h2_tmp - 0.519335*h4_tmp - 0.0677301*h5_tmp - 0.182808*h8_tmp - 0.295575;
- neuron1_inter=-0.389838*g0_tmp - 0.0525287*g1_tmp - 0.531055*g2_tmp - 0.00667*g4_tmp - 0.0163121*g5_tmp + 0.126847*g8_tmp - 0.229843*h0_tmp - 0.107759*h1_tmp - 0.179255*h2_tmp - 0.23223*h4_tmp + 0.0345551*h5_tmp - 0.541495*h8_tmp - 0.176934;
- neuron2_inter=-0.362906*g0_tmp - 0.776252*g1_tmp - 0.0185545*g2_tmp - 0.183201*g4_tmp - 0.574499*g5_tmp - 0.138123*g8_tmp - 0.574091*h0_tmp - 0.0238489*h1_tmp + 0.00744216*h2_tmp - 0.24151*h4_tmp + 0.0356622*h5_tmp - 0.273539*h8_tmp - 0.200331;
- neuron3_inter=0.379317*g0_tmp - 0.456984*g1_tmp + 0.599949*g2_tmp - 0.362409*g4_tmp - 0.621711*g5_tmp - 0.373916*g8_tmp - 0.301683*h0_tmp - 0.0710819*h1_tmp - 0.480796*h2_tmp - 0.571111*h4_tmp + 0.218812*h5_tmp - 0.33192*h8_tmp - 0.0737796;
- neuron4_inter=-0.504865*g0_tmp + 0.191937*g1_tmp + 0.227719*g2_tmp + 0.00473015*g4_tmp - 0.257812*g5_tmp - 0.153059*g8_tmp - 0.427679*h0_tmp - 0.529037*h1_tmp - 0.323842*h2_tmp - 0.368616*h4_tmp - 0.0556198*h5_tmp - 0.443865*h8_tmp - 0.185705;
- neuron5_inter=0.400268*g0_tmp - 0.603681*g1_tmp - 0.556981*g2_tmp + 0.356883*g4_tmp - 0.0421571*g5_tmp - 0.340029*g8_tmp - 0.101785*h0_tmp - 0.150256*h1_tmp - 0.086585*h2_tmp + 0.0341691*h4_tmp - 0.611698*h5_tmp - 0.508558*h8_tmp - 0.144824;
- neuron6_inter=-0.543583*g0_tmp + 0.0637556*g1_tmp - 0.0932505*g2_tmp - 0.263717*g4_tmp + 0.0853664*g5_tmp + 0.463696*g8_tmp + 0.0598933*h0_tmp - 0.345904*h1_tmp - 0.440606*h2_tmp - 0.000763423*h4_tmp + 0.00749556*h5_tmp - 0.514078*h8_tmp - 0.165261;
- neuron7_inter=-0.445544*g0_tmp - 0.208086*g1_tmp + 0.0519758*g2_tmp - 0.324573*g4_tmp + 0.091539*g5_tmp - 0.312107*g8_tmp - 0.207749*h0_tmp - 0.117792*h1_tmp + 0.2303*h2_tmp - 0.128952*h4_tmp - 0.486461*h5_tmp + 0.00908835*h8_tmp - 0.224344;
- neuron8_inter=-0.10597*g0_tmp - 0.959647*g1_tmp - 0.621384*g2_tmp + 0.386737*g4_tmp - 0.959903*g5_tmp - 0.57013*g8_tmp + 0.527527*h0_tmp + 0.104382*h1_tmp - 0.108958*h2_tmp + 0.199467*h4_tmp + 0.28255*h5_tmp + 0.0327192*h8_tmp - 0.00759211;
- neuron9_inter=0.409682*g0_tmp - 0.909345*g1_tmp + 0.208478*g2_tmp - 0.0732964*g4_tmp - 0.84988*g5_tmp - 0.862102*g8_tmp + 0.215334*h0_tmp + 0.448907*h1_tmp - 0.13047*h2_tmp - 0.0596934*h4_tmp + 0.175619*h5_tmp - 0.165671*h8_tmp + 0.116264;
- neuron10_inter=-0.190425*g0_tmp - 0.722042*g1_tmp - 0.0906912*g2_tmp - 0.441353*g4_tmp - 0.329786*g5_tmp - 0.316275*g8_tmp - 0.494886*h0_tmp - 0.385449*h1_tmp - 0.450021*h2_tmp + 0.224227*h4_tmp - 0.262992*h5_tmp + 0.244347*h8_tmp - 0.251503;
- neuron11_inter=-0.775211*g0_tmp - 0.519024*g1_tmp - 0.386677*g2_tmp - 0.0999591*g4_tmp + 0.0275936*g5_tmp + 0.0209441*g8_tmp + 0.637504*h0_tmp + 0.765511*h1_tmp + 0.452186*h2_tmp + 0.829322*h4_tmp + 0.671358*h5_tmp + 0.212422*h8_tmp - 0.407827;
- neuron12_inter=-0.521913*g0_tmp - 0.618772*g1_tmp - 0.208743*g2_tmp - 0.179466*g4_tmp + 0.0629004*g5_tmp - 0.212548*g8_tmp + 0.376586*h0_tmp + 0.506198*h1_tmp + 0.212716*h2_tmp - 0.103811*h4_tmp + 0.155553*h5_tmp - 0.101487*h8_tmp - 0.0785918;
- neuron13_inter=-0.0221608*g0_tmp - 0.617855*g1_tmp - 0.480864*g2_tmp - 0.213742*g4_tmp - 0.673272*g5_tmp - 0.63161*g8_tmp + 0.198442*h0_tmp - 0.198454*h1_tmp + 0.226771*h2_tmp + 0.155827*h4_tmp - 0.284362*h5_tmp + 0.193318*h8_tmp - 0.0893161;
- neuron14_inter=-0.380641*g0_tmp - 0.189248*g1_tmp - 0.0167745*g2_tmp - 0.663472*g4_tmp - 0.257075*g5_tmp + 0.0110103*g8_tmp - 0.345266*h0_tmp - 0.20661*h1_tmp + 0.140701*h2_tmp - 0.385787*h4_tmp - 0.28361*h5_tmp - 0.147624*h8_tmp - 0.188275;
- neuron15_inter=0.154958*g0_tmp - 0.569834*g1_tmp + 0.0465854*g2_tmp - 0.342648*g4_tmp + 0.118686*g5_tmp - 0.437677*g8_tmp - 0.53897*h0_tmp - 0.0911821*h1_tmp + 0.0622091*h2_tmp - 0.24076*h4_tmp - 0.461373*h5_tmp - 0.578752*h8_tmp - 0.182962;
- neuron16_inter=-0.499314*g0_tmp - 0.467706*g1_tmp + 0.0133222*g2_tmp - 0.0701465*g4_tmp - 0.802644*g5_tmp - 0.808041*g8_tmp - 0.134414*h0_tmp + 0.0302282*h1_tmp + 0.0144518*h2_tmp - 0.27394*h4_tmp - 0.474659*h5_tmp + 0.0347863*h8_tmp - 0.228473;
- neuron17_inter=0.0169728*g0_tmp - 0.621097*g1_tmp + 0.00194117*g2_tmp - 0.257091*g4_tmp - 0.927908*g5_tmp - 0.837002*g8_tmp + 0.336251*h0_tmp + 0.0679087*h1_tmp - 0.0526752*h2_tmp - 0.168423*h4_tmp - 0.17741*h5_tmp + 0.368881*h8_tmp + 0.0914475;
- neuron18_inter=-0.248873*g0_tmp - 0.637041*g1_tmp - 0.490848*g2_tmp - 0.323088*g4_tmp - 0.133337*g5_tmp - 0.523472*g8_tmp + 0.111989*h0_tmp - 0.109198*h1_tmp - 0.104681*h2_tmp - 0.0399579*h4_tmp - 0.0932353*h5_tmp - 0.415077*h8_tmp - 0.173384;
- neuron19_inter=0.456859*g0_tmp - 1.03793*g1_tmp + 0.290213*g2_tmp - 0.499243*g4_tmp - 0.508736*g5_tmp - 0.848162*g8_tmp - 0.153504*h0_tmp + 0.345618*h1_tmp + 0.170962*h2_tmp + 0.213576*h4_tmp - 0.2973*h5_tmp + 0.23334*h8_tmp + 0.0723713;
- neuron20_inter=0.257139*g0_tmp - 1.03317*g1_tmp - 0.1621*g2_tmp + 0.346931*g4_tmp - 0.715213*g5_tmp - 0.765472*g8_tmp + 0.268912*h0_tmp - 0.172618*h1_tmp + 0.0619241*h2_tmp - 0.201493*h4_tmp + 0.222473*h5_tmp - 0.0325065*h8_tmp + 0.105917;
- neuron21_inter=-0.42928*g0_tmp - 0.698556*g1_tmp - 0.108241*g2_tmp + 0.478064*g4_tmp - 0.0913814*g5_tmp - 0.241137*g8_tmp - 0.273161*h0_tmp - 0.174462*h1_tmp - 0.0105006*h2_tmp - 0.160002*h4_tmp - 0.246318*h5_tmp + 0.310185*h8_tmp - 0.0380572;
- neuron22_inter=0.137738*g0_tmp - 0.498648*g1_tmp - 0.180704*g2_tmp - 0.242693*g4_tmp - 0.419172*g5_tmp - 0.753392*g8_tmp - 0.142929*h0_tmp - 0.269676*h1_tmp - 0.201825*h2_tmp + 0.00128587*h4_tmp - 0.657619*h5_tmp - 0.541428*h8_tmp - 0.23698;
- neuron23_inter=-0.389198*g0_tmp - 0.25285*g1_tmp - 0.02519*g2_tmp - 0.744413*g4_tmp - 0.57107*g5_tmp + 0.0139662*g8_tmp + 0.349836*h0_tmp + 0.0513143*h1_tmp + 0.253671*h2_tmp + 0.332775*h4_tmp + 0.307054*h5_tmp + 0.105411*h8_tmp - 0.339193;
-
-    neuron0_hidden1 = 1.0/(1.0+exp(-neuron0_inter));
-    neuron1_hidden1 = 1.0/(1.0+exp(-neuron1_inter));
-    neuron2_hidden1 = 1.0/(1.0+exp(-neuron2_inter));
-    neuron3_hidden1 = 1.0/(1.0+exp(-neuron3_inter));
-    neuron4_hidden1 = 1.0/(1.0+exp(-neuron4_inter));
-    neuron5_hidden1 = 1.0/(1.0+exp(-neuron5_inter));
-    neuron6_hidden1 = 1.0/(1.0+exp(-neuron6_inter));
-    neuron7_hidden1 = 1.0/(1.0+exp(-neuron7_inter));
-    neuron8_hidden1 = 1.0/(1.0+exp(-neuron8_inter));
-    neuron9_hidden1 = 1.0/(1.0+exp(-neuron9_inter));
-    neuron10_hidden1 = 1.0/(1.0+exp(-neuron10_inter));
-    neuron11_hidden1 = 1.0/(1.0+exp(-neuron11_inter));
-    neuron12_hidden1 = 1.0/(1.0+exp(-neuron12_inter));
-    neuron13_hidden1 = 1.0/(1.0+exp(-neuron13_inter));
-    neuron14_hidden1 = 1.0/(1.0+exp(-neuron14_inter));
-    neuron15_hidden1 = 1.0/(1.0+exp(-neuron15_inter));
-    neuron16_hidden1 = 1.0/(1.0+exp(-neuron16_inter));
-    neuron17_hidden1 = 1.0/(1.0+exp(-neuron17_inter));
-    neuron18_hidden1 = 1.0/(1.0+exp(-neuron18_inter));
-    neuron19_hidden1 = 1.0/(1.0+exp(-neuron19_inter));
-    neuron20_hidden1 = 1.0/(1.0+exp(-neuron20_inter));
-    neuron21_hidden1 = 1.0/(1.0+exp(-neuron21_inter));
-    neuron22_hidden1 = 1.0/(1.0+exp(-neuron22_inter));
-    neuron23_hidden1 = 1.0/(1.0+exp(-neuron23_inter));
-
-    neuron0_inter=0.0170784*neuron0_hidden1 + 0.0426609*neuron10_hidden1 - 0.143049*neuron11_hidden1 - 0.211539*neuron12_hidden1 + 0.0653274*neuron13_hidden1 + 0.110003*neuron14_hidden1 - 0.0632282*neuron15_hidden1 + 0.160916*neuron16_hidden1 + 0.285205*neuron17_hidden1 + 0.588582*neuron18_hidden1 + 0.431082*neuron19_hidden1 - 0.263293*neuron1_hidden1 - 0.134337*neuron20_hidden1 + 0.441447*neuron21_hidden1 + 0.262641*neuron22_hidden1 - 0.0106204*neuron23_hidden1 - 0.0593545*neuron2_hidden1 - 0.0845962*neuron3_hidden1 - 0.0413138*neuron4_hidden1 + 0.155114*neuron5_hidden1 - 0.251072*neuron6_hidden1 - 0.0749131*neuron7_hidden1 + 0.539798*neuron8_hidden1 + 0.368102*neuron9_hidden1 + 0.00911094;
-     neuron1_inter=0.100914*neuron0_hidden1 - 0.0860094*neuron10_hidden1 - 0.112978*neuron11_hidden1 + 0.159536*neuron12_hidden1 + 0.142818*neuron13_hidden1 + 0.0316036*neuron14_hidden1 - 0.0765342*neuron15_hidden1 + 0.274551*neuron16_hidden1 + 0.364824*neuron17_hidden1 - 0.170035*neuron18_hidden1 + 0.420689*neuron19_hidden1 - 0.0831155*neuron1_hidden1 + 0.298748*neuron20_hidden1 - 0.31296*neuron21_hidden1 - 0.0278613*neuron22_hidden1 + 0.0624781*neuron23_hidden1 + 0.331232*neuron2_hidden1 + 0.43912*neuron3_hidden1 + 0.0985557*neuron4_hidden1 - 0.0796102*neuron5_hidden1 - 0.182544*neuron6_hidden1 - 0.0293476*neuron7_hidden1 - 0.0902381*neuron8_hidden1 + 0.519004*neuron9_hidden1 - 0.0441064;
-     neuron2_inter=-0.0586248*neuron0_hidden1 + 0.340856*neuron10_hidden1 - 0.161811*neuron11_hidden1 + 0.148234*neuron12_hidden1 + 0.279011*neuron13_hidden1 - 0.268783*neuron14_hidden1 + 0.225924*neuron15_hidden1 + 0.0106637*neuron16_hidden1 + 0.277466*neuron17_hidden1 + 0.0333455*neuron18_hidden1 + 0.103516*neuron19_hidden1 - 0.00709753*neuron1_hidden1 + 0.530035*neuron20_hidden1 + 0.254414*neuron21_hidden1 + 0.268394*neuron22_hidden1 - 0.0269866*neuron23_hidden1 + 0.0694459*neuron2_hidden1 + 0.0137608*neuron3_hidden1 - 0.299406*neuron4_hidden1 + 0.199253*neuron5_hidden1 - 0.104833*neuron6_hidden1 - 0.181761*neuron7_hidden1 + 0.417036*neuron8_hidden1 + 0.0379863*neuron9_hidden1 - 0.0602629;
-     neuron3_inter=0.0910983*neuron0_hidden1 + 0.207264*neuron10_hidden1 + 0.638546*neuron11_hidden1 + 0.387501*neuron12_hidden1 + 0.226288*neuron13_hidden1 - 0.388447*neuron14_hidden1 + 0.0898716*neuron15_hidden1 - 0.335492*neuron16_hidden1 - 0.482028*neuron17_hidden1 + 0.518146*neuron18_hidden1 + 0.510554*neuron19_hidden1 + 0.112736*neuron1_hidden1 + 0.38797*neuron20_hidden1 - 0.235115*neuron21_hidden1 - 0.333334*neuron22_hidden1 + 0.326257*neuron23_hidden1 + 0.441729*neuron2_hidden1 - 0.427041*neuron3_hidden1 - 0.0430781*neuron4_hidden1 - 0.300418*neuron5_hidden1 - 0.371532*neuron6_hidden1 - 0.231396*neuron7_hidden1 - 0.0582781*neuron8_hidden1 - 0.565419*neuron9_hidden1 + 0.218535;
-     neuron4_inter=-0.421106*neuron0_hidden1 - 0.106146*neuron10_hidden1 + 0.664778*neuron11_hidden1 + 0.525492*neuron12_hidden1 - 0.374158*neuron13_hidden1 + 0.319989*neuron14_hidden1 - 0.473473*neuron15_hidden1 - 0.431825*neuron16_hidden1 + 0.00502417*neuron17_hidden1 - 0.259808*neuron18_hidden1 + 0.3835*neuron19_hidden1 + 0.0574086*neuron1_hidden1 + 0.0297906*neuron20_hidden1 - 0.115865*neuron21_hidden1 - 0.276664*neuron22_hidden1 - 0.058239*neuron23_hidden1 - 0.141375*neuron2_hidden1 - 0.0122682*neuron3_hidden1 + 0.0428924*neuron4_hidden1 - 0.454355*neuron5_hidden1 + 0.0671571*neuron6_hidden1 + 0.235252*neuron7_hidden1 + 0.110629*neuron8_hidden1 + 0.269122*neuron9_hidden1 + 0.0600912;
-     neuron5_inter=0.428771*neuron0_hidden1 - 0.102223*neuron10_hidden1 + 0.480619*neuron11_hidden1 + 0.455964*neuron12_hidden1 + 0.486918*neuron13_hidden1 - 0.25447*neuron14_hidden1 - 0.349615*neuron15_hidden1 + 0.380624*neuron16_hidden1 + 0.177248*neuron17_hidden1 - 0.280559*neuron18_hidden1 - 0.297363*neuron19_hidden1 - 0.174304*neuron1_hidden1 - 0.0244733*neuron20_hidden1 + 0.262706*neuron21_hidden1 - 0.250848*neuron22_hidden1 + 0.527998*neuron23_hidden1 - 0.0712919*neuron2_hidden1 + 0.0100486*neuron3_hidden1 - 0.312088*neuron4_hidden1 - 0.293035*neuron5_hidden1 + 0.0515363*neuron6_hidden1 + 0.170928*neuron7_hidden1 - 0.217389*neuron8_hidden1 - 0.150388*neuron9_hidden1 + 0.0871805;
-
-    g3_tmp = 1.0/(1.0+exp(-neuron0_inter));
-    g6_tmp = 1.0/(1.0+exp(-neuron1_inter));
-    g7_tmp = 1.0/(1.0+exp(-neuron2_inter));
-    h3_tmp = 1.0/(1.0+exp(-neuron3_inter));
-    h6_tmp = 1.0/(1.0+exp(-neuron4_inter));
-    h7_tmp = 1.0/(1.0+exp(-neuron5_inter));
-
-    g[3] = (g3_tmp - 0.42796381)/1140.05765472;
-    g[6] = (g6_tmp - 0.43428537)/4468.44590860;
-    g[7] = (g7_tmp - 0.42448784)/4537.23055925;
-    h[3] = (h3_tmp - 0.42796381)/1140.05765472;
-    h[6] = (h6_tmp - 0.43428537)/4468.44590860;
-    h[7] = (h7_tmp - 0.42448784)/4537.23055925;
-// END OF PYTHON GENERATED CODE
-}
-
 #ifdef OPTIONS_Outflow
 	CudaDeviceFunction void EConvective()
 	{
