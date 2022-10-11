@@ -1471,6 +1471,13 @@ CudaDeviceFunction void updateMyGlobals(real_t pf){
 	    AddToLiqTotalVelocityZ( W*pf );
 	    AddToLiqTotalPhase( pf );
 	}	
+
+	if ((NodeType & NODE_ADDITIONALS) == NODE_flux_nodes) {
+		AddToFluxNodeCount( 1 );
+		AddToFluxX( U );
+		AddToFluxY( V );
+		AddToFluxZ( W );
+	}
 }
 
 CudaDeviceFunction void updateTrackers(real_t C){

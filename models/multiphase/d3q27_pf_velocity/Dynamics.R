@@ -199,6 +199,7 @@ if (Options$altContactAngle){
 ########NODE TYPES########
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
+	AddNodeType(name="flux_nodes", group="ADDITIONALS")
 	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
     dotR_my_pressure_boundaries = paste0(c("N","E","S","W","F","B"),"Pressure")
     for (ii in 1:6){
@@ -243,3 +244,7 @@ if (Options$altContactAngle){
 	AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalPhase",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
+	AddGlobal(name="FluxNodeCount",comment='nodes in flux region', unit="1")
+	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
+	AddGlobal(name="FluxY",comment='flux in y direction for flux_nodes', unit="1")
+	AddGlobal(name="FluxZ",comment='flux in z direction for flux_nodes', unit="1")
