@@ -687,7 +687,7 @@ CudaDeviceFunction void Init_distributions(){
 		U = 6.0 * Uavg * Y*(HEIGHT - Y)/(HEIGHT*HEIGHT);
         V = 0.0;
         W = 0.0;
-	} else if ( developedPipeFlow > 0.1 ){
+	} else if ( developedPipeFlow_X > 0.1 ){
 		U = 2.0 * Uavg * (1 - pow( (sqrt(pow((Y-pipeCentre_Y),2) + pow((Z-pipeCentre_Z),2)) / pipeRadius),2));
 		V = 0.0;
 		W = 0.0;
