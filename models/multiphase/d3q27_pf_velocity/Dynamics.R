@@ -27,38 +27,55 @@ AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
-# index of tangential direction
-AddDensity(name="n_k", dx=0, dy=0, dz=0, group="nw")
+# Helper fields for the staircase improvement
+extra_fields_to_load_for_bc = c()
+extra_save_iteration = c()
+extra_load_iteration = c()
+extra_load_phase = c()
+
+if (Options$staircaseimp) {
+    # actual normal directions
+    AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
+    AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
+    AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
+
+    # Standard staircase improvement
+    AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+    AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+    AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+    AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
+
+    if (Options$tprec) {
+        # Staircase improvement with more precise second triangle
+        AddDensity(name="coeff2_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+        AddDensity(name="coeff2_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+        AddDensity(name="coeff2_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+        AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
+    }
+
+    # Make sure that those fields are now loaded
+    extra_save_iteration = c(extra_save_iteration, "nw_actual", "st_interpolation")
+    extra_load_iteration = c(extra_load_iteration, "nw_actual", "st_interpolation")
+    extra_load_phase = c(extra_load_phase, "nw_actual")
+    extra_fields_to_load_for_bc = c("nw_actual", "st_interpolation")
+}
 
 
-AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
-AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
-AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
+AddDensity("IsSpecialBoundaryPoint", dx=0, dy=0, dz=0, group="solid_boundary")
+AddQuantity("SpecialBoundaryPoint", unit = 1)
 
-# To improve staircase approximation
-AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
-
-
-# Improvement
-AddDensity(name="coeff2_v1", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="coeff2_v2", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="coeff2_v3", dx=0, dy=0, dz=0, group="st_interpolation")
-AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
-
-AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
-
-# TODO: Only need for staircaseimp / altContactAngle, optimize before finalizing
-# the model
-AddField("IsBoundary", stencil3d=1, group="solid_boundary")
+# TODO: Can be optimized, I think this is only needed for staircaseimp / altContactAngle, optimize before finalizing
+if (Options$altContactAngle){
+    AddField("IsBoundary", stencil3d=2, group="solid_boundary")
+} else {
+    AddField("IsBoundary", stencil3d=1, group="solid_boundary")
+}
 
 save_initial_PF = c("PF","Vel")
 save_initial    = c("g","h","PF")
-# not sure if "solid_boundary" is needed here
-save_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation", "solid_boundary")
-load_iteration  = c("g","h","Vel","nw", "nw_actual", "st_interpolation", "solid_boundary")
-load_phase      = c("g","h","Vel","nw", "nw_actual")
+save_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_save_iteration)
+load_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_load_iteration)
+load_phase      = c("g","h","Vel","nw", "solid_boundary", extra_load_phase)
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -74,23 +91,22 @@ if (Options$OutFlow){
 }
 
 if (Options$altContactAngle){
-
     AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
-
     AddField("PhaseF",stencil3d=2, group="PF")
 
-    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", "nw_actual", "st_interpolation"))
-    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "nw_actual", "gradPhi", "PF", "st_interpolation", "solid_boundary"))
+    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
 
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGradCentral', "calcPhaseGradCentral", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+    AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
-    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "st_interpolation", "solid_boundary", "nw_actual"))
-    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "st_interpolation", "solid_boundary", "nw_actual"))
+    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+    AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 }
 
 AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
@@ -122,13 +138,13 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
 	} else if (Options$altContactAngle) {
         calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
-        AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA"))
-	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA","BaseInit"))
-	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
+        AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
+	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
     } else {
-		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
-		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall","BaseInit"))
+		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
+		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
+		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
 	}
 #######################
 ########OUTPUTS########
@@ -144,22 +160,7 @@ if (Options$altContactAngle){
     AddQuantity(name="GradPhi", unit=1, vector=T)
 }
 if (Options$staircaseimp) {
-    # Staircase approximation
-    AddQuantity(name="CoeffV", unit=1, vector=T)
-    AddQuantity(name="Triangle_V1", unit=1, vector=T)
-    AddQuantity(name="Triangle_V2", unit=1, vector=T)
-    AddQuantity(name="Triangle_V3", unit=1, vector=T)
     AddQuantity(name="ActualNormal", unit=1, vector=T)
-    AddQuantity(name="TriangleIndex", unit=1)
-    AddQuantity(name="TriangleFaceIndex", unit=1)
-    AddQuantity(name="FaceIndex", unit=1)
-
-if (Options$tprec) {
-    AddQuantity(name="CoeffV2", unit=1, vector=T)
-    AddQuantity(name="FaceIndex2", unit=1)
-    AddQuantity(name="TriangleIndex2", unit=1)
-    AddQuantity(name="TriangleFaceIndex2", unit=1)
-    }
 }
 ###################################
 ########INPUTS - PHASEFIELD########
@@ -277,3 +278,4 @@ if (Options$tprec) {
 	AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalPhase",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
+    AddGlobal(name="SpecialBoundaryPoints", comment="Number of boundary points for which wetting boundary conditions must be applied in a special way for stability", unit="1")
