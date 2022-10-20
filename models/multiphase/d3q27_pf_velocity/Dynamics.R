@@ -94,10 +94,10 @@ if (Options$altContactAngle){
     AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
     AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
 
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF", "solid_boundary", "nw_actual"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
 } else {
-    AddField("PhaseF",stencil3d=2, group="PF")
+    AddField("PhaseF",stencil3d=1, group="PF")
     AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
     AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 }
