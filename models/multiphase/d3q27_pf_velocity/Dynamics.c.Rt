@@ -569,13 +569,13 @@ CudaDeviceFunction void calcWallPhase(){
 
 #endif // end staircase improvement ifdef
 			real_t norm = solid_normal.x*solid_normal.x + solid_normal.y * solid_normal.y + solid_normal.z * solid_normal.z;
-			// project the first phase field gradient onto the boundary plane
-			real_t coeff = (der_x_1 * solid_normal.x + der_y_1 * solid_normal.y + der_z_1 * solid_normal.z)/norm;
-			vector_t proj_grad_1 = {der_x_1 - coeff*solid_normal.x, der_y_1 - coeff*solid_normal.y, der_z_1 - coeff * solid_normal.z};
+			real_t coeff;
 
-			// project the second phase field gradient onto the boundary plane
-			coeff = (der_x_2 * solid_normal.x + der_y_2 * solid_normal.y + der_z_2 * solid_normal.z)/norm;
-			vector_t proj_grad_2 = {der_x_2 - coeff*solid_normal.x, der_y_2 - coeff*solid_normal.y, der_z_2 - coeff * solid_normal.z};
+			// project the gradients of two nodes in the normal direction on the boundary plane
+			<?R for (i in c(1, 2)) { ?>
+					coeff = (der_x_<?%s i ?> * solid_normal.x + der_y_<?%s i ?>* solid_normal.y + der_z_<?%s i ?>* solid_normal.z)/norm;
+					vector_t proj_grad_<?%s i ?> = {der_x_<?%s i ?> - coeff*solid_normal.x, der_y_<?%s i ?> - coeff*solid_normal.y, der_z_<?%s i ?> - coeff * solid_normal.z};
+			<?R } ?>
 
 			// extrapolate their components
 			vector_t grad_tangent_v = { 1.5 * proj_grad_1.x - 0.5 * proj_grad_2.x,
