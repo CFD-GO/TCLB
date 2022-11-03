@@ -37,9 +37,9 @@ void OF_<?%s objname ?>(double *glob, double *obj, double *grad) { <?R
 
 Model_m::Model_m() {
 	name = "<?%s MODEL ?>";
+<?R	for (v in rows(Settings)) { ?>
 	{
 		Setting set;
-<?R	for (v in rows(Settings)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>"; <?R
@@ -54,32 +54,32 @@ Model_m::Model_m() {
 		} ?>
 		set.defaultValue = "<?%s v$default ?>";
 		settings.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(ZoneSettings)) { ?>
 	{
 		ZoneSetting set;
-<?R	for (v in rows(ZoneSettings)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>"; 
 		set.defaultValue = "<?%s v$default ?>";
 		zonesettings.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(Quantities)) { ?>
 	{
 		Quantity set;
-<?R	for (v in rows(Quantities)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>";
 		set.isVector = <?%s if (v$vector) "true" else "false" ?>;
 		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
 		quantities.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(Globals)) { ?>
 	{
 		Global set;
-<?R	for (v in rows(Globals)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>";
@@ -87,29 +87,29 @@ Model_m::Model_m() {
 		set.operation = MPI_<?%s v$op ?>;
 		set.inObjId = <?%s v$IndexInObj ?>;
 		globals.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (i in seq_along(Options)) { ?>
 	{
 		Option set;
-<?R	for (i in seq_along(Options)) { ?>
 		set.id = <?%d i ?>;
 		set.name = "<?%s names(Options)[i] ?>";
 		set.isActive = <?%s if (Options[[i]]) "true" else "false" ?>;
 		options.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(Scales)) { ?>
 	{
 		Scale set;
-<?R	for (v in rows(Scales)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.unit = "<?%s v$unit ?>";
 		scales.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(Fields)) { ?>
 	{
 		Field set;
-<?R	for (v in rows(Fields)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
@@ -121,23 +121,22 @@ Model_m::Model_m() {
 		set.simpleAccess = <?%s if (v$simple_access) "true" else "false" ?>;
 		set.niceName = "<?%s v$nicename ?>";
 		fields.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(NodeTypes)) { ?>
 	{
 		NodeTypeFlag set;
-<?R	for (v in rows(NodeTypes)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.flag = <?%s v$Index ?>;
 		set.group_flag = <?%s v$groupIndex ?>;
 		set.group_id = <?%s v$groupIndex ?>;
 		set.name = "<?%s v$name ?>";
 		nodetypeflags.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (v in rows(NodeTypeGroups)) { ?>
 	{
 		NodeTypeGroupFlag set;
-<?R
-	for (v in rows(NodeTypeGroups)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.flag = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
@@ -148,43 +147,44 @@ Model_m::Model_m() {
 		set.isSave = <?%s if (v$save) "true" else "false" ?>;
 		nodetypegroupflags.push_back(set);
 <?R		if (v$name == "SETTINGZONE") { ?>
-		settingzones = set; <?R
-		}
-	} ?>
+		settingzones = set;
+<?R		} ?>
 	}
+<?R	}
+	for (v in rows(Stages)) { ?>
 	{
 		Stage set;
-<?R	for (v in rows(Stages)) { ?>
 		set.id = <?%s v$Index ?>;
 		set.name = "<?%s v$name ?>";
 		set.isAdjoint = <?%s if (v$adjoint) "true" else "false" ?>;
 		set.isParticle = <?%s if (v$particle) "true" else "false" ?>;
 		set.mainFun = "<?%s v$main ?>";
 		stages.push_back(set);
-<?R	} ?>
 	}
+<?R	}
+	for (i in seq_along(Actions)) { ?>
 	{
 		Action set;
-<?R	for (i in seq_along(Actions)) { ?>
 		set.id = <?%s i-1 ?>;
 		set.name = "<?%s names(Actions)[i] ?>"; <?R
 		for (v in Actions[[i]]) { ?>
 		set.stages.push_back(<?%s Stages$Index[which( Stages$name == v )] ?>); <?R
 		} ?>
 		actions.push_back(set);
-<?R	} ?>
 	}
-	{
-		Objective set;
-<?R	for (i in seq_along(Objectives)) {
+<?R	}
+	for (i in seq_along(Objectives)) {
 		obj = Objectives[[i]]
 		objname = names(Objectives)[i]
 ?>
+	{
+		Objective set;
 		set.id = <?%s i-1 ?>;
 		set.name = "<?%s objname ?>";
 		set.fun = OF_<?%s objname ?>;
-<?R	} ?>
+		objectives.push_back(set);
 	}
+<?R	} ?>
 }
 
 

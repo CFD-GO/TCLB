@@ -51,17 +51,11 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #include "LatticeAccess.inc.cpp"
 #include "ArbitraryLatticeAccess.inc.cpp"
 
-#define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
-		for (f in rows(Fields)) { ?>
 
-#define <?%s f$nicename ?>_3(x__,y__,z__) (Accessor::container().template load_<?%s f$nicename ?><x__, y__, z__>(idx_,NodeType))
-#define <?%s f$nicename ?>_2(x__,y__) (Accessor::container().template load_<?%s f$nicename ?><x__, y__, 0>(idx_,NodeType))
-#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
-#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (Accessor::container().load_<?%s f$nicename ?> (idx_,NodeType,x__, y__, z__))
-#define <?%s f$nicename ?>_dyn_2(x__,y__) (Accessor::container().load_<?%s f$nicename ?>< 0 >(idx_,NodeType,x__, y__))
-#define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
-        }
-?>
+<?R for (f in rows(Fields)) { ?>
+#define <?%s f$nicename ?>(...) (Accessor::container().template load_<?%s f$nicename ?><__VA_ARGS__>(idx_,NodeType))
+#define <?%s f$nicename ?>_dyn(...) (Accessor::container().load_<?%s f$nicename ?> (idx_,NodeType, __VA_ARGS__))
+<?R } ?>
 
 #define X Accessor::container().getX(idx_)
 #define Y Accessor::container().getY(idx_)
