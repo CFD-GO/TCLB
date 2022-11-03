@@ -63,7 +63,7 @@ for (m in Margin) { ?>
 */
     struct FTabs { <?R
     for (m in NonEmptyMargin) { ?>
-        real_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
+        storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
     } ?>
         void Alloc(int,int,int);
         void Clear(int,int,int);

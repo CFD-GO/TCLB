@@ -4,8 +4,10 @@
   #define STRING_LEN 1024
   #ifdef CALC_DOUBLE_PRECISION
     typedef double real_t;
+    typedef float storage_t;
   #else
     typedef float real_t;
+    typedef float storage_t;
   #endif
   typedef struct {real_t x,y,z;} vector_t;
 
