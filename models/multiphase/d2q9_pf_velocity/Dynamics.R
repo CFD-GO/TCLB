@@ -114,9 +114,7 @@ AddSetting(name="W", default=4,    comment='Anti-diffusivity coeff (phase interf
 AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 AddSetting(name="sigma", 		   comment='surface tension')
-AddSetting(name="ContactAngle", radAngle='ContactAngle*3.1415926535897/180', default='90',
-		 comment='Contact angle in degrees - in reference to the high density fluid')
-AddSetting(name="radAngle", comment='Conversion to rads for calcs')
+AddSetting(name="radAngle",default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 
 # 	Inputs: Fluid Properties
 AddSetting(name="tau_l", comment='relaxation time (low density fluid)')
@@ -147,6 +145,12 @@ AddGlobal(name="RTIBubble", comment='Bubble Tracker', op="MAX")
 AddGlobal(name="RTISpike",  comment='Spike Tracker', op="MAX")
 AddGlobal(name="NMovingWallForce", comment='force exerted on the N Moving Wall')
 AddGlobal(name="NMovingWallPower", comment='implented: Vx* incoming momentum (precollision)')
+
+AddGlobal(name="BubbleVelocityX", comment='Bubble velocity in the x direction')
+AddGlobal(name="BubbleVelocityY", comment='Bubble velocity in the y direction')
+AddGlobal(name="BubbleVelocityZ", comment='Bubble velocity in the z direction')
+AddGlobal(name="BubbleLocationY", comment='Bubble Location in the y direction')
+AddGlobal(name="SumPhiGas", comment='Summation of (1-phi) in all gas cells')
 
 if (Options$debug){
 	AddGlobal(name="MomentumX", comment='Total momentum in the domain', unit="")

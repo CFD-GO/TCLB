@@ -101,6 +101,7 @@ int Sampler::Finish()
  CudaFree(gpu_buffer);
  size = 0;
  startIter = 0;
+ spoints.clear();
  lbRegion pos;
  position = pos;
  return 0;

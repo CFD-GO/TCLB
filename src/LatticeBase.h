@@ -99,7 +99,7 @@ public:
   // common functions moved from Lattice/ArbitraryLattice
   int getSnap(int i);
   void startRecord();
-  void saveSolution(const char *filename);
+  std::string saveSolution(const char *filename);
   void loadSolution(const char *filename);
   void rewindRecord();
   void stopRecord();

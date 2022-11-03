@@ -1,0 +1,56 @@
+
+<!-- To be used with d2q9q9_cm_cht -->
+
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/d2q9q9_LidDrivenCavity/">
+    <Geometry nx="256" ny="256" > 
+        <CM_HIGHER> <Box/> </CM_HIGHER>  
+        <!-- <Cumulants> <Box/> </Cumulants>  -->
+        <!-- <CM_HIGHER_PROB> <Box/> </CM_HIGHER_PROB>  -->
+        <!-- <CM_HIGHER_PROB_M_EQ> <Box/> </CM_HIGHER_PROB_M_EQ>   -->
+
+        <Lid name="Lid"><Box dy="-1"/></Lid>
+
+        
+        <Wall mask="ALL">
+            <Box nx="1"/>
+            <Box dx="-1"/>
+            <Box ny="1"/>
+        </Wall>
+
+
+        <None name="my_ic">
+            <Box dx="37" dy="107" nx="50" ny="50"/>
+        </None>
+
+    </Geometry>
+    <Model>
+
+      <Param name="InitTemperature" value="10"/>
+
+
+      <Param name="nu" value="0.01"/>
+      <Param name="conductivity" value="0.01"/>
+
+      <Param name="nu_buffer" value="0.166666"/>
+      <Param name="conductivity_buffer" value="0.166666"/>
+
+      <Param name="h_stability_enhancement" value="1."/>
+      <Param name="cp" value="1."/>
+      <Param name="material_density" value="1."/>
+
+      <Param name="VelocityX" value="0.0001" />
+      <Param name="VelocityY" value="0.0" />
+      <Param name="InitTemperature" value="10" zone="Lid"/>
+      <!-- <Param name="InitTemperature" value="11" zone="my_ic"/> -->
+    
+    </Model>
+   
+    <Solve Iterations="3"> <VTK Iterations="1"/> </Solve> 
+    <Failcheck Iterations="100" nx="256" ny="256" />
+
+    <Solve Iterations="50000"> 
+      <VTK Iterations="5000" what="H,T,U,Rho"/> 
+      <Log Iterations="5000"/>
+    </Solve>
+  </CLBConfig>

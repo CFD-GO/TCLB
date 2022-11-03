@@ -55,7 +55,7 @@ int Connectivity::setZone(const pugi::char_t * name) {
     //fg      = (fg      &(~ model->settingzones.flag )) |  (ZoneNumber << model->settingzones.shift);
     //fg_mask =  fg_mask |   model->settingzones.flag;
 
-    return 0;
+    return ZoneNumber;
 }
 
 
@@ -86,18 +86,9 @@ int Connectivity::load(pugi::xml_node & node) {
         pugi::xml_attribute zone = z.attribute("name");
         if(zone && group) {
             // if it does, link the group to the zone - I think we assume it's one-to-one at the moment but will probably have to change this
-            GroupsToZones[group.value()] = zone.value();
-            // call function to add to SettingZones table
-            setZone(zone.value());
+            GroupsToZones[group.value()] = setZone(zone.value());
         }
         
-    }
-
-    // iterate over map and read mappings
-    std::map<std::string, std::string>::iterator gzit;
-    for(gzit = GroupsToZones.begin(); gzit != GroupsToZones.end(); gzit++) {
-        //printf("%s: %s\n", gzit->first, gzit->second);
-        std::cout << gzit->first << ": " << gzit->second << "\n";
     }
 
     if(!node.attribute("file")) {
@@ -258,6 +249,10 @@ int Connectivity::load(pugi::xml_node & node) {
             if(GroupsToNodeTypes.count(label) > 0) {
                 // if we do, |= that onto our current NodeType value
                 geom[i] |= GroupsToNodeTypes[label];
+                if(GroupsToZones.count(label) > 0) {
+                    int z = GroupsToZones[label];
+                    geom[i] |= (geom[i] & (~model->settingzones.flag)) | (z << model->settingzones.shift);
+                }
             } else if (strcmp(label, "HIDE") == 0) {
                 export_vtu = false;
             } else {
