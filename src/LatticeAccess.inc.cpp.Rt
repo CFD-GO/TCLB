@@ -12,27 +12,36 @@
 
 #include <cuda_fp16.h>
 
-//inline __device__ real_t storage_to_real(storage_t v) { return __uint_as_float(v.val); }
-//inline __device__ storage_t real_to_storage(real_t v) { storage_t ret; ret.val =  __float_as_uint(v); return ret; }
-inline __device__ real_t storage_to_real(storage_t v) { return __ushort_as_half(v.val); }
-inline __device__ storage_t real_to_storage(real_t v) { storage_t ret; ret.val =  __half_as_ushort(v); return ret; }
+#ifndef STORAGE_TYPE
+  inline __device__ real_t storage_to_real(storage_t v) { return v; }
+  inline __device__ storage_t real_to_storage(real_t v) { return v; }
+#elif STORAGE_TYPE == 16
+  inline __device__ real_t storage_to_real(storage_t v) { return __short_as_half(v); }
+  inline __device__ storage_t real_to_storage(real_t v) { return __half_as_short(v); }
+#elif STORAGE_TYPE == 32
+  inline __device__ real_t storage_to_real(storage_t v) { return __int_as_float(v); }
+  inline __device__ storage_t real_to_storage(real_t v) { return __float_as_int(v); }
+#elif STORAGE_TYPE == 64
+  inline __device__ real_t storage_to_real(storage_t v) { return __longlong_as_double(v); }
+  inline __device__ storage_t real_to_storage(real_t v) { return __double_as_longlong(v); }
+#endif
 
 /// Get only type of node
-template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node) 
+template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
 {
   node.NodeType = NodeType[(node.x_ + nx*node.y_ + nx*ny*node.z_)];
-        
+
 <?R #	InOut("type", "in", Density); ?>
 }
 
 /// Push all densities
 
 <?R
-  
+
   make.context = function(buf, pocket=FALSE) {
     MContext = list()
-    MContext$Pocket = ""       
-    MContext$PocketMove = FALSE     
+    MContext$Pocket = ""
+    MContext$PocketMove = FALSE
     MContext$Offset = list()
     for ( i in 1:length(Margin) ) MContext$Offset[[i]] = PV(0L)
     if (missing(buf)) stop("No Buffor provided");
@@ -46,7 +55,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
     }
     MContext
   }
-  
+
   move.pocket = function(i,offset, MContext) {
       off = MContext$Offset[[i]]
       v = offset - off;
@@ -55,8 +64,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
       }
       MContext$Offset[[i]] = offset;
       MContext
-  }  
-  
+  }
+
   if.apply = function(table, conditions, selection, fun) {
     n = length(conditions)
     if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
@@ -95,7 +104,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
 
 #  No x move:
   no.x.move = FALSE
-     
+
   field.access.one = function(d,m,off,access) {
           if (access == "get") {  ?>
         <?%s d ?> = <?%s m ?>[<?R C(off,float=FALSE) ?>]; <?R
@@ -109,8 +118,8 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
         atomicAddP(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
    } else stop("Unknown access type in field.access.one");
   }
-     
-     
+
+
   field.access = function(d,f,p,dp,access,pattern,MContext) {
     if (pattern == "get") {
      ret = f$get_offsets(p,dp)
@@ -164,9 +173,9 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
    })
   }
  }
- 
 
- 
+
+
  all_stages = c(rows(Stages),list(
 	list(
 		load.densities = rep(TRUE, nrow(DensityAll)),
@@ -218,7 +227,7 @@ resolve.symmetries = function(D) {
 }
 
 ?>
-template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node) 
+template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node)
 {
 	storage_t val;
 <?R
@@ -235,7 +244,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 ?>
 }
 
-template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node) 
+template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node)
 {	storage_t val;
 <?R
   con = make.context("out",pocket=TRUE);
@@ -247,7 +256,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
   }?>
 }
 <?R if (ADJOINT) { ?>
-template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>_adj(N & node) 
+template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>_adj(N & node)
 {
 <?R
   con = make.context("adjout",pocket=TRUE);
@@ -265,7 +274,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
   }?>
 }
 
-template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>_adj(N & node) 
+template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>_adj(N & node)
 {
 <?R
   con = make.context("adjin",pocket=TRUE);
@@ -287,7 +296,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 
 
 <?R
- 
+
  job_tab = do.call(rbind,
   lapply(seq_len(nrow(Fields)), function(i) {
    f = rows(Fields)[[i]]
@@ -295,7 +304,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
   })
  )
 
- 
+
 # txtlapply(rows(job_tab), function(job) {
 #  f = rows(Fields)[[job$field]]
 #  dx = job$dx
@@ -310,8 +319,8 @@ if (Options$autosym) suffix = "0"
     for (dz in f$minz:f$maxz) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>
-template <> 
-CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) 
+template <>
+CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt)
 {
   storage_t ret; <?R
   con = make.context("in");
@@ -322,8 +331,8 @@ CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?
 }
 <?R }}} ?>
 
-template <int DY, int DZ> 
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx) 
+template <int DY, int DZ>
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx)
 {
   switch(dx) {
 <?R  for (dx in f$minx:f$maxx) { ?>
@@ -332,8 +341,8 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int &
     default: return NAN;
   }
 }
-template < int DZ > 
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy) 
+template < int DZ >
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy)
 {
   switch(dy) {
 <?R  for (dy in f$miny:f$maxy) { ?>
@@ -342,7 +351,7 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int &
     default: return NAN;
   }
 }
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz)
 {
   switch(dz) {
 <?R  for (dz in f$minz:f$maxz) { ?>
@@ -352,7 +361,7 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int 
   }
 }
 <?R } else { ?>
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz) 
+CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz)
 {
   storage_t ret; <?R
   con = make.context("in");
@@ -364,7 +373,7 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int 
 
 
 <?R
-    } 
+    }
     }
 ?>
 
@@ -404,7 +413,7 @@ if (Options$autosym) {
     for (dz in f$minz:f$maxz) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>
-template <> 
+template <>
 CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) {
 <?R sym_load(f,c(dx,dy,dz),1); ?>
 }
