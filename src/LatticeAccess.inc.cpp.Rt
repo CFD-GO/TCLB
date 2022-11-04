@@ -13,17 +13,25 @@
 #include <cuda_fp16.h>
 
 #ifndef STORAGE_TYPE
-  inline __device__ real_t storage_to_real(storage_t v) { return v; }
-  inline __device__ storage_t real_to_storage(real_t v) { return v; }
+  inline __device__ real_t storage_to_real(const storage_t& v) { return v; }
+  inline __device__ storage_t real_to_storage(const real_t& v) { return v; }
 #elif STORAGE_TYPE == 16
-  inline __device__ real_t storage_to_real(storage_t v) { return __short_as_half(v); }
-  inline __device__ storage_t real_to_storage(real_t v) { return __half_as_short(v); }
+  inline __device__ real_t storage_to_real(const storage_t& v) { return __short_as_half(v); }
+  inline __device__ storage_t real_to_storage(const real_t& v) { return __half_as_short(v); }
 #elif STORAGE_TYPE == 32
-  inline __device__ real_t storage_to_real(storage_t v) { return __int_as_float(v); }
-  inline __device__ storage_t real_to_storage(real_t v) { return __float_as_int(v); }
+  inline __device__ real_t storage_to_real(const storage_t& v) { return __int_as_float(v); }
+  inline __device__ storage_t real_to_storage(const real_t& v) { return __float_as_int(v); }
 #elif STORAGE_TYPE == 64
-  inline __device__ real_t storage_to_real(storage_t v) { return __longlong_as_double(v); }
-  inline __device__ storage_t real_to_storage(real_t v) { return __double_as_longlong(v); }
+  inline __device__ real_t storage_to_real(const storage_t& v) { return __longlong_as_double(v); }
+  inline __device__ storage_t real_to_storage(const real_t& v) { return __double_as_longlong(v); }
+#endif
+
+#ifdef STORAGE_SHIFT
+  inline __device__ real_t storage_to_real_shift(const storage_t& v, const real_t& shft) { return storage_to_real(v) + shft; }
+  inline __device__ storage_t real_to_storage_shift(const real_t& v, const real_t& shft) { return real_to_storage(v - shft); }
+#else
+  #define storage_to_real_shift(x__,y__) storage_to_real(x__)
+  #define real_to_storage_shift(x__,y__) real_to_storage(x__)
 #endif
 
 /// Get only type of node
@@ -194,6 +202,24 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
 	)
  ))
 
+
+
+  storage_convert = function(type, val, f){
+    shift = f$shift
+    if (shift$type == "no_shift") {
+      sprintf("%s(%s)", type, val)
+    } else if (shift$type == "single_shift") {
+      sprintf("%s_shift(%s, static_cast<real_t>(%.15g))", type, val, shift$val)
+    } else {
+      stop("unknown type of shift")
+    }
+  }
+
+  storage_to_real = function(val,f) storage_convert("storage_to_real",val,f)
+  real_to_storage = function(val,f) storage_convert("real_to_storage",val,f)
+
+
+
  txtlapply(all_stages, function(s) {
 # lapply(1:length(s_list), function(s_i) {
 # for (s in c(rows(Stages),list(NULL))) {
@@ -238,7 +264,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
     p = PV(c("node.x_","node.y_","node.z_"));
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field("val", f, p, dp,con) ?>
-	<?%s paste("node",d$name,sep=".") ?> = storage_to_real(val); <?R
+	<?%s paste("node",d$name,sep=".") ?> = <?%s storage_to_real("val",f)?>; <?R
   }
   if (Options$autosym) resolve.symmetries(Density[s$load.densities,,drop=FALSE])
 ?>
@@ -250,7 +276,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?
   con = make.context("out",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) { ?>
 //--------------------------- <?%s f$name ?> ----------------------
-	val = real_to_storage(<?%s paste("node",f$name,sep=".") ?>); <?R
+  val = <?%s real_to_storage(paste("node",f$name,sep="."),f) ?>; <?R
     p = PV(c("node.x_","node.y_","node.z_"));
     con=save.field("val", f, p, con)
   }?>
@@ -327,7 +353,7 @@ CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?
   p = PV(c("x","y","z"));
   dp = c(dx, dy, dz)
   con=load.field("ret", f, p, dp, con) ?>
-  return storage_to_real(ret);
+  return <?%s storage_to_real("ret",f)?>;
 }
 <?R }}} ?>
 
@@ -368,7 +394,7 @@ CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int 
   p = PV(c("x","y","z"));
   dp = PV(c("dx","dy","dz"));
   con=load.field("ret", f, p, dp, con) ?>
-  return storage_to_real(ret);
+  return <?%s storage_to_real("ret",f)?>;
 }
 
 
