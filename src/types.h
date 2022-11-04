@@ -4,7 +4,8 @@
   #define STRING_LEN 1024
   #ifdef CALC_DOUBLE_PRECISION
     typedef double real_t;
-    typedef float storage_t;
+    struct safe_uint{ unsigned short val; };
+    typedef safe_uint storage_t;
   #else
     typedef float real_t;
     typedef float storage_t;
