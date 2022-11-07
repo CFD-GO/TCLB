@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [d2q9_npe_guo, d2q9_bc, d2q9, d2q9_SRT, d2q9_thin_film, d3q19, d3q19_les, d3q19_heat, d2q9_kuper, d2q9_pf, d2q9_pf_fd, d3q27, d3q27_cumulant, d3q27_cumulant_AVG_IB_SMAG, d2q9_adj]
+        model: [d2q9_npe_guo, d2q9_bc, d2q9, d2q9_SRT, d2q9_thin_film, d3q19, d3q19_les, d3q19_heat, d2q9_kuper, d2q9_pf, d2q9_pf_fd, d3q27, d3q27_cumulant, d3q27_cumulant_AVG_IB_SMAG]
     steps:
     - uses: CFD-GO/action_TCLB_test@master
       with:
