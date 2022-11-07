@@ -1,4 +1,3 @@
-
 // maintainer: Grzegorz Gruszczynski @ggruszczynski
 <?R 
 	source("conf.R")
@@ -314,23 +313,53 @@ CudaDeviceFunction void ThermalBounceBack()
 	h220 = tmp;
 }
 
+CudaDeviceFunction void LidVelocity()
+{
+	<?R # ZouHeRewrite(EQ, f, c(0, 1, 0), "velocity", c('VelocityX', 'VelocityY')) ?> // TODO: this shall work :/
+
+	// /********* velocity-type Zou He boundary condition  ****************/
+	// real_t Ry  = ( ( f[3] + f[1] + f[0] + ( f[6] + f[5] + f[2] )*2. )*VelocityY ) / ( 1 + VelocityY );
+	// real_t Rx  =  ( f[3] - f[1] + ( f[0] - Ry + f[3] + f[1] + ( f[2] + f[6] + f[5] )*2. )*VelocityX )*3. ;
+	// f[4] = f[2] - Ry*2./3.;
+	// f[7] = f[5] + ( -Ry - Rx )/6.;
+	// f[8] = f[6] + ( -Ry + Rx )/6.;
+	
+	// real_t Ry  = ( ( f200 + f100 + f000 + ( f210 + f110 + f010 )*2. )*VelocityY ) / ( 1 + VelocityY );
+	// real_t Rx  =  ( f200 - f100 + ( f000 - Ry + f200 + f100 + ( f010 + f210 + f110 )*2. )*VelocityX )*3. ;
+	// f010 = f020 - Ry*2./3.;
+	// f220 = f110 + ( -Ry - Rx )/6.;
+	// f120 = f210 + ( -Ry + Rx )/6.;
+
+
+	real_t rho;
+	vector_t u;
+	u.x=VelocityX; u.y=VelocityY; u.z=0;
+
+	
+
+
+	// Non equilibrium bounce-back (aka Zou-He scheme)
+	// see chapter 5.3.4.4, eq 5.48, p198 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+	rho = (f000 + f010 + f020 +2*(f120 + f020 + f220))/(1-u.y);  // eq 5.32	
+
+	f010 = f020 - 2./3.*rho*u.y; // eq.5.48
+	f220 = f110 + (f100 - f200)/2. - rho*u.x/2. -rho*u.y/6.;
+	f120 = f210 - (f100 - f200)/2. + rho*u.x/2. -rho*u.y/6.;
+
+	// equilibrium scheme for Heat-BC - don't care and impose rho*Teq
+	// see chapter 5.3.4.2, eq 5.34, p191 from 'The Lattice Boltzmann Method: Principles and Practice'
+	// by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+
+	// real_t T = InitTemperature;	
+	// real_t H = rho*cp*T;
+	// SetEquilibriumHeat(H, rho, u); 
+
+	ThermalBounceBack();
+}
+
 CudaDeviceFunction void WVelocity()
 {
-	// real_t Jx, Jy, Jz, rho;
-	// rho  = ( -f022 - f012 - f002 - f021 - f011 - f001 - f020 - f010 - f000 + ( -f221 - f212 - f211 - f222 - f201 - f202 - f210 - f220 - f200 )*2. ) / ( -1 + VelocityX );
-	// Jx = VelocityX*rho;
-	// Jy  = ( f022 - f012 + f021 - f011 + f020 - f010 ) / ( 1/3. );
-	// Jz  = ( f022 + f012 + f002 - f021 - f011 - f001 )*3. ;
-	// f100 = f200 + Jx*4./9.;
-	// f110 = f220 + ( Jx + Jy )/9.;
-	// f120 = f210 + ( -Jy + Jx )/9.;
-	// f101 = f202 + ( Jz + Jx )/9.;
-	// f111 = f222 + ( Jz + Jy + Jx )/36.;
-	// f121 = f212 + ( Jz - Jy + Jx )/36.;
-	// f102 = f201 + ( -Jz + Jx )/9.;
-	// f112 = f221 + ( -Jz + Jy + Jx )/36.;
-	// f122 = f211 + ( -Jz - Jy + Jx )/36.;
-
 	<?R # ZouHeRewrite(EQ, f, c(-1, 0, 0), "velocity") ?> // TODO: this shall work :/
 
 	real_t rho, ru;
@@ -804,6 +833,9 @@ CudaDeviceFunction void HeaterDirichletTemperatureInterpolatedAntiBounceBack()
 CudaDeviceFunction void RunBoundariesHydrodynamics()
 {    
 	switch (NodeType & NODE_BOUNDARY) {
+		case NODE_Lid:
+			LidVelocity();
+			break;
 		case NODE_WVelocity:
 			WVelocity();
 			break;

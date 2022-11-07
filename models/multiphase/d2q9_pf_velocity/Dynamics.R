@@ -146,6 +146,12 @@ AddGlobal(name="RTISpike",  comment='Spike Tracker', op="MAX")
 AddGlobal(name="NMovingWallForce", comment='force exerted on the N Moving Wall')
 AddGlobal(name="NMovingWallPower", comment='implented: Vx* incoming momentum (precollision)')
 
+AddGlobal(name="BubbleVelocityX", comment='Bubble velocity in the x direction')
+AddGlobal(name="BubbleVelocityY", comment='Bubble velocity in the y direction')
+AddGlobal(name="BubbleVelocityZ", comment='Bubble velocity in the z direction')
+AddGlobal(name="BubbleLocationY", comment='Bubble Location in the y direction')
+AddGlobal(name="SumPhiGas", comment='Summation of (1-phi) in all gas cells')
+
 if (Options$debug){
 	AddGlobal(name="MomentumX", comment='Total momentum in the domain', unit="")
 	AddGlobal(name="MomentumY", comment='Total momentum in the domain', unit="")

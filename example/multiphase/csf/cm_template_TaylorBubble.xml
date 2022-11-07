@@ -1,0 +1,107 @@
+<?R
+# This file looks to generate the relation between the rise velocity of a Taylor bubble
+# and surface tension. The Eo and Fr numbers listed below were extracted approximately from
+# the work of Ha-Ngoc and Fabre (2004)
+
+# To run this file, use the RT template tool to first generate a set of xml files to be run.
+# Maintainer: @TravisMitchell
+
+tab  = data.frame(Eo=c(6,7,8,9,10,12,14,16,18,20,40,60,80,100,200,400,600,800,1000),
+                  Fr=c(0.08,0.09,0.1,0.115,0.13,0.15,0.165,0.17,0.18,0.19,0.21,0.218,0.221,0.222,0.223,0.2245,0.2246,0.2246,0.225))
+
+# Input Params:
+tab$rhol = 1
+tab$tstar= 32000
+tab$D    = 128
+Re       = 200
+
+# Calculate Remaining:
+tab$rhog = tab$rhol/1000
+tab$g    = tab$D/tab$tstar^2
+
+dir.create("cm_TB_batch_000")
+for (i in 1:nrow(tab)){
+	attach(tab[i,,drop=FALSE])
+	dir.create(paste0("cm_TB_batch_000/tstar",tstar))
+        detach()
+}
+
+tab$name = paste0("cm_TB_batch_000/tstar",tab$tstar,"/cm_TB_batch_Eo",tab$Eo,"_Fr",tab$Fr,"_tstar",tab$tstar)
+tab$xml  = paste0(tab$name,".xml")
+
+tab$sigma= (tab$rhol - tab$rhog) * tab$g * tab$D^2/tab$Eo
+tab$ux  = tab$Fr*sqrt(tab$g*tab$D) # Predicted
+tab$nul = tab$ux * tab$D / Re 
+
+#tab$nul  = (tab$Mo*tab$rhol^2*tab$sigma^3/(tab$g*(tab$rhol - tab$rhog)))^0.25
+tab$nug  = 10 * tab$nul
+
+write.csv(tab, "cm_TB_data_000.csv", row.names=FALSE)
+
+for (i in 1:nrow(tab)) {
+
+        attach(tab[i,,drop=FALSE])
+
+        print(xml)
+        sink(xml)  
+?>
+
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/">
+<Geometry nx="<?%f 20*D ?>" ny="<?%f D+2 ?>" >
+<CM><Box /></CM>
+<Smoothing><Box /></Smoothing>
+<None name="taylorBubble">
+    <Box    dx="<?%f D ?>"              nx="<?%f 3*D ?>"     dy="<?%f 0.5*(D+2) - 0.5*0.75*D ?>" fy="<?%f 0.5*(D+2) + 0.5*0.75*D ?>" />
+    <Sphere dx="<?%f 4*D-0.5*0.75*D ?>" nx="<?%f 0.75*D  ?>" dy="<?%f 0.5*(D+2) - 0.5*0.75*D ?>" fy="<?%f 0.5*(D+2) + 0.5*0.75*D ?>" />
+</None>
+<Wall mask="ALL">
+    <Box   dy="-1" />
+    <Box   ny="1"  />
+    <Box   nx="1"  />
+    <Box   dx="-1" />
+</Wall>
+<centerLine>
+<Box dy="<?%f (D+2)/2 ?>" ny="1" />
+</centerLine>
+</Geometry>
+<Model>
+<Params
+	Density_h  ="<?%f rhol ?>"  Density_l  ="<?%f rhog ?>"
+	Viscosity_h="<?%f nul ?>"   Viscosity_l="<?%f nug  ?>"
+	PhaseField_h="1"            PhaseField_l="0" 
+	PhaseField_init="1"         PhaseField_init-taylorBubble="0" 
+	
+	M="0.05"   
+	IntWidth="5"     
+	sigma="<?%.12f sigma ?>"
+	
+	GravitationX="<?%.12f -1*g ?>"
+	omega_bulk="1.0"
+/>
+</Model>
+<VTK/>
+<Solve Iterations="25"/>
+<Geometry>
+    <None mask="ADDITIONALS">
+        <Box />
+    </None>
+<centerLine>
+<Box dy="<?%f (D+2)/2 ?>" ny="1" />
+</centerLine>
+</Geometry>
+<VTK/>
+<Solve Iterations="<?%f 20*tstar ?>">
+	<Failcheck Iterations="100"/>
+	<VTK Iterations="<?%f 2*tstar ?>"/>
+	<Log Iterations="50"/>
+</Solve>
+</CLBConfig>
+
+<?R
+    sink()
+    detach()
+}
+?>
+
+
