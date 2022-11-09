@@ -10,5 +10,5 @@ runs:
     - shell: bash
       run: |
         lcov --capture --directory . --output-file coverage.info
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info
-        lcov --list coverage.info
+        test -s coverage.info && lcov --remove coverage.info '/usr/*' --output-file coverage.info
+        test -s coverage.info && lcov --list coverage.info

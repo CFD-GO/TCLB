@@ -300,8 +300,17 @@ do
 		
 		case "$PMS" in
 		apt-get)
-			try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-			try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+			OS=ubuntu1204
+			if test "$(lsb_release -si)" == "Ubuntu"
+			then
+				OS="ubuntu$(lsb_release -sr | sed 's/[.]//g')"
+			fi
+			KEYRINGVER='1.0-1'
+			PINFILE="cuda-${OS}.pin"
+			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/${PINFILE} -O tmp.pinfile
+			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
+			try "Installing CUDA dist" $SUDO dpkg -i tmp.keyring.deb
+			try "Planting pin file" $SUDO mv tmp.pinfile /etc/apt/preferences.d/cuda-repository-pin-600
 			try "Updating APT" $SUDO apt-get update -qq
 			CUDA_APT=${CUDA%-*}
 			CUDA_APT=${CUDA_APT/./-}
