@@ -314,7 +314,7 @@ do
 			try "Updating APT" $SUDO apt-get update -qq
 			CUDA_APT=${CUDA%-*}
 			CUDA_APT=${CUDA_APT/./-}
-			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
+			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-${CUDA_APT}
 			try "Clean APT" $SUDO apt-get clean
 			;;
 		*)
