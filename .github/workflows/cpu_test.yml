@@ -34,7 +34,9 @@ jobs:
       with:
         model: ${{ matrix.model }}
     - uses: ./.github/actions/coverage
+      id: coverage
     - uses: codecov/codecov-action@v3
+      if: steps.coverage.outputs.empty != 'true'
       with:
         files: coverage.info
         flags: ${{ matrix.model }}

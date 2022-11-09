@@ -14,4 +14,7 @@ runs:
         then
           lcov --remove coverage.info '/usr/*' --output-file coverage.info
           lcov --list coverage.info
+          echo "empty=true" >> $GITHUB_OUTPUT
+        else
+          echo "empty=false" >> $GITHUB_OUTPUT
         fi
