@@ -1,0 +1,36 @@
+name: 'TCLB Install'
+description: 'This action installes TCLB dependencies'
+inputs:
+  R:
+    description: install R
+    default: true
+  essentials:
+    description: install essentials
+    default: false
+  MPI:
+    description: install MPI (openmpi)
+    default: openmpi
+  python_dev:
+    description: install python-dev
+    default: false
+  rdep:
+    description: install python-dev
+    default: true
+runs:
+  using: 'composite'
+  steps:
+    - if: inputs.essentials == true
+      shell: bash
+      run: cd TCLB && tools/install.sh --sudo essentials
+    - if: inputs.R == true
+      shell: bash
+      run: cd TCLB && tools/install.sh --sudo r
+    - if: inputs.MPI == openmpi
+      shell: bash
+      run: cd TCLB && tools/install.sh --sudo openmpi
+    - if: inputs.python_dev == true
+      shell: bash
+      run: cd TCLB && tools/install.sh --sudo python-dev
+    - if: inputs.rdep == true
+      shell: bash
+      run: cd TCLB && tools/install.sh --sudo rdep
