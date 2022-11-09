@@ -46,45 +46,45 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - if: inputs.essentials
+    - if: inputs.essentials != 'false'
       shell: bash
       run: tools/install.sh --sudo essentials
-    - if: inputs.r
+    - if: inputs.r != 'false'
       shell: bash
       run: tools/install.sh --sudo r
-    - if: inputs.rdep
+    - if: inputs.rdep != 'false'
       shell: bash
       run: tools/install.sh --sudo rdep
-    - if: inputs.rpython
+    - if: inputs.rpython != 'false'
       shell: bash
       run: tools/install.sh --sudo rpython
-    - if: inputs.reticulate
+    - if: inputs.reticulate != 'false'
       shell: bash
       run: tools/install.sh --sudo reticulate
-    - if: inputs.rinside
+    - if: inputs.rinside != 'false'
       shell: bash
       run: tools/install.sh --sudo rinside
-    - if: inputs.cuda
+    - if: inputs.cuda != 'false'
       shell: bash
-      run: tools/install.sh --sudo cuda
-    - if: inputs.openmpi
+      run: tools/install.sh --sudo cuda ${{ inputs.cuda }}
+    - if: inputs.openmpi != 'false'
       shell: bash
       run: tools/install.sh --sudo openmpi
-    - if: inputs.lcov
+    - if: inputs.lcov != 'false'
       shell: bash
       run: tools/install.sh --sudo lcov
-    - if: inputs.submodules
+    - if: inputs.submodules != 'false'
       shell: bash
       run: tools/install.sh --sudo submodules
-    - if: inputs.gitdep
+    - if: inputs.gitdep != 'false'
       shell: bash
       run: tools/install.sh --sudo gitdep
-    - if: inputs.python-dev
+    - if: inputs.python-dev != 'false'
       shell: bash
       run: tools/install.sh --sudo python-dev
-    - if: inputs.module
+    - if: inputs.module != 'false'
       shell: bash
       run: tools/install.sh --sudo module
-    - if: inputs.tapenade
+    - if: inputs.tapenade != 'false'
       shell: bash
       run: tools/install.sh --sudo tapenade
