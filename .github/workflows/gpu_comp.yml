@@ -19,7 +19,8 @@ jobs:
         rdep: true
         openmpi: true
         rinside: true
-        cuda: 11.7
+    - uses: Jimver/cuda-toolkit@v0.2.8
+      id: cuda-install
     - uses: ./.github/actions/configure
       with:
         gpu: true
