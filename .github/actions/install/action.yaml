@@ -1,42 +1,90 @@
 name: 'TCLB Install'
 description: 'This action installes TCLB dependencies'
 inputs:
-  R:
-    description: install R
-    default: true
   essentials:
     description: install essentials
     default: false
-  MPI:
-    description: install MPI (openmpi)
-    default: 'openmpi'
-  python_dev:
+  r:
+    description: install r
+    default: true
+  rdep:
+    description: install rdep
+    default: true
+  rpython:
+    description: install rpython
+    default: false
+  reticulate:
+    description: install reticulate
+    default: false
+  rinside:
+    description: install rinside
+    default: false
+  cuda:
+    description: install cuda
+    default: false
+  openmpi:
+    description: install openmpi
+    default: true
+  lcov:
+    description: install lcov
+    default: false
+  submodules:
+    description: install submodules
+    default: false
+  gitdep:
+    description: install gitdep
+    default: false
+  python-dev:
     description: install python-dev
     default: false
-  rdep:
-    description: install python-dev
-    default: true
-  rinside:
-    description: install python-dev
-    default: true
+  module:
+    description: install module
+    default: false
+  tapenade:
+    description: install tapenade
+    default: false
 runs:
   using: 'composite'
   steps:
     - if: inputs.essentials
       shell: bash
       run: tools/install.sh --sudo essentials
-    - if: inputs.R
+    - if: inputs.r
       shell: bash
       run: tools/install.sh --sudo r
-    - if: inputs.rinside
-      shell: bash
-      run: tools/install.sh --sudo rinside
-    - if: inputs.MPI == 'openmpi'
-      shell: bash
-      run: tools/install.sh --sudo openmpi
-    - if: inputs.python_dev
-      shell: bash
-      run: tools/install.sh --sudo python-dev
     - if: inputs.rdep
       shell: bash
       run: tools/install.sh --sudo rdep
+    - if: inputs.rpython
+      shell: bash
+      run: tools/install.sh --sudo rpython
+    - if: inputs.reticulate
+      shell: bash
+      run: tools/install.sh --sudo reticulate
+    - if: inputs.rinside
+      shell: bash
+      run: tools/install.sh --sudo rinside
+    - if: inputs.cuda
+      shell: bash
+      run: tools/install.sh --sudo cuda
+    - if: inputs.openmpi
+      shell: bash
+      run: tools/install.sh --sudo openmpi
+    - if: inputs.lcov
+      shell: bash
+      run: tools/install.sh --sudo lcov
+    - if: inputs.submodules
+      shell: bash
+      run: tools/install.sh --sudo submodules
+    - if: inputs.gitdep
+      shell: bash
+      run: tools/install.sh --sudo gitdep
+    - if: inputs.python-dev
+      shell: bash
+      run: tools/install.sh --sudo python-dev
+    - if: inputs.module
+      shell: bash
+      run: tools/install.sh --sudo module
+    - if: inputs.tapenade
+      shell: bash
+      run: tools/install.sh --sudo tapenade

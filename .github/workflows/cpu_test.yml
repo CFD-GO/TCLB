@@ -15,8 +15,12 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install
       with:
-        python_dev: true
+        r: true
+        rdep: true
+        openmpi: true
+        python-dev: true
         rinside: true
+        lcov: true
     - uses: ./.github/actions/configure
       with:
         gpu: false
