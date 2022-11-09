@@ -1,13 +1,14 @@
-name: 'TCLB Test'
-description: 'This action tests TCLB'
-inputs:
-  model:
-    description: model to compile
-    default: 'd2q9'
+name: 'TCLB Coverage'
+description: 'This action gatheres coverage data for TCLB'
+outputs:
+  empty:
+    description: "Is the report empty"
+    value: ${{ steps.gather.outputs.empty }}
 runs:
   using: 'composite'
   steps:
     - shell: bash
+      id: gather
       run: |
         lcov --capture --directory . --output-file coverage.info
         if test -s coverage.info
