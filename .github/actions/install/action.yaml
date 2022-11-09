@@ -9,7 +9,7 @@ inputs:
     default: false
   MPI:
     description: install MPI (openmpi)
-    default: openmpi
+    default: 'openmpi'
   python_dev:
     description: install python-dev
     default: false
@@ -19,18 +19,18 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - if: inputs.essentials == true
+    - if: inputs.essentials
       shell: bash
       run: tools/install.sh --sudo essentials
-    - if: inputs.R == true
+    - if: inputs.R
       shell: bash
       run: tools/install.sh --sudo r
-    - if: inputs.MPI == openmpi
+    - if: inputs.MPI == 'openmpi'
       shell: bash
       run: tools/install.sh --sudo openmpi
-    - if: inputs.python_dev == true
+    - if: inputs.python_dev
       shell: bash
       run: tools/install.sh --sudo python-dev
-    - if: inputs.rdep == true
+    - if: inputs.rdep
       shell: bash
       run: tools/install.sh --sudo rdep
