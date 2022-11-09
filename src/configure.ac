@@ -815,7 +815,7 @@ fi
 
 if test "x${enable_paranoid}" == "xyes"
 then
-	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
+	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow"
 fi
 
 if test "x${enable_profiling}" == "xyes"
