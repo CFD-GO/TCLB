@@ -371,7 +371,7 @@ do
 			try "Installing sympy from yum" $SUDO yum install -y sympy
 			;;
 		apt-get)
-			try "Installing python-dev from APT" $SUDO apt-get install -qq python-dev python-numpy python-sympy
+			try "Installing python-dev from APT" $SUDO apt-get install -qq python3-dev python3-numpy python3-sympy
 			;;
 		brew)
 			try "Installing Python from brew (this should install headers as well)" brew install python
