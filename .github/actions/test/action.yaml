@@ -8,4 +8,4 @@ runs:
   using: 'composite'
   steps:
     - shell: bash
-      run: tools/test.sh ${{ inputs.model }}
+      run: tools/tests.sh ${{ inputs.model }}
