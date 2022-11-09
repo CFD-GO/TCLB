@@ -36,7 +36,7 @@ jobs:
     - uses: ./.github/actions/coverage
       id: coverage
     - uses: codecov/codecov-action@v3
-      if: steps.coverage.outputs.empty != 'true'
+      if: steps.coverage.outputs.reports != ''
       with:
-        files: coverage.info
+        files: ${{ steps.coverage.outputs.reports }}
         flags: ${{ matrix.model }}
