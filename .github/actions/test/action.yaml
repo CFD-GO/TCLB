@@ -1,0 +1,55 @@
+name: 'TCLB Test'
+description: 'This action tests TCLB'
+inputs:
+  repository:
+    description: 'Repository name with owner. For example, actions/checkout'
+    default: ${{ github.repository }}
+  ref:
+    description: branch or tag to test
+    default: master
+  install:
+    description: install dependencies
+    default: false
+  configureoptions:
+    description: options for configure
+    default: --disable-cuda
+  model:
+    description: model to compile
+    default: d2q9
+  cluster:
+    description: use TCLB_cluster
+    default: ""
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.repository }}
+        ref: ${{ inputs.ref }}
+        path: 'TCLB'
+    - shell: bash
+      id: compile
+      run: |
+        DIR="TCLB"
+        INSTALL="$(test "${{ inputs.install }}" == "true" && echo true || echo false)"
+        CLUSTER="${{ inputs.cluster }}"
+        cd "$DIR"
+        if $INSTALL
+        then
+          tools/install.sh --sudo essentials
+          tools/install.sh --sudo r
+          tools/install.sh --sudo openmpi
+          # tools/install.sh --sudo python-dev
+        fi
+        if test -z "$CLUSTER"
+        then
+          source tools/env.sh # needed only on macos
+          tools/install.sh rdep
+          make configure
+          ./configure ${{ inputs.configureoptions }}
+          make ${{ inputs.model }}
+        else
+          git clone --depth 1 --branch "$CLUSTER" "https://github.com/CFD-GO/TCLB_cluster.git" "p"
+          p/config -y
+          p/make ${{ inputs.model }}
+        fi
