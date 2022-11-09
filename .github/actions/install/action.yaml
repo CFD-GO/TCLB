@@ -21,16 +21,16 @@ runs:
   steps:
     - if: inputs.essentials == true
       shell: bash
-      run: cd TCLB && tools/install.sh --sudo essentials
+      run: tools/install.sh --sudo essentials
     - if: inputs.R == true
       shell: bash
-      run: cd TCLB && tools/install.sh --sudo r
+      run: tools/install.sh --sudo r
     - if: inputs.MPI == openmpi
       shell: bash
-      run: cd TCLB && tools/install.sh --sudo openmpi
+      run: tools/install.sh --sudo openmpi
     - if: inputs.python_dev == true
       shell: bash
-      run: cd TCLB && tools/install.sh --sudo python-dev
+      run: tools/install.sh --sudo python-dev
     - if: inputs.rdep == true
       shell: bash
-      run: cd TCLB && tools/install.sh --sudo rdep
+      run: tools/install.sh --sudo rdep

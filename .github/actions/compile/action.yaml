@@ -9,4 +9,4 @@ runs:
   steps:
     - shell: bash
       id: compile
-      run: cd TCLB && make ${{ inputs.model }}
+      run: make ${{ inputs.model }}
