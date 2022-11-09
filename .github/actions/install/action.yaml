@@ -16,6 +16,9 @@ inputs:
   rdep:
     description: install python-dev
     default: true
+  rinside:
+    description: install python-dev
+    default: true
 runs:
   using: 'composite'
   steps:
@@ -25,6 +28,9 @@ runs:
     - if: inputs.R
       shell: bash
       run: tools/install.sh --sudo r
+    - if: inputs.rinside
+      shell: bash
+      run: tools/install.sh --sudo rinside
     - if: inputs.MPI == 'openmpi'
       shell: bash
       run: tools/install.sh --sudo openmpi

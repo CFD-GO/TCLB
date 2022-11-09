@@ -15,7 +15,7 @@ jobs:
         submodules: true
     - uses: ./.github/actions/install
       with:
-        python-dev: true
+        python_dev: true
         rinside: true
     - uses: ./.github/actions/configure
       with:
@@ -29,3 +29,4 @@ jobs:
     - uses: ./.github/actions/test
       with:
         model: ${{ matrix.model }}
+    - uses: codecov/codecov-action@v3
