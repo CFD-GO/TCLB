@@ -226,11 +226,11 @@ int toArbitrary(Solver* solver, ModelBase* model) {
             }
         }
         if (! lattice[i].vtu_export) groups.push_back("HIDE");
-        fprintf(f," %d", groups.size());
+        fprintf(f," %ld", groups.size());
         for (std::vector<std::string>::const_iterator it = groups.begin(); it != groups.end(); it++) {
             fprintf(f," %s", it->c_str());
         }
-        fprintf(f,"\n", groups.size());
+        fprintf(f,"\n");
         pb_tick(i+1,lattice.size());
     }
     fclose(f);
