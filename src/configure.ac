@@ -445,9 +445,8 @@ fi
 
 if  test "x${with_python}" == "xyes"; then
    
-    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",python-config)
-    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python)
-    
+    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python3)
+    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",${python_bin}-config)
 
     AC_MSG_NOTICE([python config: ${python_config}])
     AC_MSG_NOTICE([python: ${python_bin}])
@@ -816,7 +815,7 @@ fi
 
 if test "x${enable_paranoid}" == "xyes"
 then
-	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable"
+	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow"
 fi
 
 if test "x${enable_profiling}" == "xyes"
