@@ -226,6 +226,12 @@
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
+    #define __short_as_half(x__)      *reinterpret_cast<     half* >(&x__)
+    #define __half_as_short(x__)      *reinterpret_cast<    short* >(&x__)
+    #define __int_as_float(x__)       *reinterpret_cast<    float* >(&x__)
+    #define __float_as_int(x__)       *reinterpret_cast<      int* >(&x__)
+    #define __longlong_as_double(x__) *reinterpret_cast<   double* >(&x__)
+    #define __double_as_longlong(x__) *reinterpret_cast< long int* >(&x__)
 
     inline real_t blockSum(real_t val) {
       return val;
