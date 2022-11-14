@@ -10,20 +10,19 @@
 #include "Lattice.h"
 #include <mpi.h>
 
-#include <cuda_fp16.h>
-
 #ifndef STORAGE_TYPE
-  inline __device__ real_t storage_to_real(const storage_t& v) { return v; }
-  inline __device__ storage_t real_to_storage(const real_t& v) { return v; }
+  inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return v; }
+  inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return v; }
 #elif STORAGE_TYPE == 16
-  inline __device__ real_t storage_to_real(const storage_t& v) { return __short_as_half(v); }
-  inline __device__ storage_t real_to_storage(const real_t& v) { return __half_as_short(v); }
+  #include <cuda_fp16.h>
+  inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __short_as_half(v); }
+  inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return __half_as_short(v); }
 #elif STORAGE_TYPE == 32
-  inline __device__ real_t storage_to_real(const storage_t& v) { return __int_as_float(v); }
-  inline __device__ storage_t real_to_storage(const real_t& v) { return __float_as_int(v); }
+  inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __int_as_float(v); }
+  inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return __float_as_int(v); }
 #elif STORAGE_TYPE == 64
-  inline __device__ real_t storage_to_real(const storage_t& v) { return __longlong_as_double(v); }
-  inline __device__ storage_t real_to_storage(const real_t& v) { return __double_as_longlong(v); }
+  inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __longlong_as_double(v); }
+  inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return __double_as_longlong(v); }
 #endif
 
 #ifdef STORAGE_SHIFT
