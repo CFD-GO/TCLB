@@ -10,6 +10,9 @@ inputs:
   precision:
     description: compute precision to use
     default: 'double'
+  storage:
+    description: the storage type to use
+    default: 'same'
   rinside:
     description: compute precision to use
     default: false
@@ -45,6 +48,11 @@ runs:
           double) CONFOPT="$CONFOPT --enable-double" ;;
           float) CONFOPT="$CONFOPT --disable-double" ;;
           *) echo "Wrong 'precision' input in configure action"; exit -1
+        esac
+        case "${{ inputs.storage }}" in
+          half|half-shift|float|float-shift|double) CONFOPT="$CONFOPT --with-storage=${{ inputs.storage }}" ;;
+          '') ;;
+          *) echo "Wrong 'storage' input in configure action"; exit -1
         esac
         case "${{ inputs.rinside }}" in
           true) CONFOPT="$CONFOPT --enable-rinside" ;;
