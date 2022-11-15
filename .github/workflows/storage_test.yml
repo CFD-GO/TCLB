@@ -1,4 +1,4 @@
-name: CPU
+name: Storage
 
 on: [ push, pull_request ]
 
@@ -35,8 +35,8 @@ jobs:
       with:
         gpu: ${{ matrix.gpu }}
         paranoid: true
-        precision: ${{ matrix.gpu }}
-        storage: ${{ matrix.gpu }}
+        precision: ${{ matrix.precision }}
+        storage: ${{ matrix.storage }}
     - name: Compile
       uses: ./.github/actions/compile
       with:
