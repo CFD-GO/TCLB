@@ -11,8 +11,8 @@
 #include <mpi.h>
 
 #ifndef STORAGE_TYPE
-  inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return v; }
-  inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return v; }
+  #define storage_to_real(x__) x__
+  #define real_to_storage(x__) x__
 #elif STORAGE_TYPE == 16
   #include <cuda_fp16.h>
   inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __short_as_half(v); }
@@ -26,8 +26,8 @@
 #endif
 
 #ifdef STORAGE_SHIFT
-  inline __device__ real_t storage_to_real_shift(const storage_t& v, const real_t& shft) { return storage_to_real(v) + shft; }
-  inline __device__ storage_t real_to_storage_shift(const real_t& v, const real_t& shft) { return real_to_storage(v - shft); }
+  inline CudaDeviceFunction real_t storage_to_real_shift(const storage_t& v, const real_t& shft) { return storage_to_real(v) + shft; }
+  inline CudaDeviceFunction storage_t real_to_storage_shift(const real_t& v, const real_t& shft) { return real_to_storage(v - shft); }
 #else
   #define storage_to_real_shift(x__,y__) storage_to_real(x__)
   #define real_to_storage_shift(x__,y__) real_to_storage(x__)
