@@ -10,7 +10,7 @@ jobs:
       matrix:
         model: [d2q9]
         precision: [float, double]
-        storage: ['', 'half', 'half-shift', "float", "float-shift", 'double']
+        storage: ['same', 'half', 'half-shift', "float", "float-shift", 'double']
         gpu: [true, false]
         exclude:
           - gpu: false
@@ -34,6 +34,7 @@ jobs:
       uses: ./.github/actions/configure
       with:
         gpu: ${{ matrix.gpu }}
+        cuda_arch: sm_60
         paranoid: true
         precision: ${{ matrix.precision }}
         storage: ${{ matrix.storage }}

@@ -51,7 +51,7 @@ runs:
         esac
         case "${{ inputs.storage }}" in
           half|half-shift|float|float-shift|double) CONFOPT="$CONFOPT --with-storage=${{ inputs.storage }}" ;;
-          '') ;;
+          same) ;;
           *) echo "Wrong 'storage' input in configure action"; exit -1
         esac
         case "${{ inputs.rinside }}" in
