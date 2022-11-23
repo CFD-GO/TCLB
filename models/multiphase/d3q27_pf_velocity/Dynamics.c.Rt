@@ -508,8 +508,7 @@ CudaDeviceFunction void calcWallPhase(){
 		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 
-
-		if (h < 0.001 || pf_f < -100) {
+		if (h < 0.001) {
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			PhaseF = 1;
 		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
@@ -536,7 +535,7 @@ CudaDeviceFunction void calcWallPhase(){
 		// try to use the surface energy staircase implementation, if the next layer
 		// is solid
         if (IsSpecialBoundaryPoint == <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
-            use_surface_energy_staircase_imp = true;
+            use_surface_energy_staircase_imp = false;
         }
 
 #else
@@ -593,22 +592,57 @@ CudaDeviceFunction void calcWallPhase(){
 			vector_t solid_normal = {nw_actual_x, nw_actual_y, nw_actual_z};
 			real_t der_x_1, der_y_1, der_z_1, der_x_2, der_y_2, der_z_2;
 
-			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
+            // TODO: Not sure if this the correct setup
+			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> ) {
+//				<?R for (d in c('x', 'y', 'z')) { ?>
+//					der_<?%s d ?>_1 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z) + \
+//										coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z) +  \
+//										coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
+//				<?R } ?>
+
+                der_x_1 = 0;
+                der_y_1 = 0;
+                der_z_1 = 0;
+
 				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_1 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z) + \
-										coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z) +  \
-										coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
+					der_<?%s d ?>_1 += coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z);
+				<?R } ?>
+
+				<?R for (d in c('x', 'y', 'z')) { ?>
+					der_<?%s d ?>_1 += coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z);
+				<?R } ?>
+
+				<?R for (d in c('x', 'y', 'z')) { ?>
+					der_<?%s d ?>_1 += coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
 				<?R } ?>
 
 	// Case 2.1a: Apply geometric BC with staircase improvement and "larger" second triangle
 	#ifndef OPTIONS_tprec
 				// Bigger triangle
 				// Get gradient on the second node in the normal direction
-				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_2 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z) + \
-										coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z) +  \
-										coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
+				// <?R for (d in c('x', 'y', 'z')) { ?>
+				// 	der_<?%s d ?>_2 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z) + \
+				// 						coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z) +  \
+				// 						coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 
+				// <?R } ?>
+
+				// Bigger triangle
+				// Get gradient on the second node in the normal direction
+                der_x_2 = 0;
+                der_y_2 = 0;
+                der_z_2 = 0;
+
+				<?R for (d in c('x', 'y', 'z')) { ?>
+					der_<?%s d ?>_2 += coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z);
+				<?R } ?>
+
+				<?R for (d in c('x', 'y', 'z')) { ?>
+					der_<?%s d ?>_2 += coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z);
+				<?R } ?>
+
+				<?R for (d in c('x', 'y', 'z')) { ?>
+					der_<?%s d ?>_2 += coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 				<?R } ?>
 
 	// Case 2.1b: Apply geometric BC with staircase improvement and "precice/smaller" triangle triangle
