@@ -519,7 +519,7 @@ CudaDeviceFunction void calcWallPhase(){
 		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
 			// Pass for now. Dont' calculate anything, just set it to some huge number, purely to make sure
 			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
-			// and hopefulyl breake the simulation
+			// and hopefulyl break the simulation
 			PhaseF = <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>;
 		} else if  (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>) {
 			// eventhough I am geometric boundary condition, still apply surface energy
@@ -533,14 +533,15 @@ CudaDeviceFunction void calcWallPhase(){
 
 #ifdef OPTIONS_staircaseimp
 
-// Really ugly way to mix compile time and runtime defs
+// Really ugly way to mix compile time and runtime defs, I am sorry
 #ifdef OPTIONS_altContactAngle
         bool use_surface_energy_staircase_imp = false;
 
 		// try to use the surface energy staircase implementation, if the next layer
 		// is solid
 		// NOTE: Currently unused, because mixing schemes slows down the simulation
-		// significantly (presumably because irregular memory access to PhaseF and gradPhi)
+		// significantly (presumably because irregular memory access to PhaseF and gradPhi).
+		// Change to "true" if this is really needed
         if (IsSpecialBoundaryPoint == <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
             use_surface_energy_staircase_imp = false;
         }
@@ -575,6 +576,7 @@ CudaDeviceFunction void calcWallPhase(){
 
 
 				// apply surface energy BC to the interpolated value if I am edge case of geometric staircase and quit
+				// NOTE: Currently will never happen, see comments about the performance above
 				#ifdef OPTIONS_altContactAngle
 					// apply surface energy boundary conditions
 					a = -h * (4.0/IntWidth) * cos( radAngle );
@@ -600,57 +602,26 @@ CudaDeviceFunction void calcWallPhase(){
 			real_t der_x_1, der_y_1, der_z_1, der_x_2, der_y_2, der_z_2;
 
 			// interpolate only if none of the interpolating points are solid
-			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> ) {
-//				<?R for (d in c('x', 'y', 'z')) { ?>
-//					der_<?%s d ?>_1 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z) + \
-//										coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z) +  \
-//										coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
-//				<?R } ?>
-
-                der_x_1 = 0;
-                der_y_1 = 0;
-                der_z_1 = 0;
-
+			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> &&
+				IsSpecialBoundaryPoint != <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>)
+			 {
 				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_1 += coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z);
+					der_<?%s d ?>_1 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z) + \
+										coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z) +  \
+										coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
 				<?R } ?>
 
-				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_1 += coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z);
-				<?R } ?>
-
-				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_1 += coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
-				<?R } ?>
 
 	// Case 2.1a: Apply geometric BC with staircase improvement and "larger" second triangle
 	#ifndef OPTIONS_tprec
 				// Bigger triangle
 				// Get gradient on the second node in the normal direction
-				// <?R for (d in c('x', 'y', 'z')) { ?>
-				// 	der_<?%s d ?>_2 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z) + \
-				// 						coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z) +  \
-				// 						coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
+				 <?R for (d in c('x', 'y', 'z')) { ?>
+				 	der_<?%s d ?>_2 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z) + \
+				 						coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z) +  \
+				 						coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
 
-				// <?R } ?>
-
-				// Bigger triangle
-				// Get gradient on the second node in the normal direction
-                der_x_2 = 0;
-                der_y_2 = 0;
-                der_z_2 = 0;
-
-				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_2 += coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z);
-				<?R } ?>
-
-				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_2 += coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z);
-				<?R } ?>
-
-				<?R for (d in c('x', 'y', 'z')) { ?>
-					der_<?%s d ?>_2 += coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
-				<?R } ?>
+				 <?R } ?>
 
 	// Case 2.1b: Apply geometric BC with staircase improvement and "precice/smaller" triangle triangle
 	#else
@@ -1007,9 +978,7 @@ CudaDeviceFunction void Init_wallNorm(){
 		// NOTE: Detect if any of the triangle vertices is a solid node and
 		// if so, use the simple normal instead if possible
 		real_t h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
-
 		int face_triangle_index = t_index;
-
 		int vertex_coords[3] = {0,0,0};
 
 		<?R for (v in c(1, 2, 3)) { ?>
@@ -1019,59 +988,38 @@ CudaDeviceFunction void Init_wallNorm(){
 		<?R } ?>
 
 
-#ifdef OPTIONS_altContactAngle
-		bool will_interpolate_further_from_the_boundary = PhaseF_dyn(2*v1_x, 2*v1_y, 2*v1_z) < -100 || PhaseF_dyn(2*v2_x, 2*v2_y, 2*v2_z) < -100 || PhaseF_dyn(2*v3_x, 2*v3_y, 2*v3_z) < -100;
-#endif
-		// TODO: Can be simplified
 		bool will_interpolate_from_the_boundary = pf_v3 < -100 || pf_v2 < -100 || pf_v1 < -100;
 
-		// If I am trying to interpolate from the boundary,
-		// better remove staircase approximation all together to simplify
-		if (will_interpolate_from_the_boundary) {
-			// if normal vector points to the solid, continue marking this point as the special point
-			// because this is definitely a vector vertices of which coincide with the one of triangle
-			// vertices
-			if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
-				// for clarity
-				IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>;
-			}
-			else { // otherwise we just used the node in the normal direction when calculating
-				IsSpecialBoundaryPoint = <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
-			}
+		// if normal vector points to the solid, continue marking this point as the special point
+		// because this is definitely a vector vertices of which coincide with the one of triangle
+		// vertices. Otherwise if I am trying to interpolate from the boundary, use the simple normal
+		if (will_interpolate_from_the_boundary && IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+			IsSpecialBoundaryPoint = <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
 		}
+
 #ifdef OPTIONS_altContactAngle
+		bool will_interpolate_further_from_the_boundary = PhaseF_dyn(2*v1_x, 2*v1_y, 2*v1_z) < -100 || PhaseF_dyn(2*v2_x, 2*v2_y, 2*v2_z) < -100 || PhaseF_dyn(2*v3_x, 2*v3_y, 2*v3_z) < -100;
 
+		bool normal_pointing_into_solid_on_further_next_node = PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100;
 
-		// if some of distanced points point into the boundary, mark it to interpolate
-		// from closer nodes using surface energy method,
-		 if (will_interpolate_further_from_the_boundary) {
-			bool normal_pointing_into_solid_on_further_next_node = PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100;
-
-			if  (!will_interpolate_from_the_boundary) {
-				// use surface energy and do staircase interpolation, since this must be possible
-				IsSpecialBoundaryPoint = <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
-			} else if (IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
-				//  otherwise, if the node is the normal direction is still fine but some of the rest are solids,
-				// mark this point to switch off staircase inteprolation for the geometric method
-
-				// if the next-next node is solid, we can't really compute anything with geometric method :(
-				if (normal_pointing_into_solid_on_further_next_node) {
-					// switch-off geometric method entirely
-					IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>;
-				} else {
-					// keep using it, since at least 2 points in the normal direction (next and next-next)
-					// are fine
-					IsSpecialBoundaryPoint = <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
-				}
+		// takes precedence over anything else
+		if (will_interpolate_further_from_the_boundary && IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+			// if next next next point is a solid, can't use geometric method
+			if (normal_pointing_into_solid_on_further_next_node) {
+				IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>;
+			// else if one (but not one of the normal points) is solid,  can still use geometric method, but not interpolation
+			} else {
+				IsSpecialBoundaryPoint = will_interpolate_from_the_boundary ? <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>  : <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
 			}
 		}
+
 #endif
 
 #else
 // when there is no staircase improvement and I'am altContactAngle
 #ifdef OPTIONS_altContactAngle
-		// if the next-next node is solid, we can't really compute anything with geometric method :(
-		if (PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100) {
+		// if the next-next node is solid (but next is not) we can't really compute anything with geometric method and have to switch to surface energy
+		if (IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> && PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100) {
 			IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>;
 		}
 #endif
