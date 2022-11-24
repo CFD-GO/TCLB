@@ -213,6 +213,9 @@ CudaConstantMemory real_t const d3q27_triangles[6][8][3][3] = {\
 
 
 <?R for (vertex in c(1, 2, 3)) { ?>
+/* Reconstruct full coordinates of the <?R vertex ?> vertex of the triangle "triangle_id"
+ * on face "face" and store in "coords"
+ */
 CudaDeviceFunction void triangle_id_to_vertex_<?%s vertex ?>_coords(int face, int triangle_id, int *coords)
 {
 	// compute triangle on the fly to save memory
@@ -252,12 +255,14 @@ CudaDeviceFunction real_t getIsItBoundary() {
 }
 
 <?R
+# Definition of various special boundary points that need special treatment
 NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE = 1
 NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE = 2
 NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID = 3
 NEXT_INTERPOLATING_POINTS_ARE_SOLID = 4
 # below is not a special point actually, below set simply for more readable code
 BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID = 0
+SPECIAL_POINT_HUGE_MAGIC_NUMBER = 2342e10
 ?>
 
 
@@ -514,8 +519,8 @@ CudaDeviceFunction void calcWallPhase(){
 		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
 			// Pass for now. Dont' calculate anything, just set it to some huge number, purely to make sure
 			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
-			// and hopefulyl breaking the simulation
-			PhaseF = 2342e10;
+			// and hopefulyl breake the simulation
+			PhaseF = <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>;
 		} else if  (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>) {
 			// eventhough I am geometric boundary condition, still apply surface energy
 			// here because otherwise we can't really apply anything else
@@ -534,6 +539,8 @@ CudaDeviceFunction void calcWallPhase(){
 
 		// try to use the surface energy staircase implementation, if the next layer
 		// is solid
+		// NOTE: Currently unused, because mixing schemes slows down the simulation
+		// significantly (presumably because irregular memory access to PhaseF and gradPhi)
         if (IsSpecialBoundaryPoint == <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
             use_surface_energy_staircase_imp = false;
         }
@@ -592,7 +599,7 @@ CudaDeviceFunction void calcWallPhase(){
 			vector_t solid_normal = {nw_actual_x, nw_actual_y, nw_actual_z};
 			real_t der_x_1, der_y_1, der_z_1, der_x_2, der_y_2, der_z_2;
 
-            // TODO: Not sure if this the correct setup
+			// interpolate only if none of the interpolating points are solid
 			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> ) {
 //				<?R for (d in c('x', 'y', 'z')) { ?>
 //					der_<?%s d ?>_1 = coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z) + \
