@@ -221,7 +221,7 @@ CudaDeviceFunction void triangle_id_to_vertex_<?%s vertex ?>_coords(int face, in
 {
 	// compute triangle on the fly to save memory
 	int index_pos = face / 2;
-	int is_positive = face % 2;
+	int is_positive = face % 2 == 0;
 
 	int first_component = 0;
 	int second_component = 0;
@@ -234,7 +234,7 @@ CudaDeviceFunction void triangle_id_to_vertex_<?%s vertex ?>_coords(int face, in
 <?R } else if (vertex == 2) { ?>
 
 	second_component = 1 - 2*(triangle_id / 4 );
-	first_component = 1 - 2*((triangle_id + 2) % 8) / 4;
+	first_component = 1 - 2*(((triangle_id + 2) % 8) / 4);
 
 <?R } else if (vertex == 3) { ?>
 
