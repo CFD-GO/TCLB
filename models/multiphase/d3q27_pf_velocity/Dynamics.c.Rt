@@ -309,8 +309,9 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
     lattice <- expand.grid(-1:1, -1:1, -1:1)
 	diagonals <- lattice[apply(lattice, 1, function(r) sum(abs(r)) > 2), ]
 	str_diagonals <- apply(diagonals, 1, function(x) paste(x, collapse=","))
+	# shift to the right
 	axis_shift <- function(x, axis = 0) {
-		if (axis == 0) x else c(tail(x, -axis), head(x, axis))
+		if (axis == 0) x else c(tail(x, axis), head(x, -axis))
 	}
 	directions = c("x", "y", "z")
 	str_coord <- function(x, y, z, axis)  paste(axis_shift(c(x,y,z), axis), collapse=",")
@@ -348,12 +349,18 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 							 PhaseF(<?%s str_coord(-2, 0, 0, axis) ?>) - 3*PhaseF(0, 0, 0))/(2.0*h);
 		}
 	}
+
 	// check other direction and make sure that even points futher away are
 	// handled properly, otherwise continue using isotropic gradient
-	else if ((IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>) || canForceFiniteDifferenceUp) \
-			 && (!IsBoundary(<?%s str_coord(2, 0, 0, axis) ?>))) {
+	if ((IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>) || canForceFiniteDifferenceUp)) {
+		if (IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>)
+			|| IsBoundary(<?%s str_coord(2, 0, 0, axis) ?>)) {
+			// keep it as it is, calculated using the previously set gradient and the boundary
+			// value
+		} else {
 		gradPhiVal_<?%s directions[axis+1] ?> = (4*PhaseF(<?%s str_coord(1, 0, 0, axis)  ?>) -
 						PhaseF(<?%s str_coord(2, 0, 0, axis) ?>) - 3*PhaseF(0, 0, 0))/(2.0*h);
+		}
 	}
 
 	// end of the chunk for direction <?%s directions[axis + 1] ?>
@@ -369,6 +376,7 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 
 
 CudaDeviceFunction void calcPhaseGrad(){
+#if 0
     vector_t gradPhi;
     <?R
         IsotropicGrad('gradPhi', 'PhaseF')
@@ -377,6 +385,54 @@ CudaDeviceFunction void calcPhaseGrad(){
     gradPhiVal_y = gradPhi.y;
     gradPhiVal_z = gradPhi.z;
 	calcPhaseGradCloseToBoundary();
+
+#else  // BEGIN CODE THAT IS USED TO FIND THE BUG
+    vector_t gradPhi;
+    <?R
+        IsotropicGrad('gradPhi', 'PhaseF')
+    ?>
+    gradPhiVal_x = gradPhi.x;
+    gradPhiVal_y = gradPhi.y;
+    gradPhiVal_z = gradPhi.z;
+
+	// handle boundaries
+	// NOTE: we don't want to use them because the boundary values
+	// are already calculated based on the phase field
+	// gradient, we don't want to have implicit linking
+
+    real_t h = 1.0;
+	if (IsBoundary(1, 0, 0)) {
+		gradPhiVal_x = -(4*PhaseF(-1, 0, 0) - PhaseF(-2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(-1, 0, 0)) {
+		gradPhiVal_x = (4*PhaseF(1, 0, 0) - PhaseF(2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 1, 0)) {
+		gradPhiVal_y = -(4*PhaseF(0, -1, 0) - PhaseF(0, -2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, -1, 0)) {
+		gradPhiVal_y = (4*PhaseF(0, 1, 0) - PhaseF(0, 2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 0, 1)) {
+		gradPhiVal_z = -(4*PhaseF(0, 0, -1) - PhaseF(0, 0, -2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, 0, -1)) {
+		gradPhiVal_z = (4*PhaseF(0, 0, 1) - PhaseF(0, 0, 2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+
+    if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+#endif
 }
 
 CudaDeviceFunction void calcPhaseGrad_init(){
@@ -385,6 +441,8 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 	// Phase field values just yet
 	//
 	// Might be improved
+
+#if 0  // BEGIN ORIGINAL CODE
     real_t h = 1.0;
 
 	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
@@ -404,6 +462,52 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 			gradPhiVal_<?%s d ?> = 0;
 		}
 	<?R } ?>
+#else  // BEGIN CODE THAT IS USED TO FIND THE BUG
+
+	// NOTE: Need to initialize gradients at the first time step,
+	// because isotropic gradients would not work, as the wall values have no
+	// Phase field values just yet
+	//
+	// Might be improved
+    real_t h = 1.0;
+
+	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
+	gradPhiVal_y = gradPhiVal_y(0, 0, 0);
+	gradPhiVal_z = gradPhiVal_z(0, 0, 0);
+
+	gradPhiVal_x = (PhaseF(1, 0, 0) - PhaseF(-1, 0, 0) )/ (2.0*h);
+	gradPhiVal_y = (PhaseF(0, 1, 0) - PhaseF(0, -1, 0) )/ (2.0*h);
+	gradPhiVal_z = (PhaseF(0, 0, 1) - PhaseF(0, 0, -1) )/ (2.0*h);
+
+	// handle boundaries
+	if (IsBoundary(1, 0, 0)) {
+		gradPhiVal_x = -(4*PhaseF(-1, 0, 0) - PhaseF(-2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(-1, 0, 0)) {
+		gradPhiVal_x = (4*PhaseF(1, 0, 0) - PhaseF(2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 1, 0)) {
+		gradPhiVal_y = -(4*PhaseF(0, -1, 0) - PhaseF(0, -2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, -1, 0)) {
+		gradPhiVal_y = (4*PhaseF(0, 1, 0) - PhaseF(0, 2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+
+	if (IsBoundary(0, 0, 1)) {
+		gradPhiVal_z = -(4*PhaseF(0, 0, -1) - PhaseF(0, 0, -2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0, 0, -1)) {
+		gradPhiVal_z = (4*PhaseF(0, 0, 1) - PhaseF(0, 0, 2) - 3*PhaseF(0, 0, 0))/(2.0*h);
+	}
+	if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+#endif
+
+
 }
 
 #endif
@@ -491,7 +595,13 @@ CudaDeviceFunction vector_t calcGradPhi(){
 
 CudaDeviceFunction void calcPhaseF(){
 	updateBoundary();
-	PhaseF = <?R C(sum(h))?>;
+	// NOTE: On the wall we want to take the previous value of the phase field, because
+	// it might be needed for calculation of the gradient
+	if (!( IamWall || IamSolid )) {
+		PhaseF = <?R C(sum(h))?>;
+	} else {
+		PhaseF = PhaseF(0,0,0);
+	}
 }
 
 
@@ -516,6 +626,9 @@ CudaDeviceFunction void calcWallPhase(){
 		if (h < 0.001) {
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			PhaseF = 1;
+		} else if (fabs(radAngle - PI/2.0) < 1e-4) {
+			// If I am not surrounded, but contact angle is pi/2 (90d)
+			PhaseF = pf_f;
 		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
 			// Pass for now. Dont' calculate anything, just set it to some huge number, purely to make sure
 			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
@@ -526,9 +639,6 @@ CudaDeviceFunction void calcWallPhase(){
 			// here because otherwise we can't really apply anything else
 			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
-		} else if (fabs(radAngle - PI/2.0) < 1e-4) {
-			// If I am not surrounded, but contact angle is pi/2 (90d)
-			PhaseF = pf_f;
 		} else {
 		// normal calculation with picking correct form depending on the boundary condition
 
