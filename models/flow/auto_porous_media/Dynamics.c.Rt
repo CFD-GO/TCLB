@@ -8,12 +8,19 @@
 	f = PV(DensityAll$name[DensityAll$group=="f"])
 	rho0 =  PV("rho0")
 	p =  PV("p")
-	V = PV("V",c("x","y","z"))
-	Force = PV("dF",c("X","Y","Z"))
-	J = rho0 * V
-
-# Extracting velocity set
-	U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+    if (D3){
+        V = PV("V",c("x","y","z"))
+        Force = PV("dF",c("X","Y","Z"))
+        J = rho0 * V
+    # Extracting velocity set
+        U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy","dz")])
+    } else {
+        V = PV("V",c("x","y"))
+        Force = PV("dF",c("X","Y"))
+        J = rho0 * V
+    # Extracting velocity set
+        U = as.matrix(DensityAll[DensityAll$group=="f",c("dx","dy")])
+    }
 
 # C = function (x, y, ..., eq = " = ", sep) 
 # {
@@ -73,10 +80,21 @@
 real_t AdvectX, AdvectY, AdvectZ;
 
 CudaDeviceFunction real_t getP() {
-	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+    if (IamWall) {
+        return 1/0;
+    } else {
+        return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+    }
 }
 
 CudaDeviceFunction vector_t getU() {
+    if(IamWall){
+        vector_t u;
+        u.x = 1/0;
+        u.y = 1/0;
+        u.z = 1/0;
+        return u;
+    } else {
         vector_t u;
 		<?R C(PV(c("u.x","u.y", "u.z")), f %*% U ) ?>
 		const real_t k = (rho0 + 0.5 * Viscosity / Permability);
@@ -84,6 +102,8 @@ CudaDeviceFunction vector_t getU() {
         u.y = (u.y + ForceY/2.)/k;
         u.z = (u.z + ForceZ/2.)/k;
         return u;
+    }
+    
 }
 
 
@@ -105,7 +125,11 @@ CudaDeviceFunction real_t getReactiveFlux(){
 }
 
 CudaDeviceFunction real_t getPorosity(){
-	return Porosity;
+    if(IamWall){
+        return 1/0;
+    } else {
+        return Porosity;
+    }
 }
 
 CudaDeviceFunction real_t getInitialPermability(){
@@ -118,6 +142,7 @@ CudaDeviceFunction real_t getInitialPorosity(){
 
 
 CudaDeviceFunction vector_t getBrinkmanForce(){
+    
 	vector_t force  = getU();
 	<?R C(PV(c("force.x","force.y", "force.z")), 0-PV(c("force.x","force.y", "force.z")) * PV('Viscosity') *  PV('Permability')^-1  )?>
 	return force;
@@ -150,6 +175,36 @@ CudaDeviceFunction void RunBoundaries() {
 		BounceBack();
         DoADRE_BounceBack();
         break;
+<?R if ( Options$d2q9 ) { ?>        
+	case NODE_WDirichlet:
+		{
+			const real_t BCVelocity = Velocity*k - ForceX / 2;
+			<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(-1, 0), "first_moment", rhs=PV('BCVelocity')) ?>
+		}
+		{<?R 
+			U_ADE = as.matrix(Density[Density$group=='dre_1',c("dx","dy")])
+			EQ_ADRE = MRT_eq(U_ADE, PV("Init_PHI"), PV("Init_PHI")*PV(c('AdvectX','AdvectY')), ortogonal=FALSE)
+			ZouHeRewrite(EQ_ADRE, PV(DensityAll$name[DensityAll$group=='dre_1']) , c(-1, 0), "pressure", PV("Init_PHI")) 
+			?>
+		}
+        break;
+        
+	case NODE_ENeuman:
+		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(1, 0 ), "pressure") ?>}
+		<?R
+			C(PV(DensityAll$name[DensityAll$group=='dre_1']), PV(paste0(dre_1_neighbours,"(",-Density$dx[Density$group=="dre_1"]-1,",",-Density$dy[Density$group=="dre_1"],")")))
+			C(PV("_phi_tmp"), sum(PV(DensityAll$name[DensityAll$group=='dre_1'])))
+		?>
+			if (_phi_tmp > 1) {
+				<?R 
+					C(	PV(DensityAll$name[DensityAll$group=='dre_1']), PV(DensityAll$name[DensityAll$group=='dre_1']) * PV("_phi_tmp")^-1 )
+				?>
+			}
+		
+        break;		
+        
+<?R } ?>        
+<?R if ( Options$FlowInX ) { ?>        
 	case NODE_WDirichlet:
 		{
 			const real_t BCVelocity = Velocity*k - ForceX / 2;
@@ -162,6 +217,7 @@ CudaDeviceFunction void RunBoundaries() {
 			?>
 		}
         break;
+        
 	case NODE_ENeuman:
 		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(1, 0, 0), "pressure") ?>}
 		<?R
@@ -175,8 +231,42 @@ CudaDeviceFunction void RunBoundaries() {
 				?>
 			}
 		
-
         break;		
+        
+<?R } ?>
+<?R if (Options$FlowInZ) { ?>        
+
+	case NODE_IDirichlet:
+		{
+			const real_t BCVelocity = Velocity*k - ForceZ / 2;
+			<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(0, 0, -1), "first_moment", rhs=PV('BCVelocity')) ?>
+		}
+		{<?R 
+			U_ADE = as.matrix(Density[Density$group=='dre_1',c("dx","dy", "dz")])
+			EQ_ADRE = MRT_eq(U_ADE, PV("Init_PHI"), PV("Init_PHI")*PV(c('AdvectX','AdvectY','AdvectZ')), ortogonal=FALSE)
+			ZouHeRewrite(EQ_ADRE, PV(DensityAll$name[DensityAll$group=='dre_1']) , c(0, 0, -1), "pressure", PV("Init_PHI")) 
+			?>
+		}
+        break;
+
+	case NODE_ONeuman:
+		{<?R ZouHeRewrite(EQ, PV(DensityAll$name[DensityAll$group=='f']) , c(0, 0, 1), "pressure") ?>}
+		<?R
+
+			C(PV(DensityAll$name[DensityAll$group=='dre_1']), PV(paste0(dre_1_neighbours,"(",-Density$dx[Density$group=="dre_1"],",",-Density$dy[Density$group=="dre_1"],",",-Density$dz[Density$group=="dre_1"]-1,")")))
+
+        C(PV("_phi_tmp"), sum(PV(DensityAll$name[DensityAll$group=='dre_1'])))
+		?>
+			if (_phi_tmp > 1) {
+				<?R 
+					C(	PV(DensityAll$name[DensityAll$group=='dre_1']), PV(DensityAll$name[DensityAll$group=='dre_1']) * PV("_phi_tmp")^-1 )
+				?>
+			}
+		
+        
+        break;		
+<?R } ?>
+        
     }		
 }
 
@@ -274,17 +364,23 @@ CudaDeviceFunction void Collision_MTW_RT()
 	const real_t k = 1./(rho0 + 0.5 * Viscosity / Permability);
 		
 <?R
-
-  Vs = PV(c("Vx","Vy","Vz"))
-  Forces = PV(c("ForceX","ForceY","ForceZ"))
-
-  C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
-
-  C(Vs, (Vs + Forces*0.5) * PV(c('k')))
-
-  C(PV(c("dFX","dFY","dFZ")), Forces - Vs*PV("Viscosity")*PV("Permability")^-1   )
-
-  C(PV(c("AdvectX", "AdvectY", "AdvectZ")),Vs) #For reaction coupling
+ if (D3) {
+    Vs = PV(c("Vx","Vy","Vz"))
+    Forces = PV(c("ForceX","ForceY","ForceZ"))
+    C(PV(c("p","Vx","Vy","Vz")), m %*% solve(EQ$mat) %*% cbind(1,U))
+    C(Vs, (Vs + Forces*0.5) * PV(c('k')))
+    C(PV(c("dFX","dFY","dFZ")), Forces - Vs*PV("Viscosity")*PV("Permability")^-1   )
+    C(PV(c("AdvectX", "AdvectY", "AdvectZ")),Vs) #For reaction coupling    
+  } else {
+   Vs = PV(c("Vx","Vy"))
+   Forces = PV(c("ForceX","ForceY"))
+   C(PV(c("p","Vx","Vy")), m %*% solve(EQ$mat) %*% cbind(1,U))
+   C(Vs, (Vs + Forces*0.5) * PV(c('k')))
+   C(PV(c("dFX","dFY")), Forces - Vs*PV("Viscosity")*PV("Permability")^-1   )
+   C(PV(c("AdvectX", "AdvectY")),Vs) #For reaction coupling       
+   C(PV(c("AdvectZ","dFZ", "Vz")), 0)
+  }
+  
 
 
   C(m, m - meq)
@@ -294,6 +390,19 @@ CudaDeviceFunction void Collision_MTW_RT()
 
 
 ?>
+
+// Do Objectives/Logs
+
+    switch (NodeType & NODE_OBJECTIVE) {
+        case NODE_Outlet:
+           AddToPressureLoss(-p); //only static pressure!!, simplified TODO
+        break;
+        case NODE_Inlet:
+           AddToPressureLoss(p); //only static pressure!!, simplified TODO
+       break;
+    }
+
+    AddToFlux(<?R C(Vs%*%Vs)  ?>);
 
 }
 

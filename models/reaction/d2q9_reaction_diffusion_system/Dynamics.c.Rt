@@ -231,10 +231,13 @@ CudaDeviceFunction void  DoADRE_Run() {
 			<?R
 			dre_loop( function(i) {
 				C(adre_f_tmp,fs[[i]])
+                
+                if (D3==FALSE){
 				?>
-				//DoADRE_relax_and_collide_TRT(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
-				DoADRE_relax_and_collide_ADE_CM(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
-				<?R
+                    DoADRE_relax_and_collide_TRT(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+                <?R } else { ?>
+                    DoADRE_relax_and_collide_ADE_CM(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+				<?R }
 				C(fs[[i]], adre_f_tmp)
 			})
 			?>

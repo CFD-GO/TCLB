@@ -7,17 +7,28 @@ Qname = 'DissolutionReaction_ForImplicitSteadyState'
 DREs <- ('PHI')
 NumberOfODEs = 0
 Params  <- c("LinearReactionRate")
-D3 = TRUE
-D3Q19 = FALSE #For advection solver
+
+if (Options$d2q9) {
+    D3 = FALSE
+} else {
+    D3 = TRUE
+    D3Q19 = FALSE #For advection solver
+}
 QIntegrator = 'Heun'
 #QIntegrator = 'Trapezoid'
 source("../models/reaction/d2q9_reaction_diffusion_system/Dynamics.R")
 
+if (Options$d2q9) {
+	x = c(0,1,-1);
+    P = expand.grid(x=0:2,y=0:2,z=0)
+    U = expand.grid(x,x,0)
+} else {
+    x = c(0,1,-1);
+    P = expand.grid(x=0:2,y=0:2,z=0:2)
+    U = expand.grid(x,x,x)
+}
 
 
-x = c(0,1,-1);
-P = expand.grid(x=0:2,y=0:2,z=0:2)
-U = expand.grid(x,x,x)
 
 f_sel = rep(TRUE,nrow(U))
 
@@ -38,9 +49,9 @@ AddDensity(
 	group="f"
 )
 
-AddDensity( name="fx",  group="Force", parameter=FALSE)
-AddDensity( name="fy",  group="Force", parameter=FALSE)
-AddDensity( name="fz",  group="Force", parameter=FALSE)
+#AddDensity( name="fx",  group="Force", parameter=FALSE)
+#AddDensity( name="fy",  group="Force", parameter=FALSE)
+#AddDensity( name="fz",  group="Force", parameter=FALSE)
 
 
 AddDensity( name="InitialPorosity",  group="Brinkman", parameter=TRUE)
@@ -80,10 +91,12 @@ AddSetting(name="ForceX", default=0, comment='Force force X')
 AddSetting(name="ForceY", default=0, comment='Force force Y')
 AddSetting(name="ForceZ", default=0, comment='Force force Z')
 
-AddGlobal(name="Flux", comment='Volume flux', unit="m3/s")
-AddGlobal(name="Drag", comment='Force exerted on body in X-direction', unit="N")
-AddGlobal(name="Lift", comment='Force exerted on body in Z-direction', unit="N")
-AddGlobal(name="Lateral", comment='Force exerted on body in Y-direction', unit="N")
+AddGlobal(name="Flux", comment='Volume flux')
+AddGlobal(name="Concentration", comment='Volume flux')
+
+AddGlobal(name="PressureLoss", comment='pressure loss')
+AddGlobal(name="OutletFlux", comment='pressure loss')
+AddGlobal(name="InletFlux", comment='pressure loss')
 
 # AddNodeType(name="NVelocity", group="BOUNDARY")
 # AddNodeType(name="SVelocity", group="BOUNDARY")
@@ -92,10 +105,19 @@ AddGlobal(name="Lateral", comment='Force exerted on body in Y-direction', unit="
 # AddNodeType(name="EPressure", group="BOUNDARY")
 # AddNodeType(name="EVelocity", group="BOUNDARY")
 AddNodeType(name="Wall", group="BOUNDARY")
-AddNodeType(name="WDirichlet", group="BOUNDARY")
-AddNodeType(name="ENeuman", group="BOUNDARY")
+if (Options$FlowInX || Options$d2q9) {
+    AddNodeType(name="WDirichlet", group="BOUNDARY")
+    AddNodeType(name="ENeuman", group="BOUNDARY")
+}
+
+if (Options$FlowInZ) { 
+    AddNodeType(name="IDirichlet", group="BOUNDARY")
+    AddNodeType(name="ONeuman", group="BOUNDARY")
+}
+
 for (d in rows(DensityAll)) {
-	AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+        if (Options$FlowInX || Options$d2q9) { AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz ) }
+        if (Options$FlowInZ) { AddField( name=d$name, dx=-d$dx, dy=-d$dy, dz=-d$dz-1 ) }
 }
 
 # AddNodeType(name="WVelocity", group="BOUNDARY")
@@ -107,3 +129,6 @@ for (d in rows(DensityAll)) {
 
 
 AddNodeType(name="Collision", group="COLLISION")
+
+AddNodeType(name="Inlet", group="OBJECTIVE")
+AddNodeType(name="Outlet", group="OBJECTIVE")
