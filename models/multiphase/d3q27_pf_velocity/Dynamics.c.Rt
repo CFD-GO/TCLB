@@ -307,7 +307,7 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 	// gradient, we don't want to have implicit linking
 	<?R
     lattice <- expand.grid(-1:1, -1:1, -1:1)
-	diagonals <- lattice[apply(lattice, 1, function(r) sum(abs(r)) > 2), ]
+	diagonals <- lattice[apply(lattice, 1, function(r) sum(abs(r)) >= 2 && r[2] != 0), ]
 	str_diagonals <- apply(diagonals, 1, function(x) paste(x, collapse=","))
 	# shift to the right
 	axis_shift <- function(x, axis = 0) {
@@ -324,22 +324,46 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 		  <?%s cat(Reduce(function(red, curr) paste(red, sprintf('IsBoundary(%s)', curr), sep = ' || '), str_diagonals, 'false')) ?>;
 
 
+    vector_t forcedFiniteDifference= {0, 0, 0};
+    <?R
+		tmpVec = "forcedFiniteDifference"
+		myStringSca = "IsBoundary"
+		cat(paste0(tmpVec,".y = ", myStringSca, "(1,1,1) || ", myStringSca, "(-1,1,1) || ", myStringSca, "(1,-1,1) || ", myStringSca, "(-1,-1,1) || ", myStringSca, "(1,1,-1)|| ", myStringSca, "(-1,1,-1)- ", myStringSca,  "(1,-1,-1)- ", myStringSca, "(-1,-1,-1) ||    ", myStringSca, "(1,1,0) || ", myStringSca, "(-1,1,0) || ", myStringSca, "(1,-1,0) || ", myStringSca, "(-1,-1,0) ||  ", myStringSca, "(0,1,1) || ", myStringSca, "(0,-1,1) || ", myStringSca, "(0,1,-1) || ", myStringSca, "(0,-1,-1);\n"))
+		cat(paste0(tmpVec,".x = ", myStringSca, "(1,1,1) || ", myStringSca, "(-1,1,1) || ", myStringSca, "(1,-1,1) || ", myStringSca, "(-1,-1,1) || ", myStringSca, "(1,1,-1)- ", myStringSca, "(-1,1,-1) || ", myStringSca, "(1,-1,-1) || ", myStringSca, "(-1,-1,-1) ||  ", myStringSca, "(1,1,0) || ", myStringSca, "(-1,1,0) || ", myStringSca, "(1,-1,0) || ", myStringSca, "(-1,-1,0) || ", myStringSca, "(1,0,1) || ", myStringSca, "(-1,0,1) || ", myStringSca, "(1,0,-1) || ", myStringSca, "(-1,0,-1);\n"))
+		cat(paste0(tmpVec,".z = ", myStringSca, "(1,1,1) || ", myStringSca, "(-1,1,1) || ", myStringSca, "(1,-1,1) || ", myStringSca, "(-1,-1,1) || ", myStringSca, "(1,1,-1)- ", myStringSca, "(-1,1,-1)- ", myStringSca,  "(1,-1,-1)- ", myStringSca, "(-1,-1,-1) ||     ", myStringSca, "(1,0,1) || ", myStringSca, "(-1,0,1) || ", myStringSca, "(1,0,-1) || ", myStringSca, "(-1,0,-1) ||  ", myStringSca, "(0,1,1) || ", myStringSca, "(0,-1,1) || ", myStringSca, "(0,1,-1) || ", myStringSca, "(0,-1,-1);\n"))
+    ?>
+
+
     real_t h = 1.0;
 
 
 	bool canForceFiniteDifferenceUp;
 	bool canForceFiniteDifferenceDown;
+	bool canForceCentralDifference;
+	bool set_gradPhi = false;
 
 	<?R for (axis in c(0,1,2)) { ?>
 
+	set_gradPhi = false;
+
 	// if we want to use finite differences, try to pick the best directions
-	canForceFiniteDifferenceDown = forcedFiniteDifferenceInAllDirections && \
+	canForceFiniteDifferenceDown = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
 		(!IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(-2, 0, 0, axis) ?>));
 
-	canForceFiniteDifferenceUp = forcedFiniteDifferenceInAllDirections && \
+	canForceFiniteDifferenceUp = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
 		(!IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(2, 0, 0, axis) ?>));
 
-	if (IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>) || canForceFiniteDifferenceDown ) {
+	canForceCentralDifference = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
+		(!IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>));
+
+	if (canForceCentralDifference) {
+		gradPhiVal_<?%s directions[axis+1] ?> = (PhaseF(<?%s str_coord(1, 0, 0, axis) ?>) - \
+							PhaseF(<?%s str_coord(-1, 0, 0, axis) ?>))/(2.0*h);
+		set_gradPhi = true;
+	}
+
+
+	if (IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>) || (canForceFiniteDifferenceDown && !set_gradPhi) ) {
 		if (IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)
 			|| IsBoundary(<?%s str_coord(-2, 0, 0, axis) ?>)) {
 			// keep it as it is, calculated using the previously set gradient and the boundary
@@ -347,12 +371,13 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 		} else {
 			gradPhiVal_<?%s directions[axis+1] ?> = -(4*PhaseF(<?%s str_coord(-1, 0, 0, axis) ?>) - \
 							 PhaseF(<?%s str_coord(-2, 0, 0, axis) ?>) - 3*PhaseF(0, 0, 0))/(2.0*h);
+			set_gradPhi = true;
 		}
 	}
 
 	// check other direction and make sure that even points futher away are
 	// handled properly, otherwise continue using isotropic gradient
-	if ((IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>) || canForceFiniteDifferenceUp)) {
+	if (IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>) || (canForceFiniteDifferenceUp && !set_gradPhi)) {
 		if (IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>)
 			|| IsBoundary(<?%s str_coord(2, 0, 0, axis) ?>)) {
 			// keep it as it is, calculated using the previously set gradient and the boundary
@@ -376,7 +401,7 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 
 
 CudaDeviceFunction void calcPhaseGrad(){
-#if 0
+#if 1
     vector_t gradPhi;
     <?R
         IsotropicGrad('gradPhi', 'PhaseF')
@@ -444,7 +469,7 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 	//
 	// Might be improved
 
-#if 0  // BEGIN ORIGINAL CODE
+#if 1  // BEGIN ORIGINAL CODE
     real_t h = 1.0;
 
 	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
