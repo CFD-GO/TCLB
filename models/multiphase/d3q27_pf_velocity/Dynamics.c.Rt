@@ -433,6 +433,8 @@ CudaDeviceFunction void calcPhaseGrad(){
 		gradPhiVal_z = 0.;
 	}
 #endif
+	// simply copy the values
+	gradPhi_PhaseF = PhaseF(0,0,0);
 }
 
 CudaDeviceFunction void calcPhaseGrad_init(){
@@ -506,8 +508,7 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 		gradPhiVal_z = 0.;
 	}
 #endif
-
-
+	gradPhi_PhaseF = PhaseF(0,0,0);
 }
 
 #endif
@@ -657,6 +658,8 @@ CudaDeviceFunction void calcWallPhase(){
             use_surface_energy_staircase_imp = false;
         }
 
+        use_surface_energy_staircase_imp = true;
+
 #else
         bool use_surface_energy_staircase_imp = true;
 #endif
@@ -672,8 +675,10 @@ CudaDeviceFunction void calcWallPhase(){
 
 		if (use_surface_energy_staircase_imp) {
 
+			<?R phase_field_field_name <- if (Options$altContactAngle) 'gradPhi_PhaseF' else 'PhaseF' ?>
+
 			<?R for (v in c(1, 2, 3)) { ?>
-				real_t pf_v<?%s v?> = PhaseF_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
+				real_t pf_v<?%s v?> = <?%s phase_field_field_name ?>_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
 			<?R } ?>
 
 
@@ -687,10 +692,12 @@ CudaDeviceFunction void calcWallPhase(){
 				// apply surface energy BC to the interpolated value if I am edge case of geometric staircase and quit
 				// NOTE: Currently will never happen, see comments about the performance above
 				#ifdef OPTIONS_altContactAngle
+#if 0 
 					// apply surface energy boundary conditions
 					a = -h * (4.0/IntWidth) * cos( radAngle );
 					PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 					return;
+#endif
 				#endif
 			}
 		}

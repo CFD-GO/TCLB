@@ -94,6 +94,11 @@ if (Options$altContactAngle){
     AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
     AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
+    # Fake field, to simply copy field values to PhaseF instead
+    # of accessing them directly from PhaseF field
+    # NOTE: This can be changed to stencil3d = 2 if needed
+    AddField('gradPhi_PhaseF', stencil3d=1, group="gradPhi")
+
     AddField("PhaseF",stencil3d=2, group="PF")
 
     AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
