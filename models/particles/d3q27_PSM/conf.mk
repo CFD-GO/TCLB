@@ -1,3 +1,3 @@
 ADJOINT=0
 TEST=FALSE
-OPT="TRT*(NEBB+SUP+(NEBB+SEP):singlekernel)"
+OPT="KL*TRT*(NEBB+SUP+(NEBB+SEP):singlekernel)"
