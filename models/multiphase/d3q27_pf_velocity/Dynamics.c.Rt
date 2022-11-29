@@ -1297,16 +1297,17 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 	/* Get the ID of the triangle with which the vector intersects */
 	real_t plane_angle = -1;
 
+	// find on which face the point lies
 	for (int i = 0; i < 6; ++i) {
-		// find on which face the point lies
-		// assume it is defined somewhere
-		// face_normal[i] = 0
+
+		// kind-off get the component of the vector that is the same as face normal
 		real_t prod = d3q27_faces_normals[i][0]*vec[0] + d3q27_faces_normals[i][1] * vec[1] + d3q27_faces_normals[i][2] * vec[2];
 		// rays in other direction
 		if (prod > 0) continue;
 		// NOTE: need to properly compare to zero here, otherwise there will be division by zero
 		if (fabs(prod) < 1e-10) continue;
 		// the same direction as the original vector
+		// rescale the vector to the plane and get intersection point
 		real_t point[3] = { - vec[0] / prod,  - vec[1] / prod, - vec[2] / prod };
 		// get coordinate in 2d
 		real_t drop_index = d3q27_faces_drop_indexes[i];
@@ -1365,11 +1366,13 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 
 
 			// ----------------------------------
-			// TODO: Duplicate code to be removed
+			// TODO: Duplicate code to be refactored someday (but not today)
 			// ----------------------------------
 
-			// get coordinate point in the new reference plane, relative to the point / vertex of the first triangle of the
-			// form (-1, -1) (1, -1), etc, the poin2d coordinates relative it should always be in the range (-1, 1), as we want it
+			// Original 2d point coodinate in the intersection with the second layer would be 2*point2d
+			// We get the coordinate point in the new reference plane, relative to the second vertex of the first triangle (of the
+			// form (-1, -1) (1, -1) - face corner vertexes), so that new poin2d coordinates relative to it should always be in the range (-1, 1),
+			// as we want it to be to get the barycentric coordinates relative to the triangle as relative to the second vertex
 			real_t point2_2d[2] = {2*point2d[0] - triangle2d[1][0], 2*point2d[1] - triangle2d[1][1] };
 			x = point2_2d[0];
 			y = point2_2d[1];
