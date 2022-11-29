@@ -695,6 +695,14 @@ CudaDeviceFunction void calcWallPhase(){
 		<?R } ?>
 
 
+        if (fabs(1 - coeff_v1) < 1e-10 || fabs(1 - coeff_v2) < 1e-10 || fabs(1 - coeff_v3) < 1e-10) {
+          AddToNumNonStaircaseImprovedPoints(1);
+          if (IsSpecialBoundaryPoint) {
+            AddToNumNonStaircaseImprovedPointsSpecial(1);
+          }
+        }
+
+
 		if (use_surface_energy_staircase_imp) {
 
 			<?R for (v in c(1, 2, 3)) { ?>
@@ -1384,12 +1392,41 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 }
 
 
+CudaDeviceFunction void UpdateGlobalMarkers()
+{
+	if (IsSpecialBoundaryPoint) {
+		AddToNumSpecialPoints(1);
+	}
+
+	if ( IamWall || IamSolid ) {
+		real_t a, h, pf_f;
+
+		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
+
+        real_t am_i_surrounded = h < 0.001;
+
+        if (! am_i_surrounded) {
+          AddToNumWallBoundaryPoints(1);
+        }
+
+        AddToNumBoundaryPoints(1);
+    }
+
+    if (IamCOLLISION){
+      AddToNumFluidCells(1);
+    }
+}
+
+
+
+
 
 //	ITERATION:
 CudaDeviceFunction void Run() {
 	// propagate it into the next iteration
 	IsBoundary = IsBoundary(0,0,0);
 	// If desired, incorporate a smoothing stage, in this we simply let diffusion occur
+	UpdateGlobalMarkers();
     if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing) {
 		Init_distributions();
     } else {
