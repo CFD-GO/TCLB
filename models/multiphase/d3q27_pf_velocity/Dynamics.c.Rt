@@ -981,7 +981,7 @@ CudaDeviceFunction void EConvect(){
 		if (Options$OutFlow) {
 			C(g, (g_old + U_loc*g_n_e)*U_inv)
 			C(h, (h_old + U_loc*h_n_e)*U_inv)
-			
+
 			C(g_old, g)
 			C(h_old, h)
 		}
@@ -1018,7 +1018,7 @@ CudaDeviceFunction void WNeumann(){
 	?>
 }
 
-/* If desperately needed, user can uncomment and adjust code for these B.C.
+/* If needed, user can uncomment and adjust code for these B.C.
 ## CudaDeviceFunction void NConvect(){
 ## 	real_t U_local = myMax(0, U(0,-1,0));
 ## 	real_t invU = 1.0/(1+ U_local);
@@ -1258,12 +1258,6 @@ CudaDeviceFunction void MovingSWall(){
 	{
 		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
 	}
-
-	//	h3  = h4 ;
-	//	h12 = h9 ;
-	//	h11 = h10;
-	//	h8  = h13 ;
-	//	h7  = h14 ;
 }
 
 CudaDeviceFunction void BounceBack(){
