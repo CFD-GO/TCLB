@@ -101,14 +101,6 @@ CudaDeviceFunction void Init() {
 <?R if (Options$KL) { ?>
     nu_app = (omegaF-0.5)/3.0;
     gamma_dot = 0.0;
-    Dxx = 0.0;
-    Dxy = 0.0;
-    Dyy = 0.0;
-    Dyz = 0.0;
-    Dzx = 0.0;
-    Dzz = 0.0;
-//    YieldedStat = 0.0; 
-    Iter = 0;
 <?R } ?>
 }
 
@@ -573,12 +565,12 @@ CudaDeviceFunction void Collision_PSM() {
         C(fneq[i], f[i]-deq[i])
     }
 ?>
-    Dxx = <?R C((U[,1] * U[,1]) %*% fneq)?> ;
-    Dyy = <?R C((U[,2] * U[,2]) %*% fneq)?> ;
-    Dzz = <?R C((U[,3] * U[,3]) %*% fneq)?> ;
-    Dxy = <?R C((U[,1] * U[,2]) %*% fneq)?> ;
-    Dyz = <?R C((U[,2] * U[,3]) %*% fneq)?> ;
-    Dzx = <?R C((U[,3] * U[,1]) %*% fneq)?> ;
+    real_t Dxx = <?R C((U[,1] * U[,1]) %*% fneq)?> ;
+    real_t Dyy = <?R C((U[,2] * U[,2]) %*% fneq)?> ;
+    real_t Dzz = <?R C((U[,3] * U[,3]) %*% fneq)?> ;
+    real_t Dxy = <?R C((U[,1] * U[,2]) %*% fneq)?> ;
+    real_t Dyz = <?R C((U[,2] * U[,3]) %*% fneq)?> ;
+    real_t Dzx = <?R C((U[,3] * U[,1]) %*% fneq)?> ;
 
     // Traceless part for deformation strain
 
@@ -600,7 +592,7 @@ CudaDeviceFunction void Collision_PSM() {
     real_t gamma_dot_old;
     gamma_dot = (1.5 * omegaF_tmp / d) * sqrtSS;
 
-    Iter = 0;
+    real_t Iter = 0;
     do {                //Iterate nu_app(gamma_dot) and gamma_dot(nu_app) until convergence
         gamma_dot_old = gamma_dot;
 
@@ -681,13 +673,6 @@ CudaDeviceFunction float2 Color() {
     CudaDeviceFunction real_t getStress() {
         return gamma_dot * nu_app;
     }
-
-    CudaDeviceFunction real_t getDxx() { return -1.5 / (3.0*nu_app+0.5) / (<?R C(sum(f)) ?>) * Dxx; }
-    CudaDeviceFunction real_t getDxy() { return -1.5 / (3.0*nu_app+0.5) / (<?R C(sum(f)) ?>) * Dxy; }
-    CudaDeviceFunction real_t getDzx() { return -1.5 / (3.0*nu_app+0.5) / (<?R C(sum(f)) ?>) * Dzx; }
-    CudaDeviceFunction real_t getDyy() { return -1.5 / (3.0*nu_app+0.5) / (<?R C(sum(f)) ?>) * Dyy; }
-    CudaDeviceFunction real_t getDyz() { return -1.5 / (3.0*nu_app+0.5) / (<?R C(sum(f)) ?>) * Dyz; }
-    CudaDeviceFunction real_t getDzz() { return -1.5 / (3.0*nu_app+0.5) / (<?R C(sum(f)) ?>) * Dzz; }
 
     CudaDeviceFunction real_t getYieldStatus() {
         if (NodeType == NODE_Wall) {

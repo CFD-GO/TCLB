@@ -48,18 +48,11 @@ if (Options$particles) {
 if (Options$KL) {
     AddDensity(name="gamma_dot", group="Viscosity")
     AddDensity(name="nu_app", group="Viscosity")
-    for (i in c("xx","xy","yz","yy","zx","zz")){
-        AddDensity( name=paste("D",i,sep=""), group="Viscosity")
-    }
-    AddDensity(name="Iter", group="Viscosity")
 
-    AddQuantity( name="Shear")#,unit="1/s")
+    AddQuantity( name="Shear")
     AddQuantity( name="Nu_app")
     AddQuantity( name="Stress")
     AddQuantity( name="YieldStatus")
-    for (i in c("xx","xy","yz","yy","zx","zz")){
-        AddQuantity( name=paste("D",i,sep=""))
-    }
 
     AddSetting( name="Strain_Dim",default=3, comment='Number of dimensions for strain calculation')
     AddSetting( name="eta1", comment='Plastic viscosity component')
