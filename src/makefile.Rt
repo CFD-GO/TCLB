@@ -41,30 +41,22 @@ ifdef CPU
 %.cpp:%.cu
 	cp $< $@
 
-%.o:%.cpp
-	@echo "  $(CXXTXT)  $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
-
-main:main.o $(OBJ)
-	@echo "  LINKING    $@"
-	@$(CXX) $^ -o $@ $(LD_OPT)
 
 else
-
-%.o:%.cpp
-	@echo "  $(CXXTXT)  $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
 %.o:%.cu
 	@echo "  $(NVCCTXT)  $<"
 	@$(NVCC) -c $< -o $@ $(NV_OPT) $(OPT)
 
+endif
+
+%.o:%.cpp
+	@echo "  $(CXXTXT)  $<"
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
+
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
 	@$(CXX) $^  -o $@ $(LD_OPT)
-#	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
-
-endif
 
 empty:empty.o
 	@echo "  LINKING    $@"

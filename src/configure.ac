@@ -18,7 +18,7 @@ AC_ARG_ENABLE([cuda],
 		[specify the root of your cuda install, e.g. /usr/local/cuda]))
 
 AC_ARG_ENABLE([hip],
-	AC_HELP_STRING([--enable-hip=rocm_home],
+	AS_HELP_STRING([--enable-hip=rocm_home],
 		[specify the root of your rocm install, e.g. /opt/rocm]))
 
 AC_ARG_WITH([mpi-include],
@@ -144,12 +144,12 @@ AC_ARG_WITH([cpp-flags],
 	AS_HELP_STRING([--with-cpp-flags=FLAGS],
 		[privide additionals flags for the compiler]),
 	[CONF_CPPFLAGS="$withval"])		
+
 NVFLAGS=""
 
 if test "x${COMPILER_BINDIR}" != "x"
 then
 	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
-
 fi
 
 if test -z "$CXX"
@@ -191,7 +191,7 @@ test "x${with_openmp}" == "xyes" && OPENMP="-fopenmp"
 
 if test "x${enable_hip}" == "xyes"
 then
-	AC_DEFINE([CROSS_HIP], [1], [Making a CPU version])
+	AC_DEFINE([CROSS_HIP], [1], [Making a HIP version])
 	CROSS_HIP=1
 	if test "x${enable_graphics}" == "xyes"
 	then
@@ -239,6 +239,8 @@ then
 	AC_MSG_RESULT([using CUDALIBDIR:${CUDA_LIB_DIR}])
 	
 	
+	LDFLAGS="${LDFLAGS} -lcudart"
+
 	if test "x${CUDA_LIB_DIR}" != "x"
 	then
 		LDFLAGS="${LDFLAGS} -L${CUDA_LIB_DIR}"
