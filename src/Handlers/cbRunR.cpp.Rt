@@ -281,6 +281,10 @@ public:
 	std::string print() { return "Globals"; }
 	SEXP Dollar(std::string name) {
 		Rcpp::NumericVector ret(1);
+		if (name == "Iteration") {
+			ret[0] = solver->lattice->Iter;
+			return ret;
+		}
 	<?R 
 		for (q in rows(Globals)) { ifdef(q$adjoint);
 	?>
@@ -299,6 +303,7 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
+		ret.push_back("Iteration");
 		<?R for (q in rows(Globals)) { ifdef(q$adjoint); ?>
 		ret.push_back("<?%s q$name ?>");
 		ret.push_back("<?%s q$name ?>.si");
