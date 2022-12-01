@@ -14,6 +14,13 @@
           ADTools.c (adjoint)
 */
 
+<?R
+
+if (exists('Extra_Dynamics_C_Header')) {
+	cat(Extra_Dynamics_C_Header)
+}
+?>
+
 #include "Consts.h"
 #include "cross.h"
 #include "cross.hpp"
@@ -84,7 +91,12 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
 <?R	}	?>
 
+
+
+
+
 #define NODE_H
+
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         int x_,y_,z_;

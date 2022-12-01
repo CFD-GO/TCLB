@@ -50,6 +50,15 @@ CudaDeviceFunction vector_t getU(){
 
 }
 
+CudaDeviceFunction real_t getSolid(){
+	
+	if((NodeType & NODE_BOUNDARY) == NODE_Wall){
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 #ifdef OPTIONS_AVG
 CudaDeviceFunction real_t getaverageP(){
 	return avgP/average_iter;
@@ -298,7 +307,17 @@ CudaDeviceFunction void WVelocityTurbulent() {
 }
 
 CudaDeviceFunction void CollisionMRT()
-{	
+{
+	real_t rho = getRho();
+	vector_t velocity = getU_();	
+	AddToDensity( rho  );
+	AddToFlux( velocity.x );
+
+	AddToMass( rho );
+	AddToXMomentum( rho * velocity.x);
+	AddToYMomentum( rho * velocity.y);
+	AddToZMomentum( rho * velocity.z);
+
  	 real_t w[10] = {1.0/(3*nu+0.5),1.,1.,1.,1.,1.,1.,1.,1.,1.};
  	 if ((NodeType & NODE_BOUNDARY) != 0) w[0] = 1.0/(3*nubuffer+0.5);
 f000 = f200 + f100 + f000; f100 = -f200 + f100; f200 = f100 + f200*2.; 

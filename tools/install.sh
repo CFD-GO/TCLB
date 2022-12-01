@@ -2,7 +2,7 @@
 
 # --------------- UTILITY FUNCTIONS -------------------------
 function usage {
-	echo "install.sh [--dry] [--skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|module [VERSION]"
+	echo "install.sh [--dry] [--skipssl] r|rdep|cuda|submodules|openmpi|cover|python-dev|rpython|reticulate|module [VERSION]"
 	exit -2
 }
 
@@ -173,7 +173,8 @@ do
 		echo "    python-dev *: Install Python libraries and headers for compiling TCLB with Python"
 		echo ""
 		echo "  Other things to install:"
-		echo "    rpython     : Install Python backend for R/RTemplate"
+		echo "    rpython     : Install Python backend for R/RTemplate, noting that rPython is deprecated and reticulate is required"
+		echo "    reticulate  : Install Python backend for R/RTemplate"
 		echo "    lcov       *: Install coverage analyzing software 'lcov'"
 		echo "    submodules  : Update github submodules"
 		echo "    gitdep      : Update files copied from other git repositories"
@@ -275,8 +276,12 @@ do
 		;;
 	rpython)
 		install_rpackage rjson
-		echo "rPython not supported anymore"
-		# install_rpackage rPython
+		echo "rPython not supported anymore, installing reticulate instead"
+		install_rpackage reticulate
+		;;
+	reticulate)
+		install_rpackage rjson
+		install_rpackage reticulate
 		;;
 	rinside)
 		if $GITHUB
@@ -295,12 +300,21 @@ do
 		
 		case "$PMS" in
 		apt-get)
-			try "Downloading CUDA dist" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1204/x86_64/cuda-repo-ubuntu1204_${CUDA}_amd64.deb
-			try "Installing CUDA dist" dpkg -i cuda-repo-ubuntu1204_${CUDA}_amd64.deb
+			OS=ubuntu1204
+			if test "$(lsb_release -si)" == "Ubuntu"
+			then
+				OS="ubuntu$(lsb_release -sr | sed 's/[.]//g')"
+			fi
+			KEYRINGVER='1.0-1'
+			PINFILE="cuda-${OS}.pin"
+			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/${PINFILE} -O tmp.pinfile
+			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
+			try "Installing CUDA dist" $SUDO dpkg -i tmp.keyring.deb
+			try "Planting pin file" $SUDO mv tmp.pinfile /etc/apt/preferences.d/cuda-repository-pin-600
 			try "Updating APT" $SUDO apt-get update -qq
 			CUDA_APT=${CUDA%-*}
 			CUDA_APT=${CUDA_APT/./-}
-			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-drivers cuda-core-${CUDA_APT} cuda-cudart-dev-${CUDA_APT}
+			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-compiler-${CUDA_APT} cuda-libraries-${CUDA_APT} cuda-libraries-dev-${CUDA_APT}
 			try "Clean APT" $SUDO apt-get clean
 			;;
 		*)
@@ -366,7 +380,7 @@ do
 			try "Installing sympy from yum" $SUDO yum install -y sympy
 			;;
 		apt-get)
-			try "Installing python-dev from APT" $SUDO apt-get install -qq python-dev python-numpy python-sympy
+			try "Installing python-dev from APT" $SUDO apt-get install -qq python3-dev python3-numpy python3-sympy
 			;;
 		brew)
 			try "Installing Python from brew (this should install headers as well)" brew install python

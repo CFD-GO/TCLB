@@ -30,14 +30,13 @@ ifeq '$(strip $(HIP))' '1'
 	NV_OPT += $(CPP_OPT)
 	NVCC=hipcc
 	NVCCTXT=HIPCC
-        CXX=hipcc
-        CXXTXT=HIPCC
+	CXX=hipcc
+    CXXTXT=HIPCC
 else
 	NV_OPT += --disable-warnings --compiler-options="$(CPP_OPT)"
-	LD_OPT += -lcudart
 	NVCC=nvcc
 	NVCCTXT=NVCC
-        CXX=@CXX@
+	CXX=@CXX@
 	CXXTXT=C++
 endif
 

@@ -97,7 +97,7 @@ struct ParticleS : ParticleI {
 		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
 		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
 		atomicSumWarp(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);*/
-		double val[6] = {force.x,force.y,force.z,moment.x,moment.y,moment.z};
+		real_t val[6] = {force.x,force.y,force.z,moment.x,moment.y,moment.z};
 		atomicSumWarpArr(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val,6);
 #elif PARTICLE_SYNC == BLOCK_SYNC
 		atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
