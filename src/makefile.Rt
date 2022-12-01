@@ -36,11 +36,14 @@ OBJ+=<?R cat(h,sep=" ") ?>
 
 source:Dynamics.R conf.R $(SOURCE) $(HEADERS)
 
+%.o:%.cpp
+	@echo "  $(CXXTXT)  $<"
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
+
 ifdef CPU
 
 %.cpp:%.cu
 	cp $< $@
-
 
 else
 
@@ -49,10 +52,6 @@ else
 	@$(NVCC) -c $< -o $@ $(NV_OPT) $(OPT)
 
 endif
-
-%.o:%.cpp
-	@echo "  $(CXXTXT)  $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
