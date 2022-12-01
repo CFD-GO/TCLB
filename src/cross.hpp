@@ -162,7 +162,7 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
         if ((blockDim.x*threadIdx.y + threadIdx.x) == 0) atomicAddP(sum, ret);
       }
 */
-
+/*
       __device__ inline void atomicMax(real_t * sum, real_t val)
       {
               int i = blockDim.x*blockDim.y;
@@ -179,7 +179,7 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
               }
               if (j==0) atomicMaxP(sum,sumtab[0]);
       }
-
+*/
       __device__ inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
       {
                 __syncthreads();

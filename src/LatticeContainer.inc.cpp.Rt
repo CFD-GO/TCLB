@@ -567,8 +567,7 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         } else { ?>
           Node_Run< Primal, NoGlobals, Get > now; <?R
         }?>
-	int z;
-	for (z = r.dz; z < r.dz + r.nz; z ++) {
+	int z = CudaBlock.z+r.dz;
 		now.x_ = x;
 		now.y_ = y;
 		now.z_ = z;
@@ -597,7 +596,6 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 	                } ?>
 //		}
 		tab[r.offset(x,y,z)] = w;
-	}
 }
 <?R
         }
