@@ -707,7 +707,6 @@ then
 		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
 		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
 		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
-		CPP_OPT=${CPPFLAGS}
 		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --without-rinside]))
 		AC_DEFINE([WITH_R], [1], [Using R])
 	fi
@@ -766,7 +765,7 @@ fi
 
 if test "x${enable_cpp11}" == "xyes"
 then
-	CPP_OPT="${CPP_OPT} -std=c++11"
+	CPPFLAGS="${CPPFLAGS} -std=c++11"
 	NVFLAGS="${NVFLAGS} -std=c++11"
 fi
 
@@ -816,7 +815,7 @@ fi
 
 if test "x${enable_coverage}" == "xyes"
 then
-	CPP_OPT="${CPP_OPT} -fprofile-arcs -ftest-coverage"
+	CPPFLAGS="${CPPFLAGS} -fprofile-arcs -ftest-coverage"
 	LDFLAGS="${LDFLAGS} -fprofile-arcs -ftest-coverage"
 fi
 
@@ -829,7 +828,7 @@ fi
 
 if test "x${enable_paranoid}" == "xyes"
 then
-	CPP_OPT="${CPP_OPT} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow"
+	CPPFLAGS="${CPPFLAGS} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow"
 fi
 
 if test "x${enable_profiling}" == "xyes"
@@ -879,7 +878,6 @@ AC_SUBST(WITH_R)
 AC_SUBST(TAPENADE)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
-AC_SUBST(CPP_OPT)
 AC_SUBST(EMBEDED_PYTHON)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
