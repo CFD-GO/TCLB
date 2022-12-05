@@ -332,7 +332,7 @@
 
 
     template <typename T>
-    inline void atomicMax(T * sum, T val)
+    inline void atomicMaxReduce(T * sum, T val)
     {
       if (val > sum[0]) sum[0] = val;
     }

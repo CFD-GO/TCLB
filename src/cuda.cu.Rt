@@ -204,7 +204,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 if (g$op == "SUM") { ?>
                 atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 } else if (g$op == "MAX") { ?>
-                atomicMax(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+                atomicMaxReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 }
         } ?>
 	}
