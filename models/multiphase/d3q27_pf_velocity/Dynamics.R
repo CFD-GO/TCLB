@@ -52,17 +52,9 @@ if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
 		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
 		AddField( name=d$name, dx=-d$dx+1, dy=-d$dy, dz=-d$dz )
-		## AddField( name=d$name, dx=-d$dx, dy=-d$dy-1, dz=-d$dz )
-		## AddField( name=d$name, dx=-d$dx, dy=-d$dy+1, dz=-d$dz )
-		## AddField( name=d$name, dx=-d$dx, dy=-d$dy, dz=-d$dz-1 )
-		## AddField( name=d$name, dx=-d$dx, dy=-d$dy, dz=-d$dz+1 )
 	}
 	AddField(name="U",dx=c(-1,0,0))
 	AddField(name="U",dx=c(1,0,0))
-	## AddField(name="U",dx=c(0,-1,0))
-	## AddField(name="U",dx=c(0,1,0))
-	## AddField(name="U",dx=c(0,0,-1))
-	## AddField(name="U",dx=c(0,0,1))
 
     save_initial   = c(save_initial,  "gold","hold")
     save_iteration = c(save_iteration,"gold","hold")
@@ -217,14 +209,6 @@ if (Options$altContactAngle){
 		AddNodeType(name="WNeumann", group="BOUNDARY")
 		AddNodeType(name="EConvect", group="BOUNDARY")
 		AddNodeType(name="WConvect", group="BOUNDARY")
-		## AddNodeType(name="NNeumann", group="BOUNDARY")
-		## AddNodeType(name="SNeumann", group="BOUNDARY")
-		## AddNodeType(name="FNeumann", group="BOUNDARY")
-		## AddNodeType(name="BNeumann", group="BOUNDARY")
-		## AddNodeType(name="NConvect", group="BOUNDARY")
-		## AddNodeType(name="SConvect", group="BOUNDARY")
-		## AddNodeType(name="FConvect", group="BOUNDARY")
-		## AddNodeType(name="BConvect", group="BOUNDARY")
 	}
 #######################
 ########GLOBALS########

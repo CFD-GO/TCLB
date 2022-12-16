@@ -286,7 +286,7 @@ CudaDeviceFunction void Init_phase() {
 	PhaseF = PhaseField_init;// read initial PhaseField distribution from config.xml file
 
 	if ( Period > 0 ) {
-		if ( wave > 0) {
+		if ( Wave > 0) {
 	    		real_t InterfacePoint = MidPoint + Perturbation*cos(2.0*PI*X/Period + PI);
 	    		PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
 			       - 0.5 * (PhaseField_h - PhaseField_l) * tanh(2.0 * (Y - InterfacePoint)/W);
@@ -484,7 +484,7 @@ CudaDeviceFunction void log_data_from_special_nodes ()
 				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
 				AddToRTIBubble(location);
 			}
-		case NODE_WAVE:
+		case NODE_WaveTrack:
 			if (PhaseF > 0.5 && PhaseF(0,1) < 0.5) {
 				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
 				AddToWaveLocation(location);

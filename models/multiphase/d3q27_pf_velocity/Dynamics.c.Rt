@@ -228,7 +228,7 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 
 <?R
 ###################################################
-# get functions to define outputs indicated in .R #
+# Get functions to define outputs indicated in .R #
 ###################################################
 ?>
 CudaDeviceFunction real_t getRho(){
@@ -266,12 +266,14 @@ CudaDeviceFunction vector_t getNormal(){
 
 <?R
 ###################################################
-# miscellaneous helper functions used in the code #
+# Miscellaneous helper functions used in the code #
 ###################################################
 ?>
+/*
+	This function uses isotropic gradient stencils to return
+	the gradient of the phase field variable \phi.
+*/
 CudaDeviceFunction vector_t calcGradPhi(){
-	// This function uses isotropic gradient stencils to return
-	// the gradient of the phase field variable \phi.
 	vector_t gradPhi = {0.0,0.0,0.0};
 	#ifdef OPTIONS_OutFlow
 		if ((NodeType & NODE_BOUNDARY) == NODE_ENeumann || (NodeType & NODE_BOUNDARY) == NODE_EConvect) {
@@ -313,18 +315,21 @@ CudaDeviceFunction vector_t calcGradPhi(){
 	return gradPhi;
 }
 
+/*
+	This function is run as the second stage of each action and fills
+	the iteration buffer with updated values of PhaseF.
+*/
 CudaDeviceFunction void calcPhaseF(){
-	// This function is run as the second stage of each action and fills
-	// the iteration buffer with updated values of PhaseF.
 	updateBoundary();
 	PhaseF = <?R C(sum(h))?>;
 }
 
+/*
+	This function is run after the calcPhaseF stage and uses the updated 
+	phase field values and the specified contact angle to update the 
+	the value of phase field in the wall cells.
+*/
 CudaDeviceFunction void calcWallPhase(){
-	// This function is run after the calcPhaseF stage and uses the updated 
-	// phase field values and the specified contact angle to update the 
-	// the value of phase field in the wall cells.
-
 	PhaseF = PhaseF(0,0,0); //For fluid nodes.
 #ifdef OPTIONS_altContactAngle
     der_tangent_1_wall = 0;
@@ -420,11 +425,12 @@ CudaDeviceFunction void calcWallPhase(){
 	} 
 }
 
+/*
+	Calculate the chemical potential, mu
+	Eqn. 5 in: Improved locality of the phase-field lattice-Boltzmann model 
+	for immiscible fluids at high density ratios
+*/
 CudaDeviceFunction real_t calcMu(real_t C){
-	// Calculate the chemical potential, mu
-	// Eqn. 5 in: Improved locality of the phase-field lattice-Boltzmann model 
-	// for immiscible fluids at high density ratios
-
 	real_t pfavg, lpPhi, mu;
 	pfavg = 0.5*(PhaseField_l+PhaseField_h);
 	#ifdef OPTIONS_OutFlow
@@ -482,10 +488,11 @@ CudaDeviceFunction real_t calcMu(real_t C){
 	return mu;
 }
 
+/*
+	Eqn. 10 in: Improved locality of the phase-field lattice-Boltzmann model 
+	for immiscible fluids at high density ratios
+*/
 CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t u2mag){
-	// Eqn. 10 in: Improved locality of the phase-field lattice-Boltzmann model 
-	// for immiscible fluids at high density ratios
-
 	real_t gamma, tmp;
 	tmp = (d3q27_ex[i]*u+d3q27_ey[i]*v+d3q27_ez[i]*w);
 
@@ -493,10 +500,11 @@ CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t 
 	return gamma;
 }
 
+/*
+	Eqn. 7 in: Improved locality of the phase-field lattice-Boltzmann model 
+	for immiscible fluids at high density ratios
+*/
 CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, real_t nz){
-	// Eqn. 7 in: Improved locality of the phase-field lattice-Boltzmann model 
-	// for immiscible fluids at high density ratios
-
 	real_t f_phi;
 #ifdef OPTIONS_q27
 	f_phi = wg[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
@@ -506,7 +514,7 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, re
 	return f_phi;
 }
 
-//	INITIALISATION:
+/*	INITIALISATION:	*/
 CudaDeviceFunction void Init() {
 	PhaseF = PhaseField;
 	specialCases_Init();
@@ -735,7 +743,7 @@ CudaDeviceFunction void Init_distributions(){
 	#endif
 }
 
-//	ITERATION:
+/*	ITERATION:	*/
 CudaDeviceFunction void Run() {
 	// If desired, incorporate a smoothing stage, in this we simply let diffusion occur
     if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing) {
@@ -786,7 +794,7 @@ CudaDeviceFunction void calc_Fp(real_t *fx, real_t *fy, real_t *fz, real_t press
 	*fz = (-1.0/3.0) * pressure * (Density_h-Density_l) * gPhi.z;
 }
 CudaDeviceFunction void calc_Fb(real_t *fx, real_t *fy, real_t *fz, real_t rho){
-        *fx = (Density_h-rho)*BuoyancyX + rho*GravitationX;
+    *fx = (Density_h-rho)*BuoyancyX + rho*GravitationX;
 	*fy = (Density_h-rho)*BuoyancyY + rho*GravitationY;
 	*fz = (Density_h-rho)*BuoyancyZ + rho*GravitationZ;
 }
@@ -944,6 +952,8 @@ CudaDeviceFunction void CollisionMRT(){
 		# NOTE: outside of east/west the user needs to add #
 		#       suitable conditions for calcGradPhi and    #
 		#       calculating laplace parameters.            #
+		# If for some reason you need additional direction #
+		#  use the existing as a template to create them.  #
 		####################################################
 		g_neighbours = Density$nicename[Density$group =="g"]
 		h_neighbours = Density$nicename[Density$group =="h"]
@@ -952,16 +962,6 @@ CudaDeviceFunction void CollisionMRT(){
 		h_n_e = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")",sep=""))
 		g_n_w = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"]+1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")",sep=""))
 		h_n_w = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]+1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")",sep=""))
-
-		## g_n_n = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"]-1,",",-Density$dz[Density$group=="g"],")",sep=""))
-		## h_n_n = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"]-1,",",-Density$dz[Density$group=="h"],")",sep=""))
-		## g_n_s = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"]+1,",",-Density$dz[Density$group=="g"],")",sep=""))
-		## h_n_s = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"]+1,",",-Density$dz[Density$group=="h"],")",sep=""))
-## 
-		## g_n_f = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"]-1,")",sep=""))
-		## h_n_f = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"]-1,")",sep=""))
-		## g_n_b = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"]+1,")",sep=""))
-		## h_n_b = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"]+1,")",sep=""))
 
 		U_loc = PV("U_local")
 		U_inv = PV("invU")
@@ -1017,93 +1017,6 @@ CudaDeviceFunction void WNeumann(){
 		}
 	?>
 }
-
-/* If needed, user can uncomment and adjust code for these B.C.
-## CudaDeviceFunction void NConvect(){
-## 	real_t U_local = myMax(0, U(0,-1,0));
-## 	real_t invU = 1.0/(1+ U_local);
-## 	<?R
-## 		if (Options$OutFlow) {
-## 			C(g, (g_old + U_loc*g_n_n)*U_inv)
-## 			C(h, (h_old + U_loc*h_n_n)*U_inv)
-## 			
-## 			C(g_old, g)
-## 			C(h_old, h)
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void SConvect(){
-## 	real_t U_local = myMax(0, -U(0,1,0));
-## 	real_t invU = 1.0/(1 - U_local);
-## 	<?R
-## 		if (Options$OutFlow) {
-## 			C(g, (g_old + U_loc*g_n_s)*U_inv)
-## 			C(h, (h_old + U_loc*h_n_s)*U_inv)
-## 			
-## 			C(g_old, g)
-## 			C(h_old, h)
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void FConvect(){
-## 	real_t U_local = myMax(0, U(0,0,-1));
-## 	real_t invU = 1.0/(1 + U_local);
-## 	<?R
-## 		if (Options$OutFlow) {
-## 			C(g, (g_old + U_loc*g_n_f)*U_inv)
-## 			C(h, (h_old + U_loc*h_n_f)*U_inv)
-## 			
-## 			C(g_old, g)
-## 			C(h_old, h)
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void BConvect(){
-## 	real_t U_local = myMax(0, -U(0,0,1));
-## 	real_t invU = 1.0/(1 - U_local);
-## 	<?R
-## 		if (Options$OutFlow) {
-## 			C(g, (g_old + U_loc*g_n_b)*U_inv)
-## 			C(h, (h_old + U_loc*h_n_b)*U_inv)
-## 			
-## 			C(g_old, g)
-## 			C(h_old, h)
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void NNeumann(){
-## 	<?R
-## 		if (Options$OutFlow){
-## 			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"]-1,",",-Density$dz[Density$group=="g"],")")))	
-## 			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"]-1,",",-Density$dz[Density$group=="h"],")")))	
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void SNeumann(){
-## 	<?R
-## 		if (Options$OutFlow){
-## 			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"]+1,",",-Density$dz[Density$group=="g"],")")))	
-## 			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"]+1,",",-Density$dz[Density$group=="h"],")")))	
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void FNeumann(){
-## 	<?R
-## 		if (Options$OutFlow){
-## 			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"]-1,")")))	
-## 			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"]-1,")")))	
-## 		}
-## 	?>
-## }
-## CudaDeviceFunction void BNeumann(){
-## 	<?R
-## 		if (Options$OutFlow){
-## 			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"],",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"]+1,")")))	
-## 			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"],",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"]+1,")")))	
-## 		}
-## 	?>
-## }
-*/
 #endif
 
 <?R
@@ -1436,8 +1349,14 @@ CudaDeviceFunction void updateBoundary(){
 			case NODE_EConvect:
 				EConvect();
 				break;
+			case NODE_WConvect:
+				WConvect()
+				break;
 			case NODE_ENeumann:
 				ENeumann();
+				break;
+			case NODE_WNeumann:
+				WNeumann();
 				break;
 		#endif
 	}
@@ -1558,8 +1477,8 @@ CudaDeviceFunction void updateTrackers(real_t C){
 		}
 		return surfaceTen;
 	}
+	/* Save everything from buffer 1 to 2. */
 	CudaDeviceFunction void TempCopy(){
-		// Save everything from buffer 1 to 2.
 		g0  = g0(0,0,0);
 		g1  = g1(0,0,0);
 		g2  = g2(0,0,0);
@@ -1777,4 +1696,3 @@ CudaDeviceFunction void updateTrackers(real_t C){
 	}
 ?>
 */
-
