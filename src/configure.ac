@@ -608,10 +608,15 @@ then
 	LAMMPS="$(cd $LAMMPS; pwd)"
 	mkdir -p $LAMMPS/install/include/lammps
 	mkdir -p $LAMMPS/install/lib/
-	for i in lammps.h library.h input.h modify.h fix.h fix_external.h pointers.h lmptype.h lmpwindows.h atom.h domain.h partitioner.h
+	for i in lammps.h library.h input.h modify.h fix.h fix_external.h pointers.h lmptype.h lmpwindows.h atom.h domain.h
 	do
 		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
 		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[AC_MSG_ERROR([Cannot find ${i}])])
+	done
+	for i in partitioner.h
+	do
+		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
+		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[])
 	done
 
 	for i in error.h comm.h vector_liggghts.h neighbor.h math_extra_liggghts.h domain_I.h
