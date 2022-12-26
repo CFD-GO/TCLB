@@ -1074,9 +1074,6 @@ int Geometry::Draw(pugi::xml_node & node)
         }    
         // Make sure the GIL has been created since we need to acquire it in our
         // callback to safely call into the python application.
-        if (! PyEval_ThreadsInitialized()) {
-            PyEval_InitThreads();
-        }
         
         PyObject *pGlobal;
         PyObject* pyModule, *pLocal, *pValue;

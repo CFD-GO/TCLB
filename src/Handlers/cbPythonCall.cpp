@@ -183,9 +183,10 @@ int cbPythonCall::DoIt () {
                 
 	        }
 	        else {
-	            if (PyErr_Occurred())
+	            if (PyErr_Occurred()) {
 	                PyErr_Print();
-	                error("PythonCall: Cannot find function \"%s\"\n", function.value());
+                        error("PythonCall: Cannot find function \"%s\"\n", function.value());
+                    }
 	        }
 	        Py_XDECREF(pFunc);
 	        Py_DECREF(pModule);
