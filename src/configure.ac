@@ -627,6 +627,11 @@ then
 		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
 		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[AC_MSG_ERROR([Cannot find ${i}])])
 	done
+	for i in partitioner.h
+	do
+		rm ${LAMMPS}/install/include/lammps/${i} 2>/dev/null
+		AC_CHECK_FILE([${LAMMPS}/src/${i}], [ln -s ../../../src/${i} ${LAMMPS}/install/include/lammps/${i}],[])
+	done
 
 	for i in error.h comm.h vector_liggghts.h neighbor.h math_extra_liggghts.h domain_I.h
 	do
@@ -634,16 +639,20 @@ then
 	done
 	if test "x${with_lammps_lib}" == "x"
 	then
-		LAMMPS_LIB="liblammps.so"
-		if test -L ${LAMMPS}/src/libliggghts.so
-		then
-			echo "It's LIGGGHTS we're working with"
-			LAMMPS_LIB="libliggghts.so"
-		fi
+		for LAMMPS_LIB_DIR in build src
+		do
+			for LAMMPS_LIB in libliggghts.so liblammps.so
+			do
+				if test -f "${LAMMPS}/${LAMMPS_LIB_DIR}/${LAMMPS_LIB}"
+				then
+					break 2
+				fi
+			done
+		done
 	else
 		LAMMPS_LIB="${with_lammps_lib}"
 	fi
-	AC_CHECK_FILE([${LAMMPS}/src/$LAMMPS_LIB], [ln -s ../../src/$LAMMPS_LIB ${LAMMPS}/install/lib/$LAMMPS_LIB],[AC_MSG_ERROR([Cannot find $LAMMPS_LIB])])
+	AC_CHECK_FILE([${LAMMPS}/$LAMMPS_LIB_DIR/$LAMMPS_LIB], [ln -s ../../$LAMMPS_LIB_DIR/$LAMMPS_LIB ${LAMMPS}/install/lib/$LAMMPS_LIB],[AC_MSG_ERROR([Cannot find $LAMMPS_LIB])])
 	LDFLAGS="${LDFLAGS} -L${LAMMPS}/install/lib -Wl,-rpath=${LAMMPS}/install/lib"
 	CPPFLAGS="${CPPFLAGS} -I${LAMMPS}/install/include"
 	LAMMPS_LIB_NAME=${LAMMPS_LIB#lib}
