@@ -74,6 +74,7 @@ public:
   real_t settings[SETTINGS];  ///< Table of Settings (Now)
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
+  real_t px, py, pz; 
   MPIInfo mpi; ///< MPI information
   typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t, pinned_allocator<real_t> > rfi_t;
   rfi_t RFI;
@@ -87,6 +88,7 @@ public:
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
   int Offset(int,int,int);
+  void setPosition(double, double, double);
   void FlagOverwrite(flag_t *, lbRegion);
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();

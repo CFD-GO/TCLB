@@ -59,6 +59,17 @@ int SnapLevel(unsigned int i) {
 	return w;
 }
 
+/// Set position
+void Lattice::setPosition(double px_, double py_, double pz_)
+{
+	px = px_;
+	py = py_;
+	pz = pz_;
+	container->px = px + 0.5 + region.dx;
+	container->py = py + 0.5 + region.dy;
+	container->pz = pz + 0.5 + region.dz;
+}
+
 /// Calculation of the offset from X, Y and Z
 int Lattice::Offset(int x, int y, int z)
 {
@@ -87,9 +98,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
-	container->px = region.dx;
-	container->py = region.dy;
-	container->pz = region.dz;
+	setPosition(0.0,0.0,0.0);
 	container->iter = 0;
 	container->reset_iter = 0;
 	DEBUG_M;
