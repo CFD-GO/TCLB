@@ -169,6 +169,11 @@ mpishow=$($CXX -showme 2>/dev/null)
 if ! test -z "$mpishow"
 then
 	CPPFLAGS="${CPPFLAGS} $(echo $(echo "$mpishow" | sed -e 's| |\n|g' | grep "^-I"))"
+	LDFLAGS="${LDFLAGS} $(echo $(echo "$mpishow" | sed -e 's| |\n|g' | grep "^-[[Ll]]"))"
+	CXX="$(echo $(echo "$mpishow" | sed -e 's| |\n|g' | sed -n -e '1p'))"
+	echo "from mpi showme: CPPFLAGS = $CPPFLAGS"
+	echo "from mpi showme: LDFLAGS  = $LDFLAGS"
+	echo "from mpi showme: CXX      = $CXX"
 fi
 
 # Checks for programs.
@@ -837,7 +842,8 @@ fi
 
 if test "x${enable_paranoid}" == "xyes"
 then
-	CPPFLAGS="${CPPFLAGS} -Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow"
+	CPPFLAGS="${CPPFLAGS} -Wall -Werror -Wno-unknown-warning-option"
+	CPPFLAGS="${CPPFLAGS} -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow -Wno-unused-private-field -Wno-self-assign"
 fi
 
 if test "x${enable_profiling}" == "xyes"

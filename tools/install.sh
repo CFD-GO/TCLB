@@ -308,7 +308,7 @@ do
 			KEYRINGVER='1.0-1'
 			PINFILE="cuda-${OS}.pin"
 			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/${PINFILE} -O tmp.pinfile
-			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
+			try "Downloading CUDA keyring file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
 			try "Installing CUDA dist" $SUDO dpkg -i tmp.keyring.deb
 			try "Planting pin file" $SUDO mv tmp.pinfile /etc/apt/preferences.d/cuda-repository-pin-600
 			try "Updating APT" $SUDO apt-get update -qq
@@ -319,6 +319,32 @@ do
 			;;
 		*)
 			pms_error CUDA ;;
+		esac
+		;;
+	hip)
+		shift
+		test -z "$1" && error "Version number needed for hip install"
+		HIP=$1
+		shift
+		echo "#### Installing HIP library ####"
+		
+		case "$PMS" in
+		apt-get)
+			OS=xenial
+			if test "$(lsb_release -si)" == "Ubuntu"
+			then
+				OS="$(lsb_release -sc)"
+			fi
+			
+			AMDGPU_DEB=amdgpu-install_5.3.50300-1_all.deb
+			try "Updating APT" $SUDO apt-get update
+			try "Download AMDGPU install deb" wget https://repo.radeon.com/amdgpu-install/5.3/ubuntu/$OS/$AMDGPU_DEB
+			try "Installing deb" $SUDO apt-get install ./$AMDGPU_DEB
+			echo "Running AMDGPU install"
+			$SUDO amdgpu-install -y --usecase=rocm
+			;;
+		*)
+			pms_error HIP ;;
 		esac
 		;;
 	openmpi)
