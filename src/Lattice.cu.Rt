@@ -59,6 +59,17 @@ int SnapLevel(unsigned int i) {
 	return w;
 }
 
+/// Set position
+void Lattice::setPosition(double px_, double py_, double pz_)
+{
+	px = px_;
+	py = py_;
+	pz = pz_;
+	container->px = px + 0.5 + region.dx;
+	container->py = py + 0.5 + region.dy;
+	container->pz = pz + 0.5 + region.dz;
+}
+
 /// Calculation of the offset from X, Y and Z
 int Lattice::Offset(int x, int y, int z)
 {
@@ -87,9 +98,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
-	container->px = region.dx;
-	container->py = region.dy;
-	container->pz = region.dz;
+	setPosition(0.0,0.0,0.0);
 	container->iter = 0;
 	container->reset_iter = 0;
 	DEBUG_M;
@@ -157,13 +166,13 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	bufnumber = 0;
 #ifndef DIRECT_MEM
 	debug2("Allocating MPI buffors ...\n");
-	real_t * ptr = NULL;
+	storage_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	size = <?R C(m$Size,float=F) ?> * sizeof(real_t);
+	size = <?R C(m$Size,float=F) ?> * sizeof(storage_t);
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if ((mpi.rank != to) && (size > 0)) {
@@ -671,7 +680,7 @@ void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(storage_t);
 	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
 	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;

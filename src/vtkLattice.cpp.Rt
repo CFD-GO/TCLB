@@ -22,7 +22,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	vtkFileOut vtkFile(MPMD.local);
 	if (vtkFile.Open(filename)) {return -1;}
 	double spacing = 1/units.alt("m");	
-	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
+	vtkFile.Init(lattice->mpi.totalregion, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing, lattice->px*spacing, lattice->py*spacing, lattice->pz*spacing);
 
 	{	flag_t * NodeType = new flag_t[size];
 		lattice->GetFlags(reg, NodeType);

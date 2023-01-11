@@ -1,0 +1,100 @@
+name: 'TCLB Install'
+description: 'This action installes TCLB dependencies'
+inputs:
+  essentials:
+    description: install essentials
+    default: false
+  r:
+    description: install r
+    default: true
+  rdep:
+    description: install rdep
+    default: true
+  rpython:
+    description: install rpython
+    default: false
+  reticulate:
+    description: install reticulate
+    default: false
+  rinside:
+    description: install rinside
+    default: false
+  cuda:
+    description: install cuda
+    default: false
+  openmpi:
+    description: install openmpi
+    default: true
+  lcov:
+    description: install lcov
+    default: false
+  submodules:
+    description: install submodules
+    default: false
+  gitdep:
+    description: install gitdep
+    default: false
+  python-dev:
+    description: install python-dev
+    default: false
+  module:
+    description: install module
+    default: false
+  tapenade:
+    description: install tapenade
+    default: false
+runs:
+  using: 'composite'
+  steps:
+    - if: inputs.essentials != 'false'
+      shell: bash
+      run: tools/install.sh --sudo essentials
+    - if: inputs.r != 'false'
+      shell: bash
+      run: tools/install.sh --sudo r
+    - if: inputs.rdep != 'false'
+      shell: bash
+      run: tools/install.sh --sudo rdep
+    - if: inputs.rpython != 'false'
+      shell: bash
+      run: tools/install.sh --sudo rpython
+    - if: inputs.reticulate != 'false'
+      shell: bash
+      run: tools/install.sh --sudo reticulate
+    - if: inputs.rinside != 'false'
+      shell: bash
+      run: tools/install.sh --sudo rinside
+    - if: inputs.cuda != 'false'
+      shell: bash
+      run: |
+        GPU="${{ inputs.cuda }}"
+        if test "$GPU" == "true"
+        then
+          GPU="11.7"
+        fi
+        tools/install.sh --sudo cuda $GPU
+        CUDA_PATH=/usr/local/cuda-$GPU
+        echo "$CUDA_PATH/bin" >>$GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >>$GITHUB_ENV
+        echo "CUDA_PATH=$CUDA_PATH" >>$GITHUB_OUTPUT
+    - if: inputs.openmpi != 'false'
+      shell: bash
+      run: tools/install.sh --sudo openmpi
+    - if: inputs.lcov != 'false'
+      shell: bash
+      run: tools/install.sh --sudo lcov
+    - if: inputs.submodules != 'false'
+      shell: bash
+      run: tools/install.sh --sudo submodules
+    - if: inputs.gitdep != 'false'
+      shell: bash
+      run: tools/install.sh --sudo gitdep
+    - if: inputs.python-dev != 'false'
+      shell: bash
+      run: tools/install.sh --sudo python-dev
+    - if: inputs.module != 'false'
+      shell: bash
+      run: tools/install.sh --sudo module
+    - if: inputs.tapenade != 'false'
+      shell: bash
+      run: tools/install.sh --sudo tapenade
