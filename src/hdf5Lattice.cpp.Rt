@@ -66,7 +66,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	xdmf_dataitem.append_attribute("Format") = "XML";
 	xdmf_dataitem.append_attribute("Precision") = 8;
 	{
-		double shift = 0.0
+		double shift = 0.0;
 		if (options & HDF5_WRITE_POINT) shift = 0.5;
 		xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(" ") << (lattice->px + shift)/unit << (lattice->py + shift)/unit << (lattice->pz + 0.5)/unit);
 	}
