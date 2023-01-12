@@ -720,16 +720,19 @@ then
 			AC_MSG_RESULT([no])
 		fi
 	else
-		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
-		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
-		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
-		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
-		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
-		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
-		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
-		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
+		function clean_options {
+			sed 's/"//g'   # For some reason Rcpp prints the "-I" option with quotations
+		}
+		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags | clean_options)"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()' | clean_options)"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()' | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()' | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()' | clean_options)"
 		CPP_OPT=${CPPFLAGS}
-		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --without-rinside]))
+		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --disable-rinside]))
 		AC_DEFINE([WITH_R], [1], [Using R])
 	fi
 fi
