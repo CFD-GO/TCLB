@@ -6,7 +6,6 @@
 	source("lib/lattice.R")
 ?>
 
-
 // 04/02/2017 - Model Developed: A. Fakhari, T. Mitchell
 //	      - Implementation:	 T. Mitchell
 
@@ -286,11 +285,17 @@ CudaDeviceFunction real_t calcRho(real_t myPhaseF)
 CudaDeviceFunction void Init_phase() {
 	PhaseF = PhaseField_init;// read initial PhaseField distribution from config.xml file
 
-	// RAYLEIGH TAYLOR INSTABILITY
 	if ( Period > 0 ) {
-	    real_t InterfacePoint = MidPoint + Perturbation*Period*cos(2.0*PI*X/Period);
-	    PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
-		   + 0.5 * (PhaseField_h - PhaseField_l) * tanh(2.0 * (Y - InterfacePoint)/W);
+		if ( Wave > 0) {
+	    		real_t InterfacePoint = MidPoint + Perturbation*cos(2.0*PI*X/Period + PI);
+	    		PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
+			       - 0.5 * (PhaseField_h - PhaseField_l) * tanh(2.0 * (Y - InterfacePoint)/W);
+		} else {
+			// RAYLEIGH TAYLOR INSTABILITY
+	    		real_t InterfacePoint = MidPoint + Perturbation*Period*cos(2.0*PI*X/Period);
+	    		PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
+			       + 0.5 * (PhaseField_h - PhaseField_l) * tanh(2.0 * (Y - InterfacePoint)/W);
+		}
 	}
 	// DIFFUSE INTERFACE CIRCLE
 	if ( Radius > 0 ) {
@@ -478,6 +483,11 @@ CudaDeviceFunction void log_data_from_special_nodes ()
 			if (PhaseF < 0.5 && PhaseF(0,1) > 0.5) {
 				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
 				AddToRTIBubble(location);
+			}
+		case NODE_WaveTrack:
+			if (PhaseF > 0.5 && PhaseF(0,1) < 0.5) {
+				location = Y + (PhaseF-0.5)/(PhaseF-PhaseF(0,1) );
+				AddToWaveLocation(location);
 			}
 	}
 }
@@ -1093,7 +1103,7 @@ CudaDeviceFunction void CollisionMRT(){
 	real_t nx = gradPhi.x/gradPhi.z;  // GradPhi normalized in x, y direction
 	real_t ny = gradPhi.y/gradPhi.z;
 
-	real_t p = getNormalizedPressure(); // normlized pressure
+	real_t p = getNormalizedPressure(); // normalized pressure
 	vector_t Fhydro = calcTotalHydrodynamicForceMRT(gradPhi, myPhaseF, rho, tau,  calcMu(myPhaseF), p);
 
 	// PHASE FIELD POPULATION UPDATE:
