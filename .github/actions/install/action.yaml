@@ -52,9 +52,17 @@ inputs:
   cache:
     description: use github cache to store apt packages and r packages
     default: false
+  bestapt:
+    description: select the best APT before installing stuff
+    default: true
 runs:
   using: 'composite'
   steps:
+    - if: inputs.bestapt != 'false'
+      shell: bash
+      run: |
+        sudo gem install apt-spy2
+        sudo apt-spy2 fix --commit
     - if: inputs.cache != 'false'
       shell: bash
       id: keys
