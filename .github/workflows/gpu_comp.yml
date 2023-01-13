@@ -26,7 +26,6 @@ jobs:
       uses: ./.github/actions/configure
       with:
         gpu: true
-        cuda_arch: sm_60
         paranoid: true
     - name: Compile
       uses: ./.github/actions/compile

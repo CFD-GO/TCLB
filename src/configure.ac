@@ -244,15 +244,16 @@ then
 	AC_MSG_RESULT([using CUDALIBDIR:${CUDA_LIB_DIR}])
 	
 	
-	LDFLAGS="${LDFLAGS} -lcudart"
-
 	if test "x${CUDA_LIB_DIR}" != "x"
 	then
 		LDFLAGS="${LDFLAGS} -L${CUDA_LIB_DIR}"
 		CPPFLAGS="${CPPFLAGS} -I${CUDA_HOME}/include"
 	fi
 	AC_CHECK_HEADERS([cuda.h],[],[AC_MSG_ERROR([Didn't find cuda.h])])
+	AC_CHECK_HEADERS([cuda_runtime.h],[],[AC_MSG_ERROR([Didn't find cuda.h])])
 	#AC_CHECK_LIB([cudart], [cudaMalloc],[],[AC_MSG_ERROR([Didn't find CUDA Run-time Library])])
+	LDFLAGS="${LDFLAGS} -lcudart"
+
 	if test "x${enable_graphics}" == "xyes"
 	then
 		AC_CHECK_HEADERS([GL/glut.h],[],[AC_MSG_ERROR([Didn't find GLUT headers])])
@@ -264,81 +265,50 @@ then
 
 	GRID3D=""
 	if test -z "${with_cuda_arch}"; then
-		CUDA_ARCH="sm_20"
+		AC_CHECK_LIB([cudart], [cudaGetDeviceProperties])
+		AC_MSG_CHECKING([Trying to get compute capability from GPU])
+		AC_RUN_IFELSE([AC_LANG_PROGRAM([
+			#include <stdio.h>
+			#include <cuda_runtime.h>
+		],[
+			cudaDeviceProp prop;
+			cudaError_t status;
+			status = cudaGetDeviceProperties(&prop,	0);
+			if (status) {
+				printf("%s\n", cudaGetErrorString( status ));
+				return status;
+			}
+			printf("%d%d\n", prop.major, prop.minor);
+			return 0;
+		])],[CUDA_CC=$(./conftest$EXEEXT)],[CUDA_CC="default"; AC_MSG_RESULT([Failed to get CC from GPU])])
 	else
-		CUDA_ARCH="${with_cuda_arch}"
-	fi
-	AC_MSG_CHECKING([target CUDA architecture])
-	CUDA_SUFF=""
-	if test "$CUDA_ARCH" == "sm_11"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		if test "x${enable_double}" == "xyes"
-		then
-			AC_MSG_ERROR([Double precision not supported in sm_11])
-		fi
-		CUDA_SUFF="11"
-	elif test "$CUDA_ARCH" == "sm_13"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		if test "x${enable_double}" == "xyes"
-		then
-			AC_MSG_ERROR([Double precision not supported in sm_13])
-		fi
-		CUDA_SUFF="13"
-	elif test "$CUDA_ARCH" == "sm_20"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-		CUDA_SUFF="20"
-	elif test "$CUDA_ARCH" == "sm_30"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-
-		CUDA_SUFF="30"
-	elif test "$CUDA_ARCH" == "sm_35"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-
-		CUDA_SUFF="35"
-	elif test "$CUDA_ARCH" == "sm_60"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-
-    	CUDA_SUFF="60"
-    elif test "$CUDA_ARCH" == "sm_70"
-    then
-        AC_MSG_RESULT([${CUDA_ARCH}])
-        AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-
-        CUDA_SUFF="70"
-	elif test "$CUDA_ARCH" == "sm_75"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-
-    	CUDA_SUFF="75"
-	elif test "$CUDA_ARCH" == "sm_80"
-	then
-		AC_MSG_RESULT([${CUDA_ARCH}])
-		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
-
-    	CUDA_SUFF="80"
-	else
-		AC_MSG_ERROR([unknown arch ${CUDA_ARCH}])
+		CUDA_CC=$(echo ${with_cuda_arch} | sed -E 's/^(sm_|compute_)//')
 	fi
 	
-	if test -z "${CUDA_ARCH}"
+	AC_DEFINE_UNQUOTED([CUDA_CC], "${CUDA_CC}", [target CUDA compute capability])
+	AC_MSG_CHECKING([target CUDA architecture])
+	if test "x${CUDA_CC}" != "xdefault"
 	then
-		AC_MSG_ERROR([CUDA_ARCH should be set by now])
+		AC_MSG_RESULT([sm_${CUDA_CC}])
+		AC_MSG_CHECKING([is CUDA_CC numeric])
+		AS_IF(test "x$(printf '%2d' ${CUDA_CC})" == "x$CUDA_CC", [AC_MSG_RESULT([yes])], [AC_MSG_ERROR([Wrong CUDA_CC: $CUDA_CC])]) 
+		if test "$CUDA_CC" -lt "20"
+		then
+			if test "x${enable_double}" == "xyes"
+			then
+				AC_MSG_ERROR([Double precision not supported in sm_11])
+			fi
+		else
+			AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
+		fi
+
+		#NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_CC},code=sm_${CUDA_CC}"
+		NVFLAGS="${NVFLAGS} -arch=compute_${CUDA_CC}"
 	else
-		AC_DEFINE_UNQUOTED([CUDA_ARCH], "${CUDA_ARCH}", [target CUDA arch])
-		#NVFLAGS="${NVFLAGS} -gencode arch=compute_${CUDA_SUFF},code=sm_${CUDA_SUFF}"
-		NVFLAGS="${NVFLAGS} -arch=compute_${CUDA_SUFF}"
+		AC_MSG_RESULT([nvcc default])
+		AC_DEFINE([GRID3D], [1], [Using 3D block grid in CUDA])
 	fi
+			
 	if ! test -z "$OPENMP"
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])

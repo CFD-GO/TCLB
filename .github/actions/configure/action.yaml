@@ -6,7 +6,7 @@ inputs:
     default: false
   cuda_arch:
     description: CUDA arch (sm_) to use
-    default: 'sm_50'
+    default: ''
   hip:
     description: compile a HIP version
     default: false
@@ -35,12 +35,17 @@ runs:
   using: 'composite'
   steps:
     - shell: bash
-      id: compile
+      id: configure
+      name: "Running configure"
       run: |
         make configure
         CONFOPT=""
         case "${{ inputs.gpu }}" in
-          true) CONFOPT="$CONFOPT --enable-cuda --with-cuda-arch=${{ inputs.cuda_arch }}" ;;
+          true) CONFOPT="$CONFOPT --enable-cuda"
+                if test "${{ inputs.cuda_arch }}"
+                then
+                  CONFOPT="$CONFOPT --with-cuda-arch=${{ inputs.cuda_arch }}"
+                fi;;
           false) CONFOPT="$CONFOPT --disable-cuda" ;;
           *) echo "Wrong 'gpu' input in configure action"; exit -1
         esac
