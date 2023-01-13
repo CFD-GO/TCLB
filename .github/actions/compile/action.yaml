@@ -9,4 +9,5 @@ runs:
   steps:
     - shell: bash
       id: compile
+      name: "Compile"
       run: make ${{ inputs.model }}
