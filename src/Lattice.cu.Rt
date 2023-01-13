@@ -1092,17 +1092,11 @@ void Lattice::AfterIt()
 /// Overwrite NodeType in a region
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
-//	debug1("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
-//	CudaMemcpy2D(container->NodeType, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, CudaMemcpyHostToDevice);
-	std::clock_t time_start = std::clock();		
-
 	if (region.isEqual(over)) {
-//	if (false) {
 		output("overwriting all flags\n");
 		CudaMemcpy(container->NodeType, mask, sizeof(flag_t)*region.sizeL(), CudaMemcpyHostToDevice);
 	} else {
 		lbRegion inter = region.intersect(over);
-	//        debug1("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
 	        int x = inter.dx;
 	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
 	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
@@ -1110,7 +1104,6 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 	                CudaMemcpy2D(&container->NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
 	        }
 	}
-        output(" duration: %lf s\n", (std::clock() - time_start) / (double)CLOCKS_PER_SEC);
 }
 
 void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
@@ -1133,28 +1126,19 @@ void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
 /// Get NodeType's from a region
 void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {
-//	debug1("Pulling region %dx%d+%d,%d\n",w,h,x,y);
-	std::clock_t time_start = std::clock();
-
 	size_t offset;
 	lbRegion inter = region.intersect(over);
-//        debug1("Getting flags region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
 	if (region.isEqual(over)) {
-//	if (false) {
-                output("getting all flags\n");
                 CudaMemcpy(NodeType, container->NodeType, sizeof(flag_t)*region.sizeL(), CudaMemcpyDeviceToHost);
-		output("done\n");
         } else {
 	        int x = inter.dx;
 	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
 	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
 	        {
-	//		debug1("GetRegion: %d %d %d\n", x,y,z);
 			offset = region.offsetL(x,y,z);
 			CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
 		}
 	}
-        output(" duration: %lf s\n", (std::clock() - time_start) / (double)CLOCKS_PER_SEC);
 }
 
 <?R
@@ -1230,29 +1214,21 @@ ifdef()
 */
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {
-	std::clock_t time_start = std::clock();
-
 	container->in = Snaps[Snap];
 	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
         container->CopyToConst();
 
 	lbRegion inter = region.intersect(over);
-//        debug1("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-//        int x = inter.dx, y = inter.dy;
 	<?%s q$type ?> * buf=NULL;
 	CudaMalloc((void**)&buf, inter.sizeL()*sizeof(<?%s q$type ?>));
-//        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         {	lbRegion small = inter;
 		small.dx -= region.dx;
 		small.dy -= region.dy;
 		small.dz -= region.dz;
-//	        debug1("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
 		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , (small, buf, scale));
-//	        debug1("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
 		CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
-        output(" duration: %lf s\n", (std::clock() - time_start) / (double)CLOCKS_PER_SEC);
 }
 
 <?R }; ifdef() ?>
