@@ -53,6 +53,10 @@ AC_ARG_ENABLE([double],
 	AS_HELP_STRING([--enable-double],
 		[make a double precision version]))
 
+AC_ARG_WITH([storage],
+	AS_HELP_STRING([--with-storage],
+		[type of storage used: half, half-shift, float, float-shift, double]))
+
 AC_ARG_ENABLE([cpp11],
 	AS_HELP_STRING([--enable-cpp11],
 		[enable C++ 11 standard]))
@@ -187,6 +191,28 @@ AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
+fi
+
+if test "x${with_storage}" == "xhalf-shift"
+then
+	AC_DEFINE([STORAGE_TYPE], [16], [Using half as storage])
+	AC_DEFINE([STORAGE_SHIFT], [1], [Using shift for storage])
+elif test "x${with_storage}" == "xhalf"
+then
+	AC_DEFINE([STORAGE_TYPE], [16], [Using half as storage])
+elif test "x${with_storage}" == "xfloat-shift"
+then
+	AC_DEFINE([STORAGE_TYPE], [32], [Using half as storage])
+	AC_DEFINE([STORAGE_SHIFT], [1], [Using shift for storage])
+elif test "x${with_storage}" == "xfloat"
+then
+	AC_DEFINE([STORAGE_TYPE], [32], [Using half as storage])
+elif test "x${with_storage}" == "xdouble"
+then
+	AC_DEFINE([STORAGE_TYPE], [64], [Using half as storage])
+elif test "x${with_storage}" != "x"
+then
+	AC_MSG_ERROR([Not suppported type of storage: x${with_storage}])
 fi
 
 OPENMP="${with_openmp}"
@@ -683,15 +709,18 @@ then
 			AC_MSG_RESULT([no])
 		fi
 	else
-		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags)"
-		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()')"
-		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()')"
-		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags)"
-		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS)"
-		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS)"
-		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()')"
-		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()')"
-		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --without-rinside]))
+		function clean_options {
+			sed 's/"//g'   # For some reason Rcpp prints the "-I" option with quotations
+		}
+		CPPFLAGS="${CPPFLAGS} $($R_BIN CMD config --cppflags | clean_options)"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::CxxFlags()' | clean_options)"
+		CPPFLAGS="${CPPFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::CxxFlags()' | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config --ldflags | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config BLAS_LIBS | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN CMD config LAPACK_LIBS | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'Rcpp:::LdFlags()' | clean_options)"
+		LDFLAGS="${LDFLAGS} $($R_BIN --vanilla --slave -e 'RInside:::LdFlags()' | clean_options)"
+		AC_CHECK_HEADERS([RInside.h],[],AC_MSG_ERROR([RInside.h not found. If you don't want RInside go --disable-rinside]))
 		AC_DEFINE([WITH_R], [1], [Using R])
 	fi
 fi

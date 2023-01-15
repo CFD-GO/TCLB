@@ -3,15 +3,15 @@
 #  dx,dy,dz - direction of streaming
 #  comment - additional comment
 
-AddDensity( name="f[0]", dx= 0, dy= 0, group="f")
-AddDensity( name="f[1]", dx= 1, dy= 0, group="f")
-AddDensity( name="f[2]", dx= 0, dy= 1, group="f")
-AddDensity( name="f[3]", dx=-1, dy= 0, group="f")
-AddDensity( name="f[4]", dx= 0, dy=-1, group="f")
-AddDensity( name="f[5]", dx= 1, dy= 1, group="f")
-AddDensity( name="f[6]", dx=-1, dy= 1, group="f")
-AddDensity( name="f[7]", dx=-1, dy=-1, group="f")
-AddDensity( name="f[8]", dx= 1, dy=-1, group="f")
+AddDensity( name="f[0]", dx= 0, dy= 0, group="f",shift=4/9)
+AddDensity( name="f[1]", dx= 1, dy= 0, group="f",shift=2/18)
+AddDensity( name="f[2]", dx= 0, dy= 1, group="f",shift=2/18)
+AddDensity( name="f[3]", dx=-1, dy= 0, group="f",shift=2/18)
+AddDensity( name="f[4]", dx= 0, dy=-1, group="f",shift=2/18)
+AddDensity( name="f[5]", dx= 1, dy= 1, group="f",shift=1/36)
+AddDensity( name="f[6]", dx=-1, dy= 1, group="f",shift=1/36)
+AddDensity( name="f[7]", dx=-1, dy=-1, group="f",shift=1/36)
+AddDensity( name="f[8]", dx= 1, dy=-1, group="f",shift=1/36)
 
 #AddField(name="f[1]", dx=1);
 

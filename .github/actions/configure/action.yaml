@@ -13,20 +13,23 @@ inputs:
   precision:
     description: compute precision to use
     default: 'double'
+  storage:
+    description: the storage type to use
+    default: 'same'
   rinside:
-    description: compute precision to use
+    description: use RInside
     default: false
   marklines:
-    description: compute precision to use
+    description: make RT add line references for nicer error messages
     default: true
   coverage:
-    description: compute precision to use
+    description: compile with coverage support
     default: false
   paranoid:
-    description: compute precision to use
+    description: compile in paranoid mode, with all compile checks turned on
     default: true
   python:
-    description: compute precision to use
+    description: compile with python support
     default: false
   options:
     description: other configure options
@@ -58,6 +61,11 @@ runs:
           double) CONFOPT="$CONFOPT --enable-double" ;;
           float) CONFOPT="$CONFOPT --disable-double" ;;
           *) echo "Wrong 'precision' input in configure action"; exit -1
+        esac
+        case "${{ inputs.storage }}" in
+          half|half-shift|float|float-shift|double) CONFOPT="$CONFOPT --with-storage=${{ inputs.storage }}" ;;
+          same) ;;
+          *) echo "Wrong 'storage' input in configure action"; exit -1
         esac
         case "${{ inputs.rinside }}" in
           true) CONFOPT="$CONFOPT --enable-rinside" ;;

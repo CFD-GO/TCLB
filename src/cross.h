@@ -301,6 +301,19 @@
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
+    template <class T, class P> inline T data_cast(const P& x) { static_assert(sizeof(T)==sizeof(P),"Wrong sizes in data_cast"); T ret; memcpy(&ret, &x, sizeof(T)); return ret; }
+
+    #define __short_as_half(x__)      data_cast<half          , short int     >(x__)
+    #define __half_as_short(x__)      data_cast<short int     , half          >(x__)
+    #define __int_as_float(x__)       data_cast<float         , int           >(x__)
+    #define __float_as_int(x__)       data_cast<int           , float         >(x__)
+    #define __longlong_as_double(x__) data_cast<double        , long long int >(x__)
+    #define __double_as_longlong(x__) data_cast<long long int , double        >(x__)
+
+//    inline float __int_as_float(int v) { return *reinterpret_cast< float* >(&v); }
+//    inline int __float_as_int(float v) { return *reinterpret_cast< int* >(&v); }
+//    inline double __longlong_as_double(long long int v) { return *reinterpret_cast< double* >(&v); }
+//    inline long long int __double_as_longlong(double v) { return *reinterpret_cast< long long int* >(&v); }
 
     inline real_t blockSum(real_t val) {
       return val;

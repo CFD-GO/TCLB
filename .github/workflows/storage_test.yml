@@ -1,0 +1,44 @@
+name: Storage
+
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [d2q9]
+        precision: [float, double]
+        storage: ['same', 'half', 'half-shift', "float", "float-shift", 'double']
+        gpu: [true, false]
+        exclude:
+          - gpu: false
+            storage: 'half'
+          - gpu: false
+            storage: 'half-shift'
+          - precision: 'float'
+            storage: 'double'
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v3
+    - name: Install dependencies
+      uses: ./.github/actions/install
+      with:
+        r: true
+        rdep: true
+        openmpi: true
+        rinside: true
+        cuda: ${{ matrix.gpu }}
+    - name: Configure
+      uses: ./.github/actions/configure
+      with:
+        gpu: ${{ matrix.gpu }}
+        cuda_arch: sm_60
+        paranoid: true
+        precision: ${{ matrix.precision }}
+        storage: ${{ matrix.storage }}
+    - name: Compile
+      uses: ./.github/actions/compile
+      with:
+        model: ${{ matrix.model }}
