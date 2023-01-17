@@ -228,6 +228,7 @@ then
 	then
 		AC_MSG_ERROR([Cannot make GLUT graphics with HIP version])
 	fi
+	AC_DEFINE([GRID3D], [1], [Using 3D block grid in HIP])
 elif test "x${enable_cuda}" != "xno"
 then
 
