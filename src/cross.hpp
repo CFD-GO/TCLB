@@ -6,6 +6,10 @@
   #if __CUDA_ARCH__ < 200
     #define CROSS_NEED_ATOMICADD
   #endif
+
+  #ifndef CROSS_HIP
+    #define CROSS_NEED_ATOMICMAX
+  #endif
       
   #ifdef CALC_DOUBLE_PRECISION
     typedef unsigned long long int real_t_i;
@@ -37,6 +41,7 @@
    #endif
 
         
+  #ifdef CROSS_NEED_ATOMICMAX
     __device__ inline void atomicMaxP(real_t* address, real_t val)
     {
         if (val != 0.0) {
@@ -50,7 +55,11 @@
           } while (assumed != old);
         }
     }
-    #ifndef MAX_THREADS
+  #else
+    #define atomicMaxP atomicMax
+  #endif
+
+   #ifndef MAX_THREADS
       #error FUCK!
     #else
       #if MAX_THREADS < 500
@@ -125,7 +134,7 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
 	}
 }
 
-#elif CUDART_VERSION >= 7000
+#elif CUDART_VERSION >= 7000 || defined(CROSS_HIP)
 
 __device__ inline void atomicSumWarp(real_t * sum, real_t val)
 {
@@ -163,7 +172,7 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
       }
 */
 
-      __device__ inline void atomicMax(real_t * sum, real_t val)
+      __device__ inline void atomicMaxReduce(real_t * sum, real_t val)
       {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;

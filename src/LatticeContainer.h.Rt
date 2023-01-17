@@ -157,13 +157,13 @@ class LatticeContainer {
 /// Get [<?%s v$comment ?>] from GPU memory
         inline real_t get<?%s v$name ?>(){
                 real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
 /// Get all the globals from GPU memory
 	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
 	}
 };
 

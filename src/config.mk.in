@@ -1,9 +1,9 @@
 
-OPT = @CPPFLAGS@
-CPP_OPT = @CPP_OPT@
+CPP_OPT = @CPPFLAGS@
 LD_OPT = @LDFLAGS@ @LIBS@
 NV_OPT = -D_FORCE_INLINES  @NVFLAGS@
 CPU = @CROSS_CPU@
+HIP = @CROSS_HIP@
 
 PV_SOURCE = @PV_SOURCE@
 PV_BUILD = @PV_BUILD@
@@ -26,9 +26,19 @@ ifeq '$(strip $(WITH_LAMMPS))' '1'
  AOUT += lammps
 endif
 
-NVCC=nvcc
-CCTXT=NVCC
-CXX=@CXX@
+ifeq '$(strip $(HIP))' '1'
+	NV_OPT += $(CPP_OPT)
+	NVCC=hipcc
+	NVCCTXT=HIPCC
+	CXX=hipcc
+    CXXTXT=HIPCC
+else
+	NV_OPT += --disable-warnings --compiler-options="$(CPP_OPT)"
+	NVCC=nvcc
+	NVCCTXT=NVCC
+	CXX=@CXX@
+	CXXTXT=C++
+endif
 
 ifeq '$(strip $(ADJOINT))' '1'
  OPT+=-D ADJOINT
