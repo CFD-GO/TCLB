@@ -9,17 +9,17 @@
   #endif
   typedef struct {real_t x,y,z;} vector_t;
 
-  #ifndef STORAGE_TYPE
+  #ifndef STORAGE_BITS
     #ifdef CALC_DOUBLE_PRECISION
       typedef double storage_t;
     #else
       typedef float storage_t;
     #endif
-  #elif STORAGE_TYPE == 16
+  #elif STORAGE_BITS == 16
       typedef short int storage_t;
-  #elif STORAGE_TYPE == 32
+  #elif STORAGE_BITS == 32
       typedef int storage_t;
-  #elif STORAGE_TYPE == 64
+  #elif STORAGE_BITS == 64
       typedef long long int storage_t;
   #endif
   typedef unsigned short int cut_t;

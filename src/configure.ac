@@ -195,21 +195,21 @@ fi
 
 if test "x${with_storage}" == "xhalf-shift"
 then
-	AC_DEFINE([STORAGE_TYPE], [16], [Using half as storage])
+	AC_DEFINE([STORAGE_BITS], [16], [Using half as storage])
 	AC_DEFINE([STORAGE_SHIFT], [1], [Using shift for storage])
 elif test "x${with_storage}" == "xhalf"
 then
-	AC_DEFINE([STORAGE_TYPE], [16], [Using half as storage])
+	AC_DEFINE([STORAGE_BITS], [16], [Using half as storage])
 elif test "x${with_storage}" == "xfloat-shift"
 then
-	AC_DEFINE([STORAGE_TYPE], [32], [Using half as storage])
+	AC_DEFINE([STORAGE_BITS], [32], [Using half as storage])
 	AC_DEFINE([STORAGE_SHIFT], [1], [Using shift for storage])
 elif test "x${with_storage}" == "xfloat"
 then
-	AC_DEFINE([STORAGE_TYPE], [32], [Using half as storage])
+	AC_DEFINE([STORAGE_BITS], [32], [Using half as storage])
 elif test "x${with_storage}" == "xdouble"
 then
-	AC_DEFINE([STORAGE_TYPE], [64], [Using half as storage])
+	AC_DEFINE([STORAGE_BITS], [64], [Using half as storage])
 elif test "x${with_storage}" != "x"
 then
 	AC_MSG_ERROR([Not suppported type of storage: x${with_storage}])
