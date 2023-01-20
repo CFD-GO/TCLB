@@ -10,17 +10,17 @@
 #include "Lattice.h"
 #include <mpi.h>
 
-#ifndef STORAGE_TYPE
+#ifndef STORAGE_BITS
   #define storage_to_real(x__) x__
   #define real_to_storage(x__) x__
-#elif STORAGE_TYPE == 16
+#elif STORAGE_BITS == 16
   #include <cuda_fp16.h>
   inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __short_as_half(v); }
   inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return __half_as_short(v); }
-#elif STORAGE_TYPE == 32
+#elif STORAGE_BITS == 32
   inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __int_as_float(v); }
   inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return __float_as_int(v); }
-#elif STORAGE_TYPE == 64
+#elif STORAGE_BITS == 64
   inline CudaDeviceFunction real_t storage_to_real(storage_t v) { return __longlong_as_double(v); }
   inline CudaDeviceFunction storage_t real_to_storage(real_t v) { return __double_as_longlong(v); }
 #endif
