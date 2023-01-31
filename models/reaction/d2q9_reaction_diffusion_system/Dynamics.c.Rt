@@ -234,7 +234,7 @@ CudaDeviceFunction void  DoADRE_Run() {
                 
                 if (D3==FALSE){
 				?>
-                    DoADRE_relax_and_collide_TRT(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
+                    DoADRE_relax_and_collide_TRT_M(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
                 <?R } else { ?>
                     DoADRE_relax_and_collide_ADE_CM(Diffusivity_<?%s DREs[i] ?>, q[<?%s i-1 ?>]);
 				<?R }
