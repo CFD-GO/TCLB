@@ -1014,34 +1014,34 @@ int Geometry::Draw(pugi::xml_node & node)
 	} else if (strcmp(n.name(),"Pipe") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
 	    DEBUG1(reg.print();)
-            for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-		for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
-		   for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
-			 if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
-				Dot(x,y,z);
-			}
-		   }
-	} else if (strcmp(n.name(),"PipeY") == 0) {
+        for (int x = reg.dx; x < reg.dx + reg.nx; x++)
+            for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+                for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+                    if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + z - reg.dz) / reg.nz)) {
+				        Dot(x,y,z);
+                    }
+                }
+  } else if (strcmp(n.name(),"PipeY") == 0) {
 	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
 	    DEBUG1(reg.print();)
-            for (int x = reg.dx - 1; x < reg.dx + reg.nx + 1; x++)
-		for (int y = reg.dy ; y < reg.dy + reg.ny; y++)
-		   for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
-			 if (!inSphere(0.5, (.5 + x - reg.dx) / reg.nx, (.5 + z - reg.dz) / reg.nz)) {
-				Dot(x,y,z);
-			}
-		   }
+      for (int x = reg.dx - 1; x < reg.dx + reg.nx + 1; x++)
+		      for (int y = reg.dy ; y < reg.dy + reg.ny; y++)
+		          for (int z = reg.dz - 1; z < reg.dz + reg.nz + 1;z++) {
+			            if (!inSphere(0.5, (.5 + x - reg.dx) / reg.nx, (.5 + z - reg.dz) / reg.nz)) {
+				              Dot(x,y,z);
+			            }
+		          }
 	} else if (strcmp(n.name(),"PipeZ") == 0) {
-	    debug1("Filling pipe with flag %d (&d)\n",fg,fg_mask);
+	    debug1("Filling Z-pipe with flag %d (&d)\n",fg,fg_mask);
 	    DEBUG1(reg.print();)
-            for (int x = reg.dx - 1 ; x < reg.dx + reg.nx + 1; x++)
-		for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
-		   for (int z = reg.dz; z < reg.dz + reg.nz;z++) {
-			 if (!inSphere(0.5, (.5 + x - reg.dx) / reg.nx, (.5 + y - reg.dy) / reg.ny)) {
-				Dot(x,y,z);
-			}
-		   }
-	} 
+        for (int z = reg.dz; z < reg.dz + reg.nz; z++)
+            for (int y = reg.dy - 1 ; y < reg.dy + reg.ny + 1; y++)
+                for (int x = reg.dx - 1; x < reg.dx + reg.nx + 1;x++) {
+                    if (!inSphere(0.5, (.5 + y - reg.dy) / reg.ny, (.5 + x - reg.dx) / reg.nx)) {
+				        Dot(x,y,z);
+                    }
+                }
+    }
     else if (strcmp(n.name(),"Cylinder") == 0) {
         debug1("Filling cylinder with flag %d (&d)\n",fg,fg_mask);
         DEBUG1(reg.print();)
