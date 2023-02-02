@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/particles_in_channel/">
+	<!--
+	Model: d3q27_PSM_NEBB
+	Runtime: ~30min on Nvidia V100
+	  Suggest to reduce spatial and temporal gauge if compute resource limited
+	Created: February 2023
+	Run Command: mpirun -np 1 CLB/d3q27_PSM_NEBB/main <location>/channel-particles.xml : -np 1 CLB/d3q27_PSM_NEBB/lammps <location>/in.channel-particles 
+			Update <location> based on where you have the fluid and particle run files.
+	-->
+	<Units>
+		<Param value="0.5e-4m" gauge="1"/>
+		<Param value="4.167e-8s" gauge="1"/>
+		<Param value="1kg/m3" gauge="1"/>
+	</Units>
+	<Geometry nx="64e-4m" ny="40e-4m" nz="101e-4m">
+		<BGK><Box/></BGK>
+		<Wall mask="ALL">
+			<Box dz="-1"/>
+			<Box nz="1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="omegaF" value="1.0"/>
+		<Param name="AccelX" value="10000m/s2"/>
+		<RemoteForceInterface integrator="LAMMPS"/>
+	</Model>
+	<VTK what="U,BOUNDARY,Solid"/>
+	<Log Iterations="1000"/>
+	<Solve Iterations="100000"/>
+</CLBConfig>
