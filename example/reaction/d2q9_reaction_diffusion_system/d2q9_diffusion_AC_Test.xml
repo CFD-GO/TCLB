@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/allen_cahn/">
+	<Geometry nx="512" ny="512">
+
+		<None name="city">
+			<!-- <Sphere dx="40" dy="40" nx="150" ny="150"/> -->
+			<Box dx="0" dy="0" nx="50" ny="50"/>
+			<Box dx="0" dy="60" nx="50" ny="50"/>
+			<Box dx="60" dy="0" nx="50" ny="50"/>
+			<Box dx="120" dy="0" nx="50" ny="50"/>
+			<Box dx="0" dy="120" nx="50" ny="50"/>
+			<Box dx="200" dy="200" nx="50" ny="50"/>
+
+		</None>
+
+		<None name="desert">
+			<!-- <Sphere dx="300" dy="340" nx="100" ny="100"/> -->
+			<Box dx="300" dy="340" nx="100" ny="100"/>
+		</None>
+	</Geometry>
+	<Model>
+		<Param name="Diffusivity_DRE_1" value="0.1666"/>
+		<Param name="C_1" value="0.1666"/>
+		
+        
+		<Param name="Init_DRE_1" value="-0.5" />	
+        <Param name="Init_DRE_1" value="0.5" zone="city"/>	
+
+    </Model>
+
+	<HDF5/>
+    <Solve Iterations="50">
+	<HDF5 Iterations="5"/>
+	</Solve>
+    
+</CLBConfig>

@@ -165,6 +165,12 @@ CudaDeviceFunction void calcPhaseF(){
 CudaDeviceFunction void Init() {
 	// This allows gradients to be calculated in equilibrium functions.
 	PhaseF = PhaseField;
+        if ( Radius > 0 ) {
+            real_t Ri;
+            Ri = sqrt( (X - CenterX)*(X - CenterX) + (Y - CenterY)*(Y - CenterY) );
+            PhaseF = 0.5 * (PhaseField_h + PhaseField_l)
+                   - 0.5 * (PhaseField_h - PhaseField_l) * BubbleType * tanh(2.0*(Ri - Radius)/W);
+        }
 }
 CudaDeviceFunction void Init_distributions(){
 // With the value of PhaseField set everywhere we can now shift to
@@ -259,6 +265,14 @@ CudaDeviceFunction void CollisionMRT(){
 	u.z = 0.0;
 	
 	real_t   p = <?R C(sum(f)) ?> + (Density_h-Density_l)*(grad.x*u.x + grad.y*u.y)/6.0;
+
+        if ( (<?R C(sum(h)) ?>) <= 0.5) {
+              AddToBubbleVelocityX( (1 - (<?R C(sum(h)) ?>) )*u.x );
+              AddToBubbleVelocityY( (1 - (<?R C(sum(h)) ?>) )*u.y );
+              AddToBubbleLocationY( (1 - (<?R C(sum(h)) ?>) )*Y );
+              AddToSumPhiGas( (1 - pf) );
+         }
+
 
 	real_t Rc[9],Rm[9];
 	real_t R[9] ,Gamma[9], S[9];	

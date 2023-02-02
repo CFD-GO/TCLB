@@ -1,0 +1,83 @@
+<?R
+L0=c(64, 64)
+
+rhostar = c(10,1000)
+mustar  = c(10,100)
+
+Re = c(35, 35)
+Eo = c(10, 125) 
+
+W = c(5,       5)
+
+rho = c(1, 1)
+rhol= rho / rhostar
+
+muh= c(0.01, 0.01)
+mul= muh/mustar
+nuh= muh/rho
+nul= mul/(rho/rhostar)
+
+r0 = 0.25*L0
+g = (Re * muh / (rho*(2*r0)^1.5))^2
+sigma = 4*rho*g*(r0)^2/Eo
+
+M = c(0.1,0.1)
+
+names = c('bubbleRise_1.xml', 'bubbleRise_2.xml')
+time = c(12000, 12000)
+
+for (i in c(1,2)){
+    print(names[i])
+    sink(names[i]) ?>
+<?xml version="1.0"?>
+<!--Model:	d3q27_pf_velocity 
+    Created: 	25-03-2021 
+
+        This is the benchmark problem from Safi et al. (2017)
+        Computers & Mathematics with Applications
+
+    By:		T.Mitchell -->
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="<?%f L0[i] ?>" ny="<?%f 2*L0[i] ?>" nz="<?%f L0[i] ?>">
+		<MRT>
+			<Box/>
+		</MRT>
+		<Bubbletrack>
+			<Box nx="1" nz="1" dx="<?%f L0[i]/2 ?>" dz="<?%f L0[i]/2 ?>"/>
+		</Bubbletrack>
+		<Wall mask="ALL">
+			<Box dx="-1"/>
+			<Box dy="-1"/>
+			<Box dz="-1"/>
+			<Box nx="1"/>
+			<Box ny="1"/>
+			<Box nz="1"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="Radius" value="<?%f r0[i] ?>"/>
+		<Param name="BubbleType" value="-1"/>
+		<Param name="CenterX" value="<?%f 0.5*L0[i] ?>"/>
+		<Param name="CenterY" value="<?%f 0.5*L0[i] ?>"/>
+		<Param name="CenterZ" value="<?%f 0.5*L0[i] ?>"/>
+		<Param name="sigma" value="<?%f sigma[i] ?>"/>
+		<Param name="M" value="<?%f M[i] ?>"/>
+		<Param name="IntWidth" value="<?%f W[i] ?>"/>
+		<Param name="GravitationY" value="<?%.8f -1*g[i] ?>"/>
+		<Param name="Viscosity_h" value="<?%.8f nuh[i] ?>"/>
+		<Param name="Viscosity_l" value="<?%.8f nul[i] ?>"/>
+		<Param name="PhaseField" value="1.0"/>
+		<Param name="Density_l" value="<?%f rhol[i] ?>"/>
+		<Param name="Density_h" value="<?%f rho[i]  ?>"/>
+	</Model>
+	<VTK/>
+	<Solve Iterations="<?%f time[i] ?>">
+		<VTK Iterations="<?%f time[i]/6 ?>"/>
+		<Log Iterations="<?%f time[i]/100 ?>" />
+		<Failcheck Iterations="<?%f time[i]/100 ?>" />
+	</Solve>
+</CLBConfig>
+<?R
+    sink()
+}
+?>
