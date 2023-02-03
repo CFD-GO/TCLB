@@ -536,7 +536,9 @@ Fields$tangent_name = add.to.var.name(Fields$name,"d")
 
 Fields$area = (Fields$maxx-Fields$minx+1)*(Fields$maxy-Fields$miny+1)*(Fields$maxz-Fields$minz+1)
 Fields$simple_access = (Fields$area == 1)
-# TODO: Might have have to be adjusted
+# NOTE: This heuristic does not always work, currently enabled only for fields
+# which have more dynamic access pattern
+# Fields$big = Fields$area > 27
 Fields$big = ifelse(Fields$name %in% c("gradPhiVal_x", "gradPhiVal_y", "gradPhiVal_z", "gradPhi_PhaseF"), TRUE, FALSE)
 
 if (ADJOINT==1) {

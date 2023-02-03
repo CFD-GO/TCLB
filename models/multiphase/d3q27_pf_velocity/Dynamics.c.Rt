@@ -646,7 +646,12 @@ CudaDeviceFunction void calcWallPhase(){
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
 
-		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
+		// This is needed, because otherwise altContactAngle_staircaseimp performance will drop
+		// (presumably because of the dynamic access that it has)
+        <?R phase_field_field_name <- if (Options$altContactAngle) 'gradPhi_PhaseF' else 'PhaseF' ?>
+
+        pf_f = <?%s phase_field_field_name ?>_dyn(nw_x, nw_y, nw_z);
+
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 
 		if (h < 0.001) {

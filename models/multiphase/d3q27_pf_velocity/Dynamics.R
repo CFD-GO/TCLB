@@ -96,6 +96,9 @@ if (Options$altContactAngle){
     AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
     # Fake field, to simply copy field values to PhaseF instead
     # of accessing them directly from PhaseF field
+    # this is needed for the cases when PhaseF needs to be accessed in the dynamic manner. Otherwise
+    # the performance might severely drop
+    # across threads, similarly to gradPhiVal_x, gradPhiVal_y, gradPhiVal_z
     # NOTE: This can be changed to stencil3d = 2 if needed
     AddField('gradPhi_PhaseF', stencil3d=1, group="gradPhi")
 
