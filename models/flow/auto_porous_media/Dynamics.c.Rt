@@ -132,9 +132,7 @@ CudaDeviceFunction real_t getPorosity(){
     }
 }
 
-CudaDeviceFunction real_t getInitialPermability(){
-	return InitialPermability;
-}
+
 
 CudaDeviceFunction real_t getInitialPorosity(){
 	return InitialPorosity;
@@ -296,6 +294,10 @@ CudaDeviceFunction void Init() {
 
 	    SetEquilibrum(1.0,0,0,0);
 		DoADRE_Init();
+        
+        <?R if (Options$GlobalTrapezoid ) { ?>    
+            GlobalIntegration_1PreviousStep = 0;
+        <?R } ?>        
 }
 
 
@@ -306,8 +308,12 @@ CudaDeviceFunction void InitFromExternal() {
 
 
 CudaDeviceFunction void GlobasPorosityDissolutionTimeStep() { 
-	InitialPorosity = Porosity;
-    InitialPermability =  KarmanKozenyCoefficient * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
+    <?R if (Options$GlobalTrapezoid ) { ?>    
+       GlobalIntegration_2PreviousStep = GlobalIntegration_1PreviousStep;       
+    <?R } ?>
+    
+    InitialPorosity = Porosity;
+    Permability =  KarmanKozenyCoefficient * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
 }
 
 
@@ -418,7 +424,7 @@ CudaDeviceFunction void Collision_MTW_RT()
 
 	CudaDeviceFunction void DoADRE_CalcPhi() 
 	{	
-		real_t _q, _phi, _phis;
+/** 		real_t _q, _phi, _phis;
 		_phis = <?%s  C(sum(fs[[1]])) ?>;
 
 		DoADRE_CalcQ(&_phis, &_q);
@@ -431,32 +437,57 @@ CudaDeviceFunction void Collision_MTW_RT()
 		}
 
 		phi[0] = _phi;
-
+**/
+    assert(1);
 	}
+
 	CudaDeviceFunction void DoADRE_CalcQ(const real_t* _phi, real_t* _q) 
 	{	
+
+
 		if ((_phi[0] > 1) || (_phi[0] < 0)) {
-			_q[0] = 0; 
+            Porosity = InitialPorosity ;
+            Permability =  KarmanKozenyCoefficient * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
+            _q[0] = 0;
+            GlobalIntegration_1PreviousStep = 0;
 			return;
 		}// Limiter 
 		
 		// Predictor
 		const real_t EffectiveSurfaceArea = 4*Porosity*(1-Porosity);
 		real_t flux = EffectiveSurfaceArea*LinearReactionRate*(1 - _phi[0]);
-
-		if (flux*SolidFluidReactionsRate > (1-InitialPorosity)) {
-			flux = (1-InitialPorosity) / SolidFluidReactionsRate;
-		}
-		_q[0] = flux;
-
+        bool limited = 0;
+        
+        <?R if (Options$GlobalTrapezoid ) { ?>       
+            if ( ((flux + GlobalIntegration_1PreviousStep) / 2.)*SolidFluidReactionsRate > (1-InitialPorosity)) {
+        <?R } else { ?>
+            if ( flux*SolidFluidReactionsRate > (1-InitialPorosity)) {
+        <?R } ?>
+            flux = (1.-InitialPorosity) / SolidFluidReactionsRate;
+            limited = 1;
+        }
 		
+
+        _q[0] = flux;
+        GlobalIntegration_1PreviousStep = flux;
 		if (ImpliciteReactionIntegration == 1) {
-			Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
+        
+
+            <?R if (Options$GlobalTrapezoid ) { ?>
+                if ( limited ){
+                    Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
+                } else {
+                    Porosity = InitialPorosity + SolidFluidReactionsRate*(flux + GlobalIntegration_2PreviousStep) / 2.;
+                }
+                
+            <?R } else { ?>
+                Porosity = InitialPorosity + SolidFluidReactionsRate*flux;
+            <?R }  ?>
+
+
         	Permability =  KarmanKozenyCoefficient * Porosity*Porosity*Porosity / ((1-Porosity)*(1-Porosity)+1E-8);
 		}
 
-		//printf("%f %f %f %f %f\n", flux, Porosity, Permability, InitialPorosity, InitialPermability);
-		//Permability = Porosity / InitialPorosity * InitialPermability;
 	}
 <?R		
 	}

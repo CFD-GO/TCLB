@@ -49,16 +49,25 @@ AddDensity(
 	group="f"
 )
 
+
+
 #AddDensity( name="fx",  group="Force", parameter=FALSE)
 #AddDensity( name="fy",  group="Force", parameter=FALSE)
 #AddDensity( name="fz",  group="Force", parameter=FALSE)
 
 
 AddDensity( name="InitialPorosity",  group="Brinkman", parameter=TRUE)
-AddDensity( name="InitialPermability",  group="Brinkman", parameter=TRUE)
+#AddDensity( name="InitialPermability",  group="Brinkman", parameter=TRUE)
 
 AddDensity( name="Porosity",  group="Brinkman", parameter=TRUE)
 AddDensity( name="Permability",  group="Brinkman", parameter=TRUE)
+
+if (Options$GlobalTrapezoid) {
+    AddDensity( name="GlobalIntegration_1PreviousStep",  group="Brinkman", parameter=TRUE)
+    AddDensity( name="GlobalIntegration_2PreviousStep",  group="Brinkman", parameter=TRUE)
+    
+}
+
 
 AddQuantity(name="P",unit="Pa")
 AddQuantity(name="U",unit="m/s",vector=T)
