@@ -178,6 +178,13 @@ CudaDeviceFunction void Run() {
         	MovingSWall();
                 break;
 
+	case NODE_MovingWall_E:
+        	MovingEWall();
+                break;
+    
+	case NODE_MovingWall_W:
+        	MovingWWall();
+                break;
 	}	   
   
 	switch (NodeType & NODE_COLLISION) {
@@ -393,7 +400,7 @@ CudaDeviceFunction void PressureExitB()
 
 CudaDeviceFunction void MovingNWall()
 {
-        f[1]  = f[3];
+        f[4]  = f[3];
         f[16] = f[17];
         f[18] = f[15];
 
@@ -420,6 +427,35 @@ CudaDeviceFunction void MovingSWall(){
         f[7] = f[10] + VelocityX/9.0;
 }
 
+CudaDeviceFunction void MovingEWall()
+{
+        f[2]  = f[1];
+        f[8] = f[9];
+        f[10] = f[7];
+
+        f[20]  = f[25] + VelocityZ/36.0;
+        f[22] = f[23]  + VelocityZ/36.0;
+        f[12] = f[13] + VelocityZ/9.0;
+
+        f[24] = f[21] - VelocityZ/36.0;
+        f[26]= f[19]  - VelocityZ/36.0;
+        f[14] = f[11] - VelocityZ/9.0;
+}
+
+CudaDeviceFunction void MovingWWall()
+{
+        f[1]  = f[2];
+        f[9] = f[8];
+        f[7] = f[10];
+
+        f[25]  = f[20] - VelocityZ/36.0;
+        f[23] = f[22]  - VelocityZ/36.0;
+        f[13] = f[12] - VelocityZ/9.0;
+
+        f[21] = f[24] + VelocityZ/36.0;
+        f[19]= f[26]  + VelocityZ/36.0;
+        f[11] = f[14] + VelocityZ/9.0;
+}
 
 CudaDeviceFunction void CalcEquilibrium(real_t f_tab[27], real_t d, real_t u[3])
 {
