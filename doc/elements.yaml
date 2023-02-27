@@ -641,6 +641,17 @@ SyntheticTurbulence:
         unit: float
       comment: Time wave-length of the syntetic turbulence (can be also `TimeWaveNumber` or `TimeWaveFrequency`)
 
+SaveCheckpoint:
+  type: action
+  comment: Save a checkpoint with restart file (xml) and binary file (data)
+  example: |
+    <SaveCheckpoint Iterations="1000" keep="2"/>
+  attr:
+    - name: keep
+      val:
+        string: int 
+      comment: the number of checkpoints to keep, default is 1 and "all" can be specified.
+
 LoadBinary:
   type: action
   comment: Load a Field from a binary file (low level)

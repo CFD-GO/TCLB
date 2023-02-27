@@ -14,12 +14,13 @@
 using namespace LAMMPS_NS;
 
 
+typedef rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle, rfi::ArrayOfStructures, real_t > RFI_t;
 
 struct Info {
    MPMDHelper *MPMD;
    Memory *memory;
    LAMMPS *lmp;
-   rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > * RFI;
+   RFI_t * RFI;
    std::vector<size_t> wsize;
    std::vector<size_t> windex;
 };
@@ -57,26 +58,62 @@ int main(int argc, char *argv[])
    DEBUG_SETRANK(MPMD.local_rank);
    InitPrint(DEBUG_LEVEL, 6, 8);
    MPMD.Identify();
-   rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > RFI;
+   RFI_t RFI;
    RFI.name = "LAMMPS";
 
-   if (argc != 2) {
-     printf("Syntax: lammps in.lammps\n");
+   if (argc < 2) {
+     printf("Syntax: lammps in.lammps [args]\n");
      MPI_Abort(MPI_COMM_WORLD,1);
      exit(1);
    }
-   FILE *fp;
+   std::vector<char*> lammps_args;
+   char * infile = NULL;
+   bool logset = false;
+   for (int i=0; i<argc; i++) {
+     if ((i == 1) && (argv[i][0] != '-')) {
+       infile = argv[i];
+     } else if (strcmp(argv[i],"-in") == 0) {
+       i++;
+       if (i < argc) {
+         infile = argv[i];
+       } else {
+         printf("ERROR: No filename after '-in'\n");
+         MPI_Abort(MPI_COMM_WORLD,1);
+         exit(1);
+       }
+     } else {
+       if (strcmp(argv[i],"-log") == 0) logset = true;
+       lammps_args.push_back(argv[i]);
+     }
+   }
+   if (!logset) {
+     printf("LAMMPS: notice: switching off the default log\n");
+     lammps_args.push_back("-log");
+     lammps_args.push_back("none");
+   }
+
+   if (infile == NULL) {
+     printf("ERROR: No filename provided\n");
+     MPI_Abort(MPI_COMM_WORLD,1);
+     exit(1);
+   }
+   
+   FILE *fp = NULL;
    if (MPMD.local_rank == 0) {
-     fp = fopen(argv[1],"r");
+     printf("LAMMPS: running input file: %s\n", infile);
+     printf("LAMMPS: arguments:");
+     for (int i=1; i<lammps_args.size(); i++) printf(" %s", lammps_args[i]);
+     printf("\n");
+     fp = fopen(infile,"r");
      if (fp == NULL) {
-       printf("ERROR: Could not open LAMMPS input script\n");
+       printf("ERROR: Could not open LAMMPS input script %s\n", infile);
        MPI_Abort(MPI_COMM_WORLD,1);
        exit(1);
      }
    }
 
    LAMMPS *lmp = NULL;
-   lmp = new LAMMPS(0,NULL,MPMD.local);
+   lmp = new LAMMPS(lammps_args.size(),&lammps_args[0],MPMD.local);
 
    int n;
    char line[1024];
@@ -124,9 +161,9 @@ int main(int argc, char *argv[])
 
    lammps_close(lmp);
    if (RFI.Connected()) {
-    RFI.Close();
-    MPI_Finalize();
+     RFI.Close();
    }
+   MPI_Finalize();
    return 0;
 }
 

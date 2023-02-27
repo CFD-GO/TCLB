@@ -1,0 +1,43 @@
+<CLBConfig version="2.0" output="output/SimpleDiffusion/"> <!-- The root xml element -->
+  <Geometry predef="none" nx="256" ny="256"> <!-- Mesh size, by default nz=1. MPI divisions are along X -->
+    <!-- <SRT_DF><Box/></SRT_DF>  -->
+     <TRT_M><Box/></TRT_M>
+        <None name="up"> <!--Named zone or BC, part of the mesh that could be referenced in Model section  -->
+            <Box dx="37" dy="107" nx="50" ny="50"/> <!-- Markers/geometrical descriptions of the parent zone -->
+        </None>
+        <None name="down">
+            <Box dx="12" dy="72" nx="50" ny="50"/>
+        </None>
+  </Geometry>
+  <Model> <!-- Here we set the model parameters, like viscosity -->
+    <Param name="Diffusivity_DRE_1" value="0.01666666"/> <!-- compare SRT_DF with TRT_M for diffusivity_phi = 0.001666666  -->
+    <Param name="C_1" value="0.01"/>
+
+    <Param name="Init_DRE_1" value="0.0"/> <!-- Initial value for Diffusive-Reactive-Equation #1  -->
+    <Param name="Init_DRE_1" value="0.9" zone="up"/>
+    <Param name="Init_DRE_1" value="-0.9" zone="down"/>
+
+    <!-- <Param name="magic_parameter" value="1."/>  -->
+    <!-- <Param name="magic_parameter" value="0.08333333333333333"/>  -->
+    <Param name="magic_parameter" value="0.16666666"/>
+    <!-- <Param name="magic_parameter" value="0.1875"/>  -->
+    <!-- <Param name="magic_parameter" value="0.25"/>  -->
+
+  </Model>
+  <VTK/> <!-- Save at t=0  -->
+  <Solve Iterations="5120"> <!-- Iterate N iterations -->
+    <VTK Iterations="640"/> <!-- Save HDF5/VTK every n iterations -->
+  </Solve>
+</CLBConfig>
+
+
+<!-- 
+According to chapter 10.7.2, eq 10.48, p429 from 'The Lattice Boltzmann Method: Principles and Practice'
+by T. Krüger, H. Kusumaatmaja, A. Kuzmin, O. Shardt, G. Silva, E.M. Viggen
+There are certain values of magic_parameter that show distinctive properties:
+• magic_parameter 1./12 = 0.08(3) cancels the third-order spatial error, leading to optimal results for pure advection problems.
+• magic_parameter 1./6 = 0.1(6) cancels the fourth-order spatial error, providing the most accurate results for the pure diffusion equation.
+• magic_parameter 3./16 = 0.1875 results in the boundary wall location implemented via bounce-back for the Poiseuille flow exactly in the middle between horizontal walls and fluid nodes.
+• magic_parameter 1./4 = 0.25 provides the most stable simulations. 
+magic_parameter is used only in TRT kernel.
+-->

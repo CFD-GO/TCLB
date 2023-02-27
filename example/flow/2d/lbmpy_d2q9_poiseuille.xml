@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Units>
+		<Param name="size" value="0.0005m" gauge="1"/>
+		<Param name="nu" value="1e-5m2/s" gauge="0.1666666666"/>
+	</Units>
+	<Geometry nx="0.02m" ny="0.0105m">
+		<BGK>
+			<Box/>
+		</BGK>
+		<Wall mask="ALL">
+			<Channel/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="VelocityX" value="0.0"/>
+		<Param name="omega" value="1.0"/>
+		<Param name="GravitationX" value="0.000311634m/s2"/>
+	</Model>
+	<VTK/>
+	<VTK Iterations="50000"/>
+	<Solve Iterations="50000"/>
+</CLBConfig>
