@@ -7,6 +7,7 @@
 #include "Callback.h"
 
 class  cbHDF5  : public  Callback  {
+	lbRegion reg;
 	std::string nm;
 	name_set s;
 	unsigned long int chunkdim[3];

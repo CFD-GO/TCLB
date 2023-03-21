@@ -244,13 +244,15 @@
                                       OMP_PARALLEL_FOR \
                                        for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
-                                         a__ d__; \
+                                         for (CpuBlock.z = 0; CpuBlock.z < b__.z; CpuBlock.z++) \
+                                          a__ d__; \
                                        }
     #else
       #define CudaKernelRun(a__,b__,c__,d__) \
                                       for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                        for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
-                                        a__ d__;
+                                        for (CpuBlock.z = 0; CpuBlock.z < b__.z; CpuBlock.z++) \
+                                         a__ d__;
     #endif
 
     #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) CudaKernelRun(a__,b__,c__,d__);
