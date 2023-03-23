@@ -105,7 +105,7 @@ std::string strFromDouble(double val) {
       return 0;
     }
   };
-  UnitVal UnitEnv::readUnitAlpha( std::string val , int p) {
+  UnitVal UnitEnv::readUnitAlpha( std::string val , double p) {
     UnitVal ret,ret1,ret2;
     int i=0, j=1;
     ret1 = readUnitOne(val.substr(0,1));
@@ -144,18 +144,19 @@ std::string strFromDouble(double val) {
   };
   UnitVal UnitEnv::readUnit( std::string val ) {
     UnitVal last, ret;
-    int i,j,k,l,p,w=1;
+    int i,j,k,l,w=1;
+    double p;
     ret = 1.;
     i=0;
     while (val[i]) {
       j=i;
       while (isalpha(val[i])) i++;
       k=i;
-      while (isdigit(val[i])) i++;
+      while (isdigit(val[i]) || '.' == (char)val[i]) i++;
       l=i;
       p=1;
       if (l-k > 0) {
-        p = atoi(val.substr(k,l-k).c_str());
+        p = atof(val.substr(k,l-k).c_str());
       }
       if (k-j > 0) {
         last = readUnitAlpha(val.substr(j,k-j).c_str(), p);
