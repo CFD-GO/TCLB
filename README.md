@@ -47,7 +47,7 @@ You can contribute to the documentation at
 ### Supported architectures
 This code is designed to run on **Linux** with **CUDA**. We strongly recommend using Linux for compilation, computation and postprocessing.
 
-Nevertheless, TCLB can be compiled on Windows (CPU only), using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux). It also can be compiled on MacOS (also CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
+Nevertheless, TCLB can be compiled on Windows using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux), with CUDA supported on some system configurations (see [nVidia's website](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) for more info).  It also can be compiled on MacOS (CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
 
 ### Dependencies
 
