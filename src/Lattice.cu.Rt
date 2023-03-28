@@ -1219,6 +1219,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
         container->CopyToConst();
 
 	lbRegion inter = region.intersect(over);
+	if (inter.size()==0) return;
 	<?%s q$type ?> * buf=NULL;
 	CudaMalloc((void**)&buf, inter.sizeL()*sizeof(<?%s q$type ?>));
         {	lbRegion small = inter;
