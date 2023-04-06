@@ -61,11 +61,6 @@ AddSetting("k_l",               comment="thermal conductivity for light phase un
 AddSetting("dT",                comment="Application of vertical temp gradient to speed up initialisation unit=[K]")
 AddSetting("dTx", default="0",  comment="Application of horizontal temp gradient to speed up initialisation unit=[K]")
 AddSetting("stabiliser", default="1",   comment="If not solving flow field, can adjust temperature timestep")
-AddSetting("thermal_source")
-AddSetting("ts_X")
-AddSetting("ts_Y")
-AddSetting("ts_dia")
-AddSetting("ts_ws")
 AddGlobal("TempChange")
 if (Options$planarBenchmark){
     AddSetting("T_c", default="10")
@@ -93,5 +88,3 @@ AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension")
 AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
 AddNodeType("ConstantTemp",group="ADDITIONALS")
 AddNodeType("EAdiabatic",group="ADDITIONALS")
-AddNodeType("WAdiabatic",group="ADDITIONALS")
-

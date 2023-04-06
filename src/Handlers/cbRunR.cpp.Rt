@@ -281,7 +281,6 @@ public:
 	std::string print() { return "Globals"; }
 	SEXP Dollar(std::string name) {
 		Rcpp::NumericVector ret(1);
-		// return iteration number
 		if (name == "Iteration") {
 			ret[0] = solver->lattice->Iter;
 			return ret;
