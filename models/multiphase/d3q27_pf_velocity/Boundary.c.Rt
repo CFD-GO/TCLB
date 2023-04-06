@@ -1,3 +1,23 @@
+<?R
+# Definition of various special boundary points that need special treatment
+NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE = 1
+NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE = 2
+NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID = 3
+NEXT_INTERPOLATING_POINTS_ARE_SOLID = 4
+BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID = 5
+SPECIAL_POINT_HUGE_MAGIC_NUMBER = 2342e10
+?>
+
+
+#ifdef OPTIONS_staircaseimp
+
+/* Array of lattice triangle coordinates, should not be used in the code apart
+ * from initializaton since dynamic access to cuda constant memory is slow.
+ *
+ * Instead use triangle_id_to_vertex that generates coordinates of the vertices of the triangle on the fly.
+ *
+ * This is mostly left for the reference.
+ */
 CudaConstantMemory real_t const d3q27_faces_normals[6][3] = {{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}};
 CudaConstantMemory real_t const d3q27_faces_drop_indexes[6] = {0, 0, 1, 1, 2, 2};
 CudaConstantMemory real_t const d3q27_triangles[6][8][3][3] = {\
@@ -51,6 +71,7 @@ CudaConstantMemory real_t const d3q27_triangles[6][8][3][3] = {\
   {{0, 0, -1}, {1, -1, -1}, {1, 0.0, -1}}}
 };
 
+#endif
 
 #ifdef OPTIONS_staircaseimp
 
@@ -65,7 +86,7 @@ CudaDeviceFunction vector_t getActualNormal() {
 #endif
 
 <?R for (vertex in c(1, 2, 3)) { ?>
-/* Reconstruct full coordinates of the <?R vertex ?> vertex of the triangle "triangle_id"
+/* Reconstruct full coordinates of the <?R vertex ?> vertex of the triangle "triangle_id" from d3q27_triangles array
  * on face "face" and store in "coords"
  * Verification: https://github.com/TravisMitchell/3D_PF_benchmarkCases/blob/main/scripts/triangle_id_to_lattice_directions.py
  */
@@ -107,16 +128,6 @@ CudaDeviceFunction real_t getIsItBoundary() {
 	return IsBoundary(0, 0, 0);
 }
 
-<?R
-# Definition of various special boundary points that need special treatment
-NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE = 1
-NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE = 2
-NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID = 3
-NEXT_INTERPOLATING_POINTS_ARE_SOLID = 4
-BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID = 5
-SPECIAL_POINT_HUGE_MAGIC_NUMBER = 2342e10
-?>
-
 
 #ifdef OPTIONS_altContactAngle
 CudaDeviceFunction vector_t getGradPhi() {
@@ -142,13 +153,11 @@ CudaDeviceFunction void calcPhaseGrad(){
 	gradPhi_PhaseF = PhaseF(0,0,0);
 }
 
+/* Initialize gradients at the first time step,
+ * because isotropic gradients would not work, as the wall values have no
+ * Phase field values just yet
+ */
 CudaDeviceFunction void calcPhaseGrad_init(){
-	// NOTE: Need to initialize gradients at the first time step,
-	// because isotropic gradients would not work, as the wall values have no
-	// Phase field values just yet
-	//
-	// Might be improved
-
     real_t h = 1.0;
 
 	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
@@ -173,12 +182,15 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 	gradPhi_PhaseF = PhaseF(0,0,0);
 }
 
+/*
+ * Corrects gradient values on the next layer closer to the boundary, trying
+ * its best to avoid taking the boundary values into the calculation of gradient
+ * and using 2nd order finite difference instead when possible. Should be
+ * used in conjunction of function calculating isotropic gradient everywhere else.
+ */
 CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
-	// handle boundaries
-	// NOTE: we don't want to use them because the boundary values
-	// are already calculated based on the phase field
-	// gradient, we don't want to have implicit linking
 	<?R
+    # helper code for code generation
     lattice <- expand.grid(-1:1, -1:1, -1:1)
 	diagonals <- lattice[apply(lattice, 1, function(r) sum(abs(r)) >= 2 && r[2] != 0), ]
 	str_diagonals <- apply(diagonals, 1, function(x) paste(x, collapse=","))
@@ -209,7 +221,6 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 
     real_t h = 1.0;
 
-
 	bool canForceFiniteDifferenceUp;
 	bool canForceFiniteDifferenceDown;
 	bool canForceCentralDifference;
@@ -219,7 +230,8 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 
 	set_gradPhi = false;
 
-	// if we want to use finite differences, try to pick the best directions
+	// if we want to use finite differences, try to pick the best directions in which we
+	// don't touch the boundary
 	canForceFiniteDifferenceDown = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
 		(!IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(-2, 0, 0, axis) ?>));
 
@@ -269,11 +281,14 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 		gradPhiVal_y = 0.;
 		gradPhiVal_z = 0.;
 	}
-
 }
 
 #endif
 
+/*
+ * Get reference id of the triangle which is intersected by the ray based
+ * on the normal vector
+ */
 CudaDeviceFunction void calcIntersectionTriangleId(
 												  real_t vec[],
 												  int& triangle_index,
@@ -283,7 +298,6 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 												  int& triangle_index2,
 												  real_t koeff2[]
 												   ) {
-	/* Get the ID of the triangle with which the vector intersects */
 	real_t plane_angle = -1;
 
 	// find on which face the point lies
@@ -293,7 +307,7 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 		real_t prod = d3q27_faces_normals[i][0]*vec[0] + d3q27_faces_normals[i][1] * vec[1] + d3q27_faces_normals[i][2] * vec[2];
 		// rays in other direction
 		if (prod > 0) continue;
-		// NOTE: need to properly compare to zero here, otherwise there will be division by zero
+		// avoid division by zero
 		if (fabs(prod) < 1e-10) continue;
 		// the same direction as the original vector
 		// rescale the vector to the plane and get intersection point
@@ -341,7 +355,7 @@ CudaDeviceFunction void calcIntersectionTriangleId(
             koeff_1 /= detT;
             koeff_2 /= detT;
 
-			// NOTE: Adjustment to prevent round-off errors
+			// adjustment to prevent round-off errors
 			if (koeff_1 < 1e-12) koeff_1 = 0.;
 			if (koeff_2 < 1e-12) koeff_2 = 0.;
 
@@ -353,9 +367,8 @@ CudaDeviceFunction void calcIntersectionTriangleId(
             koeff[1] = koeff_2;
             koeff[2] = 1 - koeff_1 - koeff_2;
 
-
 			// ----------------------------------
-			// TODO: Duplicate code to be refactored someday (but not today)
+			// TODO: Duplicate code as above to be refactored someday (but not today)
 			// ----------------------------------
 
 			// Original 2d point coodinate in the intersection with the second layer would be 2*point2d
@@ -396,7 +409,7 @@ CudaDeviceFunction void calcIntersectionTriangleId(
             koeff_1 /= detT;
             koeff_2 /= detT;
 
-			// NOTE: Adjustment to prevent round-off errors
+			// adjustment to prevent round-off errors
 			if (koeff_1 < 1e-12) koeff_1 = 0.;
 			if (koeff_2 < 1e-12) koeff_2 = 0.;
 
@@ -410,6 +423,11 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 }
 
 
+/* Correct PhaseField values on the boundary nodes
+ * that were not previously set because the normal
+ * was pointing into another boundary node with not
+ * yet set value
+ */
 CudaDeviceFunction void calcWallPhase_correction() {
 	PhaseF = PhaseF(0,0,0);
 
@@ -421,6 +439,9 @@ CudaDeviceFunction void calcWallPhase_correction() {
 }
 
 
+/*
+ * Calculate the phase field value for the boundary nodes
+ */
 CudaDeviceFunction void calcWallPhase(){
 	PhaseF = PhaseF(0,0,0); //For fluid nodes.
 	if ( IamWall || IamSolid ) {
@@ -455,24 +476,6 @@ CudaDeviceFunction void calcWallPhase(){
 
 #ifdef OPTIONS_staircaseimp
 
-// Really ugly way to mix compile time and runtime defs, I am sorry
-#ifdef OPTIONS_altContactAngle
-        bool use_surface_energy_staircase_imp = false;
-
-		// try to use the surface energy staircase implementation, if the next layer
-		// is solid
-		// NOTE: Currently unused, because mixing schemes slows down the simulation
-		// significantly (presumably because irregular memory access to PhaseF and gradPhi).
-		// Change to "true" if this is really needed
-        if (IsSpecialBoundaryPoint == <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
-            use_surface_energy_staircase_imp = false;
-        }
-
-        use_surface_energy_staircase_imp = true;
-
-#else
-        bool use_surface_energy_staircase_imp = true;
-#endif
 		int face_index = int(triangle_index) / 8;
 		int face_triangle_index = int(triangle_index) % 8;
 		int vertex_coords[3] = {0,0,0};
@@ -491,34 +494,19 @@ CudaDeviceFunction void calcWallPhase(){
         }
 
 
-		if (use_surface_energy_staircase_imp) {
+        <?R phase_field_field_name <- if (Options$altContactAngle) 'gradPhi_PhaseF' else 'PhaseF' ?>
 
-			<?R phase_field_field_name <- if (Options$altContactAngle) 'gradPhi_PhaseF' else 'PhaseF' ?>
-
-			<?R for (v in c(1, 2, 3)) { ?>
-				real_t pf_v<?%s v?> = <?%s phase_field_field_name ?>_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
-			<?R } ?>
+        <?R for (v in c(1, 2, 3)) { ?>
+            real_t pf_v<?%s v?> = <?%s phase_field_field_name ?>_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
+        <?R } ?>
 
 
-			// don't do staircase improvement if any of the interpolating nodes are solid
-			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
-				real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
-				h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
-				pf_f = pf_interpolated;
-
-
-				// apply surface energy BC to the interpolated value if I am edge case of geometric staircase and quit
-				// NOTE: Currently will never happen, see comments about the performance above
-				#ifdef OPTIONS_altContactAngle
-#if 0
-					// apply surface energy boundary conditions
-					a = -h * (4.0/IntWidth) * cos( radAngle );
-					PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
-					return;
-#endif
-				#endif
-			}
-		}
+        // don't do staircase improvement if any of the interpolating nodes are solid
+        if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
+            real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
+            h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
+            pf_f = pf_interpolated;
+        }
 #endif
 // Case 1: Apply surface energy BC (with calculated pf_f with standard or staircase improvement)
 #ifndef OPTIONS_altContactAngle
@@ -637,13 +625,11 @@ CudaDeviceFunction real_t getSpecialBoundaryPoint() {
 	return IsSpecialBoundaryPoint;
 }
 
-/*
-  Corrects gradient values on the next layer closer to the boundary, trying
-  its best to avoid taking the boundary values into the calculation of gradient
-  and using 2nd order finite difference instead when possible. Should be
-  used in conjunction of function calculating isotropic gradient everywhere else.
- */
 
+/*
+ * Initialise and set: wall normals, get interpolating triangles and their coefficients,
+ * find special nodes,
+ */
 CudaDeviceFunction void Init_wallNorm(){
 	PhaseF = PhaseF(0,0,0);
     IsBoundary = IsBoundary(0,0,0);
@@ -754,7 +740,7 @@ CudaDeviceFunction void Init_wallNorm(){
 #endif
 
 #ifdef OPTIONS_staircaseimp
-		// NOTE: Detect if any of the triangle vertices is a solid node and
+		// Detect if any of the triangle vertices is a solid node and
 		// if so, use the simple normal instead if possible
 		int face_triangle_index = t_index;
 		int vertex_coords[3] = {0,0,0};

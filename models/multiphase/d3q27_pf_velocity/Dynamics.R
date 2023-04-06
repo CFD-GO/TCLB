@@ -64,7 +64,6 @@ if (Options$staircaseimp) {
 AddDensity("IsSpecialBoundaryPoint", dx=0, dy=0, dz=0, group="solid_boundary")
 AddQuantity("SpecialBoundaryPoint", unit = 1)
 
-# TODO: Can be optimized, I think this is only needed for staircaseimp / altContactAngle, optimize before finalizing
 if (Options$altContactAngle){
     AddField("IsBoundary", stencil3d=2, group="solid_boundary")
 } else {
@@ -289,9 +288,6 @@ if (Options$staircaseimp) {
     AddGlobal(name="NumSpecialPoints", comment='Number of special points')
     AddGlobal(name="NumWallBoundaryPoints", comment='Number of boundary nodes')
     AddGlobal(name="NumBoundaryPoints", comment='Number of boundary nodes')
-    AddGlobal(name="NumFluidBoundaryPoints", comment='Number of boundary nodes')
-    AddGlobal(name="NumNonStaircaseImprovedPoints", comment='Number of non staircase improved points')
     # basically this means that they are not special
-    AddGlobal(name="NumNonStaircaseImprovedPointsSpecial", comment = "Number of non staircase improved points, that are also special points")
 	AddGlobal(name="LiqTotalPhase",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
     AddGlobal(name="SpecialBoundaryPoints", comment="Number of boundary points for which wetting boundary conditions must be applied in a special way for stability", unit="1")
