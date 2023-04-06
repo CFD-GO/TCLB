@@ -102,8 +102,7 @@ NodeTypes = data.frame()
 Fields = data.frame()
 Stages=NULL
 
-
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
@@ -133,12 +132,45 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 			group=d$group,
 			parameter=d$parameter,
 			average=d$average,
-			sym=sym
+			sym=sym,
+			shift=shift
 		)
 	}
 }
 
-AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","","")) {
+create_shift = function(type, ...) {
+  ret = list(type=type, ...)
+  class(ret) = "tclbshift"
+  ret
+}
+
+no_shift = function() create_shift(type="no_shift")
+
+single_shift = function(v) {
+  if (v == 0 || is.na(v)) no_shift() else create_shift(type="single_shift", value=v)
+}
+
+convert_to_shift_list = function(n, x) {
+  if (is.null(x)) x = list(NULL)
+  if (identical(class(x), "list")) {
+    if (length(x) == 1) {
+      x = rep(x,n)
+    } else if (length(x) != n) stop("Wrong length of list in 'shift' argument")
+  } else if (is.numeric(x)) {
+    if (length(x) == 1) {
+      x = rep(x,n)
+    } else if (length(x) != n) stop("Wrong length of list in 'shift' argument")
+    x = lapply(x, single_shift)
+  }
+  if (! identical(class(x), "list")) stop("Shift needs to be convertable to list")
+  x = lapply(x,function(x) if (is.null(x)) no_shift() else x)
+  tp = sapply(x,function(x) identical(class(x),"tclbshift"))
+  if (any(!tp)) stop("All elements of shift have to be of tclbshift class")
+  x    
+}
+
+AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL) {
+        shift = convert_to_shift_list(length(name), shift)
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
 	comment = ifelse(comment == "", name, comment);
@@ -157,7 +189,8 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			average=average,
 			symX=sym[1],
 			symY=sym[2],
-			symZ=sym[3]
+			symZ=sym[3],
+			shift=I(shift)
 		)
 
 		if (any(Fields$name == d$name)) {

@@ -2,11 +2,13 @@
 
 TCLB Solver [![ZENADO DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3550331.svg)](https://doi.org/10.5281/zenodo.3550331) [![Article](https://zenodo.org/badge/DOI/10.1016/j.camwa.2015.12.043.svg)](https://doi.org/10.1016/j.camwa.2015.12.043)
 ===
-TCLB is a MPI+CUDA or MPI+CPU high-performance Computational Fluid Dynamics simulation code, based on the Lattice Boltzmann Method.
+TCLB is a MPI+CUDA, MPI+CPU or MPI+HIP high-performance Computational Fluid Dynamics simulation code, based on the Lattice Boltzmann Method.
 It provides a clear interface for calculation of complex physics, and the implementation of new models.
 
-- Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=master)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) 
-- Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop):<br/>[![Build Status](https://travis-ci.org/CFD-GO/TCLB.svg?branch=develop)](https://travis-ci.org/CFD-GO/TCLB) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/)
+- Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![CPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml/badge.svg?branch=master)](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml) [![CUDA build status](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml/badge.svg?branch=master)](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) 
+
+
+- Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop):<br/>[![CPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml) [![CUDA build status](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml) [![HIP build status](https://github.com/CFD-GO/TCLB/actions/workflows/hip_comp.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/hip_comp.yml) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/)
 
 ## How to use it
 
@@ -18,7 +20,7 @@ cd TCLB
 **Configure**
 ```bash
 make configure
-./configure --enable-graphics --with-cuda-arch=sm_30
+./configure
 ```
 **Compile**
 ```bash
@@ -43,9 +45,9 @@ You can contribute to the documentation at
 [CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
 
 ### Supported architectures
-This code is designed to run on **Linux**. We strongly recommend using Linux for compilation, computation and postprocessing.
+This code is designed to run on **Linux** with **CUDA**. We strongly recommend using Linux for compilation, computation and postprocessing.
 
-Nevertheless, TCLB can be compiled on Windows (CPU only), using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux). It also can be compiled on MacOS (also CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
+Nevertheless, TCLB can be compiled on Windows using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux), with CUDA supported on some system configurations (see [nVidia's website](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) for more info).  It also can be compiled on MacOS (CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
 
 ### Dependencies
 
@@ -77,6 +79,11 @@ If you want a more recent version, you could try the development branch with `gi
 To compile the code for CPU, you can use the `--disable-cuda` option for `./configure`:
 ```
 ./configure --disable-cuda
+```
+### HIP
+To compile the code for AMD GPUs (ROCm), you can use the `--enable-hip` option for `./configure`:
+```
+./configure --enable-hip
 ```
 ### Parallel run
 To run TCLB in parallel (both on multiple CPU and multiple GPU), you can use the standard syntax of MPI parallel run:

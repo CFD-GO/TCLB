@@ -1,0 +1,13 @@
+name: 'TCLB Test'
+description: 'This action tests TCLB'
+inputs:
+  model:
+    description: model to compile
+    default: 'd2q9'
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      id: compile
+      name: "Compile"
+      run: make ${{ inputs.model }}

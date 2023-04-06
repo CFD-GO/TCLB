@@ -14,12 +14,13 @@
 using namespace LAMMPS_NS;
 
 
+typedef rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle, rfi::ArrayOfStructures, real_t > RFI_t;
 
 struct Info {
    MPMDHelper *MPMD;
    Memory *memory;
    LAMMPS *lmp;
-   rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > * RFI;
+   RFI_t * RFI;
    std::vector<size_t> wsize;
    std::vector<size_t> windex;
 };
@@ -57,7 +58,7 @@ int main(int argc, char *argv[])
    DEBUG_SETRANK(MPMD.local_rank);
    InitPrint(DEBUG_LEVEL, 6, 8);
    MPMD.Identify();
-   rfi::RemoteForceInterface< rfi::ForceIntegrator, rfi::RotParticle > RFI;
+   RFI_t RFI;
    RFI.name = "LAMMPS";
 
    if (argc < 2) {

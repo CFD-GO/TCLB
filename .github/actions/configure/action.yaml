@@ -1,0 +1,97 @@
+name: 'TCLB Test'
+description: 'This action tests TCLB'
+inputs:
+  gpu:
+    description: compile a CUDA version
+    default: false
+  cuda_arch:
+    description: CUDA arch (sm_) to use
+    default: ''
+  hip:
+    description: compile a HIP version
+    default: false
+  precision:
+    description: compute precision to use
+    default: 'double'
+  storage:
+    description: the storage type to use
+    default: 'same'
+  rinside:
+    description: use RInside
+    default: false
+  marklines:
+    description: make RT add line references for nicer error messages
+    default: true
+  coverage:
+    description: compile with coverage support
+    default: false
+  paranoid:
+    description: compile in paranoid mode, with all compile checks turned on
+    default: true
+  python:
+    description: compile with python support
+    default: false
+  options:
+    description: other configure options
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      id: configure
+      name: "Running configure"
+      run: |
+        make configure
+        CONFOPT=""
+        case "${{ inputs.gpu }}" in
+          true) CONFOPT="$CONFOPT --enable-cuda"
+                if test "${{ inputs.cuda_arch }}"
+                then
+                  CONFOPT="$CONFOPT --with-cuda-arch=${{ inputs.cuda_arch }}"
+                fi;;
+          false) CONFOPT="$CONFOPT --disable-cuda" ;;
+          *) echo "Wrong 'gpu' input in configure action"; exit -1
+        esac
+        case "${{ inputs.hip }}" in
+          true) CONFOPT="$CONFOPT --enable-hip" ;;
+          false) CONFOPT="$CONFOPT" ;;
+          *) echo "Wrong 'hip' input in configure action"; exit -1
+        esac
+        case "${{ inputs.precision }}" in
+          double) CONFOPT="$CONFOPT --enable-double" ;;
+          float) CONFOPT="$CONFOPT --disable-double" ;;
+          *) echo "Wrong 'precision' input in configure action"; exit -1
+        esac
+        case "${{ inputs.storage }}" in
+          half|half-shift|float|float-shift|double) CONFOPT="$CONFOPT --with-storage=${{ inputs.storage }}" ;;
+          same) ;;
+          *) echo "Wrong 'storage' input in configure action"; exit -1
+        esac
+        case "${{ inputs.rinside }}" in
+          true) CONFOPT="$CONFOPT --enable-rinside" ;;
+          false) CONFOPT="$CONFOPT --disable-rinside" ;;
+          *) echo "Wrong 'rinside' input in configure action"; exit -1
+        esac
+        case "${{ inputs.marklines }}" in
+          true) CONFOPT="$CONFOPT --enable-marklines" ;;
+          false) CONFOPT="$CONFOPT --disable-marklines" ;;
+          *) echo "Wrong 'marklines' input in configure action"; exit -1
+        esac
+        case "${{ inputs.coverage }}" in
+          true) CONFOPT="$CONFOPT --enable-coverage" ;;
+          false) CONFOPT="$CONFOPT --disable-coverage" ;;
+          *) echo "Wrong 'coverage' input in configure action"; exit -1
+        esac
+        case "${{ inputs.paranoid }}" in
+          true) CONFOPT="$CONFOPT --enable-paranoid" ;;
+          false) CONFOPT="$CONFOPT --disable-paranoid" ;;
+          *) echo "Wrong 'paranoid' input in configure action"; exit -1
+        esac
+        case "${{ inputs.python }}" in
+          true) CONFOPT="$CONFOPT --with-python" ;;
+          false) CONFOPT="$CONFOPT --without-python" ;;
+          *) echo "Wrong 'python' input in configure action"; exit -1
+        esac
+        CONFOPT="$CONFOPT ${{ inputs.options }}"
+        echo "Configure options:$CONFOPT"
+        ./configure $CONFOPT

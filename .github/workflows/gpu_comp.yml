@@ -1,0 +1,33 @@
+name: GPU
+
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [ d2q9, d2q9_bc, d3q27_cumulant, d3q27_cumulant_AVG_IB_SMAG]
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install dependencies
+      uses: ./.github/actions/install
+      with:
+        r: true
+        rdep: true
+        openmpi: true
+        rinside: true
+        cuda: 11.7
+    - name: Configure
+      uses: ./.github/actions/configure
+      with:
+        gpu: true
+        paranoid: true
+    - name: Compile
+      uses: ./.github/actions/compile
+      with:
+        model: ${{ matrix.model }}

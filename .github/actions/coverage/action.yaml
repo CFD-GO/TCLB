@@ -1,0 +1,22 @@
+name: 'TCLB Coverage'
+description: 'This action gatheres coverage data for TCLB'
+outputs:
+  reports:
+    description: "Report files"
+    value: ${{ steps.gather.outputs.reports }}
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      name: "Gathering coverage data"
+      id: gather
+      run: |
+        lcov --capture --directory . --output-file coverage.info
+        if test -s coverage.info
+        then
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info
+          lcov --list coverage.info
+          echo "reports=coverage.info" >> $GITHUB_OUTPUT
+        else
+          echo "reports=" >> $GITHUB_OUTPUT
+        fi

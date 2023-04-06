@@ -11,7 +11,7 @@
 	#define HDF5_WRITE_LBM 0x08
 	#define HDF5_WRITE_POINT 0x10
 	
-	int hdf5WriteLattice(const char * filename, Solver * solver, name_set * s, unsigned long int* chunkdim_, unsigned int options);
+	int hdf5WriteLattice(const char * filename, Solver * solver, name_set * s, unsigned long int* chunkdim_, unsigned int options, lbRegion region);
 
 #endif
 #define HDF5LATTICE_H 1

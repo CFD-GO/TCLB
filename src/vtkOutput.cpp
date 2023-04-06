@@ -96,14 +96,15 @@ void vtkFileOut::WriteB64(void * tab, int len) {
 	fprintB64(f, tab, len);
 };
 
-void vtkFileOut::Init(lbRegion regiontot, lbRegion region, char* selection, double spacing) {
+void vtkFileOut::Init(lbRegion regiontot, lbRegion region, char* selection, double spacing, double px, double py, double pz) {
 	FERR;
 	size = region.size();
 	fprintf(f, "<?xml version=\"1.0\"?>\n<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
-	fprintf(f, "<ImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"0 0 0\" Spacing=\"%lg %lg %lg\">\n",
+	fprintf(f, "<ImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"%lg %lg %lg\" Spacing=\"%lg %lg %lg\">\n",
 		region.dx, region.dx + region.nx,
 		region.dy, region.dy + region.ny,
 		region.dz, region.dz + region.nz,
+		px, py, pz,
 		spacing,
 		spacing,
 		spacing
@@ -116,10 +117,11 @@ void vtkFileOut::Init(lbRegion regiontot, lbRegion region, char* selection, doub
 	fprintf(f, "<CellData %s>\n", selection);
 	if (fp != NULL) {
 		fprintf(fp, "<?xml version=\"1.0\"?>\n<VTKFile type=\"PImageData\" version=\"0.1\" byte_order=\"LittleEndian\">\n");
-		fprintf(fp, "<PImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"0 0 0\" Spacing=\"%lg %lg %lg\">\n",
+		fprintf(fp, "<PImageData WholeExtent=\"%d %d %d %d %d %d\" Origin=\"%lg %lg %lg\" Spacing=\"%lg %lg %lg\">\n",
 			regiontot.dx, regiontot.dx + regiontot.nx,
 			regiontot.dy, regiontot.dy + regiontot.ny,
 			regiontot.dz, regiontot.dz + regiontot.nz,
+			px, py, pz,
 			spacing,
 			spacing,
 			spacing
@@ -149,15 +151,6 @@ void vtkFileOut::Init(lbRegion regiontot, lbRegion region, char* selection, doub
 		fprintf(fp, "<PCellData %s>\n", selection);
 	}
 };
-
-void vtkFileOut::Init(lbRegion region, char* selection) {
-	Init(region, region, selection);
-
-//	FERR;
-//	size = region.size();
-//	fprintf(f, vtk_header, region.nx -1, region.ny -1, region.nz -1, region.nx -1, region.ny -1, region.nz -1,  selection);
-};
-
 
 void vtkFileOut::Init(int width, int height) {
 	Init(lbRegion(0,0,0,width,height,1),"");

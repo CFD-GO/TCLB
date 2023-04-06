@@ -215,11 +215,11 @@ void MainFree( Solver *d);
 	\param nm Appendix added to the name of the vti file written
 	\param s Set of fields/quantities/geometry features to write
 */
-	int Solver::writeVTK(const char * nm, name_set * s) {
+	int Solver::writeVTK(const char * nm, name_set * s, lbRegion region) {
 		print("writing vtk");
 		char filename[2*STRING_LEN];
 		outIterFile(nm, ".vti", filename);
-		int ret = vtkWriteLattice(filename, lattice, units, s);
+		int ret = vtkWriteLattice(filename, lattice, units, s, region);
 		return ret;
 	}
 

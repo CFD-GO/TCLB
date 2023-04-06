@@ -45,7 +45,7 @@ int Sampler::writeHistory(int curr_iter) {
 			<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 			if (quant->in("<?%s q$name ?>")) {
 				<?%s q$type ?> tmp;
-				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),cudaMemcpyDeviceToHost); 
+				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),CudaMemcpyDeviceToHost); 
 				csvWriteElement(f,tmp);
 				}
 			<?R }; ifdef(); ?> 
@@ -90,6 +90,7 @@ int Sampler::Finish()
  CudaFree(gpu_buffer);
  size = 0;
  startIter = 0;
+ spoints.clear();
  lbRegion pos;
  position = pos;
  return 0;

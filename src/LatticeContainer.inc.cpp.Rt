@@ -145,7 +145,7 @@ void FTabs::Alloc(int nx,int ny,int nz) {
   size_t size;
   char * tmp = NULL;
   <?R for (m in NonEmptyMargin) { ?>
-    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
     ALLOCPRINT1;
     #ifdef DIRECT_MEM
       CudaMallocHost( (void**)&tmp, size );
@@ -154,7 +154,7 @@ void FTabs::Alloc(int nx,int ny,int nz) {
     #endif
     ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); 
-    <?%s m$name ?>=  (real_t*)tmp;
+    <?%s m$name ?>=  (storage_t*)tmp;
   <?R } ?>
 }
 
@@ -165,7 +165,7 @@ void FTabs::Alloc(int nx,int ny,int nz) {
 void FTabs::PreAlloc(int nx,int ny,int nz) {
   size_t size;
   <?R for (m in NonEmptyMargin) { ?>
-    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
     CudaPreAlloc( (void**)&<?%s m$name ?>, size );
   <?R } ?>
 }
@@ -174,7 +174,7 @@ void FTabs::PreAlloc(int nx,int ny,int nz) {
 void FTabs::Clear(int nx,int ny,int nz) {
   size_t size;
   <?R for (m in NonEmptyMargin) { ?>
-    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(real_t);
+    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
     CudaMemset( <?%s m$name ?>, 0, size );
   <?R } ?>
 }
@@ -567,8 +567,7 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         } else { ?>
           Node_Run< Primal, NoGlobals, Get > now; <?R
         }?>
-	int z;
-	for (z = r.dz; z < r.dz + r.nz; z ++) {
+	int z = CudaBlock.z+r.dz;
 		now.x_ = x;
 		now.y_ = y;
 		now.z_ = z;
@@ -597,7 +596,6 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 	                } ?>
 //		}
 		tab[r.offset(x,y,z)] = w;
-	}
 }
 <?R
         }

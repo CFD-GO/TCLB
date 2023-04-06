@@ -6,12 +6,6 @@ if (Options$q27){
 	source("d3q27q15.R")
 }
 
-if (Options$ML){
-	for (d in rows(DensityAll)){
-		AddQuantity(name=d$name)
-	}
-}
-
 AddDensity(name="Init_UX_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_UY_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_UZ_External", group="init", comment="free stream velocity", parameter=TRUE)
@@ -79,9 +73,11 @@ load_phase      = c("g","h","Vel","nw", "solid_boundary", extra_load_phase)
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
 		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
+		AddField( name=d$name, dx=-d$dx+1, dy=-d$dy, dz=-d$dz )
 	}
 	
 	AddField(name="U",dx=c(-1,0,0))
+	AddField(name="U",dx=c(1,0,0))
 
     save_initial   = c(save_initial,  "gold","hold")
     save_iteration = c(save_iteration,"gold","hold")
@@ -205,7 +201,8 @@ if (Options$staircaseimp) {
 		AddSetting("HEIGHT", default=0,	comment="Height of channel for 2D Poiseuille flow")
 		AddSetting("Uavg", default=0,	zonal=T, comment="Average velocity of channel for 2D Poiseuille flow")
 		AddSetting("developedFlow", default=0,	comment="set greater than 0 for fully developed flow in the domain (x-direction)")
-		AddSetting("developedPipeFlow_X", default=0,	comment="set greater than 0 for fully developed pipe flow in the domain (x-direction)")
+		AddSetting("developedPipeFlow", default=0,	comment="set greater than 0 for fully developed pipe flow in the inlets")
+		AddSetting("developedPipeFlow_X", default=0,comment="set greater than 0 for fully developed pipe flow in the domain (x-direction-only)")
         AddSetting("pipeRadius", default=0, comment="radius of pipe for developed pipe flow")
         AddSetting("pipeCentre_Y", default=0, comment="pipe centre Y co-ord for developed pipe flow")
         AddSetting("pipeCentre_Z", default=0, comment="pipe centre Z co-ord for developed pipe flow")
@@ -250,12 +247,13 @@ if (Options$staircaseimp) {
 ########NODE TYPES########
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
-	AddNodeType(name="EPressure", group="BOUNDARY")
-	AddNodeType(name="WPressure", group="BOUNDARY")
-	AddNodeType(name="NVelocity", group="BOUNDARY")
-	AddNodeType(name="Velocity_Y_neg", group="BOUNDARY")
-	AddNodeType(name="EVelocity", group="BOUNDARY")
-	AddNodeType(name="WVelocity", group="BOUNDARY")
+	AddNodeType(name="flux_nodes", group="ADDITIONALS")
+	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
+    dotR_my_pressure_boundaries = paste0(c("N","E","S","W","F","B"),"Pressure")
+    for (ii in 1:6){
+        AddNodeType(name=dotR_my_velocity_boundaries[ii], group="BOUNDARY")
+        AddNodeType(name=dotR_my_pressure_boundaries[ii], group="BOUNDARY")
+    }
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
 	AddNodeType(name="MovingWall_S", group="BOUNDARY")
 	AddNodeType(name="Solid", group="BOUNDARY")
@@ -264,7 +262,9 @@ if (Options$staircaseimp) {
 	AddNodeType(name="MRT", group="COLLISION")
 	if (Options$OutFlow){
 		AddNodeType(name="ENeumann", group="BOUNDARY")
+		AddNodeType(name="WNeumann", group="BOUNDARY")
 		AddNodeType(name="EConvect", group="BOUNDARY")
+		AddNodeType(name="WConvect", group="BOUNDARY")
 	}
 #######################
 ########GLOBALS########
@@ -291,3 +291,7 @@ if (Options$staircaseimp) {
     # basically this means that they are not special
 	AddGlobal(name="LiqTotalPhase",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
     AddGlobal(name="SpecialBoundaryPoints", comment="Number of boundary points for which wetting boundary conditions must be applied in a special way for stability", unit="1")
+	AddGlobal(name="FluxNodeCount",comment='nodes in flux region', unit="1")
+	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
+	AddGlobal(name="FluxY",comment='flux in y direction for flux_nodes', unit="1")
+	AddGlobal(name="FluxZ",comment='flux in z direction for flux_nodes', unit="1")

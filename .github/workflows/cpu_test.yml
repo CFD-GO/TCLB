@@ -1,0 +1,49 @@
+name: TESTS_GCC
+
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [d2q9_npe_guo, d2q9_bc, d2q9, d2q9_SRT, d2q9_thin_film, d3q19, d3q19_les, d3q19_heat, d2q9_kuper, d2q9_pf, d2q9_pf_fd, d3q27, d3q27_cumulant, d3q27_cumulant_AVG_IB_SMAG]
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install dependencies
+      uses: ./.github/actions/install
+      with:
+        r: true
+        rdep: true
+        openmpi: true
+        python-dev: true
+        rinside: true
+        lcov: true
+    - name: Configure
+      uses: ./.github/actions/configure
+      with:
+        gpu: false
+        python: true
+        paranoid: true
+        coverage: true
+    - name: Compile
+      uses: ./.github/actions/compile
+      with:
+        model: ${{ matrix.model }}
+    - name: Run tests
+      uses: ./.github/actions/test
+      with:
+        model: ${{ matrix.model }}
+    - name: Gather coverage data
+      uses: ./.github/actions/coverage
+      id: coverage
+    - name: Send coverage data
+      uses: codecov/codecov-action@v3
+      if: steps.coverage.outputs.reports != ''
+      with:
+        files: ${{ steps.coverage.outputs.reports }}
+        flags: ${{ matrix.model }}

@@ -1,0 +1,191 @@
+name: 'TCLB Install'
+description: 'This action installes TCLB dependencies'
+inputs:
+  essentials:
+    description: install essentials
+    default: false
+  r:
+    description: install r
+    default: true
+  rdep:
+    description: install rdep
+    default: true
+  rpython:
+    description: install rpython
+    default: false
+  reticulate:
+    description: install reticulate
+    default: false
+  rinside:
+    description: install rinside
+    default: false
+  cuda:
+    description: install cuda
+    default: false
+  hip:
+    description: install hip
+    default: false
+  openmpi:
+    description: install openmpi
+    default: true
+  lcov:
+    description: install lcov
+    default: false
+  submodules:
+    description: install submodules
+    default: false
+  gitdep:
+    description: install gitdep
+    default: false
+  python-dev:
+    description: install python-dev
+    default: false
+  module:
+    description: install module
+    default: false
+  tapenade:
+    description: install tapenade
+    default: false
+  options:
+    description: options for install script
+    default: "--group --retry 3 --retry-delay 5 --sudo"
+  cache:
+    description: use github cache to store apt packages and r packages
+    default: false
+  bestapt:
+    description: select the best APT before installing stuff
+    default: true
+runs:
+  using: 'composite'
+  steps:
+    - if: inputs.bestapt != 'false'
+      shell: bash
+      run: |
+        sudo gem install apt-spy2
+        sudo apt-spy2 fix --commit
+    - if: inputs.cache != 'false'
+      shell: bash
+      id: keys
+      run: |
+        echo "apt"               >tmp.inp.apt
+        echo "${{ runner.os }}" >>tmp.inp.apt
+        echo "rpack"             >tmp.inp.r
+        echo "${{ runner.os }}" >>tmp.inp.r
+        test "${{ inputs.essentials }}" != "false" && echo "ess"                     >>tmp.inp.apt
+        test "${{ inputs.r }}"          != "false" && echo "r"                       >>tmp.inp.apt
+        test "${{ inputs.rdep }}"       != "false" && echo "rdep"                    >>tmp.inp.r
+        test "${{ inputs.rpython }}"    != "false" && echo "rpython"                 >>tmp.inp.r
+        test "${{ inputs.reticulate }}" != "false" && echo "reticulate"              >>tmp.inp.r
+        test "${{ inputs.rinside }}"    != "false" && echo "rinside"                 >>tmp.inp.r
+        test "${{ inputs.cuda }}"       != "false" && echo "cuda ${{ inputs.cuda }}" >>tmp.inp.apt
+        test "${{ inputs.hip }}"        != "false" && echo "hip ${{ inputs.hip }}"   >>tmp.inp.apt
+        test "${{ inputs.openmpi }}"    != "false" && echo "openmpi"                 >>tmp.inp.apt
+        test "${{ inputs.lcov }}"       != "false" && echo "lcov"                    >>tmp.inp.apt
+        test "${{ inputs.python-dev }}" != "false" && echo "pydev"                   >>tmp.inp.apt
+        echo "aptkey=$(echo $(cat tmp.inp.apt) | sed 's/ /-/g')" >>$GITHUB_OUTPUT
+        echo "rkey=$(echo $(cat tmp.inp.r) | sed 's/ /-/g')" >>$GITHUB_OUTPUT
+    - if: inputs.cache != 'false'
+      uses: actions/cache/restore@v3
+      with:
+        path: cache_apt/
+        key: ${{ steps.keys.outputs.aptkey }}
+        restore-keys: ${{ steps.keys.outputs.aptkey }}-
+    - if: inputs.cache != 'false'
+      shell: bash
+      run: test -d "cache_apt" && sudo mv cache_apt/*.deb /var/cache/apt/archives/ || true
+    - if: inputs.essentials != 'false'
+      name: "Installing essentials"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} essentials
+    - if: inputs.r != 'false'
+      name: "Installing R"
+      id: r
+      shell: bash
+      run: |
+        tools/install.sh ${{inputs.options}} r
+        echo "rlibpath=$(R --slave -e 'cat(path.expand(Sys.getenv("R_LIBS_USER")));')" >>$GITHUB_OUTPUT
+    - if: inputs.cache != 'false' && inputs.r != 'false'
+      uses: actions/cache/restore@v3
+      with:
+        path: ${{ steps.r.outputs.rlibpath }}/
+        key: ${{ steps.keys.outputs.rkey }}
+        restore-keys: ${{ steps.keys.outputs.rkey }}-
+    - if: inputs.rdep != 'false'
+      name: "Installing R packages"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} rdep
+    - if: inputs.rpython != 'false'
+      name: "Installing R package: rPython"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} rpython
+    - if: inputs.reticulate != 'false'
+      name: "Installing R package: Reticulate"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} reticulate
+    - if: inputs.rinside != 'false'
+      name: "Installing R package: rInside"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} rinside
+    - if: inputs.cuda != 'false'
+      shell: bash
+      name: "Installing CUDA"
+      run: |
+        GPU="${{ inputs.cuda }}"
+        if test "$GPU" == "true"
+        then
+          GPU="11.7"
+        fi
+        tools/install.sh ${{inputs.options}} cuda $GPU
+        CUDA_PATH=/usr/local/cuda-$GPU
+        echo "$CUDA_PATH/bin" >>$GITHUB_PATH
+        echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >>$GITHUB_ENV
+        echo "CUDA_PATH=$CUDA_PATH" >>$GITHUB_OUTPUT
+    - if: inputs.hip != 'false'
+      name: "Installing ROCm/HIP"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} hip ${{ inputs.hip }}
+    - if: inputs.openmpi != 'false'
+      name: "Installing OpenMPI"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} openmpi
+    - if: inputs.lcov != 'false'
+      name: "Installing lcov"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} lcov
+    - if: inputs.submodules != 'false'
+      name: "Fetching git submodules"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} submodules
+    - if: inputs.gitdep != 'false'
+      name: "Fetching git dep's (see tools/install.sh)"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} gitdep
+    - if: inputs.python-dev != 'false'
+      name: "Installing Python headers/libraries"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} python-dev
+    - if: inputs.module != 'false'
+      name: "Installing module"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} module
+    - if: inputs.tapenade != 'false'
+      name: "Installing Tapenade"
+      shell: bash
+      run: tools/install.sh ${{inputs.options}} tapenade
+    - if: inputs.cache != 'false'
+      shell: bash
+      id: hashes
+      run: |
+        mkdir -p cache_apt/ && sudo mv /var/cache/apt/archives/*.deb cache_apt/
+        echo "apthash=$(sha256sum cache_apt/*.deb | sha256sum | cut -c 1-15)" >>$GITHUB_OUTPUT
+        echo "rhash=$(cat ${{ steps.r.outputs.rlibpath }}/**/DESCRIPTION | grep -v '^Built' | sha256sum | cut -c 1-15)" >>$GITHUB_OUTPUT
+    - if: inputs.cache != 'false' && inputs.r != 'false'
+      uses: actions/cache/save@v3
+      with:
+        path: ${{ steps.r.outputs.rlibpath }}/
+        key: ${{ steps.keys.outputs.rkey }}-${{ steps.hashes.outputs.rhash }}
+    - if: inputs.cache != 'false'
+      uses: actions/cache/save@v3
+      with:
+        path: cache_apt/
+        key: ${{ steps.keys.outputs.aptkey }}-${{ steps.hashes.outputs.apthash }}

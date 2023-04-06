@@ -7,6 +7,7 @@
 #include "Callback.h"
 
 class  cbVTK  : public  Callback  {
+	lbRegion reg;
 	std::string nm;
 	name_set s;
 	public:

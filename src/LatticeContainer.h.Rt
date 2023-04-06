@@ -55,7 +55,7 @@ class LatticeContainer {
   int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
-	int px,py,pz;
+  real_t px,py,pz;
   int reset_iter; //< number of last average reset,for dynamics 
   int ZoneIndex;
   int MaxZones;
@@ -157,13 +157,13 @@ class LatticeContainer {
 /// Get [<?%s v$comment ?>] from GPU memory
         inline real_t get<?%s v$name ?>(){
                 real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
 /// Get all the globals from GPU memory
 	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
 	}
 };
 
