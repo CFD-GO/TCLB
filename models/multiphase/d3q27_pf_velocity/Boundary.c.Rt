@@ -265,7 +265,7 @@ CudaDeviceFunction real_t getIsItBoundary() {
 }
 
 
-#ifdef OPTIONS_altContactAngle
+#ifdef OPTIONS_geometric
 CudaDeviceFunction vector_t getGradPhi() {
 	vector_t gradPhi;
 	gradPhi.x = gradPhiVal_x(0,0,0);
@@ -446,9 +446,9 @@ CudaDeviceFunction void calcWallPhase(){
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
 
-		// This is needed, because otherwise altContactAngle_staircaseimp performance will drop
+		// This is needed, because otherwise geometric_staircaseimp performance will drop
 		// (presumably because of the dynamic access that it has)
-        <?R phase_field_field_name <- if (Options$altContactAngle) 'gradPhi_PhaseF' else 'PhaseF' ?>
+        <?R phase_field_field_name <- if (Options$geometric) 'gradPhi_PhaseF' else 'PhaseF' ?>
 
         pf_f = <?%s phase_field_field_name ?>_dyn(nw_x, nw_y, nw_z);
 
@@ -485,7 +485,7 @@ CudaDeviceFunction void calcWallPhase(){
 		<?R } ?>
 
 
-        <?R phase_field_field_name <- if (Options$altContactAngle) 'gradPhi_PhaseF' else 'PhaseF' ?>
+        <?R phase_field_field_name <- if (Options$geometric) 'gradPhi_PhaseF' else 'PhaseF' ?>
 
         <?R for (v in c(1, 2, 3)) { ?>
             real_t pf_v<?%s v?> = <?%s phase_field_field_name ?>_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
@@ -500,7 +500,7 @@ CudaDeviceFunction void calcWallPhase(){
         }
 #endif
 // Case 1: Apply surface energy BC (with calculated pf_f with standard or staircase improvement)
-#ifndef OPTIONS_altContactAngle
+#ifndef OPTIONS_geometric
 			// apply surface energy boundary conditions
 			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
@@ -752,7 +752,7 @@ CudaDeviceFunction void Init_wallNorm(){
 			IsSpecialBoundaryPoint = <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
 		}
 
-#ifdef OPTIONS_altContactAngle
+#ifdef OPTIONS_geometric
 
 #ifdef OPTIONS_tprec
 		int face_triangle_index2 = int(triangle_index2) % 8;
@@ -786,8 +786,8 @@ CudaDeviceFunction void Init_wallNorm(){
 #endif
 
 #else
-        // when there is no staircase improvement and I'am altContactAngle
-#ifdef OPTIONS_altContactAngle
+        // when there is no staircase improvement and I'am geometric
+#ifdef OPTIONS_geometric
 		// if the next-next node is solid (but next is not) we can't really compute anything with geometric method and have to switch to surface energy
 		if (IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> && PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100) {
 			IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>;

@@ -340,7 +340,7 @@ suffix = ""
 if (Options$autosym) suffix = "0"
 
     for (f in rows(Fields)) {
-    if (! f$big) {
+    if (! f$optimise_for_static_access) {
     for (dz in f$minz:f$maxz) {
     for (dy in f$miny:f$maxy) {
     for (dx in f$minx:f$maxx) { ?>

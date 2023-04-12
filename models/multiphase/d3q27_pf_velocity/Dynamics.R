@@ -58,7 +58,7 @@ if (Options$staircaseimp) {
 AddDensity("IsSpecialBoundaryPoint", dx=0, dy=0, dz=0, group="solid_boundary")
 AddQuantity("SpecialBoundaryPoint", unit = 1)
 
-if (Options$altContactAngle){
+if (Options$geometric){
     AddField("IsBoundary", stencil3d=2, group="solid_boundary")
 } else {
     AddField("IsBoundary", stencil3d=1, group="solid_boundary")
@@ -85,17 +85,18 @@ if (Options$OutFlow){
     load_phase     = c(load_phase,    "gold","hold")
 }
 
-if (Options$altContactAngle){
-    AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
-    AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
-    AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
+if (Options$geometric){
+    # Since phase field gradients for the geometric method are accessed in the
+    # dynamic manner (different nodes access different gradients in non static way)
+    # we need to disable static optimisation to preserve performance
+    AddField("gradPhiVal_x", stencil3d=2, group="gradPhi", optimise_for_static_access = FALSE)
+    AddField("gradPhiVal_y", stencil3d=2, group="gradPhi", optimise_for_static_access = FALSE)
+    AddField("gradPhiVal_z", stencil3d=2, group="gradPhi", optimise_for_static_access = FALSE)
     # Fake field, to simply copy field values to PhaseF instead
     # of accessing them directly from PhaseF field
-    # this is needed for the cases when PhaseF needs to be accessed in the dynamic manner. Otherwise
-    # the performance might severely drop
-    # across threads, similarly to gradPhiVal_x, gradPhiVal_y, gradPhiVal_z
-    # NOTE: This can be changed to stencil3d = 2 if needed
-    AddField('gradPhi_PhaseF', stencil3d=1, group="gradPhi")
+    # this is needed for the cases when PhaseF needs to be accessed in the dynamic manner
+    # otherwise the performance will drop significantly
+    AddField('gradPhi_PhaseF', stencil3d=1, group="gradPhi", optimise_for_static_access = FALSE)
 
     AddField("PhaseF",stencil3d=2, group="PF")
 
@@ -139,7 +140,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
-	} else if (Options$altContactAngle) {
+	} else if (Options$geometric) {
         calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
         AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
@@ -159,7 +160,7 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
     AddQuantity(name="IsItBoundary", unit="1")
-if (Options$altContactAngle){
+if (Options$geometric){
     AddQuantity(name="GradPhi", unit=1, vector=T)
 }
 if (Options$staircaseimp) {
