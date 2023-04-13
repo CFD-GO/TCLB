@@ -168,6 +168,7 @@ if (Options$staircaseimp) {
 }
 ###################################
 ########INPUTS - PHASEFIELD########
+###################################
 	AddSetting(name="Density_h", comment='High density')
 	AddSetting(name="Density_l", comment='Low  density')
 	AddSetting(name="PhaseField_h", default=1, comment='PhaseField in Liquid')
@@ -184,7 +185,6 @@ if (Options$staircaseimp) {
 	##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
-		AddSetting(name="Perturbation", default=0.1, comment='Perturbation for RTI instability as a fraction of characteristic length')
 	    AddSetting(name="pseudo2D", default="0", comment="if 1, assume model is pseduo2D")
     # Single droplet/bubble
 		AddSetting(name="Radius", default=0.0, comment='Diffuse Sphere Radius')
@@ -198,7 +198,6 @@ if (Options$staircaseimp) {
 		AddSetting(name="Donut_D",   default=0.0, comment='Dilation factor along the x-axis')
 		AddSetting(name="Donut_x0",  default=0.0, comment='Position along x-axis')
 	# Poiseuille flow in 2D channel (flow in x direction)
-		AddSetting("shearFlow", default=0, comment="shear cell")
 		AddSetting("HEIGHT", default=0,	comment="Height of channel for 2D Poiseuille flow")
 		AddSetting("Uavg", default=0,	zonal=T, comment="Average velocity of channel for 2D Poiseuille flow")
 		AddSetting("developedFlow", default=0,	comment="set greater than 0 for fully developed flow in the domain (x-direction)")
@@ -235,8 +234,6 @@ if (Options$staircaseimp) {
 	AddNodeType(name="Bubbletrack", group="ADDITIONALS")
 	AddGlobal("InterfacePosition", op="MAX", comment='trackPosition')
     AddGlobal("InterfaceYTop", op="MAX", comment="Track top position of the interface in Y direction")
-    AddGlobal("DropletLeftInterfaceBottomY", op="MAX", comment="Lowest point of the droplet interface interacting with the boundary from the left")
-    AddGlobal("DropletRightInterfaceBottomY", op="MAX", comment="Lowest point of the droplet interface interacting with the boundary from the right")
 	AddGlobal("Vfront",comment='velocity infront of bubble')
 	AddGlobal("Vback",comment='velocity behind bubble')
 	AddGlobal("RTISpike", op="MAX", comment='SpikeTracker ')
@@ -274,7 +271,6 @@ if (Options$staircaseimp) {
 	AddGlobal(name="OutletFlux", comment='pressure loss', unit="1m2/s")
 	AddGlobal(name="InletFlux", comment='pressure loss', unit="1m2/s")
 	AddGlobal(name="TotalDensity", comment='Mass conservation check', unit="1kg/m3")
-	AddGlobal(name="TotalDensityLiquid", comment='Total density of liquid', unit="1kg/m3")
 	AddGlobal(name="KineticEnergy",comment='Measure of kinetic energy', unit="J")
 	AddGlobal(name="GasTotalVelocity", comment='use to determine avg velocity of bubbles', unit="m/s")
 	AddGlobal(name="GasTotalVelocityX", comment='use to determine avg velocity of bubbles', unit="m/s")
@@ -289,9 +285,7 @@ if (Options$staircaseimp) {
     AddGlobal(name="NumSpecialPoints", comment='Number of special points')
     AddGlobal(name="NumWallBoundaryPoints", comment='Number of boundary nodes')
     AddGlobal(name="NumBoundaryPoints", comment='Number of boundary nodes')
-    # basically this means that they are not special
 	AddGlobal(name="LiqTotalPhase",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
-    AddGlobal(name="SpecialBoundaryPoints", comment="Number of boundary points for which wetting boundary conditions must be applied in a special way for stability", unit="1")
 	AddGlobal(name="FluxNodeCount",comment='nodes in flux region', unit="1")
 	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxY",comment='flux in y direction for flux_nodes', unit="1")

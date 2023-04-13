@@ -88,3 +88,4 @@ AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension")
 AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
 AddNodeType("ConstantTemp",group="ADDITIONALS")
 AddNodeType("EAdiabatic",group="ADDITIONALS")
+

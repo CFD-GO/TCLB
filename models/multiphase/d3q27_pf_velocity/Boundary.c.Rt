@@ -148,12 +148,12 @@ CudaDeviceFunction void calcIntersectionTriangleId(
 		// the same direction as the original vector
 		// rescale the vector to the plane and get intersection point
 		real_t point[3] = { - vec[0] / prod,  - vec[1] / prod, - vec[2] / prod };
-		// get coordinate in 2d
+		// got the intersection, get coordinate in 2d by removing common coordinate
 		real_t drop_index = d3q27_faces_drop_indexes[i];
-		// Mimicing collection.drop()
+		// transform into 2d
 		real_t point2d[2] = { point[drop_index == 1 ? 0 : (int(drop_index) + 1) % 3], point[drop_index == 1? 2 : (int(drop_index) + 2) % 3] };
 		if (point2d[0] >= -1 && point2d[0] <= 1 && point2d[1] >= -1 && point2d[1] <= 1) {
-			// it is inside
+			// it is inside the facet
 			face_index = i;
 			// determine in which triangle we lie, based on the plane angle
 			// (similar to identity circle, going anti clockwise by 45 degrees
@@ -284,7 +284,6 @@ CudaDeviceFunction void calcPhaseGrad(){
     gradPhiVal_y = gradPhi.y;
     gradPhiVal_z = gradPhi.z;
 	calcPhaseGradCloseToBoundary();
-
 	// simply copy the values
 	gradPhi_PhaseF = PhaseF(0,0,0);
 }
@@ -306,8 +305,8 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 
 	calcPhaseGradCloseToBoundary();
 
-	// accidentally touched the boundary, it is ok, this should be
-	// fixed on the next iterations
+	// probably accidentally touched the boundary, it is ok, this should be
+	// fixed on the next iterations and should not cause problems
 	<?R for (d in c('x', 'y', 'z')) { ?>
 		if (fabs(gradPhiVal_<?%s d ?>) > 20) {
 			gradPhiVal_<?%s d ?> = 0;
@@ -326,10 +325,6 @@ CudaDeviceFunction void calcPhaseGrad_init(){
  */
 CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 	<?R
-    # helper code for code generation
-    lattice <- expand.grid(-1:1, -1:1, -1:1)
-	diagonals <- lattice[apply(lattice, 1, function(r) sum(abs(r)) >= 2 && r[2] != 0), ]
-	str_diagonals <- apply(diagonals, 1, function(x) paste(x, collapse=","))
 	# shift to the right
 	axis_shift <- function(x, axis = 0) {
 		if (axis == 0) x else c(tail(x, axis), head(x, -axis))
@@ -338,12 +333,6 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
 	str_coord <- function(x, y, z, axis)  paste(axis_shift(c(x,y,z), axis), collapse=",")
 
 	?>
-
-    // if either of the diagonal nodes on the lattice is boundary node we force to
-    // try to use finite difference
-	bool forcedFiniteDifferenceInAllDirections = \
-		  <?%s cat(Reduce(function(red, curr) paste(red, sprintf('IsBoundary(%s)', curr), sep = ' || '), str_diagonals, 'false')) ?>;
-
 
     vector_t forcedFiniteDifference= {0, 0, 0};
     <?R
@@ -454,6 +443,7 @@ CudaDeviceFunction void calcWallPhase(){
 
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 
+        // handling special cases
 		if (h < 0.001) {
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			PhaseF = 1;
@@ -655,8 +645,8 @@ CudaDeviceFunction void Init_wallNorm(){
 			real_t myNorm[3] = {0.0,0.0,0.0};
 			real_t maxn=0.0, dot;
 
-			// Calculate the normal direction:
-			// NOTE: We are simply getting solid flags below
+			// Calculate the normal direction based converting
+			// negative PhaseF into actual solid flags
 			<?R
 			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
 			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
