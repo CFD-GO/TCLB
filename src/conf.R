@@ -103,7 +103,7 @@ Fields = data.frame()
 Stages=NULL
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                      optimise_for_static_access=FALSE) {
+                      optimise_for_static_access=TRUE) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
@@ -173,7 +173,7 @@ convert_to_shift_list = function(n, x) {
 }
 
 AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                    optimise_for_static_access=FALSE) {
+                    optimise_for_static_access=TRUE) {
         shift = convert_to_shift_list(length(name), shift)
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
