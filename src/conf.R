@@ -103,7 +103,7 @@ Fields = data.frame()
 Stages=NULL
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                      optimise_for_static_access=TRUE) {
+                      optimise_for_static_access=FALSE) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
@@ -173,7 +173,7 @@ convert_to_shift_list = function(n, x) {
 }
 
 AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                    optimise_for_static_access=TRUE) {
+                    optimise_for_static_access=FALSE) {
         shift = convert_to_shift_list(length(name), shift)
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
@@ -778,7 +778,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	} else {
           tab1 = c(1,1,1,-1,-1,-1,0,0,0)
           tab2 = c(0,0,0,-1,-1,-1,1,1,1)
-          tab3 = rep(TRUE,9)
+          tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
 	}
 	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
