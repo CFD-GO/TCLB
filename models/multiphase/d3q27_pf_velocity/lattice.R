@@ -26,7 +26,8 @@ AddDensity( name="g24",dx= 0, dy=-1, dz= 1, group="g")
 AddDensity( name="g25",dx= 0, dy= 1, dz=-1, group="g")
 AddDensity( name="g26",dx= 0, dy=-1, dz=-1, group="g")
 
-#   Phase Field Evolution d3q27:
+#   Phase Field Evolution d3q15:
+q_velocities = 15
 AddDensity( name="h0", dx= 0, dy= 0, dz= 0, group="h")
 AddDensity( name="h1", dx= 1, dy= 0, dz= 0, group="h")
 AddDensity( name="h2", dx=-1, dy= 0, dz= 0, group="h")
@@ -42,21 +43,25 @@ AddDensity( name="h11",dx= 1, dy= 1, dz=-1, group="h")
 AddDensity( name="h12",dx=-1, dy= 1, dz=-1, group="h")
 AddDensity( name="h13",dx= 1, dy=-1, dz=-1, group="h")
 AddDensity( name="h14",dx=-1, dy=-1, dz=-1, group="h")
-AddDensity( name="h15",dx= 1, dy= 1, dz= 0, group="h")
-AddDensity( name="h16",dx=-1, dy= 1, dz= 0, group="h")
-AddDensity( name="h17",dx= 1, dy=-1, dz= 0, group="h")
-AddDensity( name="h18",dx=-1, dy=-1, dz= 0, group="h")
-AddDensity( name="h19",dx= 1, dy= 0, dz= 1, group="h")
-AddDensity( name="h20",dx=-1, dy= 0, dz= 1, group="h")
-AddDensity( name="h21",dx= 1, dy= 0, dz=-1, group="h")
-AddDensity( name="h22",dx=-1, dy= 0, dz=-1, group="h")
-AddDensity( name="h23",dx= 0, dy= 1, dz= 1, group="h")
-AddDensity( name="h24",dx= 0, dy=-1, dz= 1, group="h")
-AddDensity( name="h25",dx= 0, dy= 1, dz=-1, group="h")
-AddDensity( name="h26",dx= 0, dy=-1, dz=-1, group="h")
+if (Options$q27){
+    q_velocities = 27
+    AddDensity( name="h15",dx= 1, dy= 1, dz= 0, group="h")
+    AddDensity( name="h16",dx=-1, dy= 1, dz= 0, group="h")
+    AddDensity( name="h17",dx= 1, dy=-1, dz= 0, group="h")
+    AddDensity( name="h18",dx=-1, dy=-1, dz= 0, group="h")
+    AddDensity( name="h19",dx= 1, dy= 0, dz= 1, group="h")
+    AddDensity( name="h20",dx=-1, dy= 0, dz= 1, group="h")
+    AddDensity( name="h21",dx= 1, dy= 0, dz=-1, group="h")
+    AddDensity( name="h22",dx=-1, dy= 0, dz=-1, group="h")
+    AddDensity( name="h23",dx= 0, dy= 1, dz= 1, group="h")
+    AddDensity( name="h24",dx= 0, dy=-1, dz= 1, group="h")
+    AddDensity( name="h25",dx= 0, dy= 1, dz=-1, group="h")
+    AddDensity( name="h26",dx= 0, dy=-1, dz=-1, group="h")
+}
+
 if (Options$OutFlow){
     AddDensity( name=paste("gold",0:26,sep=""), dx=0,dy=0,dz=0,group="gold")
-    AddDensity( name=paste("hold",0:26,sep=""), dx=0,dy=0,dz=0,group="hold")
+    AddDensity( name=paste("hold",0:(q_velocities-1),sep=""), dx=0,dy=0,dz=0,group="hold")
 }
 
 
