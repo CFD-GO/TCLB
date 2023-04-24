@@ -1,15 +1,16 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(q27 + OutFlow  + BGK + thermo + planarBenchmark + autosym)*geometric*staircaseimp*isograd*tprec"
+OPT="(q27 + OutFlow  + BGK + thermo*planarBenchmark)*autosym*geometric*staircaseimp*isograd*tprec"
 # q27 - Q27 lattice structure for phasefield
-# ML  - export densities for machine learning
+#
 # OutFlow - include extra velocity stencil for outflowing boundaries
-# geometric- geometric contact angle implementation, implemented by dmytro merged into code by travis
-# BGK - single relaxation time operator
+#
+# BGK - single relaxation time operator, not really supported- educational purposes only
+#
 # thermo - include energy equation solver for temperature field, influences through
 #        - the surface tension
 #
-# planarBenchmark - thermocapillary benchmark case
+# planarBenchmark - thermocapillary benchmark case, must be built with thermo
 #
 # autosym - symmetry boundary conditions
 #

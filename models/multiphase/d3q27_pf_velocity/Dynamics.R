@@ -1,10 +1,6 @@
 # Density - table of variables of LB Node to stream
 #	Velocity-based Evolution d3q27:
-if (Options$q27){
-	source("d3q27q27.R")
-} else {
-	source("d3q27q15.R")
-}
+source("lattice.R")
 
 AddDensity(name="Init_UX_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_UY_External", group="init", comment="free stream velocity", parameter=TRUE)
@@ -99,25 +95,10 @@ if (Options$geometric){
     AddField('gradPhi_PhaseF', stencil3d=1, group="gradPhi", optimise_for_static_access = FALSE)
 
     AddField("PhaseF",stencil3d=2, group="PF")
-
-    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
-    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
-
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
-    AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 } else {
     AddField("PhaseF",stencil3d=1, group="PF")
-    AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
-    AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
-    AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 }
 
-AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
-
-###############################
-########THERMOCAPILLARY########
-###############################
 if (Options$thermo){
     source("thermocapillary.R")
 
@@ -125,13 +106,40 @@ if (Options$thermo){
     save_iteration  = c(save_iteration, "Thermal")
     load_iteration  = c(load_iteration, "Thermal")
 }
+
 ######################
 ########STAGES########
 ######################
-AddStage("PhaseInit", "Init", save=Fields$group %in% save_initial_PF)
-AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
-AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
-AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
+# Remember stages must be added after fields/densities!
+	AddStage("PhaseInit", "Init", save=Fields$group %in% save_initial_PF)
+	AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
+	AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
+	AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
+	AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
+	# STAGES FOR VARIOUS OPTIONS
+	if (Options$geometric){
+		AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
+
+		AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+		AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
+	} else {
+		AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
+	}
+	if (Options$thermo){
+		AddStage("CopyDistributions", "TempCopy",  save=Fields$group %in% c("g","h","Vel","nw", "PF","Thermal"))
+		AddStage("CopyThermal","ThermalCopy", save=Fields$name %in% c("Temp","Cond","SurfaceTension"), load=DensityAll$name %in% c("Temp","Cond","SurfaceTension"))
+		AddStage("RK_1", "TempUpdate1", save=Fields$name=="RK1", load=DensityAll$name %in% c("U","V","W","Cond","PhaseF","Temp"))
+		AddStage("RK_2", "TempUpdate2", save=Fields$name=="RK2", load=DensityAll$name %in% c("U","V","W","RK1","Cond","PhaseF","Temp"))
+		AddStage("RK_3", "TempUpdate3", save=Fields$name=="RK3", load=DensityAll$name %in% c("U","V","W","RK1","RK2","Cond","PhaseF","Temp"))
+		AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("U","V","W","RK1","RK2","RK3","Cond","PhaseF","Temp"))
+
+		AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
+	}
+
 #######################
 ########ACTIONS########
 #######################
@@ -160,12 +168,12 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
     AddQuantity(name="IsItBoundary", unit="1")
-if (Options$geometric){
-    AddQuantity(name="GradPhi", unit=1, vector=T)
-}
-if (Options$staircaseimp) {
-    AddQuantity(name="ActualNormal", unit=1, vector=T)
-}
+	if (Options$geometric){
+		AddQuantity(name="GradPhi", unit=1, vector=T)
+	}
+	if (Options$staircaseimp) {
+		AddQuantity(name="ActualNormal", unit=1, vector=T)
+	}
 ###################################
 ########INPUTS - PHASEFIELD########
 ###################################
@@ -178,8 +186,9 @@ if (Options$staircaseimp) {
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
-  AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
-  AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
+	AddSetting(name="force_fixed_iterator", default=2, comment='to resolve implicit relation of viscous force')
+  	AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
+  	AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS
