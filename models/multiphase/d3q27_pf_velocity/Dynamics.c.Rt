@@ -3,6 +3,7 @@
     c_header();
     source("lib/feq.R")
     source("lib/boundary.R")
+	source("model.R")
 ?>
 // 04/02/2017 - Model Developed: A. Fakhari, T. Mitchell
 //    Extension to 3D from:
@@ -11,8 +12,8 @@
 //
 // Maintainer: Travis-Mitchell @TravisMitchell
 
-// Code updates:
-//		01/04/2017: Development starts...
+// Major code updates:
+//		01/04/2017: Initial implementation 
 //			    Plan is d3q27 for hydrodynamics
 //			    and d3q15 for interface dynamics
 //		08/04/2017: Verification and validation 
@@ -38,93 +39,9 @@
 // 				- edge case for wall phase calculation in which normal direction points
 //				  towards a solid node was found. Temporary fix by setting this to a 
 //				  reasonable value (1) has been made - this is not ideal... 
-
-<?R
-#################################################
-# Preamble to set up variables in R environment #
-#################################################
-    g=PV(DensityAll$name[DensityAll$group=="g"])
-    wg = PV(paste0("wg[",1:27-1,"]"))
-	# Extracting velocity set
-    U = as.matrix(DensityAll[DensityAll$group=="g",c("dx","dy","dz")])
-    u = PV(c("U","V","W"))
-    absCi2 = (U[,1]*U[,1]+U[,2]*U[,2]+U[,3]*U[,3])
-    if (Options$q27){
-	    PF_velocities = 27
-    } else {
-	    PF_velocities = 15
-    }
-	# Formulate Weighted-MRT matrix
-    m0 = matrix(1, 1, 27)
-    m1 = U[,1]
-    m2 = U[,2]
-    m3 = U[,3]
-    m4 = U[,1]*U[,2]
-    m5 = U[,2]*U[,3]
-    m6 = U[,3]*U[,1]
-    m7 = 3*U[,1]*U[,1] - absCi2
-    m8 = U[,2]*U[,2] - U[,3]*U[,3]
-    m9 = absCi2 - 1
-    m10 = U[,1] * (3*absCi2 - 5)
-    m11 = U[,2] * (3*absCi2 - 5)
-    m12 = U[,3] * (3*absCi2 - 5)
-    m13 = U[,1] * (U[,2]*U[,2] - U[,3]*U[,3])
-    m14 = U[,2] * (U[,3]*U[,3] - U[,1]*U[,1])
-    m15 = U[,3] * (U[,1]*U[,1] - U[,2]*U[,2])
-    m16 = U[,1]*U[,2]*U[,3]
-    m17 = 0.5 * (3*absCi2*absCi2 - 7*absCi2+2)
-    m18 = (3*absCi2 - 4) * (3*U[,1]*U[,1] - absCi2)
-    m19 = (3*absCi2 - 4) * (U[,2]*U[,2] - U[,3]*U[,3])
-    m20 = U[,1]*U[,2]*(3*absCi2 - 7)
-    m21 = U[,2]*U[,3]*(3*absCi2 - 7)
-    m22 = U[,3]*U[,1]*(3*absCi2 - 7)
-    m23 = 0.5 * U[,1]*(9*absCi2*absCi2 - 33*absCi2 + 26)
-    m24 = 0.5 * U[,2]*(9*absCi2*absCi2 - 33*absCi2 + 26)
-    m25 = 0.5 * U[,3]*(9*absCi2*absCi2 - 33*absCi2 + 26)
-    m26 = 0.5 * (9*absCi2*absCi2*absCi2 - 36*absCi2*absCi2 + 33*absCi2 - 2)
-
-	M = rbind(m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16,m17,m18,m19,m20,m21,m22,m23,m24,m25,m26)
-	m = PV(c(paste("m[",1:27-1,"]",sep="")))
-	invM = solve(M)
-
-	geq = PV(c(paste("geq[",1:27-1,"]",sep="")))
-	Fi  = PV(c(paste("F_i[",1:27-1,"]",sep="")))
-	h   = PV(c(paste("h",1:PF_velocities-1,sep="")))
-	heq  = PV(c(paste("heq[",1:PF_velocities-1,"]",sep="")))
-	Fphi = PV(c(paste("F_phi[",1:PF_velocities-1,"]",sep="")))
-	gammah = PV(c(paste("Gamma[",1:PF_velocities-1,"]",sep="")))
-	if (Options$q27){
-		w_h = PV(c(paste("wg[",1:27-1,"]",sep="")))
-	} else {
-		w_h = c(0.75, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0)
-	}
-	omega = PV("omega_phi")
-	phase = PV("PhaseF")
-	gammag = PV(c(paste("Gamma[",1:27-1,"]",sep="")))
-
-	if (Options$OutFlow) {
-		g_old = PV(Density$name[Density$group == "gold"])
-		h_old = PV(Density$name[Density$group == "hold"])
-	}
-?>
-
-<?R
-##################################################
-# Functions to print c-code for grad and laplace #
-##################################################
-	IsotropicGrad <- function(myStringVec, myStringSca){
-		cat(paste0(myStringVec,".y = 16.00 * (",myStringSca, "(0,1,0) - ", myStringSca, "(0,-1,0)) + ", myStringSca, "(1,1,1) + ", myStringSca, "(-1,1,1) - ", myStringSca, "(1,-1,1) - ", myStringSca, "(-1,-1,1) + ", myStringSca, "(1,1,-1)+ ", myStringSca, "(-1,1,-1)- ", myStringSca,  "(1,-1,-1)- ", myStringSca, "(-1,-1,-1) +  4.00 * (", myStringSca, "(1,1,0) + ", myStringSca, "(-1,1,0) - ", myStringSca, "(1,-1,0) - ", myStringSca, "(-1,-1,0) +  ", myStringSca, "(0,1,1) - ", myStringSca, "(0,-1,1) + ", myStringSca, "(0,1,-1) - ", myStringSca, "(0,-1,-1));\n"))
-		cat(paste0(myStringVec,".x = 16.00 * (",myStringSca, "(1,0,0) - ", myStringSca, "(-1,0,0)) + ", myStringSca, "(1,1,1) - ", myStringSca, "(-1,1,1) + ", myStringSca, "(1,-1,1) - ", myStringSca, "(-1,-1,1) + ", myStringSca, "(1,1,-1)- ", myStringSca, "(-1,1,-1) + ", myStringSca, "(1,-1,-1) - ", myStringSca, "(-1,-1,-1) +  4.00 * (", myStringSca, "(1,1,0) - ", myStringSca, "(-1,1,0) + ", myStringSca, "(1,-1,0) - ", myStringSca, "(-1,-1,0) + ", myStringSca, "(1,0,1) - ", myStringSca, "(-1,0,1) + ", myStringSca, "(1,0,-1) - ", myStringSca, "(-1,0,-1));\n"))
-		cat(paste0(myStringVec,".z = 16.00 * (",myStringSca, "(0,0,1) - ", myStringSca, "(0,0,-1)) + ", myStringSca, "(1,1,1) + ", myStringSca, "(-1,1,1) + ", myStringSca, "(1,-1,1) + ", myStringSca, "(-1,-1,1) - ", myStringSca, "(1,1,-1)- ", myStringSca, "(-1,1,-1)- ", myStringSca,  "(1,-1,-1)- ", myStringSca, "(-1,-1,-1) +  4.00 * (", myStringSca, "(1,0,1) + ", myStringSca, "(-1,0,1) - ", myStringSca, "(1,0,-1) - ", myStringSca, "(-1,0,-1) +  ", myStringSca, "(0,1,1) + ", myStringSca, "(0,-1,1) - ", myStringSca, "(0,1,-1) - ", myStringSca, "(0,-1,-1));\n"))
-		cat(paste0(myStringVec,".x /= 72.0;\n"))
-		cat(paste0(myStringVec,".y /= 72.0;\n"))
-		cat(paste0(myStringVec,".z /= 72.0;\n"))
-	}
-	myLaplace <- function(myStringVec, myStringSca){
-			cat(paste0(myStringVec, " = 16.0 *((", myStringSca, "(1,0,0)) + (", myStringSca, "(-1,0,0)) + (", myStringSca, "(0,1,0)) + (", myStringSca, "(0,-1,0))+ (", myStringSca, "(0,0,1)) + (", myStringSca, "(0,0,-1)))	+ 1.0 *((", myStringSca, "(1,1,1)) + (", myStringSca, "(-1,1,1)) + (", myStringSca, "(1,-1,1))+ (", myStringSca, "(-1,-1,1)) + (", myStringSca, "(1,1,-1))+ (", myStringSca, "(-1,1,-1)) + (", myStringSca, "(1,-1,-1))+(", myStringSca, "(-1,-1,-1))) + 4.0 *((", myStringSca, "(1,1,0)) + (", myStringSca, "(-1,1,0))+ (", myStringSca, "(1,-1,0))+ (", myStringSca, "(-1,-1,0))+ (", myStringSca, "(1,0,1)) + (", myStringSca, "(-1,0,1))+ (", myStringSca, "(1,0,-1))+ (", myStringSca, "(-1,0,-1))+ (", myStringSca, "(0,1,1)) + (", myStringSca, "(0,-1,1))+ (", myStringSca, "(0,1,-1))+ (", myStringSca, "(0,-1,-1))) - 152.0 * ", myStringSca, "(0,0,0);\n"))
-			cat(paste0(myStringVec, "/= 36.0;\n"))
-	}
-?>
+//		xx/xx/2022: Extension of phase field to d3q27 option to move away from crappy q15 lattice.
+//		xx/xx/2022: Development of geometric wetting B.C. option as well as existing surface energy.
+//		xx/xx/2023: Code extension for wetting on curved boundaries. 
 
 #include <math.h>
 #define PI 3.14159265
@@ -134,97 +51,6 @@
 #else
 #define hPops 15
 #endif
-
-#ifdef OPTIONS_altContactAngle
-CudaDeviceFunction real_t getTangent1Wall(){
-	return der_tangent_1_wall;
-}
-CudaDeviceFunction real_t getTangent2Wall(){
-	return der_tangent_2_wall;
-}
-CudaDeviceFunction vector_t getTangentWallVector1(){
-	vector_t tangent;
-	tangent.x = TangentWallVector1_x;
-	tangent.y = TangentWallVector1_y;
-	tangent.z = TangentWallVector1_z;
-	return tangent;
-}
-CudaDeviceFunction vector_t getTangentWallVector2(){
-	vector_t tangent;
-	tangent.x = TangentWallVector2_x;
-	tangent.y = TangentWallVector2_y;
-	tangent.z = TangentWallVector2_z;
-	return tangent;
-}
-CudaDeviceFunction vector_t getGradPhi() {
-	vector_t gradPhi;
-	gradPhi.x = gradPhiVal_x(0,0,0); //gradPhiVal_x;
-	gradPhi.y = gradPhiVal_y(0,0,0); //gradPhiVal_y;
-	gradPhi.z = gradPhiVal_z(0,0,0); //gradPhiVal_z;
-	return gradPhi;
-}
-
-CudaDeviceFunction real_t getPerpVal() {
-	return perpVal;
-}
-CudaDeviceFunction real_t getIsItBoundary() {
-	return IsBoundary(0, 0, 0);
-}
-
-CudaDeviceFunction void calcPhaseGrad(){
-    vector_t gradPhi;
-    <?R
-        IsotropicGrad('gradPhi', 'PhaseF')
-    ?>
-    gradPhiVal_x = gradPhi.x;
-    gradPhiVal_y = gradPhi.y;
-    gradPhiVal_z = gradPhi.z;
-    if (IsBoundary(0,0,0)) {
-		gradPhiVal_x = 0.;
-		gradPhiVal_y = 0.;
-		gradPhiVal_z = 0.;
-	}
-}
-CudaDeviceFunction void calcPhaseGrad_init(){
-    real_t h = 1.0;
-
-	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
-	gradPhiVal_y = gradPhiVal_y(0, 0, 0);
-	gradPhiVal_z = gradPhiVal_z(0, 0, 0);
-
-	gradPhiVal_x = (PhaseF(1, 0, 0) - PhaseF(-1, 0, 0) )/ (2.0*h);
-	gradPhiVal_y = (PhaseF(0, 1, 0) - PhaseF(0, -1, 0) )/ (2.0*h);
-	gradPhiVal_z = (PhaseF(0, 0, 1) - PhaseF(0, 0, -1) )/ (2.0*h);
-
-	// handle boundaries
-	if (IsBoundary(1, 0, 0)) {
-		gradPhiVal_x = -(4*PhaseF(-1, 0, 0) - PhaseF(-2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
-	}
-	if (IsBoundary(-1, 0, 0)) {
-		gradPhiVal_x = (4*PhaseF(1, 0, 0) - PhaseF(2, 0, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
-	}
-
-	if (IsBoundary(0, 1, 0)) {
-		gradPhiVal_y = -(4*PhaseF(0, -1, 0) - PhaseF(0, -2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
-	}
-	if (IsBoundary(0, -1, 0)) {
-		gradPhiVal_y = (4*PhaseF(0, 1, 0) - PhaseF(0, 2, 0) - 3*PhaseF(0, 0, 0))/(2.0*h);
-	}
-
-	if (IsBoundary(0, 0, 1)) {
-		gradPhiVal_z = -(4*PhaseF(0, 0, -1) - PhaseF(0, 0, -2) - 3*PhaseF(0, 0, 0))/(2.0*h);
-	}
-	if (IsBoundary(0, 0, -1)) {
-		gradPhiVal_z = (4*PhaseF(0, 0, 1) - PhaseF(0, 0, 2) - 3*PhaseF(0, 0, 0))/(2.0*h);
-	}
-	if (IsBoundary(0,0,0)) {
-		gradPhiVal_x = 0.;
-		gradPhiVal_y = 0.;
-		gradPhiVal_z = 0.;
-	}
-}
-#endif
-
 
 <?R
 ###################################################
@@ -239,9 +65,11 @@ CudaDeviceFunction real_t getRho(){
 		return Density_l + (Density_h-Density_l) * (current_phase - PhaseField_l)/(PhaseField_h - PhaseField_l);
 	}
 }
+
 CudaDeviceFunction real_t getPhaseField(){
 	return PhaseF(0,0,0);
 }
+
 CudaDeviceFunction vector_t getU(){
 	vector_t u;
 	if ( IamWall || IamSolid ) {
@@ -251,14 +79,17 @@ CudaDeviceFunction vector_t getU(){
 	}
 	return u;
 }
+
 CudaDeviceFunction real_t getPstar(){
 	return <?R C(sum(g)) ?>;
 }
+
 CudaDeviceFunction real_t getP(){
 	real_t d = getRho();
 	real_t pstar = getPstar();
 	return pstar*d*cs2;
 }
+
 CudaDeviceFunction vector_t getNormal(){
 	vector_t n = {nw_x, nw_y, nw_z};
 	return n;
@@ -273,7 +104,8 @@ CudaDeviceFunction vector_t getNormal(){
 	This function uses isotropic gradient stencils to return
 	the gradient of the phase field variable \phi.
 */
-CudaDeviceFunction vector_t calcGradPhi(){
+CudaDeviceFunction vector_t calcGradPhi()
+{
 	vector_t gradPhi = {0.0,0.0,0.0};
 	#ifdef OPTIONS_OutFlow
 		if ((NodeType & NODE_BOUNDARY) == NODE_ENeumann || (NodeType & NODE_BOUNDARY) == NODE_EConvect) {
@@ -319,110 +151,16 @@ CudaDeviceFunction vector_t calcGradPhi(){
 	This function is run as the second stage of each action and fills
 	the iteration buffer with updated values of PhaseF.
 */
-CudaDeviceFunction void calcPhaseF(){
+CudaDeviceFunction void calcPhaseF()
+{
 	updateBoundary();
-	PhaseF = <?R C(sum(h))?>;
-}
-
-/*
-	This function is run after the calcPhaseF stage and uses the updated 
-	phase field values and the specified contact angle to update the 
-	the value of phase field in the wall cells.
-*/
-CudaDeviceFunction void calcWallPhase(){
-	PhaseF = PhaseF(0,0,0); //For fluid nodes.
-#ifdef OPTIONS_altContactAngle
-    der_tangent_1_wall = 0;
-	der_tangent_2_wall = 0;
-	TangentWallVector2_x = 0;
-	TangentWallVector2_y = 0;
-	TangentWallVector2_z = 0;
-	TangentWallVector1_x = 0;
-	TangentWallVector1_y = 0;
-	TangentWallVector1_z = 0;
-	perpVal = 0.;
-#endif
-	if ( IamWall || IamSolid ) {
-		real_t a, h, pf_f;
-
-		pf_f = PhaseF_dyn(nw_x, nw_y, nw_z);
-		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
-		
-		if (h < 0.001 || pf_f < -100) { 
-			// If I am a wall/solid node and I am surrounded by solid nodes
-			// or my normal points towards a solid node.
-			PhaseF = 1;
-		} else if (fabs(radAngle - PI/2.0) < 1e-4){
-			// If I am not surrounded, but contact angle is pi/2 (90d)
-			PhaseF = pf_f;
-		} else {
-#ifdef OPTIONS_altContactAngle
-			// get first normal in another plane to
-			// the current normal
-			real_t t1_x = d3q27_n1_ex[int(n_k)];
-			real_t t1_y = d3q27_n1_ey[int(n_k)];
-			real_t t1_z = d3q27_n1_ez[int(n_k)];
-
-			// get second normal in another plane to the current
-			// normal
-			real_t t2_x = d3q27_n2_ex[int(n_k)];
-			real_t t2_y = d3q27_n2_ey[int(n_k)];
-			real_t t2_z = d3q27_n2_ez[int(n_k)];
-			// project into the proper direction
-
-			// Get gradients on the nodes for interpolation
-			real_t der_x_1 = gradPhiVal_x_dyn(nw_x, nw_y, nw_z);
-			real_t der_y_1 = gradPhiVal_y_dyn(nw_x, nw_y, nw_z);
-			real_t der_z_1 = gradPhiVal_z_dyn(nw_x, nw_y, nw_z);
-
-			real_t der_x_2 = gradPhiVal_x_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			real_t der_y_2 = gradPhiVal_y_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			real_t der_z_2 = gradPhiVal_z_dyn(2*nw_x, 2*nw_y, 2*nw_z);
-			// Method 2: Simply use normal vector to calculate projection onto the solid boundary plane
-			// and extrapolate
-
-			// project the phase field gradient onto the boundary plane
-			real_t norm = nw_x*nw_x + nw_y * nw_y + nw_z * nw_z;
-			real_t coeff = (der_x_1 * nw_x + der_y_1 * nw_y + der_z_1 * nw_z)/norm;
-			vector_t proj_grad_1 = {der_x_1 - coeff*nw_x, der_y_1 - coeff*nw_y, der_z_1 - coeff * nw_z};
-
-			coeff = (der_x_2 * nw_x + der_y_2 * nw_y + der_z_2 * nw_z)/norm;
-			vector_t proj_grad_2 = {der_x_2 - coeff*nw_x, der_y_2 - coeff*nw_y, der_z_2 - coeff * nw_z};
-
-
-			real_t vec_1 = sqrt(proj_grad_1.x * proj_grad_1.x + proj_grad_1.y * proj_grad_1.y + proj_grad_1.z * proj_grad_1.z);
-			real_t vec_2 = sqrt(proj_grad_2.x * proj_grad_2.x + proj_grad_2.y * proj_grad_2.y + proj_grad_2.z * proj_grad_2.z);
-
-			// -> extrapolate from two points onto the third point on the wall
-			// NOTE: pretty sure this can be improved
-			real_t grad_tangent = fabs(1.5 * vec_1 - 0.5 * vec_2);
-
-			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
-
-			// debugging
-			der_tangent_1_wall = vec_1;
-			der_tangent_2_wall = vec_2;
-
-			TangentWallVector2_x = der_x_2;
-			TangentWallVector2_y = der_y_2;
-			TangentWallVector2_z = der_z_2;
-
-			TangentWallVector1_x = der_x_1;
-			TangentWallVector1_y = der_y_1;
-			TangentWallVector1_z = der_z_1;
-
-			perpVal = grad_tangent;
-#else
-			// Working to match paper and code calculation of a = h*Theta
-			// =  h*(-sqrt(2*beta/kappa)*cos(theta))
-			// = -h*( sqrt((2*12*sigma/W) / (3*sigma*W/2))*cos(theta))
-			// = -h*( sqrt(48 / (3*W^2))*cos(theta))
-			// = -h*( sqrt(16 / W^2)*cos(theta))
-			a = -h * (4.0/IntWidth) * cos( radAngle );
-			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
-#endif
-		}
-	} 
+	// NOTE: On the wall we want to take the previous value of the phase field, because
+	// it might be needed for calculation of the gradient
+	if (!( IamWall || IamSolid )) {
+		PhaseF = <?R C(sum(h))?>;
+	} else {
+		PhaseF = PhaseF(0,0,0);
+	}
 }
 
 /*
@@ -430,7 +168,8 @@ CudaDeviceFunction void calcWallPhase(){
 	Eqn. 5 in: Improved locality of the phase-field lattice-Boltzmann model 
 	for immiscible fluids at high density ratios
 */
-CudaDeviceFunction real_t calcMu(real_t C){
+CudaDeviceFunction real_t calcMu(real_t C)
+{
 	real_t pfavg, lpPhi, mu;
 	pfavg = 0.5*(PhaseField_l+PhaseField_h);
 	#ifdef OPTIONS_OutFlow
@@ -492,7 +231,8 @@ CudaDeviceFunction real_t calcMu(real_t C){
 	Eqn. 10 in: Improved locality of the phase-field lattice-Boltzmann model 
 	for immiscible fluids at high density ratios
 */
-CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t u2mag){
+CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t u2mag)
+{
 	real_t gamma, tmp;
 	tmp = (d3q27_ex[i]*u+d3q27_ey[i]*v+d3q27_ez[i]*w);
 
@@ -504,24 +244,48 @@ CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t w, real_t 
 	Eqn. 7 in: Improved locality of the phase-field lattice-Boltzmann model 
 	for immiscible fluids at high density ratios
 */
-CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, real_t nz){
+CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, real_t nz)
+{
 	real_t f_phi;
-#ifdef OPTIONS_q27
-	f_phi = wg[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
-#else
-	f_phi = wh[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
-#endif
+	#ifdef OPTIONS_q27
+		f_phi = wg[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
+	#else
+		f_phi = wh[i] * tmp1 * (d3q27_ex[i]*nx + d3q27_ey[i]*ny + d3q27_ez[i]*nz);
+	#endif
 	return f_phi;
 }
 
 /*	INITIALISATION:	*/
-CudaDeviceFunction void Init() {
+CudaDeviceFunction void Init() 
+{
 	PhaseF = PhaseField;
 	specialCases_Init();
 	if ( IamWall || IamSolid ) PhaseF = -999;
+
+	if (developedFlow > 0.1) {
+		U = 6.0 * Uavg * Y*(HEIGHT - Y)/(HEIGHT*HEIGHT);
+		V = 0.0;
+		W = 0.0;
+	} else if ( developedPipeFlow_X > 0.1 ){
+		U = 2.0 * Uavg * (1 - pow( (sqrt(pow((Y-pipeCentre_Y),2) + pow((Z-pipeCentre_Z),2)) / pipeRadius),2));
+		V = 0.0;
+		W = 0.0;
+	} else {
+		U = VelocityX;	V = VelocityY;	W = VelocityZ;
+	}
 }
 
-CudaDeviceFunction void specialCases_Init(){
+CudaDeviceFunction void InitFromFieldsStage()
+{
+	PhaseF = Init_PhaseField_External;
+	U = Init_UX_External;
+	V = Init_UY_External;
+	W = Init_UZ_External;
+	if ( IamWall || IamSolid ) PhaseF = -999;
+}
+
+CudaDeviceFunction void specialCases_Init()
+{
 	#ifdef OPTIONS_thermo
 		Temp   = T_init;
 		if (fabs(dT) > 0){
@@ -565,10 +329,10 @@ CudaDeviceFunction void specialCases_Init(){
 		real_t d = RTI_Characteristic_Length;
 		real_t ycutoff;
         if (pseudo2D > 0.5){
-		    ycutoff = 2.0*d + 0.1*d*(cos(2.0*PI*X/d));
+			ycutoff = 2.0*d + 0.1*d*(cos(2.0*PI*X/d));
         } else {
-		    ycutoff = 2.0*d + 0.05*d*(cos(2.0*PI*X/d) + cos(2.0*PI*Z/d));
-        }
+			ycutoff = 2.0*d + 0.05*d*(cos(2.0*PI*X/d) + cos(2.0*PI*Z/d));
+		}
 		if (Y < ycutoff) {PhaseF = 0.0; }
 		else             {PhaseF = 1.0;	}
 	}
@@ -593,78 +357,8 @@ CudaDeviceFunction void specialCases_Init(){
 	}
 }
 
-CudaDeviceFunction void Init_wallNorm(){
-	PhaseF = PhaseF(0,0,0);
-#ifdef OPTIONS_altContactAngle
-    IsBoundary = 0.0;
-#endif
-	if ( IamWall || IamSolid ) {
-#ifdef OPTIONS_altContactAngle
-        IsBoundary = 1.0;
-#endif
-	// Am I surrounded by solid nodes?
-		int i,j,k;
-	  	real_t tmp = 0.0;
-	  	for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
-			tmp += PhaseF_dyn(i,j,k);
-	  	}}}
-
-	  	if ( abs(tmp) > 26000){
-		// yes I am surrounded (sum(pf) = 27*-999 = -26973 if surrounded):
-			nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
-	  	} else { 
-		// no I am not surrounded, so calc normal:
-			int solidFlag[27]; 
-			int maxi = 0;
-			real_t myNorm[3] = {0.0,0.0,0.0};
-			real_t maxn=0.0, dot;
-
-			// Calculate the normal direction:
-			<?R
-			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
-			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
-			    solid = PV(paste0("solidFlag[",1:27-1,"]"))
-			
-			    C(solid, pf)
-			?>
-			for (i=0;i<27;i++){
-				myNorm[0] += wg[i] * solidFlag[i] * d3q27_ex[i];
-				myNorm[1] += wg[i] * solidFlag[i] * d3q27_ey[i];
-				myNorm[2] += wg[i] * solidFlag[i] * d3q27_ez[i];
-			
-			}
-			myNorm[0] *= -1.0/3.0;myNorm[1] *= -1.0/3.0;myNorm[2] *= -1.0/3.0;
-			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
-			
-			// Calculate the closest discrete direction for normal:
-			for (i = 0; i<27; i++) {
-				dot = (myNorm[0]*d3q27_ex[i] + myNorm[1]*d3q27_ey[i] + myNorm[2]*d3q27_ez[i]) /
-			      		sqrt( tmp*(d3q27_ex[i]*d3q27_ex[i] + d3q27_ey[i]*d3q27_ey[i] + 
-					 	   d3q27_ez[i]*d3q27_ez[i]) + 1e-12);
-				if (dot > maxn) {
-					maxn = dot; maxi = i;
-				}
-			}
-			if (maxi < 0) {
-				// This should not happen ?
-				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
-#ifdef OPTIONS_altContactAngle
-                n_k = 0;
-#endif
-			} else {
-				nw_x = d3q27_ex[maxi];nw_y = d3q27_ey[maxi];nw_z = d3q27_ez[maxi];
-#ifdef OPTIONS_altContactAngle
-                n_k = maxi;
-#endif
-			}
-	  	}
-	} else {
-	// I am a fluid node, I dont need no solid normal.
-		nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
-	}
-}
-
-CudaDeviceFunction void Init_distributions(){
+CudaDeviceFunction void Init_distributions()
+{
 	// Initialise phase variables:
 	int i;
 	real_t C0 = 0.5*(PhaseField_h - PhaseField_l);
@@ -677,11 +371,11 @@ CudaDeviceFunction void Init_distributions(){
 	vector_t gradPhi = calcGradPhi();
 	magnPhi = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + gradPhi.z*gradPhi.z);
 
-#ifdef OPTIONS_altContactAngle
-    gradPhiVal_x = gradPhi.x;
-	gradPhiVal_y = gradPhi.y;
-	gradPhiVal_z = gradPhi.z;
-#endif
+	#ifdef OPTIONS_geometric
+		gradPhiVal_x = gradPhi.x;
+		gradPhiVal_y = gradPhi.y;
+		gradPhiVal_z = gradPhi.z;
+	#endif
 	if (magnPhi < minGradient){
 		nx=0.0; ny=0.0; nz=0.0;
 	} else {
@@ -690,18 +384,9 @@ CudaDeviceFunction void Init_distributions(){
 		nz = gradPhi.z/magnPhi;
 	}
 
-	// Define Equilibrium, then initialise all da things
-	if (developedFlow > 0.1) {
-		U = 6.0 * Uavg * Y*(HEIGHT - Y)/(HEIGHT*HEIGHT);
-        V = 0.0;
-        W = 0.0;
-	} else if ( developedPipeFlow_X > 0.1 ){
-		U = 2.0 * Uavg * (1 - pow( (sqrt(pow((Y-pipeCentre_Y),2) + pow((Z-pipeCentre_Z),2)) / pipeRadius),2));
-		V = 0.0;
-		W = 0.0;
-	} else {
-		U = VelocityX;	V = VelocityY;	W = VelocityZ;
-	}
+	U = U(0,0,0);
+	V = V(0,0,0);
+	W = W(0,0,0);
 
 	real_t mag = U*U + V*V + W*W;
 	real_t Gamma[27];
@@ -743,14 +428,43 @@ CudaDeviceFunction void Init_distributions(){
 	#endif
 }
 
+CudaDeviceFunction void UpdateGlobalMarkers()
+{
+	if (IsSpecialBoundaryPoint) {
+		AddToNumSpecialPoints(1);
+	}
+
+	if ( IamWall || IamSolid ) {
+		real_t a, h, pf_f;
+
+		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
+
+        real_t am_i_surrounded = h < 0.001;
+
+        if (! am_i_surrounded) {
+          AddToNumWallBoundaryPoints(1);
+        }
+
+        AddToNumBoundaryPoints(1);
+    }
+
+    if (IamCOLLISION){
+      AddToNumFluidCells(1);
+    }
+}
+
+
 /*	ITERATION:	*/
-CudaDeviceFunction void Run() {
-	// If desired, incorporate a smoothing stage, in this we simply let diffusion occur
+CudaDeviceFunction void Run() 
+{
+	IsBoundary = IsBoundary(0,0,0); // propagate it into the next iteration
+	UpdateGlobalMarkers();
+
     if ((NodeType & NODE_ADDITIONALS) == NODE_Smoothing) {
+		// If desired, incorporate a smoothing stage, in this we simply let diffusion occur
 		Init_distributions();
     } else {
         updateBoundary();	
-    
 		#ifdef OPTIONS_BGK
 			if (NodeType & NODE_BGK) {
 				CollisionBGK();
@@ -765,7 +479,8 @@ CudaDeviceFunction void Run() {
         pnorm  = <?R C(sum(g)) ?>;
 }
 
-CudaDeviceFunction real_t calcTau(real_t pf){
+CudaDeviceFunction real_t calcTau(real_t pf)
+{
 	real_t tau;
 	if ( pf < PhaseField_l){
 		tau = tau_l + 0.5;
@@ -777,11 +492,19 @@ CudaDeviceFunction real_t calcTau(real_t pf){
         } else if (tauUpdate == 2){ // Inverse update:
 		    tau = (pf - PhaseField_l)/(PhaseField_h - PhaseField_l) * (1.0/tau_h - 1.0/tau_l) + 1.0/tau_l;
 		    tau = 1.0/tau + 0.5;
+			// NOTE: For some reason Viscosity_h and Viscosity_l are set to zero. Deduce it from tau here
+			// instead for tauUpdate 3 and tauUpdate 4
         } else if (tauUpdate == 3){	// Viscosity update:
-		    real_t DynVisc = Density_l*Viscosity_l + pf * (Density_h*Viscosity_h - Density_l*Viscosity_l);
+		    real_t DynVisc = Density_l*tau_l / 3.0 + pf * (tau_h*Density_h/3.0 - Density_l*tau_l/3.0);
             real_t rho = getRho();
 		    tau = 3.0 * DynVisc / rho + 0.5;
-        } else { // default to linear...
+        } else if (tauUpdate == 4) { // update from Zu-He 2013
+			real_t mu_l = Density_l * tau_l / 3.0;
+			real_t mu_h = Density_h * tau_h / 3.0;
+		    real_t DynVisc = mu_l * mu_h * (PhaseField_h - PhaseField_l) / ((pf - PhaseField_l)*mu_l  + (PhaseField_h - pf)*mu_h);
+            real_t rho = getRho();
+			tau = 3.0 * DynVisc / rho + 0.5;
+		} else { // default to linear...
             tau = 0.5 + tau_l + (pf-PhaseField_l)*(tau_h - tau_l)/(PhaseField_h - PhaseField_l);
         }
 	}
@@ -834,7 +557,8 @@ CudaDeviceFunction void calc_Fs(real_t *fx, real_t *fy, real_t *fz, real_t mu, v
 }
 
 #ifndef OPTIONS_BGK
-CudaDeviceFunction void CollisionMRT(){
+CudaDeviceFunction void CollisionMRT()
+{
 	PhaseF = PhaseF(0,0,0);
 	int i, j;
 	real_t C  = PhaseF;
@@ -893,7 +617,7 @@ CudaDeviceFunction void CollisionMRT(){
 	calc_Fb(&F_body[0], &F_body[1], &F_body[2], rho);
     calc_Fs(&F_surf[0], &F_surf[1], &F_surf[2], mu, gradPhi);
 	//  Viscous Force:
-	for (j=0;j<2;j++) {
+	for (j=0;j<force_fixed_iterator;j++) {
 	<?R
 		C(m[selR], (m0 - EQ$Req)[selR] * Omega)
 
@@ -927,9 +651,9 @@ CudaDeviceFunction void CollisionMRT(){
 		    EQ_h = MRT_eq(U[1:PF_velocities,],PV(1),u)
 		} else {
 			wh = c(rep(16/72,1),rep(8/72,6),rep(1/72,8))
-        	}
+        }
 		C(Fphi, wh * PV("tmp1") * (U[1:PF_velocities,] %*% n))
-    		C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
+    	C(h, h - omega * (h - heq + 0.5*Fphi) + Fphi)
 
 		mF = PV(rep(0,27))
 		mF[2:4] = F_total * rho.inv
@@ -943,290 +667,180 @@ CudaDeviceFunction void CollisionMRT(){
 #endif
 
 //######BOUNDARY CONDITIONS######//
-#ifdef OPTIONS_OutFlow
-<?R
-	if (Options$OutFlow) {
-		####################################################
-		# Outflow conditions are tested but not rigorously #
-		#            treat these with care!                #
-		# NOTE: outside of east/west the user needs to add #
-		#       suitable conditions for calcGradPhi and    #
-		#       calculating laplace parameters.            #
-		# If for some reason you need additional direction #
-		#  use the existing as a template to create them.  #
-		####################################################
-		g_neighbours = Density$nicename[Density$group =="g"]
-		h_neighbours = Density$nicename[Density$group =="h"]
-
-		g_n_e = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"]-1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")",sep=""))
-		h_n_e = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")",sep=""))
-		g_n_w = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"]+1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")",sep=""))
-		h_n_w = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]+1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")",sep=""))
-
-		U_loc = PV("U_local")
-		U_inv = PV("invU")
-	}
-?>
-#define myMax(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
-// Convective boundary from: A phase-field lattice Boltzmann model for simulating multiphase flows
-//							in porous media: Application and comparison to experiments of CO2
-//							sequestration at pore scale
-CudaDeviceFunction void EConvect(){
-	real_t U_local = myMax(0, U(-1,0,0));
-	real_t invU = 1.0/(1+ U_local);
-	<?R
-		if (Options$OutFlow) {
-			C(g, (g_old + U_loc*g_n_e)*U_inv)
-			C(h, (h_old + U_loc*h_n_e)*U_inv)
-
-			C(g_old, g)
-			C(h_old, h)
-		}
-	?>
-}
-CudaDeviceFunction void WConvect(){
-	real_t U_local = myMax(0, -U(1,0,0));
-	real_t invU = 1.0/(1 - U_local);
-	<?R
-		if (Options$OutFlow) {
-			C(g, (g_old + U_loc*g_n_w)*U_inv)
-			C(h, (h_old + U_loc*h_n_w)*U_inv)
-			
-			C(g_old, g)
-			C(h_old, h)
-		}
-	?>
-}
-
-CudaDeviceFunction void ENeumann(){
-	<?R
-		if (Options$OutFlow){
-			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"]-1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")")))	
-			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")")))	
-		}
-	?>
-}
-CudaDeviceFunction void WNeumann(){
-	<?R
-		if (Options$OutFlow){
-			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"]+1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")")))	
-			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"]+1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")")))	
-		}
-	?>
-}
-#endif
-
-<?R
-#########################################################
-# create pressure/velocity boundaries in all directions #
-#########################################################
-    my_velocity_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Velocity"))
-    my_pressure_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Pressure"))
-    my_normal_directions = rbind(c(0,1,0),
-                                 c(1,0,0),
-                                 c(0,-1,0),
-                                 c(-1,0,0),
-                                 c(0,0,1),
-                                 c(0,0,-1))
-
-    cube_faces = 6
-    b_uavg = PV("Uavg")
-    b_height = PV("HEIGHT")
-    b_pipecentre_y = PV("pipeCentre_Y")
-    b_pipecentre_z = PV("pipeCentre_Z")
-    b_coords = c(PV("X"),PV("Y"),PV("Z"))
-    b_velocities = c(PV("U"),PV("V"),PV("W"))
-
-    coords_shift   = b_coords[c(2:length(b_coords),1)]
-    coords_shift_2 = coords_shift[c(2:length(coords_shift),1)]
-    
-    b_channel_flow = 6*b_uavg*coords_shift*(b_height - coords_shift)*b_height^-2
-
-    b_pipe_flow_tmp = (coords_shift-b_pipecentre_y)^2+(coords_shift_2-b_pipecentre_z)^2
-
-    for (ii in 1:cube_faces){
-?>
-CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
-    U = VelocityX;
-    V = VelocityY;
-    W = VelocityZ;
-    if ( developedFlow > 0.1 ){
-        <?R
-            C(b_velocities,-1*my_normal_directions[ii,]*b_channel_flow)
-        ?>
-    }
-    if ( developedPipeFlow > 0.1 ){
-        U = <?R C(-1*my_normal_directions[ii,1])?> * (2.0*Uavg*(1-pow(sqrt(<?R C(b_pipe_flow_tmp[1])?>)/pipeRadius,2) )) ;
-        V = <?R C(-1*my_normal_directions[ii,2])?> * (2.0*Uavg*(1-pow(sqrt(<?R C(b_pipe_flow_tmp[2])?>)/pipeRadius,2) )) ;
-        W = <?R C(-1*my_normal_directions[ii,3])?> * (2.0*Uavg*(1-pow(sqrt(<?R C(b_pipe_flow_tmp[3])?>)/pipeRadius,2) )) ;
-    }
-	<?R
-		n = my_normal_directions[ii,]
-		geq = EQ$feq
-		bounce = Bounce(U)
-		sel = as.vector( (U %*% n) < 0)
-
-		sel2 = as.vector( ( U %*% n) == 0)	
-		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
-        Unknowns = 1.0/max(colSums(U[sel2,]^2)) # should be 6 for q27, 4 for q15
-        Nmat = t(U[sel,]) %*% U[sel,]
-
-		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - 0.5* (exM %*% solve(Nmat) %*% t(U))[sel])
-	?>
-	<?R
-		U_PF = U[1:PF_velocities,]
-        	pf = PV("PhaseField")
-		n = my_normal_directions[ii,]
-		heq = pf * EQ_h$feq
-		bounce = Bounce(U_PF)
-		sel = as.vector( (U_PF %*% n) < 0)
-
-		sel2 = as.vector( ( U_PF %*% n) == 0)	
-		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
-
-		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
-}
-
-CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
-    real_t d = getRho();
-	real_t pstar = Pressure / (d*cs2);
-	<?R
-        EQ = MRT_eq(U,PV(1),u,mat=t(M))
-       	pstar = PV("pstar")
-		n = my_normal_directions[ii,]
-		geq = pstar*w_g + (EQ$feq - w_g)
-		bounce = Bounce(U)
-		sel = as.vector( (U %*% n) < 0)
-
-		sel2 = as.vector( ( U %*% n) == 0)	
-		exM = (g[sel2] - geq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
-
-		C(g[sel], geq[sel] + geq[bounce][sel] - g[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
-	<?R
-		U_PF = U[1:PF_velocities,]
-       	pf = PV("PhaseField")
-		n = my_normal_directions[ii,]
-		heq = pf * EQ_h$feq
-		bounce = Bounce(U_PF)
-		sel = as.vector( (U_PF %*% n) < 0)
-
-		sel2 = as.vector( ( U_PF %*% n) == 0)	
-		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
-
-		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
-}
-
-<?R
-}
-?>
-
-CudaDeviceFunction void MovingNWall(){
-	// Experimental, use with care!
-
-	g4  = g3;
-	g24 = g25;
-	g26 = g23;
-
-	g9  = g12 + VelocityX/36.0;
-	g13 = g8  + VelocityX/36.0;
-	g17 = g16 + VelocityX/9.0;
-
-	g10 = g11 - VelocityX/36.0;
-	g14 = g7  - VelocityX/36.0;
-	g18 = g15 - VelocityX/9.0;
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
-
-	//	h4  = h3 ;
-	//	h9  = h12;
-	//	h10 = h11;
-	//	h13 = h8 ;
-	//	h14 = h7 ;
-}
-
-CudaDeviceFunction void MovingSWall(){
-	// Experimental, use with care!
-
-	g3  = g4;
-	g25 = g24;
-	g23 = g26;
-
-	g12 = g9  - VelocityX/36.0;
-	g8  = g13 - VelocityX/36.0;
-	g16 = g17 - VelocityX/9.0;
-
-	g11 = g10 + VelocityX/36.0;
-	g7  = g14 + VelocityX/36.0;
-	g15 = g18 + VelocityX/9.0;
-	{
-		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
-	}
-}
-
-CudaDeviceFunction void BounceBack(){
-	real_t tmp;
-	tmp = g0; g0 = g0; g0 = tmp;
-	tmp = g1; g1 = g2; g2 = tmp;
-	tmp = g3; g3 = g4; g4 = tmp;
-	tmp = g5; g5 = g6; g6 = tmp;
-	tmp = g7; g7 = g14; g14 = tmp;
-	tmp = g8; g8 = g13; g13 = tmp;
-	tmp = g9; g9 = g12; g12 = tmp;
-	tmp = g10; g10 = g11; g11 = tmp;
-	tmp = g15; g15 = g18; g18 = tmp;
-	tmp = g16; g16 = g17; g17 = tmp;
-	tmp = g19; g19 = g22; g22 = tmp;
-	tmp = g20; g20 = g21; g21 = tmp;
-	tmp = g23; g23 = g26; g26 = tmp;
-	tmp = g24; g24 = g25; g25 = tmp;
-
-	tmp = h0; h0 = h0; h0 = tmp;
-	tmp = h1; h1 = h2; h2 = tmp;
-	tmp = h3; h3 = h4; h4 = tmp;
-	tmp = h5; h5 = h6; h6 = tmp;
-	tmp = h7; h7 = h14; h14 = tmp;
-	tmp = h8; h8 = h13; h13 = tmp;
-	tmp = h9; h9 = h12; h12 = tmp;
-	tmp = h10; h10 = h11; h11 = tmp;
-#ifdef OPTIONS_q27
-	tmp = h15; h15 = h18; h18 = tmp;
-	tmp = h16; h16 = h17; h17 = tmp;
-	tmp = h19; h19 = h22; h22 = tmp;
-	tmp = h20; h20 = h21; h21 = tmp;
-	tmp = h23; h23 = h26; h26 = tmp;
-	tmp = h24; h24 = h25; h25 = tmp;
-#endif
-}
+<?RT models/multiphase/d3q27_pf_velocity/Boundary.c.Rt ?>
 //############//
 
-CudaDeviceFunction vector_t getA(){
-	vector_t ret;
-	return ret;
-}
-CudaDeviceFunction float2 Color() {
-        float2 ret;
-        vector_t u = getU();
-        ret.x = PhaseF(0,0);
-        if (NodeType == NODE_Solid){
-                ret.y = 0;
-        } else {
-                ret.y = 1;
+//######UPDATE FUNCTIONS#######//
+CudaDeviceFunction void updateBoundary(){
+    switch (NodeType & NODE_BOUNDARY) {
+		case NODE_Solid:
+		case NODE_Wall:
+			BounceBack();
+			break;
+        <?R
+        for (ii in 1:6){
+        ?>
+        case NODE_<?R C(my_velocity_boundaries[ii])?>:
+			<?R C(my_velocity_boundaries[ii])?>();
+			break;
+		case NODE_<?R C(my_pressure_boundaries[ii])?>:
+			<?R C(my_pressure_boundaries[ii])?>();
+			break;
+		<?R
         }
-        return ret;
+        ?>
+		case NODE_MovingWall_N:
+			MovingNWall();
+			break;
+		case NODE_MovingWall_S:
+			MovingSWall();
+			break;
+		#ifdef OPTIONS_OutFlow
+			case NODE_EConvect:
+				EConvect();
+				break;
+			case NODE_WConvect:
+				WConvect();
+				break;
+			case NODE_ENeumann:
+				ENeumann();
+				break;
+			case NODE_WNeumann:
+				WNeumann();
+				break;
+		#endif
+	}
 }
 
+CudaDeviceFunction void updateMyGlobals(real_t pf){
+	real_t tmpPF = 1 - pf;
+	real_t rho = Density_l + ((pf) - PhaseField_l)*(Density_h - Density_l)/(PhaseField_h - PhaseField_l);
+	real_t u2mag = (U*U+V*V+W*W);
+	AddToTotalDensity( rho ); // Add globals of post-stream, pre-collide macroscopic globals.
+	AddToKineticEnergy( rho * u2mag );
+
+	if ( (pf) < 0.5 ) 
+	{
+	    AddToGasTotalVelocity( tmpPF*sqrt(u2mag));
+	    AddToGasTotalVelocityX( tmpPF*U );
+	    AddToGasTotalVelocityY( tmpPF*V );
+	    AddToGasTotalVelocityZ( tmpPF*W );
+	    AddToGasTotalPhase( tmpPF );
+	    AddToXLocation( tmpPF*X );
+	} else {
+	    AddToLiqTotalVelocity( pf*sqrt(u2mag));
+	    AddToLiqTotalVelocityX( U*pf );
+	    AddToLiqTotalVelocityY( V*pf );
+	    AddToLiqTotalVelocityZ( W*pf );
+	    AddToLiqTotalPhase( pf );
+	}
+
+	if ((NodeType & NODE_ADDITIONALS) == NODE_flux_nodes) {
+		AddToFluxNodeCount( 1 );
+		AddToFluxX( U );
+		AddToFluxY( V );
+		AddToFluxZ( W );
+	}
+}
+
+CudaDeviceFunction void updateTrackers(real_t C){
+	real_t location;
+
+	// track top of the interface in Y direction, only on actual nodes
+	if ((NodeType & NODE_BGK) || (NodeType & NODE_MRT)) {
+		if ( C < 0.5 && PhaseF(0, -1, 0) > 0.5) {
+			location = Y - (C-0.5)/(C-PhaseF(0,-1,0));
+			AddToInterfaceYTop(location);
+		}
+	}
+
+	switch (NodeType & NODE_ADDITIONALS) {
+		case NODE_Centerline:
+		    if ( fabs(xyzTrack-1) < 1e-3 )
+		    {  // track along X
+                if (C < 0.5 && PhaseF(1,0,0) > 0.5)
+                {
+                    location = X + (C-0.5)/(C-PhaseF(1,0,0));
+                    AddToInterfacePosition(location);
+                    AddToVback(U);
+                }
+                if (C >0.5 && PhaseF(-1,0,0) < 0.5)
+                {
+                    AddToVfront(U);
+                }
+		    } else if ( fabs(xyzTrack-2) < 1e-3)
+		    { // track along Y
+                if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+                {
+                    location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+                    AddToInterfacePosition(location);
+                    AddToVback(V);
+                }
+                if (C >0.5 && PhaseF(0,-1,0) < 0.5)
+                {
+                    AddToVfront(V);
+                }
+		    } else if ( fabs(xyzTrack-3) < 1e-3)
+		    { // track along Z
+			if (C < 0.5 && PhaseF(0,0,1) > 0.5)
+                {
+                    location = Z + (C-0.5)/(C-PhaseF(0,0,1));
+                    AddToInterfacePosition(location);
+                    AddToVback(W);
+                }
+                if (C >0.5 && PhaseF(0,0,-1) < 0.5)
+                {
+                    AddToVfront(W);
+                }
+		    } else if ( fabs(xyzTrack-4) < 1e-3 )
+		    {  // track reverse along X
+                if (C < 0.5 && PhaseF(-1,0,0) > 0.5)
+                {
+                    location = X - (C-0.5)/(C-PhaseF(-1,0,0));
+                    AddToInterfacePosition(location);
+				    AddToVback(U);
+			    }
+            } else if ( fabs(xyzTrack-5) < 1e-3 )
+		    {  // track reverse along Y (e.g. tracking north pole of the droplet
+			   // as it is falling)
+                if (C < 0.5 && PhaseF(0,-1,0) > 0.5)
+                {
+                    location = Y - (C-0.5)/(C-PhaseF(0,-1,0));
+                    AddToInterfacePosition(location);
+			    }
+            }
+
+		case NODE_Spiketrack:
+			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+			{
+				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+				AddToRTISpike(location);
+			}
+		case NODE_Saddletrack:
+			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+			{
+				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+				AddToRTISaddle(location);
+			}
+		case NODE_Bubbletrack:
+			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
+			{
+				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
+				AddToRTIBubble(location);
+			}
+	}
+}
+//#############//
+//######THERMOCAPILLARY UPDATE######//
+#ifdef OPTIONS_thermo
+	<?RT models/multiphase/d3q27_pf_velocity/thermo.c.Rt ?>
+#endif
+//#############//
+
+
 #ifdef OPTIONS_BGK
-CudaDeviceFunction void CollisionBGK(){
+CudaDeviceFunction void CollisionBGK()
+{
     PhaseF = PhaseF(0,0,0);
 	int i, j;
 	real_t C  = PhaseF; 
@@ -1320,356 +934,21 @@ CudaDeviceFunction void CollisionBGK(){
 }
 #endif
 
-//######UPDATE FUNCTIONS#######//
-CudaDeviceFunction void updateBoundary(){
-    switch (NodeType & NODE_BOUNDARY) {
-		case NODE_Solid:
-		case NODE_Wall:
-			BounceBack();
-			break;
-        <?R
-        for (ii in 1:6){
-        ?>
-        case NODE_<?R C(my_velocity_boundaries[ii])?>:
-			<?R C(my_velocity_boundaries[ii])?>();
-			break;
-		case NODE_<?R C(my_pressure_boundaries[ii])?>:
-			<?R C(my_pressure_boundaries[ii])?>();
-			break;
-		<?R
+CudaDeviceFunction vector_t getA(){
+	vector_t ret;
+	return ret;
+}
+CudaDeviceFunction float2 Color() {
+        float2 ret;
+        vector_t u = getU();
+        ret.x = PhaseF(0,0);
+        if (NodeType == NODE_Solid){
+                ret.y = 0;
+        } else {
+                ret.y = 1;
         }
-        ?>
-		case NODE_MovingWall_N:
-			MovingNWall();
-			break;
-		case NODE_MovingWall_S:
-			MovingSWall();
-			break;
-		#ifdef OPTIONS_OutFlow
-			case NODE_EConvect:
-				EConvect();
-				break;
-			case NODE_WConvect:
-				WConvect();
-				break;
-			case NODE_ENeumann:
-				ENeumann();
-				break;
-			case NODE_WNeumann:
-				WNeumann();
-				break;
-		#endif
-	}
+        return ret;
 }
-
-CudaDeviceFunction void updateMyGlobals(real_t pf){
-	real_t tmpPF = 1 - pf;
-	real_t rho = Density_l + ((pf) - PhaseField_l)*(Density_h - Density_l)/(PhaseField_h - PhaseField_l);
-	real_t u2mag = (U*U+V*V+W*W);
-	AddToTotalDensity( rho ); // Add globals of post-stream, pre-collide macroscopic globals.
-	AddToKineticEnergy( rho * u2mag );
-
-	if ( (pf) < 0.5 ) 
-	{
-	    AddToGasTotalVelocity( tmpPF*sqrt(u2mag));
-	    AddToGasTotalVelocityX( tmpPF*U );
-	    AddToGasTotalVelocityY( tmpPF*V );
-	    AddToGasTotalVelocityZ( tmpPF*W );
-	    AddToGasTotalPhase( tmpPF );
-	    AddToXLocation( tmpPF*X );
-	} else {
-	    AddToLiqTotalVelocity( pf*sqrt(u2mag));
-	    AddToLiqTotalVelocityX( U*pf );
-	    AddToLiqTotalVelocityY( V*pf );
-	    AddToLiqTotalVelocityZ( W*pf );
-	    AddToLiqTotalPhase( pf );
-	}	
-
-	if ((NodeType & NODE_ADDITIONALS) == NODE_flux_nodes) {
-		AddToFluxNodeCount( 1 );
-		AddToFluxX( U );
-		AddToFluxY( V );
-		AddToFluxZ( W );
-	}
-}
-
-CudaDeviceFunction void updateTrackers(real_t C){
-	switch (NodeType & NODE_ADDITIONALS) {
-		real_t location;
-		case NODE_Centerline:
-		    if ( fabs(xyzTrack-1) < 1e-3 )
-		    {  // track along X
-                if (C < 0.5 && PhaseF(1,0,0) > 0.5)
-                {
-                    location = X + (C-0.5)/(C-PhaseF(1,0,0));
-                    AddToInterfacePosition(location);
-                    AddToVback(U);
-                }
-                if (C >0.5 && PhaseF(-1,0,0) < 0.5)
-                {
-                    AddToVfront(U);
-                }
-		    } else if ( fabs(xyzTrack-2) < 1e-3)
-		    { // track along Y
-                if (C < 0.5 && PhaseF(0,1,0) > 0.5)
-                {
-                    location = Y + (C-0.5)/(C-PhaseF(0,1,0));
-                    AddToInterfacePosition(location);
-                    AddToVback(V);
-                }
-                if (C >0.5 && PhaseF(0,-1,0) < 0.5)
-                {
-                    AddToVfront(V);
-                }
-		    } else if ( fabs(xyzTrack-3) < 1e-3)
-		    { // track along Z
-			if (C < 0.5 && PhaseF(0,0,1) > 0.5)
-                {
-                    location = Z + (C-0.5)/(C-PhaseF(0,0,1));
-                    AddToInterfacePosition(location);
-                    AddToVback(W);
-                }
-                if (C >0.5 && PhaseF(0,0,-1) < 0.5)
-                {
-                    AddToVfront(W);
-                }
-		    } else if ( fabs(xyzTrack-4) < 1e-3 )
-		    {  // track reverse along X
-                if (C < 0.5 && PhaseF(-1,0,0) > 0.5)
-                {
-                    location = X - (C-0.5)/(C-PhaseF(-1,0,0));
-                    AddToInterfacePosition(location);
-				    AddToVback(U);
-			    }
-            }
-		case NODE_Spiketrack:
-			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
-			{
-				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
-				AddToRTISpike(location);
-			}
-		case NODE_Saddletrack:
-			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
-			{
-				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
-				AddToRTISaddle(location);
-			}
-		case NODE_Bubbletrack:
-			if (C < 0.5 && PhaseF(0,1,0) > 0.5)
-			{
-				location = Y + (C-0.5)/(C-PhaseF(0,1,0));
-				AddToRTIBubble(location);
-			}
-	}
-}
-//#############//
-//######THERMOCAPILLARY UPDATE######//
-#ifdef OPTIONS_thermo
-	CudaDeviceFunction real_t getT(){
-		return Temp(0,0,0);
-	}
-	CudaDeviceFunction real_t getST(){
-		real_t surfaceTen;
-		if (surfPower > 1) {
-			surfaceTen = sigma + sigma_TT*pow((Temp(0,0,0) - T_ref),surfPower) * (1.0/surfPower);
-		} else {
-			surfaceTen = sigma + sigma_T*(Temp(0,0,0) - T_ref);
-		}
-		return surfaceTen;
-	}
-	/* Save everything from buffer 1 to 2. */
-	CudaDeviceFunction void TempCopy(){
-		g0  = g0(0,0,0);
-		g1  = g1(0,0,0);
-		g2  = g2(0,0,0);
-		g3  = g3(0,0,0);
-		g4  = g4(0,0,0);
-		g5  = g5(0,0,0);
-		g6  = g6(0,0,0);
-		g7  = g7(0,0,0);
-		g8  = g8(0,0,0);
-		g9  = g9(0,0,0);
-		g10 = g10(0,0,0);
-		g11 = g11(0,0,0);
-		g12 = g12(0,0,0);
-		g13 = g13(0,0,0);
-		g14 = g14(0,0,0);
-		g15 = g15(0,0,0);
-		g16 = g16(0,0,0);
-		g17 = g17(0,0,0);
-		g18 = g18(0,0,0);
-		g19 = g19(0,0,0);
-		g20 = g20(0,0,0);
-		g21 = g21(0,0,0);
-		g22 = g22(0,0,0);
-		g23 = g23(0,0,0);
-		g24 = g24(0,0,0);
-		g25 = g25(0,0,0);
-		g26 = g26(0,0,0);
-
-		h0 = h0(0,0,0);
-		h1 = h1(0,0,0);
-		h2 = h2(0,0,0);
-		h3 = h3(0,0,0);
-		h4 = h3(0,0,0);
-		h5 = h4(0,0,0);
-		h6 = h5(0,0,0);
-		h7 = h7(0,0,0);
-		h8 = h8(0,0,0);
-		h9 = h9(0,0,0);
-		h10 = h10(0,0,0);
-		h11 = h11(0,0,0);
-		h12 = h12(0,0,0);
-		h13 = h13(0,0,0);
-		h14 = h14(0,0,0);
-
-		U = U(0,0,0);
-		V = V(0,0,0);
-		W = W(0,0,0);
-
-		nw_x = nw_x(0,0,0);
-		nw_y = nw_y(0,0,0);
-		nw_z = nw_z(0,0,0);
-
-		PhaseF = PhaseF(0,0,0);
-
-		Temp = Temp(0,0,0); 
-		Cond = Cond(0,0,0); 
-		SurfaceTension = SurfaceTension(0,0,0);
-	}
-
-	CudaDeviceFunction void ThermalCopy(){
-		Temp = Temp(0,0,0); 
-		Cond = Cond(0,0,0); 
-		SurfaceTension = SurfaceTension(0,0,0);
-	}
-
-	CudaDeviceFunction void TempUpdate1(){
-		PhaseF = PhaseF(0,0,0);
-		if ( IamWall || IamSolid || ((NodeType & NODE_ADDITIONALS) == NODE_ConstantTemp) ) {
-			RK1 = Temp(0,0,0);
-		} else {
-			real_t myCp, lapT, rho, tmpT, tmpK, UpdateT;
-			int i;
-			vector_t gradT = {0.0,0.0,0.0};
-			vector_t gradK = {0.0,0.0,0.0}; 
-			vector_t vel   = {U(0,0,0), V(0,0,0), W(0,0,0)};
-			myCp = interp(PhaseF, cp_h, cp_l);
-			rho  = interp(PhaseF, Density_h, Density_l);
-			<?R
-				IsotropicGrad('gradT', 'Temp')
-				IsotropicGrad('gradK', 'Cond')
-				myLaplace('lapT', 'Temp')
-			?>
-			// RK1 = Tn + 0.5h1
-			RK1 = Temp(0,0,0) + stabiliser*0.5*(-1.0*dotProduct(vel, gradT) + (1.0/(rho*myCp)) * (dotProduct(gradK,gradT) + Cond(0,0,0)*lapT));
-		}
-	}
-
-	CudaDeviceFunction void TempUpdate2(){
-		PhaseF = PhaseF(0,0,0);
-		if ( IamWall || IamSolid || ((NodeType & NODE_ADDITIONALS) == NODE_ConstantTemp) ) {
-			RK2 = Temp(0,0,0);
-		} else {
-			real_t myCp, lapT, rho, tmpT, tmpK, UpdateT;
-			int i;
-			vector_t gradT = {0.0,0.0,0.0};
-			vector_t gradK = {0.0,0.0,0.0}; 
-			vector_t vel   = {U(0,0,0), V(0,0,0), W(0,0,0)};
-			myCp = interp(PhaseF, cp_h, cp_l);
-			rho  = interp(PhaseF, Density_h, Density_l);
-
-			<?R
-				IsotropicGrad('gradT', 'RK1')
-				IsotropicGrad('gradK', 'Cond')
-				myLaplace('lapT', 'RK1')
-			?>      
-			// RK2 = Tn + 0.5h2
-			RK2 = Temp(0,0,0) + stabiliser*0.5*(-1.0*dotProduct(vel, gradT) + (1.0/(rho*myCp)) * (dotProduct(gradK,gradT) + Cond(0,0,0)*lapT));
-		}
-	}
-
-	CudaDeviceFunction void TempUpdate3(){
-		PhaseF = PhaseF(0,0,0);
-		RK2 = RK2(0,0,0);
-		if ( IamWall || IamSolid || ((NodeType & NODE_ADDITIONALS) == NODE_ConstantTemp) ) {
-			RK3 = Temp(0,0,0);
-		//	} else if ((NodeType & NODE_ADDITIONALS) == NODE_EAdiabatic) {
-		//		RK3 = Temp(-1,0,0);
-		} else {
-			real_t myCp, lapT, rho, tmpT, tmpK, UpdateT;
-			int i;
-			vector_t gradT = {0.0,0.0,0.0};
-			vector_t gradK = {0.0,0.0,0.0}; 
-			vector_t vel   = {U(0,0,0), V(0,0,0), W(0,0,0)};
-			myCp = interp(PhaseF, cp_h, cp_l);
-			rho  = interp(PhaseF, Density_h, Density_l);
-
-			<?R
-				IsotropicGrad('gradT', 'RK2')
-				IsotropicGrad('gradK', 'Cond')
-				myLaplace('lapT', 'RK2')
-			?>  
-			// RK3 = Tn + h3
-			RK3 = Temp(0,0,0) + stabiliser*1.0*(-1.0*dotProduct(vel, gradT) + (1.0/(rho*myCp)) * (dotProduct(gradK,gradT) + Cond(0,0,0)*lapT));
-		}
-	}
-
-	CudaDeviceFunction void TempUpdate4(){
-		PhaseF = PhaseF(0,0,0);
-		RK3 = RK3(0,0,0);
-		if ( IamWall || IamSolid || ((NodeType & NODE_ADDITIONALS) == NODE_ConstantTemp) ) {
-			Temp = Temp(0,0,0);
-		//	} else if ((NodeType & NODE_ADDITIONALS) == NODE_EAdiabatic) {
-		//		Temp = RK3(0,0,0);		
-		} else {
-			real_t myCp, lapT, rho, tmpT, tmpK, UpdateT;
-			int i;
-			vector_t gradT = {0.0,0.0,0.0};
-			vector_t gradK = {0.0,0.0,0.0}; 
-			vector_t vel   = {U(0,0,0), V(0,0,0), W(0,0,0)};
-			myCp = interp(PhaseF, cp_h, cp_l);
-			rho  = interp(PhaseF, Density_h, Density_l);
-
-			<?R
-				IsotropicGrad('gradT', 'RK3')
-				IsotropicGrad('gradK', 'Cond')
-				myLaplace('lapT', 'RK3')
-			?>  
-
-			UpdateT = Temp(0,0,0);
-			Temp = (1-4.0/3.0)*UpdateT + (2*RK1(0,0,0) + 4*RK2(0,0,0) + 2*RK3(0,0,0) - stabiliser*(1.0*dotProduct(vel, gradT) + (1.0/(rho*myCp)) * (dotProduct(gradK,gradT) + Cond(0,0,0)*lapT)))/6.0;
-			AddToTempChange( (Temp-UpdateT)*(Temp-UpdateT)  );
-		}
-		if (surfPower > 1) {
-			SurfaceTension = sigma + sigma_TT*pow((Temp(0,0,0) - T_ref),surfPower) * (1.0/surfPower);
-		} else {
-			SurfaceTension = sigma + sigma_T*(Temp(0,0,0) - T_ref);
-		}
-	}
-
-	CudaDeviceFunction void BoundUpdate(){
-		if ((NodeType & NODE_ADDITIONALS) == NODE_EAdiabatic) {
-			Temp = Temp(-1,0,0);
-		} else {
-			Temp = Temp(0,0,0);
-		}
-		if (surfPower > 1) {
-			SurfaceTension = sigma + sigma_TT*pow((Temp(0,0,0) - T_ref),surfPower) * (1.0/surfPower);
-		} else {
-			SurfaceTension = sigma + sigma_T*(Temp(0,0,0) - T_ref);
-		}
-	}
-
-	CudaDeviceFunction real_t dotProduct( vector_t a, vector_t b) {
-		return a.x*b.x + a.y*b.y + a.z*b.z;
-	}
-
-	CudaDeviceFunction real_t interp(real_t current, real_t upper, real_t lower){
-		return lower + current*(upper - lower);
-	}
-#endif
-//#############//
 
 /* MRT Matrix Check:
 <?R

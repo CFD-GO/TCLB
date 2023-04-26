@@ -1,0 +1,1053 @@
+<?R
+#########################################################
+# create pressure/velocity boundaries in all directions #
+#########################################################
+    my_velocity_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Velocity"))
+    my_pressure_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Pressure"))
+    my_normal_directions = rbind(c(0,1,0),
+                                 c(1,0,0),
+                                 c(0,-1,0),
+                                 c(-1,0,0),
+                                 c(0,0,1),
+                                 c(0,0,-1))
+
+    cube_faces = 6
+    b_uavg = PV("Uavg")
+    b_height = PV("HEIGHT")
+    b_pipecentre_y = PV("pipeCentre_Y")
+    b_pipecentre_z = PV("pipeCentre_Z")
+    b_coords = c(PV("X"),PV("Y"),PV("Z"))
+    b_velocities = c(PV("U"),PV("V"),PV("W"))
+
+    coords_shift   = b_coords[c(2:length(b_coords),1)]
+    coords_shift_2 = coords_shift[c(2:length(coords_shift),1)]
+    
+    b_channel_flow = 6*b_uavg*coords_shift*(b_height - coords_shift)*b_height^-2
+
+    b_pipe_flow_tmp = (coords_shift-b_pipecentre_y)^2+(coords_shift_2-b_pipecentre_z)^2
+
+    for (ii in 1:cube_faces){
+?>
+CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
+    U = VelocityX;
+    V = VelocityY;
+    W = VelocityZ;
+    if ( developedFlow > 0.1 ){
+        <?R
+            C(b_velocities,-1*my_normal_directions[ii,]*b_channel_flow)
+        ?>
+    }
+    if ( developedPipeFlow > 0.1 ){
+        U = <?R C(-1*my_normal_directions[ii,1])?> * (2.0*Uavg*(1-pow(sqrt(<?R C(b_pipe_flow_tmp[1])?>)/pipeRadius,2) )) ;
+        V = <?R C(-1*my_normal_directions[ii,2])?> * (2.0*Uavg*(1-pow(sqrt(<?R C(b_pipe_flow_tmp[2])?>)/pipeRadius,2) )) ;
+        W = <?R C(-1*my_normal_directions[ii,3])?> * (2.0*Uavg*(1-pow(sqrt(<?R C(b_pipe_flow_tmp[3])?>)/pipeRadius,2) )) ;
+    }
+	<?R
+		n = my_normal_directions[ii,]
+		geq = EQ$feq
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
+
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (g[sel2] - geq[sel2]) %*% U[sel2,]
+        Unknowns = 1.0/max(colSums(U[sel2,]^2)) # should be 6 for q27, 4 for q15
+        Nmat = t(U[sel,]) %*% U[sel,]
+
+		C(g[sel], g[bounce][sel] + (geq[sel] - geq[bounce][sel]) - 0.5* (exM %*% solve(Nmat) %*% t(U))[sel])
+	?>
+	<?R
+		U_PF = U[1:PF_velocities,]
+        	pf = PV("PhaseField")
+		n = my_normal_directions[ii,]
+		heq = pf * EQ_h$feq
+		bounce = Bounce(U_PF)
+		sel = as.vector( (U_PF %*% n) < 0)
+
+		sel2 = as.vector( ( U_PF %*% n) == 0)	
+		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
+
+		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
+}
+
+CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
+    real_t d = getRho();
+	real_t pstar = Pressure / (d*cs2);
+	<?R
+        EQ = MRT_eq(U,PV(1),u,mat=t(M))
+       	pstar = PV("pstar")
+		n = my_normal_directions[ii,]
+		geq = pstar*w_g + (EQ$feq - w_g)
+		bounce = Bounce(U)
+		sel = as.vector( (U %*% n) < 0)
+
+		sel2 = as.vector( ( U %*% n) == 0)	
+		exM = (g[sel2] - geq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
+
+		C(g[sel], geq[sel] + geq[bounce][sel] - g[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
+	<?R
+		U_PF = U[1:PF_velocities,]
+       	pf = PV("PhaseField")
+		n = my_normal_directions[ii,]
+		heq = pf * EQ_h$feq
+		bounce = Bounce(U_PF)
+		sel = as.vector( (U_PF %*% n) < 0)
+
+		sel2 = as.vector( ( U_PF %*% n) == 0)	
+		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
+		Unknowns = 1.0/sum(sel)
+
+		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
+	?>
+}
+
+<?R
+}
+?>
+
+#ifdef OPTIONS_OutFlow
+<?R
+	if (Options$OutFlow) {
+		####################################################
+		# Outflow conditions are tested but not rigorously #
+		#            treat these with care!                #
+		# NOTE: outside of east/west the user needs to add #
+		#       suitable conditions for calcGradPhi and    #
+		#       calculating laplace parameters.            #
+		# If for some reason you need additional direction #
+		#  use the existing as a template to create them.  #
+		####################################################
+		g_neighbours = Density$nicename[Density$group =="g"]
+		h_neighbours = Density$nicename[Density$group =="h"]
+
+		g_n_e = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"]-1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")",sep=""))
+		h_n_e = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")",sep=""))
+		g_n_w = PV(paste(g_neighbours,"(",-Density$dx[Density$group=="g"]+1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")",sep=""))
+		h_n_w = PV(paste(h_neighbours,"(",-Density$dx[Density$group=="h"]+1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")",sep=""))
+
+		U_loc = PV("U_local")
+		U_inv = PV("invU")
+	}
+?>
+#define myMax(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+// Convective boundary from: A phase-field lattice Boltzmann model for simulating multiphase flows
+//							in porous media: Application and comparison to experiments of CO2
+//							sequestration at pore scale
+CudaDeviceFunction void EConvect(){
+	real_t U_local = myMax(0, U(-1,0,0));
+	real_t invU = 1.0/(1+ U_local);
+	<?R
+		if (Options$OutFlow) {
+			C(g, (g_old + U_loc*g_n_e)*U_inv)
+			C(h, (h_old + U_loc*h_n_e)*U_inv)
+
+			C(g_old, g)
+			C(h_old, h)
+		}
+	?>
+}
+CudaDeviceFunction void WConvect(){
+	real_t U_local = myMax(0, -U(1,0,0));
+	real_t invU = 1.0/(1 - U_local);
+	<?R
+		if (Options$OutFlow) {
+			C(g, (g_old + U_loc*g_n_w)*U_inv)
+			C(h, (h_old + U_loc*h_n_w)*U_inv)
+			
+			C(g_old, g)
+			C(h_old, h)
+		}
+	?>
+}
+
+CudaDeviceFunction void ENeumann(){
+	<?R
+		if (Options$OutFlow){
+			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"]-1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")")))	
+			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"]-1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")")))	
+		}
+	?>
+}
+CudaDeviceFunction void WNeumann(){
+	<?R
+		if (Options$OutFlow){
+			C(g, PV(paste0(g_neighbours,"(",-Density$dx[Density$group=="g"]+1,",",-Density$dy[Density$group=="g"],",",-Density$dz[Density$group=="g"],")")))	
+			C(h, PV(paste0(h_neighbours,"(",-Density$dx[Density$group=="h"]+1,",",-Density$dy[Density$group=="h"],",",-Density$dz[Density$group=="h"],")")))	
+		}
+	?>
+}
+#endif
+
+CudaDeviceFunction void MovingNWall(){
+	// Experimental, use with care!
+
+	g4  = g3;
+	g24 = g25;
+	g26 = g23;
+
+	g9  = g12 + VelocityX/36.0;
+	g13 = g8  + VelocityX/36.0;
+	g17 = g16 + VelocityX/9.0;
+
+	g10 = g11 - VelocityX/36.0;
+	g14 = g7  - VelocityX/36.0;
+	g18 = g15 - VelocityX/9.0;
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
+}
+
+CudaDeviceFunction void MovingSWall(){
+	// Experimental, use with care!
+
+	g3  = g4;
+	g25 = g24;
+	g23 = g26;
+
+	g12 = g9  - VelocityX/36.0;
+	g8  = g13 - VelocityX/36.0;
+	g16 = g17 - VelocityX/9.0;
+
+	g11 = g10 + VelocityX/36.0;
+	g7  = g14 + VelocityX/36.0;
+	g15 = g18 + VelocityX/9.0;
+	{
+		<?R ZouHeRewrite(EQ_h, h, c(1,0,0),"pressure", rhs=PV("PhaseField")) ?>
+	}
+}
+
+CudaDeviceFunction void BounceBack(){
+	real_t tmp;
+	tmp = g0; g0 = g0; g0 = tmp;
+	tmp = g1; g1 = g2; g2 = tmp;
+	tmp = g3; g3 = g4; g4 = tmp;
+	tmp = g5; g5 = g6; g6 = tmp;
+	tmp = g7; g7 = g14; g14 = tmp;
+	tmp = g8; g8 = g13; g13 = tmp;
+	tmp = g9; g9 = g12; g12 = tmp;
+	tmp = g10; g10 = g11; g11 = tmp;
+	tmp = g15; g15 = g18; g18 = tmp;
+	tmp = g16; g16 = g17; g17 = tmp;
+	tmp = g19; g19 = g22; g22 = tmp;
+	tmp = g20; g20 = g21; g21 = tmp;
+	tmp = g23; g23 = g26; g26 = tmp;
+	tmp = g24; g24 = g25; g25 = tmp;
+
+	tmp = h0; h0 = h0; h0 = tmp;
+	tmp = h1; h1 = h2; h2 = tmp;
+	tmp = h3; h3 = h4; h4 = tmp;
+	tmp = h5; h5 = h6; h6 = tmp;
+	tmp = h7; h7 = h14; h14 = tmp;
+	tmp = h8; h8 = h13; h13 = tmp;
+	tmp = h9; h9 = h12; h12 = tmp;
+	tmp = h10; h10 = h11; h11 = tmp;
+#ifdef OPTIONS_q27
+	tmp = h15; h15 = h18; h18 = tmp;
+	tmp = h16; h16 = h17; h17 = tmp;
+	tmp = h19; h19 = h22; h22 = tmp;
+	tmp = h20; h20 = h21; h21 = tmp;
+	tmp = h23; h23 = h26; h26 = tmp;
+	tmp = h24; h24 = h25; h25 = tmp;
+#endif
+}
+
+//######WETTING CONDITION DETAILS######//
+<?R
+# Definition of various boundary point edge cases that need special treatment
+NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE = 1
+NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE = 2
+NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID = 3
+NEXT_INTERPOLATING_POINTS_ARE_SOLID = 4
+BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID = 5
+SPECIAL_POINT_HUGE_MAGIC_NUMBER = 2342e10
+?>
+
+#ifdef OPTIONS_staircaseimp
+
+/* Array of lattice triangle coordinates, should not be used in the code apart
+ * from initializaton since dynamic access to cuda constant memory is slow.
+ *
+ * Instead use triangle_id_to_vertex that generates coordinates of the vertices of the triangle on the fly.
+ *
+ * This is mostly left for the reference.
+ */
+CudaConstantMemory real_t const d3q27_faces_normals[6][3] = {{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}};
+CudaConstantMemory real_t const d3q27_faces_drop_indexes[6] = {0, 0, 1, 1, 2, 2};
+CudaConstantMemory real_t const d3q27_triangles[6][8][3][3] = {\
+  {{{1, 0, 0}, {1, 1, 1},  {1, 1, 0.0}},
+  {{1, 0, 0}, {1, 1, 1},   {1, 0.0, 1}},
+  {{1, 0, 0}, {1, -1, 1},  {1, 0.0, 1}},
+  {{1, 0, 0}, {1, -1, 1},  {1, -1, 0.0}},
+  {{1, 0, 0}, {1, -1, -1}, {1, -1, 0.0}},
+  {{1, 0, 0}, {1, -1, -1}, {1, 0.0, -1}},
+  {{1, 0, 0}, {1, 1, -1},  {1, 0.0, -1}},
+  {{1, 0, 0}, {1, 1, -1},  {1, 1, 0.0}}},
+ {{{-1, 0, 0}, {-1, 1, 1}, {-1, 1, 0.0}},
+  {{-1, 0, 0}, {-1, 1, 1}, {-1, 0.0, 1}},
+  {{-1, 0, 0}, {-1, -1, 1}, {-1, 0.0, 1}},
+  {{-1, 0, 0}, {-1, -1, 1}, {-1, -1, 0.0}},
+  {{-1, 0, 0}, {-1, -1, -1}, {-1, -1, 0.0}},
+  {{-1, 0, 0}, {-1, -1, -1}, {-1, 0.0, -1}},
+  {{-1, 0, 0}, {-1, 1, -1}, {-1, 0.0, -1}},
+  {{-1, 0, 0}, {-1, 1, -1}, {-1, 1, 0.0}}},
+ {{{0, 1, 0}, {1, 1, 1}, {1, 1, 0.0}},
+  {{0, 1, 0}, {1, 1, 1}, {0.0, 1, 1}},
+  {{0, 1, 0}, {-1, 1, 1}, {0.0, 1, 1}},
+  {{0, 1, 0}, {-1, 1, 1}, {-1, 1, 0.0}},
+  {{0, 1, 0}, {-1, 1, -1}, {-1, 1, 0.0}},
+  {{0, 1, 0}, {-1, 1, -1}, {0.0, 1, -1}},
+  {{0, 1, 0}, {1, 1, -1}, {0.0, 1, -1}},
+  {{0, 1, 0}, {1, 1, -1}, {1, 1, 0.0}}},
+ {{{0, -1, 0}, {1, -1, 1}, {1, -1, 0.0}},
+  {{0, -1, 0}, {1, -1, 1}, {0.0, -1, 1}},
+  {{0, -1, 0}, {-1, -1, 1}, {0.0, -1, 1}},
+  {{0, -1, 0}, {-1, -1, 1}, {-1, -1, 0.0}},
+  {{0, -1, 0}, {-1, -1, -1}, {-1, -1, 0.0}},
+  {{0, -1, 0}, {-1, -1, -1}, {0.0, -1, -1}},
+  {{0, -1, 0}, {1, -1, -1}, {0.0, -1, -1}},
+  {{0, -1, 0}, {1, -1, -1}, {1, -1, 0.0}}},
+ {{{0, 0, 1}, {1, 1, 1}, {1, 0.0, 1}},
+  {{0, 0, 1}, {1, 1, 1}, {0.0, 1, 1}},
+  {{0, 0, 1}, {-1, 1, 1}, {0.0, 1, 1}},
+  {{0, 0, 1}, {-1, 1, 1}, {-1, 0.0, 1}},
+  {{0, 0, 1}, {-1, -1, 1}, {-1, 0.0, 1}},
+  {{0, 0, 1}, {-1, -1, 1}, {0.0, -1, 1}},
+  {{0, 0, 1}, {1, -1, 1}, {0.0, -1, 1}},
+  {{0, 0, 1}, {1, -1, 1}, {1, 0.0, 1}}},
+ {{{0, 0, -1}, {1, 1, -1}, {1, 0.0, -1}},
+  {{0, 0, -1}, {1, 1, -1}, {0.0, 1, -1}},
+  {{0, 0, -1}, {-1, 1, -1}, {0.0, 1, -1}},
+  {{0, 0, -1}, {-1, 1, -1}, {-1, 0.0, -1}},
+  {{0, 0, -1}, {-1, -1, -1}, {-1, 0.0, -1}},
+  {{0, 0, -1}, {-1, -1, -1}, {0.0, -1, -1}},
+  {{0, 0, -1}, {1, -1, -1}, {0.0, -1, -1}},
+  {{0, 0, -1}, {1, -1, -1}, {1, 0.0, -1}}}
+};
+
+CudaDeviceFunction vector_t getActualNormal() {
+	vector_t actualNormal;
+	actualNormal.x = nw_actual_x;
+	actualNormal.y = nw_actual_y;
+	actualNormal.z = nw_actual_z;
+	return actualNormal;
+}
+
+<?R for (vertex in c(1, 2, 3)) { ?>
+/* 
+ * Reconstruct full coordinates of the <?R vertex ?> vertex of the triangle "triangle_id" from d3q27_triangles array
+ * on face "face" and store in "coords"
+ * Verification: https://github.com/TravisMitchell/3D_PF_benchmarkCases/blob/main/scripts/triangle_id_to_lattice_directions.py
+ */
+CudaDeviceFunction void triangle_id_to_vertex_<?%s vertex ?>_coords(int face, int triangle_id, int *coords)
+{
+	// compute triangle on the fly to save memory
+	int index_pos = face / 2;
+	int is_positive = face % 2 == 0;
+
+	int first_component = 0;
+	int second_component = 0;
+
+<?R	if (vertex == 1) { ?>
+
+	first_component = 0;
+	second_component = 0;
+
+<?R } else if (vertex == 2) { ?>
+
+	second_component = 1 - 2*(triangle_id / 4 );
+	first_component = 1 - 2*(((triangle_id + 2) % 8) / 4);
+
+<?R } else if (vertex == 3) { ?>
+
+    second_component = triangle_id <= 3 ? int((triangle_id % 4 ) % 3 != 0): -int((triangle_id % 4 ) % 3 != 0);
+    int val = (triangle_id + 2) % 8;
+    first_component = val <= 3 ? int((val % 4 ) % 3 != 0): -int((val % 4 ) % 3 != 0);
+
+<?R } ?>
+
+	coords[index_pos] = is_positive ? 1 : -1;
+	coords[index_pos == 0] = first_component;
+	coords[2 - (index_pos == 2)] = second_component;
+}
+<?R } ?>
+
+/*
+ * Get reference id of the triangle which is intersected by the ray based
+ * on the normal vector
+ */
+CudaDeviceFunction void calcIntersectionTriangleId(
+												  real_t vec[],
+												  int& triangle_index,
+												  int& face_index,
+												  real_t koeff[],
+												  real_t intersection_point[],
+												  int& triangle_index2,
+												  real_t koeff2[]
+												   ) {
+	real_t plane_angle = -1;
+
+	// find on which face the point lies
+	for (int i = 0; i < 6; ++i) {
+
+		// kind-off get the component of the vector that is the same as face normal
+		real_t prod = d3q27_faces_normals[i][0]*vec[0] + d3q27_faces_normals[i][1] * vec[1] + d3q27_faces_normals[i][2] * vec[2];
+		// rays in other direction
+		if (prod > 0) continue;
+		// avoid division by zero
+		if (fabs(prod) < 1e-10) continue;
+		// the same direction as the original vector
+		// rescale the vector to the plane and get intersection point
+		real_t point[3] = { - vec[0] / prod,  - vec[1] / prod, - vec[2] / prod };
+		// got the intersection, get coordinate in 2d by removing common coordinate
+		real_t drop_index = d3q27_faces_drop_indexes[i];
+		// transform into 2d
+		real_t point2d[2] = { point[drop_index == 1 ? 0 : (int(drop_index) + 1) % 3], point[drop_index == 1? 2 : (int(drop_index) + 2) % 3] };
+		if (point2d[0] >= -1 && point2d[0] <= 1 && point2d[1] >= -1 && point2d[1] <= 1) {
+			// it is inside the facet
+			face_index = i;
+			// determine in which triangle we lie, based on the plane angle
+			// (similar to identity circle, going anti clockwise by 45 degrees
+			// triangles)
+			real_t x = point2d[0];
+			real_t y = point2d[1];
+
+			plane_angle = atan2(y, x) * 180.0 / PI;
+			plane_angle = plane_angle < 0? plane_angle + 360 : plane_angle;
+
+			// find matching triangle index
+			for (int j = 0; j < 8; j++) {
+				if (plane_angle >= j*45 && plane_angle < (j + 1) * 45) {
+					triangle_index = j;
+					break;
+				}
+			}
+            // map triangle to 2D and get barycentric coordinates
+            real_t triangle2d[3][2];
+            for (int i = 0; i < 3; ++i) {
+                // map triangle to 2D and (all points of it)
+                triangle2d[i][0] = d3q27_triangles[face_index][triangle_index][i][drop_index == 1? 0 : (int(drop_index) + 1) % 3];
+                triangle2d[i][1] = d3q27_triangles[face_index][triangle_index][i][drop_index == 1? 2 : (int(drop_index) + 2) % 3];
+            }
+			// get barycentric coordinates for the points inside triangle
+            real_t detT = (triangle2d[1][1] - triangle2d[2][1]) * (triangle2d[0][0] - triangle2d[2][0]) + \
+                           (triangle2d[2][0] - triangle2d[1][0]) * (triangle2d[0][1]- triangle2d[2][1]);
+
+            real_t koeff_1 = (triangle2d[1][1] - triangle2d[2][1]) * (point2d[0] - triangle2d[2][0]) + \
+                    (triangle2d[2][0] - triangle2d[1][0]) * (point2d[1]- triangle2d[2][1]);
+
+            real_t koeff_2 = (triangle2d[2][1] - triangle2d[0][1]) * (point2d[0] - triangle2d[2][0]) + \
+                     (triangle2d[0][0] - triangle2d[2][0]) * (point2d[1]- triangle2d[2][1]);
+
+            koeff_1 /= detT;
+            koeff_2 /= detT;
+
+			// adjustment to prevent round-off errors
+			if (koeff_1 < 1e-12) koeff_1 = 0.;
+			if (koeff_2 < 1e-12) koeff_2 = 0.;
+
+			intersection_point[0] = point[0];
+			intersection_point[1] = point[1];
+			intersection_point[2] = point[2];
+
+            koeff[0] = koeff_1;
+            koeff[1] = koeff_2;
+            koeff[2] = 1 - koeff_1 - koeff_2;
+
+			// ----------------------------------
+			// TODO: Duplicate code as above to be refactored someday (but not today)
+			// ----------------------------------
+
+			// Original 2d point coodinate in the intersection with the second layer would be 2*point2d
+			// We get the coordinate point in the new reference plane, relative to the second vertex of the first triangle (of the
+			// form (-1, -1) (1, -1) - face corner vertexes), so that new poin2d coordinates relative to it should always be in the range (-1, 1),
+			// as we want it to be to get the barycentric coordinates relative to the triangle as relative to the second vertex
+			real_t point2_2d[2] = {2*point2d[0] - triangle2d[1][0], 2*point2d[1] - triangle2d[1][1] };
+			x = point2_2d[0];
+			y = point2_2d[1];
+
+			real_t plane_angle2 = atan2(y, x) * 180.0 / PI;
+			plane_angle2 = plane_angle2 < 0? plane_angle2 + 360 : plane_angle2;
+			// find matching triangle index
+			for (int j = 0; j < 8; j++) {
+				if (plane_angle2 >= j*45 && plane_angle2 < (j + 1) * 45) {
+					triangle_index2 = j;
+					break;
+				}
+			}
+
+            // map triangle to 2D and get barycentric coordinates
+            real_t triangle2_2d[3][2];
+            for (int i = 0; i < 3; ++i) {
+                // map triangle2_ to 2D and (all point2_s of it)
+                triangle2_2d[i][0] = d3q27_triangles[face_index][triangle_index2][i][drop_index == 1? 0 : (int(drop_index) + 1) % 3];
+                triangle2_2d[i][1] = d3q27_triangles[face_index][triangle_index2][i][drop_index == 1? 2 : (int(drop_index) + 2) % 3];
+            }
+			// get barycentric coordinates for the point2_s inside triangle2_
+            detT = (triangle2_2d[1][1] - triangle2_2d[2][1]) * (triangle2_2d[0][0] - triangle2_2d[2][0]) + \
+                           (triangle2_2d[2][0] - triangle2_2d[1][0]) * (triangle2_2d[0][1]- triangle2_2d[2][1]);
+
+            koeff_1 = (triangle2_2d[1][1] - triangle2_2d[2][1]) * (point2_2d[0] - triangle2_2d[2][0]) + \
+                    (triangle2_2d[2][0] - triangle2_2d[1][0]) * (point2_2d[1]- triangle2_2d[2][1]);
+
+            koeff_2 = (triangle2_2d[2][1] - triangle2_2d[0][1]) * (point2_2d[0] - triangle2_2d[2][0]) + \
+                     (triangle2_2d[0][0] - triangle2_2d[2][0]) * (point2_2d[1]- triangle2_2d[2][1]);
+
+            koeff_1 /= detT;
+            koeff_2 /= detT;
+
+			// adjustment to prevent round-off errors
+			if (koeff_1 < 1e-12) koeff_1 = 0.;
+			if (koeff_2 < 1e-12) koeff_2 = 0.;
+
+            koeff2[0] = koeff_1;
+            koeff2[1] = koeff_2;
+            koeff2[2] = 1 - koeff_1 - koeff_2;
+
+			break;
+		}
+	}
+}
+
+#endif
+
+CudaDeviceFunction real_t getIsItBoundary() {
+	return IsBoundary(0, 0, 0);
+}
+
+
+#ifdef OPTIONS_geometric
+CudaDeviceFunction vector_t getGradPhi() {
+	vector_t gradPhi;
+	gradPhi.x = gradPhiVal_x(0,0,0);
+	gradPhi.y = gradPhiVal_y(0,0,0);
+	gradPhi.z = gradPhiVal_z(0,0,0);
+	return gradPhi;
+}
+
+CudaDeviceFunction void calcPhaseGrad(){
+    vector_t gradPhi;
+    <?R
+        IsotropicGrad('gradPhi', 'PhaseF')
+    ?>
+    gradPhiVal_x = gradPhi.x;
+    gradPhiVal_y = gradPhi.y;
+    gradPhiVal_z = gradPhi.z;
+	calcPhaseGradCloseToBoundary();
+	// simply copy the values
+	gradPhi_PhaseF = PhaseF(0,0,0);
+}
+
+/* 
+ * Initialize gradients at the first time step,
+ * because isotropic gradients would not work, as the wall values have no
+ * Phase field values just yet
+ */
+CudaDeviceFunction void calcPhaseGrad_init(){
+    real_t h = 1.0;
+
+	gradPhiVal_x = gradPhiVal_x(0, 0, 0);
+	gradPhiVal_y = gradPhiVal_y(0, 0, 0);
+	gradPhiVal_z = gradPhiVal_z(0, 0, 0);
+
+	gradPhiVal_x = (PhaseF(1, 0, 0) - PhaseF(-1, 0, 0) )/ (2.0*h);
+	gradPhiVal_y = (PhaseF(0, 1, 0) - PhaseF(0, -1, 0) )/ (2.0*h);
+	gradPhiVal_z = (PhaseF(0, 0, 1) - PhaseF(0, 0, -1) )/ (2.0*h);
+
+	calcPhaseGradCloseToBoundary();
+
+	// probably accidentally touched the boundary, it is ok, this should be
+	// fixed on the next iterations and should not cause problems
+	<?R for (d in c('x', 'y', 'z')) { ?>
+		if (fabs(gradPhiVal_<?%s d ?>) > 20) {
+			gradPhiVal_<?%s d ?> = 0;
+		}
+	<?R } ?>
+
+    // simply copy the values
+	gradPhi_PhaseF = PhaseF(0,0,0);
+}
+
+/*
+ * Corrects gradient values on the next layer closer to the boundary, trying
+ * its best to avoid taking the boundary values into the calculation of gradient
+ * and using 2nd order finite difference instead when possible. Should be
+ * used in conjunction of function calculating isotropic gradient everywhere else.
+ */
+CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
+	<?R
+		# shift to the right
+		axis_shift <- function(x, axis = 0) {
+			if (axis == 0) x else c(tail(x, axis), head(x, -axis))
+		}
+		directions = c("x", "y", "z")
+		str_coord <- function(x, y, z, axis)  paste(axis_shift(c(x,y,z), axis), collapse=",")
+	?>
+
+    vector_t forcedFiniteDifference= {0, 0, 0};
+    <?R
+		tmpVec = "forcedFiniteDifference"
+		myStringSca = "IsBoundary"
+		cat(paste0(tmpVec,".y = ", myStringSca, "(1,1,1) || ", myStringSca, "(-1,1,1) || ", myStringSca, "(1,-1,1) || ", myStringSca, "(-1,-1,1) || ", myStringSca, "(1,1,-1)|| ", myStringSca, "(-1,1,-1)- ", myStringSca,  "(1,-1,-1)- ", myStringSca, "(-1,-1,-1) ||    ", myStringSca, "(1,1,0) || ", myStringSca, "(-1,1,0) || ", myStringSca, "(1,-1,0) || ", myStringSca, "(-1,-1,0) ||  ", myStringSca, "(0,1,1) || ", myStringSca, "(0,-1,1) || ", myStringSca, "(0,1,-1) || ", myStringSca, "(0,-1,-1);\n"))
+		cat(paste0(tmpVec,".x = ", myStringSca, "(1,1,1) || ", myStringSca, "(-1,1,1) || ", myStringSca, "(1,-1,1) || ", myStringSca, "(-1,-1,1) || ", myStringSca, "(1,1,-1)- ", myStringSca, "(-1,1,-1) || ", myStringSca, "(1,-1,-1) || ", myStringSca, "(-1,-1,-1) ||  ", myStringSca, "(1,1,0) || ", myStringSca, "(-1,1,0) || ", myStringSca, "(1,-1,0) || ", myStringSca, "(-1,-1,0) || ", myStringSca, "(1,0,1) || ", myStringSca, "(-1,0,1) || ", myStringSca, "(1,0,-1) || ", myStringSca, "(-1,0,-1);\n"))
+		cat(paste0(tmpVec,".z = ", myStringSca, "(1,1,1) || ", myStringSca, "(-1,1,1) || ", myStringSca, "(1,-1,1) || ", myStringSca, "(-1,-1,1) || ", myStringSca, "(1,1,-1)- ", myStringSca, "(-1,1,-1)- ", myStringSca,  "(1,-1,-1)- ", myStringSca, "(-1,-1,-1) ||     ", myStringSca, "(1,0,1) || ", myStringSca, "(-1,0,1) || ", myStringSca, "(1,0,-1) || ", myStringSca, "(-1,0,-1) ||  ", myStringSca, "(0,1,1) || ", myStringSca, "(0,-1,1) || ", myStringSca, "(0,1,-1) || ", myStringSca, "(0,-1,-1);\n"))
+    ?>
+
+
+    real_t h = 1.0;
+
+	bool canForceFiniteDifferenceUp;
+	bool canForceFiniteDifferenceDown;
+	bool canForceCentralDifference;
+	bool set_gradPhi = false;
+
+	<?R for (axis in c(0,1,2)) { ?>
+
+	set_gradPhi = false;
+
+	// if we want to use finite differences, try to pick the best directions in which we
+	// dont touch the boundary
+	canForceFiniteDifferenceDown = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
+		(!IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(-2, 0, 0, axis) ?>));
+
+	canForceFiniteDifferenceUp = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
+		(!IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(2, 0, 0, axis) ?>));
+
+	canForceCentralDifference = forcedFiniteDifference.<?%s directions[axis + 1] ?> && \
+		(!IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)) && (!IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>));
+
+	if (canForceCentralDifference) {
+		gradPhiVal_<?%s directions[axis+1] ?> = (PhaseF(<?%s str_coord(1, 0, 0, axis) ?>) - \
+							PhaseF(<?%s str_coord(-1, 0, 0, axis) ?>))/(2.0*h);
+		set_gradPhi = true;
+	}
+
+
+	if (IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>) || (canForceFiniteDifferenceDown && !set_gradPhi) ) {
+		if (IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>)
+			|| IsBoundary(<?%s str_coord(-2, 0, 0, axis) ?>)) {
+			// keep it as it is, calculated using the previously set gradient and the boundary
+			// value
+		} else {
+			gradPhiVal_<?%s directions[axis+1] ?> = -(4*PhaseF(<?%s str_coord(-1, 0, 0, axis) ?>) - \
+							 PhaseF(<?%s str_coord(-2, 0, 0, axis) ?>) - 3*PhaseF(0, 0, 0))/(2.0*h);
+			set_gradPhi = true;
+		}
+	}
+
+	// check other direction and make sure that even points futher away are
+	// handled properly, otherwise continue using isotropic gradient
+	if (IsBoundary(<?%s str_coord(-1, 0, 0, axis) ?>) || (canForceFiniteDifferenceUp && !set_gradPhi)) {
+		if (IsBoundary(<?%s str_coord(1, 0, 0, axis) ?>)
+			|| IsBoundary(<?%s str_coord(2, 0, 0, axis) ?>)) {
+			// keep it as it is, calculated using the previously set gradient and the boundary
+			// value
+		} else {
+		gradPhiVal_<?%s directions[axis+1] ?> = (4*PhaseF(<?%s str_coord(1, 0, 0, axis)  ?>) -
+						PhaseF(<?%s str_coord(2, 0, 0, axis) ?>) - 3*PhaseF(0, 0, 0))/(2.0*h);
+		}
+	}
+
+	// end of the chunk for direction <?%s directions[axis + 1] ?>
+	<?R } ?>
+
+	if (IsBoundary(0,0,0)) {
+		gradPhiVal_x = 0.;
+		gradPhiVal_y = 0.;
+		gradPhiVal_z = 0.;
+	}
+}
+
+#endif
+
+
+/* Correct PhaseField values on the boundary nodes
+ * that were not previously set because the normal
+ * was pointing into another boundary node with not
+ * yet set value
+ */
+CudaDeviceFunction void calcWallPhase_correction() {
+	PhaseF = PhaseF(0,0,0);
+
+	if (IsSpecialBoundaryPoint == <?%s NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
+		// take the phase field calculated already from the node in front.
+		// Might as well calculate using the neighbors, e.g. averaging
+		PhaseF = PhaseF_dyn(nw_x, nw_y, nw_z);
+	}
+}
+
+
+/*
+ * Calculate the phase field value for the boundary nodes
+ */
+CudaDeviceFunction void calcWallPhase(){
+	PhaseF = PhaseF(0,0,0); //For fluid nodes.
+	if ( IamWall || IamSolid ) {
+		real_t a, h, pf_f;
+
+		// This is needed, because otherwise geometric_staircaseimp performance will drop
+		// (presumably because of the dynamic access that it has)
+        <?R phase_field_field_name <- if (Options$geometric) 'gradPhi_PhaseF' else 'PhaseF' ?>
+
+        pf_f = <?%s phase_field_field_name ?>_dyn(nw_x, nw_y, nw_z);
+
+		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
+
+        // handling special cases
+		if (h < 0.001) {
+			// If I am a wall/solid node and I am surrounded by solid nodes
+			PhaseF = 1;
+		} else if (fabs(radAngle - PI/2.0) < 1e-4) {
+			// If I am not surrounded, but contact angle is pi/2 (90d)
+			PhaseF = pf_f;
+		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+			// Pass for now. Dont calculate anything, just set it to some huge number, purely to make sure
+			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
+			// and hopefulyl break the simulation
+			PhaseF = <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>;
+		} else if  (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>) {
+			// Eventhough I am geometric boundary condition, still apply surface energy
+			// here because otherwise we cant really apply anything else
+			a = -h * (4.0/IntWidth) * cos( radAngle );
+			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
+		} else {
+			// normal calculation with picking correct form depending on the boundary condition
+
+#ifdef OPTIONS_staircaseimp
+
+			int face_index = int(triangle_index) / 8;
+			int face_triangle_index = int(triangle_index) % 8;
+			int vertex_coords[3] = {0,0,0};
+
+			<?R for (v in c(1, 2, 3)) { ?>
+				triangle_id_to_vertex_<?%s v ?>_coords(face_index, face_triangle_index, vertex_coords);
+				int v<?%s v ?>_x = vertex_coords[0], v<?%s v ?>_y = vertex_coords[1], v<?%s v ?>_z = vertex_coords[2];
+			<?R } ?>
+
+
+			<?R phase_field_field_name <- if (Options$geometric) 'gradPhi_PhaseF' else 'PhaseF' ?>
+
+			<?R for (v in c(1, 2, 3)) { ?>
+				real_t pf_v<?%s v?> = <?%s phase_field_field_name ?>_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
+			<?R } ?>
+
+
+			// dont do staircase improvement if any of the interpolating nodes are solid
+			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
+				real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
+				h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
+				pf_f = pf_interpolated;
+			}
+#endif
+			
+#ifndef OPTIONS_geometric
+			// Case 1: Apply surface energy BC (with calculated pf_f with standard or staircase improvement)
+			a = -h * (4.0/IntWidth) * cos( radAngle );
+			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
+#else
+	#ifdef OPTIONS_staircaseimp
+		// Case 2: Apply geometric BC
+		// Case 2.1: Apply geometric BC with staircase improvement
+		vector_t solid_normal = {nw_actual_x, nw_actual_y, nw_actual_z};
+		real_t der_x_1, der_y_1, der_z_1, der_x_2, der_y_2, der_z_2;
+
+		// interpolate only if none of the interpolating points are solid
+		if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> &&
+			IsSpecialBoundaryPoint != <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>)
+			{
+			<?R for (d in c('x', 'y', 'z')) { ?>
+				der_<?%s d ?>_1 =   coeff_v1*gradPhiVal_<?%s d ?>_dyn(v1_x, v1_y, v1_z) + \
+									coeff_v2*gradPhiVal_<?%s d ?>_dyn(v2_x, v2_y, v2_z) +  \
+									coeff_v3*gradPhiVal_<?%s d ?>_dyn(v3_x, v3_y, v3_z);
+			<?R } ?>
+		#ifndef OPTIONS_tprec
+			// Case 2.1a: Apply geometric BC with staircase improvement and "larger" second triangle
+			// Bigger triangle
+			// Get gradient on the second node in the normal direction
+				<?R for (d in c('x', 'y', 'z')) { ?>
+				der_<?%s d ?>_2 =   coeff_v1*gradPhiVal_<?%s d ?>_dyn(2*v1_x, 2*v1_y, 2*v1_z) + \
+									coeff_v2*gradPhiVal_<?%s d ?>_dyn(2*v2_x, 2*v2_y, 2*v2_z) +  \
+									coeff_v3*gradPhiVal_<?%s d ?>_dyn(2*v3_x, 2*v3_y, 2*v3_z);
+
+				<?R } ?>
+		#else
+			// Case 2.1b: Apply geometric BC with staircase improvement and "precice/smaller" triangle triangle
+			// get new triangle vertices in relation to one vertice of the previous triangle (plane index remains the same)
+			int face_triangle_index2 = int(triangle_index2) % 8;
+
+			<?R for (v in c(1, 2, 3)) { ?>
+				triangle_id_to_vertex_<?%s v ?>_coords(face_index, face_triangle_index2, vertex_coords);
+				// get the coordinates of the vertex, with triangle indexing relateive to the second node of the first triangle,
+				// because it is the closest
+				int v2_<?%s v ?>_x = vertex_coords[0], v2_<?%s v?>_y = vertex_coords[1], v2_<?%s v?>_z = vertex_coords[2];
+				// transform from reference coordinates with respect to v2 to the proper coordinates with respet to boundary points
+				int v2a_<?%s v ?>_x = v2_<?%s v ?>_x + v2_x, v2a_<?%s v?>_y = v2_<?%s v?>_y + v2_y, v2a_<?%s v?>_z = v2_<?%s v?>_z + v2_z;
+			<?R } ?>
+
+
+			// Get gradient on the second node in the normal direction (triangle indexing relative to the second node of the first triangle because it is the closest)
+			<?R for (d in c('x', 'y', 'z')) { ?>
+				der_<?%s d ?>_2 =   coeff2_v1*gradPhiVal_<?%s d?>_dyn(v2a_1_x, v2a_1_y, v2a_1_z) + \
+									coeff2_v2*gradPhiVal_<?%s d?>_dyn(v2a_2_x, v2a_2_y, v2a_2_z) + \
+									coeff2_v3*gradPhiVal_<?%s d?>_dyn(v2a_3_x, v2a_3_y, v2a_3_z);
+			<?R } ?>
+  		#endif // end tprec ifdef
+			} else {
+				// Revert to using "normals rounded to lattice directions" method,
+				// which should not point to solid nodes hopefully
+				// unfortunately the code is duplicated between #ifdef and if branches
+				<?R for (d in c('x', 'y', 'z')) { ?>
+					solid_normal.<?%s d ?> = nw_<?%s d ?>;
+					// Get gradient on the first node in the normal direction
+					der_<?%s d ?>_1 = gradPhiVal_<?%s d ?>_dyn(nw_x,    nw_y,   nw_z);
+					// Get gradient on the second node in the normal direction
+					der_<?%s d ?>_2 = gradPhiVal_<?%s d ?>_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+					<?R } ?>
+			}
+  	#else // no staircase improvement
+			// Case 2.2: No staircase improvement
+			vector_t solid_normal = {nw_x, nw_y, nw_z};
+			<?R for (d in c('x', 'y', 'z')) { ?>
+				// Get gradient on the first node in the normal direction
+				real_t der_<?%s d ?>_1 = gradPhiVal_<?%s d ?>_dyn(nw_x,   nw_y,     nw_z);
+				// Get gradient on the second node in the normal direction
+				real_t der_<?%s d ?>_2 = gradPhiVal_<?%s d ?>_dyn(2*nw_x, 2*nw_y, 2*nw_z);
+			<?R } ?>
+	#endif // end staircase improvement ifdef
+		// Case 2 general: Continue applying geometric formulas
+			real_t norm = solid_normal.x*solid_normal.x + solid_normal.y * solid_normal.y + solid_normal.z * solid_normal.z;
+			real_t coeff;
+
+			// project the gradients of two nodes in the normal direction on the boundary plane
+			<?R for (i in c(1, 2)) { ?>
+					coeff = (der_x_<?%s i ?> * solid_normal.x + der_y_<?%s i ?>* solid_normal.y + der_z_<?%s i ?>* solid_normal.z)/norm;
+					vector_t proj_grad_<?%s i ?> = {der_x_<?%s i ?> - coeff*solid_normal.x, der_y_<?%s i ?> - coeff*solid_normal.y, der_z_<?%s i ?> - coeff * solid_normal.z};
+			<?R } ?>
+
+			// extrapolate their components
+			vector_t grad_tangent_v = { 1.5 * proj_grad_1.x - 0.5 * proj_grad_2.x,
+										1.5 * proj_grad_1.y - 0.5 * proj_grad_2.y,
+										1.5 * proj_grad_1.z - 0.5 * proj_grad_2.z};
+
+
+			// compute the norm
+			real_t grad_tangent = sqrt(grad_tangent_v.x * grad_tangent_v.x  + \
+									 grad_tangent_v.y * grad_tangent_v.y + \
+									 grad_tangent_v.z * grad_tangent_v.z);
+
+			// apply geometric boundary condition
+			PhaseF =  tan(PI/2.0 - radAngle) * grad_tangent * 2.0*h + pf_f;
+#endif // end boundary condition pick
+		}
+	}
+}
+
+CudaDeviceFunction real_t getSpecialBoundaryPoint() {
+	return IsSpecialBoundaryPoint;
+}
+
+
+/*
+ * Initialise and set: wall normals, get interpolating triangles and their coefficients,
+ * find special nodes,
+ */
+CudaDeviceFunction void Init_wallNorm(){
+	PhaseF = PhaseF(0,0,0);
+    IsBoundary = IsBoundary(0,0,0);
+	IsBoundary = 0.0;
+	IsSpecialBoundaryPoint = 0.0;
+#ifdef OPTIONS_staircaseimp
+	coeff_v1 = 0;
+	coeff_v2 = 0;
+	coeff_v3 = 0;
+#endif
+	if ( IamWall || IamSolid ) { 
+        IsBoundary = 1.0;
+		int i,j,k;
+	  	real_t tmp = 0.0;
+	  	for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
+			tmp += PhaseF_dyn(i,j,k);
+	  	}}}
+
+	  	if ( abs(tmp) > 26000){
+			// I am surrounded by all solid nodes (sum(pf) = 27*-999 = -26973 if surrounded):
+			nw_x = 0.0; nw_y = 0.0; nw_z = 0.0;
+#ifdef OPTIONS_staircaseimp
+			nw_actual_x = 0.0;
+			nw_actual_y = 0.0;
+			nw_actual_z = 0.0;
+#endif
+	  	} else {
+			// no I am not surrounded, so calc normal:
+			int solidFlag[27];
+			int maxi = 0;
+			real_t myNorm[3] = {0.0,0.0,0.0};
+			real_t maxn=0.0, dot;
+
+			// Calculate the normal direction based converting
+			// negative PhaseF into actual solid flags
+			<?R
+			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
+			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
+			    solid = PV(paste0("solidFlag[",1:27-1,"]"))
+
+			    C(solid, pf)
+			?>
+			for (i=0;i<27;i++){
+				myNorm[0] += wg[i] * solidFlag[i] * d3q27_ex[i];
+				myNorm[1] += wg[i] * solidFlag[i] * d3q27_ey[i];
+				myNorm[2] += wg[i] * solidFlag[i] * d3q27_ez[i];
+
+			}
+			myNorm[0] *= -1.0/3.0;myNorm[1] *= -1.0/3.0;myNorm[2] *= -1.0/3.0;
+			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
+
+			// Calculate the closest discrete direction for normal:
+			for (i = 0; i<27; i++) {
+				dot = (myNorm[0]*d3q27_ex[i] + myNorm[1]*d3q27_ey[i] + myNorm[2]*d3q27_ez[i]) /
+			      		sqrt( tmp*(d3q27_ex[i]*d3q27_ex[i] + d3q27_ey[i]*d3q27_ey[i] +
+					 	   d3q27_ez[i]*d3q27_ez[i]) + 1e-12);
+				if (dot > maxn) {
+					maxn = dot; maxi = i;
+				}
+			}
+			if (maxi < 0) {
+				// This should not happen ?
+				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+			} else {
+				nw_x = d3q27_ex[maxi];
+				nw_y = d3q27_ey[maxi];
+				nw_z = d3q27_ez[maxi];
+
+				// normal points into another solid node, save it for the later treatment
+				// NOTE: Cant use IsBoundary here, because it is not yet necessary set for
+				// the neighboring nodes
+				if (PhaseF_dyn(nw_x, nw_y, nw_z) < -100) {
+					IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>;
+				}
+			}
+
+#ifdef OPTIONS_staircaseimp
+			real_t truncated_normals[3] = {nw_x, nw_y, nw_z};
+			real_t intersection_point[3];
+			int face_index;
+			real_t coeff[3];
+			real_t coeff2[3];
+			int t_index;
+			int t_index2;
+
+			calcIntersectionTriangleId(myNorm, t_index, face_index, coeff, intersection_point, t_index2, coeff2);
+
+			// make sure normal vector is extended to the surface (to use it during interpolation)
+			nw_actual_x = intersection_point[0];
+			nw_actual_y = intersection_point[1];
+			nw_actual_z = intersection_point[2];
+			triangle_index = triangle_index(0,0,0);
+			triangle_index = t_index + face_index*8;
+
+
+            coeff_v1 = coeff[0];
+            coeff_v2 = coeff[1];
+            coeff_v3 = coeff[2];
+
+	#ifdef OPTIONS_tprec
+			triangle_index2 = triangle_index2(0,0,0);
+			triangle_index2 = t_index2 + face_index*8;
+            coeff2_v1 = coeff2[0];
+            coeff2_v2 = coeff2[1];
+            coeff2_v3 = coeff2[2];
+	#endif
+#endif
+
+#ifdef OPTIONS_staircaseimp
+		// Detect if any of the triangle vertices is a solid node and
+		// if so, use the simple normal instead if possible
+		int face_triangle_index = t_index;
+		int vertex_coords[3] = {0,0,0};
+
+		<?R for (v in c(1, 2, 3)) { ?>
+			triangle_id_to_vertex_<?%s v ?>_coords(face_index, face_triangle_index, vertex_coords);
+			int v<?%s v ?>_x = vertex_coords[0], v<?%s v ?>_y = vertex_coords[1], v<?%s v ?>_z = vertex_coords[2];
+			real_t pf_v<?%s v?> = PhaseF_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
+		<?R } ?>
+
+
+		bool will_interpolate_from_the_boundary = pf_v3 < -100 || pf_v2 < -100 || pf_v1 < -100;
+
+		// if normal vector points to the solid, continue marking this point as the special point
+		// because this is definitely a vector vertices of which coincide with the one of triangle
+		// vertices. Otherwise if I am trying to interpolate from the boundary, use the simple normal
+		if (will_interpolate_from_the_boundary && IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+			IsSpecialBoundaryPoint = <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
+		}
+
+	#ifdef OPTIONS_geometric
+
+		#ifdef OPTIONS_tprec
+			int face_triangle_index2 = int(triangle_index2) % 8;
+			<?R for (v in c(1, 2, 3)) { ?>
+				triangle_id_to_vertex_<?%s v ?>_coords(face_index, face_triangle_index2, vertex_coords);
+				// get the coordinates of the vertex, with triangle indexing relateive to the second node of the first triangle,
+				// because it is the closest
+				int v2_<?%s v ?>_x = vertex_coords[0], v2_<?%s v?>_y = vertex_coords[1], v2_<?%s v?>_z = vertex_coords[2];
+				// transform from reference coordinates with respect to v2 to the proper coordinates with respet to boundary points
+				int v2a_<?%s v ?>_x = v2_<?%s v ?>_x + v2_x, v2a_<?%s v?>_y = v2_<?%s v?>_y + v2_y, v2a_<?%s v?>_z = v2_<?%s v?>_z + v2_z;
+			<?R } ?>
+
+			bool will_interpolate_further_from_the_boundary = PhaseF_dyn(v2a_1_x, v2a_1_y, v2a_1_z) < -100 || PhaseF_dyn(v2a_2_x, v2a_2_y, v2a_2_z) < -100 || PhaseF_dyn(v2a_3_x, v2a_3_y, v2a_3_z) < -100;
+		#else
+			bool will_interpolate_further_from_the_boundary = PhaseF_dyn(2*v1_x, 2*v1_y, 2*v1_z) < -100 || PhaseF_dyn(2*v2_x, 2*v2_y, 2*v2_z) < -100 || PhaseF_dyn(2*v3_x, 2*v3_y, 2*v3_z) < -100;
+
+		#endif
+		bool normal_pointing_into_solid_on_further_next_node = PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100;
+
+		// if the normal point poinst to a solid, it takes precedence, otherwise enter if condition
+		if (will_interpolate_further_from_the_boundary && IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+			// if next next next point is a solid, cant use geometric method
+			if (normal_pointing_into_solid_on_further_next_node) {
+				IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>;
+			// else if one (but not one of the normal points) is solid,  can still use geometric method, but not interpolation
+			} else {
+				IsSpecialBoundaryPoint = will_interpolate_from_the_boundary ? <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>  : <?%d NEXT_NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>;
+			}
+		}
+	#endif
+
+#else
+        // when there is no staircase improvement and I am geometric
+#ifdef OPTIONS_geometric
+		// if the next-next node is solid (but next is not) we cant really compute anything with geometric method and have to switch to surface energy
+		if (IsSpecialBoundaryPoint != <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> && PhaseF_dyn(2*nw_x, 2*nw_y, 2*nw_z) < -100) {
+			IsSpecialBoundaryPoint = <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>;
+		}
+#endif
+#endif
+
+	  	}
+	} else {
+	// I am a fluid node, I dont need no solid normal.
+		nw_x = 0.0;
+		nw_y = 0.0;
+		nw_z = 0.0;
+#ifdef OPTIONS_staircaseimp
+		nw_actual_x = 0.0;
+		nw_actual_y = 0.0;
+		nw_actual_z = 0.0;
+		coeff_v1 = 0.0;
+		coeff_v2 = 0.0;
+		coeff_v3 = 0.0;
+		triangle_index = 0;
+	#ifdef OPTIONS_tprec
+		coeff2_v1 = 0.0;
+		coeff2_v2 = 0.0;
+		coeff2_v3 = 0.0;
+		triangle_index2 = 0;
+	#endif
+#endif
+	}
+}

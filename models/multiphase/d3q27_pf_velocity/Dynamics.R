@@ -1,58 +1,77 @@
 # Density - table of variables of LB Node to stream
 #	Velocity-based Evolution d3q27:
-if (Options$q27){
-	source("d3q27q27.R")
-} else {
-	source("d3q27q15.R")
-}
+source("lattice.R")
+
+AddDensity(name="Init_UX_External", group="init", comment="free stream velocity", parameter=TRUE)
+AddDensity(name="Init_UY_External", group="init", comment="free stream velocity", parameter=TRUE)
+AddDensity(name="Init_UZ_External", group="init", comment="free stream velocity", parameter=TRUE)
+AddDensity(name="Init_PhaseField_External", group="init", dx=0,dy=0,dz=0, parameter=TRUE)
 
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
 
+# normal direction
 AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
 
-save_initial_PF = c("PF")
-save_initial    = c("g","h","Vel","PF")
-save_iteration  = c("g","h","Vel","nw")
-load_iteration  = c("g","h","Vel","nw")
-load_phase      = c("g","h","Vel","nw")
+# Helper fields for the staircase improvement
+extra_fields_to_load_for_bc = c()
+extra_save_iteration = c()
+extra_load_iteration = c()
+extra_load_phase = c()
 
-if (Options$altContactAngle){
-    AddDensity(name="n_k", dx=0, dy=0, dz=0, group="nw")
-    AddDensity(name="der_tangent_1_wall", dx=0, dy=0, dz=0)
-    AddDensity(name="der_tangent_2_wall", dx=0, dy=0, dz=0)
-    # Debugging
-    AddDensity(name="perpVal", dx=0, dy=0, dz=0)
-    AddField("gradPhiVal_x", stencil3d=2, group="gradPhi")
-    AddField("gradPhiVal_y", stencil3d=2, group="gradPhi")
-    AddField("gradPhiVal_z", stencil3d=2, group="gradPhi")
-    AddField("IsBoundary", stencil3d=1, group="debug_boundary")
+if (Options$staircaseimp) {
+    # actual normal directions
+    AddDensity(name="nw_actual_x", dx=0, dy=0, dz=0, group="nw_actual")
+    AddDensity(name="nw_actual_y", dx=0, dy=0, dz=0, group="nw_actual")
+    AddDensity(name="nw_actual_z", dx=0, dy=0, dz=0, group="nw_actual")
 
-    AddDensity(name="TangentWallVector1_x", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector2_x", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector1_y", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector2_y", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector1_z", dx=0, dy=0, dz=0)
-    AddDensity(name="TangentWallVector2_z", dx=0, dy=0, dz=0)
-    AddField("PhaseF",stencil3d=3, group="PF")
+    # Standard staircase improvement
+    AddDensity(name="coeff_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+    AddDensity(name="coeff_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+    AddDensity(name="coeff_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+    AddDensity(name="triangle_index", dx=0, dy=0, dz=0, group="st_interpolation")
 
-    AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "debug_boundary"))
-    AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF", "der_tangent_1_wall", "der_tangent_2_wall", "TangentWallVector1_x", "TangentWallVector2_x", "TangentWallVector1_y", "TangentWallVector2_y", "TangentWallVector1_z", "TangentWallVector2_z", "perpVal"), load=DensityAll$group %in% c("nw", "gradPhi", "PF"))
+    if (Options$tprec) {
+        # Staircase improvement with more precise second triangle
+        AddDensity(name="coeff2_v1", dx=0, dy=0, dz=0, group="st_interpolation")
+        AddDensity(name="coeff2_v2", dx=0, dy=0, dz=0, group="st_interpolation")
+        AddDensity(name="coeff2_v3", dx=0, dy=0, dz=0, group="st_interpolation")
+        AddDensity(name="triangle_index2", dx=0, dy=0, dz=0, group="st_interpolation")
+    }
 
-    AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
-    AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("g","h","Vel","nw", "PF"), save=Fields$group=="gradPhi")
-} else {
-    AddField("PhaseF",stencil3d=1, group="PF")
+    # Make sure that those fields are now loaded
+    extra_save_iteration = c(extra_save_iteration, "nw_actual", "st_interpolation")
+    extra_load_iteration = c(extra_load_iteration, "nw_actual", "st_interpolation")
+    extra_load_phase = c(extra_load_phase, "nw_actual")
+    extra_fields_to_load_for_bc = c("nw_actual", "st_interpolation")
 }
+
+
+AddDensity("IsSpecialBoundaryPoint", dx=0, dy=0, dz=0, group="solid_boundary")
+AddQuantity("SpecialBoundaryPoint", unit = 1)
+
+if (Options$geometric){
+    AddField("IsBoundary", stencil3d=2, group="solid_boundary")
+} else {
+    AddField("IsBoundary", stencil3d=1, group="solid_boundary")
+}
+
+save_initial_PF = c("PF","Vel")
+save_initial    = c("g","h","PF")
+save_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_save_iteration)
+load_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_load_iteration)
+load_phase      = c("g","h","Vel","nw", "solid_boundary", extra_load_phase)
+
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
 		AddField( name=d$name, dx=-d$dx-1, dy=-d$dy, dz=-d$dz )
 		AddField( name=d$name, dx=-d$dx+1, dy=-d$dy, dz=-d$dz )
 	}
+	
 	AddField(name="U",dx=c(-1,0,0))
 	AddField(name="U",dx=c(1,0,0))
 
@@ -61,9 +80,25 @@ if (Options$OutFlow){
     load_iteration = c(load_iteration,"gold","hold")
     load_phase     = c(load_phase,    "gold","hold")
 }
-###############################
-########THERMOCAPILLARY########
-###############################
+
+if (Options$geometric){
+    # Since phase field gradients for the geometric method are accessed in the
+    # dynamic manner (different nodes access different gradients in non static way)
+    # we need to disable static optimisation to preserve performance
+    AddField("gradPhiVal_x", stencil3d=2, group="gradPhi", optimise_for_static_access = FALSE)
+    AddField("gradPhiVal_y", stencil3d=2, group="gradPhi", optimise_for_static_access = FALSE)
+    AddField("gradPhiVal_z", stencil3d=2, group="gradPhi", optimise_for_static_access = FALSE)
+    # Fake field, to simply copy field values to PhaseF instead
+    # of accessing them directly from PhaseF field
+    # this is needed for the cases when PhaseF needs to be accessed in the dynamic manner
+    # otherwise the performance will drop significantly
+    AddField('gradPhi_PhaseF', stencil3d=1, group="gradPhi", optimise_for_static_access = FALSE)
+
+    AddField("PhaseF",stencil3d=2, group="PF")
+} else {
+    AddField("PhaseF",stencil3d=1, group="PF")
+}
+
 if (Options$thermo){
     source("thermocapillary.R")
 
@@ -71,15 +106,40 @@ if (Options$thermo){
     save_iteration  = c(save_iteration, "Thermal")
     load_iteration  = c(load_iteration, "Thermal")
 }
+
 ######################
 ########STAGES########
 ######################
-AddStage("WallInit" , "Init_wallNorm", save=Fields$group=="nw")
-AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group=="nw")
-AddStage("PhaseInit", "Init", save=Fields$group %in% save_initial_PF)
-AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
-AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
-AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
+# Remember stages must be added after fields/densities!
+	AddStage("PhaseInit", "Init", save=Fields$group %in% save_initial_PF)
+	AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
+	AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
+	AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
+	AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
+	# STAGES FOR VARIOUS OPTIONS
+	if (Options$geometric){
+		AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
+
+		AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+		AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
+		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
+	} else {
+		AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
+	}
+	if (Options$thermo){
+		AddStage("CopyDistributions", "TempCopy",  save=Fields$group %in% c("g","h","Vel","nw", "PF","Thermal"))
+		AddStage("CopyThermal","ThermalCopy", save=Fields$name %in% c("Temp","Cond","SurfaceTension"), load=DensityAll$name %in% c("Temp","Cond","SurfaceTension"))
+		AddStage("RK_1", "TempUpdate1", save=Fields$name=="RK1", load=DensityAll$name %in% c("U","V","W","Cond","PhaseF","Temp"))
+		AddStage("RK_2", "TempUpdate2", save=Fields$name=="RK2", load=DensityAll$name %in% c("U","V","W","RK1","Cond","PhaseF","Temp"))
+		AddStage("RK_3", "TempUpdate3", save=Fields$name=="RK3", load=DensityAll$name %in% c("U","V","W","RK1","RK2","Cond","PhaseF","Temp"))
+		AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("U","V","W","RK1","RK2","RK3","Cond","PhaseF","Temp"))
+
+		AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
+	}
+
 #######################
 ########ACTIONS########
 #######################
@@ -88,12 +148,15 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
 		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
-	} else if (Options$altContactAngle) {
-        AddAction("Iteration", c("BaseIter", "calcPhase",    "calcPhaseGrad", "calcWall_CA"))
-	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA","BaseInit"))
+	} else if (Options$geometric) {
+        calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
+        AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
+	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
     } else {
-		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
+		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
+		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
+		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
 	}
 #######################
 ########OUTPUTS########
@@ -104,15 +167,13 @@ AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=Density
 	AddQuantity(name="P",	  unit="Pa")
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
-if (Options$altContactAngle){
-    AddQuantity(name="TangentWallVector1", unit=1, vector=T)
-    AddQuantity(name="TangentWallVector2", unit=1, vector=T)
-    AddQuantity(name="Tangent1Wall", unit="1")
-    AddQuantity(name="Tangent2Wall", unit="1")
-    AddQuantity(name="GradPhi", unit=1, vector=T)
-    AddQuantity(name="PerpVal", unit="1")
     AddQuantity(name="IsItBoundary", unit="1")
-}
+	if (Options$geometric){
+		AddQuantity(name="GradPhi", unit=1, vector=T)
+	}
+	if (Options$staircaseimp) {
+		AddQuantity(name="ActualNormal", unit=1, vector=T)
+	}
 ###################################
 ########INPUTS - PHASEFIELD########
 ###################################
@@ -125,8 +186,9 @@ if (Options$altContactAngle){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
-  AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
-  AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
+	AddSetting(name="force_fixed_iterator", default=2, comment='to resolve implicit relation of viscous force')
+  	AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
+  	AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS
@@ -180,6 +242,7 @@ if (Options$altContactAngle){
 	AddNodeType(name="Saddletrack", group="ADDITIONALS")
 	AddNodeType(name="Bubbletrack", group="ADDITIONALS")
 	AddGlobal("InterfacePosition", op="MAX", comment='trackPosition')
+    AddGlobal("InterfaceYTop", op="MAX", comment="Track top position of the interface in Y direction")
 	AddGlobal("Vfront",comment='velocity infront of bubble')
 	AddGlobal("Vback",comment='velocity behind bubble')
 	AddGlobal("RTISpike", op="MAX", comment='SpikeTracker ')
@@ -227,6 +290,10 @@ if (Options$altContactAngle){
 	AddGlobal(name="LiqTotalVelocityX", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
+    AddGlobal(name="NumFluidCells", comment='Number of fluid cells')
+    AddGlobal(name="NumSpecialPoints", comment='Number of special points')
+    AddGlobal(name="NumWallBoundaryPoints", comment='Number of boundary nodes')
+    AddGlobal(name="NumBoundaryPoints", comment='Number of boundary nodes')
 	AddGlobal(name="LiqTotalPhase",	   		comment='use in line with LiqTotalVelocity to determine average velocity', unit="1")
 	AddGlobal(name="FluxNodeCount",comment='nodes in flux region', unit="1")
 	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
