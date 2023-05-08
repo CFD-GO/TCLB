@@ -686,8 +686,8 @@ fi
 
 AC_MSG_CHECKING([R package: optparse])
 AS_IF([$R_BIN --vanilla --slave -e 'if (!require("optparse")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
-AC_MSG_CHECKING([R package: numbers])
-AS_IF([$R_BIN --vanilla --slave -e 'if (!require("numbers")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
+#AC_MSG_CHECKING([R package: numbers])
+#AS_IF([$R_BIN --vanilla --slave -e 'if (!require("numbers")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
 AC_MSG_CHECKING([R package: rtemplate])
 AS_IF([$R_BIN --vanilla --slave -e 'if (!require("rtemplate")) stop("No");' >/dev/null 2>&1],AC_MSG_RESULT([yes]),AC_MSG_ERROR([no]))
 AC_MSG_CHECKING([R package: gvector])
