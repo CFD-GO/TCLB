@@ -329,11 +329,11 @@ do
 		then
 				install_rpackage_github cran/getopt
 				install_rpackage_github cran/optparse
-				install_rpackage_github cran/numbers
+#				install_rpackage_github cran/numbers
 				install_rpackage_github cran/yaml
 		else
 				install_rpackage optparse
-				install_rpackage numbers
+#				install_rpackage numbers
 				install_rpackage yaml
 		fi
 		install_rpackage_github llaniewski/rtemplate

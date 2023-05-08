@@ -52,12 +52,14 @@ Nevertheless, TCLB can be compiled on Windows using the [Windows Subsystem for L
 ### Dependencies
 
 For the code to compile and work you'll need a few things:
-- [R](https://www.r-project.org/) and some R packages ([optparse](https://cran.r-project.org/package=optparse), [numbers](https://cran.r-project.org/package=numbers), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra))
+- [R](https://www.r-project.org/) and some R packages ([optparse](https://cran.r-project.org/package=optparse), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra))
 - [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface). We recommend [OpenMPI](http://www.open-mpi.org/)
-- To use your GPU, you'll need [nVidia CUDA](https://developer.nvidia.com/cuda-zone)
+- To use your GPU, you'll need [nVidia CUDA](https://developer.nvidia.com/cuda-zone) or [AMD HIP/ROCm](https://www.amd.com/en/graphics/servers-solutions-rocm)
+
+Optionally, you may need:
 - To integrate TCLB with R, you'll need R package [rinside](https://github.com/eddelbuettel/rinside)
 - To integrate TCLB with Python, you'll need [python](https://www.python.org/), [numpy](http://www.numpy.org/) with libraries and headers
-- To develop a model using Python, you'll need [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython)
+- To develop a model using Python, you'll need [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package [reticulate](https://cran.r-project.org/package=reticulate)
 
 You can install many of these with the provided `tools/install.sh` script (note that this requires sudo):
 ```bash
@@ -112,17 +114,19 @@ TCLB began development in 2012 with the aim at providing a framework for efficie
 
 Author: [Łukasz Łaniewski-Wołłk](https://github.com/llaniewski)
 
-Co-authors:
+Major contributors:
 * [Michał Dzikowski](https://github.com/mdzik)
+* [Travis Mitchell](https://github.com/TravisMitchell)
 
 Contributors:
-* [Wojtek Regulski](https://github.com/wojtasMEiL)
-* [Zbigniew Gawłowicz](https://github.com/zgawlowicz)
+* [Nathan Di Vaira](https://github.com/ndivaira)
+* [Grzegorz Gruszczyński](https://github.com/ggruszczynski)
+* [Bryce Hill](https://github.com/bhill23)
+* [Jon McCullough](https://github.com/JonMcCullough)
+* [Paweł Obrępalski](https://github.com/PabloOb)
+* [Wojciech Regulski](https://github.com/wojtasMEiL)
 * [Mariusz Rutkowski](https://github.com/mrutkowski-aero)
 * [Dmytro Sashko](https://github.com/shkodm)
-* [Travis Mitchell](https://github.com/TravisMitchell)
-* [Paweł Obrępalski](https://github.com/PabloOb)
-* [Grzegorz Gruszczyński](https://github.com/ggruszczynski)
 
 Developed at:
 - [Zakład Aerodynamiki](https://meil.pw.edu.pl/ZA/) at [Politechnika Warszawska (Warsaw University of Technology)](http://pw.edu.pl/)
