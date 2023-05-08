@@ -2,7 +2,7 @@
 
 gcd = function(a,b) ifelse (b==0, a, gcd(b, a %% b))
 lcm = function(a,b) (a/gcd(a,b))*b
-lcm_vec = function(x) if (length(x) == 1) x else lcm(x[1],lcm_vec(x[-1])
+lcm_vec = function(x) if (length(x) == 1) x else lcm(x[1],lcm_vec(x[-1]))
 
 # library(numbers)
 
