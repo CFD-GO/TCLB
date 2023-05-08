@@ -1,7 +1,10 @@
 #library(polyAlgebra)
 
-gcd <- function(a,b) ifelse (b==0, a, gcd(b, a %% b))
-library(numbers)
+gcd = function(a,b) ifelse (b==0, a, gcd(b, a %% b))
+lcm = function(a,b) (a/gcd(a,b))*b
+lcm_vec = function(x) if (length(x) == 1) x else lcm(x[1],lcm_vec(x[-1])
+
+# library(numbers)
 
 MRT_polyMatrix = function(U) {
   if (any(U >  1)) stop("Too high velocities in calculate_feq")
@@ -25,7 +28,7 @@ MRT_integerOrtogonal = function(M) {
     g = gcd(a,b)
     a = a/g
     b = b/g
-    if (length(b) == 1) l = b else l=mLCM(b);
+    if (length(b) == 1) l = b else l = lcm_vec(b);
     M[,i] = M[,i]*l - M[,1:(i-1),drop=F] %*% (l*a/b)
   }
   M
