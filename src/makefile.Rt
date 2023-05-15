@@ -36,35 +36,26 @@ OBJ+=<?R cat(h,sep=" ") ?>
 
 source:Dynamics.R conf.R $(SOURCE) $(HEADERS)
 
+%.o:%.cpp
+	@echo "  $(CXXTXT)  $<"
+	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
+
 ifdef CPU
 
 %.cpp:%.cu
 	cp $< $@
 
-%.o:%.cpp
-	@echo "  G++        $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
-
-main:main.o $(OBJ)
-	@echo "  LINKING    $@"
-	@$(CXX) $^ -o $@ $(LD_OPT)
-
 else
 
-%.o:%.cpp
-	@echo "  G++        $<"
-	@$(CXX) -c $< -o $@ $(CPP_OPT) $(OPT)
-
 %.o:%.cu
-	@echo "  NVCC       $<"
-	@$(NVCC) --disable-warnings -c $< -o $@ --compiler-options="$(OPT)" $(NV_OPT)
+	@echo "  $(NVCCTXT)  $<"
+	@$(NVCC) -c $< -o $@ $(NV_OPT) $(OPT)
+
+endif
 
 main:main.o $(OBJ)
 	@echo "  LINKING    $@ (nvcc)"
-	@$(CXX) $^  -lcudart -o $@ $(LD_OPT)
-#	@$(NVCC) $^ -o $@ $(LD_OPT) $(NV_OPT) -lcudart
-
-endif
+	@$(CXX) $^  -o $@ $(LD_OPT)
 
 empty:empty.o
 	@echo "  LINKING    $@"

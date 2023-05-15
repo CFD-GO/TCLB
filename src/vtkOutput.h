@@ -16,9 +16,10 @@ public:
 	vtkFileOut (MPI_Comm comm_=MPI_COMM_WORLD);
 	int Open(const char* filename);
 	void WriteB64(void * tab, int len);
-	void Init(lbRegion region, char* selection);
-	void Init(lbRegion, lbRegion region, char* selection, double spacing);
+	void Init(lbRegion, lbRegion region, char* selection, double spacing, double, double, double);
+	inline void Init(lbRegion region, char* selection) { Init(region, region, selection); }
 	inline void Init(lbRegion tot, lbRegion region, char* selection) { Init(tot, region, selection, 0.05); }
+	inline void Init(lbRegion tot, lbRegion region, char* selection, double spacing) { Init( tot, region, selection, spacing, 0.0, 0.0, 0.0); }
 	void Init(int width, int height);
 	void WriteField(char * name, void * data, int elem, char * tp, int components);
 	inline void WriteField(char * name, float * data) { WriteField(name, (void*) data, sizeof(float), "Float32", 1); };

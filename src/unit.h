@@ -29,7 +29,7 @@ void GaussSolve (double A[], double b[], double x[], int n);
 class UnitVal {
 public:
   double val; ///< Value
-  int uni[m_unit]; ///< Powers of units
+  double uni[m_unit]; ///< Powers of units
   /// Conversion from double
   inline UnitVal(double v) {
       val=v;
@@ -64,7 +64,7 @@ public:
       return B;
   };
   /// Power function
-  inline UnitVal pow (int n) {
+  inline UnitVal pow (double n) {
       UnitVal B;
       B.val = std::pow(val,n);
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i]*n;
@@ -111,7 +111,7 @@ public:
     static char buf[3000];
     char * str = buf;
     str += sprintf(str,"%lg [ ",val);
-    for (int i=0; i<m_unit; i++) str += sprintf(str,"%s^%d ",m_units[i].c_str(),uni[i]);
+    for (int i=0; i<m_unit; i++) str += sprintf(str,"%s^%lg ",m_units[i].c_str(),uni[i]);
     str += sprintf(str,"]");
     return buf;
   };
@@ -134,7 +134,7 @@ public:
   };
 };
 
-inline UnitVal pow( UnitVal & A, int b) {
+inline UnitVal pow( UnitVal & A, double b) {
   return A.pow(b);  
 }
 
@@ -152,7 +152,7 @@ class UnitEnv {
 public:
   UnitEnv ();
   UnitVal readUnitOne( std::string val );
-  UnitVal readUnitAlpha( std::string val , int p);
+  UnitVal readUnitAlpha( std::string val , double p);
   UnitVal readUnit( std::string val );
   UnitVal readText( std::string val );
   inline UnitVal operator() (std::string str) { return readText(str); };

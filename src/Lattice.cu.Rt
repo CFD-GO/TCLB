@@ -59,6 +59,17 @@ int SnapLevel(unsigned int i) {
 	return w;
 }
 
+/// Set position
+void Lattice::setPosition(double px_, double py_, double pz_)
+{
+	px = px_;
+	py = py_;
+	pz = pz_;
+	container->px = px + 0.5 + region.dx;
+	container->py = py + 0.5 + region.dy;
+	container->pz = pz + 0.5 + region.dz;
+}
+
 /// Calculation of the offset from X, Y and Z
 int Lattice::Offset(int x, int y, int z)
 {
@@ -87,9 +98,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
-	container->px = region.dx;
-	container->py = region.dy;
-	container->pz = region.dz;
+	setPosition(0.0,0.0,0.0);
 	container->iter = 0;
 	container->reset_iter = 0;
 	DEBUG_M;
@@ -157,13 +166,13 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	bufnumber = 0;
 #ifndef DIRECT_MEM
 	debug2("Allocating MPI buffors ...\n");
-	real_t * ptr = NULL;
+	storage_t * ptr = NULL;
 	int size, from, to;
 	int nx = region.nx, ny=region.ny,  nz=region.nz;
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	size = <?R C(m$Size,float=F) ?> * sizeof(real_t);
+	size = <?R C(m$Size,float=F) ?> * sizeof(storage_t);
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if ((mpi.rank != to) && (size > 0)) {
@@ -323,7 +332,7 @@ void Lattice::Callback(int(*cb)(int,int, void*), void* data) {
 inline void Lattice::MPIStream_A()
 {
 	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
-		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], cudaMemcpyDeviceToHost, outStream);
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], CudaMemcpyDeviceToHost, outStream);
 	}
 }
 
@@ -342,7 +351,7 @@ inline void Lattice::MPIStream_B(int tag)
                 }
                 for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
                         MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*mpi.size + mpi.rank+bufsize[i], MPMD.local, &status);
-                        CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                        CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], CudaMemcpyHostToDevice, inStream);
                 }
         #else
                 MPI_Status status;
@@ -364,14 +373,14 @@ inline void Lattice::MPIStream_B(int tag)
                         for (int j = 0; j < bufnumber; j++) {
                                 int i;
                                 MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
-                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], CudaMemcpyHostToDevice, inStream);
                         }
                 #else
                         DEBUG_M;
                         MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
                         DEBUG_M;
                         for (int i = 0; i < bufnumber; i++) {
-                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], cudaMemcpyHostToDevice, inStream);
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], CudaMemcpyHostToDevice, inStream);
                         }
                 #endif
 		MPI_Waitall(bufnumber, sendreq, MPI_STATUSES_IGNORE);
@@ -474,7 +483,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	}
 
 	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 	}
 	DEBUG_PROF_PUSH("Tree Build");
 		BT.Build();
@@ -486,7 +495,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		}
 		container->balltree_data_size = BT.size();
 		if (BT.mem_size() > 0) {
-			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), cudaMemcpyHostToDevice, kernelStream);
+			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 		}
 <?R } ?>
 	container->CopyToConst();
@@ -522,7 +531,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	DEBUG_PROF_POP();
 <?R if (stage$last_particle) { ?>
 	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), cudaMemcpyDeviceToHost, kernelStream);
+		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
 	}
         CudaStreamSynchronize(kernelStream);
 	DEBUG_PROF_PUSH("Testing particles for NaNs");
@@ -671,7 +680,7 @@ void Lattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t
 <?R
 	for (m in NonEmptyMargin) {
 ?>
-	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(real_t);
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(storage_t);
 	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
 	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
 	j++;
@@ -699,7 +708,7 @@ void Lattice::saveToTab(real_t * rtab, int snap) {
 	for(int i=0; i<n; i++)
 	{
 		debug1("Save buf %d of size %ld\n",i,size[i]);
-		CudaMemcpy( vtab, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		CudaMemcpy( vtab, ptr[i], size[i], CudaMemcpyDeviceToHost);
 		vtab += size[i];
 	}
 	delete[] size;
@@ -716,7 +725,7 @@ void Lattice::loadFromTab(real_t * rtab, int snap) {
 	for(int i=0; i<n; i++)
 	{
 		debug1("Load buf %d of size %ld\n",i,size[i]);
-		CudaMemcpy( ptr[i], vtab, size[i], cudaMemcpyHostToDevice);
+		CudaMemcpy( ptr[i], vtab, size[i], CudaMemcpyHostToDevice);
 		vtab += size[i];
 	}
 	delete[] size;
@@ -745,7 +754,7 @@ int Lattice::save(FTabs& tab, const char * filename) {
 	for(int i=0; i<n; i++)
 	{
         output("Saving data slice %d, size %d", i, size[i]);
-		CudaMemcpy( pt, ptr[i], size[i], cudaMemcpyDeviceToHost);
+		CudaMemcpy( pt, ptr[i], size[i], CudaMemcpyDeviceToHost);
 		fwrite(pt, size[i], 1, f);
 	}
 
@@ -778,7 +787,7 @@ int Lattice::load(FTabs& tab, const char * filename) {
 	{
 		int ret = fread(pt, size[i], 1, f);
 		if (ret != 1) ERROR("Could not read in Lattice::load");
-		CudaMemcpy( ptr[i], pt, size[i], cudaMemcpyHostToDevice);
+		CudaMemcpy( ptr[i], pt, size[i], CudaMemcpyHostToDevice);
 	}
 
 	CudaFreeHost(pt);
@@ -1083,17 +1092,18 @@ void Lattice::AfterIt()
 /// Overwrite NodeType in a region
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
-//	debug1("Overwriting flags of mesh (%lud b)\n", region.nx*region.ny*sizeof(flag_t));
-//	CudaMemcpy2D(container->NodeType, sizeof(flag_t), mask, sizeof(flag_t), sizeof(flag_t), region.nx*region.ny, cudaMemcpyHostToDevice);
-	lbRegion inter = region.intersect(over);
-//        debug1("Overwriting flags of mesh (%ld b) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
-        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-        {
-                CudaMemcpy2D(&container->NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyHostToDevice);
-        }
-
+	if (region.isEqual(over)) {
+		output("overwriting all flags\n");
+		CudaMemcpy(container->NodeType, mask, sizeof(flag_t)*region.sizeL(), CudaMemcpyHostToDevice);
+	} else {
+		lbRegion inter = region.intersect(over);
+	        int x = inter.dx;
+	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+	        {
+	                CudaMemcpy2D(&container->NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
+	        }
+	}
 }
 
 void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
@@ -1108,7 +1118,7 @@ void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         for (int d = 0; d<26; d++)
         {
-                CudaMemcpy2D(&container->Q[region.offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, cudaMemcpyHostToDevice);
+                CudaMemcpy2D(&container->Q[region.offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, CudaMemcpyHostToDevice);
         }
 
 }
@@ -1116,19 +1126,19 @@ void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
 /// Get NodeType's from a region
 void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 {
-//	debug1("Pulling region %dx%d+%d,%d\n",w,h,x,y);
 	size_t offset;
 	lbRegion inter = region.intersect(over);
-//        debug1("Getting flags region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL()*sizeof(flag_t), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx;
-        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-        {
-//		debug1("GetRegion: %d %d %d\n", x,y,z);
-		offset = region.offsetL(x,y,z);
-		CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, cudaMemcpyDeviceToHost);
+	if (region.isEqual(over)) {
+                CudaMemcpy(NodeType, container->NodeType, sizeof(flag_t)*region.sizeL(), CudaMemcpyDeviceToHost);
+        } else {
+	        int x = inter.dx;
+	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+	        {
+			offset = region.offsetL(x,y,z);
+			CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &container->NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
+		}
 	}
-
 }
 
 <?R
@@ -1157,7 +1167,7 @@ void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 		tab,
 		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
 		region.sizeL()*sizeof(real_t),
-		cudaMemcpyDeviceToHost);
+		CudaMemcpyDeviceToHost);
 }
 
 /// Clear [<?%s f$comment ?>]
@@ -1188,7 +1198,7 @@ void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()], 
 		tab,
 		region.sizeL()*sizeof(real_t),
-		cudaMemcpyHostToDevice);
+		CudaMemcpyHostToDevice);
 }
 
 <?R }
@@ -1209,21 +1219,15 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
         container->CopyToConst();
 
 	lbRegion inter = region.intersect(over);
-//        debug1("Getting <?%s q$name ?> of region (%ld elements) %dx%dx%d+%d,%d,%d \n", inter.sizeL(), inter.nx, inter.ny, inter.nz, inter.dx, inter.dy, inter.dz);
-        int x = inter.dx, y = inter.dy;
+	if (inter.size()==0) return;
 	<?%s q$type ?> * buf=NULL;
-	CudaMalloc((void**)&buf, inter.nx*inter.ny*sizeof(<?%s q$type ?>));
-        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+	CudaMalloc((void**)&buf, inter.sizeL()*sizeof(<?%s q$type ?>));
         {	lbRegion small = inter;
-		small.dz = z;
-		small.nz = 1;
 		small.dx -= region.dx;
 		small.dy -= region.dy;
 		small.dz -= region.dz;
-//	        debug1("Getting region (%ld elements) %dx%dx%d+%d,%d,%d \n", small.sizeL(), small.nx, small.ny, small.nz, small.dx, small.dy, small.dz);
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, buf, scale));
-//	        debug1("%d -> %d \n", over.offsetL(x,y,z), small.sizeL());
-		CudaMemcpy(&tab[over.offsetL(x,y,z)], buf, small.sizeL()*sizeof(<?%s q$type ?>), cudaMemcpyDeviceToHost);
+		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , (small, buf, scale));
+		CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
 }

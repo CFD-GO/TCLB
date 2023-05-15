@@ -13,6 +13,7 @@ public:
   CudaHostFunction CudaDeviceFunction inline size_t sizeL() { return nx*ny*nz; };
   inline int isIn(int x, int y) { return (x >= dx) && (y >= dy) && (x-dx < nx) && (y-dy < ny); }
   inline int isIn(int x, int y, int z) { return (x >= dx) && (y >= dy) && (z >= dz) && (x-dx < nx) && (y-dy < ny) && (z-dz < nz); }
+  inline int isEqual(const lbRegion& other) { return (other.dx == dx) && (other.dy == dy) && (other.dz == dz) && (other.nx == nx) && (other.ny == ny) && (other.nz == nz); }
   inline lbRegion intersect(lbRegion w) {
     lbRegion ret;
     ret.dx = max(dx,w.dx);

@@ -55,7 +55,7 @@ class LatticeContainer {
   int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
   int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
-	int px,py,pz;
+  real_t px,py,pz;
   int reset_iter; //< number of last average reset,for dynamics 
   int ZoneIndex;
   int MaxZones;
@@ -80,7 +80,7 @@ class LatticeContainer {
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) {
-    if (! f$big) { ?>
+    if (f$optimise_for_static_access) { ?>
   template <int DX, int DY, int DZ>
   CudaDeviceFunction real_t load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt) {
     typename Cannot_stream_the_field_in_the_direction_<DX,DY,DZ>::Field_name_<?%s f$nicename ?> Hej;
@@ -157,13 +157,13 @@ class LatticeContainer {
 /// Get [<?%s v$comment ?>] from GPU memory
         inline real_t get<?%s v$name ?>(){
                 real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),cudaMemcpyDeviceToHost);
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
                 return ret;
         }
   <?R } ?>
 /// Get all the globals from GPU memory
 	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), cudaMemcpyDeviceToHost);
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
 	}
 };
 

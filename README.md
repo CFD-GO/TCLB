@@ -2,13 +2,13 @@
 
 TCLB Solver [![ZENADO DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3550331.svg)](https://doi.org/10.5281/zenodo.3550331) [![Article](https://zenodo.org/badge/DOI/10.1016/j.camwa.2015.12.043.svg)](https://doi.org/10.1016/j.camwa.2015.12.043)
 ===
-TCLB is a MPI+CUDA or MPI+CPU high-performance Computational Fluid Dynamics simulation code, based on the Lattice Boltzmann Method.
+TCLB is a MPI+CUDA, MPI+CPU or MPI+HIP high-performance Computational Fluid Dynamics simulation code, based on the Lattice Boltzmann Method.
 It provides a clear interface for calculation of complex physics, and the implementation of new models.
 
-- Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![CPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml/badge.svg?branch=master)](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml) [![GPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml/badge.svg?branch=master)](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) 
+- Stable release [(`master` branch)](https://github.com/CFD-GO/TCLB/tree/master):<br/>[![CPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml/badge.svg?branch=master)](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml) [![CUDA build status](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml/badge.svg?branch=master)](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/master/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://docs.tclb.io/) 
 
 
-- Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop):<br/>[![CPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml) [![GPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/)
+- Current release [(`develop` branch)](https://github.com/CFD-GO/TCLB/tree/develop):<br/>[![CPU build status](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/cpu_test.yml) [![CUDA build status](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/gpu_comp.yml) [![HIP build status](https://github.com/CFD-GO/TCLB/actions/workflows/hip_comp.yml/badge.svg?branch=develop)](https://github.com/CFD-GO/TCLB/actions/workflows/hip_comp.yml) [![codecov](https://codecov.io/gh/CFD-GO/TCLB/branch/develop/graph/badge.svg)](https://codecov.io/gh/CFD-GO/TCLB) [![documentation](https://raw.githubusercontent.com/CFD-GO/documents/master/assets/documentation.svg?sanitize=true)](https://develop.docs.tclb.io/)
 
 ## How to use it
 
@@ -20,7 +20,7 @@ cd TCLB
 **Configure**
 ```bash
 make configure
-./configure --enable-graphics --with-cuda-arch=sm_30
+./configure
 ```
 **Compile**
 ```bash
@@ -45,19 +45,21 @@ You can contribute to the documentation at
 [CFD-GO/TCLB_docs](https://github.com/CFD-GO/TCLB_docs).
 
 ### Supported architectures
-This code is designed to run on **Linux**. We strongly recommend using Linux for compilation, computation and postprocessing.
+This code is designed to run on **Linux** with **CUDA**. We strongly recommend using Linux for compilation, computation and postprocessing.
 
-Nevertheless, TCLB can be compiled on Windows (CPU only), using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux). It also can be compiled on MacOS (also CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
+Nevertheless, TCLB can be compiled on Windows using the [Windows Subsystem for Linux](https://pl.wikipedia.org/wiki/Windows_Subsystem_for_Linux), with CUDA supported on some system configurations (see [nVidia's website](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) for more info).  It also can be compiled on MacOS (CPU only). Both Debian and Red Hat based Linux distributions are supported by the `install.sh` script described below, as is MacOS (with `brew` package manager).
 
 ### Dependencies
 
 For the code to compile and work you'll need a few things:
-- [R](https://www.r-project.org/) and some R packages ([optparse](https://cran.r-project.org/package=optparse), [numbers](https://cran.r-project.org/package=numbers), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra))
+- [R](https://www.r-project.org/) and some R packages ([optparse](https://cran.r-project.org/package=optparse), [rtemplate](https://github.com/llaniewski/rtemplate), [gvector](https://github.com/llaniewski/gvector), [polyAlgebra](https://github.com/llaniewski/polyAlgebra))
 - [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface). We recommend [OpenMPI](http://www.open-mpi.org/)
-- To use your GPU, you'll need [nVidia CUDA](https://developer.nvidia.com/cuda-zone)
+- To use your GPU, you'll need [nVidia CUDA](https://developer.nvidia.com/cuda-zone) or [AMD HIP/ROCm](https://www.amd.com/en/graphics/servers-solutions-rocm)
+
+Optionally, you may need:
 - To integrate TCLB with R, you'll need R package [rinside](https://github.com/eddelbuettel/rinside)
 - To integrate TCLB with Python, you'll need [python](https://www.python.org/), [numpy](http://www.numpy.org/) with libraries and headers
-- To develop a model using Python, you'll need [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package: [rPython](https://cran.r-project.org/package=rPython)
+- To develop a model using Python, you'll need [python](https://www.python.org/), [sympy](http://www.sympy.org/) and R package [reticulate](https://cran.r-project.org/package=reticulate)
 
 You can install many of these with the provided `tools/install.sh` script (note that this requires sudo):
 ```bash
@@ -79,6 +81,11 @@ If you want a more recent version, you could try the development branch with `gi
 To compile the code for CPU, you can use the `--disable-cuda` option for `./configure`:
 ```
 ./configure --disable-cuda
+```
+### HIP
+To compile the code for AMD GPUs (ROCm), you can use the `--enable-hip` option for `./configure`:
+```
+./configure --enable-hip
 ```
 ### Parallel run
 To run TCLB in parallel (both on multiple CPU and multiple GPU), you can use the standard syntax of MPI parallel run:
@@ -107,17 +114,19 @@ TCLB began development in 2012 with the aim at providing a framework for efficie
 
 Author: [Łukasz Łaniewski-Wołłk](https://github.com/llaniewski)
 
-Co-authors:
+Major contributors:
 * [Michał Dzikowski](https://github.com/mdzik)
+* [Travis Mitchell](https://github.com/TravisMitchell)
 
 Contributors:
-* [Wojtek Regulski](https://github.com/wojtasMEiL)
-* [Zbigniew Gawłowicz](https://github.com/zgawlowicz)
+* [Nathan Di Vaira](https://github.com/ndivaira)
+* [Grzegorz Gruszczyński](https://github.com/ggruszczynski)
+* [Bryce Hill](https://github.com/bhill23)
+* [Jon McCullough](https://github.com/JonMcCullough)
+* [Paweł Obrępalski](https://github.com/PabloOb)
+* [Wojciech Regulski](https://github.com/wojtasMEiL)
 * [Mariusz Rutkowski](https://github.com/mrutkowski-aero)
 * [Dmytro Sashko](https://github.com/shkodm)
-* [Travis Mitchell](https://github.com/TravisMitchell)
-* [Paweł Obrępalski](https://github.com/PabloOb)
-* [Grzegorz Gruszczyński](https://github.com/ggruszczynski)
 
 Developed at:
 - [Zakład Aerodynamiki](https://meil.pw.edu.pl/ZA/) at [Politechnika Warszawska (Warsaw University of Technology)](http://pw.edu.pl/)

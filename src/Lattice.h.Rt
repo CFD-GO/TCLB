@@ -40,8 +40,8 @@ const int maxSnaps=33;
 class Lattice {
 private:
   LatticeContainer * container; ///< Main Container object
-  real_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
-  real_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
+  storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
+  storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
   size_t bufsize[27]; ///< Sizes of the Buffers
   int nodein[27], nodeout[27]; ///< MPI Ranks of sources and destinations for Buffers
   int bufnumber; ///< Number of non-NULL Buffers
@@ -74,6 +74,7 @@ public:
   real_t settings[SETTINGS];  ///< Table of Settings (Now)
   double globals[GLOBALS]; ///< Table of Globals
   lbRegion region; ///< Local lattice region
+  real_t px, py, pz; 
   MPIInfo mpi; ///< MPI information
   typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t, pinned_allocator<real_t> > rfi_t;
   rfi_t RFI;
@@ -87,6 +88,7 @@ public:
   void MPIInit (MPIInfo);
   void Color(uchar4 *);
   int Offset(int,int,int);
+  void setPosition(double, double, double);
   void FlagOverwrite(flag_t *, lbRegion);
   void CutsOverwrite(cut_t * Q, lbRegion over);
   void Init();

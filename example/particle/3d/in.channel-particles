@@ -1,0 +1,55 @@
+# Initialisation
+units		cgs
+boundary	p p f
+newton		off
+atom_style	sphere
+atom_modify	map array
+communicate	single vel yes
+processors	1 1 1
+neighbor	0.8e-4 bin
+neigh_modify	delay 0
+
+# Declare domain
+region		domain block 0.0 64.0e-4 0.0 40.0e-4 0.0 101e-4
+create_box	2 domain
+
+# Specify particle groups
+group	particle_group type 1
+group	wall_group type 2
+
+# Define region for particle insertion and particle templates for distribution
+region	pack block 0.0 64.0e-4 0.0 40.0e-4 0.5e-4 100.5e-4
+fix 	part_1 particle_group particletemplate/sphere 17891 atom_type 1 density constant 2 radius constant 1.3e-4
+fix 	part_2 particle_group particletemplate/sphere 17903 atom_type 1 density constant 2 radius constant 2e-4
+
+# Distribution for insertion
+fix	dist particle_group particledistribution/discrete 18143 2 part_1 0.4 part_2 0.6
+
+# Insert particles
+fix     ins particle_group insert/pack seed 100003 distributiontemplate dist maxattempt 1000 insert_every once overlapcheck yes all_in yes region pack volumefraction_region 0.1
+
+# Define material properties
+soft_particles yes
+fix m1 all property/global youngsModulus peratomtype 5e4 5e4
+fix m2 all property/global poissonsRatio peratomtype 0.5 0.5
+fix m3 all property/global coefficientRestitution peratomtypepair 2 0.8 0.8 0.8 0.8
+fix m4 all property/global coefficientFriction peratomtypepair 2 0.5 0.7 0.7 0.7
+
+# Define physics for contacts
+pair_style  gran model hertz tangential history
+pair_coeff  * *
+
+# Define walls and wall physics
+fix wall1 all wall/gran model hertz tangential history primitive type 1 zplane 0.5e-4
+fix wall2 all wall/gran model hertz tangential history primitive type 1 zplane 100.5e-4
+
+# Apply integration
+fix integr particle_group nve/sphere
+# Couple to TCLB
+fix     tclb all external pf/callback 1 1
+timestep 4.167e-8
+
+
+dump    dmp all custom 1000 output/particles_in_channel/particles_* id type x y z vx vy vz omegax omegay omegaz radius density
+run 100000 upto
+

@@ -8,6 +8,7 @@ runs:
   using: 'composite'
   steps:
     - shell: bash
+      name: "Gathering coverage data"
       id: gather
       run: |
         lcov --capture --directory . --output-file coverage.info

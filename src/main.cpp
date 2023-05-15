@@ -351,7 +351,7 @@ int main ( int argc, char * argv[] )
 			CudaSetDevice( dev );
 			solver->mpi.gpu = dev;
 			debug2("Initializing device\n");
-			cudaFree(0);
+			CudaFree(0);
 		#else
 			output_all("Running on CPU\n");
 			CudaSetDevice(0);
@@ -414,7 +414,7 @@ int main ( int argc, char * argv[] )
     #endif
 
 	// Finish and clean up
-	debug2("cudaFree ...\n");
+	debug2("CudaFree ...\n");
 	CudaEventDestroy( start );
 	CudaEventDestroy( stop );
 
