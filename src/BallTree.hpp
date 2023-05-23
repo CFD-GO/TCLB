@@ -83,15 +83,3 @@ tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
     tree[node] = elem;
     return node;
 }
-
-template <class BALLS>
-bool BallTree<BALLS>::inBall(tr_addr_t ind, tr_real_t* p) {
-        tr_real_t r = 0;
-        for (int i=0; i<3; i++) {
-            tr_real_t d = balls->getPos(ind,i) - p[i];
-            r += d*d;
-        }
-        tr_real_t r2 = balls->getRad(ind);
-        return (r < r2*r2);
-}
-

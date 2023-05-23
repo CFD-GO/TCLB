@@ -20,16 +20,10 @@ struct tr_elem {
     tr_real_t b;
 };
 
-struct ball {
-    tr_real_t p[3];
-    tr_real_t r;
-};
-
 template <class BALLS>
 class BallTree {
 private:
     std::vector<tr_elem> tree;
-    bool inBall(tr_addr_t i, tr_real_t* p);
     int half (int i, int j, int dir, tr_real_t thr);
     tr_addr_t build (int ind, int n, int back);
     std::vector<tr_addr_t> nr;
@@ -38,13 +32,11 @@ public:
     inline void Build() {
         tree.clear();
         size_t n = balls->size();
-//        printf("Building BallTree (%d) ...\n", n);
         nr.resize(n);
         if (n > 0) {
             for (size_t i=0; i<n; ++i) nr[i] = i;
             build(0,n,-1);
         }
-//        printf("Done (%d)\n", tree.size());
     }
     inline tr_elem* Tree() const { return (tr_elem*) &tree[0]; }
     inline size_t size() const { return tree.size(); }
