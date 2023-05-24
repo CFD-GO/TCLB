@@ -197,7 +197,7 @@ struct TreeParticleIterator : P {
 	}
 	CudaDeviceFunction void go(bool go_left) {
 		while (nodei != -1) {
-		    tr_elem elem = constContainer.solidcontainer_data[nodei];
+		    tr_elem elem = constContainer.solidfinder.data[nodei];
 		    if (elem.flag >= 4) { this->i = elem.right; break; }
 		    int dir = elem.flag;
 		    if (go_left) if (P::SyncOr(this->node[dir] < elem.b)) { nodei++; continue; }
@@ -210,7 +210,7 @@ struct TreeParticleIterator : P {
 	CudaDeviceFunction void operator++ () {
 		if (nodei != -1) {
 		    P::push_all();
-		    nodei = constContainer.solidcontainer_data[nodei].back;
+		    nodei = constContainer.solidfinder.data[nodei].back;
 		    go(false);
 		}
 	        P::pull_all();

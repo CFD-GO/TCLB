@@ -149,7 +149,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	particle_data_size_max = 0;
 	container->particle_data = NULL;
 	container->particle_data_size = 0;
-	container->solidcontainer_data = NULL;
+	container->solidfinder.data = NULL;
 	solidcontainer_data_size_max = 0;
 	SC.balls = &RFI;
 	RFI.name = "TCLB";
@@ -489,13 +489,13 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		SC.Build();
 	DEBUG_PROF_POP();
 		if (SC.size() > solidcontainer_data_size_max) {
-			if (container->solidcontainer_data != NULL) CudaFree(container->solidcontainer_data);
+			if (container->solidfinder.data != NULL) CudaFree(container->solidfinder.data);
 			solidcontainer_data_size_max = SC.size();
-			CudaMalloc(&container->solidcontainer_data, SC.mem_size());
+			CudaMalloc(&container->solidfinder.data, SC.mem_size());
 		}
-		container->solidcontainer_data_size = SC.size();
+		container->solidfinder.data_size = SC.size();
 		if (SC.mem_size() > 0) {
-			CudaMemcpyAsync(container->solidcontainer_data, SC.Tree(), SC.mem_size(), CudaMemcpyHostToDevice, kernelStream);
+			CudaMemcpyAsync(container->solidfinder.data, SC.Tree(), SC.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 		}
 <?R } ?>
 	container->CopyToConst();

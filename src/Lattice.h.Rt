@@ -10,9 +10,8 @@
 #include "ZoneSettings.h"
 #include "SyntheticTurbulence.h"
 #include "Sampler.h"
-#include "RemoteForceInterface.h"
-#include "SolidTree.h"
-#include "pinned_allocator.hpp"
+#include "SolidContainer.h"
+
 
 class lbRegion;
 class LatticeContainer;
@@ -76,9 +75,7 @@ public:
   lbRegion region; ///< Local lattice region
   real_t px, py, pz; 
   MPIInfo mpi; ///< MPI information
-  typedef rfi::RemoteForceInterface< rfi::ForceCalculator, rfi::RotParticle, rfi::ArrayOfStructures, real_t, pinned_allocator<real_t> > rfi_t;
   rfi_t RFI;
-  typedef SolidTree< rfi_t > solidcontainer_t;
   solidcontainer_t SC;
   size_t particle_data_size_max;
   size_t solidcontainer_data_size_max;

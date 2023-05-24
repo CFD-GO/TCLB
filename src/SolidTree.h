@@ -23,7 +23,10 @@ struct tr_elem {
 template <class BALLS>
 class SolidTree {
 public:
-    
+    struct finder_t {
+        size_t data_size;
+        tr_elem* data;
+    };
 private:
     std::vector<tr_elem> tree;
     int half (int i, int j, int dir, tr_real_t thr);
