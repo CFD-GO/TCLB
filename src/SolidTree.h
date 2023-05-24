@@ -21,7 +21,9 @@ struct tr_elem {
 };
 
 template <class BALLS>
-class BallTree {
+class SolidTree {
+public:
+    
 private:
     std::vector<tr_elem> tree;
     int half (int i, int j, int dir, tr_real_t thr);

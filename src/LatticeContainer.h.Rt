@@ -6,7 +6,7 @@
   File defining LatticeContainer and some additional CUDA functions
 */
 #include "SyntheticTurbulence.h"
-#include "BallTree.h"
+#include "SolidTree.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -47,8 +47,8 @@ class LatticeContainer {
   cut_t* Q; 
   size_t particle_data_size;
   real_t* particle_data;
-  size_t balltree_data_size;
-  tr_elem* balltree_data;
+  size_t solidcontainer_data_size;
+  tr_elem* solidcontainer_data;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region

@@ -16,7 +16,7 @@
 #include "Lattice.h"
 #include <mpi.h>
 #include <assert.h>
-#include "BallTree.hpp"
+#include "SolidTree.hpp"
 
 #ifdef ENABLE_NVPROF
 	#include <nvToolsExt.h>
@@ -149,9 +149,9 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	particle_data_size_max = 0;
 	container->particle_data = NULL;
 	container->particle_data_size = 0;
-	container->balltree_data = NULL;
-	balltree_data_size_max = 0;
-	BT.balls = &RFI;
+	container->solidcontainer_data = NULL;
+	solidcontainer_data_size_max = 0;
+	SC.balls = &RFI;
 	RFI.name = "TCLB";
 }
 
@@ -486,16 +486,16 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 	}
 	DEBUG_PROF_PUSH("Tree Build");
-		BT.Build();
+		SC.Build();
 	DEBUG_PROF_POP();
-		if (BT.size() > balltree_data_size_max) {
-			if (container->balltree_data != NULL) CudaFree(container->balltree_data);
-			balltree_data_size_max = BT.size();
-			CudaMalloc(&container->balltree_data, BT.mem_size());
+		if (SC.size() > solidcontainer_data_size_max) {
+			if (container->solidcontainer_data != NULL) CudaFree(container->solidcontainer_data);
+			solidcontainer_data_size_max = SC.size();
+			CudaMalloc(&container->solidcontainer_data, SC.mem_size());
 		}
-		container->balltree_data_size = BT.size();
-		if (BT.mem_size() > 0) {
-			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), CudaMemcpyHostToDevice, kernelStream);
+		container->solidcontainer_data_size = SC.size();
+		if (SC.mem_size() > 0) {
+			CudaMemcpyAsync(container->solidcontainer_data, SC.Tree(), SC.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 		}
 <?R } ?>
 	container->CopyToConst();

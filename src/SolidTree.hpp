@@ -5,10 +5,10 @@
 #include <vector>
 #include <set>
 #include <math.h>
-#include "BallTree.h"
+#include "SolidTree.h"
 
 template <class BALLS>
-int BallTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
+int SolidTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
     if (i == (--j)) return i;
     while (true) {
         while (balls->getPos(nr[i],dir) <= thr) if ((++i) == j) return i;
@@ -22,7 +22,7 @@ int BallTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
 }
 
 template <class BALLS>
-tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
+tr_addr_t SolidTree<BALLS>::build (int ind, int n, int back) {
 //    printf("tree build(%d %d %d)\n", ind, n, back);
     int node = tree.size();
     tr_elem elem;

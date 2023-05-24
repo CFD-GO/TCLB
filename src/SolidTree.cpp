@@ -1,3 +1,3 @@
-#include "BallTree.hpp"
+#include "SolidTree.hpp"
 #include "RemoteForceInterface.hpp"
 
