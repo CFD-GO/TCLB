@@ -32,6 +32,7 @@ private:
     int half (int i, int j, int dir, tr_real_t thr);
     tr_addr_t build (int ind, int n, int back);
     std::vector<tr_addr_t> nr;
+    size_t data_size_max;
 public:
     BALLS* balls;
     inline void Build() {
@@ -43,9 +44,8 @@ public:
             build(0,n,-1);
         }
     }
-    inline tr_elem* Tree() const { return (tr_elem*) &tree[0]; }
-    inline size_t size() const { return tree.size(); }
-    inline size_t mem_size() const { return tree.size() * sizeof(tr_elem); }
+    void InitFinder(finder_t&);
+    void CopyToGPU(finder_t&, CudaStream_t stream);
 };
 
 #define BALLTREE_H

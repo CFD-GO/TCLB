@@ -83,3 +83,25 @@ tr_addr_t SolidTree<BALLS>::build (int ind, int n, int back) {
     tree[node] = elem;
     return node;
 }
+
+
+template <class BALLS>
+void SolidTree<BALLS>::InitFinder (typename SolidTree<BALLS>::finder_t& finder) {
+    data_size_max = 0;
+	finder.data = NULL;
+	finder.data_size = 0;
+}
+
+
+template <class BALLS>
+void SolidTree<BALLS>::CopyToGPU (typename SolidTree<BALLS>::finder_t& finder, CudaStream_t stream) {
+    if (tree.size() > data_size_max) {
+        if (finder.data != NULL) CudaFree(finder.data);
+        data_size_max = tree.size();
+        CudaMalloc(&finder.data, tree.size() * sizeof(tr_elem));
+    }
+    finder.data_size = tree.size();
+    if (tree.size() > 0) {
+        CudaMemcpyAsync(finder.data, (tr_elem*) &tree[0], tree.size() * sizeof(tr_elem), CudaMemcpyHostToDevice, stream);
+    }
+}
