@@ -20,7 +20,6 @@ struct tr_elem {
     tr_real_t b;
 };
 
-const int max_cache_size = 16;
 
 template <class BALLS>
 class SolidTree {
