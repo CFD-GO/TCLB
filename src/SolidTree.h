@@ -20,6 +20,8 @@ struct tr_elem {
     tr_real_t b;
 };
 
+const int max_cache_size = 16;
+
 template <class BALLS>
 class SolidTree {
 public:
@@ -55,10 +57,7 @@ public:
             CudaDeviceFunction iterator_t(): set(nullptr) { nodei = -1; return; };
             friend class set_found_t;
         public:
-            CudaDeviceFunction T operator* () {
-                T ret(i,set->point);
-                return ret;
-            }
+            CudaDeviceFunction T operator* () { return T(i,set->point); }
             CudaDeviceFunction iterator_t& operator++() { 
            		if (nodei != -1) {
 		            nodei = set->finder.data[nodei].back;
@@ -76,14 +75,63 @@ public:
                 for (int i=0;i<3;i++) { lower[i]=lower_[i]; upper[i]=upper_[i]; point[i]=point_[i]; }
             };
     };
+    template <class T>
+    class cache_set_found_t {
+        real_t point[3];
+        size_t cache_size;
+        tr_addr_t cache[max_cache_size];
+        class iterator_t {
+            const cache_set_found_t * set;
+            size_t i;
+            CudaDeviceFunction iterator_t(const cache_set_found_t& set_, const size_t& i_) : set(&set_), i(i_) { };
+            friend class cache_set_found_t;
+        public:
+            CudaDeviceFunction T operator* () { return T(set->cache[i],set->point); }
+            CudaDeviceFunction iterator_t& operator++() { 
+                ++i;
+	            return *this;
+            }
+            CudaDeviceFunction bool operator!=(const iterator_t& other) { return i != other.i; };
+        };
+        public:
+            typedef iterator_t iterator;
+            CudaDeviceFunction inline iterator begin() { return iterator(*this, 0); };
+            CudaDeviceFunction inline iterator end()   { return iterator(*this, cache_size); };
+            CudaDeviceFunction inline cache_set_found_t(const finder_t& finder, const real_t point_[], const real_t lower[], const real_t upper[]) {
+                for (int i=0;i<3;i++) { point[i]=point_[i]; }
+                tr_addr_t nodei = 0;
+                bool go_left = true;
+                cache_size = 0;
+                while (nodei != -1) {
+                    tr_elem elem = finder.data[nodei];
+                    if (elem.flag >= 4) {
+                        cache[cache_size] = elem.right;
+                        ++cache_size;
+                        if (cache_size < max_cache_size) {
+                            nodei = elem.back;
+                            go_left = false;
+                            continue;
+                        }
+                        break;
+                    }
+                    int dir = elem.flag;
+                    if (go_left) if (lower[dir] < elem.b) { nodei++; continue; }
+                    go_left = true;
+                    if (upper[dir] >= elem.a) { nodei = elem.right; continue; }
+                    go_left = false;
+                    nodei = elem.back;
+                }    
+            };
+    };
     class finder_t {
         size_t data_size;
         tr_elem* data;
         friend class SolidTree<BALLS>;
     public:
         template <class T>
-        CudaDeviceFunction inline set_found_t<T> find(const real_t point[], const real_t lower[], const real_t upper[]) const {
-            return set_found_t<T>(*this, point, lower, upper);
+        CudaDeviceFunction inline auto find(const real_t point[], const real_t lower[], const real_t upper[]) const {
+            //return set_found_t<T>(*this, point, lower, upper);
+            return cache_set_found_t<T>(*this, point, lower, upper);
         };
     };
 private:
