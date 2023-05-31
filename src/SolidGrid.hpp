@@ -9,7 +9,7 @@
 
 template <class BALLS>
 int SolidGrid<BALLS>::TryDepth(size_t grid_size) {
-    printf("Trying depth: %d\n", depth);
+    // printf("Trying depth: %d\n", depth);
     size_t data_size = grid_size * depth;
     data.resize(data_size);
     for (size_t i=0; i<data.size(); i++) data[i] = -1;
@@ -43,7 +43,7 @@ void SolidGrid<BALLS>::Build () {
         if (maxr < val) maxr = val;
     }
     delta = 2*maxr;
-    printf("delta: %lf\n", delta);
+    // printf("delta: %lf\n", delta);
     for (int k=0; k<3; k++) {
         mins[k] = 0xFFFFFF;
         maxs[k] = -0xFFFFFF;
@@ -56,9 +56,9 @@ void SolidGrid<BALLS>::Build () {
             if (maxs[k] < p) maxs[k] = p;
         }
     }
-    for (int k=0; k<3; k++) {
-        printf("range[%d]: %d - %d\n", k, mins[k], maxs[k]);
-    }
+    // for (int k=0; k<3; k++) {
+    //     printf("range[%d]: %d - %d\n", k, mins[k], maxs[k]);
+    // }
     size_t grid_size = 1;
     for (int k=0; k<3; k++) grid_size = grid_size * (maxs[k]-mins[k]+1);
     depth = 4;

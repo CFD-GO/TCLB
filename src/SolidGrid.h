@@ -39,6 +39,7 @@ public:
             CudaDeviceFunction inline iterator begin() { return iterator(*this, 0); };
             CudaDeviceFunction inline iterator end()   { return iterator(*this, cache_size); };
             CudaDeviceFunction inline cache_set_found_t(const finder_t& finder, const real_t point_[], const real_t lower[], const real_t upper[]) {
+                for (int i=0;i<3;i++) { point[i]=point_[i]; }
                 int mins[3];
                 int maxs[3];
                 real_t d = 0.5*finder.delta;
@@ -46,8 +47,11 @@ public:
                     mins[k] = floor((lower[k]-d)/finder.delta);
                     if (mins[k] < finder.mins[k]) mins[k] = finder.mins[k];
                     maxs[k] = floor((upper[k]+d)/finder.delta);
-                    if (maxs[k] < finder.maxs[k]) maxs[k] = finder.maxs[k];
+                    if (maxs[k] > finder.maxs[k]) maxs[k] = finder.maxs[k];
                 }
+                // for (int k=0; k<3; k++) {
+                //     printf("range[%d]: %d - %d\n", k, mins[k], maxs[k]);
+                // }
                 int idx[3];
                 cache_size = 0;
                 for (idx[0]=mins[0]; idx[0]<=maxs[0]; idx[0]++)
@@ -57,8 +61,9 @@ public:
                     for (int k=0; k<3; k++) data_offset = data_offset * (finder.maxs[k]-finder.mins[k]+1) + idx[k];
                     data_offset = data_offset * finder.depth;
                     for (int k=0;k<finder.depth;k++) {
-                        if (finder.data[k] == -1) break;
-                        cache[cache_size] = finder.data[k];
+                        // printf("%d %d %d %d\n",idx[0],idx[1],idx[2],k);
+                        if (finder.data[data_offset + k] == -1) break;
+                        cache[cache_size] = finder.data[data_offset + k];
                         ++cache_size;
                         if (cache_size >= max_cache_size) return;
                     }
