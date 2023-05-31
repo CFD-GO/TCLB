@@ -92,6 +92,13 @@ void SolidTree<BALLS>::InitFinder (typename SolidTree<BALLS>::finder_t& finder) 
 	finder.data_size = 0;
 }
 
+template <class BALLS>
+void SolidTree<BALLS>::CleanFinder (typename SolidTree<BALLS>::finder_t& finder) {
+    data_size_max = 0;
+	if (finder.data != NULL) CudaFree(finder.data);
+	finder.data_size = 0;
+}
+
 
 template <class BALLS>
 void SolidTree<BALLS>::CopyToGPU (typename SolidTree<BALLS>::finder_t& finder, CudaStream_t stream) {
