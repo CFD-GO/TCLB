@@ -58,7 +58,7 @@ public:
                 for (idx[1]=mins[1]; idx[1]<=maxs[1]; idx[1]++)
                 for (idx[2]=mins[2]; idx[2]<=maxs[2]; idx[2]++) {
                     size_t data_offset = 0;
-                    for (int k=0; k<3; k++) data_offset = data_offset * (finder.maxs[k]-finder.mins[k]+1) + idx[k];
+                    for (int k=0; k<3; k++) data_offset = data_offset * (finder.maxs[k]-finder.mins[k]+1) + idx[k]-finder.mins[k];
                     data_offset = data_offset * finder.depth;
                     for (int k=0;k<finder.depth;k++) {
                         // printf("%d %d %d %d\n",idx[0],idx[1],idx[2],k);

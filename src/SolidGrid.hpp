@@ -18,7 +18,7 @@ int SolidGrid<BALLS>::TryDepth(size_t grid_size) {
         for (int k=0; k<3; k++) {
             double val = balls->getPos(i,k);
             int p = floor(val/delta);
-            data_offset = data_offset * (maxs[k]-mins[k]+1) + p;
+            data_offset = data_offset * (maxs[k]-mins[k]+1) + p - mins[k];
         }
         data_offset = data_offset * depth;
         int k = 0;
