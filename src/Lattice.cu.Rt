@@ -451,13 +451,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	for (stage in rows(action_stages)) {
 ?>
 	DEBUG_PROF_PUSH("<?%s stage$name ?>");
-//---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
-                 if (old_stage_level > 0) { 
-                	for (m in NonEmptyMargin) { ?>
-	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
-                        } 
-                 }
-                 old_stage_level = old_stage_level + 1 ?>
+//---------------- STAGE: <?%s stage$name ?> -----------------------
 
 <?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
 <?R if (stage$first_particle) { ?>
@@ -490,6 +484,15 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	DEBUG_PROF_POP();
 		SC.CopyToGPU(container->solidfinder, kernelStream);
 <?R } ?>
+<?R if (old_stage_level > 0) { ?>
+	MPIStream_B();
+	CudaDeviceSynchronize();
+<?R   for (m in NonEmptyMargin) { ?>
+	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
+      } 
+    }
+    old_stage_level = old_stage_level + 1
+?>
 	container->CopyToConst();
 	DEBUG_PROF_PUSH("Calculation");
 	switch(iter_type & ITER_INTEG){
@@ -519,7 +522,6 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
                 break;
 	}	
 	
-	MPIStream_B();
 	DEBUG_PROF_POP();
 <?R if (stage$last_particle) { ?>
 	if (RFI.mem_size() > 0) {
@@ -541,10 +543,12 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	DEBUG_PROF_POP();
 	RFI.SendForces();
 <?R } ?>
-        CudaDeviceSynchronize();
+
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 	DEBUG_PROF_POP();
 <?R } ?>
+	MPIStream_B();
+	CudaDeviceSynchronize();
 	Snap = tab1;
 	MarkIteration();
 	updateAllSamples();	
