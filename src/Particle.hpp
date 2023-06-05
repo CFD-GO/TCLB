@@ -90,5 +90,9 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 
 CudaDeviceFunction auto SyncParticleIterator(real_t x, real_t y, real_t z) {
 	real_t point[3] = {x,y,z};
-	return constContainer.solidfinder.find< ParticleS< NO_SYNC > >(point, point, point);
+	return constContainer.solidfinder.find< ParticleS< WARP_SYNC > >(point, point, point);
+//	real_t point[3] = {x,y,z};
+//	real_t lower[3] = {x-CudaThread.x,y,z};
+//	real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1,y,z};
+//	return constContainer.solidfinder.find< ParticleS< WARP_SYNC > >(point, lower, upper);
 }

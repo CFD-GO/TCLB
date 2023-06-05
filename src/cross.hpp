@@ -119,6 +119,7 @@ __device__ inline void atomicSumWarp(real_t * sum, real_t val)
 	}
 }
 
+/*
 __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
 {
 	#define FULL_MASK 0xffffffff
@@ -132,6 +133,20 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
 			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
 		}
 	}
+}*/
+
+#include <cooperative_groups.h>
+#include <cooperative_groups/reduce.h>
+namespace cg = cooperative_groups;
+
+__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
+{
+        
+	cg::coalesced_group active = cg::coalesced_threads();
+	cg::coalesced_group com = cg::labeled_partition(active, (unsigned long long)(void*)sum);
+	for (unsigned char i=0; i<len; i++) val[i] = cg::reduce(com, val[i], cg::plus<real_t>());
+	int j = com.thread_rank();
+	if (j < len) atomicAddP(sum+j,val[j]);
 }
 
 #elif CUDART_VERSION >= 7000 || defined(CROSS_HIP)
