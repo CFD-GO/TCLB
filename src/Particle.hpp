@@ -2,8 +2,7 @@
 #define NO_SYNC 0x01
 #define WARP_SYNC 0x02
 #define BLOCK_SYNC 0x03
-
-#define PARTICLE_SYNC 0x02
+#define OPP_SYNC 0x04
 
 struct Particle {
 //	vector_t pos, vel, angvel;
@@ -75,8 +74,17 @@ CudaDeviceFunction ParticleS< NO_SYNC >::~ParticleS() {
 template <>
 CudaDeviceFunction ParticleS< WARP_SYNC >::~ParticleS() {
 	real_t val[6] = {force.x,force.y,force.z,moment.x,moment.y,moment.z};
-	CudaAtomicAddReduceWarpArr(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val,6);
+	CudaAtomicAddReduceWarpArr<6>(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val);
 }
+
+#ifdef CROSS_HAS_ADDOPP
+template <>
+CudaDeviceFunction ParticleS< OPP_SYNC >::~ParticleS() {
+	real_t val[6] = {force.x,force.y,force.z,moment.x,moment.y,moment.z};
+	CudaAtomicAddReduceOppArr<6>(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val);
+}
+#endif
+
 
 template <>
 CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
@@ -88,11 +96,16 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
 }
 
-CudaDeviceFunction auto SyncParticleIterator(real_t x, real_t y, real_t z) {
-	real_t point[3] = {x,y,z};
-	return constContainer.solidfinder.find< ParticleS< WARP_SYNC > >(point, point, point);
-//	real_t point[3] = {x,y,z};
-//	real_t lower[3] = {x-CudaThread.x,y,z};
-//	real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1,y,z};
-//	return constContainer.solidfinder.find< ParticleS< WARP_SYNC > >(point, lower, upper);
-}
+#ifdef CROSS_HAS_ADDOPP
+	CudaDeviceFunction solidcontainer_t::set_found_t< ParticleS< OPP_SYNC > > SyncParticleIterator(real_t x, real_t y, real_t z) {
+		real_t point[3] = {x,y,z};
+		return constContainer.solidfinder.find< ParticleS< OPP_SYNC > >(point, point, point);
+	}
+#else
+	CudaDeviceFunction solidcontainer_t::set_found_t< ParticleS< WARP_SYNC > > SyncParticleIterator(real_t x, real_t y, real_t z) {
+		real_t point[3] = {x,y,z};
+		real_t lower[3] = {x-CudaThread.x,y,z};
+		real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1,y,z};
+		return constContainer.solidfinder.find< ParticleS< WARP_SYNC > >(point, lower, upper);
+	}
+#endif

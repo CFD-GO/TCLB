@@ -324,9 +324,9 @@
     template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) sum[0] += val; }
     template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
 
-    template <typename T>
-    inline void CudaAtomicAddReduceWarpArr(T * sum, T * val, unsigned char len) {
-      for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
+    template <int LEN, typename T>
+    inline void CudaAtomicAddReduceWarpArr(T * sum, T val[LEN]) {
+      for (unsigned char i = 0; i < LEN; i ++) sum[i] += val[i];
     }
 
   #define ISFINITE(l__) std::isfinite(l__)
