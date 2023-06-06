@@ -69,8 +69,8 @@
     }
   #endif
       
-  #define atomicAddP atomicAdd
-  #define atomicMaxP atomicMax
+  #define CudaAtomicAdd atomicAdd
+  #define CudaAtomicMax atomicMax
 
    #ifndef MAX_THREADS
       #error FUCK!
@@ -80,7 +80,7 @@
       #endif
     #endif
 
-      __device__ inline void atomicSum(real_t * sum, real_t val)
+      __device__ inline void CudaAtomicAddReduce(real_t * sum, real_t val)
       {
               __syncthreads();
               int i = blockDim.x*blockDim.y;
@@ -97,24 +97,24 @@
               if (j==0) {
                 real_t val = sumtab[0];
                 if (val != 0.0) {
-                  atomicAddP(sum, val);
+                  CudaAtomicAdd(sum, val);
                 }
               }
       }
 
 #if CUDART_VERSION >= 9000
-__device__ inline void atomicSumWarp(real_t * sum, real_t val)
+__device__ inline void CudaAtomicAddReduceWarp(real_t * sum, real_t val)
 {
 	#define FULL_MASK 0xffffffff
 	if (__any_sync(FULL_MASK, val != 0)) {
 		for (int offset = 16; offset > 0; offset /= 2)
 		    val += __shfl_down_sync(FULL_MASK, val, offset);
-		if (threadIdx.x == 0) atomicAddP(sum,val);
+		if (threadIdx.x == 0) CudaAtomicAdd(sum,val);
 	}
 }
 
 /*
-__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
+__device__ inline void CudaAtomicAddReduceWarpArr(real_t * sum, real_t * val, unsigned char len)
 {
 	#define FULL_MASK 0xffffffff
 	bool pred = false;
@@ -124,7 +124,7 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
 			for (unsigned char i=0; i<len; i++) val[i] += __shfl_xor_sync(FULL_MASK, val[i], offset);
 		}
 		if (threadIdx.x < len) {
-			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
+			CudaAtomicAdd(sum+threadIdx.x,val[threadIdx.x]);
 		}
 	}
 }*/
@@ -133,29 +133,29 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
 #include <cooperative_groups/reduce.h>
 namespace cg = cooperative_groups;
 
-__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
+__device__ inline void CudaAtomicAddReduceWarpArr(real_t * sum, real_t * val, unsigned char len)
 {
         
 	cg::coalesced_group active = cg::coalesced_threads();
 	cg::coalesced_group com = cg::labeled_partition(active, (unsigned long long)(void*)sum);
 	for (unsigned char i=0; i<len; i++) val[i] = cg::reduce(com, val[i], cg::plus<real_t>());
 	int j = com.thread_rank();
-	if (j < len) atomicAddP(sum+j,val[j]);
+	if (j < len) CudaAtomicAdd(sum+j,val[j]);
 }
 
 #elif CUDART_VERSION >= 7000 || defined(CROSS_HIP)
 
-__device__ inline void atomicSumWarp(real_t * sum, real_t val)
+__device__ inline void CudaAtomicAddReduceWarp(real_t * sum, real_t val)
 {
 	#define FULL_MASK 0xffffffff
 	if (__any(val != 0)) {
 		for (int offset = 16; offset > 0; offset /= 2)
 		    val += __shfl_down(val, offset);
-		if (threadIdx.x == 0) atomicAddP(sum,val);
+		if (threadIdx.x == 0) CudaAtomicAdd(sum,val);
 	}
 }
 
-__device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned char len)
+__device__ inline void CudaAtomicAddReduceWarpArr(real_t * sum, real_t * val, unsigned char len)
 {
 	#define FULL_MASK 0xffffffff
 	bool pred = false;
@@ -165,15 +165,15 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
 			for (unsigned char i=0; i<len; i++) val[i] += __shfl_xor(val[i], offset);
 		}
 		if (threadIdx.x < len) {
-			atomicAddP(sum+threadIdx.x,val[threadIdx.x]);
+			CudaAtomicAdd(sum+threadIdx.x,val[threadIdx.x]);
 		}
 	}
 }
 #else
-  #warning "no atomicSumWarp for this CUDA version"
+  #warning "no CudaAtomicAddReduceWarp for this CUDA version"
 #endif
 
-      __device__ inline void atomicMaxReduce(real_t * sum, real_t val)
+      __device__ inline void CudaAtomicMaxReduce(real_t * sum, real_t val)
       {
               int i = blockDim.x*blockDim.y;
               int k = blockDim.x*blockDim.y;
@@ -187,13 +187,13 @@ __device__ inline void atomicSumWarpArr(real_t * sum, real_t * val, unsigned cha
                       if (j<k) sumtab[j] = max(sumtab[j],sumtab[j+i]);
                       __syncthreads();
               }
-              if (j==0) atomicMaxP(sum,sumtab[0]);
+              if (j==0) CudaAtomicMax(sum,sumtab[0]);
       }
 
-      __device__ inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
+      __device__ inline void CudaAtomicAddReduceDiff(real_t * sum, real_t val, bool yes)
       {
                 if (! yes) val = 0.0;
-                atomicSum(sum, val);
+                CudaAtomicAddReduce(sum, val);
       }
 
 #endif

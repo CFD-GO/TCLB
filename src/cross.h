@@ -49,7 +49,7 @@
         #elif CUDART_VERSION >= 7000
               #define CudaSyncWarpOr(x__) __any(b);
         #else
-              #warning "no atomicSumWarp for this CUDA version"
+              #warning "no CudaAtomicAddReduceWarp for this CUDA version"
         #endif
       #endif
       
@@ -319,32 +319,32 @@
 //    inline long long int __double_as_longlong(double v) { return *reinterpret_cast< long long int* >(&v); }
 
     template <typename T>
-    inline void atomicSum(T * sum, T val)
+    inline void CudaAtomicAddReduce(T * sum, T val)
     {
       sum[0] += val;
     }
 
     template <typename T>
-    inline void atomicSumWarp(T * sum, T val)
+    inline void CudaAtomicAddReduceWarp(T * sum, T val)
     {
       sum[0] += val;
     }
 
     template <typename T>
-    inline void atomicSumWarpArr(T * sum, T * val, unsigned char len)
+    inline void CudaAtomicAddReduceWarpArr(T * sum, T * val, unsigned char len)
     {
       for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
     }
 
     template <typename T>
-    inline void atomicSumDiff(T * sum, T val, bool yes)
+    inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes)
       {
         if (yes) sum[0] += val;
       }
 
 
     template <typename T>
-    inline void atomicMaxReduce(T * sum, T val)
+    inline void CudaAtomicMaxReduce(T * sum, T val)
     {
       if (val > sum[0]) sum[0] = val;
     }

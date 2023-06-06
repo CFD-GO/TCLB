@@ -64,28 +64,28 @@ struct ParticleS : ParticleI {
 
 template <>
 CudaDeviceFunction ParticleS< NO_SYNC >::~ParticleS() {
-	atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
-	atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
-	atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
-	atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
-	atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
-	atomicAddP(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
+	CudaAtomicAdd(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
+	CudaAtomicAdd(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
+	CudaAtomicAdd(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
+	CudaAtomicAdd(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
+	CudaAtomicAdd(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
+	CudaAtomicAdd(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
 }
 
 template <>
 CudaDeviceFunction ParticleS< WARP_SYNC >::~ParticleS() {
 	real_t val[6] = {force.x,force.y,force.z,moment.x,moment.y,moment.z};
-	atomicSumWarpArr(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val,6);
+	CudaAtomicAddReduceWarpArr(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE],val,6);
 }
 
 template <>
 CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
-	atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
-	atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
-	atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
-	atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
-	atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
-	atomicSum(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
+	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+0],force.x);
+	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+1],force.y);
+	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_FORCE+2],force.z);
+	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+0],moment.x);
+	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+1],moment.y);
+	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
 }
 
 CudaDeviceFunction auto SyncParticleIterator(real_t x, real_t y, real_t z) {
