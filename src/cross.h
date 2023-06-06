@@ -1,17 +1,23 @@
-#include "Consts.h"
-#include "types.h"
-#include <stdio.h>
-
-#ifndef __CUDACC__
-  #ifndef CROSS_HIP
-    #define CROSS_CPP
-  #endif
-#endif
+//
+// Header for cross-compilation.
+//   Default platform is nVidia CUDA
+//   macro switches:
+//     CROSS_CPU - cross-compilation for CPU
+//     CROSS_HIP - cross-compilation for AMD ROCm (HIP)
+//   additionals:
+//     CROSS_SYNC - make all call synchronious
 
 #ifndef CROSS_H
+#define CROSS_H
+  #ifndef __CUDACC__
+    #ifndef CROSS_HIP
+      // We are compiling code for CUDA, but we're compiling this compilation unit with non-cuda compiler
+      #define CROSS_CPP  
+    #endif
+  #endif
+
 
   #ifndef CROSS_CPU
-  
     #ifdef CROSS_HIP
      #include <hip/hip_runtime.h>
     #endif
@@ -25,9 +31,7 @@
       #define CudaConstantMemory
       template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
-      inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     #else
-//      #include "../../cub/cub/cub.cuh"
       #define CudaDeviceFunction __device__
       #define CudaHostFunction __host__
       #define CudaGlobalFunction __global__
@@ -177,8 +181,6 @@
 
     CudaError HandleError( CudaError err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
-    int GetMaxThreads();
-    #define RunKernelMaxThreads (GetMaxThreads())
     #define ISFINITE(l__) isfinite(l__)
   #else
     #include <assert.h>
@@ -191,7 +193,6 @@
     #endif
     template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
     template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
-    inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     struct float2 { float x,y; };
     struct float3 { float x,y,z; };
     struct double2 { double x,y; };
@@ -317,10 +318,6 @@
 //    inline double __longlong_as_double(long long int v) { return *reinterpret_cast< double* >(&v); }
 //    inline long long int __double_as_longlong(double v) { return *reinterpret_cast< long long int* >(&v); }
 
-    inline real_t blockSum(real_t val) {
-      return val;
-    }
-
     template <typename T>
     inline void atomicSum(T * sum, T val)
     {
@@ -339,8 +336,8 @@
       for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
     }
 
-//    template <typename T>
-    inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
+    template <typename T>
+    inline void atomicSumDiff(T * sum, T val, bool yes)
       {
         if (yes) sum[0] += val;
       }

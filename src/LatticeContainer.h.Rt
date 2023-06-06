@@ -139,10 +139,8 @@ class LatticeContainer {
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-  template<class N> inline void RunParticlesT(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
-  template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
   
   void CopyToConst();
   void WaitAll();
