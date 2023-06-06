@@ -17,6 +17,75 @@ class SolidGrid {
 public:
     class finder_t;
     template <class T>
+    class set_found_t {
+        const finder_t& finder;
+        real_t point[3];
+        int mins[3];
+        int maxs[3];
+        class iterator_t {
+            const set_found_t * set;
+            int idx[3];
+            int balli;
+            int d;
+            CudaDeviceFunction size_t calc_data_offset() const {
+                size_t data_offset = 0;
+                for (int k=0; k<3; k++) data_offset = data_offset * (set->finder.maxs[k]-set->finder.mins[k]+1) + idx[k]-set->finder.mins[k];
+                return data_offset * set->finder.depth;
+            };
+            CudaDeviceFunction void go() {
+                while (idx[0] <= set->maxs[0]) {
+                    while (idx[1] <= set->maxs[1]) {
+                        while (idx[2] <= set->maxs[2]) {
+                            size_t data_offset = calc_data_offset();
+                            while (d < set->finder.depth) {
+                                balli = set->finder.data[data_offset+d];
+                                if (balli != -1) return;
+                                d++;
+                            }
+                            d = 0;
+                            idx[2]++;
+                        }
+                        idx[2]=set->mins[2];
+                        idx[1]++;
+                    }
+                    idx[1]=set->mins[1];
+                    idx[0]++;
+                }
+                balli == -1;
+                return;
+            };
+            CudaDeviceFunction iterator_t(const set_found_t& set_) : set(&set_) {
+                for (int i=0; i<3; i++) idx[i] = set->mins[i];
+                d = 0;
+                go();
+            };
+            CudaDeviceFunction iterator_t() : set(NULL) { balli = -1; };
+            friend class set_found_t;
+        public:
+            CudaDeviceFunction T operator* () { return T(balli,set->point); }
+            CudaDeviceFunction iterator_t& operator++() { 
+                ++d;
+                go();
+	            return *this;
+            }
+            CudaDeviceFunction bool operator!=(const iterator_t& other) { return balli != other.balli; };
+        };
+        public:
+            typedef iterator_t iterator;
+            CudaDeviceFunction inline iterator begin() { return iterator(*this); };
+            CudaDeviceFunction inline iterator end()   { return iterator(); };
+            CudaDeviceFunction inline set_found_t(const finder_t& finder_, const real_t point_[], const real_t lower[], const real_t upper[]): finder(finder_) {
+                for (int i=0;i<3;i++) { point[i]=point_[i]; }
+                real_t d = 0.5*finder.delta;
+                for (int k=0; k<3; k++) {
+                    mins[k] = floor((lower[k]-d)/finder.delta);
+                    if (mins[k] < finder.mins[k]) mins[k] = finder.mins[k];
+                    maxs[k] = floor((upper[k]+d)/finder.delta);
+                    if (maxs[k] > finder.maxs[k]) maxs[k] = finder.maxs[k];
+                }
+            };
+    };
+    template <class T>
     class cache_set_found_t {
         real_t point[3];
         size_t cache_size;
@@ -49,9 +118,9 @@ public:
                     maxs[k] = floor((upper[k]+d)/finder.delta);
                     if (maxs[k] > finder.maxs[k]) maxs[k] = finder.maxs[k];
                 }
-                // for (int k=0; k<3; k++) {
-                //     printf("range[%d]: %d - %d\n", k, mins[k], maxs[k]);
-                // }
+                //  for (int k=0; k<3; k++) {
+                //      printf("pos[%d]/%f: %f -> range[%d]: %d - %d\n", k, finder.delta, point[k]/finder.delta, k, mins[k], maxs[k]);
+                //  }
                 int idx[3];
                 cache_size = 0;
                 for (idx[0]=mins[0]; idx[0]<=maxs[0]; idx[0]++)
@@ -61,14 +130,13 @@ public:
                     for (int k=0; k<3; k++) data_offset = data_offset * (finder.maxs[k]-finder.mins[k]+1) + idx[k]-finder.mins[k];
                     data_offset = data_offset * finder.depth;
                     for (int k=0;k<finder.depth;k++) {
-                        // printf("%d %d %d %d\n",idx[0],idx[1],idx[2],k);
+                        // printf("%d %d %d %d -> %d\n",idx[0],idx[1],idx[2],k, finder.data[data_offset + k]);
                         if (finder.data[data_offset + k] == -1) break;
                         cache[cache_size] = finder.data[data_offset + k];
                         ++cache_size;
-                        if (cache_size >= max_cache_size) return;
+                        if (cache_size >= max_cache_size) { return; }
                     }
                 }
-                
             };
     };
     class finder_t {
@@ -81,8 +149,8 @@ public:
     public:
         template <class T>
         CudaDeviceFunction inline auto find(const real_t point[], const real_t lower[], const real_t upper[]) const {
-            //return set_found_t<T>(*this, point, lower, upper);
-            return cache_set_found_t<T>(*this, point, lower, upper);
+            return set_found_t<T>(*this, point, lower, upper);
+            //return cache_set_found_t<T>(*this, point, lower, upper);
         };
     };
 private:
