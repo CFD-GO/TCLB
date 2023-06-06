@@ -27,7 +27,7 @@ public:
             typedef iterator_t iterator;
             CudaDeviceFunction inline iterator begin() { return iterator(*this, 0); };
             CudaDeviceFunction inline iterator end()   { return iterator(*this, finder.size); };
-            CudaDeviceFunction inline set_found_t(const finder_t& finder_, const real_t point_[]): finder(finder_) {
+            CudaDeviceFunction inline set_found_t(const finder_t& finder_, const real_t point_[], const real_t lower[], const real_t upper[]): finder(finder_) {
                 for (int i=0;i<3;i++) { point[i]=point_[i]; }
             };
     };
@@ -37,7 +37,7 @@ public:
     public:
         template <class T>
         CudaDeviceFunction inline set_found_t<T> find(const real_t point[], const real_t lower[], const real_t upper[]) const {
-            return set_found_t<T>(*this, point);
+            return set_found_t<T>(*this, point, lower, upper);
         };
     };
 private:

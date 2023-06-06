@@ -96,16 +96,29 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 	CudaAtomicAddReduce(&constContainer.particle_data[i*RFI_DATA_SIZE+RFI_DATA_MOMENT+2],moment.z);
 }
 
+
 #ifdef CROSS_HAS_ADDOPP
-	CudaDeviceFunction solidcontainer_t::set_found_t< ParticleS< OPP_SYNC > > SyncParticleIterator(real_t x, real_t y, real_t z) {
+	#define PART_SYNC OPP_SYNC
+#else
+	#define PART_SYNC WARP_SYNC
+#endif
+
+#ifdef SOLID_CACHE
+	typedef typename solidcontainer_t::cache_set_found_t< ParticleS< PART_SYNC >, SOLID_CACHE > set_found_t;
+#else
+	typedef typename solidcontainer_t::set_found_t< ParticleS< PART_SYNC > > set_found_t;
+#endif
+
+#ifdef CROSS_HAS_ADDOPP
+	CudaDeviceFunction set_found_t SyncParticleIterator(real_t x, real_t y, real_t z) {
 		real_t point[3] = {x,y,z};
-		return constContainer.solidfinder.find< ParticleS< OPP_SYNC > >(point, point, point);
+		return set_found_t(constContainer.solidfinder, point, point, point);
 	}
 #else
-	CudaDeviceFunction solidcontainer_t::set_found_t< ParticleS< WARP_SYNC > > SyncParticleIterator(real_t x, real_t y, real_t z) {
+	CudaDeviceFunction set_found_t SyncParticleIterator(real_t x, real_t y, real_t z) {
 		real_t point[3] = {x,y,z};
 		real_t lower[3] = {x-CudaThread.x,y,z};
 		real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1,y,z};
-		return constContainer.solidfinder.find< ParticleS< WARP_SYNC > >(point, lower, upper);
+		return set_found_t(constContainer.solidfinder, point, lower, upper);
 	}
 #endif
