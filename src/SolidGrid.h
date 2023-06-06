@@ -51,7 +51,7 @@ public:
                     idx[1]=set->mins[1];
                     idx[0]++;
                 }
-                balli == -1;
+                balli = -1;
                 return;
             };
             CudaDeviceFunction iterator_t(const set_found_t& set_) : set(&set_) {

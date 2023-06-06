@@ -6,18 +6,18 @@
 //     CROSS_HIP - cross-compilation for AMD ROCm (HIP)
 //   additionals:
 //     CROSS_SYNC - make all call synchronious
+#include "../config.h"
 
 #ifndef CROSS_H
-#define CROSS_H
-  #ifndef __CUDACC__
-    #ifndef CROSS_HIP
-      // We are compiling code for CUDA, but we're compiling this compilation unit with non-cuda compiler
-      #define CROSS_CPP  
-    #endif
-  #endif
-
+  #define CROSS_H
 
   #ifndef CROSS_CPU
+    #ifndef __CUDACC__
+      #ifndef CROSS_HIP
+        // We are compiling code for CUDA, but we're compiling this compilation unit with non-cuda compiler
+        #define CROSS_CPP  
+      #endif
+    #endif
     #ifdef CROSS_HIP
      #include <hip/hip_runtime.h>
     #endif
@@ -265,7 +265,7 @@
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
     #define CudaMemcpyAsync(a__,b__,c__,d__,e__) CudaMemcpy(a__, b__, c__, d__)
     #define CudaMemset(a__,b__,c__) memset(a__, b__, c__)
-    #define CudaMalloc(a__,b__) (assert( (*((void**)(a__)) = malloc(b__)) != NULL ), CudaSuccess)
+    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaFree(a__) free(a__)
     #define CudaFreeHost(a__) free(a__)
@@ -304,7 +304,12 @@
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
-    template <class T, class P> inline T data_cast(const P& x) { static_assert(sizeof(T)==sizeof(P),"Wrong sizes in data_cast"); T ret; memcpy(&ret, &x, sizeof(T)); return ret; }
+    template <class T, class P> inline T data_cast(const P& x) {
+      static_assert(sizeof(T)==sizeof(P),"Wrong sizes in data_cast");
+      T ret;
+      memcpy(&ret, &x, sizeof(T));
+      return ret;
+    }
 
     #define __short_as_half(x__)      data_cast<half          , short int     >(x__)
     #define __half_as_short(x__)      data_cast<short int     , half          >(x__)
@@ -313,49 +318,23 @@
     #define __longlong_as_double(x__) data_cast<double        , long long int >(x__)
     #define __double_as_longlong(x__) data_cast<long long int , double        >(x__)
 
-//    inline float __int_as_float(int v) { return *reinterpret_cast< float* >(&v); }
-//    inline int __float_as_int(float v) { return *reinterpret_cast< int* >(&v); }
-//    inline double __longlong_as_double(long long int v) { return *reinterpret_cast< double* >(&v); }
-//    inline long long int __double_as_longlong(double v) { return *reinterpret_cast< long long int* >(&v); }
+    template <typename T> inline void CudaAtomicAdd(T * sum, T val) { sum[0] += val; }
+    template <typename T> inline void CudaAtomicAddReduce(T * sum, T val) { sum[0] += val; }
+    template <typename T> inline void CudaAtomicAddReduceWarp(T * sum, T val) { sum[0] += val; }
+    template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) sum[0] += val; }
+    template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
 
     template <typename T>
-    inline void CudaAtomicAddReduce(T * sum, T val)
-    {
-      sum[0] += val;
-    }
-
-    template <typename T>
-    inline void CudaAtomicAddReduceWarp(T * sum, T val)
-    {
-      sum[0] += val;
-    }
-
-    template <typename T>
-    inline void CudaAtomicAddReduceWarpArr(T * sum, T * val, unsigned char len)
-    {
+    inline void CudaAtomicAddReduceWarpArr(T * sum, T * val, unsigned char len) {
       for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
     }
 
-    template <typename T>
-    inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes)
-      {
-        if (yes) sum[0] += val;
-      }
-
-
-    template <typename T>
-    inline void CudaAtomicMaxReduce(T * sum, T val)
-    {
-      if (val > sum[0]) sum[0] = val;
-    }
   #define ISFINITE(l__) std::isfinite(l__)
 
   #endif
 
-    CudaError cudaPreAlloc(void ** ptr, size_t size);
-    CudaError cudaAllocFinalize();
-    CudaError cudaAllocFreeAll();
-  
-#endif
-#define CROSS_H
+  CudaError cudaPreAlloc(void ** ptr, size_t size);
+  CudaError cudaAllocFinalize();
+  CudaError cudaAllocFreeAll();
 
+#endif // CROSS_H
