@@ -3,7 +3,6 @@
 
 #include "pinned_allocator.hpp"
 #include "RemoteForceInterface.h"
-const int max_cache_size = 16;
 #include "SolidTree.h"
 #include "SolidGrid.h"
 #include "SolidAll.h"

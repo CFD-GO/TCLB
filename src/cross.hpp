@@ -7,7 +7,7 @@
   __shared__ real_t  sumtab[MAX_THREADS];
   __shared__ real_t* sumptr[MAX_THREADS];
 
-  #if __CUDA_ARCH__ < 200
+  #if __CUDA_ARCH__ < 600
     #define CROSS_NEED_ATOMICADD_DOUBLE
   #endif
 
