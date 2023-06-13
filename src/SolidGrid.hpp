@@ -36,33 +36,40 @@ int SolidGrid<BALLS>::TryDepth(size_t grid_size) {
 
 template <class BALLS>
 void SolidGrid<BALLS>::Build () {
-    double maxr = 0;
-    depth = 4;
-    for (size_t i=0; i<balls->size(); i++) {
-        double val = balls->getRad(i);
-        if (maxr < val) maxr = val;
-    }
-    delta = 2*maxr;
-    // printf("delta: %lf\n", delta);
-    for (int k=0; k<3; k++) {
-        mins[k] = 0xFFFFFF;
-        maxs[k] = -0xFFFFFF;
-    }
-    for (size_t i=0; i<balls->size(); i++) {
+    if (balls->size() > 0) {
+        double maxr = 0.5;
+        depth = 4;
+        for (size_t i=0; i<balls->size(); i++) {
+            double val = balls->getRad(i);
+            if (maxr < val) maxr = val;
+        }
+        delta = 2*maxr;
+        // printf("delta: %lf\n", delta);
         for (int k=0; k<3; k++) {
-            double val = balls->getPos(i,k);
-            int p = floor(val/delta);
-            if (mins[k] > p) mins[k] = p;
-            if (maxs[k] < p) maxs[k] = p;
+            mins[k] = 0xFFFFFF;
+            maxs[k] = -0xFFFFFF;
+        }
+        for (size_t i=0; i<balls->size(); i++) {
+            for (int k=0; k<3; k++) {
+                double val = balls->getPos(i,k);
+                int p = floor(val/delta);
+                if (mins[k] > p) mins[k] = p;
+                if (maxs[k] < p) maxs[k] = p;
+            }
+        }
+        size_t grid_size = 1;
+        for (int k=0; k<3; k++) grid_size = grid_size * (maxs[k]-mins[k]+1);
+        depth = 4;
+        while (TryDepth(grid_size)) { depth = depth*2; if (depth > 1000) { printf("Too large SolidGrid depth\n"); exit(-1); } }
+    } else {
+        delta = 1.0;
+        depth = 0;
+        data.resize(0);
+        for (int k=0; k<3; k++) {
+            mins[k] = 1;
+            maxs[k] = 0;
         }
     }
-    // for (int k=0; k<3; k++) {
-    //     printf("range[%d]: %d - %d\n", k, mins[k], maxs[k]);
-    // }
-    size_t grid_size = 1;
-    for (int k=0; k<3; k++) grid_size = grid_size * (maxs[k]-mins[k]+1);
-    depth = 4;
-    while (TryDepth(grid_size)) { depth = depth*2; if (depth > 1000) { printf("Too large SolidGrid depth\n"); exit(-1); } }
 }
 
 
