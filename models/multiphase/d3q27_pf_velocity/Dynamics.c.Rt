@@ -749,12 +749,14 @@ CudaDeviceFunction void updateMyGlobals(real_t pf){
 	    AddToGasTotalVelocityZ( tmpPF*W );
 	    AddToGasTotalPhase( tmpPF );
 	    AddToXLocation( tmpPF*X );
+        AddToGasSaturation(1);
 	} else {
 	    AddToLiqTotalVelocity( pf*sqrt(u2mag));
 	    AddToLiqTotalVelocityX( U*pf );
 	    AddToLiqTotalVelocityY( V*pf );
 	    AddToLiqTotalVelocityZ( W*pf );
 	    AddToLiqTotalPhase( pf );
+        AddToLiquidSaturation(1);
 	}
 
 	if ((NodeType & NODE_ADDITIONALS) == NODE_flux_nodes) {

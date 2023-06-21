@@ -320,3 +320,5 @@ if (Options$thermo){
 	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxY",comment='flux in y direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxZ",comment='flux in z direction for flux_nodes', unit="1")
+    AddGlobal(name="LiquidSaturation", comment="Liquid saturation(number of liquid nodes)", unit="1")
+    AddGlobal(name="GasSaturation", comment="Gas saturation(number of gas nodes)", unit="1")
