@@ -14,6 +14,10 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
+if (!exists("X_MOD")) X_MOD=0
+
+memory_arr_cpu = FALSE
+memory_arr_mod = X_MOD
 
 # SYMALGEBRA=TRUE
 
@@ -718,10 +722,12 @@ Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSetti
 Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
 Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
 
-offsets = function(d2=FALSE, cpu=FALSE) {
-  def.cpu = cpu
+is.power.of.two = function(x) { 2^floor(log(x)/log(2))-x != 0 }
+
+if (is.power.of.two(memory_arr_mod)) stop("memory_arr_mod has to be a power of 2")
+
+offsets = function() {
   mw = PV(c("nx","ny","nz"))
-  if2d3d = c(FALSE,FALSE,d2 == TRUE)
   one = PV(c(1L,1L,1L))
   bp = expand.grid(x=1:3,y=1:3,z=1:3)
   p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
@@ -729,7 +735,6 @@ offsets = function(d2=FALSE, cpu=FALSE) {
   tab2 = c(0,-1,1)
   get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
   sizes = c(one,mw,one)
-  sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
   size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
   MarginNSize = PV(rep(0L,27))
   calc.functions = function(f) {
@@ -743,14 +748,12 @@ offsets = function(d2=FALSE, cpu=FALSE) {
     mins = pmin(mins,0)
     maxs = pmax(maxs,0)
     nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
-    if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-    if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
     nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
     mSize = MarginNSize
     MarginNSize <<- mSize + nsize
-    offset.p = function(positions,cpu) {
-      positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
-      if (cpu) {
+    offset.p = function(positions) {
+      positions[c(mins > -2, c(FALSE,FALSE,FALSE), maxs < 2)] = PV(0L)
+      if (memory_arr_cpu) {
         offset =  (positions[p$x] +
                      (positions[p$y] +
                         (positions[p$z]
@@ -758,18 +761,40 @@ offsets = function(d2=FALSE, cpu=FALSE) {
                      ) * sizes[p$x] * nsizes[p$x]
         ) * MarginNSize +
           mSize
+      } else if (memory_arr_mod != 0) {
+		positions__x = positions[p$x]
+		positions_nx  = sizes[p$x]*nsizes[p$x]
+		positions__x_mod = PV("((",ToC(positions__x),")&",memory_arr_mod-1,")")
+		positions__x_div = (positions__x - positions__x_mod)*(1/memory_arr_mod)
+		positions_nx_mod = PV(rep(memory_arr_mod, nrow(p)))
+		positions_nx_div = positions_nx*(1/memory_arr_mod)
+		sel = is.zero(positions_nx - PV(1L))
+		dim(sel) = NULL
+		positions__x_mod[sel] = positions__x[sel]
+		positions__x_div[sel] = PV(0L)
+		positions_nx_mod[sel] = positions_nx[sel]
+		positions_nx_div[sel] = PV(1L)
+		offset = positions__x_mod + positions_nx_mod*(
+			positions[p$y] + sizes[p$y]*nsizes[p$y]*(
+				positions__x_div + positions_nx_div*(
+					positions[p$z]
+				)
+			)
+		) + mSize * size
       } else {
-        offset =   positions[p$x] +
-          (positions[p$y] +
-             (positions[p$z]
-             ) * sizes[p$y] * nsizes[p$y]
-          ) * sizes[p$x] * nsizes[p$x] +
-          mSize * size
-      }
+		offset = positions[p$x] + sizes[p$x]*nsizes[p$x]*(
+			positions[p$y] + sizes[p$y]*nsizes[p$y]*(
+				positions[p$z]
+			)
+		) + mSize * size	
+	  }
+	  sel = is.zero(nsize)
+	  dim(sel) = NULL
+      offset[sel] = PV("NA")
       offset
     }
     list(get_offsets = 
-      function(w,dw,cpu=def.cpu) {
+      function(w,dw) {
 	if (is.numeric(dw)) {
           tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
           tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
@@ -783,13 +808,13 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw),cpu=cpu)
+        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw))
         cond = c(w+dw,mw-w-dw-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
       },
       put_offsets = 
-      function(w,cpu=def.cpu) {
-        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
+      function(w) {
+        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w))
         cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
         list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
       },
@@ -810,7 +835,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 }
 
 if (NEED_OFFSETS) {
-    ret = offsets(cpu=FALSE)
+    ret = offsets()
     Fields = ret$Fields
     for (i in 1:length(Margin)) {
             Margin[[i]]$Size = ret$MarginSizes[i]

@@ -146,14 +146,29 @@ for (d in destinations) {
 		if (adjoint) rtopt = c(rtopt, "ADJOINT=1")
 		rtopt = c(rtopt, paste0("MODEL=\\\"",m,"\\\""))
 		if (length(opts) > 0) {
-			opts = ifelse(opts==0,"FALSE","TRUE")
-			opts = paste0(names(opts),"=",opts,collapse=",")
+			opts_s = ifelse(opts==0,"FALSE","TRUE")
+			opts_s = paste0(names(opts_s),"=",opts_s,collapse=",")
 		} else {
-			opts = ""
+			opts_s = ""
 		}
-		opts = paste0("\"Options=list(",opts,")\"")
-		rtopt = c(rtopt,opts)
-		#paste0(names(opts),"=",a,collapse=",")
+		opts_s = paste0("\"Options=list(",opts_s,")\"")
+		rtopt = c(rtopt,opts_s)
+
+		options_r = NULL
+		if (adjoint) options_r = c(options_r, "ADJOINT = 1")
+		options_r = c(options_r, paste0("MODEL=\"",m,"\""))
+		options_r = c(options_r, "Options=list(")
+		if (length(opts) > 0) {
+			options_r = c(options_r,
+				paste0("  ",
+					names(opts),
+					" = ",
+					ifelse(opts==0,"FALSE","TRUE"),
+					ifelse(seq_along(opts) != length(opts),",","")
+				)
+			)
+		}
+		options_r = c(options_r, ")")
 ?>
 
 <?%s m ?>: <?%s d ?>/<?%s m ?>/main
@@ -223,6 +238,13 @@ wiki/schema/<?%s m ?>.xsd:$(SRC)/schema.xsd.Rt $(SRC)/conf.R doc/elements.yaml <
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC),<?%s model_path ?> -w <?%s d ?>/<?%s m ?>/ -o $@ <?%s rtopt ?> || mv $@ $@~
 
+<?%s d ?>/<?%s m ?>/options.R:<?%s model_path ?>/conf.mk
+	@echo "  GEN        $@"
+	@$(MKPATH) $@
+	@echo '# Auto generated from makefile' >$@ <?R
+		for (l in options_r) { ?>
+	@echo '<?%s l ?>' >> $@ <?R
+		} ?>
 
 <?%s d ?>/<?%s m ?>/%:$(SRC)/%.Rt $(wildcard <?%s model_path ?>/*.R) $(SRC)/conf.R
 	@echo "  RT         $@"
