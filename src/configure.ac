@@ -246,7 +246,7 @@ then
 	AC_DEFINE([GRID3D], [1], [Using 3D block grid in HIP])
 	if test "x${with_x_block}" != "x"
 	then
-		AC_DEFINE([X_BLOCK], [${with_x_block}], [Using X block from --with-x-block])
+		AC_DEFINE_UNQUOTED([X_BLOCK], ${with_x_block}, [Using X block from --with-x-block])
 	else
 		AC_DEFINE([X_BLOCK], [32], [Using standard X block])
 	fi
@@ -363,7 +363,7 @@ then
 	fi
 	if test "x${with_x_block}" != "x"
 	then
-		AC_DEFINE([X_BLOCK], [${with_x_block}], [Using X block from --with-x-block])
+		AC_DEFINE_UNQUOTED([X_BLOCK], ${with_x_block}, [Using X block from --with-x-block])
 	else
 		AC_DEFINE([X_BLOCK], [32], [Using standard X block])
 	fi
@@ -390,10 +390,11 @@ else
 	AC_DEFINE([X_BLOCK], [1], [Using standard X block])
 fi
 
-X_MOD=
 if test "x${with_x_mod}" != "x"
 then
-	X_MOD=${with_x_mod}
+	X_MOD="${with_x_mod}"
+else
+	X_MOD="0"
 fi
 
 AC_MSG_CHECKING([MPI include path])
@@ -942,16 +943,6 @@ AC_MSG_RESULT([CPPFLAGS : $CPPFLAGS])
 AC_MSG_RESULT([LDFLAGS  : $LDFLAGS])
 AC_MSG_RESULT([NVFLAGS  : $NVFLAGS])
 
-AC_MSG_RESULT([X_BLOCK  : $X_BLOCK])
-AC_MSG_RESULT([X_MOD  : $X_MOD])
-
-
-if test "x${X_MOD}" != "x"
-then
-	RTOPT="${RTOPT} X_MOD=${X_MOD}"
-fi
-
-
 AC_SUBST(CP)
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
@@ -971,5 +962,6 @@ AC_SUBST(X_BLOCK)
 AC_SUBST(X_MOD)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
+AC_CONFIG_FILES([CLB/config.R:src/config.R.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
