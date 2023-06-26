@@ -777,11 +777,14 @@ then
 fi
 
 
-if test "x${enable_cpp11}" == "xyes"
+if test "x${enable_cpp11}" @= "xno"
 then
 	CPPFLAGS="${CPPFLAGS} -std=c++11"
 	NVFLAGS="${NVFLAGS} -std=c++11"
 fi
+
+AC_CHECK_HEADERS([chrono],[],[AC_MSG_ERROR([chrono header isn't working])])
+AC_DEFINE([USE_STEADY_CLOCK], [1], [Using chrono's steady_clock])
 
 
 if test "x${CONF_CPPFLAGS}" == "x"
