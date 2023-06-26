@@ -962,6 +962,18 @@ AC_SUBST(X_BLOCK)
 AC_SUBST(X_MOD)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
-AC_CONFIG_FILES([CLB/config.R:src/config.R.in])
+AC_CONFIG_FILES([CLB/config.R_:src/config.R.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
+
+if test -f "CLB/config.R"
+then
+	if diff "CLB/config.R" "CLB/config.R_" >/dev/null 2>&1
+	then
+		echo "CLB/config.R unchanged"
+	else
+		mv CLB/config.R_ CLB/config.R
+	fi
+else
+	mv CLB/config.R_ CLB/config.R
+fi
