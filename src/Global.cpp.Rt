@@ -25,7 +25,19 @@
 
 MPMDHelper MPMD;
 
-std::clock_t global_start;
+time_point_t global_start;
+
+void start_walltime() {
+    #ifdef USE_STEADY_CLOCK
+            global_start = std::chrono::steady_clock::now();
+            output("Using std::chrono::steady_clock::now() for walltime\n");
+    #else
+            global_start = std::clock();
+            output("Using std::clock() for walltime\n");
+    #endif
+}
+
+
 int D_MPI_RANK;
 int D_TERMINAL;
 /*
