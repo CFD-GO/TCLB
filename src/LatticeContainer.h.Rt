@@ -75,7 +75,8 @@ class LatticeContainer {
 #endif
 <?R } ?>
 
-  template<class N>  CudaDeviceFunction void getType(N & f);
+  
+  CudaDeviceFunction flag_t getType(int x, int y, int z) const;
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) {

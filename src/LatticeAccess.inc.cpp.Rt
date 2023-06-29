@@ -34,11 +34,9 @@
 #endif
 
 /// Get only type of node
-template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
+CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
 {
-  node.NodeType = NodeType[(node.x_ + nx*node.y_ + nx*ny*node.z_)];
-
-<?R #	InOut("type", "in", Density); ?>
+  return NodeType[(x + nx*(y + ny*z))];
 }
 
 /// Push all densities

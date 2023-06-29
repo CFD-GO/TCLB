@@ -109,6 +109,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
 	CudaDeviceFunction inline void OutOfDomain() {};
         CudaDeviceFunction inline void GlobDiff(){};
         CudaDeviceFunction inline void GlobDiffOutOfDomain(){};
+		CudaDeviceFunction inline Node_Run(int x__,int y__,int z__) {};
 };
 
 <?R
@@ -184,7 +185,10 @@ for (tp in rows(Dispatch)) {
         T3 = tp$stage_name
 ?>
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	int x_,y_,z_; <?R
+	const int x_,y_,z_;
+	const flag_t NodeType;
+	CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)) {};
+	<?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
         } ?>
@@ -276,7 +280,6 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	} ?>
 
 	CudaDeviceFunction inline void LoadElement() {
-	   constContainer.getType(*this);
 	   PreDiff();
 		<?R
 		if (tp$Stream == "Adj") { ?>
