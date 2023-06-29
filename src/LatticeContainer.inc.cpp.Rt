@@ -300,32 +300,35 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	int x_,y_,z_;
 	x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	z_ = CudaBlock.x;
-	//now.Pre();
-<?R if (tmaxy > tminy) { ?>
-	if (z_ < constContainer.nz) {
-<?R	for (y in tminy:tmaxy) if (y > 0) { ?>
-		y_ = <?%d y - 1 ?>;
-    { N now(x_,y_,z_); now.RunElement(); }
-<?R	} else if (y < 0) { ?>
-		y_ = constContainer.ny - <?%d -y ?>;
-		{ N now(x_,y_,z_); now.RunElement(); }
-<?R	} ?>
+	switch (CudaThread.y) { <?R
+i = 0
+if (tmaxy > tminy) for (y in tminy:tmaxy) if (y != 0) { ?>
+	case <?%d i ?>:
+		z_ = CudaBlock.x; <?R
+	if (y > 0) { ?>
+		y_ = <?%d y - 1 ?>; <?R
+	} else if (y < 0) { ?>
+		y_ = constContainer.ny - <?%d -y ?>; <?R
+	} ?>
+		break; <?R
+	i = i + 1;
+}
+if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
+	case <?%d i ?>:
+		y_ = CudaBlock.x; <?R
+	if (z > 0) { ?>
+		z_ = <?%d z - 1 ?>; <?R
+	} else if (z < 0) { ?>
+		z_ = constContainer.nz - <?%d -z ?>; <?R
+	} ?>
+		break; <?R
+	i = i + 1;
+} ?>
 	}
-<?R }
-    if (tmaxz > tminz) { ?>
-	y_ = CudaBlock.x;
-	if ((y_ < constContainer.fy) && (y_ >= constContainer.dy)) {
-<?R	for (z in tminz:tmaxz) if (z > 0) { ?>
-		z_ = <?%d z - 1 ?>;
-		{ N now(x_,y_,z_); now.RunElement(); }
-<?R	} else if (z < 0) { ?>
-		z_ = constContainer.nz - <?%d -z ?>;
-		{ N now(x_,y_,z_); now.RunElement(); }
-<?R	} ?>
+	if ((y_ < constContainer.ny) && (z_ < constContainer.nz)) {
+		N now(x_,y_,z_);
+		now.RunElement();
 	}
-<?R } ?>
-	//now.Glob();
 }
 
 /// Copy oneself to the GPU constant memory
@@ -349,11 +352,12 @@ void LatticeContainer::CopyToConst() {
   \param borderStream CUDA Stream to which add the kernel run
 */
 template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
-    #ifdef BORDER_Z
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(max(ny,nz),kx,1) , dim3(X_BLOCK),(),borderStream);
-    #else
-	    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(nz,kx,1) , dim3(X_BLOCK),(),borderStream);
-    #endif
+<?R
+	thy = tmaxy - tminy + tmaxz - tminz
+	blx = "nz"
+	if (tmaxz != 0 || tminz != 0) blx = "max(ny,nz)"
+?>
+    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(<?%s blx ?>,kx,1) , dim3(X_BLOCK,<?%d thy ?>),(),borderStream);
 };
 
 /// Run the interior kernel
