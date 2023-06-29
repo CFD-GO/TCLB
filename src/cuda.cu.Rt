@@ -68,7 +68,9 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 <?R
 	for(s in rows(ZoneSettings)) { ?>
 //#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
+<?R 	if (! s$preload) { ?>
 #define <?%s s$name ?> constContainer.ZoneSetting(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
+<?R     } ?>
 #define <?%s s$name ?>_DT constContainer.ZoneSetting_DT(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
 <?R
         }
@@ -187,7 +189,15 @@ for (tp in rows(Dispatch)) {
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	const int x_,y_,z_;
 	const flag_t NodeType;
-	CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)) {};
+	<?R	for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
+	real_t <?%s setting$name ?>; <?R
+		} ?>
+	CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)) {
+		int z = NodeType >> ZONE_SHIFT; <?R
+		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
+		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
+		} ?>
+	};
 	<?R
 	for (g in rows(Globs)) { ?>
 	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R

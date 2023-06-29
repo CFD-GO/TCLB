@@ -219,7 +219,7 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 }
 
 
-AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, preload=TRUE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (any(unit == "")) stop("Empty unit in AddSetting not allowed")
 	if (missing(comment)) {
@@ -246,6 +246,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 		unit=unit,
 		default=default,
 		adjoint=adjoint,
+		preload=preload,
 		comment=comment
 	)
 	if (zonal) {
@@ -597,6 +598,7 @@ if (ADJOINT==1) {
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
 			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
+			preload=FALSE,
 			adjoint=T,
 			zonal=T
 		)
