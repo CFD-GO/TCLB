@@ -61,62 +61,55 @@ void setConstSetting(int i, real_t tmp) {
 }
 
 /// Get maximal number of threads for all the kernels on runtime
-template < class N > dim3 GetThreads() {
+template < class T > int GetThreads() {
 	dim3 ret;
 	CudaFuncAttributes * attr = new CudaFuncAttributes;
-	CudaFuncGetAttributes(attr, RunKernel<N>) ;
+	CudaFuncGetAttributes(attr, Kernel<T>) ;
 	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes);
 	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
 	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
 	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
 	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
-	if (attr->maxThreadsPerBlock > MAX_THREADS) attr->maxThreadsPerBlock = MAX_THREADS;
-	ret.x = X_BLOCK;
-	ret.y = attr->maxThreadsPerBlock/ret.x;
-	ret.z = 1;
-	return ret;
+	return attr->maxThreadsPerBlock;
 }
 
-
-template < class N > class ThreadNumber {
+template < class T > class ThreadNumber {
   public:
-  static unsigned int ky, sy, maxy;
+  static int maxthr;
   static std::string name;
-  static void Init(bool fit, size_t ny, std::string name_) {
-      ny = ny - 2;
-        name = name_;
-	dim3 th = GetThreads< N >();
-	maxy = th.y;
-	sy = maxy;
-	ky = ny/sy;
-//	if (fit) while ((sy > 1) && (ky*sy != ny)) { sy--; ky = ny/sy; }
-	if (fit) { sy = 1; ky = ny; }
-	if (ky*th.y < ny) ky++;
-	print();
+  static void Init(std::string name_) {
+      name = name_;
+	    maxthr = GetThreads< T >();
+      print();
   }
-  static inline int getKY() { return ky; }
-  static inline int getSY() { return sy; }
+  static inline int threads() { return thr; }
   static inline void print() {
-    if (maxy != sy) {
-	notice( "  %3dx%-3d  | %s --- Reduced from %d to fit Y dim\n", X_BLOCK, sy, name.c_str(), maxy);
+    if (thr.x * thr.y < maxthr) {
+	notice( "  %3dx%-3dx%-3d  | %s --- Reduced from maximum %d\n", thr.x, thr.y, thr.z, name.c_str(), maxthr);
     } else {
-	output( "  %3dx%-3d  | %s\n", X_BLOCK, sy, name.c_str());
+	output( "  %3dx%-3dx%-3d  | %s\n", thr.x, thr.y, thr.z, name.c_str());
     }
   }
 };
 
-template < class N > unsigned int ThreadNumber< N >::ky = 0;
-template < class N > unsigned int ThreadNumber< N >::sy = 0;
-template < class N > unsigned int ThreadNumber< N >::maxy = 0;
-template < class N > std::string ThreadNumber< N >::name = "";
+template <class N>
+static void 
+
+
+
+template < class N > unsigned int ThreadNumber< N >::thr(0,0,0);
+template < class N > unsigned int ThreadNumber< N >::blk(0,0,0);
+template < class N > unsigned int ThreadNumber< N >::maxthr = 1;
+template < class N > std::string ThreadNumber< N >::name = "unknown";
   
 /// Initialize Thread/Block number variables
-int InitDim(int ny) {
+int InitDim(int nx,int ny,int nz) {
 	MPI_Barrier(MPMD.local);
-        output( "  Threads  |      Action\n");
-<?R	for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint) ?>
-        ThreadNumber< Node_Run< <?%s tp$TemplateArgs ?> > >::Init(<?%s {if (Stages$particle[tp$Stage]) "true" else "false"} ?>, ny, "<?%s tp$TemplateArgs ?>"); <?R
-	}; ifdef(); ?>
+        output( "  Threads  |      Action\n"); <?R
+        for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint)
+        for (ex in c("InternalExecutor","BorderExecutor")) { ?>
+        ThreadNumber< <?%s ex?>< Node_Run< <?%s tp$TemplateArgs ?> > > >::Init(nx, ny, nz, "<?%s ex?>, <?%s tp$TemplateArgs ?>"); <?R
+	}}; ifdef(); ?>
 	MPI_Barrier(MPMD.local);
         return 0;
 }
@@ -256,13 +249,13 @@ void LatticeContainer::Free()
     if (Q != NULL) CudaFree( Q ); 
 }
 
-
 /// Main Kernel
 /**
   iterates over all elements and runs them with RunElement function.
   constContainer.dx/dy is to calculate only internal nodes
 */
-template <class N> CudaGlobalFunction void RunKernel()
+template <class N> class InteriorExecutor {
+CudaDeviceFunction void Execute()
 {
   int x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
 	int y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
@@ -278,21 +271,14 @@ template <class N> CudaGlobalFunction void RunKernel()
 	#endif
   }
 }
-
-/// BORDER_Z defines if we need to take Z direction in consiredation border/interior
-//   if a model is 2D everything in the Z direction is interior
-<?R if (any(DensityAll$dz != 0)) {?>
-#define BORDER_Z // The model is 3D
-<?R } else { ?>
-// The model is 2D (no BORDER_Z)
-<?R } ?>
-
+};
 
 /// Border Kernel
 /**
   iterates over border elements and runs them with RunElement function
 */
-template <class N> CudaGlobalFunction void RunBorderKernel()
+template <class N> class BorderExecutor {
+CudaDeviceFunction void Execute()
 {
 	int x_,y_,z_;
 	x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
@@ -331,6 +317,12 @@ if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
 		now.RunElement();
 	}
 }
+};
+
+template <class E> CudaGlobalFunction void Kernel() {
+  E e;
+  e.Execute();
+}
 
 /// Copy oneself to the GPU constant memory
 /**
@@ -352,35 +344,14 @@ void LatticeContainer::CopyToConst() {
   Dispatch the kernel running RunElement on all border elements of the Lattice
   \param borderStream CUDA Stream to which add the kernel run
 */
-template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderStream) {
-<?R
-	thy = tmaxy - tminy + tmaxz - tminz
-	blx = "nz"
-	if (tmaxz != 0 || tminz != 0) blx = "max(ny,nz)"
-?>
-    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(<?%s blx ?>,kx,1) , dim3(X_BLOCK,<?%d thy ?>),(),borderStream);
-};
-
-/// Run the interior kernel
-/**
-  Dispatch the kernel running RunElement on all interior elements of the lattice
-  \param interiorStream CUDA Stream to which add the kernel run
-*/
-template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t interiorStream) {
-    int nnz;
-    ky = ThreadNumber< N >::getKY();
-    nnz = fz - dz;
-    #ifdef GRID3D
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, kx) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
-    #else
-        CudaKernelRunNoWait( RunKernel<N> , dim3(ky, nnz, 1) , dim3(X_BLOCK,ThreadNumber< N >::getSY()),(),interiorStream);
-    #endif
+template <class T> inline void LatticeContainer::RunKernel(CudaStream_t stream) {
+    CudaKernelRunNoWait( Kernel< T >, ThreadNumber< T >::blocks(), ThreadNumber< T >::threads(), (), stream);
 };
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunKernel< BorderExecutor< Node_Run < I, G, S > > >(stream); };
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunInterior(CudaStream_t stream) { RunKernel< InteriorExecutor< Node_Run < I, G, S > > >(stream); };
 
 
   
@@ -505,18 +476,4 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 <?R
         }
         ifdef();
-?>
-
-
-
-
-
-<?R     for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { 
-		st = Stages[tp$Stage,,drop=FALSE]
-		ifdef(tp$adjoint) 	
-		?>
-template void LatticeContainer::RunBorder < <?%s tp$TemplateArgs ?> > (CudaStream_t stream);
-template void LatticeContainer::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream); <?R
-         };
-	ifdef();
 ?>
