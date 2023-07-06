@@ -101,16 +101,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
-        int x_,y_,z_;
-        CudaDeviceFunction inline void Pre(){};
-        CudaDeviceFunction inline void ExecElement(){};
-        CudaDeviceFunction inline void LoadElement(){};
-        CudaDeviceFunction inline void SaveElement(){};
         CudaDeviceFunction inline void RunElement(){};
-        CudaDeviceFunction inline void Glob(){};
-	CudaDeviceFunction inline void OutOfDomain() {};
-        CudaDeviceFunction inline void GlobDiff(){};
-        CudaDeviceFunction inline void GlobDiffOutOfDomain(){};
 		CudaDeviceFunction inline Node_Run(int x__,int y__,int z__) {};
 };
 
@@ -188,61 +179,43 @@ for (tp in rows(Dispatch)) {
 ?>
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	const int x_,y_,z_;
-	const flag_t NodeType;
-	<?R	for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
+	const flag_t NodeType; <?R
+		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 	real_t <?%s setting$name ?>; <?R
-		} ?>
+		}
+		for (g in rows(Globs)) { ?>
+	real_t <?%s g$var ?>; ///< <?%s g$comment ?> <?R
+        } ?>
 	CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
-		} ?>
+		}
+		for (g in rows(Globs)) { ?>
+		<?%s g$var ?> = 0.0f; <?R
+        } ?>
 	};
-	<?R
-	for (g in rows(Globs)) { ?>
-	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
-        } ?>
-	CudaDeviceFunction void inline Pre() { <?R
-	for (g in rows(Globs)) if (!g$zonal){ ?>
-		<?%s g$var ?> = 0.0f; <?R
-        } ?>
-	}
-	CudaDeviceFunction void inline PreDiff() { <?R
-	for (g in rows(Globs)) if (g$zonal) { ?>
-		<?%s g$var ?> = 0.0f; <?R
-        } ?>
-	}
 	CudaDeviceFunction void inline Glob() { <?R
         for (g in rows(Globs)) if (!g$zonal) {
 		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
-                if (g$op == "SUM") { ?>
-                CudaAtomicAddReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-                } else if (g$op == "MAX") { ?>
-                CudaAtomicMaxReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-                }
-        } ?>
-	}
-	CudaDeviceFunction void inline GlobDiff() {
-	<?R if (any(Globs$zonal)) { ?>
+            if (g$op == "SUM") { ?>
+                CudaAtomicMaxReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+            } else if (g$op == "MAX") { ?>
+                CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+            }
+        }
+		if (any(Globs$zonal)) { ?>
 		int z = NodeType >> ZONE_SHIFT;
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
+		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaWarpOr(nz == z)) { <?R
         for (g in rows(Globs)) if (g$zonal) {
 		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-                CudaAtomicAddReduceDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
+			real_t val = (nz == z) ? <?%s g$var ?> : 0.0f;
+            CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, val); <?R
         } ?>
 		}
 	<?R } ?>
 	}
-	CudaDeviceFunction void inline GlobDiffOutOfDomain() { 
-	<?R if (any(Globs$zonal)) { ?>
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
-        for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-                CudaAtomicAddReduceDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
-        } ?>
-		}
-	<?R } ?> 
-	} <?R
+	<?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
 		} else { ?>
@@ -290,7 +263,6 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	} ?>
 
 	CudaDeviceFunction inline void LoadElement() {
-	   PreDiff();
 		<?R
 		if (tp$Stream == "Adj") { ?>
 		constContainer.pop_<?%s s$name ?>(*this);
@@ -330,13 +302,8 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
-	   GlobDiff();
 	}
-	<?R
-		ExecArgType = ""
-		ExecArg  = ""
-	?>
-	CudaDeviceFunction inline void ExecElement(<?%s ExecArgType ?>) {
+	CudaDeviceFunction inline void ExecElement() {
 		<?R
 		if (tp$Stream == "Adj") { ?>
 		Run_b(); <?R
@@ -345,18 +312,16 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else if (tp$Stream == "Init") { ?>
 		Init();<?R
 		} else if (tp$Stream == "No") { ?>
-		<?%s s$main ?>(<?%s ExecArg ?>); <?R
+		<?%s s$main ?>(); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
 	}
-	CudaDeviceFunction inline void RunElement(<?%s ExecArgType ?>) {
+	CudaDeviceFunction inline void RunElement() {
 		LoadElement();
-		ExecElement(<?%s ExecArg ?>);
+		ExecElement();
 		SaveElement();
-	}
-	CudaDeviceFunction inline void OutOfDomain() {
-	   GlobDiffOutOfDomain();
+		Glob();
 	} <?R
         } ########################################################################################### ?>
 }; <?R

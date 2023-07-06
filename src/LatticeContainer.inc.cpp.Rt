@@ -267,20 +267,16 @@ template <class N> CudaGlobalFunction void RunKernel()
   int x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + constContainer.dx;
 	int y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + constContainer.dy;
 	int z_ = CudaBlock.y+constContainer.dz;
+  if (y_ < constContainer.fy) {
 	#ifndef GRID3D
 		for (; x_ < constContainer.nx; x_ += CudaNumberOfThreads.x) {
 	#endif
-    N now(x_,y_,z_);
-		//now.Pre();
-		if (now.y_ < constContainer.fy) {
+      N now(x_,y_,z_);
 			now.RunElement();
-		} else {
-			now.OutOfDomain();
-		}
-		//now.Glob();
 	#ifndef GRID3D
 		}
 	#endif
+  }
 }
 
 /// BORDER_Z defines if we need to take Z direction in consiredation border/interior

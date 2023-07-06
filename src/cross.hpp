@@ -170,6 +170,17 @@
     }
   }
 
+__device__ inline void CudaAtomicMaxReduceWarp(real_t * sum, real_t val)
+  {
+    #define FULL_MASK 0xffffffff
+    if (__any_sync(FULL_MASK, val != 0)) {
+      for (int offset = WARPSIZE/2; offset > 0; offset /= 2)
+          val = max(val, __shfl_down_sync(FULL_MASK, val, offset, WARPSIZE));
+      if (threadIdx.x == 0) CudaAtomicMax(sum,val);
+    }
+  }
+
+
   template<int LEN>
   __device__ inline void CudaAtomicAddReduceWarpArr(real_t * sum, real_t val[LEN])
   {
@@ -194,6 +205,15 @@
       for (int offset = WARPSIZE/2; offset > 0; offset /= 2)
         val += __shfl_down(val, offset, WARPSIZE);
       if (threadIdx.x == 0) CudaAtomicAdd(sum,val);
+    }
+  }
+
+  __device__ inline void CudaAtomicMaxReduceWarp(real_t * sum, real_t val)
+  {
+    if (__any(val != 0)) {
+      for (int offset = WARPSIZE/2; offset > 0; offset /= 2)
+        val = max(val, __shfl_down(val, offset, WARPSIZE));
+      if (threadIdx.x == 0) CudaAtomicMax(sum,val);
     }
   }
 
