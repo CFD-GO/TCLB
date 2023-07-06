@@ -324,6 +324,11 @@ if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
 		break; <?R
 	i = i + 1;
 } ?>
+	default:
+		assert(CudaThread.y < <?%d i ?>);
+		y_ = 0;
+		z_ = 0;
+		break;
 	}
 	if ((y_ < constContainer.ny) && (z_ < constContainer.nz)) {
 		N now(x_,y_,z_);
