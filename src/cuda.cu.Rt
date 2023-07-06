@@ -199,9 +199,9 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
         for (g in rows(Globs)) if (!g$zonal) {
 		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
             if (g$op == "SUM") { ?>
-                CudaAtomicMaxReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-            } else if (g$op == "MAX") { ?>
                 CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+            } else if (g$op == "MAX") { ?>
+                CudaAtomicMaxReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
             }
         }
 		if (any(Globs$zonal)) { ?>

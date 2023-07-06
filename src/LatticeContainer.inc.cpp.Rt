@@ -296,7 +296,7 @@ template <class N> CudaGlobalFunction void RunBorderKernel()
 {
 	int x_,y_,z_;
 	x_ = CudaThread.x + CudaBlock.y*X_BLOCK;
-	switch (CudaThread.y) { <?R
+	switch (CudaBlock.z) { <?R
 i = 0
 if (tmaxy > tminy) for (y in tminy:tmaxy) if (y != 0) { ?>
 	case <?%d i ?>:
@@ -358,7 +358,7 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t borderS
 	blx = "nz"
 	if (tmaxz != 0 || tminz != 0) blx = "max(ny,nz)"
 ?>
-    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(<?%s blx ?>,kx,1) , dim3(X_BLOCK,<?%d thy ?>),(),borderStream);
+    CudaKernelRunNoWait( RunBorderKernel<N> , dim3(<?%s blx ?>,kx,<?%d thy ?>) , dim3(X_BLOCK),(),borderStream);
 };
 
 /// Run the interior kernel

@@ -411,6 +411,7 @@ else
 		fi
 	fi
 	AC_DEFINE([WARPSIZE], [1], [Using the CUDA standard 32 warp size])
+	AC_DEFINE([GRID3D], [1], [Using 3D block grid in HIP])
 fi
 
 if test "x${with_x_mod}" != "x"
