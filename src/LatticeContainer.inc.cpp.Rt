@@ -96,6 +96,7 @@ template < class T > class ThreadNumber {
         thr.x = X_BLOCK;
         thr.y = val/X_BLOCK;
       }
+      print();
   }
   static inline dim3 threads() { return thr; }
   static inline void print() {
