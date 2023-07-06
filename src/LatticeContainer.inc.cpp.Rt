@@ -79,7 +79,7 @@ template < class T > int GetThreads() {
 template < class T > class ThreadNumber {
   public:
   static dim3 thr;
-  static int maxthr;
+  static unsigned int maxthr;
   static std::string name;
   static void Init(std::string name_) {
       name = name_;
@@ -109,7 +109,7 @@ template < class T > class ThreadNumber {
 };
 
 template < class N > dim3 ThreadNumber< N >::thr;
-template < class N > int ThreadNumber< N >::maxthr = 1;
+template < class N > unsigned int ThreadNumber< N >::maxthr = 1;
 template < class N > std::string ThreadNumber< N >::name = "unknown";
   
 /// Initialize Thread/Block number variables
