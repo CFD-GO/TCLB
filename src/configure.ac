@@ -147,6 +147,9 @@ AC_ARG_WITH([x-block],
 AC_ARG_WITH([x-mod],
 	AS_HELP_STRING([--with-x-mod],
 		[Set the value used for dividing the memory arrangement in the x direction (default=none)]))
+AC_ARG_WITH([warp-size],
+	AS_HELP_STRING([--with-warp-size],
+		[Set the value used for the warp size]))
 
 
 AC_ARG_ENABLE([paranoid],
@@ -249,6 +252,12 @@ then
 		AC_DEFINE_UNQUOTED([X_BLOCK], ${with_x_block}, [Using X block from --with-x-block])
 	else
 		AC_DEFINE([X_BLOCK], [32], [Using standard X block])
+	fi
+	if test "x${with_warp_size}" != "x"
+	then
+		AC_DEFINE_UNQUOTED([WARPSIZE], ${with_warp_size}, [Using warp size from --with-warp-size])
+	else
+		AC_DEFINE([WARPSIZE], [32], [Using 32 warpsize to have warp primitives work with x block])
 	fi
 elif test "x${enable_cuda}" != "xno"
 then
@@ -367,6 +376,12 @@ then
 	else
 		AC_DEFINE([X_BLOCK], [32], [Using standard X block])
 	fi
+	if test "x${with_warp_size}" != "x"
+	then
+		AC_DEFINE_UNQUOTED([WARPSIZE], ${with_warp_size}, [Using warp size from --with-warp-size])
+	else
+		AC_DEFINE([WARPSIZE], [32], [Using the CUDA standard 32 warp size])
+	fi
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
 	CROSS_CPU=1
@@ -388,6 +403,14 @@ else
 		fi
 	fi
 	AC_DEFINE([X_BLOCK], [1], [Using standard X block])
+	if test "x${with_warp_size}" != "x"
+	then
+		if test "x${with_warp_size}" != "x1"
+		then
+			AC_MSG_ERROR([warp size size not supported for CPU])
+		fi
+	fi
+	AC_DEFINE([WARPSIZE], [1], [Using the CUDA standard 32 warp size])
 fi
 
 if test "x${with_x_mod}" != "x"
@@ -961,6 +984,7 @@ AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(EMBEDED_PYTHON)
 AC_SUBST(X_BLOCK)
+AC_SUBST(WARPSIZE)
 AC_SUBST(X_MOD)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])

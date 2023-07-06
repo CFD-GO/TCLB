@@ -164,8 +164,8 @@
   {
     #define FULL_MASK 0xffffffff
     if (__any_sync(FULL_MASK, val != 0)) {
-      for (int offset = 16; offset > 0; offset /= 2)
-          val += __shfl_down_sync(FULL_MASK, val, offset);
+      for (int offset = WARPSIZE/2; offset > 0; offset /= 2)
+          val += __shfl_down_sync(FULL_MASK, val, offset, WARPSIZE);
       if (threadIdx.x == 0) CudaAtomicAdd(sum,val);
     }
   }
@@ -177,8 +177,8 @@
     bool pred = false;
     for (unsigned char i=0; i<LEN; i++) pred = pred || (val[i] != 0.0);
     if (__any_sync(FULL_MASK, pred)) {
-      for (int offset = 16; offset > 0; offset /= 2) {
-        for (unsigned char i=0; i<LEN; i++) val[i] += __shfl_xor_sync(FULL_MASK, val[i], offset);
+      for (int offset = WARPSIZE/2; offset > 0; offset /= 2) {
+        for (unsigned char i=0; i<LEN; i++) val[i] += __shfl_xor_sync(FULL_MASK, val[i], offset, WARPSIZE);
       }
       if (threadIdx.x < LEN) {
         CudaAtomicAdd(sum+threadIdx.x,val[threadIdx.x]);
@@ -190,10 +190,9 @@
 
   __device__ inline void CudaAtomicAddReduceWarp(real_t * sum, real_t val)
   {
-    #define FULL_MASK 0xffffffff
     if (__any(val != 0)) {
-      for (int offset = 16; offset > 0; offset /= 2)
-        val += __shfl_down(val, offset);
+      for (int offset = WARPSIZE/2; offset > 0; offset /= 2)
+        val += __shfl_down(val, offset, WARPSIZE);
       if (threadIdx.x == 0) CudaAtomicAdd(sum,val);
     }
   }
@@ -201,12 +200,11 @@
   template<int LEN>
   __device__ inline void CudaAtomicAddReduceWarpArr(real_t * sum, real_t val[LEN])
   {
-    #define FULL_MASK 0xffffffff
     bool pred = false;
     for (unsigned char i=0; i<LEN; i++) pred = pred || (val[i] != 0.0);
     if (__any(pred)) {
-      for (int offset = 16; offset > 0; offset /= 2) {
-        for (unsigned char i=0; i<LEN; i++) val[i] += __shfl_xor(val[i], offset);
+      for (int offset = WARPSIZE/2; offset > 0; offset /= 2) {
+        for (unsigned char i=0; i<LEN; i++) val[i] += __shfl_xor(val[i], offset, WARPSIZE);
       }
       if (threadIdx.x < LEN) {
         CudaAtomicAdd(sum+threadIdx.x,val[threadIdx.x]);
