@@ -323,6 +323,7 @@
     template <typename T> inline void CudaAtomicAddReduceWarp(T * sum, T val) { sum[0] += val; }
     template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) sum[0] += val; }
     template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
+    template <typename T> inline void CudaAtomicMaxReduceWarp(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
 
     template <int LEN, typename T>
     inline void CudaAtomicAddReduceWarpArr(T * sum, T val[LEN]) {
