@@ -30,8 +30,8 @@ if (any(sel)) tab1=tab1[,!sel]
 tab2 = read(opt$fileb)
 sel = names(tab2) %in% opt$discard
 if (any(sel)) tab2=tab2[,!sel]
-print(names(tab1))
-print(names(tab2))
+#print(names(tab1))
+#print(names(tab2))
 
 if ( ! identical(dim(tab1),dim(tab2)) ) { cat("dimensions not identical\n"); q(status=-1); }
 if ( ! identical(names(tab1), names(tab2)) ) { cat("names (header) not identical\n"); q(status=-2); }

@@ -172,7 +172,7 @@ function runline {
 		;;
 	run) try "running solver" "$@" ;;
 	fail) try "running solver" '!' "$@" ;;
-	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x 1e-10 -d Walltime ;;
+	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${2:-1e-10}" -d Walltime ;;
 	diff) try "checking $R" diff "$R" "$G" ;;
 	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
 	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${2:-8}" ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
@@ -191,6 +191,7 @@ function testModel {
 		RESULT="OK"
 		TCLB=".."
 		SOLVER="$TCLB/CLB/$MODEL/main"
+		MODELBIN="$TCLB/CLB/$MODEL"
 		TEST_DIR="../tests/$MODEL"
 		if test -f "tests/$MODEL/$t"
 		then
