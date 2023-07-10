@@ -486,6 +486,49 @@ CudaDeviceFunction void CalcF() {
 	C( uP, 0)
 	C( sol, 0)
 ?>
+	for (ParticleIterator p(X,Y,Z); p; ++p) {
+
+        real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
+                    
+        if ((dist - p.rad)<SQRT_3) {
+
+            real_t localCoverage = 0.0;
+
+            if ((dist - p.rad) < -1.0){
+                localCoverage = 1.0;
+            } else{
+                localCoverage = (p.rad -  0.084/p.rad + 0.5 - dist);
+            }
+
+            if (localCoverage > 1.0){ localCoverage =  1.0;}
+            if (localCoverage < 0.0){ localCoverage =  0.0;}
+
+            <?R if (Options$KL) { ?>
+            
+                real_t omegaF_tmp = 1.0/(3.0*nu_app+0.5); //From previous timestep
+                localCoverage = localCoverage*(1.0/omegaF_tmp - 0.5) / ((1 - localCoverage) + 1.0/omegaF_tmp - 0.5);
+            
+            <?R } else { ?>
+
+                localCoverage = localCoverage*(1.0/omegaF - 0.5) / ((1 - localCoverage) + 1.0/omegaF - 0.5); 
+
+            <?R } ?>
+
+<?R
+            localCoverage = PV("localCoverage")
+            C( sol, sol + localCoverage )
+?>
+        }
+             
+    }
+
+    real_t sol_factor = 1.0; 
+
+	<?R sol_factor = PV("sol_factor") ?>
+    if (sol > 1.0) {
+        sol_factor = 1.0/sol;
+    } 
+    
 	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
         real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
@@ -519,20 +562,18 @@ CudaDeviceFunction void CalcF() {
             uparticle = PV("p.cvel.",c("x","y","z"))
             force = PV("force.",c("x","y","z"))
             localCoverage = PV("localCoverage")
-            C( force, d*localCoverage*(u - uparticle) )
-?>
-            p.applyForce(force);
-<?R
-            C( sol, sol + localCoverage )
+            C( force, d*sol_factor*localCoverage*(u - uparticle) )
             C( uP, uP + localCoverage*uparticle )
 ?>
+            p.applyForce(force);
         }
              
     }
 
-	if (sol > 1.0) { sol =  1.0; }
+	//if (sol > 1.0) { sol =  1.0; }
 	if (sol > 1.0e-8) {
-<?R C( uP, uP*sol^{-1} ) ?>
+        <?R C( uP, uP*sol^{-1} ) ?>
+	    if (sol > 1.0) { sol =  1.0; }
 	} else {
 <?R
 	C(uP, 0)
