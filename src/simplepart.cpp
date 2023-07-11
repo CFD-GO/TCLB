@@ -5,6 +5,8 @@
 #include <math.h>
 #include <vector>
 
+const double twopi = 8*atan(1.0);
+
 struct Particle {
   double x[3];
   double r;
@@ -70,6 +72,11 @@ int main(int argc, char *argv[]) {
     periodicity[i] = 0.0;
   }
 
+  double acc_vec[3];
+  double acc_freq;
+  for (int i = 0; i < 3; i++) acc_vec[i] = 0.0;
+  acc_freq = 0.0;
+
   if (argc != 2) {
     printf("Syntax: simplepart config.xml\n");
     MPI_Abort(MPI_COMM_WORLD,1);
@@ -92,6 +99,14 @@ int main(int argc, char *argv[]) {
     std::string attr_name = attr.name();
     if (attr_name == "dt") {
       dt = attr.as_double();
+    } else if (attr_name == "ax") {
+      acc_vec[0] = attr.as_double();
+    } else if (attr_name == "ay") {
+      acc_vec[1] = attr.as_double();
+    } else if (attr_name == "az") {
+      acc_vec[2] = attr.as_double();
+    } else if (attr_name == "afreq") {
+      acc_freq = attr.as_double();
     } else {
       ERROR("Unknown atribute '%s' in '%s'", attr.name(), main_node.name());
       return -1;
@@ -195,6 +210,9 @@ int main(int argc, char *argv[]) {
       fprintf(logging_f, ",p%ld_x,p%ld_y,p%ld_z,p%ld_vx,p%ld_vy,p%ld_vz,p%ld_fx,p%ld_fy,p%ld_fz",n,n,n,n,n,n,n,n,n);
     }
     fprintf(logging_f, "\n");
+  }
+  for (Particles::iterator p = particles.begin(); p != particles.end(); p++) {
+    for (int i=0; i<3; i++) p->v[i] = p->v[i] - acc_vec[i] / 2.0;
   }
   int iter = 0;
   while (RFI.Active()) {
@@ -305,6 +323,7 @@ int main(int argc, char *argv[]) {
       if (p->m > 0.0) {
         for (int i=0; i<3; i++) p->v[i] = p->v[i] + p->f[i] / p->m * dt;
       }
+      for (int i=0; i<3; i++) p->v[i] = p->v[i] + acc_vec[i] * cos(twopi * dt * iter * acc_freq);
       for (int i=0; i<3; i++) p->x[i] = p->x[i] + p->v[i] * dt;
     }
     iter++;
