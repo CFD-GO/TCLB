@@ -8,10 +8,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: [d2q9]
-        precision: [float, double]
-        storage: ['same', 'half', 'half-shift', "float", "float-shift", 'double']
-        gpu: [true, false]
+        model:
+          - d2q9
+        precision:
+          - float
+          - double
+        storage: 
+          - 'same'
+          - 'half'
+          - 'half-shift'
+          - "float"
+          - "float-shift"
+          - 'double'
+        gpu:
+          - true
+          - false
         exclude:
           - gpu: false
             storage: 'half'
