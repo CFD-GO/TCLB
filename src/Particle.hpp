@@ -97,7 +97,7 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 }
 
 
-#ifdef CROSS_HAS_ADDOPP
+#ifdef USE_ADDOPP
 	#define PART_SYNC OPP_SYNC
 #else
 	#define PART_SYNC WARP_SYNC
@@ -109,7 +109,7 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 	typedef typename solidcontainer_t::set_found_t< ParticleS< PART_SYNC > > set_found_t;
 #endif
 
-#ifdef CROSS_HAS_ADDOPP
+#ifdef USE_ADDOPP
 	CudaDeviceFunction set_found_t SyncParticleIterator(real_t x, real_t y, real_t z) {
 		real_t point[3] = {x,y,z};
 		return set_found_t(constContainer.solidfinder, point, point, point);
