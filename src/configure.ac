@@ -97,6 +97,10 @@ AC_ARG_WITH([solid_cache],
 	AS_HELP_STRING([--with-solid-cache=N],
 		[if to use cache of size N for solid (particle) data]))
 
+AC_ARG_ENABLE([opp],
+	AS_HELP_STRING([--enable-opp=N],
+		[enable opportunistic operations]))
+
 AC_ARG_WITH([tapenade],
 	AS_HELP_STRING([--with-tapenade=path],
 		[use tapenade for code differentiation for adjoint]))
@@ -419,6 +423,11 @@ then
 	X_MOD="${with_x_mod}"
 else
 	X_MOD="0"
+fi
+
+if test "x${enable_opp}" == "xyes"
+then
+	AC_DEFINE([USE_ADDOPP], [1], [Opportunistic warp level operations])
 fi
 
 AC_MSG_CHECKING([MPI include path])

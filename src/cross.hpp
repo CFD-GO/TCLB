@@ -235,6 +235,12 @@ __device__ inline void CudaAtomicMaxReduceWarp(real_t * sum, real_t val)
     #warning "no CudaAtomicAddReduceWarp for this CUDA version"
   #endif
 
+  #ifdef USE_OPP
+    #ifndef CROSS_HAS_ADDOPP
+      #error "Opportunistic (OPP) operations requested, but not present in the platform"
+    #endif
+  #endif
+
   __device__ inline void CudaAtomicAddReduceDiff(real_t * sum, real_t val, bool yes)
   {
     if (! yes) val = 0.0;
