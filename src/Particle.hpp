@@ -117,8 +117,8 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 #else
 	CudaDeviceFunction set_found_t SyncParticleIterator(real_t x, real_t y, real_t z) {
 		real_t point[3] = {x,y,z};
-		real_t lower[3] = {x-CudaThread.x-0.5,y-0.5,z-0.5};
-		real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-0.5,y+0.5,z+0.5};
+		real_t lower[3] = {x-CudaThread.x-PART_MAR,y-PART_MAR,z-PART_MAR};
+		real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1.0f+PART_MAR,y+PART_MAR,z+PART_MAR};
 		return set_found_t(constContainer.solidfinder, point, lower, upper);
 	}
 #endif
