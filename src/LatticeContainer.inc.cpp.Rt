@@ -311,7 +311,7 @@ if (tmaxy > tminy) for (y in tminy:tmaxy) if (y != 0) { ?>
 }
 if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
 	case <?%d i ?>:
-		y_ = a_ + constContainer.dz; <?R
+		y_ = a_ + constContainer.dy; <?R
 	if (z > 0) { ?>
 		z_ = <?%d z - 1 ?>; <?R
 	} else if (z < 0) { ?>
