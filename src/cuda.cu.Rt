@@ -96,6 +96,121 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 
 
+template < eOperationType I, eCalculateGlobals G > struct GlobalCalculator { };
+
+<?R
+for (tp in rows(unique(Dispatch[,c("adjoint_ver","Globals","Action","Stream")]))) {
+	GlobalsD = Globals[,];
+	GlobalsD$zonal = FALSE;
+	ik = nrow(ZoneSettings);
+	if (ik > 0) {
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
+		k = nrow(GlobalsD) - ik:1 + 1;
+		GlobalsD$name[k] = paste0(ZoneSettings$name,"B");
+		GlobalsD$adjoint[k] = TRUE;
+		GlobalsD$zonal[k] = TRUE;
+		GlobalsD$op[k] = "SUM";
+		GlobalsD$var[k] = paste0(ZoneSettings$name,"b");
+		GlobalsD$Index[k] = ZoneSettings$Index;
+
+		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
+		k = nrow(GlobalsD) - ik:1 + 1;
+		GlobalsD$name[k] = paste0(ZoneSettings$name,"_DTB");
+		GlobalsD$adjoint[k] = TRUE;
+		GlobalsD$zonal[k] = TRUE;
+		GlobalsD$op[k] = "SUM";
+		GlobalsD$var[k] = paste0(ZoneSettings$name,"_DTb");
+		GlobalsD$Index[k] = paste0(ZoneSettings$Index,"+DT_OFFSET");
+	}
+	cat("\n")
+	ifdef(tp$adjoint_ver)
+	       if (tp$Stream == "Adj") {
+	        GlobalsD$sel = GlobalsD$adjoint
+	} else if (tp$Stream == "Opt") {
+	        GlobalsD$sel = TRUE
+	} else if (tp$Stream == "Init") {
+	        GlobalsD$sel = FALSE
+	} else if (tp$Stream == "No") {
+	        GlobalsD$sel = ! GlobalsD$adjoint
+	} else {
+	        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (conf.R)"));
+	} ?>
+//-------------------[ Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
+        if (tp$Globals == "Globs") {
+                Globs = GlobalsD[GlobalsD$sel,]
+        } else if (tp$Globals == "Obj") {
+                Globs = Globals[nrow(Globals),]
+		Globs$zonal = FALSE
+        } else {
+                Globs = NULL
+        } 	
+        T1 = switch(tp$Action, No="Primal", Adj="Adjoint", Opt="Optimize", SAdj="SteadyAdjoint")
+        T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
+        T3 = tp$stage_name
+?>
+template <> struct GlobalCalculator < <?%s T1 ?>, <?%s T2 ?> > { <?R
+		for (g in rows(Globs)) { ?>
+	real_t <?%s g$var ?>; ///< <?%s g$comment ?> <?R
+        } ?>
+	CudaDeviceFunction inline GlobalCalculator() { <?R
+		for (g in rows(Globs)) { ?>
+		<?%s g$var ?> = 0.0f; <?R
+        } ?>
+	}; <?R
+	for (g in rows(GlobalsD)) if (g$sel) {
+		if (tp$Globals == "Globs") {
+		        if (g$op == "SUM") {
+				if (g$adjoint) { ?>
+	CudaDeviceFunction inline void AddTo<?%s g$name ?>(x) {
+		<?%s g$var ?> = <?%s g$var ?> + (x);
+	} <?R
+				} else { ?>
+	CudaDeviceFunction inline void AddTo<?%s g$name ?>(x) {
+		<?%s g$var ?> = <?%s g$var ?> + (x);
+		Objective = Objective + (x) * <?%s g$name ?>InObj;
+	} <?R
+				}
+	                } else if (g$op == "MAX") { ?>
+	CudaDeviceFunction inline void AddTo<?%s g$name ?>(x) {
+		<?%s g$var ?> = max(<?%s g$var ?>,x);
+	} <?R
+                        }
+		} else if (tp$Globals == "Obj") { ?>
+	CudaDeviceFunction inline void AddTo<?%s g$name ?>(x) {
+		Objective = Objective + (x) * <?%s g$name ?>InObj;
+	} <?R
+		} else { ?>
+	CudaDeviceFunction inline void AddTo<?%s g$name ?>(x) {} <?R
+		}
+	} else { ?>
+	CudaDeviceFunction inline void AddTo<?%s g$name ?>(x) {} <?R
+	} ?>
+	CudaDeviceFunction void inline Glob() { <?R
+        for (g in rows(Globs)) if (!g$zonal) {
+		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
+            if (g$op == "SUM") { ?>
+                CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+            } else if (g$op == "MAX") { ?>
+                CudaAtomicMaxReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+            }
+        }
+		if (any(Globs$zonal)) { ?>
+		int z = NodeType >> ZONE_SHIFT;
+		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaWarpOr(nz == z)) { <?R
+        for (g in rows(Globs)) if (g$zonal) {
+		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
+			real_t val = (nz == z) ? <?%s g$var ?> : 0.0f;
+            CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, val); <?R
+        } ?>
+		}
+	<?R } ?>
+	}
+}; <?R
+} 
+cat("\n")
+ifdef()
+?>
+
 
 #define NODE_H
 
