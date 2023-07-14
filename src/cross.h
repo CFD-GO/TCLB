@@ -41,13 +41,13 @@
 
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
       #ifdef CROSS_HIP
-        #define CudaSyncWarpOr(x__) __any(b);
+        #define CudaSyncWarpOr(x__) __any(x__)
       #else     
         #if CUDART_VERSION >= 9000
               #define WARP_MASK 0xFFFFFFFF
-              #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, b);
+              #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, x__)
         #elif CUDART_VERSION >= 7000
-              #define CudaSyncWarpOr(x__) __any(b);
+              #define CudaSyncWarpOr(x__) __any(x__)
         #else
               #warning "no CudaAtomicAddReduceWarp for this CUDA version"
         #endif
