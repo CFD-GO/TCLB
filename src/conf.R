@@ -715,6 +715,14 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 	}
 	assign(n,v)
 }
+ret = merge(
+	data.frame(name = paste0(Globals$name,"InObj"), glob.idx=Globals$index),
+	data.frame(name = ZoneSettings$name, set.idx=ZoneSettings$index)
+)
+InObjOffset = ret$set.idx - ret$glob.idx
+if (any(InObjOffset != InObjOffset[1])) stop("Not all InObj offsets are the same. this should not happen")
+InObjOffset = InObjOffset[1]
+Consts = rbind(Consts, data.frame(name="IN_OBJ_OFFSET",value=InObjOffset))
 Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
 Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
