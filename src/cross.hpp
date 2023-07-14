@@ -25,14 +25,14 @@
   template <> struct R2I_caster< float > {
     typedef int   I_t;
     typedef float R_t;
-    __device__ static inline int toI(const float& x) { return __float_as_int(x); }
-    __device__ static inline float toR(const int& x) { return __int_as_float(x); }
+    __device__ static inline I_t toI(const R_t& x) { return __float_as_int(x); }
+    __device__ static inline R_t toR(const I_t& x) { return __int_as_float(x); }
   };
   template <> struct R2I_caster< double > {
     typedef unsigned long long int I_t;
     typedef double                 R_t;
-    __device__ static inline int toI(const double& x) { return __double_as_longlong(x); }
-    __device__ static inline double toR(const int& x) { return __longlong_as_double(x); }
+    __device__ static inline I_t toI(const R_t& x) { return __double_as_longlong(x); }
+    __device__ static inline R_t toR(const I_t& x) { return __longlong_as_double(x); }
   };
   struct CrossOPAdd {
     template <class T> __device__ static inline T op(const T& x, const T& y) { return x + y; }
