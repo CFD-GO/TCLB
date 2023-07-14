@@ -698,7 +698,6 @@ Dispatch = cbind(
 sel = Dispatch$stage
 Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel], sep="")
 
-Globals = Globals[order(Globals$op),]
 
 
 Consts = NULL
