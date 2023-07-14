@@ -64,7 +64,11 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
 <?R	}	?>
 
-struct CalculateGlobalsNo {
+template <eCalculateGlobals G>
+struct CalculateGlobals {};
+
+template <>
+struct CalculateGlobals<NoGlobals> {
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {}
 	template <int I>
@@ -72,9 +76,10 @@ struct CalculateGlobalsNo {
 	CudaDeviceFunction void inline Glob() {}
 };
 
-struct CalculateGlobalsAll {
+template <>
+struct CalculateGlobals<IntegrateGlobals> {
 	real_t globals[GLOBALS];
-	CudaDeviceFunction CalculateGlobalsAll() {
+	CudaDeviceFunction CalculateGlobals() {
 		for (int i=0; i<GLOBALS; i++) {
             globals[i] = 0.0;
 		}
@@ -95,9 +100,10 @@ struct CalculateGlobalsAll {
 	}
 };
 
-struct CalculateGlobalsObj {
+template <>
+struct CalculateGlobals<OnlyObjective> {
 	real_t obj;
-	CudaDeviceFunction CalculateGlobalsObj() {
+	CudaDeviceFunction CalculateGlobals() {
 		obj = 0.0;
 	}
 	template <int I>
@@ -167,7 +173,15 @@ struct CalculateGlobalsAdjoint {
 <?R     } ?>
 #define <?%s s$name ?>_DT constContainer.ZoneSetting_DT(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
 <?R
-        }
+    }
+
+	for (g in rows(Globals)) {
+		if (g$op == "SUM") { ?>
+#define AddTo<?%s g$name ?>(x__) glob.AddToGlobal< <?%s g$Index ?> >(x__, NodeType) <?R
+		} else { ?>
+#define AddTo<?%s g$name ?>(x__) glob.MaxToGlobal< <?%s g$Index ?> >(x__, NodeType) <?R
+		}
+	}
 ?>
 
 
@@ -217,25 +231,6 @@ for (tp in rows(Dispatch)) {
 	        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (conf.R)"));
 	} ?>
 //-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
-	for (g in rows(GlobalsD)) if (g$sel) {
-		if (tp$Globals == "Globs") {
-		        if (g$op == "SUM") {
-				if (g$adjoint) { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x) <?R
-				} else { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x); Objective = Objective + (x) * <?%s g$name ?>InObj <?R
-				}
-	                } else if (g$op == "MAX") { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = max(<?%s g$var ?>,x) <?R
-                        }
-		} else if (tp$Globals == "Obj") { ?>
-#define AddTo<?%s g$name ?>(x) Objective = Objective + (x) * <?%s g$name ?>InObj <?R
-		} else { ?>
-#define AddTo<?%s g$name ?>(x) <?R
-		}
-	} else { ?>
-#define AddTo<?%s g$name ?>(x) <?R
-	}
         if (tp$Globals == "Globs") {
                 Globs = GlobalsD[GlobalsD$sel,]
         } else if (tp$Globals == "Obj") {
@@ -251,42 +246,20 @@ for (tp in rows(Dispatch)) {
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	const int x_,y_,z_;
 	const flag_t NodeType;
-//	GlobalCalculator< I, T >
+	CalculateGlobals< <?%s T2 ?> > glob;
 <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 	real_t <?%s setting$name ?>; <?R
 		}
-		for (g in rows(Globs)) { ?>
-	real_t <?%s g$var ?>; ///< <?%s g$comment ?> <?R
-        } ?>
+?>
 	CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
-		}
-		for (g in rows(Globs)) { ?>
-		<?%s g$var ?> = 0.0f; <?R
-        } ?>
+		} ?>
 	};
-	CudaDeviceFunction void inline Glob() { <?R
-        for (g in rows(Globs)) if (!g$zonal) {
-		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
-            if (g$op == "SUM") { ?>
-                CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-            } else if (g$op == "MAX") { ?>
-                CudaAtomicMaxReduceWarp(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-            }
-        }
-		if (any(Globs$zonal)) { ?>
-		int z = NodeType >> ZONE_SHIFT;
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaWarpOr(nz == z)) { <?R
-        for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-			real_t val = (nz == z) ? <?%s g$var ?> : 0.0f;
-            CudaAtomicAddReduceWarp(<?%s where_to_put_it ?>, val); <?R
-        } ?>
-		}
-	<?R } ?>
+	CudaDeviceFunction void inline Glob() {
+		glob.Glob();
 	}
 	<?R
 		if (! tp$adjoint) { ?>
@@ -398,9 +371,6 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	} <?R
         } ########################################################################################### ?>
 }; <?R
-	for (g in rows(GlobalsD)) { ?>
-#undef AddTo<?%s g$name ?><?R
-	}
 } 
 cat("\n")
 ifdef()
