@@ -18,12 +18,7 @@
 #include <mpi.h>
 #define ALLOCPRINT1 debug2("Allocating: %ld b\n", size)
 #define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
-
-
-inline int ceiling_div(const int & x, const int & y) {
-  return x / y + (x % y != 0);
-}
-
+#include "GetThreads.h"
 
 /// Fast modulo for one k
 CudaDeviceFunction inline int mymod(int x, int k){
@@ -61,67 +56,6 @@ void setConstSetting(int i, real_t tmp) {
 		break; <?R
         } ?>
 	}
-}
-
-/// Get maximal number of threads for all the kernels on runtime
-template < class T > int GetThreads() {
-	dim3 ret;
-	CudaFuncAttributes * attr = new CudaFuncAttributes;
-	CudaFuncGetAttributes(attr, Kernel<T>) ;
-	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes);
-	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
-	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
-	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
-	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
-	return attr->maxThreadsPerBlock;
-}
-
-template < class T > class ThreadNumber {
-  public:
-  static dim3 thr;
-  static unsigned int maxthr;
-  static std::string name;
-  static void Init(std::string name_) {
-      name = name_;
-	    maxthr = GetThreads< T >();
-      thr.z = 1;
-      int val = maxthr;
-      if (maxthr < X_BLOCK) {
-        thr.x = maxthr;
-        thr.y = 1;
-      } else {
-        if (val > MAX_THREADS) {
-          val = MAX_THREADS;
-        }
-        thr.x = X_BLOCK;
-        thr.y = val/X_BLOCK;
-      }
-      print();
-  }
-  static inline dim3 threads() { return thr; }
-  static inline void print() {
-    if (thr.x * thr.y < maxthr) {
-	notice( "  %3dx%-3dx%-3d  | %s --- Reduced from maximum %d\n", thr.x, thr.y, thr.z, name.c_str(), maxthr);
-    } else {
-	output( "  %3dx%-3dx%-3d  | %s\n", thr.x, thr.y, thr.z, name.c_str());
-    }
-  }
-};
-
-template < class N > dim3 ThreadNumber< N >::thr;
-template < class N > unsigned int ThreadNumber< N >::maxthr = 1;
-template < class N > std::string ThreadNumber< N >::name = "unknown";
-  
-/// Initialize Thread/Block number variables
-int InitDim(int ny) {
-	MPI_Barrier(MPMD.local);
-        output( "  Threads  |      Action\n"); <?R
-        for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) { ifdef(tp$adjoint)
-        for (ex in c("InteriorExecutor","BorderExecutor")) { ?>
-        ThreadNumber< <?%s ex?>< Node_Run< <?%s tp$TemplateArgs ?> > > >::Init("<?%s ex?>, <?%s tp$TemplateArgs ?>"); <?R
-	}}; ifdef(); ?>
-	MPI_Barrier(MPMD.local);
-        return 0;
 }
 
 /// Allocation of a GPU memory Buffer
@@ -211,8 +145,6 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
     nz = nz_;
     kx = nx/X_BLOCK;
     ky = ny;
-
-    InitDim(ny);
 
     char * tmp=NULL;
     size_t size;

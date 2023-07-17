@@ -210,6 +210,9 @@ AC_PROG_CXX
 AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
+AC_CHECK_HEADERS([cxxabi.h],[AC_DEFINE([HAS_CXXABI_H], [1], [Has demangle])],[AC_MSG_RESULT([Didn't find cxxabi.h])])
+
+
 if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
