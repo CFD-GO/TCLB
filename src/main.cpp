@@ -29,6 +29,8 @@
 #include "xpath_modification.h"
 #include "mpitools.hpp"
 
+#include "GetThreads.h"
+
 // Reads units from configure file and applies them to the solver
 int readUnits(pugi::xml_node config, Solver* solver) {
 	pugi::xml_node set = config.child("Units");
@@ -352,6 +354,7 @@ int main ( int argc, char * argv[] )
 			solver->mpi.gpu = dev;
 			debug2("Initializing device\n");
 			CudaFree(0);
+			InitDim();
 		#else
 			output_all("Running on CPU\n");
 			CudaSetDevice(0);
