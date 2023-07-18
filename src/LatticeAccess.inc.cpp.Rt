@@ -375,6 +375,11 @@ class LatticeAccess {
     nt(C.getType(x,y,z)),
     nx(C.nx),ny(C.ny),nz(C.nz)
     { }
+  CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_, const flag_t& nt_) :
+    x(x_),y(y_),z(z_),
+    nt(nt_),
+    nx(C.nx),ny(C.ny),nz(C.nz)
+    { }
 <?R for (f in rows(Fields)) { ?>
   template <class dx_t, class dy_t, class dz_t>
   CudaDeviceFunction real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz);

@@ -152,8 +152,8 @@ struct CalculateGlobalsAdjoint {
         for (f in rows(Fields)) { ?>
 // #define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
 // #define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
-#define <?%s f$nicename ?>_3(x__,y__,z__) (LatticeAccess(x_,y_,z_).load_<?%s f$nicename ?> (range_int<x__>(), range_int<y__>(), range_int<z__>() ))
-#define <?%s f$nicename ?>_2(x__,y__) (LatticeAccess(x_,y_,z_).load_<?%s f$nicename ?> ( range_int<x__>(), range_int<y__>(), range_int<0>() ))
+#define <?%s f$nicename ?>_3(x__,y__,z__) (LatticeAccess(x_,y_,z_,NodeType).load_<?%s f$nicename ?> (range_int<x__>(), range_int<y__>(), range_int<z__>() ))
+#define <?%s f$nicename ?>_2(x__,y__) (LatticeAccess(x_,y_,z_,NodeType).load_<?%s f$nicename ?> ( range_int<x__>(), range_int<y__>(), range_int<0>() ))
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
 #define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
 #define <?%s f$nicename ?>_dyn_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
