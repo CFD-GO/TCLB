@@ -317,6 +317,83 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 <?R } # end of ADJOINT part ?>
 <?R }) ?>
 
+template <int A, int B=0, int C=A, int D=B>
+struct range_int {
+  const int val;
+  CudaDeviceFunction range_int(const int& val_=A) : val(val_) {}
+  CudaDeviceFunction operator int () const { return val; }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction range_int<A+A_, B+B_, C+C_, D+D_> operator + (const range_int<A_, B_, C_, D_>& other) const {
+    return val + other.val;
+  }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction range_int<A-C_, B-D_, C-A_, D-B_> operator - (const range_int<A_, B_, C_, D_>& other) const {
+    return val - other.val;
+  }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction bool operator <  (const range_int<A_, B_, C_, D_>& other) const {
+    if (D <  B_) return true;
+    if (D == B_) if (C <  A_) return true;
+    if (B >  D_) return false;
+    if (B == D_) if (A >= C_) return false;
+    return val <  other.val;
+  }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction bool operator <= (const range_int<A_, B_, C_, D_>& other) const {
+    if (D <  B_) return true;
+    if (D == B_) if (C <=  A_) return true;
+    if (B >  D_) return false;
+    if (B == D_) if (A > C_) return false;
+    return val <= other.val;
+  }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction bool operator >  (const range_int<A_, B_, C_, D_>& other) const {
+    if (D >  B_) return true;
+    if (D == B_) if (C >  A_) return true;
+    if (B <  D_) return false;
+    if (B == D_) if (A <= C_) return false;
+    return val >  other.val;
+  }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction bool operator >= (const range_int<A_, B_, C_, D_>& other) const {
+    if (D >  B_) return true;
+    if (D == B_) if (C >=  A_) return true;
+    if (B <  D_) return false;
+    if (B == D_) if (A < C_) return false;
+    return val >= other.val;
+  }
+};
+
+class LatticeAccess {
+  const range_int<0,0,-1,1> x,y,z;
+  const flag_t nt;
+  const LatticeContainer& C = constContainer;
+  const range_int<0,1,0,1> nx, ny, nz;
+  public:
+  CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_) :
+    x(x_),y(y_),z(z_),
+    nt(C.getType(x,y,z)),
+    nx(C.nx),ny(C.ny),nz(C.nz)
+    { }
+<?R for (f in rows(Fields)) { ?>
+  template <class dx_t, class dy_t, class dz_t>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz);
+<?R } ?>
+};
+
+<?R for (f in rows(Fields)) { ?>
+template <class dx_t, class dy_t, class dz_t>
+CudaDeviceFunction real_t LatticeAccess::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz)
+{
+  storage_t ret; <?R
+  con = make.context("C.in");
+  p = PV(c("x","y","z"));
+  dp = PV(c("dx","dy","dz"));
+  con=load.field("ret", f, p, dp, con) ?>
+  return <?%s storage_to_real("ret",f)?>;
+}
+<?R } ?>
+
 
 <?R
 
