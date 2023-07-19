@@ -9,6 +9,7 @@
 #include "Global.h"
 #include "Lattice.h"
 #include <mpi.h>
+#include "range_int.hpp"
 
 #ifndef STORAGE_BITS
   #define storage_to_real(x__) x__
@@ -71,6 +72,10 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
       MContext
   }
 
+  range_int=function(x) {
+    paste0("range_int<",x,">()")
+  }
+
   if.apply = function(table, conditions, selection, fun) {
     n = length(conditions)
     if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
@@ -87,7 +92,7 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
         sel2 = v == -1
         sel3 = v == 0
         if (any(sel1)) { ?>
-                 if (<?R C(conditions[l],float=FALSE) ?> < 0) { <?R
+                 if (<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?> < <?%s range_int(0) ?>) { <?R
           req(j[sel1],l+1);
           if (any(sel2)) {?>
                  } else { <?R
@@ -95,7 +100,7 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
           } ?>
                  } <?R
         } else if (any(sel2)) { ?>
-                 if (<?R C(conditions[l],float=FALSE) ?> >= 0) { <?R
+                 if (<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?> >= <?%s range_int(0) ?>) { <?R
           req(j[sel2],l+1); ?>
                  } <?R
         }
@@ -317,52 +322,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>
 <?R } # end of ADJOINT part ?>
 <?R }) ?>
 
-template <int A, int B=0, int C=A, int D=B>
-struct range_int {
-  const int val;
-  CudaDeviceFunction range_int(const int& val_=A) : val(val_) {}
-  CudaDeviceFunction operator int () const { return val; }
-  template <int A_, int B_, int C_, int D_>
-  CudaDeviceFunction range_int<A+A_, B+B_, C+C_, D+D_> operator + (const range_int<A_, B_, C_, D_>& other) const {
-    return val + other.val;
-  }
-  template <int A_, int B_, int C_, int D_>
-  CudaDeviceFunction range_int<A-C_, B-D_, C-A_, D-B_> operator - (const range_int<A_, B_, C_, D_>& other) const {
-    return val - other.val;
-  }
-  template <int A_, int B_, int C_, int D_>
-  CudaDeviceFunction bool operator <  (const range_int<A_, B_, C_, D_>& other) const {
-    if (D <  B_) return true;
-    if (D == B_) if (C <  A_) return true;
-    if (B >  D_) return false;
-    if (B == D_) if (A >= C_) return false;
-    return val <  other.val;
-  }
-  template <int A_, int B_, int C_, int D_>
-  CudaDeviceFunction bool operator <= (const range_int<A_, B_, C_, D_>& other) const {
-    if (D <  B_) return true;
-    if (D == B_) if (C <=  A_) return true;
-    if (B >  D_) return false;
-    if (B == D_) if (A > C_) return false;
-    return val <= other.val;
-  }
-  template <int A_, int B_, int C_, int D_>
-  CudaDeviceFunction bool operator >  (const range_int<A_, B_, C_, D_>& other) const {
-    if (D >  B_) return true;
-    if (D == B_) if (C >  A_) return true;
-    if (B <  D_) return false;
-    if (B == D_) if (A <= C_) return false;
-    return val >  other.val;
-  }
-  template <int A_, int B_, int C_, int D_>
-  CudaDeviceFunction bool operator >= (const range_int<A_, B_, C_, D_>& other) const {
-    if (D >  B_) return true;
-    if (D == B_) if (C >=  A_) return true;
-    if (B <  D_) return false;
-    if (B == D_) if (A < C_) return false;
-    return val >= other.val;
-  }
-};
 
 class LatticeAccess {
   const range_int<0,0,-1,1> x,y,z;
