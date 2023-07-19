@@ -196,7 +196,9 @@ void LatticeContainer::Free()
   iterates over all elements and runs them with RunElement function.
   constContainer.dx/dy is to calculate only internal nodes
 */
-template <class N> class InteriorExecutor {
+template < eOperationType I, eCalculateGlobals G, eStage S >
+class InteriorExecutor {
+  typedef Node_Run<I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
 {
@@ -221,7 +223,9 @@ CudaDeviceFunction void Execute()
 /**
   iterates over border elements and runs them with RunElement function
 */
-template <class N> class BorderExecutor {
+template < eOperationType I, eCalculateGlobals G, eStage S >
+class BorderExecutor {
+  typedef Node_Run<I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
 {
@@ -298,8 +302,7 @@ void LatticeContainer::CopyToConst() {
   Dispatch the kernel running RunElement on all border elements of the Lattice
   \param borderStream CUDA Stream to which add the kernel run
 */
-template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t stream) {
-  typedef BorderExecutor< N > EX;
+template <class EX> inline void LatticeContainer::RunBorderT(CudaStream_t stream) {
   dim3 thr = ThreadNumber< EX >::threads();
   dim3 blx;
 <?R
@@ -323,8 +326,7 @@ template <class N> inline void LatticeContainer::RunBorderT(CudaStream_t stream)
   Dispatch the kernel running RunElement on all interior elements of the lattice
   \param interiorStream CUDA Stream to which add the kernel run
 */
-template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t stream) {
-  typedef InteriorExecutor< N > EX;
+template <class EX> inline void LatticeContainer::RunInteriorT(CudaStream_t stream) {
   dim3 thr = ThreadNumber< EX >::threads();
   dim3 blx;
   #ifdef GRID3D
@@ -340,9 +342,9 @@ template <class N> inline void LatticeContainer::RunInteriorT(CudaStream_t strea
 };
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunBorder(CudaStream_t stream)   { RunBorderT< BorderExecutor< I, G, S > >(stream); };
 template < eOperationType I, eCalculateGlobals G, eStage S >
-  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< Node_Run < I, G, S > >(stream); };
+  void LatticeContainer::RunInterior(CudaStream_t stream) { RunInteriorT< InteriorExecutor< I, G, S > >(stream); };
 
 
   

@@ -156,8 +156,8 @@ class LatticeContainer {
 };
 
 template<class T> CudaGlobalFunction void Kernel();
-template<class N> class InteriorExecutor;
-template<class N> class BorderExecutor;
+template < eOperationType I, eCalculateGlobals G, eStage S > class InteriorExecutor;
+template < eOperationType I, eCalculateGlobals G, eStage S > class BorderExecutor;
 CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
