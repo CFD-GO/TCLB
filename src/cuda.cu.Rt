@@ -186,9 +186,9 @@ struct CalculateGlobalsAdjoint {
 ?>
 
 
-template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
+template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         CudaDeviceFunction inline void RunElement(){};
-		CudaDeviceFunction inline Node_Run(const LatticeAccess& acc_) {};
+		CudaDeviceFunction inline Node_Run(const LA& acc_) {};
 };
 
 <?R
@@ -244,7 +244,7 @@ for (tp in rows(Dispatch)) {
         T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
         T3 = tp$stage_name
 ?>
-template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
+template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	const LatticeAccess& acc;
 	CalculateGlobals< <?%s T2 ?> > glob;
 <?R

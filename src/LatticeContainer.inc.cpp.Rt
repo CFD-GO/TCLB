@@ -198,7 +198,8 @@ void LatticeContainer::Free()
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class InteriorExecutor {
-  typedef Node_Run<I,G,S> N;
+  typedef LatticeAccess LA;
+  typedef Node_Run<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
 {
@@ -209,7 +210,7 @@ CudaDeviceFunction void Execute()
 	#ifndef GRID3D
 		for (; x_ < constContainer.nx; x_ += CudaNumberOfThreads.x) {
 	#endif
-      LatticeAccess acc(x_,y_,z_);
+      LA acc(x_,y_,z_);
       N now(acc);
 			now.RunElement();
 	#ifndef GRID3D
@@ -225,7 +226,8 @@ CudaDeviceFunction void Execute()
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class BorderExecutor {
-  typedef Node_Run<I,G,S> N;
+  typedef LatticeAccess LA;
+  typedef Node_Run<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
 {
@@ -270,7 +272,7 @@ if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
   #else
   {
 	#endif
-    LatticeAccess acc(x_,y_,z_);
+    LA acc(x_,y_,z_);
     N now(acc);
 		now.RunElement();
 	}
@@ -352,9 +354,11 @@ template < eOperationType I, eCalculateGlobals G, eStage S >
 /**
   calculates the color for one node
 */
-template <class N>
+template < eOperationType I, eCalculateGlobals G, eStage S >
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
+    typedef LatticeAccess LA;
+    typedef Node_Run<LA,I,G,S> N;
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
@@ -366,7 +370,7 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     if (y >= constContainer.ny) return;
     if (z >= constContainer.nz) return;
     {
-     LatticeAccess acc(x,y,z);
+     LA acc(x,y,z);
      N now(acc);
      acc.pop(now);
      float2 v = now.Color();
@@ -402,7 +406,7 @@ if (ISFINITE(l)) {
 /// Kernel for graphics output
 CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 {
-  NodeToColor< Node_Run< Primal, NoGlobals, Get > >(
+  NodeToColor< Primal, NoGlobals, Get >(
     CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
     CudaBlock.y,
     z,
@@ -434,14 +438,15 @@ void LatticeContainer::Color( uchar4 *optr ) {
 */
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
+  typedef LatticeAccess LA;
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy;
   int z = CudaBlock.z+r.dz;
-  LatticeAccess acc(x,y,z); <?R
+  LA acc(x,y,z); <?R
         if (q$adjoint) { ?>
-          Node_Run< Adjoint, NoGlobals, Get > now(acc); <?R
+          Node_Run< LA, Adjoint, NoGlobals, Get > now(acc); <?R
         } else { ?>
-          Node_Run< Primal, NoGlobals, Get > now(acc); <?R
+          Node_Run< LA, Primal, NoGlobals, Get > now(acc); <?R
         }?>
 		<?%s q$type ?> w;
 //		if (now.NodeType) {
