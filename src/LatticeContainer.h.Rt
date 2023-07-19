@@ -65,16 +65,6 @@ class LatticeContainer {
   void Free();
   void ActivateCuts();
   CudaDeviceFunction void fill();
-<?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
-  ?>
-  template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
-#ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
-#endif
-<?R } ?>
-
   
   CudaDeviceFunction flag_t getType(int x, int y, int z) const;
 

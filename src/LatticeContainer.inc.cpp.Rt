@@ -363,7 +363,7 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     if (z >= constContainer.nz) return;
     {
      N now(x,y,z);
-     constContainer.pop(now);
+     now.acc.pop(now);
      float2 v = now.Color();
      l = v.x;
      w = v.y;
@@ -439,9 +439,9 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
         }?>
 		<?%s q$type ?> w;
 //		if (now.NodeType) {
-			constContainer.pop(now); <?R
+			now.acc.pop(now); <?R
 			if (q$adjoint) { ?>
-			constContainer.pop_adj(now); <?R
+			now.acc.pop_adj(now); <?R
 	                } ?>
 			w = now.get<?%s q$name ?>(); <?R
 			if (q$type == "vector_t") {
