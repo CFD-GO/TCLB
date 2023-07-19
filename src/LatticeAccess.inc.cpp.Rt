@@ -252,8 +252,11 @@ resolve.symmetries = function(D) {
 
 ?>
 
+template < class x_t, class y_t, class z_t >
 class LatticeAccess {
-  const range_int<0,0,-1,1> x,y,z;
+  const x_t x;
+  const y_t y;
+  const z_t z;
   const flag_t nt;
   const LatticeContainer& C = constContainer;
   const range_int<0,1,0,1> nx, ny, nz;
@@ -288,8 +291,9 @@ class LatticeAccess {
 };
 
 <?R for (f in rows(Fields)) { ?>
+template < class x_t, class y_t, class z_t >
 template <class dx_t, class dy_t, class dz_t>
-CudaDeviceFunction real_t LatticeAccess::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
+CudaDeviceFunction real_t LatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
 {
   storage_t ret; <?R
   con = make.context("C.in");
@@ -303,7 +307,9 @@ CudaDeviceFunction real_t LatticeAccess::load_<?%s f$nicename ?> (const dx_t & d
 <?R
   p = PV(c("x","y","z"));
 for (s in rows(all_stages)) { ?>
-template <class N> CudaDeviceFunction void LatticeAccess::pop<?%s s$suffix ?>(N & node) const
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(N & node) const
 {
 	storage_t val; <?R
   con = make.context("C.in",pocket=TRUE);
@@ -315,7 +321,9 @@ template <class N> CudaDeviceFunction void LatticeAccess::pop<?%s s$suffix ?>(N 
   } ?>
 }
 
-template <class N> CudaDeviceFunction void LatticeAccess::push<?%s s$suffix ?>(N & node) const
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>(N & node) const
 {
   storage_t val; <?R
   con = make.context("C.out",pocket=TRUE);
@@ -326,7 +334,9 @@ template <class N> CudaDeviceFunction void LatticeAccess::push<?%s s$suffix ?>(N
 }
 
 <?R if (ADJOINT) { ?>
-template <class N> CudaDeviceFunction void LatticeAccess::push<?%s s$suffix ?>_adj(N & node) const
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>_adj(N & node) const
 { <?R
   con = make.context("C.adjout",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) {
@@ -337,7 +347,9 @@ template <class N> CudaDeviceFunction void LatticeAccess::push<?%s s$suffix ?>_a
   } ?>
 }
 
-template <class N> CudaDeviceFunction void LatticeAccess::pop<?%s s$suffix ?>_adj(N & node) const
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>_adj(N & node) const
 { <?R
   con = make.context("C.adjin",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) {

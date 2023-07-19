@@ -245,7 +245,7 @@ for (tp in rows(Dispatch)) {
         T3 = tp$stage_name
 ?>
 template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	const LatticeAccess& acc;
+	const LA& acc;
 	CalculateGlobals< <?%s T2 ?> > glob;
 <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
@@ -253,7 +253,7 @@ template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> >
 		}
 ?>
 	//CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)),acc(x_,y_,z_,NodeType) {
-	CudaDeviceFunction inline Node_Run(const LatticeAccess& acc_):acc(acc_) {
+	CudaDeviceFunction inline Node_Run(const LA& acc_):acc(acc_) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R

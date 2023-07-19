@@ -20,6 +20,16 @@
 #define ALLOCPRINT2 debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size)
 #include "GetThreads.h"
 
+
+
+typedef LatticeAccess< range_int<0,0,-1,1>, range_int<0,0,-1,1>, range_int<0,0,-1,1> > LatticeAccessAll;
+typedef LatticeAccess<
+  range_int< <?%d tmaxx ?>,0,<?%d tminx-1 ?>,1>,
+  range_int< <?%d tmaxy ?>,0,<?%d tminy-1 ?>,1>,
+  range_int< <?%d tmaxz ?>,0,<?%d tminz-1 ?>,1> > LatticeAccessInterior;
+
+
+
 /// Fast modulo for one k
 CudaDeviceFunction inline int mymod(int x, int k){
         if (x >= k) return x-k;   
@@ -198,7 +208,7 @@ void LatticeContainer::Free()
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class InteriorExecutor {
-  typedef LatticeAccess LA;
+  typedef LatticeAccessInterior LA;
   typedef Node_Run<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
@@ -226,7 +236,7 @@ CudaDeviceFunction void Execute()
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class BorderExecutor {
-  typedef LatticeAccess LA;
+  typedef LatticeAccessAll LA;
   typedef Node_Run<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
@@ -357,7 +367,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S >
 template < eOperationType I, eCalculateGlobals G, eStage S >
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
-    typedef LatticeAccess LA;
+    typedef LatticeAccessAll LA;
     typedef Node_Run<LA,I,G,S> N;
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
@@ -438,7 +448,7 @@ void LatticeContainer::Color( uchar4 *optr ) {
 */
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
-  typedef LatticeAccess LA;
+  typedef LatticeAccessAll LA;
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy;
   int z = CudaBlock.z+r.dz;
