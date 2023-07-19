@@ -207,7 +207,8 @@ CudaDeviceFunction void Execute()
 	#ifndef GRID3D
 		for (; x_ < constContainer.nx; x_ += CudaNumberOfThreads.x) {
 	#endif
-      N now(x_,y_,z_);
+      LatticeAccess acc(x_,y_,z_);
+      N now(acc);
 			now.RunElement();
 	#ifndef GRID3D
 		}
@@ -265,7 +266,8 @@ if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
   #else
   {
 	#endif
-		N now(x_,y_,z_);
+    LatticeAccess acc(x_,y_,z_);
+    N now(acc);
 		now.RunElement();
 	}
 }
@@ -362,8 +364,9 @@ CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
     if (y >= constContainer.ny) return;
     if (z >= constContainer.nz) return;
     {
-     N now(x,y,z);
-     now.acc.pop(now);
+     LatticeAccess acc(x,y,z);
+     N now(acc);
+     acc.pop(now);
      float2 v = now.Color();
      l = v.x;
      w = v.y;
@@ -431,17 +434,18 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 {
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy;
-  int z = CudaBlock.z+r.dz; <?R
+  int z = CudaBlock.z+r.dz;
+  LatticeAccess acc(x,y,z); <?R
         if (q$adjoint) { ?>
-          Node_Run< Adjoint, NoGlobals, Get > now(x,y,z); <?R
+          Node_Run< Adjoint, NoGlobals, Get > now(acc); <?R
         } else { ?>
-          Node_Run< Primal, NoGlobals, Get > now(x,y,z); <?R
+          Node_Run< Primal, NoGlobals, Get > now(acc); <?R
         }?>
 		<?%s q$type ?> w;
 //		if (now.NodeType) {
-			now.acc.pop(now); <?R
+			acc.pop(now); <?R
 			if (q$adjoint) { ?>
-			now.acc.pop_adj(now); <?R
+			acc.pop_adj(now); <?R
 	                } ?>
 			w = now.get<?%s q$name ?>(); <?R
 			if (q$type == "vector_t") {

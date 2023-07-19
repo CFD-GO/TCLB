@@ -162,7 +162,7 @@ struct CalculateGlobalsAdjoint {
 #define X (acc.X())
 #define Y (acc.Y())
 #define Z (acc.Z())
-//#define NodeType (acc.NodeType())
+#define NodeType (acc.NodeType())
 #define Time (constContainer.iter)
 #define SyntheticTurbulence(x__,y__,z__) constContainer.getST(x__,y__,z__)
 #define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
@@ -188,7 +188,7 @@ struct CalculateGlobalsAdjoint {
 
 template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         CudaDeviceFunction inline void RunElement(){};
-		CudaDeviceFunction inline Node_Run(int x__,int y__,int z__) {};
+		CudaDeviceFunction inline Node_Run(const LatticeAccess& acc_) {};
 };
 
 <?R
@@ -245,9 +245,7 @@ for (tp in rows(Dispatch)) {
         T3 = tp$stage_name
 ?>
 template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	//const int x_,y_,z_;
-	const flag_t NodeType;
-	const LatticeAccess acc;
+	const LatticeAccess& acc;
 	CalculateGlobals< <?%s T2 ?> > glob;
 <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
@@ -255,7 +253,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		}
 ?>
 	//CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)),acc(x_,y_,z_,NodeType) {
-	CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):acc(x__,y__,z__),NodeType(constContainer.getType(x__,y__,z__)) {
+	CudaDeviceFunction inline Node_Run(const LatticeAccess& acc_):acc(acc_) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
