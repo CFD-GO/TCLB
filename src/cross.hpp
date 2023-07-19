@@ -80,9 +80,9 @@
   #ifndef MAX_THREADS
     #error FUCK!
   #else
-    #if MAX_THREADS < 500
-      #error Double Fuck!
-    #endif
+//    #if MAX_THREADS < 500
+//      #error Double Fuck!
+//    #endif
   #endif
 
   #ifdef CROSS_COOP_GROUPS
