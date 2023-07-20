@@ -258,18 +258,17 @@ class LatticeAccess {
   const y_t y;
   const z_t z;
   const flag_t nt;
-  const LatticeContainer& C = constContainer;
   const range_int<0,1,0,1> nx, ny, nz;
   public:
   CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_) :
     x(x_),y(y_),z(z_),
-    nt(C.getType(x,y,z)),
-    nx(C.nx),ny(C.ny),nz(C.nz)
+    nt(constContainer.getType(x,y,z)),
+    nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
     { }
   CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_, const flag_t& nt_) :
     x(x_),y(y_),z(z_),
     nt(nt_),
-    nx(C.nx),ny(C.ny),nz(C.nz)
+    nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
     { }
   CudaDeviceFunction real_t X() const { return constContainer.px + x; }
   CudaDeviceFunction real_t Y() const { return constContainer.py + y; }
@@ -296,7 +295,7 @@ template <class dx_t, class dy_t, class dz_t>
 CudaDeviceFunction real_t LatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
 {
   storage_t ret; <?R
-  con = make.context("C.in");
+  con = make.context("constContainer.in");
   p = PV(c("x","y","z"));
   dp = PV(c("dx","dy","dz"));
   con=load.field("ret", f, p, dp, con) ?>
@@ -312,7 +311,7 @@ template <class N>
 CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(N & node) const
 {
 	storage_t val; <?R
-  con = make.context("C.in",pocket=TRUE);
+  con = make.context("constContainer.in",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) {
     f = rows(Fields)[[match(d$field, Fields$name)]]
     dp = c(-d$dx, -d$dy, -d$dz)
@@ -326,7 +325,7 @@ template <class N>
 CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>(N & node) const
 {
   storage_t val; <?R
-  con = make.context("C.out",pocket=TRUE);
+  con = make.context("constContainer.out",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) { ?>
   val = <?%s real_to_storage(paste("node",f$name,sep="."),f) ?>; <?R
     con=save.field("val", f, p, con)
@@ -338,7 +337,7 @@ template < class x_t, class y_t, class z_t >
 template <class N>
 CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>_adj(N & node) const
 { <?R
-  con = make.context("C.adjout",pocket=TRUE);
+  con = make.context("constContainer.adjout",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) {
     f = rows(Fields)[[match(d$field, Fields$name)]]
     dp = c(-d$dx, -d$dy, -d$dz)
@@ -351,7 +350,7 @@ template < class x_t, class y_t, class z_t >
 template <class N>
 CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>_adj(N & node) const
 { <?R
-  con = make.context("C.adjin",pocket=TRUE);
+  con = make.context("constContainer.adjin",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) {
     val = paste("node",f$adjoint_name,sep=".")
     con = field.access( d=val, f, p, pattern="put", access="getsum", MContext=con)
