@@ -300,6 +300,9 @@ CudaDeviceFunction real_t LatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?
   con = make.context("constContainer.in");
   p = PV(c("x","y","z"));
   dp = PV(c("dx","dy","dz"));
+  if (f$minx == f$maxx) dp[1] = f$minx
+  if (f$miny == f$maxy) dp[2] = f$miny
+  if (f$minz == f$maxz) dp[3] = f$minz
   con=load.field("ret", f, p, dp, con) ?>
   return <?%s storage_to_real("ret",f)?>;
 }

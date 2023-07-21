@@ -68,5 +68,10 @@ CudaDeviceFunction range_int<A, B, C, D> ensure_range_int (const range_int<A, B,
   return x;
 }
 
+template <int A, int B, int C, int D>
+void print_range_int (const range_int<A, B, C, D>& x) {
+  printf("%d+N*%d <= %d <= %d+N*%d\n",A,B,x.val,C,D);
+}
+
 
 #endif

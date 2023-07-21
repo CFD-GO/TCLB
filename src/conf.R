@@ -809,17 +809,13 @@ offsets = function() {
     }
     list(get_offsets = 
       function(w,dw) {
-	if (is.numeric(dw)) {
-          tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-          tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-          tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
-	  dw = PV(as.integer(dw))
-	} else {
-          tab1 = c(1,1,1,-1,-1,-1,0,0,0)
-          tab2 = c(0,0,0,-1,-1,-1,1,1,1)
-          tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
-	}
-	mins = PV(as.integer(mins))
+		if (is.numeric(dw)) dw = PV(as.integer(dw))
+		dw_neg = sapply(1:3, function(i) { if (is.numeric(dw[[i]])) dw[[i]]<0 else mins[i]<0 })
+		dw_pos = sapply(1:3, function(i) { if (is.numeric(dw[[i]])) dw[[i]]>0 else maxs[i]>0 })
+		tab1 = c(ifelse(dw_neg,1,0),ifelse(dw_neg,-1,0),0,0,0)
+		tab2 = c(0,0,0,ifelse(dw_pos,-1,0),ifelse(dw_pos,1,0))
+		tab3 = c(dw_neg,TRUE,TRUE,TRUE,dw_pos)
+		mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
         offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw))
