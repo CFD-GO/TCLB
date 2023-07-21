@@ -860,6 +860,16 @@ if (NEED_OFFSETS) {
     NonEmptyMargin = Margin[NonEmptyMargin]
 }
 
+BorderMargin = data.frame(
+	name = c("x","y","z"),
+	min  = c(min(0,Fields$minx),min(0,Fields$miny),min(0,Fields$minz)),
+    max  = c(max(0,Fields$maxx),max(0,Fields$maxy),max(0,Fields$maxz))
+)
+BorderMargin$min[1] = 0  # We do not separate border in X direction.
+BorderMargin$max[1] = 0
+
+
+
 Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),

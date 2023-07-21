@@ -49,10 +49,7 @@ class LatticeContainer {
   real_t* particle_data;
   solidcontainer_t::finder_t solidfinder;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
-  int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
-  int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
-  int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
   real_t px,py,pz;
   int reset_iter; //< number of last average reset,for dynamics 
@@ -115,13 +112,6 @@ class LatticeContainer {
     if (w == NULL) return & ConstZoneSettings[i + GRAD_OFFSET];
     return & w[ZoneIndex];
   }
-
-  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
-    if (Q == NULL) return NO_CUT;
-    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
-    return Q[i];
-  }
-
 
   CudaDeviceFunction inline vector_t getST(real_t x, real_t y, real_t z) {
 	return calc(ST, x,y,z);
