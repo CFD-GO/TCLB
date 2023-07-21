@@ -14,9 +14,9 @@ struct range_int {
   CudaDeviceFunction range_int<A-C_, B-D_, C-A_, D-B_> operator - (const range_int<A_, B_, C_, D_>& other) const {
     return val - other.val;
   }
-  //CudaDeviceFunction range_int< -C, -D, -A, -B> operator - () const {
-//    return -val;
-//  }
+  CudaDeviceFunction range_int< -C, -D, -A, -B> operator - () const {
+    return -val;
+  }
   template <int A_, int B_, int C_, int D_>
   CudaDeviceFunction bool operator <  (const range_int<A_, B_, C_, D_>& other) const {
     if (D <  B_) return true;
@@ -54,4 +54,5 @@ template <int A, int B, int C, int D>
 CudaDeviceFunction range_int<A, B, C, D> ensure_range_int (const range_int<A, B, C, D>& x) {
   return x;
 }
+
 #endif
