@@ -258,24 +258,24 @@ class LatticeAccess {
   const x_t x;
   const y_t y;
   const z_t z;
-  const range_int<0,1,0,1> nx, ny, nz;
-  protected:
   const flag_t nt;
+  const range_int<0,1,0,1> nx, ny, nz;
   public:
   CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_) :
     x(x_),y(y_),z(z_),
     nt(constContainer.getType(x,y,z)),
     nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
     { }
-  CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_, const flag_t& nt_) :
-    x(x_),y(y_),z(z_),
-    nt(nt_),
-    nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
-    { }
   CudaDeviceFunction real_t X() const { return constContainer.px + x; }
   CudaDeviceFunction real_t Y() const { return constContainer.py + y; }
   CudaDeviceFunction real_t Z() const { return constContainer.pz + z; }
   CudaDeviceFunction flag_t NodeType() const { return nt; }
+
+  CudaDeviceFunction inline cut_t getQ(const int& d) const  {
+    if (constContainer.Q == NULL) return NO_CUT;
+    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+    return constContainer.Q[i];
+  }
 
 <?R for (f in rows(Fields)) { ?>
   template <class dx_t, class dy_t, class dz_t>
@@ -390,10 +390,10 @@ public:
   ch = c("X","Y","Z")
   d = PV(c("dx","dy","dz"))
   funs = c(
-    paste0("parent::load_", f$nicename),
-    paste0("loadX_", f$nicename),
-    paste0("loadY_", f$nicename),
-    paste0("load_", f$nicename)
+    "parent::load_",
+    "loadX_",
+    "loadY_",
+    "load_"
   )
   for (i in 1:3) {
     this_fun = funs[i+1];
@@ -414,20 +414,20 @@ public:
 ?>
 template < class PARENT >
 template <class dx_t, class dy_t, class dz_t>
-CudaDeviceFunction real_t LatticeAccessSym< PARENT >::<?%s this_fun ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
+CudaDeviceFunction real_t LatticeAccessSym< PARENT >::<?%s paste0(this_fun, f$nicename) ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
 {
   <?R if (paste0("SYM",ch[i]) %in% NodeTypes$group) { ?>
   if (<?R C(d[i]) ?> > range_int<0>()) {
     if ((this->NodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_Symmetry<?%s ch[i] ?>_plus) {
-      return <?%s paste0(sig, next_fun) ?>(<?R C(sd,sep=", ") ?>);
+      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd,sep=", ") ?>);
     }
   } else if (<?R C(d[i]) ?> < range_int<0>()) {
     if ((this->NodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_Symmetry<?%s ch[i] ?>_minus) {
-      return <?%s paste0(sig, next_fun) ?>(<?R C(sd,sep=", ") ?>);
+      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd,sep=", ") ?>);
     }
   }
   <?R } ?>
-  return <?%s next_fun ?>(<?R C(d,sep=", ") ?>);
+  return <?%s paste0(next_fun, f$nicename) ?>(<?R C(d,sep=", ") ?>);
 }
 <?R } ?>
 <?R } ?>

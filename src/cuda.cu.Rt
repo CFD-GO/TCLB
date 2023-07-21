@@ -49,14 +49,6 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 #include "Particle.hpp"
 
-<?R
-	P = expand.grid(x=0:2,y=0:2,z=0:2)
-	Q = paste("Q",P$x,P$y,P$z,sep="")
-	for (i in 2:length(Q)) { ?>
-#define <?%s Q[i] ?> constContainer.getQ(x_,y_,z_,<?%d i-2 ?>)
-<?R     } ?>
-
-
 <?R	for (n in rows(NodeTypes)) {	?>
 #define Iam<?%s n$name ?> ((NodeType & NODE_<?%s n$group?>) == NODE_<?%s n$name ?>)
 <?R	}	?>
@@ -154,7 +146,7 @@ struct CalculateGlobalsAdjoint {
 #define <?%s f$nicename ?>_2(x__,y__) (acc.load_<?%s f$nicename ?> ( range_int<x__>(), range_int<y__>(), range_int<0>() ))
 #define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
 #define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (acc.load_<?%s f$nicename ?> (x__, y__, z__))
-#define <?%s f$nicename ?>_dyn_2(x__,y__) (acc.load_<?%s f$nicename ?> (x__, y__, range_int<z__>()))
+#define <?%s f$nicename ?>_dyn_2(x__,y__) (acc.load_<?%s f$nicename ?> (x__, y__, range_int<0>()))
 #define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
         }
 ?>
@@ -167,6 +159,11 @@ struct CalculateGlobalsAdjoint {
 #define SyntheticTurbulence(x__,y__,z__) constContainer.getST(x__,y__,z__)
 #define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
 <?R
+	P = expand.grid(x=0:2,y=0:2,z=0:2)
+	Q = paste("Q",P$x,P$y,P$z,sep="")
+	for (i in 2:length(Q)) { ?>
+#define <?%s Q[i] ?> (acc.getQ(<?%d i-2 ?>)) <?R
+	}
 	for(s in rows(ZoneSettings)) { ?>
 //#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
 <?R 	if (! s$preload) { ?>
