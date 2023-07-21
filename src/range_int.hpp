@@ -49,10 +49,24 @@ struct range_int {
     if (B == D_) if (A < C_) return false;
     return val >= other.val;
   }
+  template <int A_, int B_, int C_, int D_>
+  CudaDeviceFunction static range_int<A_, B_, C_, D_> ensure (const range_int<A_, B_, C_, D_>& x) {
+    static_assert( A <= A_ , "range_int range error");
+    static_assert( B <= B_ , "range_int range error");
+    static_assert( C >= C_ , "range_int range error");
+    static_assert( D >= D_ , "range_int range error");
+    return x;
+  }
+  CudaDeviceFunction static range_int<A, B, C, D> ensure (const int& x) {
+    return x;
+  }
+  
 };
+
 template <int A, int B, int C, int D>
 CudaDeviceFunction range_int<A, B, C, D> ensure_range_int (const range_int<A, B, C, D>& x) {
   return x;
 }
+
 
 #endif

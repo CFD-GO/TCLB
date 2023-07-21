@@ -92,7 +92,7 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
         sel2 = v == -1
         sel3 = v == 0
         if (any(sel1)) { ?>
-                 if (<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?> < <?%s range_int(0) ?>) { <?R
+                 if (ensure_range_int(<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?>) < <?%s range_int(0) ?>) { <?R
           req(j[sel1],l+1);
           if (any(sel2)) {?>
                  } else { <?R
@@ -100,7 +100,7 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
           } ?>
                  } <?R
         } else if (any(sel2)) { ?>
-                 if (<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?> >= <?%s range_int(0) ?>) { <?R
+                 if (ensure_range_int(<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?>) >= <?%s range_int(0) ?>) { <?R
           req(j[sel2],l+1); ?>
                  } <?R
         }
@@ -442,3 +442,25 @@ CudaDeviceFunction void LatticeAccessSym< PARENT >::pop<?%s s$suffix ?>(N & node
 }
 <?R } } ?>
 
+template < class PARENT >
+class LatticeAccessDyn : public PARENT {
+  typedef PARENT parent;
+  public:
+  template <typename... Args>
+  CudaDeviceFunction LatticeAccessDyn(Args&&... args) : parent(std::forward<Args>(args)...) { }
+<?R for (f in rows(Fields)) { ?>
+public:
+  template <class dx_t, class dy_t, class dz_t>
+  CudaDeviceFunction inline real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz = range_int<0>()) const {
+    return parent::load_<?%s f$nicename ?>(
+      range_int< <?%d f$minx ?>, 0, <?%d f$maxx ?>, 0 >::ensure(dx),
+      range_int< <?%d f$miny ?>, 0, <?%d f$maxy ?>, 0 >::ensure(dy),
+      range_int< <?%d f$minz ?>, 0, <?%d f$maxz ?>, 0 >::ensure(dz)
+    );
+  }
+  template <int dx, int dy, int dz=0>
+  CudaDeviceFunction inline real_t load_<?%s f$nicename ?> () const {
+    return parent::load_<?%s f$nicename ?>(range_int< dx >(),range_int< dy >(),range_int< dz >());
+  }
+<?R } ?>
+};
