@@ -617,7 +617,9 @@ CudaDeviceFunction void CollisionMRT()
 	calc_Fb(&F_body[0], &F_body[1], &F_body[2], rho);
     calc_Fs(&F_surf[0], &F_surf[1], &F_surf[2], mu, gradPhi);
 	//  Viscous Force:
-	for (j=0;j<force_fixed_iterator;j++) {
+	j = 0;
+	do {	// do while loop is guaranteeing the loop will execute at least once
+		j++;
 	<?R
 		C(m[selR], (m0 - EQ$Req)[selR] * Omega)
 
@@ -638,7 +640,7 @@ CudaDeviceFunction void CollisionMRT()
 		F_total[2] = F_surf[2] + F_pressure[2] + F_body[2] + F_mu[2];
 
 	<?R 	C( u, m0[2:4] + 0.5 * F_total * rho.inv) ?>
-	}
+	} while (j<force_fixed_iterator);
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	<?R
