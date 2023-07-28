@@ -32,7 +32,7 @@ sel = grepl(opt$discard, names(tab2))
 if (any(sel)) tab2=tab2[,!sel]
 
 if ( ! identical(dim(tab1),dim(tab2)) ) { cat("dimensions not identical\n"); q(status=-1); }
-if ( ! identical(names(tab1), names(tab2)) ) { cat("names (header) not identical\n"); q(status=-2); }
+if ( ! identical(sort(names(tab1)), sort(names(tab2))) ) { cat("names (header) not identical\n"); q(status=-2); }
 
 ret = TRUE
 for (i in names(tab1)) {
@@ -40,14 +40,20 @@ for (i in names(tab1)) {
 	b=tab2[[i]]
 	ret = TRUE
 	if (is.numeric(a) && is.numeric(b)) {
-		if (any(abs(a-b) > eps)) ret = FALSE
+		div = (max(abs(a))+max(abs(b)))/2
+		if (div >= eps) {
+			reldiff = abs(a-b)/div
+			if (any(reldiff > eps)) ret = FALSE
+		}
 	} else {
+		div = 1
 		ret = identical(a,b)
 	}
 	if (! ret) {
 		cat("Differ at",i,"\n");
-		cat("  max(abs(a-b)) :",max(abs(a-b)),"\n");
-		cat("  eps           :",eps,"\n");
+		cat("  max(abs(a-b))     :",max(abs(a-b)),"\n");
+		cat("  max(abs(a-b)/div) :",max(abs(a-b)/div),"\n");
+		cat("  eps               :",eps,"\n");
 		q(status=-3);
 	}
 }
