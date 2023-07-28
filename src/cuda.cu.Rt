@@ -79,7 +79,9 @@ struct CalculateGlobals<IntegrateGlobals> {
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		globals[I] = globals[I] + x;
-		globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+		if (I < SUM_GLOBALS) {
+			globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+		}
 	}
 	template <int I>
 	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {
@@ -87,7 +89,11 @@ struct CalculateGlobals<IntegrateGlobals> {
 	}
 	CudaDeviceFunction void inline Glob() {
 		for (int i=0; i<GLOBALS; i++) {
-            CudaAtomicAddReduceWarp(&constContainer.Globals[i], globals[i]);
+			if (i < SUM_GLOBALS) {
+            	CudaAtomicAddReduceWarp(&constContainer.Globals[i], globals[i]);
+			} else {
+				CudaAtomicMaxReduceWarp(&constContainer.Globals[i], globals[i]);
+			}
 		}
 	}
 };
@@ -100,7 +106,9 @@ struct CalculateGlobals<OnlyObjective> {
 	}
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
-		obj = obj + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+		if (I < SUM_GLOBALS) {
+			obj = obj + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+		}
 	}
 	template <int I>
 	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {}

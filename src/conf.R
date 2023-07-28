@@ -594,7 +594,21 @@ if (ADJOINT==1) {
 	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
 	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
 }
-	for (g in rows(Globals)) if (! g$adjoint){
+
+AddGlobal(name="Objective",comment="Objective function");
+
+
+tmp_c = Globals[Globals$op != "SUM",,drop=FALSE]; tmp_c = tmp_c[order(tmp_c$op),,drop=FALSE]
+tmp_b = Globals[Globals$name == "Objective",,drop=FALSE]
+tmp_a = Globals[Globals$op == "SUM" & Globals$name != "Objective",,drop=FALSE]
+
+Globals = rbind(tmp_a,tmp_b,tmp_c)
+SumGlobals = sum(Globals$op == "SUM")
+ObjGlobalsIdx = which(Globals$name == "Objective")
+
+if (any(Globals$op[seq_len(SumGlobals)] != "SUM")) stop("Something went wrong with ordering of globals")
+
+	for (g in rows(Globals)[Globals$op == "SUM" & Globals$name != "Objective"]) if (! g$adjoint){
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
 			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
@@ -611,8 +625,6 @@ DensityAD = DensityAll[  DensityAll$adjoint, ]
 Fields$nicename = gsub("[][ ]","",Fields$name)
 
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
-
-AddGlobal(name="Objective",comment="Objective function");
 
 Margin = data.frame(
 	name = paste("block",1:27,sep=""),
@@ -709,6 +721,7 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 		v$index = 1:nrow(v)-1
 		v$nicename = gsub("[][ ]","",v$name)
 		v$Index = paste(" ",toupper(n), "_", v$nicename, " ", sep="")
+		row.names(v) = v$name
 		Consts = rbind(Consts, data.frame(name=v$Index, value=v$index));
 		assign(n,v)
 	}
@@ -727,6 +740,7 @@ if (nrow(ret) > 0) {
 	InObjOffset = 0
 }
 Consts = rbind(Consts, data.frame(name="IN_OBJ_OFFSET",value=InObjOffset))
+Consts = rbind(Consts, data.frame(name="SUM_GLOBALS",value=SumGlobals))
 Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
 Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
