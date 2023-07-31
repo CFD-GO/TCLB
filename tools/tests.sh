@@ -115,15 +115,15 @@ then
 	exit -1;
 fi
 
-if ! test -f "tests/README.md"
+if ! test -f "tests/external/README.md"
 then
-	echo "\"tests\" submodule is not checked out"
+	echo "\"tests/external\" submodule is not checked out"
 	echo "  run: git submodule init"
 	echo "  run: git submodule update"
 	exit -1
 fi
 
-if ! test -d "tests/$MODEL"
+if ! test -d "tests/external/$MODEL"
 then
 	echo "No tests for model $MODEL."
 	echo "Exiting with no error."
@@ -132,14 +132,14 @@ fi
 
 if test -z "$*"
 then
-	TESTS=$(cd tests/$MODEL; ls *.test 2>/dev/null)
+	TESTS=$(cd tests/external/$MODEL; ls *.test 2>/dev/null)
 else
 	TESTS="$*"
 fi
 
 if test -z "$TESTS"
 then
-	echo "No tests for model $MODEL (WARNING: there is a directory tests/$MODEL)"
+	echo "No tests for model $MODEL (WARNING: there is a directory tests/external/$MODEL)"
 	echo "Exiting with no error."
 	exit 0
 fi
@@ -192,7 +192,7 @@ function testModel {
 		TCLB=".."
 		SOLVER="$TCLB/CLB/$MODEL/main"
 		MODELBIN="$TCLB/CLB/$MODEL"
-		TEST_DIR="../tests/$MODEL"
+		TEST_DIR="../tests/external/$MODEL"
 		CAN_FAIL=false
 		CSV_DISCARD=Walltime
 		EXC_SH="$PP/etc/test.exceptions.sh"
@@ -200,7 +200,7 @@ function testModel {
 		then
 			source "$EXC_SH"
 		fi
-		if test -f "tests/$MODEL/$t"
+		if test -f "tests/external/$MODEL/$t"
 		then
 			echo -e "\n\e[1mRunning $TEST test...\e[0m"
 			mkdir -p $TDIR		
@@ -211,7 +211,7 @@ function testModel {
 					RESULT="FAILED"
 					break
 				fi
-			done 3< "tests/$MODEL/$t"
+			done 3< "tests/external/$MODEL/$t"
 		else
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
