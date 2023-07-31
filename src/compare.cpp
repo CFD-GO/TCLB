@@ -76,30 +76,55 @@ struct TabBase {
 		dx(dx_), dy(dy_), dz(dz_), nx(nx_), ny(ny_), nz(nz_), comp(comp_), fname(fname_), ftype(ftype_) {
 		size = 1L * (nx - dx) * (ny - dy) * (nz - dz);
 		totsize = size * comp;
-	}; 
-	virtual double compare(TabBase * other) = 0;
+	};
+	size_t idx(const int& x, const int& y, const int& z, const int& c) const {
+		return c + comp*(x - dx + nx * (y - dy + ny * (z - dz + 0L)));
+	}
+	virtual double compare(TabBase * other, const int& delta_x=0, const int& delta_y=0, const int& delta_z=0) = 0;
 	virtual void read_piece(int pdx, int pdy, int pdz, int pnx, int pny, int pnz, pugi::xml_node node) = 0;
 };
 
 base64decoder TabBase::b64;
 
+int safe_mod(const int& a, const int& b) {
+	int ret = a % b;
+	if (ret < 0) return b+ret;
+	return ret;
+}
+
 template <typename T>
 struct Tab : public TabBase {
 	std::vector<T> tab;
-	double compare(TabBase * other_) {
-		double diff=0;
+	double compare(TabBase * other_, const int& delta_x, const int& delta_y, const int& delta_z) {
 		assert(ftype == other_->ftype);
 		Tab<T>* other = static_cast< Tab<T>* > (other_);
-		for (size_t i=0; i<totsize; i++) {
-			double vdiff = tab[i] - other->tab[i];
-			vdiff = fabs(vdiff);
-			if (vdiff > diff) diff = vdiff;
+		assert(nx - dx == other->nx - other->dx);
+		assert(ny - dy == other->ny - other->dy);
+		assert(nz - dz == other->nz - other->dz);
+		assert(comp == other->comp);
+		int dlx = safe_mod(delta_x, nx);
+		int dly = safe_mod(delta_y, ny);
+		int dlz = safe_mod(delta_z, nz);
+		double diff=0.0;
+		for (int z = dz; z < nz; z++) {
+			for (int y = dy; y < ny; y++) {
+				for (int x = dx; x < nx; x++) {
+					for (int c = 0; c < comp; c++) {
+						int x_ = ((x-dx+dlx) % (nx-dx)) + other->dx;
+						int y_ = ((y-dy+dly) % (ny-dy)) + other->dy;
+						int z_ = ((z-dz+dlz) % (nz-dz)) + other->dz;
+						double vdiff = tab[idx(x,y,z,c)] - other->tab[other->idx(x_,y_,z_,c)];
+						vdiff = fabs(vdiff);
+						if (vdiff > diff) diff = vdiff;
+					}
+				}
+			}
 		}	
 		return diff;
 	}
 	Tab(int dx_, int dy_, int dz_, int nx_, int ny_, int nz_, int comp_, std::string fname_, std::string ftype_) :
 		TabBase(dx_, dy_, dz_, nx_, ny_, nz_, comp_, fname_, ftype_) {
-		tab.resize(totsize);		
+		tab.resize(totsize);
 	}
 	void read_piece(int pdx, int pdy, int pdz, int pnx, int pny, int pnz, pugi::xml_node node) {
 		assert(fname == node.attribute("Name").value());
@@ -109,15 +134,13 @@ struct Tab : public TabBase {
 		size_t psize = 1L * (pnx - pdx) * (pny - pdy) * (pnz - pdz) * comp;
 		T *ptr;
 		b64.decode64(node.child_value(), (void **)&ptr, psize * sizeof(T));
-		int k, j, i, z;
 		T* tmp = ptr;
-		for (k = pdz; k < pnz; k++) {
-			for (j = pdy; j < pny; j++) {
-				for (i = pdx; i < pnx; i++) {
-					for (z = 0; z < comp; z++) {
+		for (int z = pdz; z < pnz; z++) {
+			for (int y = pdy; y < pny; y++) {
+				for (int x = pdx; x < pnx; x++) {
+					for (int c = 0; c < comp; c++) {
 						T v = tmp[0];
-						size_t idx = z + comp*(i + nx * (j + ny * (k + 0L)));
-						tab[idx] = v;
+						tab[idx(x,y,z,c)] = v;
 						tmp++;
 					}
 				}
@@ -131,7 +154,6 @@ struct Tabs {
 	std::string filename;
 	std::string path;
 	int dx, dy, dz, nx, ny, nz;
-	size_t size;
 	typedef TabBase* TabBasePtr;
 	typedef std::map<std::string, TabBasePtr> TabMap;
 	TabMap tab;
@@ -150,7 +172,6 @@ struct Tabs {
 			const char *reg;
 			reg = el.attribute("WholeExtent").value();
 			sscanf(reg, "%d %d %d %d %d %d", &dx, &nx, &dy, &ny, &dz, &nz);
-			size = 1L * (nx - dx) * (ny - dy) * (nz - dz);
 		}
 		printf("    Fields: ");
 		pugi::xml_node tcd = el.child("PCellData");
@@ -217,19 +238,21 @@ struct Tabs {
 };
 
 int main(int argc, char *argv[]) {
-	double eps;
-	if (argc < 3) {
-		printf("usage: compare file1.pvti file2.pvti [epsilon]\n");
-		return -1;
-	} else if (argc < 4) {
-		eps = 1e-6;
-	} else {
-		sscanf(argv[3], "%lf", &eps);
+	double eps = 1e-6;
+	int delta_x=0, delta_y=0, delta_z=0;
+	switch (argc) {
+		case 7: sscanf(argv[6], "%d", &delta_z);
+		case 6: sscanf(argv[5], "%d", &delta_y);
+		case 5: sscanf(argv[4], "%d", &delta_x);
+		case 4: sscanf(argv[3], "%lf", &eps);
+		case 3: break;
+		default:
+			printf("usage: compare file1.pvti file2.pvti [epsilon] [delta_x delta_y delta_z]\n");
+			return -1;
 	}
-	printf("epsilon: %lg\n", eps);
-
 	Tabs tabs1(argv[1]);
 	Tabs tabs2(argv[2]);
+	printf("Epsilon: %lg, Delta: %d, %d, %d\n", eps, delta_x, delta_y, delta_z);
 	
 	std::set< std::string > names;
 	for (Tabs::TabMap::iterator it = tabs1.tab.begin(); it != tabs1.tab.end(); it++) names.insert(it->first);
@@ -244,7 +267,7 @@ int main(int argc, char *argv[]) {
 			printf("%s not in second file\n", name.c_str());
 			result = false;
 		} else {
-			double diff = tabs1.tab[name]->compare(tabs2.tab[name]);
+			double diff = tabs1.tab[name]->compare(tabs2.tab[name],delta_x,delta_y,delta_z);
 			printf("%s: Max difference: %lg", name.c_str(), diff);
 			double auto_eps;
 			if (tabs1.tab[name]->ftype == "Float64") {
