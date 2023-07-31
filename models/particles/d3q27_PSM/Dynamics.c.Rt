@@ -486,7 +486,7 @@ CudaDeviceFunction void CalcF() {
 	C( uP, 0)
 	C( sol, 0)
 ?>
-	for (ParticleIterator p(X,Y,Z); p; ++p) {
+	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
         real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                     
