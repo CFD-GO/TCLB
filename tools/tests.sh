@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+PP=$(dirname $0)
 
 function usage {
 	echo "tests.sh [-h] [-r n] [-v] MODEL [TESTS]"
@@ -172,10 +172,10 @@ function runline {
 		;;
 	run) try "running solver" "$@" ;;
 	fail) try "running solver" '!' "$@" ;;
-	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${2:-1e-10}" -d ${3:-Walltime} ;;
+	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${2:-1e-10}" -d ${3:-$CSV_DISCARD} ;;
 	diff) try "checking $R" diff "$R" "$G" ;;
 	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
-	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${2:-8}" ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
+	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${2:-8}" ${3:-} ${4:-} ${5:-} ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
 	*) echo "unknown: $CMD"; return -1;;
 	esac
 	return 0;
@@ -184,18 +184,25 @@ function runline {
 function testModel {
 	for t in $TESTS
 	do		
-		name="${t%.test}"
-		t="$name.test"
-		TDIR="test-$MODEL-$name-$1"
+		TEST="${t%.test}"
+		t="$TEST.test"
+		TDIR="test-$MODEL-$TEST-$1"
 		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="OK"
 		TCLB=".."
 		SOLVER="$TCLB/CLB/$MODEL/main"
 		MODELBIN="$TCLB/CLB/$MODEL"
 		TEST_DIR="../tests/$MODEL"
+		CAN_FAIL=false
+		CSV_DISCARD=Walltime
+		EXC_SH="$PP/etc/test.exceptions.sh"
+		if test -f "$EXC_SH"
+		then
+			source "$EXC_SH"
+		fi
 		if test -f "tests/$MODEL/$t"
 		then
-			echo -e "\n\e[1mRunning $name test...\e[0m"
+			echo -e "\n\e[1mRunning $TEST test...\e[0m"
 			mkdir -p $TDIR		
 			while read -r -u 3 line
 			do
@@ -209,13 +216,18 @@ function testModel {
 			echo "$t: test not found"
 			RESULT="NOT FOUND"
 		fi
-#		echo -n "         Test \"$name\" returned:"
+#		echo -n "         Test \"$TEST\" returned:"
 		if test "x$RESULT" == "xOK"
 		then
-			comment_ok   "$name test finished" "-----"
+			comment_ok   "$TEST test finished" "-----"
 		else
-			comment_fail "$name test finished" "-----"
-			GLOBAL="FAILED"
+			if $CAN_FAIL
+			then
+				comment_fail "$TEST test finished (can fail)" "-----"
+			else			
+				comment_fail "$TEST test finished" "-----"
+				GLOBAL="FAILED"
+			fi
 		fi
 	done
 }
