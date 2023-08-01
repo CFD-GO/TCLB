@@ -62,12 +62,12 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
           double py = solver->lattice->py;
           double pz = solver->lattice->pz;
           solver->lattice->RFI.DeclareSimpleBox(
-            px + reg.dx - PART_MAR,
-            px + reg.dx + reg.nx + PART_MAR,
-            py + reg.dy - PART_MAR,
-            py + reg.dy + reg.ny + PART_MAR,
-            pz + reg.dz - PART_MAR,
-            pz + reg.dz + reg.nz + PART_MAR);
+            px + reg.dx - PART_MAR_BOX,
+            px + reg.dx + reg.nx + PART_MAR_BOX,
+            py + reg.dy - PART_MAR_BOX,
+            py + reg.dy + reg.ny + PART_MAR_BOX,
+            pz + reg.dz - PART_MAR_BOX,
+            pz + reg.dz + reg.nz + PART_MAR_BOX);
         }
         MPI_Barrier(MPMD.local);
         solver->lattice->RFI.Connect(MPMD.work,inter.work);
