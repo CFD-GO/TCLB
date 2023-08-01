@@ -37,8 +37,18 @@ tab2 = read(opt$fileb)
 sel = grepl_any(opt$discard, names(tab2))
 if (any(sel)) tab2=tab2[,!sel]
 
-if ( ! identical(dim(tab1),dim(tab2)) ) { cat("dimensions not identical\n"); q(status=-1); }
-if ( ! identical(sort(names(tab1)), sort(names(tab2))) ) { cat("names (header) not identical\n"); q(status=-2); }
+if ( ! identical(dim(tab1),dim(tab2)) ) {
+	cat("dimensions not identical:\n")
+	print(dim(tab1))
+	print(dim(tab2))
+	q(status=-1)
+}
+if ( ! identical(sort(names(tab1)), sort(names(tab2))) ) {
+	cat("names (header) not identical:\n")
+	print(sort(names(tab1)))
+	print(sort(names(tab2)))
+	q(status=-2)
+}
 
 ret = TRUE
 for (i in names(tab1)) {
