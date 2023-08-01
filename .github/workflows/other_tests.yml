@@ -29,7 +29,7 @@ jobs:
       shell: bash
       run: |
         cd tests/${{ matrix.test }}
-        make
+        make ADD_FLAGS="-fprofile-arcs -ftest-coverage"
     - name: Run
       shell: bash
       run: |

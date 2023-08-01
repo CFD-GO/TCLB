@@ -3,6 +3,7 @@ SRC = ../../src/
 CXXFLAGS += -I$(SRC)
 CXXFLAGS += -Wall -Wno-unused-but-set-variable -Wno-unused-variable
 CXXFLAGS += -Werror -Wno-unknown-warning-option
+CXXFLAGS += $(ADD_FLAGS)
 
 all: main
 
@@ -13,4 +14,4 @@ main.o: main.cpp $(SRC)/SolidTree.hpp $(SRC)/SolidTree.h $(SRC)/SolidGrid.h $(SR
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 main: main.o
-	$(CXX) -o $@ $^
+	$(CXX) $(ADD_FLAGS) -o $@ $^
