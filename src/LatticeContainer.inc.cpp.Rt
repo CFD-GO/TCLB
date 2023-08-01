@@ -249,7 +249,7 @@ if (tmaxz > tminz) for (z in tminz:tmaxz) if (z != 0) { ?>
 	} else if (z < 0) { ?>
 		z_ = constContainer.nz - <?%d -z ?>; <?R
 	} ?>
-    if (y_ >= constContainer.fz) return;
+    if (y_ >= constContainer.fy) return;
 		break; <?R
 	i = i + 1;
 } ?>
