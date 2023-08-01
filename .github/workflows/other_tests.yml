@@ -1,0 +1,46 @@
+name: TESTS
+
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test: 
+          - solid
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install dependencies
+      uses: ./.github/actions/install
+      with:
+        essentials: true
+        r: false
+        rdep: false
+        cuda: false
+        hip: false
+        openmpi: false
+        lcov: true
+    - name: Compile
+      shell: bash
+      run: |
+        cd tests/${{ matrix.test }}
+        make ADD_FLAGS="-fprofile-arcs -ftest-coverage"
+    - name: Run
+      shell: bash
+      run: |
+        cd tests/${{ matrix.test }}
+        make run
+    - name: Gather coverage data
+      uses: ./.github/actions/coverage
+      id: coverage
+    - name: Send coverage data
+      uses: codecov/codecov-action@v3
+      if: steps.coverage.outputs.reports != ''
+      with:
+        files: ${{ steps.coverage.outputs.reports }}
+        flags: ${{ matrix.model }}
