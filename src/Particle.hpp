@@ -109,17 +109,42 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
 	typedef typename solidcontainer_t::set_found_t< ParticleS< PART_SYNC > > set_found_t;
 #endif
 
+template <class T>
+CudaDeviceFunction T ParticleIteratorXBlockT(real_t x, real_t y, real_t z) {
+	real_t mar = PART_MAR;
+	real_t point[3] = {x,y,z};
+	real_t lower[3] = {x-CudaThread.x-mar,y-mar,z-mar};
+	real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1.0f+mar,y+mar,z+mar};
+	return T(constContainer.solidfinder, point, lower, upper);
+}
+
+template <class T>
+CudaDeviceFunction T ParticleIteratorT(real_t x, real_t y, real_t z) {
+	real_t mar = PART_MAR;
+	real_t point[3] = {x,y,z};
+	real_t lower[3] = {x-mar,y-mar,z-mar};
+	real_t upper[3] = {x+mar,y+mar,z+mar};
+	return T(constContainer.solidfinder, point, lower, upper);
+}
+
+#ifdef SOLID_CACHE
+	typedef typename solidcontainer_t::cache_set_found_t< ParticleS< PART_SYNC >, SOLID_CACHE > set_found_t_s;
+	typedef typename solidcontainer_t::cache_set_found_t< ParticleI, SOLID_CACHE > set_found_t_i;
+#else
+	typedef typename solidcontainer_t::set_found_t< ParticleS< PART_SYNC > > set_found_t_s;
+	typedef typename solidcontainer_t::set_found_t< ParticleI > set_found_t_i;
+#endif
+
 #ifdef USE_ADDOPP
-	CudaDeviceFunction set_found_t SyncParticleIterator(real_t x, real_t y, real_t z) {
-		real_t point[3] = {x,y,z};
-		return set_found_t(constContainer.solidfinder, point, point, point);
+	CudaDeviceFunction set_found_t_s SyncParticleIterator(real_t x, real_t y, real_t z) {
+		return ParticleIteratorT< set_found_t_s >(x,y,z);
 	}
 #else
-	CudaDeviceFunction set_found_t SyncParticleIterator(real_t x, real_t y, real_t z) {
-		real_t mar = PART_MAR;
-		real_t point[3] = {x,y,z};
-		real_t lower[3] = {x-CudaThread.x-mar,y-mar,z-mar};
-		real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1.0f+mar,y+mar,z+mar};
-		return set_found_t(constContainer.solidfinder, point, lower, upper);
+	CudaDeviceFunction set_found_t_s SyncParticleIterator(real_t x, real_t y, real_t z) {
+		return ParticleIteratorXBlockT< set_found_t_s >(x,y,z);
 	}
 #endif
+
+CudaDeviceFunction set_found_t_i ParticleIterator(real_t x, real_t y, real_t z) {
+	return ParticleIteratorT< set_found_t_i >(x,y,z);
+}
