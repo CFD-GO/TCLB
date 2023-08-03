@@ -21,7 +21,7 @@
 ?>
 
 CudaDeviceFunction void CalcF(){
-	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
+	for (auto p : SyncParticleIterator(X,Y,Z)) {
 	if ((NodeType & NODE_BOUNDARY) == 0) {
 	real_t d = getRho();
         vector_t u;

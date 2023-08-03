@@ -1,17 +1,23 @@
-#include "Consts.h"
-#include "types.h"
-#include <stdio.h>
-
-#ifndef __CUDACC__
-  #ifndef CROSS_HIP
-    #define CROSS_CPP
-  #endif
-#endif
+//
+// Header for cross-compilation.
+//   Default platform is nVidia CUDA
+//   macro switches:
+//     CROSS_CPU - cross-compilation for CPU
+//     CROSS_HIP - cross-compilation for AMD ROCm (HIP)
+//   additionals:
+//     CROSS_SYNC - make all call synchronious
+#include "../config.h"
 
 #ifndef CROSS_H
+  #define CROSS_H
 
   #ifndef CROSS_CPU
-  
+    #ifndef __CUDACC__
+      #ifndef CROSS_HIP
+        // We are compiling code for CUDA, but we're compiling this compilation unit with non-cuda compiler
+        #define CROSS_CPP  
+      #endif
+    #endif
     #ifdef CROSS_HIP
      #include <hip/hip_runtime.h>
     #endif
@@ -25,9 +31,7 @@
       #define CudaConstantMemory
       template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
       template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
-      inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     #else
-//      #include "../../cub/cub/cub.cuh"
       #define CudaDeviceFunction __device__
       #define CudaHostFunction __host__
       #define CudaGlobalFunction __global__
@@ -45,7 +49,7 @@
         #elif CUDART_VERSION >= 7000
               #define CudaSyncWarpOr(x__) __any(b);
         #else
-              #warning "no atomicSumWarp for this CUDA version"
+              #warning "no CudaAtomicAddReduceWarp for this CUDA version"
         #endif
       #endif
       
@@ -177,8 +181,6 @@
 
     CudaError HandleError( CudaError err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
-    int GetMaxThreads();
-    #define RunKernelMaxThreads (GetMaxThreads())
     #define ISFINITE(l__) isfinite(l__)
   #else
     #include <assert.h>
@@ -191,7 +193,6 @@
     #endif
     template <class T> inline const T& max (const T& x, const T& y) { return x < y ? y : x; };
     template <class T> inline const T& min (const T& x, const T& y) { return x > y ? y : x; };
-    inline const real_t max (const real_t& x, const real_t& y) { return x < y ? y : x; };
     struct float2 { float x,y; };
     struct float3 { float x,y,z; };
     struct double2 { double x,y; };
@@ -264,7 +265,7 @@
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
     #define CudaMemcpyAsync(a__,b__,c__,d__,e__) CudaMemcpy(a__, b__, c__, d__)
     #define CudaMemset(a__,b__,c__) memset(a__, b__, c__)
-    #define CudaMalloc(a__,b__) (assert( (*((void**)(a__)) = malloc(b__)) != NULL ), CudaSuccess)
+    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
     #define CudaFree(a__) free(a__)
     #define CudaFreeHost(a__) free(a__)
@@ -303,7 +304,12 @@
     extern uint3 CpuSize;
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
-    template <class T, class P> inline T data_cast(const P& x) { static_assert(sizeof(T)==sizeof(P),"Wrong sizes in data_cast"); T ret; memcpy(&ret, &x, sizeof(T)); return ret; }
+    template <class T, class P> inline T data_cast(const P& x) {
+      static_assert(sizeof(T)==sizeof(P),"Wrong sizes in data_cast");
+      T ret;
+      memcpy(&ret, &x, sizeof(T));
+      return ret;
+    }
 
     #define __short_as_half(x__)      data_cast<half          , short int     >(x__)
     #define __half_as_short(x__)      data_cast<short int     , half          >(x__)
@@ -312,53 +318,23 @@
     #define __longlong_as_double(x__) data_cast<double        , long long int >(x__)
     #define __double_as_longlong(x__) data_cast<long long int , double        >(x__)
 
-//    inline float __int_as_float(int v) { return *reinterpret_cast< float* >(&v); }
-//    inline int __float_as_int(float v) { return *reinterpret_cast< int* >(&v); }
-//    inline double __longlong_as_double(long long int v) { return *reinterpret_cast< double* >(&v); }
-//    inline long long int __double_as_longlong(double v) { return *reinterpret_cast< long long int* >(&v); }
+    template <typename T> inline void CudaAtomicAdd(T * sum, T val) { sum[0] += val; }
+    template <typename T> inline void CudaAtomicAddReduce(T * sum, T val) { sum[0] += val; }
+    template <typename T> inline void CudaAtomicAddReduceWarp(T * sum, T val) { sum[0] += val; }
+    template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) sum[0] += val; }
+    template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
 
-    inline real_t blockSum(real_t val) {
-      return val;
+    template <int LEN, typename T>
+    inline void CudaAtomicAddReduceWarpArr(T * sum, T val[LEN]) {
+      for (unsigned char i = 0; i < LEN; i ++) sum[i] += val[i];
     }
 
-    template <typename T>
-    inline void atomicSum(T * sum, T val)
-    {
-      sum[0] += val;
-    }
-
-    template <typename T>
-    inline void atomicSumWarp(T * sum, T val)
-    {
-      sum[0] += val;
-    }
-
-    template <typename T>
-    inline void atomicSumWarpArr(T * sum, T * val, unsigned char len)
-    {
-      for (unsigned char i = 0; i < len; i ++) sum[i] += val[i];
-    }
-
-//    template <typename T>
-    inline void atomicSumDiff(real_t * sum, real_t val, bool yes)
-      {
-        if (yes) sum[0] += val;
-      }
-
-
-    template <typename T>
-    inline void atomicMaxReduce(T * sum, T val)
-    {
-      if (val > sum[0]) sum[0] = val;
-    }
   #define ISFINITE(l__) std::isfinite(l__)
 
   #endif
 
-    CudaError cudaPreAlloc(void ** ptr, size_t size);
-    CudaError cudaAllocFinalize();
-    CudaError cudaAllocFreeAll();
-  
-#endif
-#define CROSS_H
+  CudaError cudaPreAlloc(void ** ptr, size_t size);
+  CudaError cudaAllocFinalize();
+  CudaError cudaAllocFreeAll();
 
+#endif // CROSS_H

@@ -89,6 +89,18 @@ AC_ARG_WITH([lammps-lib],
 	AS_HELP_STRING([--with-lammps-lib=libfile],
 		[specify the name of the lammps/liggghts library (.so/.a)]))
 
+AC_ARG_WITH([solid_container],
+	AS_HELP_STRING([--with-solid-container=type],
+		[type of solid (particle) container to use: all/tree/grid]))
+
+AC_ARG_WITH([solid_cache],
+	AS_HELP_STRING([--with-solid-cache=N],
+		[if to use cache of size N for solid (particle) data]))
+
+AC_ARG_ENABLE([opp],
+	AS_HELP_STRING([--enable-opp=N],
+		[enable opportunistic operations]))
+
 AC_ARG_WITH([tapenade],
 	AS_HELP_STRING([--with-tapenade=path],
 		[use tapenade for code differentiation for adjoint]))
@@ -353,6 +365,11 @@ else
 		LDFLAGS="${CPPFLAGS} $OPENMP"
 		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
+fi
+
+if test "x${enable_opp}" == "xyes"
+then
+	AC_DEFINE([USE_ADDOPP], [1], [Opportunistic warp level operations])
 fi
 
 AC_MSG_CHECKING([MPI include path])
@@ -663,6 +680,30 @@ then
 	AC_CHECK_LIB([$LAMMPS_LIB_NAME],[lammps_open], [], [AC_MSG_ERROR([Cannot link with $LAMMPS_LIB_NAME])])
 	WITH_LAMMPS=1
 fi
+
+if test "x${with_solid_container}" == "x"
+then
+	with_solid_container="grid"
+fi
+
+if test "x${with_solid_container}" == "xall"
+then
+	AC_DEFINE([SOLID_CONTAINER], [1], [Using all container])
+elif test "x${with_solid_container}" == "xtree"
+then
+	AC_DEFINE([SOLID_CONTAINER], [2], [Using tree container])
+elif test "x${with_solid_container}" == "xgrid"
+then
+	AC_DEFINE([SOLID_CONTAINER], [3], [Using grid container])
+else
+	AC_MSG_ERROR([Not suppported type of storage: x${with_storage}])
+fi
+
+if test "x${with_solid_cache}" != "x"
+then
+	AC_DEFINE_UNQUOTED([SOLID_CACHE], ${with_solid_cache}, [Using solid cache])
+fi
+
 
 if test "x${with_r}" == "x"
 then

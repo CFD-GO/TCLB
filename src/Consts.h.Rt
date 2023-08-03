@@ -22,6 +22,9 @@
   #define X_BLOCK 32
 #endif
 
+#define PART_MAR <?%f PartMargin ?>
+#define PART_MAR_BOX <?%f max(0,PartMargin-0.5) ?>
+
 <?R
   big_hex = function(x,bits=16) {
     ret = ""

@@ -5,10 +5,10 @@
 #include <vector>
 #include <set>
 #include <math.h>
-#include "BallTree.h"
+#include "SolidTree.h"
 
 template <class BALLS>
-int BallTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
+int SolidTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
     if (i == (--j)) return i;
     while (true) {
         while (balls->getPos(nr[i],dir) <= thr) if ((++i) == j) return i;
@@ -22,7 +22,7 @@ int BallTree<BALLS>::half (int i, int j, int dir, tr_real_t thr) {
 }
 
 template <class BALLS>
-tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
+tr_addr_t SolidTree<BALLS>::build (int ind, int n, int back) {
 //    printf("tree build(%d %d %d)\n", ind, n, back);
     int node = tree.size();
     tr_elem elem;
@@ -84,14 +84,31 @@ tr_addr_t BallTree<BALLS>::build (int ind, int n, int back) {
     return node;
 }
 
+
 template <class BALLS>
-bool BallTree<BALLS>::inBall(tr_addr_t ind, tr_real_t* p) {
-        tr_real_t r = 0;
-        for (int i=0; i<3; i++) {
-            tr_real_t d = balls->getPos(ind,i) - p[i];
-            r += d*d;
-        }
-        tr_real_t r2 = balls->getRad(ind);
-        return (r < r2*r2);
+void SolidTree<BALLS>::InitFinder (typename SolidTree<BALLS>::finder_t& finder) {
+    data_size_max = 0;
+	finder.data = NULL;
+	finder.data_size = 0;
 }
 
+template <class BALLS>
+void SolidTree<BALLS>::CleanFinder (typename SolidTree<BALLS>::finder_t& finder) {
+    data_size_max = 0;
+	if (finder.data != NULL) CudaFree(finder.data);
+	finder.data_size = 0;
+}
+
+
+template <class BALLS>
+void SolidTree<BALLS>::CopyToGPU (typename SolidTree<BALLS>::finder_t& finder, CudaStream_t stream) {
+    if (tree.size() > data_size_max) {
+        if (finder.data != NULL) CudaFree(finder.data);
+        data_size_max = tree.size();
+        CudaMalloc(&finder.data, tree.size() * sizeof(tr_elem));
+    }
+    finder.data_size = tree.size();
+    if (tree.size() > 0) {
+        CudaMemcpyAsync(finder.data, (tr_elem*) &tree[0], tree.size() * sizeof(tr_elem), CudaMemcpyHostToDevice, stream);
+    }
+}

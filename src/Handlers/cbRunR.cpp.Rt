@@ -486,6 +486,7 @@ class rInfo: public rWrapper {
 			return ret;
 		}
 		ERROR("R: Not implemented!");
+		return ret;
 	}
 
 	Rcpp::CharacterVector Names() {

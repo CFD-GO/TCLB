@@ -122,7 +122,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
    } else if (access == "add") { ?>
         <?%s m ?>[<?R C(off,float=FALSE) ?>] += <?%s d ?>; <?R
    } else if (access == "atomicadd") { ?>
-        atomicAddP(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
+        CudaAtomicAdd(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
    } else stop("Unknown access type in field.access.one");
   }
 

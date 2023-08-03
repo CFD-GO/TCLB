@@ -100,7 +100,9 @@ ZoneSettings = data.frame()
 Quantities = data.frame()
 NodeTypes = data.frame()
 Fields = data.frame()
-Stages=NULL
+Stages = NULL
+
+PartMargin=NA
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
                       optimise_for_static_access=TRUE) {
@@ -330,7 +332,7 @@ AddDescription = function(short, long) {
 }
 
 
-AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE) {
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE, particle.margin) {
 	s = data.frame(
 		name = name,
 		main = main,
@@ -352,6 +354,10 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no
 		}
 		s$tag = paste("S",s$index,sep="__")
 		Stages <<- rbind(Stages,s)
+	}
+	if (! missing(particle.margin)) {
+		if (! particle) stop("particle.margin declared in a stage, but particle=FALSE")
+		PartMargin <<- max(PartMargin,particle.margin,na.rm=TRUE)
 	}
 	if (is.character(load.densities)) {
 		sel = load.densities %in% DensityAll$name
@@ -694,6 +700,7 @@ Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel]
 
 Globals = Globals[order(Globals$op),]
 
+if (is.na(PartMargin)) PartMargin = 0.5
 
 Consts = NULL
 for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings")) {

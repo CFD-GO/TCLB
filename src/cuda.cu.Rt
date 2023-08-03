@@ -202,9 +202,9 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
         for (g in rows(Globs)) if (!g$zonal) {
 		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
                 if (g$op == "SUM") { ?>
-                atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+                CudaAtomicAddReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 } else if (g$op == "MAX") { ?>
-                atomicMaxReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
+                CudaAtomicMaxReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
                 }
         } ?>
 	}
@@ -214,7 +214,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
         for (g in rows(Globs)) if (g$zonal) {
 		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-                atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
+                CudaAtomicAddReduceDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
         } ?>
 		}
 	<?R } ?>
@@ -224,7 +224,7 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
         for (g in rows(Globs)) if (g$zonal) {
 		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-                atomicSumDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
+                CudaAtomicAddReduceDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
         } ?>
 		}
 	<?R } ?> 
