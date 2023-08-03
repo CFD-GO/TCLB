@@ -367,11 +367,11 @@ CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>_adj(
 <?R if (Options$autosym) { ?> //-------------- autosym
 
 template < class PARENT >
-class LatticeAccessSym : public PARENT {
+class SymmetryAccess : public PARENT {
   typedef PARENT parent;
   public:
   template <typename... Args>
-  CudaDeviceFunction LatticeAccessSym(Args&&... args) : parent(std::forward<Args>(args)...) { }
+  CudaDeviceFunction SymmetryAccess(Args&&... args) : parent(std::forward<Args>(args)...) { }
 
 <?R for (f in rows(Fields)) { ?>
 private:
@@ -417,7 +417,7 @@ public:
 ?>
 template < class PARENT >
 template <class dx_t, class dy_t, class dz_t>
-CudaDeviceFunction real_t LatticeAccessSym< PARENT >::<?%s paste0(this_fun, f$nicename) ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
+CudaDeviceFunction real_t SymmetryAccess< PARENT >::<?%s paste0(this_fun, f$nicename) ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
 {
   <?R if (paste0("SYM",ch[i]) %in% NodeTypes$group) { ?>
   if (<?R C(d[i]) ?> > range_int<0>()) {
@@ -438,7 +438,7 @@ CudaDeviceFunction real_t LatticeAccessSym< PARENT >::<?%s paste0(this_fun, f$ni
 <?R for (s in rows(all_stages)) { ?>
 template < class PARENT >
 template <class N>
-CudaDeviceFunction void LatticeAccessSym< PARENT >::pop<?%s s$suffix ?>(N & node) const
+CudaDeviceFunction void SymmetryAccess< PARENT >::pop<?%s s$suffix ?>(N & node) const
 {
   parent::pop<?%s s$suffix ?>(node);
   <?R resolve.symmetries(Density[s$load.densities,,drop=FALSE]) ?>
@@ -446,11 +446,11 @@ CudaDeviceFunction void LatticeAccessSym< PARENT >::pop<?%s s$suffix ?>(N & node
 <?R } } ?>
 
 template < class PARENT >
-class LatticeAccessDyn : public PARENT {
+class DynamicAccess : public PARENT {
   typedef PARENT parent;
   public:
   template <typename... Args>
-  CudaDeviceFunction LatticeAccessDyn(Args&&... args) : parent(std::forward<Args>(args)...) { }
+  CudaDeviceFunction DynamicAccess(Args&&... args) : parent(std::forward<Args>(args)...) { }
 <?R for (f in rows(Fields)) { ?>
 public:
   template <class dx_t, class dy_t, class dz_t>
@@ -467,3 +467,13 @@ public:
   }
 <?R } ?>
 };
+
+<?R
+  composite = c("DynamicAccess")
+  if (Options$autosym) composite = c(composite, "SymmetryAccess")
+  str = "ACC"
+  for (i in rev(composite)) str = paste0(i,"< ",str, " >")
+?>
+template < class ACC >
+using AccessComposite = <?%s str ?>;
+
