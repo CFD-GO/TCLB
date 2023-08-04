@@ -14,6 +14,10 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
+if (!exists("X_MOD")) X_MOD=0
+
+memory_arr_cpu = FALSE
+memory_arr_mod = X_MOD
 
 # SYMALGEBRA=TRUE
 
@@ -217,7 +221,7 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 }
 
 
-AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, preload=TRUE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (any(unit == "")) stop("Empty unit in AddSetting not allowed")
 	if (missing(comment)) {
@@ -244,6 +248,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 		unit=unit,
 		default=default,
 		adjoint=adjoint,
+		preload=preload,
 		comment=comment
 	)
 	if (zonal) {
@@ -595,10 +600,25 @@ if (ADJOINT==1) {
 	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
 	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
 }
-	for (g in rows(Globals)) if (! g$adjoint){
+
+AddGlobal(name="Objective",comment="Objective function");
+
+
+tmp_c = Globals[Globals$op != "SUM",,drop=FALSE]; tmp_c = tmp_c[order(tmp_c$op),,drop=FALSE]
+tmp_b = Globals[Globals$name == "Objective",,drop=FALSE]
+tmp_a = Globals[Globals$op == "SUM" & Globals$name != "Objective",,drop=FALSE]
+
+Globals = rbind(tmp_a,tmp_b,tmp_c)
+SumGlobals = sum(Globals$op == "SUM")
+ObjGlobalsIdx = which(Globals$name == "Objective")
+
+if (any(Globals$op[seq_len(SumGlobals)] != "SUM")) stop("Something went wrong with ordering of globals")
+
+	for (g in rows(Globals)[Globals$op == "SUM" & Globals$name != "Objective"]) if (! g$adjoint){
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
 			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
+			preload=FALSE,
 			adjoint=T,
 			zonal=T
 		)
@@ -611,8 +631,6 @@ DensityAD = DensityAll[  DensityAll$adjoint, ]
 Fields$nicename = gsub("[][ ]","",Fields$name)
 
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
-
-AddGlobal(name="Objective",comment="Objective function");
 
 Margin = data.frame(
 	name = paste("block",1:27,sep=""),
@@ -698,7 +716,6 @@ Dispatch = cbind(
 sel = Dispatch$stage
 Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel], sep="")
 
-Globals = Globals[order(Globals$op),]
 
 if (is.na(PartMargin)) PartMargin = 0.5
 
@@ -711,11 +728,26 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 		v$index = 1:nrow(v)-1
 		v$nicename = gsub("[][ ]","",v$name)
 		v$Index = paste(" ",toupper(n), "_", v$nicename, " ", sep="")
+		row.names(v) = v$name
 		Consts = rbind(Consts, data.frame(name=v$Index, value=v$index));
 		assign(n,v)
 	}
 	assign(n,v)
 }
+
+ret = merge(
+	data.frame(name = paste0(Globals$name,"InObj"), glob.idx=Globals$index),
+	data.frame(name = ZoneSettings$name, set.idx=ZoneSettings$index)
+)
+if (nrow(ret) > 0) {
+	InObjOffset = ret$set.idx - ret$glob.idx
+	if (any(InObjOffset != InObjOffset[1])) stop("Not all InObj offsets are the same. this should not happen")
+	InObjOffset = InObjOffset[1]
+} else {
+	InObjOffset = 0
+}
+Consts = rbind(Consts, data.frame(name="IN_OBJ_OFFSET",value=InObjOffset))
+Consts = rbind(Consts, data.frame(name="SUM_GLOBALS",value=SumGlobals))
 Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
 Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
@@ -725,10 +757,12 @@ Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSetti
 Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
 Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
 
-offsets = function(d2=FALSE, cpu=FALSE) {
-  def.cpu = cpu
+is.power.of.two = function(x) { 2^floor(log(x)/log(2))-x != 0 }
+
+if (is.power.of.two(memory_arr_mod)) stop("memory_arr_mod has to be a power of 2")
+
+offsets = function() {
   mw = PV(c("nx","ny","nz"))
-  if2d3d = c(FALSE,FALSE,d2 == TRUE)
   one = PV(c(1L,1L,1L))
   bp = expand.grid(x=1:3,y=1:3,z=1:3)
   p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
@@ -736,7 +770,6 @@ offsets = function(d2=FALSE, cpu=FALSE) {
   tab2 = c(0,-1,1)
   get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
   sizes = c(one,mw,one)
-  sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
   size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
   MarginNSize = PV(rep(0L,27))
   calc.functions = function(f) {
@@ -750,14 +783,12 @@ offsets = function(d2=FALSE, cpu=FALSE) {
     mins = pmin(mins,0)
     maxs = pmax(maxs,0)
     nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
-    if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-    if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
     nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
     mSize = MarginNSize
     MarginNSize <<- mSize + nsize
-    offset.p = function(positions,cpu) {
-      positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
-      if (cpu) {
+    offset.p = function(positions) {
+      positions[c(mins > -2, c(FALSE,FALSE,FALSE), maxs < 2)] = PV(0L)
+      if (memory_arr_cpu) {
         offset =  (positions[p$x] +
                      (positions[p$y] +
                         (positions[p$z]
@@ -765,38 +796,56 @@ offsets = function(d2=FALSE, cpu=FALSE) {
                      ) * sizes[p$x] * nsizes[p$x]
         ) * MarginNSize +
           mSize
+      } else if (memory_arr_mod != 0) {
+		positions__x = positions[p$x]
+		positions_nx  = sizes[p$x]*nsizes[p$x]
+		positions__x_mod = PV("((",ToC(positions__x),")&",memory_arr_mod-1,")")
+		positions__x_div = (positions__x - positions__x_mod)*(1/memory_arr_mod)
+		positions_nx_mod = PV(rep(memory_arr_mod, nrow(p)))
+		positions_nx_div = positions_nx*(1/memory_arr_mod)
+		sel = is.zero(positions_nx - PV(1L))
+		dim(sel) = NULL
+		positions__x_mod[sel] = positions__x[sel]
+		positions__x_div[sel] = PV(0L)
+		positions_nx_mod[sel] = positions_nx[sel]
+		positions_nx_div[sel] = PV(1L)
+		offset = positions__x_mod + positions_nx_mod*(
+			positions[p$y] + sizes[p$y]*nsizes[p$y]*(
+				positions__x_div + positions_nx_div*(
+					positions[p$z]
+				)
+			)
+		) + mSize * size
       } else {
-        offset =   positions[p$x] +
-          (positions[p$y] +
-             (positions[p$z]
-             ) * sizes[p$y] * nsizes[p$y]
-          ) * sizes[p$x] * nsizes[p$x] +
-          mSize * size
-      }
+		offset = positions[p$x] + sizes[p$x]*nsizes[p$x]*(
+			positions[p$y] + sizes[p$y]*nsizes[p$y]*(
+				positions[p$z]
+			)
+		) + mSize * size	
+	  }
+	  sel = is.zero(nsize)
+	  dim(sel) = NULL
+      offset[sel] = PV("NA")
       offset
     }
     list(get_offsets = 
-      function(w,dw,cpu=def.cpu) {
-	if (is.numeric(dw)) {
-          tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-          tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-          tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
-	  dw = PV(as.integer(dw))
-	} else {
-          tab1 = c(1,1,1,-1,-1,-1,0,0,0)
-          tab2 = c(0,0,0,-1,-1,-1,1,1,1)
-          tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
-	}
-	mins = PV(as.integer(mins))
+      function(w,dw) {
+		if (is.numeric(dw)) dw = PV(as.integer(dw))
+		dw_neg = sapply(1:3, function(i) { if (is.numeric(dw[[i]])) dw[[i]]<0 else mins[i]<0 })
+		dw_pos = sapply(1:3, function(i) { if (is.numeric(dw[[i]])) dw[[i]]>0 else maxs[i]>0 })
+		tab1 = c(ifelse(dw_neg,1,0),ifelse(dw_neg,-1,0),0,0,0)
+		tab2 = c(0,0,0,ifelse(dw_pos,-1,0),ifelse(dw_pos,1,0))
+		tab3 = c(dw_neg,TRUE,TRUE,TRUE,dw_pos)
+		mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw),cpu=cpu)
+        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw))
         cond = c(w+dw,mw-w-dw-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
       },
       put_offsets = 
-      function(w,cpu=def.cpu) {
-        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
+      function(w) {
+        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w))
         cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
         list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
       },
@@ -817,7 +866,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 }
 
 if (NEED_OFFSETS) {
-    ret = offsets(cpu=FALSE)
+    ret = offsets()
     Fields = ret$Fields
     for (i in 1:length(Margin)) {
             Margin[[i]]$Size = ret$MarginSizes[i]
@@ -831,6 +880,16 @@ if (NEED_OFFSETS) {
     NonEmptyMargin = sapply(Margin, function(m) m$size != 0)
     NonEmptyMargin = Margin[NonEmptyMargin]
 }
+
+BorderMargin = data.frame(
+	name = c("x","y","z"),
+	min  = c(min(0,Fields$minx),min(0,Fields$miny),min(0,Fields$minz)),
+    max  = c(max(0,Fields$maxx),max(0,Fields$maxy),max(0,Fields$maxz))
+)
+BorderMargin$min[1] = 0  # We do not separate border in X direction.
+BorderMargin$max[1] = 0
+
+
 
 Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),

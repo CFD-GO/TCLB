@@ -104,7 +104,6 @@ AC_ARG_ENABLE([opp],
 AC_ARG_WITH([tapenade],
 	AS_HELP_STRING([--with-tapenade=path],
 		[use tapenade for code differentiation for adjoint]))
-		
 
 AC_ARG_WITH([verbosity_level],
 	AS_HELP_STRING([--with-verbosity-level=level],
@@ -145,6 +144,17 @@ AC_ARG_WITH([python_config],
 AC_ARG_WITH([python_bin],
 	AS_HELP_STRING([--with-python-bin],
 		[Set python binary to call]))
+
+AC_ARG_WITH([x-block],
+	AS_HELP_STRING([--with-x-block],
+		[Set the block size in the x direction (X_BLOCK) (default=32)]))
+AC_ARG_WITH([x-mod],
+	AS_HELP_STRING([--with-x-mod],
+		[Set the value used for dividing the memory arrangement in the x direction (default=none)]))
+AC_ARG_WITH([warp-size],
+	AS_HELP_STRING([--with-warp-size],
+		[Set the value used for the warp size]))
+
 
 AC_ARG_ENABLE([paranoid],
 	AS_HELP_STRING([--enable-paranoid],
@@ -200,6 +210,9 @@ AC_PROG_CXX
 AC_CHECK_HEADERS([float.h stddef.h stdint.h stdlib.h string.h wchar.h],[],[AC_MSG_ERROR([Cannot find standart headers])])
 AC_CHECK_LIB([m], [sqrt],[],[AC_MSG_ERROR([Didn't find math Library])])
 
+AC_CHECK_HEADERS([cxxabi.h],[AC_DEFINE([HAS_CXXABI_H], [1], [Has demangle])],[AC_MSG_RESULT([Didn't find cxxabi.h])])
+
+
 if test "x${enable_double}" != "xno"
 then
 	AC_DEFINE([CALC_DOUBLE_PRECISION], [1], [Making a double precision version])
@@ -241,6 +254,18 @@ then
 		AC_MSG_ERROR([Cannot make GLUT graphics with HIP version])
 	fi
 	AC_DEFINE([GRID3D], [1], [Using 3D block grid in HIP])
+	if test "x${with_x_block}" != "x"
+	then
+		AC_DEFINE_UNQUOTED([X_BLOCK], ${with_x_block}, [Using X block from --with-x-block])
+	else
+		AC_DEFINE([X_BLOCK], [32], [Using standard X block])
+	fi
+	if test "x${with_warp_size}" != "x"
+	then
+		AC_DEFINE_UNQUOTED([WARPSIZE], ${with_warp_size}, [Using warp size from --with-warp-size])
+	else
+		AC_DEFINE([WARPSIZE], [32], [Using 32 warpsize to have warp primitives work with x block])
+	fi
 elif test "x${enable_cuda}" != "xno"
 then
 
@@ -352,6 +377,18 @@ then
 	then
 		AC_MSG_ERROR([Cannot make OpenMP support with GPU version])
 	fi
+	if test "x${with_x_block}" != "x"
+	then
+		AC_DEFINE_UNQUOTED([X_BLOCK], ${with_x_block}, [Using X block from --with-x-block])
+	else
+		AC_DEFINE([X_BLOCK], [32], [Using standard X block])
+	fi
+	if test "x${with_warp_size}" != "x"
+	then
+		AC_DEFINE_UNQUOTED([WARPSIZE], ${with_warp_size}, [Using warp size from --with-warp-size])
+	else
+		AC_DEFINE([WARPSIZE], [32], [Using the CUDA standard 32 warp size])
+	fi
 else
 	AC_DEFINE([CROSS_CPU], [1], [Making a CPU version])
 	CROSS_CPU=1
@@ -365,6 +402,30 @@ else
 		LDFLAGS="${CPPFLAGS} $OPENMP"
 		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
+	if test "x${with_x_block}" != "x"
+	then
+		if test "x${with_x_block}" != "x1"
+		then
+			AC_MSG_ERROR([x-block size not supported for CPU])
+		fi
+	fi
+	AC_DEFINE([X_BLOCK], [1], [Using standard X block])
+	if test "x${with_warp_size}" != "x"
+	then
+		if test "x${with_warp_size}" != "x1"
+		then
+			AC_MSG_ERROR([warp size size not supported for CPU])
+		fi
+	fi
+	AC_DEFINE([WARPSIZE], [1], [Using the CUDA standard 32 warp size])
+	AC_DEFINE([GRID3D], [1], [Using 3D block grid in HIP])
+fi
+
+if test "x${with_x_mod}" != "x"
+then
+	X_MOD="${with_x_mod}"
+else
+	X_MOD="0"
 fi
 
 if test "x${enable_opp}" == "xyes"
@@ -920,8 +981,6 @@ AC_MSG_RESULT([CPPFLAGS : $CPPFLAGS])
 AC_MSG_RESULT([LDFLAGS  : $LDFLAGS])
 AC_MSG_RESULT([NVFLAGS  : $NVFLAGS])
 
-
-
 AC_SUBST(CP)
 AC_SUBST(NVFLAGS)
 AC_SUBST(CROSS_CPU)
@@ -937,7 +996,23 @@ AC_SUBST(TAPENADE)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
 AC_SUBST(EMBEDED_PYTHON)
+AC_SUBST(X_BLOCK)
+AC_SUBST(WARPSIZE)
+AC_SUBST(X_MOD)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
+AC_CONFIG_FILES([CLB/config.R_:src/config.R.in])
 AC_CONFIG_FILES([config.main.mk:src/config.main.mk.in])
 AC_OUTPUT
+
+if test -f "CLB/config.R"
+then
+	if diff "CLB/config.R" "CLB/config.R_" >/dev/null 2>&1
+	then
+		echo "CLB/config.R unchanged"
+	else
+		mv CLB/config.R_ CLB/config.R
+	fi
+else
+	mv CLB/config.R_ CLB/config.R
+fi

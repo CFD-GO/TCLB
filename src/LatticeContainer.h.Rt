@@ -49,10 +49,7 @@ class LatticeContainer {
   real_t* particle_data;
   solidcontainer_t::finder_t solidfinder;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
-  int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
-  int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
-  int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
   real_t px,py,pz;
   int reset_iter; //< number of last average reset,for dynamics 
@@ -65,17 +62,8 @@ class LatticeContainer {
   void Free();
   void ActivateCuts();
   CudaDeviceFunction void fill();
-<?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
-  ?>
-  template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
-#ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
-#endif
-<?R } ?>
-
-  template<class N>  CudaDeviceFunction void getType(N & f);
+  
+  CudaDeviceFunction flag_t getType(int x, int y, int z) const;
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) {
@@ -125,13 +113,6 @@ class LatticeContainer {
     return & w[ZoneIndex];
   }
 
-  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
-    if (Q == NULL) return NO_CUT;
-    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
-    return Q[i];
-  }
-
-
   CudaDeviceFunction inline vector_t getST(real_t x, real_t y, real_t z) {
 	return calc(ST, x,y,z);
   }
@@ -164,7 +145,9 @@ class LatticeContainer {
 	}
 };
 
-template<class N> CudaGlobalFunction void RunKernel();
+template<class T> CudaGlobalFunction void Kernel();
+template < eOperationType I, eCalculateGlobals G, eStage S > class InteriorExecutor;
+template < eOperationType I, eCalculateGlobals G, eStage S > class BorderExecutor;
 CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R

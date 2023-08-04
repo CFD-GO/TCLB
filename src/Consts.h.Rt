@@ -16,10 +16,8 @@
 
 #ifdef CROSS_CPU
   #define MAX_THREADS 1
-  #define X_BLOCK 1
 #else
-  #define MAX_THREADS 512
-  #define X_BLOCK 32
+  #define MAX_THREADS 128
 #endif
 
 #define PART_MAR <?%f PartMargin ?>

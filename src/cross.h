@@ -41,13 +41,13 @@
 
       #define CudaSyncThreadsOr(x__) __syncthreads_or(x__)
       #ifdef CROSS_HIP
-        #define CudaSyncWarpOr(x__) __any(b);
+        #define CudaSyncWarpOr(x__) __any(x__)
       #else     
         #if CUDART_VERSION >= 9000
               #define WARP_MASK 0xFFFFFFFF
-              #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, b);
+              #define CudaSyncWarpOr(x__) __any_sync(WARP_MASK, x__)
         #elif CUDART_VERSION >= 7000
-              #define CudaSyncWarpOr(x__) __any(b);
+              #define CudaSyncWarpOr(x__) __any(x__)
         #else
               #warning "no CudaAtomicAddReduceWarp for this CUDA version"
         #endif
@@ -323,6 +323,7 @@
     template <typename T> inline void CudaAtomicAddReduceWarp(T * sum, T val) { sum[0] += val; }
     template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) sum[0] += val; }
     template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
+    template <typename T> inline void CudaAtomicMaxReduceWarp(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
 
     template <int LEN, typename T>
     inline void CudaAtomicAddReduceWarpArr(T * sum, T val[LEN]) {
