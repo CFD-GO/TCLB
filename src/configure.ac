@@ -399,7 +399,7 @@ else
 	if ! test -z "$OPENMP"
 	then
 		CPPFLAGS="${CPPFLAGS} $OPENMP"
-		LDFLAGS="${CPPFLAGS} $OPENMP"
+		LDFLAGS="${LDFLAGS} $OPENMP"
 		AC_DEFINE([CROSS_OPENMP], [1], [Using OpenMP])
 	fi
 	if test "x${with_x_block}" != "x"
