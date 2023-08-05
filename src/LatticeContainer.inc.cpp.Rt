@@ -316,7 +316,7 @@ template <class EX> inline void LatticeContainer::RunBorderT(CudaStream_t stream
   int totx = <?%s blx ?>;
   blx.x = ceiling_div(totx, thr.y);
   blx.y = <?%d thy ?>;
-  CudaKernelRunNoWait(Kernel< EX >, blx, thr, (), stream);
+  CudaKernelRunNoWait(Kernel< EX >, blx, thr, stream);
 };
 
 /// Run the interior kernel
@@ -336,7 +336,7 @@ template <class EX> inline void LatticeContainer::RunInteriorT(CudaStream_t stre
   blx.x = ceiling_div(totx, thr.y);
   int toty = nz - <?%d BorderMargin$max[3]-BorderMargin$min[3] ?>;
   blx.y = toty;
-  CudaKernelRunNoWait(Kernel< EX >, blx, thr, (), stream);
+  CudaKernelRunNoWait(Kernel< EX >, blx, thr, stream);
 };
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
@@ -417,7 +417,7 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
 */
 void LatticeContainer::Color( uchar4 *optr ) {
    CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
-   CudaKernelRun( ColorKernel , dim3(floor(nx/X_BLOCK),ny,1), dim3(X_BLOCK) ,(optr, nz/2));
+   CudaKernelRun( ColorKernel , dim3(floor(nx/X_BLOCK),ny,1), dim3(X_BLOCK) , optr, nz/2);
 };
 
 // Functions for getting quantities

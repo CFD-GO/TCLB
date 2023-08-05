@@ -1222,7 +1222,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 		small.dx -= region.dx;
 		small.dy -= region.dy;
 		small.dz -= region.dz;
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , (small, buf, scale));
+		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , small, buf, scale);
 		CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
@@ -1396,7 +1396,7 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
 	lbRegion small = region.intersect(over);
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale));
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , small, (<?%s q$type?>*) buf, scale);
 }
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(){

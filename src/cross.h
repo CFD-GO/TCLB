@@ -54,18 +54,18 @@
       #endif
       
       #ifndef CROSS_HIP 
-       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
+       #define CudaKernelRun(a__,b__,c__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
        #ifdef CROSS_SYNC
-         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
+         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
        #else
-         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
+         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__,0,e__>>>(__VA_ARGS__);
        #endif
       #else
-       #define CudaKernelRun(a__,b__,c__,d__) a__<<<b__,c__>>>d__; HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() )
+       #define CudaKernelRun(a__,b__,c__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() )
        #ifdef CROSS_SYNC
-         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__>>>d__; HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() );
+         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() );
        #else
-         #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) a__<<<b__,c__,0,e__>>>d__;
+         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__,0,e__>>>(__VA_ARGS__);
        #endif
       #endif
       #define CudaBlock blockIdx
@@ -241,22 +241,22 @@
     #define CudaSyncWarpOr(x__) x__
     #ifdef CROSS_OPENMP
       #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
-      #define CudaKernelRun(a__,b__,c__,d__) \
+      #define CudaKernelRun(a__,b__,c__,...) \
                                       OMP_PARALLEL_FOR \
                                        for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
                                         for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                          for (CpuBlock.z = 0; CpuBlock.z < b__.z; CpuBlock.z++) \
-                                          a__ d__; \
+                                          a__(__VA_ARGS__); \
                                        }
     #else
-      #define CudaKernelRun(a__,b__,c__,d__) \
+      #define CudaKernelRun(a__,b__,c__,...) \
                                       for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
                                        for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
                                         for (CpuBlock.z = 0; CpuBlock.z < b__.z; CpuBlock.z++) \
-                                         a__ d__;
+                                         a__(__VA_ARGS__);
     #endif
 
-    #define CudaKernelRunNoWait(a__,b__,c__,d__,e__) CudaKernelRun(a__,b__,c__,d__);
+    #define CudaKernelRunNoWait(a__,b__,c__,e__,...) CudaKernelRun(a__,b__,c__,__VA_ARGS__);
     #define CudaBlock CpuBlock
     #define CudaThread CpuThread
     #define CudaNumberOfThreads CpuSize
