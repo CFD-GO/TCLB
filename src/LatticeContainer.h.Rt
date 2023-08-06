@@ -148,7 +148,6 @@ class LatticeContainer {
 template<class T> CudaGlobalFunction void Kernel();
 template < eOperationType I, eCalculateGlobals G, eStage S > class InteriorExecutor;
 template < eOperationType I, eCalculateGlobals G, eStage S > class BorderExecutor;
-CudaGlobalFunction void ColorKernel( uchar4 *optr);
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);
