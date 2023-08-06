@@ -239,24 +239,6 @@
     #define CudaSyncThreads() //assert(CpuThread.x == 0)
     #define CudaSyncThreadsOr(x__) x__
     #define CudaSyncWarpOr(x__) x__
-    #ifdef CROSS_OPENMP
-      #define OMP_PARALLEL_FOR _Pragma("omp parallel for simd")
-      #define CudaKernelRun(a__,b__,c__,...) \
-                                      OMP_PARALLEL_FOR \
-                                       for (int x__ = 0; x__ < b__.x; x__++) { CpuBlock.x = x__; \
-                                        for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
-                                         for (CpuBlock.z = 0; CpuBlock.z < b__.z; CpuBlock.z++) \
-                                          a__(__VA_ARGS__); \
-                                       }
-    #else
-      #define CudaKernelRun(a__,b__,c__,...) \
-                                      for (CpuBlock.y = 0; CpuBlock.y < b__.y; CpuBlock.y++) \
-                                       for (CpuBlock.x = 0; CpuBlock.x < b__.x; CpuBlock.x++) \
-                                        for (CpuBlock.z = 0; CpuBlock.z < b__.z; CpuBlock.z++) \
-                                         a__(__VA_ARGS__);
-    #endif
-
-    #define CudaKernelRunNoWait(a__,b__,c__,e__,...) CudaKernelRun(a__,b__,c__,__VA_ARGS__);
     #define CudaBlock CpuBlock
     #define CudaThread CpuThread
     #define CudaNumberOfThreads CpuSize
@@ -275,11 +257,7 @@
     #define CudaEventCreate(a__) *a__ = 0
     #define CudaEventDestroy(a__)
     #define CudaEventRecord(a__,b__) a__ = b__
-    #ifdef CROSS_OPENMP
-      #define CudaEventSynchronize(a__) a__ = omp_get_wtime()*1000
-    #else
-      #define CudaEventSynchronize(a__) a__ = 1000*((double) clock())/CLOCKS_PER_SEC
-    #endif
+    #define CudaEventSynchronize(a__) a__ = get_walltime()*1000;
     #define CudaEventQuery(a__) CudaSuccess
     #define CudaEventElapsedTime(a__,b__,c__) *(a__) = (c__ -  b__)
     #define CudaDeviceSynchronize()
@@ -302,6 +280,32 @@
     #endif
     extern uint3 CpuThread;
     extern uint3 CpuSize;
+
+    #include <functional>
+
+    template <typename F, typename ...P>
+    inline void CPUKernelRun(F &&func, const dim3& blocks, P &&... args) {
+      #pragma omp parallel for collapse(3) schedule(static)
+      for (unsigned int y = 0; y < blocks.y; y++)
+        for (unsigned int x = 0; x < blocks.x; x++)
+          for (unsigned int z = 0; z < blocks.z; z++) {
+            CpuBlock.x = x;
+            CpuBlock.y = y;
+            CpuBlock.z = z;
+            func(std::forward<P>(args)...);
+      }
+    }
+
+    template <typename F, typename ...P>
+    inline void CudaKernelRun(F &&func, const dim3& blocks, const dim3& threads, P &&... args) {
+      CPUKernelRun(func, blocks, std::forward<P>(args)...);
+    }
+
+    template <typename F, typename ...P>
+    inline void CudaKernelRunNoWait(F &&func, const dim3& blocks, const dim3& threads, CudaStream_t stream, P &&... args) {
+      CPUKernelRun(func, blocks, std::forward<P>(args)...);
+    }
+
     void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
 
     template <class T, class P> inline T data_cast(const P& x) {
@@ -318,16 +322,23 @@
     #define __longlong_as_double(x__) data_cast<double        , long long int >(x__)
     #define __double_as_longlong(x__) data_cast<long long int , double        >(x__)
 
-    template <typename T> inline void CudaAtomicAdd(T * sum, T val) { sum[0] += val; }
-    template <typename T> inline void CudaAtomicAddReduce(T * sum, T val) { sum[0] += val; }
-    template <typename T> inline void CudaAtomicAddReduceWarp(T * sum, T val) { sum[0] += val; }
-    template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) sum[0] += val; }
-    template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
-    template <typename T> inline void CudaAtomicMaxReduceWarp(T * sum, T val) { if (val > sum[0]) sum[0] = val; }
+    template <typename T> inline void CudaAtomicAdd(T * sum, T val) {
+      #pragma omp atomic
+      sum[0] += val;
+    }
+    template <typename T> inline void CudaAtomicMax(T * sum, T val) {
+      #pragma omp critical
+      { if (val > sum[0]) sum[0] = val; }
+    }
+    template <typename T> inline void CudaAtomicAddReduce(T * sum, T val) { CudaAtomicAdd(sum, val); }
+    template <typename T> inline void CudaAtomicAddReduceWarp(T * sum, T val) { CudaAtomicAdd(sum, val); }
+    template <typename T> inline void CudaAtomicAddReduceDiff(T * sum, T val, bool yes) { if (yes) CudaAtomicAdd(sum, val); }
+    template <typename T> inline void CudaAtomicMaxReduce(T * sum, T val) { CudaAtomicMax(sum, val); }
+    template <typename T> inline void CudaAtomicMaxReduceWarp(T * sum, T val) { CudaAtomicMax(sum, val); }
 
     template <int LEN, typename T>
     inline void CudaAtomicAddReduceWarpArr(T * sum, T val[LEN]) {
-      for (unsigned char i = 0; i < LEN; i ++) sum[i] += val[i];
+      for (unsigned char i = 0; i < LEN; i ++) CudaAtomicAdd(&sum[i], val[i]);
     }
 
   #define ISFINITE(l__) std::isfinite(l__)
