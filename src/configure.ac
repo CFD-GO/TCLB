@@ -155,6 +155,10 @@ AC_ARG_WITH([warp-size],
 	AS_HELP_STRING([--with-warp-size],
 		[Set the value used for the warp size]))
 
+AC_ARG_ENABLE([cpu-layout],
+	AS_HELP_STRING([--cpu-layout],
+		[Enable cpu-optimised memory layout]))
+
 
 AC_ARG_ENABLE([paranoid],
 	AS_HELP_STRING([--enable-paranoid],
@@ -432,6 +436,14 @@ if test "x${enable_opp}" == "xyes"
 then
 	AC_DEFINE([USE_ADDOPP], [1], [Opportunistic warp level operations])
 fi
+
+if test "x${enable_cpu_layout}" == "xyes"
+then
+	CPU_LAYOUT="TRUE"
+else
+	CPU_LAYOUT="FALSE"
+fi
+
 
 AC_MSG_CHECKING([MPI include path])
 if test -z "${MPI_INCLUDE}"; then
@@ -999,6 +1011,7 @@ AC_SUBST(EMBEDED_PYTHON)
 AC_SUBST(X_BLOCK)
 AC_SUBST(WARPSIZE)
 AC_SUBST(X_MOD)
+AC_SUBST(CPU_LAYOUT)
 
 AC_CONFIG_FILES([CLB/config.mk:src/config.mk.in])
 AC_CONFIG_FILES([CLB/config.R_:src/config.R.in])

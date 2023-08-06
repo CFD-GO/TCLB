@@ -15,8 +15,9 @@ if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
 if (!exists("X_MOD")) X_MOD=0
+if (!exists("CPU_LAYOUT")) CPU_LAYOUT=FALSE
 
-memory_arr_cpu = FALSE
+memory_arr_cpu = CPU_LAYOUT
 memory_arr_mod = X_MOD
 
 # SYMALGEBRA=TRUE
