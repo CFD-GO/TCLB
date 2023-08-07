@@ -959,7 +959,7 @@ fi
 if test "x${enable_paranoid}" == "xyes"
 then
 	CPPFLAGS="${CPPFLAGS} -Wall -Werror -Wno-unknown-warning-option"
-	CPPFLAGS="${CPPFLAGS} -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow -Wno-unused-private-field -Wno-self-assign"
+	CPPFLAGS="${CPPFLAGS} -Wno-unused-but-set-variable -Wno-unused-variable -Wno-format-overflow -Wno-unused-private-field -Wno-self-assign -Wno-unknown-pragmas"
 fi
 
 if test "x${enable_profiling}" == "xyes"
