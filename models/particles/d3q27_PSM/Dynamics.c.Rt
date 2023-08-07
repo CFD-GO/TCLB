@@ -27,7 +27,6 @@ Code updates:
 	
 */
 
-#define SQRT_3 1.732050807568877
 #define PI 3.141592653589793
 
 <?R
@@ -490,7 +489,7 @@ CudaDeviceFunction void CalcF() {
 
         real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                     
-        if ((dist - p.rad)<SQRT_3) {
+        if ((dist - p.rad) < 0.5) {
 
             real_t localCoverage = 0.0;
 
@@ -533,7 +532,7 @@ CudaDeviceFunction void CalcF() {
 
         real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
                     
-        if ((dist - p.rad)<SQRT_3) {
+        if ((dist - p.rad) < 0.5) {
 
             real_t localCoverage = 0.0;
 
