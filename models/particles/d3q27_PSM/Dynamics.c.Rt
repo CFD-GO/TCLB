@@ -485,6 +485,9 @@ CudaDeviceFunction void CalcF() {
 	C( uP, 0)
 	C( sol, 0)
 ?>
+
+<?R if (Options$MS) { ?>
+
 	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
         real_t dist = sqrt(p.diff.x*p.diff.x + p.diff.y*p.diff.y + p.diff.z*p.diff.z);
@@ -527,6 +530,8 @@ CudaDeviceFunction void CalcF() {
     if (sol > 1.0) {
         sol_factor = 1.0/sol;
     } 
+
+<?R } ?>
     
 	for (SyncParticleIterator p(X,Y,Z); p; ++p) {
 
@@ -561,7 +566,18 @@ CudaDeviceFunction void CalcF() {
             uparticle = PV("p.cvel.",c("x","y","z"))
             force = PV("force.",c("x","y","z"))
             localCoverage = PV("localCoverage")
-            C( force, d*sol_factor*localCoverage*(u - uparticle) )
+
+            if (Options$MS) {
+                
+                C( force, d*sol_factor*localCoverage*(u - uparticle) )
+
+            } else {
+                        
+                C( force, d*localCoverage*(u - uparticle) )
+                C( sol, sol + localCoverage )
+
+            }
+
             C( uP, uP + localCoverage*uparticle )
 ?>
             p.applyForce(force);
@@ -569,11 +585,23 @@ CudaDeviceFunction void CalcF() {
              
     }
 
-	//if (sol > 1.0) { sol =  1.0; }
+<?R if (Options$MS) { ?>
+
 	if (sol > 1.0e-8) {
         <?R C( uP, uP*sol^{-1} ) ?>
 	    if (sol > 1.0) { sol =  1.0; }
-	} else {
+	} 
+
+<?R } else { ?>
+
+    if (sol > 1.0) { sol =  1.0; }
+    if (sol > 1.0e-8) {
+        <?R C( uP, uP*sol^{-1} ) ?>
+    }
+
+<?R } ?>
+
+    else {
 <?R
 	C(uP, 0)
 	C(sol, 0)
