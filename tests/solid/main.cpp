@@ -14,6 +14,9 @@
 #define CudaDeviceFunction
 typedef float real_t;
 
+#define ERROR printf
+#define output printf
+
 const int max_cache_size = 1024;
 #include "SolidTree.h"
 #include "SolidTree.hpp"

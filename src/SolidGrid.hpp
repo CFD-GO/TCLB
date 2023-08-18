@@ -25,7 +25,6 @@ int SolidGrid<BALLS>::TryDepth(size_t grid_size) {
         while (data[data_offset + k] != -1) {
             k++;
             if (k >= depth) {
-                printf("failed at %ld %d\n", data_offset, k);
                 return -1;
             }
         }
@@ -38,7 +37,7 @@ template <class BALLS>
 void SolidGrid<BALLS>::Build () {
     if (balls->size() > 0) {
         double maxr = 0.5;
-        depth = 4;
+        if (depth < 1) depth = 4;
         for (size_t i=0; i<balls->size(); i++) {
             double val = balls->getRad(i);
             if (maxr < val) maxr = val;
@@ -60,7 +59,14 @@ void SolidGrid<BALLS>::Build () {
         size_t grid_size = 1;
         for (int k=0; k<3; k++) grid_size = grid_size * (maxs[k]-mins[k]+1);
         depth = 4;
-        while (TryDepth(grid_size)) { depth = depth*2; if (depth > 1000) { printf("Too large SolidGrid depth\n"); exit(-1); } }
+        while (TryDepth(grid_size)) {
+            depth = depth*2;
+            output("Too many particles per bin in SolidGrid. Increasing bin size to %d\n", depth);
+            if (depth > 1024) {
+                ERROR("Too large SolidGrid bin size (hardcoded limit)\n");
+                exit(-1);
+            }
+        }
     } else {
         delta = 1.0;
         depth = 0;
