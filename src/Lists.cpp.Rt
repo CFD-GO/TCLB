@@ -160,8 +160,8 @@ Model_m::Model_m() {
 	il = data.frame(
 		id = Stages$Index,
 		name = q(Stages$name),
-		isParticle = Stages$particle,
 		mainFun = q(Stages$main),
+		isParticle = Stages$particle,
 		isAdjoint = Stages$adjoint
 	)
 	cat(init_list(il,"    stages = {","};\n\n"))

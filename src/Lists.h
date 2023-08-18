@@ -83,8 +83,8 @@ public:
 
     struct NodeTypeFlag : Thing {
         big_flag_t flag;
-        big_flag_t group_flag;
         int group_id;
+        big_flag_t group_flag;
         inline NodeTypeFlag(const big_flag_t& flag_, const std::string& name_, const big_flag_t& group_flag_)
             : Thing(flag_,name_), flag(flag_), group_id(group_flag_), group_flag(group_flag_) {}
     };
@@ -103,11 +103,9 @@ public:
     };
 
     struct Global : UnitThing {
-        // set.inObjId = <?%s v$Index ?> + IN_OBJ_OFFSET;
-        bool isAdjoint;
         MPI_Op operation;
         int inObjId;
-        // | id                   | name           | unit    | operation | isAdjoint |
+        bool isAdjoint;
         inline Global(const int& id_, const std::string& name_, const std::string& unit_,
                 const MPI_Op& operation_, const bool& isAdjoint_=false)
             : UnitThing(id_,name_,unit_), operation(operation_), inObjId(id_ + IN_OBJ_OFFSET), isAdjoint(isAdjoint_) {}
@@ -124,14 +122,14 @@ public:
     };
 
     struct Field : Thing {
-        bool isAdjoint;
+        std::string niceName;
         bool isParameter;
         bool isAverage;
-        std::string adjointName;
-        std::string tangentName;
         int accessArea;
         bool simpleAccess;
-        std::string niceName;
+        bool isAdjoint;
+        std::string adjointName;
+        std::string tangentName;
         inline Field(const int& id_, const std::string& name_, const std::string& niceName_,
                 const bool& isParameter_, const bool& isAverage_, const int& accessArea_, const bool& simpleAccess_)
             : Thing(id_,name_), niceName(niceName_)
@@ -152,11 +150,11 @@ public:
     };
 
     struct Stage : Thing {
-        bool isAdjoint;
-        bool isParticle;
         std::string mainFun;
-        inline Stage(const int& id_, const std::string& name_, const bool& isParticle_, const std::string& mainFun_, const bool& isAdjoint_ = false)
-            : Thing(id_,name_), isParticle(isParticle_), isAdjoint(isAdjoint_), mainFun(mainFun_) {}
+        bool isParticle;
+        bool isAdjoint;
+        inline Stage(const int& id_, const std::string& name_, const std::string& mainFun_, const bool& isParticle_, const bool& isAdjoint_ = false)
+            : Thing(id_,name_), mainFun(mainFun_), isParticle(isParticle_), isAdjoint(isAdjoint_) {}
     };
 
     struct Objective : Thing {
