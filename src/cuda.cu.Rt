@@ -61,7 +61,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #define Iam<?%s n$name ?> ((NodeType & <?%s n$groupIndex ?>) == <?%s n$Index ?>) <?R
 	}
 	for (n in rows(NodeTypeGroups)) { ?>
-#define Iam<?%s n ?> (NodeType & <?%s n$Index ?>) <?R
+#define Iam<?%s n$name ?> (NodeType & <?%s n$Index ?>) <?R
 	}
 ?>
 
