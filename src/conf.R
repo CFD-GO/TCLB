@@ -613,11 +613,16 @@ if (nrow(NodeTypes) > 0) {
   NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
           n = nrow(tab)
           l = ceiling(log2(n+1))
-          tab$index = 1:n
-          tab$Index = tab$name
-          tab$value = NodeShift*(1:n)
-          tab$mask  = NodeShift*((2^l)-1)
+          tab$index    = 1:n
+          tab$Index    = paste("NODE",tab$name,sep="_")
+          tab$value    = NodeShift*(1:n)
+          tab$mask     = NodeShift*((2^l)-1)
+          tab$max      = n
+          tab$bits     = l
+          tab$capacity = 2^l
           tab$shift = NodeShiftNum
+          tab$groupIndex = paste("NODE",tab$group,sep="_")
+          tab$save = TRUE
           NodeShift    <<- NodeShift * (2^l)
           NodeShiftNum <<- NodeShiftNum + l
           tab
@@ -642,24 +647,65 @@ NodeTypes = rbind(NodeTypes,data.frame(
         name="DefaultZone",
         group="SETTINGZONE",
         index=1,
-        Index="DefaultZone",
+        Index="ZONE_DefaultZone",
         value=0,
+        max=ZoneMax,
+        bits=ZoneBits,
+        capacity=ZoneMax,
         mask=(ZoneMax-1)*NodeShift,
-        shift=NodeShiftNum
+        shift=NodeShiftNum,
+        groupIndex = "NODE_SETTINGZONE",
+        save = TRUE
 ))
 NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds size of flag_t")
 
-Node=NodeTypes$value
-names(Node) = NodeTypes$name
+#ALLBits = ZoneShift
+#ALLMax = 2^ZoneShift
+ALLBits = FlagTBits
+ALLMax = 2^ALLBits
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="None",
+        group="NONE",
+        index=1,
+        Index="NODE_None",
+        value=0,
+        max=0,
+        bits=0,
+        capacity=0,
+        mask=0,
+        shift=0,
+        groupIndex = "NODE_NONE",
+        save = FALSE
+))
 
-i = !duplicated(NodeTypes$group)
-Node_Group=NodeTypes$mask[i]
-names(Node_Group) = NodeTypes$group[i]
-Node_Group["ALL"] = sum(Node_Group)
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="Clear",
+        group="ALL",
+        index=1,
+        Index="NODE_Clear",
+        value=0,
+        max=ALLMax,
+        bits=ALLBits,
+        capacity=ALLMax,
+        mask=(ALLMax-1),
+        shift=0,
+        groupIndex = "NODE_ALL",
+        save = FALSE
+))
 
+NodeTypeGroups = unique(data.frame(
+        name=NodeTypes$group,
+        Index=NodeTypes$groupIndex,
+        max=NodeTypes$max,
+        bits=NodeTypes$bits,
+        capacity=NodeTypes$capacity,
+        mask=NodeTypes$mask,
+        shift=NodeTypes$shift,
+        save=NodeTypes$save
+))
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
 

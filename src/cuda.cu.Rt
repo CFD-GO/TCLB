@@ -56,12 +56,14 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 #include "Particle.hpp"
 
-<?R	for (n in rows(NodeTypes)) {	?>
-#define Iam<?%s n$name ?> ((NodeType & NODE_<?%s n$group?>) == NODE_<?%s n$name ?>)
-<?R	}	?>
-<?R	for (n in names(Node_Group)) {	?>
-#define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
-<?R	}	?>
+<?R
+	for (n in rows(NodeTypes)) { ?>
+#define Iam<?%s n$name ?> ((NodeType & <?%s n$groupIndex ?>) == <?%s n$Index ?>) <?R
+	}
+	for (n in rows(NodeTypeGroups)) { ?>
+#define Iam<?%s n ?> (NodeType & <?%s n$Index ?>) <?R
+	}
+?>
 
 template <eCalculateGlobals G>
 struct CalculateGlobals {};

@@ -28,7 +28,7 @@ specials[["Settings"]] = c(Settings$name,ZoneSettings$name)
 specials[["Globals"]] = Globals$name
 #GeometryComponents
 specials[["Quantities"]] = Quantities$name
-specials[["NodeTypeGroups"]] = names(Node_Group)
+specials[["NodeTypeGroups"]] = NodeTypeGroups$name
 specials[["SettingsFull"]] = lapply(rows(Settings), function(i) list(
   name=i$name,
   comment=i$comment,

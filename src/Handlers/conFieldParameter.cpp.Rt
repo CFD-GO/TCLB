@@ -28,7 +28,7 @@ int conFieldParameter::Init () {
 		if (attr) {
 			std::string where = attr.value();
 			<?R for (n in rows(NodeTypes)) { ?>
-			if (where == "<?%s n$name ?>") { flag_value = NODE_<?%s n$name ?>; flag_mask = NODE_<?%s n$group ?>; }
+			if (where == "<?%s n$name ?>") { flag_value = <?%s n$Index ?>; flag_mask = <?%s n$Index ?>; }
 			<?R } ?>
 		} else {
 			flag_value = 0;
