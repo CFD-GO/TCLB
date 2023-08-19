@@ -28,7 +28,7 @@ const char* xml_definition = "<Geometry>\
 ?>	<Mask name='<?%s n$name ?>' value='<?%f n$mask ?>'/>\
 <?R }
     for (n in rows(NodeTypes)) {
-?>	<Type name='<?%s n$name ?>' value='<?%d n$value ?>' mask='<?%s n$mask ?>'/>\
+?>	<Type name='<?%s n$name ?>' value='<?%d n$value ?>' mask='<?%s n$group ?>'/>\
 <?R } ?>\
 </Geometry>";
 
