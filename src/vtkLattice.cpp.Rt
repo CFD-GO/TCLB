@@ -20,13 +20,13 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	lbRegion local_reg = lattice->region;
 	lbRegion reg = local_reg.intersect(total_output_reg);
 	size = reg.size();
-	myprint(1,-1,"Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d", 
+	myprint(1,-1,"Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d",
 		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz, size,
 		local_reg.nx,local_reg.ny,local_reg.nz,local_reg.dx,local_reg.dy,local_reg.dz);
 
 	vtkFileOut vtkFile(MPMD.local);
 	if (vtkFile.Open(filename)) {return -1;}
-	double spacing = 1/units.alt("m");	
+	double spacing = 1/units.alt("m");
 	vtkFile.Init(total_output_reg, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing, lattice->px*spacing, lattice->py*spacing, lattice->pz*spacing);
 
 	{	flag_t * NodeType = new flag_t[size];
@@ -36,14 +36,14 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		}
 		unsigned char * small = new unsigned char[size];
 		<?R
-		i = !duplicated(NodeTypes$group)
-		for (n in rows(NodeTypes[i,])) {
+		i = NodeTypeGroups$save
+		for (n in rows(NodeTypeGroups[i,])) {
 		?>
-			if (what->in("<?%s n$group ?>")) {
+			if (what->in("<?%s n$name ?>")) {
 				for (size_t i=0;i<size;i++) {
-					small[i] = (NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>;
+					small[i] = (NodeType[i] & <?%s n$Index ?>) >> <?%d n$shift ?>;
 				}
-				vtkFile.WriteField("<?%s n$group ?>",small);
+				vtkFile.WriteField("<?%s n$name ?>",small);
 			}
 		<?R } ?>
 		delete[] small;
@@ -62,7 +62,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	}
 	<?R }; ifdef(); ?>
 
-	
+
 	vtkFile.Finish();
 	vtkFile.Close();
 	return 0;
@@ -76,7 +76,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	lbRegion local_reg = lattice->region;
 	lbRegion reg = local_reg.intersect(total_output_reg);
 	size = reg.size();
-	myprint(1,-1,"Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d", 
+	myprint(1,-1,"Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d",
 		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz, size,
 		local_reg.nx,local_reg.ny,local_reg.nz,local_reg.dx,local_reg.dy,local_reg.dz);
 
@@ -97,7 +97,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 	if (fork() == 0) {
 		vtkFileOut vtkFile(MPMD.local);
 		if (vtkFile.Open(filename)) {return -1;}
-		double spacing = 1/units.alt("m");	
+		double spacing = 1/units.alt("m");
 		vtkFile.Init(total_output_reg, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing);
 
 		if (what->in("flag")) {
@@ -105,18 +105,18 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		}
 		unsigned char * small = new unsigned char[size];
 		<?R
-		i = !duplicated(NodeTypes$group)
-		for (n in rows(NodeTypes[i,])) {
+		i = NodeTypeGroups$save
+		for (n in rows(NodeTypeGroups[i,])) {
 		?>
-			if (what->in("<?%s n$group ?>")) {
+			if (what->in("<?%s n$name ?>")) {
 				for (size_t i=0;i<size;i++) {
-					small[i] = (NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>;
+					small[i] = (NodeType[i] & <?%s n$Index ?>) >> <?%d n$shift ?>;
 				}
-				vtkFile.WriteField("<?%s n$group ?>",small);
+				vtkFile.WriteField("<?%s n$name ?>",small);
 			}
 		<?R } ?>
 		delete[] small;
-		
+
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 			if (what->in("<?%s q$name ?>")) {
 				vtkFile.WriteField("<?%s q$name ?>",tmp_<?%s q$name ?>);
@@ -126,7 +126,7 @@ int vtkWriteLattice(char * filename, Lattice * lattice, UnitEnv units, name_set 
 		vtkFile.Close();
 		exit(0);
 	}
-		
+
 	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 		if (what->in("<?%s q$name ?>")) {
 			delete[] tmp_<?%s q$name ?>;
@@ -185,7 +185,7 @@ inline int txtWriteElement(FILE * f, vector_t tmp) {
 	return txtWriteElement(f, tmp.z);
 }
 
-template <typename T> int txtWriteField(FILE * f, T * tmp, int stop, int n) 
+template <typename T> int txtWriteField(FILE * f, T * tmp, int stop, int n)
 {
 	for (int i=0;i<n;i++) {
 		txtWriteElement(f, tmp[i]);
