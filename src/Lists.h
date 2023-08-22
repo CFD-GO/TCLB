@@ -5,62 +5,12 @@
 #include "Consts.h"
 #include "types.h"
 #include <mpi.h>
-
-#define INVALID_ID -1
-
-template <class T>
-typename T::const_iterator FindByName(const T& cont, const std::string& str) {
-    for (typename T::const_iterator it = cont.begin(); it != cont.end(); it++) {
-        if (it->name == str) return it;
-    }
-    return cont.end();
-}
-
-template <class T>
-typename T::const_iterator FindById(const T& cont, const int& id) {
-    for (typename T::const_iterator it = cont.begin(); it != cont.end(); it++) {
-        if (it->id == id) return it;
-    }
-    return cont.end();
-}
+#include "Things.h"
 
 typedef double (*DerivedFunction)(double);
 typedef void (*ObjectiveFunction)(double*, double*, double*);
 
 class Model {
-    template <class T>
-    class Things : public std::vector<T> {
-        static T& invalid() {
-            static T inv;
-            return inv;
-        }
-    public:
-        const T& ByName(const std::string& str) const {
-            for (const T& i : *this) if (i.name == str) return i;
-            return invalid();
-        }
-        const T& ById(const int& id) const {
-            for (const T& i : *this) if (i.id == id) return i;
-            return invalid();
-        }
-        using std::vector<T>::vector;
-    };        
-
-    struct Thing {
-        int id;
-        std::string name;
-        inline Thing() : id(INVALID_ID), name("invalid") {};
-        inline Thing(const int& id_, const std::string& name_) : id(id_), name(name_) {}
-        inline bool valid() const { return id != INVALID_ID; }
-        inline operator bool () const { return valid(); }
-    };
-
-    struct UnitThing : Thing {
-        std::string unit;
-        inline UnitThing() : unit("invalid") {};
-        inline UnitThing(const int& id_, const std::string& name_, const std::string& unit_) : Thing(id_,name_), unit(unit_) {}
-    };
-
 public:
 
     struct Setting : UnitThing {
