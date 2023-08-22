@@ -6,7 +6,7 @@
 #include "types.h"
 #include <mpi.h>
 
-#define LIST_INVALID -1
+#define INVALID_ID -1
 
 template <class T>
 typename T::const_iterator FindByName(const T& cont, const std::string& str) {
@@ -27,15 +27,21 @@ typename T::const_iterator FindById(const T& cont, const int& id) {
 typedef double (*DerivedFunction)(double);
 typedef void (*ObjectiveFunction)(double*, double*, double*);
 
-class ModelBase {
+class Model {
     template <class T>
     class Things : public std::vector<T> {
-    public:
-        typename Things::const_iterator ByName(const std::string& str) const {
-            return FindByName(*this, str);
+        static T& invalid() {
+            static T inv;
+            return inv;
         }
-        typename Things::const_iterator ById(const int& id) const {
-            return FindById(*this, id);
+    public:
+        const T& ByName(const std::string& str) const {
+            for (const T& i : *this) if (i.name == str) return i;
+            return invalid();
+        }
+        const T& ById(const int& id) const {
+            for (const T& i : *this) if (i.id == id) return i;
+            return invalid();
         }
         using std::vector<T>::vector;
     };        
@@ -43,13 +49,15 @@ class ModelBase {
     struct Thing {
         int id;
         std::string name;
-        inline Thing() {};
+        inline Thing() : id(INVALID_ID), name("invalid") {};
         inline Thing(const int& id_, const std::string& name_) : id(id_), name(name_) {}
+        inline bool valid() const { return id != INVALID_ID; }
+        inline operator bool () const { return valid(); }
     };
 
     struct UnitThing : Thing {
         std::string unit;
-        inline UnitThing() {};
+        inline UnitThing() : unit("invalid") {};
         inline UnitThing(const int& id_, const std::string& name_, const std::string& unit_) : Thing(id_,name_), unit(unit_) {}
     };
 
@@ -60,7 +68,7 @@ public:
         bool isDerived;
         int derivedSetting;
         DerivedFunction derivedValue;
-        inline Setting() {};
+        inline Setting() : isDerived(false) {};
         inline Setting(const int& id_, const std::string& name_, const std::string& unit_, 
                 const std::string& defaultValue_, const bool& isDerived_, const int& derivedSetting_, const DerivedFunction& derivedValue_)
             : UnitThing(id_,name_,unit_), defaultValue(defaultValue_), isDerived(isDerived_), derivedSetting(derivedSetting_), derivedValue(derivedValue_) {}
@@ -70,6 +78,7 @@ public:
 
     struct ZoneSetting : UnitThing {
         std::string defaultValue;
+        inline ZoneSetting() {};
         inline ZoneSetting(const int& id_, const std::string& name_, const std::string& unit_, const std::string& defaultValue_)
             : UnitThing(id_,name_,unit_), defaultValue(defaultValue_) {}
     };
@@ -77,6 +86,7 @@ public:
     struct Quantity : UnitThing {
         bool isVector;
         bool isAdjoint;
+        inline Quantity() : isVector(false), isAdjoint(false) {};
         inline Quantity(const int& id_, const std::string& name_, const std::string& unit_, const bool& isVector_, const bool& isAdjoint_=false)
             : UnitThing(id_,name_,unit_), isVector(isVector_), isAdjoint(isAdjoint_) {}
     };
@@ -85,6 +95,7 @@ public:
         big_flag_t flag;
         int group_id;
         big_flag_t group_flag;
+        inline NodeTypeFlag() : flag(0), group_id(INVALID_ID), group_flag(0) {}
         inline NodeTypeFlag(const big_flag_t& flag_, const std::string& name_, const big_flag_t& group_flag_)
             : Thing(flag_,name_), flag(flag_), group_id(group_flag_), group_flag(group_flag_) {}
     };
@@ -96,7 +107,7 @@ public:
         int capacity;
         int bits;
         bool isSave;
-        inline NodeTypeGroupFlag() {} // this is kept for default initialization of: NodeTypeGroupFlag settingzones;
+        inline NodeTypeGroupFlag() : flag(0), shift(0), max(0), capacity(0), bits(0), isSave(false) {}
         inline NodeTypeGroupFlag(const big_flag_t& flag_, const std::string& name_,
                 const int& shift_, const int& max_, const int& capacity_, const int& bits_, const bool& isSave_)
             : Thing(flag_,name_), flag(flag_), shift(shift_), max(max_), capacity(capacity_), bits(bits_), isSave(isSave_) {}
@@ -106,6 +117,7 @@ public:
         MPI_Op operation;
         int inObjId;
         bool isAdjoint;
+        inline Global() : operation(NULL), inObjId(INVALID_ID), isAdjoint(false) {}
         inline Global(const int& id_, const std::string& name_, const std::string& unit_,
                 const MPI_Op& operation_, const bool& isAdjoint_=false)
             : UnitThing(id_,name_,unit_), operation(operation_), inObjId(id_ + IN_OBJ_OFFSET), isAdjoint(isAdjoint_) {}
@@ -113,6 +125,7 @@ public:
 
     struct Option : Thing {
         bool isActive;
+        inline Option() : isActive(false) {}
         inline Option(const int& id_, const std::string& name_, const bool& isActive_)
             : Thing(id_,name_), isActive(isActive_) {}
     };
@@ -130,6 +143,8 @@ public:
         bool isAdjoint;
         std::string adjointName;
         std::string tangentName;
+        inline Field() : niceName("invalid"), isParameter(false), isAverage(false), accessArea(0), simpleAccess(false),
+            isAdjoint(false), adjointName("invalid"), tangentName("invalid") {}
         inline Field(const int& id_, const std::string& name_, const std::string& niceName_,
                 const bool& isParameter_, const bool& isAverage_, const int& accessArea_, const bool& simpleAccess_)
             : Thing(id_,name_), niceName(niceName_)
@@ -145,6 +160,7 @@ public:
 
     struct Action : Thing {
         std::vector<int> stages;
+        inline Action() {}
         inline Action(const int& id_, const std::string& name_, const std::vector<int>& stages_)
             : Thing(id_,name_), stages(stages_) {}
     };
@@ -153,12 +169,14 @@ public:
         std::string mainFun;
         bool isParticle;
         bool isAdjoint;
+        inline Stage() : mainFun("invalid"), isParticle(false), isAdjoint(false) {}
         inline Stage(const int& id_, const std::string& name_, const std::string& mainFun_, const bool& isParticle_, const bool& isAdjoint_ = false)
             : Thing(id_,name_), mainFun(mainFun_), isParticle(isParticle_), isAdjoint(isAdjoint_) {}
     };
 
     struct Objective : Thing {
         ObjectiveFunction fun;
+        inline Objective() : fun(NULL) {}
         inline Objective(const int& id_, const std::string& name_, const ObjectiveFunction& fun_)
             : Thing(id_,name_), fun(fun_) {}
     };
@@ -191,7 +209,7 @@ public:
     Objectives objectives;
 };
 
-class Model_m : public ModelBase {
+class Model_m : public Model {
 public:
     Model_m();
 };
