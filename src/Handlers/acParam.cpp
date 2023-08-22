@@ -35,8 +35,8 @@ int acParam::Init () {
 				return -2;
 			}
 		} else {
-			const Model::Setting& it = solver->lattice->model->settings.ByName(par);
-			const Model::ZoneSetting& zoneit = solver->lattice->model->zonesettings.ByName(par);
+			const Model::Setting& it = solver->lattice->model->settings.by_name(par);
+			const Model::ZoneSetting& zoneit = solver->lattice->model->zonesettings.by_name(par);
 			if (it) {
                 output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
 				solver->lattice->SetSetting(it, val);

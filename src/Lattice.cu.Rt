@@ -1388,7 +1388,7 @@ void Lattice::SetSetting(const Model::Setting& set, real_t val) {
         if (reverse_save) push_setting(set.id, settings[set.id], val);
         setSetting(set.id, val);
         if(set.isDerived) {
-                const Model::Setting& der = model->settings.ById(set.derivedSetting);
+                const Model::Setting& der = model->settings.by_id(set.derivedSetting);
                 double der_val = set.derivedValue(val);
                 SetSetting(der, der_val);
         }

@@ -12,11 +12,11 @@ class Things : public std::vector<T> {
         return inv;
     }
 public:
-    const T& ByName(const std::string& str) const {
+    const T& by_name(const std::string& str) const {
         for (const T& i : *this) if (i.name == str) return i;
         return invalid();
     }
-    const T& ById(const int& id) const {
+    const T& by_id(const int& id) const {
         for (const T& i : *this) if (i.id == id) return i;
         return invalid();
     }
