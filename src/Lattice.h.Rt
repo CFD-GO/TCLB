@@ -11,7 +11,7 @@
 #include "SyntheticTurbulence.h"
 #include "Sampler.h"
 #include "SolidContainer.h"
-
+#include "Lists.h"
 
 class lbRegion;
 class LatticeContainer;
@@ -38,6 +38,7 @@ const int maxSnaps=33;
 */
 class Lattice {
 private:
+  Model_m my_model;
   LatticeContainer * container; ///< Main Container object
   storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
   storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
@@ -59,6 +60,7 @@ private:
   CudaEvent_t mpiEv[28]; ///< Not used TODO
   int reverse_save; ///< Flag stating if recording (Now)
 public:
+  Model* model;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
   Sampler *sample; //initializing sampler with zero size
@@ -190,6 +192,7 @@ for (n in names(Actions)) {
   double getObjective();
   void resetAverage();
   void setSetting(int i, real_t tmp);
+  void SetSetting(const Model::Setting& set, real_t val);
 <?R for (v in rows(Settings)) { ?>
 	void <?%s v$FunName ?>(real_t);<?R
     } ?>
