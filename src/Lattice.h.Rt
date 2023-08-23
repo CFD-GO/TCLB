@@ -151,6 +151,11 @@ public:
         void <?%s FunName ?>_Opt(int, int, int, int, int); 
         void <?%s FunName ?>(int, int, int); <?R
     } ?>
+  void GetFlags(lbRegion, big_flag_t *);
+  void GetCoords(real_t*);
+  void Get_Field(int, real_t * tab);
+  void Set_Field(int, real_t * tab);
+  void Get_Field_Adj(int, real_t * tab);
         void IterateAction(int action, int iter, int iter_type);
         inline void RunAction(int action, int a, int b, int iter_type) {
 		switch (action) { <?R
@@ -176,8 +181,9 @@ for (n in names(Actions)) {
   void Get_<?%s d$nicename ?>_Adj(real_t * tab);
   void Clear_<?%s d$nicename ?>_Adj();
   void Set_<?%s d$nicename ?>_Adj(real_t * tab);
-<?R }
-    for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+<?R } ?>
+void GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale);
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
   void GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* tab);
   inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };

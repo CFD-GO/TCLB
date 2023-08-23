@@ -1,10 +1,6 @@
-<?R
-	source("conf.R");
-	c_header();
-?>
 #include "acRunAction.h"
+
 std::string acRunAction::xmlname = "RunAction";
-#include "../HandlerFactory.h"
 
 int acRunAction::Init () {
 		GenericAction::Init();
@@ -17,15 +13,14 @@ int acRunAction::Init () {
 		}
 		if (action_name == "") {
 			ERROR("Have to specify the name of the Action in RunAction");
-			return -1; <?R
-	for (n in names(Actions)) { ?>
-		} else if (action_name == "<?%s n ?>") {
-			action = ACTION_<?%s n ?>; <?R
-	} ?>
-		} else {
-			ERROR("Unknown Action in RunAction: %s", action_name.c_str());
 			return -1;
 		}
+		const Model::Action& act = solver->lattice->model->actions.by_name(action_name);
+		if (!act) {
+			ERROR("R: Unknown Action");
+			return -1;		
+		}
+		action = act.id;
 		if (GenericAction::ExecuteInternal()) return -1;
 		int stop=0;
 		do {
