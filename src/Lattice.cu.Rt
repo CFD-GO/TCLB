@@ -84,7 +84,7 @@ int Lattice::Offset(int x, int y, int z)
         \param mpi_ MPI Information
         \param ns Number of Snapshots
 */
-Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZONE_MAX), region(_region), mpi(mpi_)
 {
 	DEBUG_M;
 	model = &my_model;
