@@ -96,7 +96,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
-	sample = new Sampler;
+	sample = new Sampler(this);
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
