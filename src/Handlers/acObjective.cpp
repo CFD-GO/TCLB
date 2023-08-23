@@ -4,7 +4,7 @@ std::string acObjective::xmlname = "Objective";
 int acObjective::Init () {
 	Model * model = solver->lattice->model;
 	int zone_number = 0;
-	int n =  model->globals.size();
+	size_t n =  model->globals.size();
 	double* glob = new double[n];
 	double* grad = new double[n];
 	double* inObj = new double[n];
