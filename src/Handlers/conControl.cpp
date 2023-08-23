@@ -1,4 +1,5 @@
 #include "conControl.h"
+#include <sstream>
 
 std::string conControl::xmlname = "Control";
 
