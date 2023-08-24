@@ -94,7 +94,7 @@ public:
 		for (const Model::Setting& it : solver->lattice->model->settings) {
 			ret.push_back(it.name);
 		}
-		for (const ModelBase::ZoneSetting& it : solver->lattice->model->zonesettings) {
+		for (const Model::ZoneSetting& it : solver->lattice->model->zonesettings) {
 			ret.push_back(it.name);
 		}
 		return ret;
@@ -117,8 +117,7 @@ public:
 		retdim[1] = reg.ny;
 		retdim[2] = reg.nz;
 		ret.attr("dim") = retdim;
-
-	        solver->lattice->Get_Field(it->id, &ret[0]); 
+	    solver->lattice->Get_Field(it.id, &ret[0]); 
 		return ret;
 	}
 
@@ -133,13 +132,13 @@ public:
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
-	        solver->lattice->Set_Field(it->id,&v[0]); 
+	        solver->lattice->Set_Field(it.id,&v[0]); 
 		return;
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		for (const Model::Field& it : solver->lattice->model->fields) {
-			ret.push_back(it->name);
+			ret.push_back(it.name);
 		}
 		return ret;
 	}
@@ -225,7 +224,7 @@ public:
 			return Rcpp::NumericVector(0);
 		}
 		double v = 1;
-		if (si) v = solver->units.alt(it->unit);
+		if (si) v = solver->units.alt(it.unit);
 		int comp = 1;
 		if (it.isVector) comp = 3;
 		real_t* tmp = new real_t[reg.size()*comp];
@@ -298,8 +297,8 @@ public:
 		ret.push_back("Iteration");
 		for (const Model::Global& it : solver->lattice->model->globals) {
 			if (it.isAdjoint) continue;
-			ret.push_back(it->name);
-			ret.push_back(it->name + ".si");
+			ret.push_back(it.name);
+			ret.push_back(it.name + ".si");
 		}
 		return ret;
 	}
@@ -331,7 +330,7 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		for (const Model::Action& it = solver->lattice->model->actions) {
+		for (const Model::Action& it : solver->lattice->model->actions) {
 			ret.push_back(it.name);
 		}
 		return ret;
@@ -359,7 +358,7 @@ public:
 					}
 				}
 				if (some_na) {
-					ERROR("Some NA in Geometry (%s) assignment", it->name);
+					ERROR("Some NA in Geometry (%s) assignment", it.name);
 				}
 			}
 			solver->lattice->FlagOverwrite(NodeType, reg);

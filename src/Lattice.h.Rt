@@ -170,6 +170,9 @@ for (n in names(Actions)) {
 } ?>
 		}
 	}
+  inline void RunAction(int action, int iter_type) {
+    RunAction(action, Snap, (Snap+1) % 2, iter_type);
+  }
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };
