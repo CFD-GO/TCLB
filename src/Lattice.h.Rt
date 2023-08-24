@@ -54,10 +54,6 @@ private:
   CudaStream_t kernelStream; ///< CUDA Stream for kernel runs
   CudaStream_t inStream; ///< CUDA Stream for CPU->GPU momory copy
   CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
-  CudaEvent_t kernelEv[4]; ///< Not used TODO
-  CudaEvent_t inEv[28]; ///< Not used TODO
-  CudaEvent_t outEv[28]; ///< Not used TODO
-  CudaEvent_t mpiEv[28]; ///< Not used TODO
   int reverse_save; ///< Flag stating if recording (Now)
 public:
   Model* model;
@@ -128,8 +124,6 @@ public:
     segment_iterations = segiter;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
   }
-  void BeforeIt();
-  void AfterIt();
   int getSnap(int );
   void        MPIStream_A();
   void        MPIStream_B(int );
