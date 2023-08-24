@@ -387,6 +387,70 @@ inline void Lattice::MPIStream_B(int tag)
 }
 
 
+void Lattice::CopyInParticles() {
+	DEBUG_PROF_PUSH("Get Particles");
+		RFI.SendSizes();
+		RFI.SendParticles();
+	DEBUG_PROF_POP();
+	if (RFI.size() > particle_data_size_max) {
+		if (container->particle_data != NULL) CudaFree(container->particle_data);
+		particle_data_size_max = RFI.size();
+		CudaMalloc(&container->particle_data, RFI.mem_size());
+	}
+	container->particle_data_size = RFI.size();
+	for (size_t i=0; i<RFI.size(); i++){
+		RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
+		RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+		RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
+	}
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
+	}
+	DEBUG_PROF_PUSH("Tree Build");
+		SC.Build();
+	DEBUG_PROF_POP();
+	SC.CopyToGPU(container->solidfinder, kernelStream);
+}
+
+void Lattice::CopyOutParticles() {
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
+	}
+    CudaStreamSynchronize(kernelStream);
+	DEBUG_PROF_PUSH("Testing particles for NaNs");
+		int nans = 0;
+		for (size_t i=0; i<RFI.size(); i++){
+			for (int j=0; j<3; j++){
+				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
+					nans++;
+					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+				}
+			}
+		}
+		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
+	DEBUG_PROF_POP();
+	RFI.SendForces();
+}
+
+void Lattice::SetFirstTabs(int tab0, int tab1) {
+	int from, to;
+	int i = 0; <?R
+	for (m in NonEmptyMargin) { ?>
+	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
+	to = mpi.node[mpi.rank].<?%s m$side ?>;
+	if (mpi.rank != to) {
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
+		i ++;
+	} else {
+		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+	} <?R
+	} ?>
+	container->in = Snaps[tab0];
+}
+
 <?R for (n in names(Actions)) {
         a = Actions[[n]]
         if (n == "Iteration") {
@@ -413,25 +477,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
 	container->ZoneIndex = ZoneIter;
 	container->MaxZones = zSet.MaxZones;
-<?R
-	for (m in NonEmptyMargin) {
-?>
-	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
-	to = mpi.node[mpi.rank].<?%s m$side ?>;
-	if (mpi.rank != to) {
-		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
-		gpuout[i] = container->out.<?%s m$name ?> = gpubuf[i];
-		nodeout[i] = to;
-		nodein[i] = from;
-		i ++;
-	} else {
-		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
-	}
-	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-<?R
-	}
-?>
-<?R
+	SetFirstTabs(tab0, tab1); <?R
 	old_stage_level = 0
 	action_stages = Stages[a,]
 	sel = which(action_stages$particle)	
@@ -442,45 +488,12 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	for (stage in rows(action_stages)) {
 ?>
 	DEBUG_PROF_PUSH("<?%s stage$name ?>");
-//---------------- STAGE: <?%s stage$name ?> -----------------------
-
 <?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
-<?R if (stage$first_particle) { ?>
-	DEBUG_PROF_PUSH("Get Particles");
-	RFI.SendSizes();
-	RFI.SendParticles();
-	DEBUG_PROF_POP();
-	if (RFI.size() > particle_data_size_max) {
-		if (container->particle_data != NULL) CudaFree(container->particle_data);
-		particle_data_size_max = RFI.size();
-		CudaMalloc(&container->particle_data, RFI.mem_size());
-	}
-	container->particle_data_size = RFI.size();
-//		for (size_t i=0; i<RFI.size(); i++){
-//			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
-//		}
-	if (true) {
-		for (size_t i=0; i<RFI.size(); i++){
-			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
-			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
-			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
-		}
-	}
-
-	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
-	}
-	DEBUG_PROF_PUSH("Tree Build");
-		SC.Build();
-	DEBUG_PROF_POP();
-		SC.CopyToGPU(container->solidfinder, kernelStream);
-<?R } ?>
+<?R if (stage$first_particle) { ?> CopyInParticles(); <?R } ?>
 <?R if (old_stage_level > 0) { ?>
 	MPIStream_B();
 	CudaDeviceSynchronize();
-<?R   for (m in NonEmptyMargin) { ?>
-	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
-      } 
+	container->in = Snaps[tab1]; <?R
     }
     old_stage_level = old_stage_level + 1
 ?>
@@ -491,50 +504,25 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
-	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+	case ITER_OBJ:
+		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream); break;
 #endif
-                break;
 	}	
-        CudaStreamSynchronize(kernelStream);
-
-        MPIStream_A();
-
+    CudaStreamSynchronize(kernelStream);
+    MPIStream_A();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
-	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+	case ITER_OBJ:
+		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream); break;
 #endif
-                break;
-	}	
-	
-	DEBUG_PROF_POP();
-<?R if (stage$last_particle) { ?>
-	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
-	}
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_PROF_PUSH("Testing particles for NaNs");
-	{	int nans = 0;
-		for (size_t i=0; i<RFI.size(); i++){
-			for (int j=0; j<3; j++){
-				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
-					nans++;
-					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
-				}
-			}
-		}
-		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
 	}
 	DEBUG_PROF_POP();
-	RFI.SendForces();
-<?R } ?>
-
+<?R if (stage$last_particle) { ?> CopyOutParticles() <?R } ?>
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 	DEBUG_PROF_POP();
 <?R } ?>

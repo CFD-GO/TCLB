@@ -128,6 +128,9 @@ public:
   void        MPIStream_A();
   void        MPIStream_B(int );
   inline void MPIStream_B() { MPIStream_B(0); };
+  void SetFirstTabs(int, int);
+  void CopyInParticles();
+  void CopyOutParticles();
   
   void        Iterate(int, int);
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
