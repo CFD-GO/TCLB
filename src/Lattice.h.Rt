@@ -199,9 +199,6 @@ void GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale);
   void resetAverage();
   void setSetting(int i, real_t tmp);
   void SetSetting(const Model::Setting& set, real_t val);
-<?R for (v in rows(Settings)) { ?>
-	void <?%s v$FunName ?>(real_t);<?R
-    } ?>
   void GenerateST();
 };
 

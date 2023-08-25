@@ -1349,35 +1349,6 @@ void Lattice::setSetting(int i, real_t tmp) {
 	setConstSetting(i,tmp);
 }
 
-<?R
-        for (v in rows(Settings)) {
-                if (is.na(v$derived)) {
-                        tmp = paste(v$name,"_",sep="");
-                } else {
-                        tmp = v$name;
-                }
-        ?>
-/// Set [<?%s v$comment ?>]
-/**
-        Set <?%s v$name ?> Setting (<?%s v$comment ?>). <?R
-if (!is.na(v$derived)) { ?>
-        <?%s v$name ?> is a dummy setting. It sets <?%s v$derived ?>
-        with the equation <?%s v$derived ?> = <?%s v$equation ?><?R
-} ?>
-*/
-void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
-	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
-        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
-	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
-                if (!is.na(v$derived)) {
-                        i = which(as.character(Settings$name) == as.character(v$derived));
-                        if (is.null(i)) stop(paste(v$derived, "was declared as derived of",v$name,". But", v$derived, "doesn't exist\n"));
-                        sel = Settings[i[1],]; ?>
-        <?%s sel$FunName ?>(<?%s v$equation ?>); <?R
-                } ?>
-} <?R
-        } ?>
-
 void Lattice::SetSetting(const Model::Setting& set, real_t val) {
         if (reverse_save) push_setting(set.id, settings[set.id], val);
         setSetting(set.id, val);
