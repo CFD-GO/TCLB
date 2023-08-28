@@ -13,7 +13,7 @@ AddField("phi",stencil2d=1);
 
 AddStage("BaseIteration", "Run", save=Fields$group == "f", load=DensityAll$group == "f")
 AddStage("CalcPhi", save="phi",load=DensityAll$group == "f")
-AddStage("BaseInit", "Init", save=Fields$group == "f", load=DensityAll$group == "f")
+AddStage("BaseInit", "Init", save=Fields$group == "f")
 
 AddAction("Iteration", c("BaseIteration","CalcPhi"))
 AddAction("Init", c("BaseInit","CalcPhi"))

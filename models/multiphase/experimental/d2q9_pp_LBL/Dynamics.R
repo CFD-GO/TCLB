@@ -1,3 +1,10 @@
+# Setting permissive access policy.
+#  * This skips checks of fields being overwritten or read prematurely.
+#  * Otherwise the model compilation was failing.
+#  * This should be removed if the issue is fixed
+SetOptions(permissive.access=TRUE)  ### WARNING
+
+
 # Fluid Density Populations
 AddDensity( name="f[0]", dx= 0, dy= 0, group="f")
 AddDensity( name="f[1]", dx= 1, dy= 0, group="f")
