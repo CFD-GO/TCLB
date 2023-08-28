@@ -204,8 +204,8 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
 	)
  ))
  all_stages = lapply(all_stages, function(s) {
-  if (is.null(s$load.densities))  s$load.densities = DensityAll[,s$tag];
-  if (is.null(s$save.fields))  s$save.fields = Fields[,s$tag];
+  if (is.null(s$load.densities))  s$load.densities = DensityAll[,s$loadtag];
+  if (is.null(s$save.fields))  s$save.fields = Fields[,s$savetag];
   if (is.null(s$suffix))  s$suffix = paste("_",s$name,sep="")
   s
  })
@@ -223,6 +223,7 @@ CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
 
   storage_to_real = function(val,f) storage_convert("storage_to_real",val,f)
   real_to_storage = function(val,f) storage_convert("real_to_storage",val,f)
+
 
 
 resolve.symmetries = function(D) {

@@ -25,6 +25,13 @@ if (exists('Extra_Dynamics_C_Header')) {
 #include "cross.h"
 #include "cross.hpp"
 #include "Global.h"
+#include "assert.h"
+
+CudaDeviceFunction real_t rise_nan() {
+	assert(false);
+	return NAN;
+}
+#define RISENAN rise_nan()
 
 
 class Node;

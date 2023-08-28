@@ -108,9 +108,20 @@ Fields = data.frame()
 Stages = NULL
 
 PartMargin=NA
+permissive.access=FALSE
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                      optimise_for_static_access=TRUE) {
+SetOptions = function(...) {
+  args = list(...)
+  optnames = c("permissive.access","PartMargin")
+  idx = match(names(args), optnames)
+  if (any(is.na(idx))) stop("Unknown options in SetOption: ", names(args)[is.na(idx)])
+  if (any(duplicated(idx))) stop("Duplicated options in SetOption: ", names(args)[duplicated(idx)])
+  for (i in seq_along(args)) {
+    assign(optnames[idx[i]], args[[i]], envir = .GlobalEnv)
+  }
+}
+
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL, ...) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
@@ -129,8 +140,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		average=average,
 		symX=sym[1],
 		symY=sym[2],
-		symZ=sym[3],
-        optimise_for_static_access=optimise_for_static_access
+		symZ=sym[3]
 	)
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
@@ -143,7 +153,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 			average=d$average,
 			sym=sym,
 			shift=shift,
-            optimise_for_static_access=optimise_for_static_access
+            ...
 		)
 	}
 }
@@ -176,11 +186,11 @@ convert_to_shift_list = function(n, x) {
   x = lapply(x,function(x) if (is.null(x)) no_shift() else x)
   tp = sapply(x,function(x) identical(class(x),"tclbshift"))
   if (any(!tp)) stop("All elements of shift have to be of tclbshift class")
-  x    
+  x
 }
 
 AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                    optimise_for_static_access=TRUE) {
+                    optimise_for_static_access=TRUE, non.mandatory=FALSE) {
         shift = convert_to_shift_list(length(name), shift)
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
@@ -202,7 +212,8 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			symY=sym[2],
 			symZ=sym[3],
 			shift=I(shift),
-            optimise_for_static_access=optimise_for_static_access
+            optimise_for_static_access=optimise_for_static_access,
+			non.mandatory=non.mandatory
 		)
 
 		if (any(Fields$name == d$name)) {
@@ -238,7 +249,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 			equation = as.character(der[[1]]);
 		} else {
 			stop("Only one derived setting allowed in AddSetting!");
-		} 
+		}
 	} else {
 		if (missing(equation)) stop("'derived' provided, but no 'equation' in AddSetting")
 	}
@@ -300,7 +311,7 @@ AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 		comment=comment
 	)
 	Quantities <<- rbind(Quantities,q)
-}	
+}
 
 AddNodeType = function(name, group) {
 	NodeTypes <<- rbind(NodeTypes, data.frame(
@@ -338,60 +349,52 @@ AddDescription = function(short, long) {
 }
 
 
-AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE, particle.margin) {
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, read.fields=NA, can.overwrite=FALSE, default=FALSE, fixedPoint=FALSE, particle=FALSE, particle.margin) {
 	s = data.frame(
 		name = name,
 		main = main,
 		adjoint = FALSE,
 		fixedPoint=fixedPoint,
-		particle=particle
+		particle=particle,
+		can.overwrite=can.overwrite
 	)
 	sel = Stages$name == name
 	if (any(sel)) {
-		if (no.overwrite) return();
-		s$index = Stages$index[sel]
-		s$tag = Stages$tag[sel]
-		Stages[sel,] <<- s
-	} else {
-		if (is.null(Stages)) {
-			s$index = 1
-		} else {
-			s$index = nrow(Stages) + 1
-		}
-		s$tag = paste("S",s$index,sep="__")
-		Stages <<- rbind(Stages,s)
+		if (default) return();
+		stop("Two stages defined with the same name")
 	}
+        s$loadtag = paste0("LoadIn",s$name)
+        s$savetag = paste0("SaveIn",s$name)
+        s$readtag = paste0("ReadIn",s$name)
+        Stages <<- rbind(Stages,s)
 	if (! missing(particle.margin)) {
 		if (! particle) stop("particle.margin declared in a stage, but particle=FALSE")
 		PartMargin <<- max(PartMargin,particle.margin,na.rm=TRUE)
 	}
-	if (is.character(load.densities)) {
-		sel = load.densities %in% DensityAll$name
-		if (any(!sel)) stop(paste("Unknown densities in AddStage:", load.densities[!sel]))
-		load.densities = DensityAll$name %in% load.densities
-	}
-	if (is.logical(load.densities)) {
-		if ((length(load.densities) != 1) && (length(load.densities) != nrow(DensityAll))) stop("Wrong length of load.densities in AddStage")
-		if (nrow(DensityAll) > 0) {
-			DensityAll[,s$tag] <<- load.densities
-		} else {
-			DensityAll[,s$tag] <<- logical(0);
-		}
-	} else stop("load.densities should be logical or character")
 
-	if (is.character(save.fields)) {
-		sel = save.fields %in% Fields$name
-		if (any(!sel)) stop(paste("Unknown fields in AddStage:", save.fields[!sel]))
-		save.fields = Fields$name %in% save.fields
+	selection = function(tab,sel) {
+		if (is.character(sel)) {
+			if (any(!(sel %in% tab$name))) stop("load/save/read name not found in AddStage")
+			sel = tab$name %in% sel
+		}
+		if (is.logical(sel)) {
+			if (length(sel) == 1) sel = rep(sel, nrow(tab))
+			if (length(sel) != nrow(tab)) stop("load/save/read invalid length in AddStage")
+			return(sel)
+		} else {
+			stop("load/save/read invalid type in AddStage")
+		}
 	}
-	if (is.logical(save.fields)) {
-		if ((length(save.fields) != 1) && (length(save.fields) != nrow(Fields))) stop("Wrong length of save.fields in AddStage")
-		if (nrow(Fields) > 0) {
-  		  Fields[,s$tag] <<- save.fields
-                } else {
-  		  Fields[,s$tag] <<- logical(0)
-                }
-	} else stop("save.fields should be logical or character in AddStage")
+
+	sel = selection(DensityAll, load.densities)
+	DensityAll[, s$loadtag] <<- sel
+	loaded.fields = Fields$name %in% DensityAll$field[sel]
+	sel = selection(Fields, save.fields)
+	Fields[, s$savetag] <<- sel
+	sel = selection(Fields, read.fields)
+	sel[loaded.fields & is.na(sel)] = TRUE
+	if (! all(sel[loaded.fields])) stop("Not all fields loaded through densities are accessible in stage", s$name)
+	Fields[, s$readtag] <<- sel
 }
 
 Actions = list()
@@ -476,35 +479,53 @@ if (!"Init" %in% names(Actions)) {
 AllStages = do.call(c,Actions)
 
 if (("BaseIteration" %in% AllStages) && (!"BaseIteration" %in% Stages$name)) {
-	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, no.overwrite=TRUE)
+	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, default=TRUE)
 }
 if (("BaseInit" %in% AllStages) && (!"BaseInit" %in% Stages$name)) {
-	AddStage(main="Init", name="BaseInit", load.densities=FALSE, save.fields=TRUE, no.overwrite=TRUE)
+	AddStage(main="Init", name="BaseInit", load.densities=FALSE, save.fields=TRUE, default=TRUE)
 }
 
 if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
-ntag = paste("Stage",Stages$name,sep="_")
-i = match(Stages$tag,names(DensityAll))
-if (any(is.na(i))) stop("Some stage didn't load properly")
-names(DensityAll)[i] = ntag
-i = match(Stages$tag,names(Fields))
-if (any(is.na(i))) stop("Some stage didn't load properly")
-names(Fields)[i] = ntag
-Stages$tag = ntag
-#Stages = Stages[order(Stages$level),]
+
 row.names(Stages)=Stages$name
 
 for (n in names(Actions)) { a = Actions[[n]]
-	if (length(a) != 0) {
+	if (length(a) > 0) {
 		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
-		sel = Stages[a,"tag"]
-		f = Fields[,sel,drop=F]
-		s = apply(f,1,sum)
-		if (any(s) > 1) {
-			stop(paste("Field", Fields$name[s>1],"is saved more then once in Action",n))
+		if (n == "Init") {
+			bufin = rep(FALSE, nrow(Fields))
+		} else {
+			bufin = rep(TRUE, nrow(Fields))
 		}
+		bufout = rep(FALSE, nrow(Fields))
+		first = TRUE
+		for (sn in a) {
+			s = Stages[Stages$name == sn,]
+			ss = Fields[,s$savetag]
+			sr = Fields[,s$readtag]
+			sl = DensityAll[,s$loadtag]
+			sl = Fields$name %in% unique(DensityAll$field[sl])
+			sr[(!bufin) & is.na(sr)] = FALSE
+			sel = (!bufin) & (sr | sl)
+			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",n,"'")
+			sel = bufout & ss
+			if (any(sel) && (! s$can.overwrite) && (! permissive.access)) stop("Overwriting fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' that were written earlier in action '",n,"'")
+			bufout = bufout | ss
+			bufin = bufout
+			first=FALSE
+		}
+		sel = (! bufout) & (! Fields$non.mandatory)
+		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",n,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
 	} else {
 		stop(paste("There is a empty Action:",n))
+	}
+}
+
+for (tag in Stages$readtag) {
+	if (permissive.access) {
+		Fields[,tag] = TRUE
+	} else {
+		Fields[is.na(Fields[,tag]),tag] = TRUE
 	}
 }
 
@@ -837,7 +858,7 @@ offsets = function() {
 		tab1 = c(ifelse(dw_neg,1,0),ifelse(dw_neg,-1,0),0,0,0)
 		tab2 = c(0,0,0,ifelse(dw_pos,-1,0),ifelse(dw_pos,1,0))
 		tab3 = c(dw_neg,TRUE,TRUE,TRUE,dw_pos)
-		mins = PV(as.integer(mins))
+	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
         offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw))
