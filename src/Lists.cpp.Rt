@@ -176,9 +176,9 @@ Model_m::Model_m() {
 	cat(init_list(il,"    stages = {","};\n\n"))
 
 	il = data.frame(
-		id = seq_along(Actions) - 1,
-		name = q(names(Actions)),
-		stages = paste0("{", sapply(Actions, function(x) paste0(Stages$Index[match(x, Stages$name)], collapse=",")), "}")
+		id = Actions$Index,
+		name = q(Actions$name),
+		stages = paste0("{", sapply(Actions$stages, function(x) paste0(Stages$Index[match(x, Stages$name)], collapse=",")), "}")
 	)
 	cat(init_list(il,"    actions = {","};\n\n"))
 

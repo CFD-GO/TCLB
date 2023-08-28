@@ -136,35 +136,23 @@ public:
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
 //  void        Iteration_Adj(int, int, int);
 //  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
-  void        IterateTill(int,int);
-<?R for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
-        void <?%s FunName ?>_Adj(int, int, int, int, int); 
-        void <?%s FunName ?>_Opt(int, int, int, int, int); 
-        void <?%s FunName ?>(int, int, int); <?R
+  void        IterateTill(int,int); <?R
+    for (a in rows(Actions)) { ?>
+        void <?%s a$FunName ?>_Adj(int, int, int, int, int); 
+        void <?%s a$FunName ?>_Opt(int, int, int, int, int); 
+        void <?%s a$FunName ?>(int, int, int); <?R
     } ?>
   void GetFlags(lbRegion, big_flag_t *);
   void GetCoords(real_t*);
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
   void Get_Field_Adj(int, real_t * tab);
-        void IterateAction(int action, int iter, int iter_type);
-        inline void RunAction(int action, int a, int b, int iter_type) {
+  void IterateAction(int action, int iter, int iter_type);
+  inline void RunAction(int action, int a, int b, int iter_type) {
 		switch (action) { <?R
-for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
-		case ACTION_<?%s n ?>: return <?%s FunName ?>(a, b, iter_type); <?R
-} ?>
+    for (a in rows(Actions)) { ?>
+		case <?%s a$Index ?>: return <?%s a$FunName ?>(a, b, iter_type); <?R
+    } ?>
 		}
 	}
   inline void RunAction(int action, int iter_type) {

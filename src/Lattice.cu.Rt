@@ -107,7 +107,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
 	}
-	for (int i=0; i < maxSnaps; i++) {	
+	for (int i=0; i < maxSnaps; i++) {
 		iSnaps[i]= -1;
 	}
 #ifdef ADJOINT
@@ -171,7 +171,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	if ((mpi.rank != to) && (size > 0)) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
-		gpuout[bufnumber] = NULL; 
+		gpuout[bufnumber] = NULL;
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
@@ -209,7 +209,7 @@ void Lattice::startRecord()
 	if (Snap != 0) {
 		warning("Snap = %d at startRecord\n", Snap);
 	}
-	for (int i=0; i < maxSnaps; i++) {	
+	for (int i=0; i < maxSnaps; i++) {
 		iSnaps[i]= -1;
 	}
 	{
@@ -451,13 +451,7 @@ void Lattice::SetFirstTabs(int tab0, int tab1) {
 	container->in = Snaps[tab0];
 }
 
-<?R for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
+<?R for (a in rows(Actions)) { ?>
 /// Normal (Primal) Iteration
 /**
         One Primal Iteration
@@ -465,22 +459,22 @@ void Lattice::SetFirstTabs(int tab0, int tab1) {
         \param tab1 Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
+void Lattice::<?%s a$FunName ?>(int tab0, int tab1, int iter_type)
 {
-	DEBUG_PROF_PUSH("<?%s n ?>");
+	DEBUG_PROF_PUSH("<?%s a$name ?>");
 	real_t * tmp;
 	int size, from, to;
 	int i=0;
 	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 
-	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
+	debug1("ZoneIter: %d (in <?%s a$FunName ?>)\n", ZoneIter);
 	container->ZoneIndex = ZoneIter;
 	container->MaxZones = zSet.MaxZones;
 	SetFirstTabs(tab0, tab1); <?R
 	old_stage_level = 0
-	action_stages = Stages[a,]
-	sel = which(action_stages$particle)	
+	action_stages = Stages[a$stages,,drop=FALSE]
+	sel = which(action_stages$particle)
 	action_stages$first_particle = FALSE
 	action_stages$first_particle[head(sel,1)] = TRUE
 	action_stages$last_particle = FALSE
@@ -508,7 +502,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	case ITER_OBJ:
 		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream); break;
 #endif
-	}	
+	}
     CudaStreamSynchronize(kernelStream);
     MPIStream_A();
 	switch(iter_type & ITER_INTEG){
@@ -530,7 +524,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	CudaDeviceSynchronize();
 	Snap = tab1;
 	MarkIteration();
-	updateAllSamples();	
+	updateAllSamples();
 	DEBUG_PROF_POP();
 };
 
@@ -541,7 +535,7 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
         \param tab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+inline void Lattice::<?%s a$FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
 	real_t * tmp;
@@ -552,7 +546,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	container->ZoneIndex = ZoneIter;
 	container->MaxZones = zSet.MaxZones;
 
-	debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
+	debug1("ZoneIter: %d (in <?%s a$FunName ?>_Adj)\n", ZoneIter);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -572,7 +566,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 <?R
 	}
 
-	for (s in a) {
+	for (s in a$stages) {
                  stage = Stages[s,,drop=F] ?>
 
        	container->CopyToConst();
@@ -588,7 +582,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	        container->RunInterior< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS | ITER_STEADY:
 	        container->RunInterior< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
-	}	
+	}
 
         MPIStream_B();
 
@@ -602,7 +596,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	        container->RunBorder< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS | ITER_STEADY:
 	        container->RunBorder< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
-	}	
+	}
 	DEBUG_M;
         CudaDeviceSynchronize();
 <?R } ?>
@@ -623,13 +617,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
         \param adjtab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+inline void Lattice::<?%s a$FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
-        <?%s FunName ?>(tab0, tab1, iter_type);
-        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
+        <?%s a$FunName ?>(tab0, tab1, iter_type);
+        <?%s a$FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
         container->RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
-        container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream); 
+        container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
         CudaDeviceSynchronize();
 #else
 	ERROR("This model doesn't have adjoint!\n");
@@ -782,7 +776,7 @@ Lattice::~Lattice()
 	for (int i=0; i<nSnaps; i++) {
 		Snaps[i].Free();
 	}
-	delete[] Snaps;	
+	delete[] Snaps;
 	delete[] iSnaps;
 }
 
@@ -1098,23 +1092,23 @@ void Lattice::Get_Field(int id, real_t * tab) { <?R
 	for (f in rows(Fields)) if (f$parameter) { ?>
 	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>(tab); <?R
 	} ?>
-}	
+}
 void Lattice::Get_Field_Adj(int id, real_t * tab) {
 #ifdef ADJOINT <?R
 	for (f in rows(Fields)) if (f$parameter) { ?>
 	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>_Adj(tab); <?R
 	} ?>
 #endif
-}	
+}
 void Lattice::Set_Field(int id, real_t * tab) { <?R
 	for (f in rows(Fields)) if (f$parameter) { ?>
 	if (id == <?%s f$Index ?>) return Set_<?%s f$nicename ?>(tab); <?R
 	} ?>
-}	
+}
 
 
 <?R
-	for (f in rows(Fields)[Fields$parameter]) { 
+	for (f in rows(Fields)[Fields$parameter]) {
 
 	for (adjoint in c(TRUE,FALSE)) {
 	if (adjoint) {
@@ -1137,7 +1131,7 @@ void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 	debug2("Pulling all <?%s f$nicename ?>\n");
 	CudaMemcpy(
 		tab,
-		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],
 		region.sizeL()*sizeof(real_t),
 		CudaMemcpyDeviceToHost);
 }
@@ -1152,7 +1146,7 @@ void Lattice::Clear_<?%s f$nicename ?><?%s suff ?>()
 {
 	debug2("Clearing all <?%s f$nicename ?>\n");
 	CudaMemset(
-		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],
 		0,
 		region.sizeL()*sizeof(real_t));
 }
@@ -1167,7 +1161,7 @@ void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 {
 	debug2("Setting all <?%s f$nicename ?>\n");
 	CudaMemcpy(
-		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()],
 		tab,
 		region.sizeL()*sizeof(real_t),
 		CudaMemcpyHostToDevice);
@@ -1310,7 +1304,7 @@ void Lattice::calcGlobals() {
 	obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
 		}
 	}
-?>	
+?>
 	tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
 	for (int i=0; i< GLOBALS ; i++) globals[i] += tab[i];
 	container->clearGlobals();
@@ -1362,12 +1356,12 @@ void Lattice::SetSetting(const Model::Setting& set, real_t val) {
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;
         <?R for (f in rows(Fields))  if (f$average) { ?>
-          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
+          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));
 	 <?R } ?>
-} 
+}
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
-{	
+{
        	container->in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
@@ -1378,14 +1372,14 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
 void Lattice::updateAllSamples(){
  if (sample->size != 0) {
 	for (size_t j = 0; j < sample->spoints.size(); j++) {
-		if (mpi.rank == sample->spoints[j].rank) { 
+		if (mpi.rank == sample->spoints[j].rank) {
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	 	 if (sample->quant->in("<?%s q$name ?>"))
 		{
                         double v = sample->units.alt("<?%s q$unit ?>");
 			GetSample<?%s q$name ?>(sample->spoints[j].location,1/v,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
 		}
-		<?R }; ifdef() ?>	 
+		<?R }; ifdef() ?>
 	} }
  }
 }

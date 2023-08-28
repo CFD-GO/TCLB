@@ -335,10 +335,11 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, re
 	Fields[, s$readtag] <<- sel
 }
 
-Actions = list()
+Actions = NULL
 
 AddAction = function(name, stages) {
-	Actions[[name]] <<- stages
+	a = data.frame(name=name, stages=I(list(stages)))
+	Actions <<- rbind(Actions, a)
 }
 
 Objectives = list()
@@ -408,13 +409,13 @@ if (Options$autosym) { ## Automatic symmetries
   }
 }
 
-if (!"Iteration" %in% names(Actions)) {
+if (!"Iteration" %in% Actions$name) {
 	AddAction(name="Iteration", stages=c("BaseIteration"))
 }
-if (!"Init" %in% names(Actions)) {
+if (!"Init" %in% Actions$name) {
 	AddAction(name="Init", stages=c("BaseInit"))
 }
-AllStages = do.call(c,Actions)
+AllStages = unique(do.call(c,Actions$stages))
 
 if (("BaseIteration" %in% AllStages) && (!"BaseIteration" %in% Stages$name)) {
 	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, default=TRUE)
@@ -459,10 +460,12 @@ if (plot.access) {
 	pdf("field_access.pdf",width=pa_ylab+pa_scale*(1+pa_ws*pa_s),height=pa_scale*diff(pa_frange)+pa_main+pa_leg)
 	par(mai=c(pa_leg,pa_ylab,pa_main,0))
 }
-for (n in names(Actions)) { a = Actions[[n]]
-	if (length(a) > 0) {
-		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
-		if (n == "Init") {
+Actions$FunName = ifelse(Actions$name == "Iteration", "Iteration", paste0("Action_",Actions$name))
+
+for (a in rows(Actions)) {
+	if (length(a$stages) != 0) {
+		if (!all(a$stages %in% Stages$name)) stop(paste("Some stages in action",a$name,"were not defined"))
+		if (a$name == "Init") {
 			bufin = rep(FALSE, nrow(Fields))
 		} else {
 			bufin = rep(TRUE, nrow(Fields))
@@ -471,8 +474,8 @@ for (n in names(Actions)) { a = Actions[[n]]
 		first = TRUE
 		pa_si = 0
 		if (plot.access) {
-			pa_s = length(a)
-			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=n,asp=1)
+			pa_s = length(a$stages)
+			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=a$name,asp=1)
 			legend(par('usr')[2], par('usr')[3], xpd=TRUE, yjust=1, xjust=1, ncol=2, cex=0.7, bty = "n", bg="white",
 				legend = c("Previous iteration", "Newly written field", "Previously written field", "Density read", "Declared read access", "Implicit (undeclared) read access"),
 				pch=c(15,15,15,NA,NA,NA),lty=c(NA,NA,NA,1,1,1),col=c("lightblue", "green","darkgreen","black","green","gray"))
@@ -484,7 +487,7 @@ for (n in names(Actions)) { a = Actions[[n]]
 			pa_yscaling = par("pin")[2]/diff(par("usr")[3:4])
 			pa_sl = max(pa_sl) / pa_yscaling
 		}
-		for (sn in a) {
+		for (sn in a$stages) {
 			pa_si = pa_si + 1
 			s = Stages[Stages$name == sn,]
 			ss = Fields[,s$savetag]
@@ -519,16 +522,16 @@ for (n in names(Actions)) { a = Actions[[n]]
 				sel = pa_col != "white"; if (any(sel)) segments(pa_a1x,pa_a1y[sel],pa_a2x,pa_a2y[sel],col=pa_col[sel])
 			}
 			sel = (!bufin) & (sr | sl)
-			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",n,"'")
+			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",a$name,"'")
 			sel = bufout & ss
-			if (any(sel) && (! s$can.overwrite) && (! permissive.access)) stop("Overwriting fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' that were written earlier in action '",n,"'")
+			if (any(sel) && (! s$can.overwrite) && (! permissive.access)) stop("Overwriting fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' that were written earlier in action '",a$name,"'")
 			bufout = bufout | ss
 			bufin = bufout
 			first=FALSE
 			Fields[,s$readtag] = sr
 		}
 		sel = (! bufout) & (! Fields$non.mandatory)
-		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",n,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
+		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",a$name,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
 	} else {
 		stop(paste("There is a empty Action:",n))
 	}
@@ -805,7 +808,7 @@ Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel]
 if (is.na(PartMargin)) PartMargin = 0.5
 
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings","Actions")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -838,9 +841,6 @@ Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
-
-Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
-Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
 
 is.power.of.two = function(x) { 2^floor(log(x)/log(2))-x != 0 }
 
@@ -980,7 +980,7 @@ Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
 	eModel=paste("model",as.character(MODEL),sep="_"),
-	eAction=names(Actions),
+	eAction=Actions$name,
 	eStage=c(Stages$name,"Get"),
 	eTape = c("NoTape", "RecordTape")
 )
