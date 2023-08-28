@@ -57,8 +57,9 @@ AddNodeType(name="Body", group="BODY")
 for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
 
 if (Options$part) {
-	AddStage("BaseIteration", "Run", save=Fields$group %in% c("f","Force"), load = DensityAll$group %in% c("f","Force"))
-	AddStage("CalcF", save=Fields$group == "Force", load = DensityAll$group %in% c("f","Force"), particle=TRUE)
+	AddStage("BaseIteration", "Run", save=Fields$group %in% c("f"), load = DensityAll$group %in% c("f","Force"))
+	AddStage("BaseInit", "Init", save=Fields$group %in% c("f"))
+	AddStage("CalcF", save=Fields$group == "Force", load = DensityAll$group %in% c("f"), particle=TRUE)
 	AddAction("Iteration", c("BaseIteration", "CalcF"))
 	AddAction("Init", c("BaseInit", "CalcF"))
 }

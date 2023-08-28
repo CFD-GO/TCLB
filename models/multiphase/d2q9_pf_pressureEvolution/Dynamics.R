@@ -1,3 +1,10 @@
+# Setting permissive access policy.
+#  * This skips checks of fields being overwritten or read prematurely.
+#  * Otherwise the model compilation was failing.
+#  * This should be removed if the issue is fixed
+SetOptions(permissive.access=TRUE)  ### WARNING
+
+
 # Density - table of variables of LB Node to stream
 #  name - variable name to stream
 #  dx,dy,dz - direction of streaming
