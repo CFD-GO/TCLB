@@ -388,12 +388,9 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, re
 
 	sel = selection(DensityAll, load.densities)
 	DensityAll[, s$loadtag] <<- sel
-	loaded.fields = Fields$name %in% DensityAll$field[sel]
 	sel = selection(Fields, save.fields)
 	Fields[, s$savetag] <<- sel
 	sel = selection(Fields, read.fields)
-	sel[loaded.fields & is.na(sel)] = TRUE
-	if (! all(sel[loaded.fields])) stop("Not all fields loaded through densities are accessible in stage", s$name)
 	Fields[, s$readtag] <<- sel
 }
 
