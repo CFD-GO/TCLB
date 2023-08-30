@@ -1,4 +1,5 @@
 <?R
+  plot.access=TRUE
   source("conf.R")
   save.image(file="SUMMARY.Rdata")
   options(width=4000)
@@ -45,4 +46,6 @@
     cat(sprintf("%-35s [%7s] | %1s | %s",s$name, s$unit, ifelse(s$adjoint, "X"," "), s$comment),"\n");
   }
   cat("---------------------------------------------------------------------------------------\n");
+  cat("\n");
+  cat("Field access plot: ", paste0("file://",getwd(),"/field_access.pdf"),"\n")
 ?>

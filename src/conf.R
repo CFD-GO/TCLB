@@ -16,6 +16,7 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
 if (!exists("X_MOD")) X_MOD=0
 if (!exists("CPU_LAYOUT")) CPU_LAYOUT=FALSE
+if (!exists("plot.access")) plot.access=FALSE
 
 memory_arr_cpu = CPU_LAYOUT
 memory_arr_mod = X_MOD
@@ -486,6 +487,38 @@ if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
 
 row.names(Stages)=Stages$name
 
+if (plot.access) {
+	
+	pa_fi = Fields
+	pa_fi$index = seq_len(nrow(pa_fi))
+	pa_fi = by(pa_fi, pa_fi$group, function(x) {x$groupsize = nrow(x); x})
+	pa_fi = do.call(rbind,pa_fi)
+	pa_fi = pa_fi[rev(seq_len(nrow(pa_fi))),]
+	pa_fi$boxh = pmin(1,sqrt(3/pa_fi$groupsize))
+	pa_fi$boxupper = cumsum(pa_fi$boxh)
+	pa_fi$boxlower = c(0,pa_fi$boxupper[-length(pa_fi$boxupper)])
+	pa_fi$boxmid = (pa_fi$boxupper + pa_fi$boxlower)/2
+	#pa_sft = diff(pa_fi$boxmid)
+	#sel = diff(as.integer(factor(pa_fi$group))) != 0
+	#pa_sft[sel] = 1
+	#pa_sft = cumsum(c(pa_fi$boxmid[1],pa_sft))
+	#pa_sft = pa_sft - pa_fi$boxmid
+	#pa_fi$boxupper = pa_fi$boxupper + pa_sft
+	#pa_fi$boxlower = pa_fi$boxlower + pa_sft
+	#pa_fi$boxmid   = pa_fi$boxmid   + pa_sft
+	pa_fi = pa_fi[order(pa_fi$index),]
+	pa_frange = range(pa_fi$boxupper,pa_fi$boxlower)
+	pa_f = max(pa_fi$boxupper)
+	pa_s = max(sapply(Actions,length))
+	pa_ws = 10
+	pa_scale = 0.2
+	pa_ylab = max(strwidth(Fields$name,units="in")) + 0.3
+	#pa_ylab = 2 # in
+	pa_main = 0.8 # in
+	pa_leg = 0.6 # in
+	pdf("field_access.pdf",width=pa_ylab+pa_scale*(1+pa_ws*pa_s),height=pa_scale*diff(pa_frange)+pa_main+pa_leg)
+	par(mai=c(pa_leg,pa_ylab,pa_main,0))
+}
 for (n in names(Actions)) { a = Actions[[n]]
 	if (length(a) > 0) {
 		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
@@ -496,13 +529,55 @@ for (n in names(Actions)) { a = Actions[[n]]
 		}
 		bufout = rep(FALSE, nrow(Fields))
 		first = TRUE
+		pa_si = 0
+		if (plot.access) {
+			pa_s = length(a)
+			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=n,asp=1)
+			legend(par('usr')[2], par('usr')[3], xpd=TRUE, yjust=1, xjust=1, ncol=2, cex=0.7, bty = "n", bg="white",
+				legend = c("Previous iteration", "Newly written field", "Previously written field", "Density read", "Declared read access", "Implicit (undeclared) read access"),
+				pch=c(15,15,15,NA,NA,NA),lty=c(NA,NA,NA,1,1,1),col=c("lightblue", "green","darkgreen","black","green","gray"))
+			axis(2,at=pa_fi$boxmid,labels = Fields$name,las=1)
+			pa_col = rep("white",nrow(pa_fi))
+			pa_col[bufin] = "lightblue"
+			rect(-0.5,pa_fi$boxlower,0.5,pa_fi$boxupper,col=pa_col,border="darkblue")
+			pa_sl = strwidth(Stages$name,units="in")
+			pa_yscaling = par("pin")[2]/diff(par("usr")[3:4])
+			pa_sl = max(pa_sl) / pa_yscaling
+		}
 		for (sn in a) {
+			pa_si = pa_si + 1
 			s = Stages[Stages$name == sn,]
 			ss = Fields[,s$savetag]
 			sr = Fields[,s$readtag]
 			sl = DensityAll[,s$loadtag]
 			sl = Fields$name %in% unique(DensityAll$field[sl])
 			sr[(!bufin) & is.na(sr)] = FALSE
+			if (plot.access) {
+				pa_col = rep("white",nrow(pa_fi))
+				pa_col[bufout] = "darkgreen"
+				pa_col[ss] = "green"
+				rect(pa_ws*pa_si-0.5,pa_fi$boxlower,pa_ws*pa_si+0.5,pa_fi$boxupper,col=pa_col)
+				rect(pa_ws*(pa_si-0.5)-0.7,pa_f/2-pa_sl/2-0.5,pa_ws*(pa_si-0.5)+0.7,pa_f/2+pa_sl/2+0.5)
+				text(pa_ws*(pa_si-0.5),pa_f/2,labels=sn,srt=90)
+				pa_a1x = pa_ws*(pa_si-1)+0.5
+				pa_a1y = pa_fi$boxmid
+				pa_a2x = pa_ws*(pa_si-0.5)-0.7
+				pa_a2y = (pa_fi$boxmid/diff(pa_frange)-0.5)*pa_sl + pa_f/2
+				pa_col = rep("white",nrow(pa_fi))
+				pa_col[sr && (!is.na(sr))] = "green"
+				pa_col[is.na(sr)] = "gray"
+				pa_col[sl] = "black"
+				pa_col[(!bufin) & (sr | sl)] = "red"
+				sel = pa_col != "white"; if (any(sel)) segments(pa_a1x,pa_a1y[sel],pa_a2x,pa_a2y[sel],col=pa_col[sel])
+				pa_a1x = pa_ws*(pa_si-0.5)+0.7
+				pa_a1y = (pa_fi$boxmid/diff(pa_frange)-0.5)*pa_sl + pa_f/2
+				pa_a2x = pa_ws*(pa_si-0)-0.5
+				pa_a2y = pa_fi$boxmid
+				pa_col = rep("white",nrow(pa_fi))
+				pa_col[ss] = "black"
+				pa_col[bufout & ss] = "red"
+				sel = pa_col != "white"; if (any(sel)) segments(pa_a1x,pa_a1y[sel],pa_a2x,pa_a2y[sel],col=pa_col[sel])
+			}
 			sel = (!bufin) & (sr | sl)
 			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",n,"'")
 			sel = bufout & ss
@@ -510,12 +585,17 @@ for (n in names(Actions)) { a = Actions[[n]]
 			bufout = bufout | ss
 			bufin = bufout
 			first=FALSE
+			Fields[,s$readtag] = sr
 		}
 		sel = (! bufout) & (! Fields$non.mandatory)
 		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",n,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
 	} else {
 		stop(paste("There is a empty Action:",n))
 	}
+}
+
+if (plot.access) {
+	dev.off()
 }
 
 for (tag in Stages$readtag) {
