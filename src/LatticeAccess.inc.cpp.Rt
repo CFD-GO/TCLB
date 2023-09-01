@@ -454,7 +454,7 @@ class DynamicAccess : public PARENT {
   CudaDeviceFunction DynamicAccess(Args&&... args) : parent(std::forward<Args>(args)...) { }
 <?R for (f in rows(Fields)) { ?>
 public:
-  template <class dx_t, class dy_t, class dz_t>
+  template <class dx_t, class dy_t, class dz_t=range_int<0> >
   CudaDeviceFunction inline real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz = range_int<0>()) const {
     return parent::load_<?%s f$nicename ?>(
       range_int< <?%d f$minx ?>, 0, <?%d f$maxx ?>, 0 >::ensure(dx),
