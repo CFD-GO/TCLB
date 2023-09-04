@@ -301,13 +301,14 @@ void LatticeContainer::CopyToConst() {
   \param borderStream CUDA Stream to which add the kernel run
 */
 template <class EX> inline void LatticeContainer::RunBorderT(CudaStream_t stream) {
-  dim3 thr = ThreadNumber< EX >::threads();
-  dim3 blx;
 <?R
 	thy = BorderMargin$max[2] - BorderMargin$min[2] + BorderMargin$max[3] - BorderMargin$min[3]
 	blx = "nz"
 	if (BorderMargin$max[3] != 0 || BorderMargin$min[3] != 0) blx = "max(ny,nz)"
+  if (thy > 0) {
 ?>
+  dim3 thr = ThreadNumber< EX >::threads();
+  dim3 blx;
   #ifdef GRID3D
     blx.z = nx/thr.x;
   #else
@@ -317,6 +318,7 @@ template <class EX> inline void LatticeContainer::RunBorderT(CudaStream_t stream
   blx.x = ceiling_div(totx, thr.y);
   blx.y = <?%d thy ?>;
   CudaKernelRunNoWait(Kernel< EX >, blx, thr, stream);
+<?R } ?>
 };
 
 /// Run the interior kernel

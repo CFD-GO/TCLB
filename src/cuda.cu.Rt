@@ -77,7 +77,7 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")[-1]
 	AddMacro(Q, paste0_s("(acc.getQ(",seq_along(Q)-1,"))"))
-	s = ZoneSettings[! ZoneSettings$preload,,drop=FALSE]
+	s = ZoneSettings[! as.logical(ZoneSettings$preload),,drop=FALSE]
 	AddMacro(s$name, paste0_s("constContainer.ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
 	s = ZoneSettings
 	AddMacro(paste0_s(s$name,"_DT"), paste0_s("constContainer.ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
