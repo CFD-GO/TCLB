@@ -37,67 +37,7 @@ if (is.null(Options$autosym)) Options$autosym = FALSE
 
 #source("linemark.R")
 
-rows = function(x) {
-	rows_df= function(x) {
-		if (nrow(x) > 0) {
-			lapply(1:nrow(x),function(i) lapply(x,"[[",i))
-		} else {
-			list()
-		}
-	};
-	switch( class(x),
-		list       = x,
-		data.frame = rows_df(x)
-	)
-}
-
-table_from_text = function(text) {
-	con = textConnection(text);
-	tab = read.table(con, header=T);
-	close(con);
-	tab
-}
-
-c_table_decl = function(d, sizes=TRUE) {
-	trim <- function (x) gsub("^\\s+|\\s+$", "", x)
-	d = as.character(d)
-	sel = grepl("\\[",d)
-	if(any(sel)) {
-		w = d[sel]
-#		w = regmatches(w,regexec("([^[]*)\\[ *([^\\] ]*) *]",w))
-		r = regexpr("\\[[^]]*\\]",w)
-		w = lapply(1:length(r), function(i) {
-			a_=w[i]
-			c(a_,
-				trim(substr(a_,1,r[i]-1)),
-				trim(substr(a_,r[i]+1,r[i]+attr(r,"match.length")[i]-2))
-			)
-		})
-
-		w = do.call(rbind,w)
-		w = data.frame(w)
-		w[,3] = as.integer(as.character(w[,3]))
-		if (sizes) {
-			w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
-		} else {
-			w = by(w,w[,2],function(x) {x[1,2]})
-		}
-		w = do.call(c,as.list(w))
-	} else {
-		w = c()
-	}
-	w = c(w,d[!sel])
-	w
-}
-
-
-ifdef.global.mark = F
-ifdef = function(val=F, tag="ADJOINT") {
-	if ((!ifdef.global.mark) && ( val)) cat("\n#ifdef",tag,"\n");
-	if (( ifdef.global.mark) && (!val)) cat("\n#endif //",tag,"\n");
-	ifdef.global.mark <<- val
-}
-
+source("lib/utils.R")
 
 DensityAll = data.frame(parameter=logical(0))
 Globals = data.frame()
@@ -395,10 +335,11 @@ AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, re
 	Fields[, s$readtag] <<- sel
 }
 
-Actions = list()
+Actions = NULL
 
 AddAction = function(name, stages) {
-	Actions[[name]] <<- stages
+	a = data.frame(name=name, stages=I(list(stages)))
+	Actions <<- rbind(Actions, a)
 }
 
 Objectives = list()
@@ -468,13 +409,13 @@ if (Options$autosym) { ## Automatic symmetries
   }
 }
 
-if (!"Iteration" %in% names(Actions)) {
+if (!"Iteration" %in% Actions$name) {
 	AddAction(name="Iteration", stages=c("BaseIteration"))
 }
-if (!"Init" %in% names(Actions)) {
+if (!"Init" %in% Actions$name) {
 	AddAction(name="Init", stages=c("BaseInit"))
 }
-AllStages = do.call(c,Actions)
+AllStages = unique(do.call(c,Actions$stages))
 
 if (("BaseIteration" %in% AllStages) && (!"BaseIteration" %in% Stages$name)) {
 	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, default=TRUE)
@@ -519,10 +460,12 @@ if (plot.access) {
 	pdf("field_access.pdf",width=pa_ylab+pa_scale*(1+pa_ws*pa_s),height=pa_scale*diff(pa_frange)+pa_main+pa_leg)
 	par(mai=c(pa_leg,pa_ylab,pa_main,0))
 }
-for (n in names(Actions)) { a = Actions[[n]]
-	if (length(a) > 0) {
-		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
-		if (n == "Init") {
+Actions$FunName = ifelse(Actions$name == "Iteration", "Iteration", paste0("Action_",Actions$name))
+
+for (a in rows(Actions)) {
+	if (length(a$stages) != 0) {
+		if (!all(a$stages %in% Stages$name)) stop(paste("Some stages in action",a$name,"were not defined"))
+		if (a$name == "Init") {
 			bufin = rep(FALSE, nrow(Fields))
 		} else {
 			bufin = rep(TRUE, nrow(Fields))
@@ -531,8 +474,8 @@ for (n in names(Actions)) { a = Actions[[n]]
 		first = TRUE
 		pa_si = 0
 		if (plot.access) {
-			pa_s = length(a)
-			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=n,asp=1)
+			pa_s = length(a$stages)
+			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=a$name,asp=1)
 			legend(par('usr')[2], par('usr')[3], xpd=TRUE, yjust=1, xjust=1, ncol=2, cex=0.7, bty = "n", bg="white",
 				legend = c("Previous iteration", "Newly written field", "Previously written field", "Density read", "Declared read access", "Implicit (undeclared) read access"),
 				pch=c(15,15,15,NA,NA,NA),lty=c(NA,NA,NA,1,1,1),col=c("lightblue", "green","darkgreen","black","green","gray"))
@@ -544,7 +487,7 @@ for (n in names(Actions)) { a = Actions[[n]]
 			pa_yscaling = par("pin")[2]/diff(par("usr")[3:4])
 			pa_sl = max(pa_sl) / pa_yscaling
 		}
-		for (sn in a) {
+		for (sn in a$stages) {
 			pa_si = pa_si + 1
 			s = Stages[Stages$name == sn,]
 			ss = Fields[,s$savetag]
@@ -579,16 +522,16 @@ for (n in names(Actions)) { a = Actions[[n]]
 				sel = pa_col != "white"; if (any(sel)) segments(pa_a1x,pa_a1y[sel],pa_a2x,pa_a2y[sel],col=pa_col[sel])
 			}
 			sel = (!bufin) & (sr | sl)
-			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",n,"'")
+			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",a$name,"'")
 			sel = bufout & ss
-			if (any(sel) && (! s$can.overwrite) && (! permissive.access)) stop("Overwriting fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' that were written earlier in action '",n,"'")
+			if (any(sel) && (! s$can.overwrite) && (! permissive.access)) stop("Overwriting fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' that were written earlier in action '",a$name,"'")
 			bufout = bufout | ss
 			bufin = bufout
 			first=FALSE
 			Fields[,s$readtag] = sr
 		}
 		sel = (! bufout) & (! Fields$non.mandatory)
-		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",n,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
+		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",a$name,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
 	} else {
 		stop(paste("There is a empty Action:",n))
 	}
@@ -613,11 +556,16 @@ if (nrow(NodeTypes) > 0) {
   NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
           n = nrow(tab)
           l = ceiling(log2(n+1))
-          tab$index = 1:n
-          tab$Index = tab$name
-          tab$value = NodeShift*(1:n)
-          tab$mask  = NodeShift*((2^l)-1)
+          tab$index    = 1:n
+          tab$Index    = paste("NODE",tab$name,sep="_")
+          tab$value    = NodeShift*(1:n)
+          tab$mask     = NodeShift*((2^l)-1)
+          tab$max      = n
+          tab$bits     = l
+          tab$capacity = 2^l
           tab$shift = NodeShiftNum
+          tab$groupIndex = paste("NODE",tab$group,sep="_")
+          tab$save = TRUE
           NodeShift    <<- NodeShift * (2^l)
           NodeShiftNum <<- NodeShiftNum + l
           tab
@@ -642,24 +590,65 @@ NodeTypes = rbind(NodeTypes,data.frame(
         name="DefaultZone",
         group="SETTINGZONE",
         index=1,
-        Index="DefaultZone",
+        Index="ZONE_DefaultZone",
         value=0,
+        max=ZoneMax,
+        bits=ZoneBits,
+        capacity=ZoneMax,
         mask=(ZoneMax-1)*NodeShift,
-        shift=NodeShiftNum
+        shift=NodeShiftNum,
+        groupIndex = "NODE_SETTINGZONE",
+        save = TRUE
 ))
 NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds size of flag_t")
 
-Node=NodeTypes$value
-names(Node) = NodeTypes$name
+#ALLBits = ZoneShift
+#ALLMax = 2^ZoneShift
+ALLBits = FlagTBits
+ALLMax = 2^ALLBits
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="None",
+        group="NONE",
+        index=1,
+        Index="NODE_None",
+        value=0,
+        max=0,
+        bits=0,
+        capacity=0,
+        mask=0,
+        shift=0,
+        groupIndex = "NODE_NONE",
+        save = FALSE
+))
 
-i = !duplicated(NodeTypes$group)
-Node_Group=NodeTypes$mask[i]
-names(Node_Group) = NodeTypes$group[i]
-Node_Group["ALL"] = sum(Node_Group)
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="Clear",
+        group="ALL",
+        index=1,
+        Index="NODE_Clear",
+        value=0,
+        max=ALLMax,
+        bits=ALLBits,
+        capacity=ALLMax,
+        mask=(ALLMax-1),
+        shift=0,
+        groupIndex = "NODE_ALL",
+        save = FALSE
+))
 
+NodeTypeGroups = unique(data.frame(
+        name=NodeTypes$group,
+        Index=NodeTypes$groupIndex,
+        max=NodeTypes$max,
+        bits=NodeTypes$bits,
+        capacity=NodeTypes$capacity,
+        mask=NodeTypes$mask,
+        shift=NodeTypes$shift,
+        save=NodeTypes$save
+))
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
 
@@ -819,7 +808,7 @@ Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel]
 if (is.na(PartMargin)) PartMargin = 0.5
 
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings","Actions")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -852,9 +841,6 @@ Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
-
-Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
-Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
 
 is.power.of.two = function(x) { 2^floor(log(x)/log(2))-x != 0 }
 
@@ -994,7 +980,7 @@ Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
 	eModel=paste("model",as.character(MODEL),sep="_"),
-	eAction=names(Actions),
+	eAction=Actions$name,
 	eStage=c(Stages$name,"Get"),
 	eTape = c("NoTape", "RecordTape")
 )

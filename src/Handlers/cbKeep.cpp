@@ -6,12 +6,14 @@ int cbKeep::Init () {
 		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("What");
 		if (attr) {
-			what = GlobalByName(attr.value());
-			if (what < 0) {
-        			error("Unknown Global %s in %s\n", attr.value(), node.name());
+			std::string nm = attr.value();
+			const Model::Global& it = solver->lattice->model->globals.by_name(nm);
+			if (!it) {
+        			error("Unknown Global %s in %s\n", nm.c_str(), node.name());
         			return -1;
                         }
-			whatInObj = GlobalInObj(what);
+                        what = it.id;
+			whatInObj = it.inObjId;
 		} else {
 			error("No What attribute in %s\n", node.name());
 			return -1;
@@ -60,7 +62,7 @@ int cbKeep::DoIt () {
                         }
                 }
                 MPI_Bcast(&s, 1, MPI_INT, 0, MPMD.local);
-                solver->lattice->setSetting(whatInObj, s);		
+		solver->lattice->zSet.set(whatInObj, -1, s);
 		return 0;
 	}
 

@@ -1,0 +1,192 @@
+<?R source("conf.R"); ?>
+#include "Lists.h"
+#include "Consts.h"
+//#include "ModelConsts.h"
+#include <cmath>
+
+#define UNKNOWN_INOBJ -1
+
+<?R
+	for (v in rows(Settings)) if (!is.na(v$derived)) {
+		i = which(as.character(Settings$name) == as.character(v$derived));
+		sel = Settings[i[1],] ?>
+double DF_<?%s v$name ?> (double <?%s v$name ?>) { return <?%s v$equation ?>;} <?R
+	}
+?>
+
+<?R
+	for (objname in names(Objectives)) {
+		obj = Objectives[[objname]]
+?>
+void OF_<?%s objname ?>(double *glob, double *obj, double *grad) { <?R
+	for (i in names(obj)) {
+		if (i != ".M") {
+			v = Globals[i == Globals$name,,drop=FALSE]
+			if (nrow(v) == 1) { ?>
+	double <?%s v$name ?> = glob[<?%s v$Index ?>]; <?R
+			}
+		}
+	} ?>
+	obj[0] = <?R C(obj) ?>; <?R
+	for (v in rows(Globals)) {
+		der = deriv(obj, v$name) ?>
+	grad[<?%s v$Index ?>] = <?R C(der) ?>; <?R
+	} ?>
+}
+<?R } ?>
+
+<?R
+	paste0_s = function(...) if (any(sapply(list(...),length) < 1)) character(0) else paste0(...)
+	q = function(a) paste0_s('\"',a,'\"')
+	init_list = function(il, begin="{", end="}") {
+		il_txt = lapply(names(il), function(n) {
+			x = il[[n]]
+			if (is.logical(x)) {
+				x = ifelse(x,"true","false")
+			} else if (is.character(x)) {
+				x = trimws(x)
+			} else {
+				x = as.character(x)
+			}
+			x = c(n,x)
+			format(x, justify="left")
+		})
+		names(il_txt) = names(il)
+		il_txt = do.call(data.frame,il_txt)
+		head = paste0(il_txt[1,],collapse=" | ")
+		if (nrow(il) > 0) {
+			table = sapply(seq_len(nrow(il)), function(i) {
+				n = max(which(!is.na(il[i,])))
+				paste0(il_txt[i+1,seq_len(n)],collapse=" , ")
+			})
+			table = paste0("{ ", table, " }")
+		} else {
+			table = format(c(head,"empty"),justify = "centre")[2]
+			table = paste0("/*", table, "*/")
+		}
+		head = paste0("| ", head, " |")
+		ret = c(head,table)
+		before = rep("", length(ret))
+		before[1] = "// "
+		before[2] = begin
+		after = rep(",", length(ret))
+		after[1] = ""
+		after[length(ret)] = end
+		paste0(format(before,justify="right"), ret, after, collapse="\n")
+	}
+?>
+
+Model_m::Model_m() {
+    name = "<?%s MODEL ?>";
+<?R 
+	il = data.frame(
+		id = Settings$Index,
+		name = q(Settings$name),
+		unit = q(Settings$unit),
+		defaultValue = q(Settings$default))
+	sel = !is.na(Settings$derived)
+	if (any(sel)) {
+		il$isDerived[sel] = "true"
+		dmatch = match(Settings$derived[sel],Settings$name)
+		il$derivedSetting[sel] = Settings$Index[dmatch]
+		il$derivedValue[sel] = paste0_s("DF_",Settings$name[sel])
+	}
+	cat(init_list(il,"    settings = {","};\n\n"))
+
+	il = data.frame(
+		id = ZoneSettings$Index,
+		name = q(ZoneSettings$name),
+		unit = q(ZoneSettings$unit),
+		defaultValue = q(ZoneSettings$default))
+	cat(init_list(il,"    zonesettings = {","};\n\n"))
+
+	il = data.frame(
+		id = Quantities$Index,
+		name = q(Quantities$name),
+		unit = q(Quantities$unit),
+		isVector = Quantities$vector,
+		isAdjoint = Quantities$adjoint)
+	cat(init_list(il,"    quantities = {","};\n\n"))
+
+	il = data.frame(
+		id = Globals$Index,
+		name = q(Globals$name),
+		unit = q(Globals$unit),
+		operation = paste0_s("MPI_", Globals$op),
+		isAdjoint = Globals$adjoint)
+	cat(init_list(il,"    globals = {","};\n\n"))
+
+	il = data.frame(
+		id = seq_along(Options) - 1,
+		name = q(names(Options)),
+		isActive = as.logical(do.call(c,Options)))
+	cat(init_list(il,"    options = {","};\n\n"))
+
+	il = data.frame(
+		id = Scales$Index,
+		name = q(Scales$name),
+		unit = q(Scales$unit))
+	cat(init_list(il,"    scales = {","};\n\n"))
+
+	il = data.frame(
+		id = Fields$Index,
+		name = q(Fields$name),
+		niceName = q(Fields$nicename),
+		isParameter = Fields$parameter,
+		isAverage = Fields$average,
+		accessArea = Fields$area,
+		simpleAccess = Fields$simple_access
+	)
+	sel = Fields$adjoint
+	if (any(sel)) {
+		il$isAdjoint[sel] = TRUE
+		il$adjointName[sel] = Fields$adjoint_name[sel]
+		il$tangentName[sel] = Fields$tangent_name[sel]
+	}
+	cat(init_list(il,"    fields = {","};\n\n"))
+
+	il = data.frame(
+		id = NodeTypes$Index,
+		name = q(NodeTypes$name),
+		group_id = NodeTypes$groupIndex
+	)
+	cat(init_list(il,"    nodetypeflags = {","};\n\n"))
+
+	il = data.frame(
+		id = NodeTypeGroups$Index,
+		name = q(NodeTypeGroups$name),
+		shift = NodeTypeGroups$shift,
+		max = NodeTypeGroups$max,
+		capacity = NodeTypeGroups$capacity,
+		bits = NodeTypeGroups$bits,
+		isSave = NodeTypeGroups$save
+	)
+	cat(init_list(il,"    nodetypegroupflags = {","};\n\n"))
+
+	il = il[NodeTypeGroups$name == "SETTINGZONE",,drop=FALSE]
+	cat(init_list(il,"    settingzones = ",";\n\n"))
+
+	il = data.frame(
+		id = Stages$Index,
+		name = q(Stages$name),
+		mainFun = q(Stages$main),
+		isParticle = Stages$particle,
+		isAdjoint = Stages$adjoint
+	)
+	cat(init_list(il,"    stages = {","};\n\n"))
+
+	il = data.frame(
+		id = Actions$Index,
+		name = q(Actions$name),
+		stages = paste0("{", sapply(Actions$stages, function(x) paste0(Stages$Index[match(x, Stages$name)], collapse=",")), "}")
+	)
+	cat(init_list(il,"    actions = {","};\n\n"))
+
+	il = data.frame(
+		id = seq_along(Objectives) - 1,
+		name = q(names(Objectives)),
+		fun = paste0_s("OF_",names(Objectives))
+	)
+	cat(init_list(il,"    objectives = {","};\n\n"))
+?>
+}

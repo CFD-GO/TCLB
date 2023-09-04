@@ -56,12 +56,39 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 
 #include "Particle.hpp"
 
-<?R	for (n in rows(NodeTypes)) {	?>
-#define Iam<?%s n$name ?> ((NodeType & NODE_<?%s n$group?>) == NODE_<?%s n$name ?>)
-<?R	}	?>
-<?R	for (n in names(Node_Group)) {	?>
-#define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
-<?R	}	?>
+
+
+<?R
+	paste0_s = function(...) if (any(sapply(list(...),length) < 1)) character(0) else paste0(...)
+	macros = NULL
+	AddMacro = function(name, definition) {
+		token = sub("[(].*","",name)
+		macros <<- rbind(macros, data.frame(name=name, token=token, definition=definition))
+	}
+	f = Fields
+	AddMacro(paste0_s(f$nicename,"(...)"), paste0_s("acc.template load_", f$nicename, "< __VA_ARGS__ >()"))
+	AddMacro(paste0_s(f$nicename,"_dyn(...)"), paste0_s("acc.template load_", f$nicename, "(__VA_ARGS__)"))
+	XYZ = c("X","Y","Z")
+	AddMacro(XYZ, paste0_s("acc.get", XYZ,"()"))
+	AddMacro("NodeType", paste0_s("acc.getNodeType()"))
+	AddMacro("Time", paste0_s("(constContainer.iter)"))
+	AddMacro("SyntheticTurbulence(x__,y__,z__)","constContainer.getST(x__,y__,z__)")
+	AddMacro("average_iter","(constContainer.iter - constContainer.reset_iter)")
+	P = expand.grid(x=0:2,y=0:2,z=0:2)
+	Q = paste("Q",P$x,P$y,P$z,sep="")[-1]
+	AddMacro(Q, paste0_s("(acc.getQ(",seq_along(Q)-1,"))"))
+	s = ZoneSettings[! ZoneSettings$preload,,drop=FALSE]
+	AddMacro(s$name, paste0_s("constContainer.ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	s = ZoneSettings
+	AddMacro(paste0_s(s$name,"_DT"), paste0_s("constContainer.ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	g = Globals
+	g$opstr = ifelse(g$op == "SUM", "Add", "Max")
+	AddMacro(paste0_s("AddTo", g$name, "(x__)"), paste0_s("glob.", g$opstr, "ToGlobal<", g$Index, ">(x__, acc.getNodeType())"))
+	n = NodeTypes
+	AddMacro(paste0_s("Iam",n$name),paste0_s("((acc.getNodeType() & ", n$groupIndex, ") == ", n$Index,")"))
+	n = NodeTypeGroups
+	AddMacro(paste0_s("Iam",n$name),paste0_s("(acc.getNodeType() & ", n$Index, ")"))
+?>
 
 template <eCalculateGlobals G>
 struct CalculateGlobals {};
@@ -154,100 +181,20 @@ struct CalculateGlobalsAdjoint {
 
 #define NODE_H
 
-
-#define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
-        for (f in rows(Fields)) { ?>
-#define <?%s f$nicename ?>(...) acc.template load_<?%s f$nicename ?>< __VA_ARGS__ >()
-#define <?%s f$nicename ?>_dyn(...) acc.load_<?%s f$nicename ?>(__VA_ARGS__) <?R
-        }
-?>
-
-#define X (acc.X())
-#define Y (acc.Y())
-#define Z (acc.Z())
-#define NodeType (acc.NodeType())
-#define Time (constContainer.iter)
-#define SyntheticTurbulence(x__,y__,z__) constContainer.getST(x__,y__,z__)
-#define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
-<?R
-	P = expand.grid(x=0:2,y=0:2,z=0:2)
-	Q = paste("Q",P$x,P$y,P$z,sep="")
-	for (i in 2:length(Q)) { ?>
-#define <?%s Q[i] ?> (acc.getQ(<?%d i-2 ?>)) <?R
-	}
-	for(s in rows(ZoneSettings)) { ?>
-//#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
-<?R 	if (! s$preload) { ?>
-#define <?%s s$name ?> constContainer.ZoneSetting(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
-<?R     } ?>
-#define <?%s s$name ?>_DT constContainer.ZoneSetting_DT(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
-<?R
-    }
-
-	for (g in rows(Globals)) {
-		if (g$op == "SUM") { ?>
-#define AddTo<?%s g$name ?>(x__) glob.AddToGlobal< <?%s g$Index ?> >(x__, NodeType) <?R
-		} else { ?>
-#define AddTo<?%s g$name ?>(x__) glob.MaxToGlobal< <?%s g$Index ?> >(x__, NodeType) <?R
-		}
-	}
-?>
-
-
 template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         CudaDeviceFunction inline void RunElement(){};
 		CudaDeviceFunction inline Node_Run(const LA& acc_) {};
 };
 
 <?R
+	writeLines(paste("#define", macros$name, macros$definition, sep=" "))
+
 for (tp in rows(Dispatch)) {
 	s = Stages[Stages$name == tp$stage_name, ];
-#	GlobalsD = Globals[-nrow(Globals),];
-	GlobalsD = Globals[,];
-	GlobalsD$zonal = FALSE;
-	ik = nrow(ZoneSettings);
-	if (ik > 0) {
-		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
-		k = nrow(GlobalsD) - ik:1 + 1;
-		GlobalsD$name[k] = paste0(ZoneSettings$name,"B");
-		GlobalsD$adjoint[k] = TRUE;
-		GlobalsD$zonal[k] = TRUE;
-		GlobalsD$op[k] = "SUM";
-		GlobalsD$var[k] = paste0(ZoneSettings$name,"b");
-		GlobalsD$Index[k] = ZoneSettings$Index;
-
-		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
-		k = nrow(GlobalsD) - ik:1 + 1;
-		GlobalsD$name[k] = paste0(ZoneSettings$name,"_DTB");
-		GlobalsD$adjoint[k] = TRUE;
-		GlobalsD$zonal[k] = TRUE;
-		GlobalsD$op[k] = "SUM";
-		GlobalsD$var[k] = paste0(ZoneSettings$name,"_DTb");
-		GlobalsD$Index[k] = paste0(ZoneSettings$Index,"+DT_OFFSET");
-	}
-	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix
-	       if (tp$Stream == "Adj") {
-	        GlobalsD$sel = GlobalsD$adjoint
-	} else if (tp$Stream == "Opt") {
-	        GlobalsD$sel = TRUE
-	} else if (tp$Stream == "Init") {
-	        GlobalsD$sel = FALSE
-	} else if (tp$Stream == "No") {
-	        GlobalsD$sel = ! GlobalsD$adjoint
-	} else {
-	        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (conf.R)"));
-	} ?>
+	?>
 //-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
-        if (tp$Globals == "Globs") {
-                Globs = GlobalsD[GlobalsD$sel,]
-        } else if (tp$Globals == "Obj") {
-                Globs = Globals[nrow(Globals),]
-		Globs$zonal = FALSE
-        } else {
-                Globs = NULL
-        } 	
         T1 = switch(tp$Action, No="Primal", Adj="Adjoint", Opt="Optimize", SAdj="SteadyAdjoint")
         T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
         T3 = tp$stage_name
@@ -383,15 +330,7 @@ template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> >
 } 
 cat("\n")
 ifdef()
+
+	writeLines(paste("#undef", macros$token, sep=" "))
 ?>
-
-
-#undef X
-#undef Y
-#undef Z
-#undef NodeType
-#undef Time
-#undef average_iter
-
-
 #include "LatticeContainer.inc.cpp"

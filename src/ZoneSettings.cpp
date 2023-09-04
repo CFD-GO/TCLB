@@ -8,7 +8,7 @@ int ZoneSettings::dumpToFile(const char* filename) {
   FILE* f = fopen(filename,"w");
   fprintf(f,"Iteration");
   for (int z=0; z<MaxZones; z++) {
-    for (int s=0; s<ZONESETTINGS; s++) {
+    for (int s=0; s<zonesettings; s++) {
       fprintf(f,", S.%d.%d",s,z);
       fprintf(f,", D.%d.%d",s,z);
     }
@@ -17,9 +17,9 @@ int ZoneSettings::dumpToFile(const char* filename) {
   for (size_t it=0; it<len; it++) {
     fprintf(f,"%ld",it);
     for (int z=0; z<MaxZones; z++) {
-      for (int s=0; s<ZONESETTINGS; s++) {
+      for (int s=0; s<zonesettings; s++) {
         for (int d=0; d<2; d++) {
-          int i = s+ZONESETTINGS*z + DT_OFFSET*d;
+          int i = s+zonesettings*z + dt_offset()*d;
           double val;
           if (cpuValues[i] == NULL) {
             val = cpuConst[i];

@@ -34,11 +34,11 @@
     }
     ret
   }
-  for (n in names(Node)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node[n]) ?> <?R
+  for (n in rows(NodeTypes)) { ?>
+#define <?%-20s n$Index ?> 0x<?%s big_hex(n$value) ?> <?R
   }
-  for (n in names(Node_Group)) { ?>
-#define NODE_<?%-20s n ?> 0x<?%s big_hex(Node_Group[n]) ?> <?R
+  for (n in rows(NodeTypeGroups)) { ?>
+#define <?%-20s n$Index ?> 0x<?%s big_hex(n$mask) ?> <?R
   }
 ?>
 <?R
@@ -48,6 +48,7 @@
 ?>
 
 typedef <?%s FlagT ?> flag_t;
+typedef unsigned int big_flag_t;
 
 <?R for (e in names(Enums)) { ?>
 enum <?%s e ?> { <?%s paste(Enums[[e]],collapse=",") ?> }; <?R

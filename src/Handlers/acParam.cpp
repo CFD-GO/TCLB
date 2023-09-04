@@ -1,10 +1,5 @@
-<?R
-#include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "acParam.h"
+
 std::string acParam::xmlname = "Param";
 
 int acParam::Init () {
@@ -39,26 +34,26 @@ int acParam::Init () {
 				ERROR("Setting name not specified in Param element\n");
 				return -2;
 			}
-		<?R for (v in rows(Settings)) { ?>
-		} else if (par == "<?%s v$name?>") {
-                        output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
-			solver->lattice-><?%s v$FunName ?>(val);
-		<?R }
-		    for (v in rows(ZoneSettings)) { ?>
-		} else if (par == "<?%s v$name?>") {
-                        output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
-			solver->lattice->zSet.set(<?%s v$Index?>, zone_number, val);
-		<?R } ?>
 		} else {
-			if (permissive) {
-				if (gauge != "") {
-					notice("Unknown setting %s with gauge\n", par.c_str());
-				} else {
-					WARNING("Unknown setting %s\n", par.c_str());
-				}
+			const Model::Setting& it = solver->lattice->model->settings.by_name(par);
+			const Model::ZoneSetting& zoneit = solver->lattice->model->zonesettings.by_name(par);
+			if (it) {
+                output("Setting %s to %s (%lf)\n", par.c_str(), value.c_str(), val);
+				solver->lattice->SetSetting(it, val);
+			} else if (zoneit) {
+                output("Setting %s in zone %s (%d) to %s (%lf)\n", par.c_str(), zone.c_str(), zone_number, value.c_str(), val);
+				solver->lattice->zSet.set(zoneit.id, zone_number, val);
 			} else {
-				ERROR("Unknown setting %s\n", par.c_str());
-				return -3;
+				if (permissive) {
+					if (gauge != "") {
+						notice("Unknown setting %s with gauge\n", par.c_str());
+					} else {
+						WARNING("Unknown setting %s\n", par.c_str());
+					}
+				} else {
+					ERROR("Unknown setting %s\n", par.c_str());
+					return -3;
+				}
 			}
 		}
 		return 0;

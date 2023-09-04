@@ -1,14 +1,10 @@
-<?R
-#include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "cbFailcheck.h"
+
 std::string cbFailcheck::xmlname = "Failcheck";
 
 int cbFailcheck::Init () {
 		Callback::Init();
+		currentlyactive = false;
 		reg.dx = solver->region.dx;
 		reg.dy = solver->region.dy;
 		reg.dz = solver->region.dz;
@@ -42,17 +38,17 @@ int cbFailcheck::Init () {
             reg.nz = solver->units.alt(attr.value());
         }
 
-		rkept = 1;
 		return 0;
 	}
 
 
 int cbFailcheck::DoIt () {
 		Callback::DoIt();
+	if (currentlyactive) return 0;
+	currentlyactive = true;
        	int ret = 0;
-		int cond,fin;
+		int fin;
 		fin = false;
-		cond = false;
 
         pugi::xml_attribute comp = node.attribute("what");
  
@@ -63,42 +59,38 @@ int cbFailcheck::DoIt () {
             components.add_from_string("all",',');
         }
 
-		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-        
-		if (!cond) {
-            if (components.in("<?%s q$name ?>")) {
-                    <?%s q$type ?>* tmp = new <?%s q$type ?>[reg.size()];
-		    solver->lattice->Get<?%s q$name ?>(reg,tmp);
-                    cond = false;
-                    
-                    for (int k = 0; k < reg.size(); k++){  
-			<?R if (q$vector) { ?>
-	                    cond = cond || ((std::isnan(tmp[k].x)) || (std::isnan(tmp[k].y)) || (std::isnan(tmp[k].z)));
-			<?R } else { ?>
-    	       		    cond = cond || (std::isnan(tmp[k]));
-			<?R } ?>
+	for (const Model::Quantity& it : solver->lattice->model->quantities) {
+		if (it.isAdjoint) continue;
+            if (components.in(it.name)) {
+			int comp = 1;
+			if (it.isVector) comp = 3;
+                    real_t* tmp = new real_t[reg.size()*comp];
+		    solver->lattice->GetQuantity(it.id, reg, tmp, 1);
+                    bool cond = false;
+                    for (int k = 0; k < reg.size()*comp; k++){  
+	       		    cond = cond || (std::isnan(tmp[k]));
                     }
-    			delete[] tmp;
-                if(cond ){ notice("Checking <?%s q$name ?> discovered NaN"); }
-            }
+		    delete[] tmp;
+			MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPMD.local);
+
+                    if(fin ){
+			notice("Checking %s discovered NaN", it.name.c_str());
+			break;
+			}
 		}
-		<?R }; ifdef(); ?>
 
-		MPI_Allreduce(&cond,&fin,1,MPI_INT,MPI_LOR,MPMD.local);
-
-	    if ((fin) && (rkept)) {
-            rkept = 0;
-			notice("NaN value discovered. Executing final actions from the Failcheck element before full stop...\n");
-            for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
-                Handler hand(par, solver);
-                if (hand) hand.DoIt();
-            }
-		rkept = 1;
-            notice("Stopping due to Nan value\n");
-            ret = ITERATION_STOP;
         }
-		return ret;
-	}	
+	    if (fin) {
+			notice("NaN value discovered. Executing final actions from the Failcheck element before full stop...\n");
+                for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+                    Handler hand(par, solver);
+                    if (hand) hand.DoIt();
+                }
+                notice("Stopping due to Nan value\n");
+                ret = ITERATION_STOP;
+            }
+            return ret;
+    }	
 
 
 int cbFailcheck::Finish () {

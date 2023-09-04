@@ -5,15 +5,14 @@
 #include "types.h"
 #include <stdlib.h>
 #include "Sampler.h"
-<?R
-       	source("conf.R")
-       	c_header();
-?>
-Sampler::Sampler(){ 
+#include "Lattice.h"
+
+Sampler::Sampler(Lattice *lattice_) : lattice(lattice_) { 
 	size = 0;
 	startIter = 0;
 	position = lbRegion();
 }
+
 int Sampler::initCSV(const char *name) 
      {
      filename = name;
@@ -22,11 +21,16 @@ int Sampler::initCSV(const char *name)
      output("Initializing %s\n",filename);
      assert( f != NULL );
      fprintf(f,"Iteration,X,Y,Z");
-     <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-     if (quant->in("<?%s q$name ?>")) 
-	<?R if (!q$vector) { ?> fprintf(f,",<?%s q$name ?>");
-	<?R } else { ?> fprintf(f,",<?%s q$name ?>.x,<?%s q$name ?>.y,<?%s q$name ?>.z"); <?R } ?>
-     <?R }; ifdef(); ?> 
+	for (const Model::Quantity& it : lattice->model->quantities) {
+		if (quant->in(it.name)) {
+			const char* n = it.name.c_str();
+			if (it.isVector) {
+				fprintf(f,",%s.x,%s.y,%s.z", n, n, n);
+			} else {
+				fprintf(f,",%s", n);
+			}
+		}
+	}
      fprintf(f,"\n");
      fclose(f); 
      return 0;
@@ -42,13 +46,15 @@ int Sampler::writeHistory(int curr_iter) {
 			tmp_loc.z = spoints[j].location.dz;
 			fprintf(f,"%d",i);
 			csvWriteElement(f,tmp_loc);
-			<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-			if (quant->in("<?%s q$name ?>")) {
-				<?%s q$type ?> tmp;
-				CudaMemcpy(&tmp,&gpu_buffer[(location["<?%s q$name ?>"] + (i - startIter)*size + totalIter*j*size)],sizeof(<?%s q$type ?>),CudaMemcpyDeviceToHost); 
+	for (Model::Quantity& it : lattice->model->quantities) {
+			if (quant->in(it.name)) {
+				real_t tmp;
+				int comp = 1;
+				if (it.isVector) comp = 3;
+				CudaMemcpy(&tmp,&gpu_buffer[(location[it.name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t)*comp,CudaMemcpyDeviceToHost); 
 				csvWriteElement(f,tmp);
-				}
-			<?R }; ifdef(); ?> 
+			}
+		}
 			fprintf(f,"\n");
 			}
 			}
@@ -56,25 +62,21 @@ int Sampler::writeHistory(int curr_iter) {
       fclose(f);
      return 0;
  }
-int Sampler::Allocate(name_set* nquantities,int start,int iter)
-{
-totalIter = iter;
-int i = 0;
-startIter=start;
-quant = nquantities;
-<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-if (quant->in("<?%s q$name ?>"))
- {	
-	location["<?%s q$name ?>"] = i;	
-	i++;
-	<?R if (q$vector) {?>
-	i = i + 2;
-	<?R }; ?> 
-     }
-<?R }; ifdef(); ?>
-CudaMalloc((void**)&gpu_buffer, i*totalIter*spoints.size()*sizeof(real_t)); 
-size = i;
-return 0;
+
+int Sampler::Allocate(name_set* nquantities,int start,int iter) {
+	totalIter = iter;
+	int i = 0;
+	startIter=start;
+	quant = nquantities;
+	for (Model::Quantity& it : lattice->model->quantities) {
+		if (quant->in(it.name)) {
+			location[it.name] = i;	
+			if (it.isVector) i = i + 3; else i = i + 1;
+		}
+	}
+	CudaMalloc((void**)&gpu_buffer, i*totalIter*spoints.size()*sizeof(real_t)); 
+	size = i;
+	return 0;
 }
 
 int Sampler::addPoint(lbRegion loc,int rank){ 

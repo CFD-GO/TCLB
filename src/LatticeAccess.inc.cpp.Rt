@@ -267,10 +267,10 @@ class LatticeAccess {
     nt(constContainer.getType(x,y,z)),
     nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
     { }
-  CudaDeviceFunction real_t X() const { return constContainer.px + x; }
-  CudaDeviceFunction real_t Y() const { return constContainer.py + y; }
-  CudaDeviceFunction real_t Z() const { return constContainer.pz + z; }
-  CudaDeviceFunction flag_t NodeType() const { return nt; }
+  CudaDeviceFunction real_t getX() const { return constContainer.px + x; }
+  CudaDeviceFunction real_t getY() const { return constContainer.py + y; }
+  CudaDeviceFunction real_t getZ() const { return constContainer.pz + z; }
+  CudaDeviceFunction flag_t getNodeType() const { return nt; }
 
   CudaDeviceFunction inline cut_t getQ(const int& d) const  {
     if (constContainer.Q == NULL) return NO_CUT;

@@ -11,7 +11,7 @@
 #include "SyntheticTurbulence.h"
 #include "Sampler.h"
 #include "SolidContainer.h"
-
+#include "Lists.h"
 
 class lbRegion;
 class LatticeContainer;
@@ -38,6 +38,7 @@ const int maxSnaps=33;
 */
 class Lattice {
 private:
+  Model_m my_model;
   LatticeContainer * container; ///< Main Container object
   storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
   storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
@@ -53,12 +54,9 @@ private:
   CudaStream_t kernelStream; ///< CUDA Stream for kernel runs
   CudaStream_t inStream; ///< CUDA Stream for CPU->GPU momory copy
   CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
-  CudaEvent_t kernelEv[4]; ///< Not used TODO
-  CudaEvent_t inEv[28]; ///< Not used TODO
-  CudaEvent_t outEv[28]; ///< Not used TODO
-  CudaEvent_t mpiEv[28]; ///< Not used TODO
   int reverse_save; ///< Flag stating if recording (Now)
 public:
+  Model* model;
   ZoneSettings zSet;
   SyntheticTurbulence ST;
   Sampler *sample; //initializing sampler with zero size
@@ -126,43 +124,40 @@ public:
     segment_iterations = segiter;
     if (callback) callback_iter = callback(segment_iterations, total_iterations, callback_data);
   }
-  void BeforeIt();
-  void AfterIt();
   int getSnap(int );
   void        MPIStream_A();
   void        MPIStream_B(int );
   inline void MPIStream_B() { MPIStream_B(0); };
+  void SetFirstTabs(int, int);
+  void CopyInParticles();
+  void CopyOutParticles();
   
   void        Iterate(int, int);
   inline void        IterateT(int iter_type) {Iterate(1,iter_type);} ;
 //  void        Iteration_Adj(int, int, int);
 //  void        Iteration_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type);
-  void        IterateTill(int,int);
-<?R for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
-        void <?%s FunName ?>_Adj(int, int, int, int, int); 
-        void <?%s FunName ?>_Opt(int, int, int, int, int); 
-        void <?%s FunName ?>(int, int, int); <?R
+  void        IterateTill(int,int); <?R
+    for (a in rows(Actions)) { ?>
+        void <?%s a$FunName ?>_Adj(int, int, int, int, int); 
+        void <?%s a$FunName ?>_Opt(int, int, int, int, int); 
+        void <?%s a$FunName ?>(int, int, int); <?R
     } ?>
-        void IterateAction(int action, int iter, int iter_type);
-        inline void RunAction(int action, int a, int b, int iter_type) {
+  void GetFlags(lbRegion, big_flag_t *);
+  void GetCoords(real_t*);
+  void Get_Field(int, real_t * tab);
+  void Set_Field(int, real_t * tab);
+  void Get_Field_Adj(int, real_t * tab);
+  void IterateAction(int action, int iter, int iter_type);
+  inline void RunAction(int action, int a, int b, int iter_type) {
 		switch (action) { <?R
-for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
-		case ACTION_<?%s n ?>: return <?%s FunName ?>(a, b, iter_type); <?R
-} ?>
+    for (a in rows(Actions)) { ?>
+		case <?%s a$Index ?>: return <?%s a$FunName ?>(a, b, iter_type); <?R
+    } ?>
 		}
 	}
+  inline void RunAction(int action, int iter_type) {
+    RunAction(action, Snap, (Snap+1) % 2, iter_type);
+  }
   void inline Iterate()  { IterateT(ITER_NORM);   };
   void inline IterateG() { IterateT(ITER_GLOBS);  };
   void inline Stream()   { IterateT(ITER_STREAM); };
@@ -174,8 +169,9 @@ for (n in names(Actions)) {
   void Get_<?%s d$nicename ?>_Adj(real_t * tab);
   void Clear_<?%s d$nicename ?>_Adj();
   void Set_<?%s d$nicename ?>_Adj(real_t * tab);
-<?R }
-    for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+<?R } ?>
+void GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale);
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale);
   void GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* tab);
   inline void Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); };
@@ -190,9 +186,7 @@ for (n in names(Actions)) {
   double getObjective();
   void resetAverage();
   void setSetting(int i, real_t tmp);
-<?R for (v in rows(Settings)) { ?>
-	void <?%s v$FunName ?>(real_t);<?R
-    } ?>
+  void SetSetting(const Model::Setting& set, real_t val);
   void GenerateST();
 };
 

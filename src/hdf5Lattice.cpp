@@ -1,7 +1,3 @@
-<?R
-	source("conf.R")
-	c_header();
-?>
 #include <stdio.h>
 #include <assert.h>
 #include <mpi.h>
@@ -163,13 +159,9 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 
 	flag_t * NodeType = new flag_t[size];
 	lattice->GetFlags(reg, NodeType);
-	<?R
-	i = !duplicated(NodeTypes$group)
-	for (n in rows(NodeTypes[i,])) {
-	?>
-	{
+	for (const Model::NodeTypeGroupFlag& it : lattice->model->nodetypegroupflags) {
 		hid_t       filespace, memspace;
-		char * fieldname = "<?%s n$group ?>";
+		const char * fieldname = it.name.c_str();
 		hid_t input_type = H5T_NATIVE_UCHAR;
 		hid_t output_type = H5T_NATIVE_UCHAR;
 		int output_precision = 1;
@@ -194,7 +186,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 
 		unsigned char * tmp = new unsigned char[size];
 		for (size_t i=0;i<size;i++) {
-			tmp[i] = (NodeType[i] & NODE_<?%s n$group ?>) >> <?%d n$shift ?>;
+			tmp[i] = (NodeType[i] & it.flag) >> it.shift;
 		}
 
 		myprint(0,-1,"filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
@@ -238,15 +230,13 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			xdmf_dataitem.append_attribute("Reference") = xdmf_dataitem_path.c_str();
 		}
 	}
-	<?R }; ?>
 	delete[] NodeType;
 
-	<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-	{
-		if (what->in("<?%s q$name ?>")) {
+	for (const Model::Quantity& it : lattice->model->quantities) {
+		if (what->in(it.name)) {
 			hid_t       filespace, memspace;
-			char * fieldname = "<?%s q$name ?>";
-			bool vector = <?%s ifelse(q$vector, "true", "false") ?>;
+			const char * fieldname = it.name.c_str();
+			bool vector = it.isVector;
 #ifdef CALC_DOUBLE_PRECISION
 			hid_t input_type = H5T_NATIVE_DOUBLE;
 #else
@@ -281,9 +271,11 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			}
 			if (status < 0) return H5Eprint1(stderr);
 
-			unit = units->alt("<?%s q$unit ?>");
-			<?%s q$type ?>* tmp = new <?%s q$type ?>[size];
-			lattice->Get<?%s q$name ?>(reg, tmp, 1/unit);
+			unit = units->alt(it.unit);
+			int comp = 1;
+			if (vector) comp = 3;
+	                real_t* tmp = new real_t[size*comp];
+                        lattice->GetQuantity(it.id, reg, tmp, 1/unit);
 
 			myprint(0,-1,"filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
 			plist_id = H5Pcreate(H5P_DATASET_XFER);
@@ -329,7 +321,6 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			}
 		}
 	}
-	<?R }; ifdef(); ?>
 
 	H5Fclose(file_id);
 

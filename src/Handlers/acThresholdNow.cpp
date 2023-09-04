@@ -1,10 +1,5 @@
-<?R
-#include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "acThresholdNow.h"
+
 std::string acThresholdNow::xmlname = "ThresholdNow";
 
 int acThresholdNow::Init () {
@@ -36,7 +31,12 @@ int acThresholdNow::Init () {
 		GetParameters(start);
 		DEBUG_M;
 		int msg=0;
-	        solver->lattice-><?%s Settings[Settings$name=="Threshold",]$FunName ?>(level);
+		const Model::Setting& it = solver->lattice->model->settings.by_name("Threshold");
+		if (!it) {
+			ERROR("'Threshold' is not a setting");
+			return -1;
+		}
+	        solver->lattice->SetSetting(it, level);
 	        if (slice != NULL) for (int j=0;j<par;j++) slice[j]=start[j]>level ? 1.0 : 0.0;
 //       		solver->setPar(slice);
 		SetParameters(slice);
