@@ -230,9 +230,9 @@ public:
 		real_t* tmp = new real_t[reg.size()*comp];
                 solver->lattice->GetQuantity(it.id, reg, tmp, 1/v);
 		ret = Rcpp::NumericVector(reg.size()*comp);
-		if (comp == 1) {
+		if (comp != 1) {
 			Rcpp::IntegerVector retdim(4);
-			retdim[0] = 3;
+			retdim[0] = comp;
 			retdim[1] = reg.nx;
 			retdim[2] = reg.ny;
 			retdim[3] = reg.nz;
