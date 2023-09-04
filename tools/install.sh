@@ -322,7 +322,6 @@ do
 		else
 			install_rpackage "$1"
 		fi
-		shift
 		;;
 	rdep)
 		if $GITHUB
