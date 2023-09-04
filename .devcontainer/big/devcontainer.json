@@ -1,0 +1,26 @@
+{
+	"name": "Big (R+VTK)",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "../.."
+	},
+	"postCreateCommand": "make configure && ./configure --disable-cuda --enable-cpu-layout --with-openmp",
+	"customizations": {
+		"codespaces": {
+			"openFiles": [
+				".devcontainer/big/README.md"
+			]
+		},
+		"vscode": {
+			"extensions": [
+				"REditorSupport.r",
+				"CFD-GO.tclb-helper"
+			],
+			"settings": {
+				"workbench.editorAssociations": {
+					"*.md": "vscode.markdown.preview.editor"
+				}				
+			}
+		}
+	}
+}
