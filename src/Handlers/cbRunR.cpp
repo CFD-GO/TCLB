@@ -638,6 +638,15 @@ int RunR::Init() {
 
 	R.parseEval("options(prompt='[  ] R:> ');");
 
+	interactive = false;
+	echo = true;
+
+	pugi::xml_attribute attr;
+	attr = node.attribute("interactive");
+	if (attr) interactive = attr.as_bool();
+	attr = node.attribute("echo");
+	if (attr) echo = attr.as_bool();
+
 	source = "";
         for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 		if (par.type() == pugi::node_element) {
@@ -667,17 +676,17 @@ int RunR::Init() {
 
 int RunR::DoIt() {
 	try {
-		if (strlen(node.child_value()) != 0) {
+		if (source != "") {
 			solver->print("Running R ...");
-	output("----- RunR -----\n");
-	output("%s\n",source.c_str());
-	output("----------------\n");	
+			if (echo) {
+				output("----- RunR -----\n");
+				output("%s\n",source.c_str());
+				output("----------------\n");
+			}
 			R.parseEval(source);
 		}
-		bool interactive = false;
-		interactive = node.attribute("interactive");
 		if (!interactive) {
-			NOTICE("You can run interactive R session with Ctrl+X");
+			if (echo) NOTICE("You can run interactive R session with Ctrl+X");
 			int c = kbhit();
 			if (c == 24) {
 				int a = getchar();

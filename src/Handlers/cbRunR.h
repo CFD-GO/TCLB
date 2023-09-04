@@ -24,6 +24,8 @@
 
 class RunR : public  Callback  {
     std::string source;
+    bool interactive;
+    bool echo;
 public:
     static RInside R;
     int Init ();
