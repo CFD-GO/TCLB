@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="1024" ny="100">
+		<MRT><Box/></MRT>
+		<WVelocity><Box nx="1"/></WVelocity>
+		<EPressure><Box dx="-1"/></EPressure>
+		<Wall mask="ALL">
+			<Box ny="1"/>
+			<Box dy="-1"/>
+			<Wedge dx="120" nx="20" dy="50" ny="20" direction="LowerRight"/>
+			<Wedge dx="120" nx="20" dy="30" ny="20" direction="UpperRight"/>
+			<Wedge dx="140" nx="20" dy="50" ny="20" direction="LowerLeft"/>
+			<Wedge dx="140" nx="20" dy="30" ny="20" direction="UpperLeft"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="VelocityX" value="0.05"/>
+		<Param name="Viscosity" value="0.01"/>
+	</Model>
+	<RunR>
+		ramp = colorRamp(c("black","red","yellow","white"))
+	</RunR>
+	<RunR Iterations="1000" echo="no">
+		U = Solver$Quantities$U
+		u = sqrt(U[1,,,1]^2+U[2,,,1]^2)
+		u = t(u/max(u))
+		col = ramp(u)
+		dim(col) = c(dim(u),3)
+		png::writePNG(col/255, "output/view.png")
+		system("code output/view.png")
+	</RunR>
+	<Solve Iterations="10000"/>
+</CLBConfig>

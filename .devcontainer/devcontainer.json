@@ -1,0 +1,24 @@
+{
+	"name": "Small",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
+	"customizations": {
+		"codespaces": {
+			"openFiles": [
+				".devcontainer/README.md"
+			]
+		},
+		"vscode": {
+			"extensions": [
+				"CFD-GO.tclb-helper"
+			],
+			"settings": {
+				"workbench.editorAssociations": {
+					"*.md": "vscode.markdown.preview.editor"
+				}				
+			}
+		}
+	}
+}
