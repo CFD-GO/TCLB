@@ -358,7 +358,7 @@ public:
 					}
 				}
 				if (some_na) {
-					ERROR("Some NA in Geometry (%s) assignment", it.name);
+					ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
 				}
 			}
 			solver->lattice->FlagOverwrite(NodeType, reg);
