@@ -169,6 +169,7 @@ ifdef() ?>
 void * BAlloc(size_t size);
 void BPreAlloc(void **, size_t size);
 
+static_assert(std::is_trivially_copyable<LatticeContainer>::value, "LatticeContainer must be trivially copyable");
 
 #endif
 #define LATTICECONTAINER_H 1
