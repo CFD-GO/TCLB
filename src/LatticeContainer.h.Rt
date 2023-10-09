@@ -63,7 +63,7 @@ class LatticeContainer {
   void ActivateCuts();
   CudaDeviceFunction void fill();
   
-  CudaDeviceFunction flag_t getType(int x, int y, int z) const;
+  CudaDeviceFunction flag_t getType(int x, int y, int z) const { return NodeType[(x + nx*(y + ny*z))]; }
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) {

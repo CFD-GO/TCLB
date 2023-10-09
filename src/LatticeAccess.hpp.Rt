@@ -34,12 +34,6 @@
   #define real_to_storage_shift(x__,y__) real_to_storage(x__)
 #endif
 
-/// Get only type of node
-CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
-{
-  return NodeType[(x + nx*(y + ny*z))];
-}
-
 /// Push all densities
 
 <?R
