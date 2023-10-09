@@ -1,0 +1,47 @@
+<?R
+        source("conf.R")
+	c_header()
+?>
+
+/** \file cuda.cu
+        Main CUDA C file
+        Here is nearly all of the CUDA C code. It includes:
+          Node.hpp
+          LatticeContainer.h
+          LatticeContainer.c
+          Dynamics.c
+          Dynamics.h
+          Dynamics_b.c (adjoint)
+          Dynamics_adj.c (adjoint)
+          ADTools.c (adjoint)
+*/
+
+<?R
+if (exists('Extra_Dynamics_C_Header')) {
+	cat(Extra_Dynamics_C_Header)
+}
+?>
+
+#include "Consts.h"
+#include "cross.h"
+#include "cross.hpp"
+#include "Global.h"
+#include <cassert>
+
+CudaDeviceFunction real_t rise_nan() {
+	assert(false);
+	return NAN;
+}
+#define RISENAN rise_nan()
+
+#ifdef ADJOINT
+	#include "ADTools.cu"
+#endif
+
+#include "LatticeContainer.h"
+CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
+
+#include "LatticeAccess.inc.cpp"
+#include "Particle.hpp"
+#include "Node.hpp"
+#include "LatticeContainer.inc.cpp"

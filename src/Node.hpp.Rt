@@ -2,47 +2,11 @@
         source("conf.R")
 	c_header()
 ?>
-/** \file cuda.cu
-        Main CUDA C file
-        Here is nearly all of the CUDA C code. It includes:
-          LatticeContainer.h
-          LatticeContainer.c
-          Dynamics.c
-          Dynamics.h
-          Dynamics_b.c (adjoint)
-          Dynamics_adj.c (adjoint)
-          ADTools.c (adjoint)
+
+/** \file Node.hpp
+        Defines Node based on supplied Dynamics
 */
 
-<?R
-
-if (exists('Extra_Dynamics_C_Header')) {
-	cat(Extra_Dynamics_C_Header)
-}
-?>
-
-#include "Consts.h"
-#include "cross.h"
-#include "cross.hpp"
-#include "Global.h"
-#include "assert.h"
-
-CudaDeviceFunction real_t rise_nan() {
-	assert(false);
-	return NAN;
-}
-#define RISENAN rise_nan()
-
-
-class Node;
-class Node_Globs;
-
-#include "LatticeContainer.h"
-CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
-
-#ifdef ADJOINT
-	#include "ADTools.cu"
-#endif
 
 <?R
 	for (v in rows(Settings)) { ?>
@@ -50,13 +14,6 @@ CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
 CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
         }
 ?>
-
-#include "LatticeAccess.inc.cpp"
-
-
-#include "Particle.hpp"
-
-
 
 <?R
 	paste0_s = function(...) if (any(sapply(list(...),length) < 1)) character(0) else paste0(...)
@@ -179,11 +136,12 @@ struct CalculateGlobalsAdjoint {
 };
 
 
-#define NODE_H
+#ifndef NODE_HPP
+#define NODE_HPP
 
-template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
+template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node {
         CudaDeviceFunction inline void RunElement(){};
-		CudaDeviceFunction inline Node_Run(const LA& acc_) {};
+		CudaDeviceFunction inline Node(const LA& acc_) {};
 };
 
 <?R
@@ -199,7 +157,7 @@ for (tp in rows(Dispatch)) {
         T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
         T3 = tp$stage_name
 ?>
-template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
+template < class LA > struct Node < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	const LA& acc;
 	CalculateGlobals< <?%s T2 ?> > glob;
 <?R
@@ -207,8 +165,8 @@ template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> >
 	real_t <?%s setting$name ?>; <?R
 		}
 ?>
-	//CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)),acc(x_,y_,z_,NodeType) {
-	CudaDeviceFunction inline Node_Run(const LA& acc_):acc(acc_) {
+	//CudaDeviceFunction inline Node(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)),acc(x_,y_,z_,NodeType) {
+	CudaDeviceFunction inline Node(const LA& acc_):acc(acc_) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
@@ -333,4 +291,5 @@ ifdef()
 
 	writeLines(paste("#undef", macros$token, sep=" "))
 ?>
-#include "LatticeContainer.inc.cpp"
+
+#endif // NODE_HPP

@@ -201,7 +201,7 @@ void LatticeContainer::Free()
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class InteriorExecutor {
   typedef LatticeAccessInterior LA;
-  typedef Node_Run<LA,I,G,S> N;
+  typedef Node<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
 {
@@ -229,7 +229,7 @@ CudaDeviceFunction void Execute()
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class BorderExecutor {
   typedef LatticeAccessAll LA;
-  typedef Node_Run<LA,I,G,S> N;
+  typedef Node<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
 {
@@ -356,7 +356,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S >
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
     typedef LatticeAccessAll LA;
-    typedef Node_Run<LA,I,G,S> N;
+    typedef Node<LA,I,G,S> N;
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
     int r=0,g=0,b=0;
@@ -442,9 +442,9 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
   int z = CudaBlock.z+r.dz;
   LA acc(x,y,z); <?R
         if (q$adjoint) { ?>
-          Node_Run< LA, Adjoint, NoGlobals, Get > now(acc); <?R
+          Node< LA, Adjoint, NoGlobals, Get > now(acc); <?R
         } else { ?>
-          Node_Run< LA, Primal, NoGlobals, Get > now(acc); <?R
+          Node< LA, Primal, NoGlobals, Get > now(acc); <?R
         }?>
 		<?%s q$type ?> w;
 //		if (now.NodeType) {
