@@ -5,6 +5,9 @@
 /** \file LatticeAccess.hpp
 */
 
+#ifndef LATTICEACCESS_HPP
+#define LATTICEACCESS_HPP
+
 #include "Consts.h"
 #include "Global.h"
 #include "Lattice.h"
@@ -472,3 +475,4 @@ public:
 template < class ACC >
 using AccessComposite = <?%s str ?>;
 
+#endif // LATTICEACCESS_HPP
