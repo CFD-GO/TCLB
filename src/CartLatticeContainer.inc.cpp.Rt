@@ -16,11 +16,11 @@
 
 
 
-typedef AccessComposite< LatticeAccess< range_int<0,0,-1,1>, range_int<0,0,-1,1>, range_int<0,0,-1,1> > > LatticeAccessAll;
-typedef AccessComposite< LatticeAccess<
+typedef AccessComposite< CartLatticeAccess< range_int<0,0,-1,1>, range_int<0,0,-1,1>, range_int<0,0,-1,1> > > CartLatticeAccessAll;
+typedef AccessComposite< CartLatticeAccess<
   range_int< <?%d BorderMargin$max[1] ?>,0,<?%d BorderMargin$min[1]-1 ?>,1>,
   range_int< <?%d BorderMargin$max[2] ?>,0,<?%d BorderMargin$min[2]-1 ?>,1>,
-  range_int< <?%d BorderMargin$max[3] ?>,0,<?%d BorderMargin$min[3]-1 ?>,1> > > LatticeAccessInterior;
+  range_int< <?%d BorderMargin$max[3] ?>,0,<?%d BorderMargin$min[3]-1 ?>,1> > > CartLatticeAccessInterior;
 
 
 
@@ -188,7 +188,7 @@ void CartLatticeContainer::Free()
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class InteriorExecutor {
-  typedef LatticeAccessInterior LA;
+  typedef CartLatticeAccessInterior LA;
   typedef Node<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
@@ -216,7 +216,7 @@ CudaDeviceFunction void Execute()
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
 class BorderExecutor {
-  typedef LatticeAccessAll LA;
+  typedef CartLatticeAccessAll LA;
   typedef Node<LA,I,G,S> N;
 public:
 CudaDeviceFunction void Execute()
@@ -343,7 +343,7 @@ template < eOperationType I, eCalculateGlobals G, eStage S >
 template < eOperationType I, eCalculateGlobals G, eStage S >
 CudaDeviceFunction void NodeToColor( int x, int y, int z, uchar4 *optr )
 {
-    typedef LatticeAccessAll LA;
+    typedef CartLatticeAccessAll LA;
     typedef Node<LA,I,G,S> N;
     int offset = x+y*constContainer.nx;
     float l=0.0; float w=0.0;
@@ -424,7 +424,7 @@ void CartLatticeContainer::Color( uchar4 *optr ) {
 */
 CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
-  typedef LatticeAccessAll LA;
+  typedef CartLatticeAccessAll LA;
 	int x = CudaBlock.x+r.dx;
 	int y = CudaBlock.y+r.dy;
   int z = CudaBlock.z+r.dz;

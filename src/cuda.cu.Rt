@@ -47,7 +47,7 @@ void LatticeData::CopyToConst() const {
   CudaCopyToConstant("constData", constData, this, sizeof(LatticeData));
 }
 
-#include "LatticeAccess.hpp"
+#include "CartLatticeAccess.hpp"
 #include "Particle.hpp"
 #include "Node.hpp"
 #include "CartLatticeContainer.inc.cpp"
