@@ -28,16 +28,16 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 	XYZ = c("X","Y","Z")
 	AddMacro(XYZ, paste0_s("acc.get", XYZ,"()"))
 	AddMacro("NodeType", paste0_s("acc.getNodeType()"))
-	AddMacro("Time", paste0_s("(constContainer.iter)"))
-	AddMacro("SyntheticTurbulence(x__,y__,z__)","constContainer.getST(x__,y__,z__)")
-	AddMacro("average_iter","(constContainer.iter - constContainer.reset_iter)")
+	AddMacro("Time", paste0_s("(constData.iter)"))
+	AddMacro("SyntheticTurbulence(x__,y__,z__)","constData.getST(x__,y__,z__)")
+	AddMacro("average_iter","(constData.iter - constData.reset_iter)")
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")[-1]
 	AddMacro(Q, paste0_s("(acc.getQ(",seq_along(Q)-1,"))"))
 	s = ZoneSettings[! as.logical(ZoneSettings$preload),,drop=FALSE]
-	AddMacro(s$name, paste0_s("constContainer.ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	AddMacro(s$name, paste0_s("constData.ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
 	s = ZoneSettings
-	AddMacro(paste0_s(s$name,"_DT"), paste0_s("constContainer.ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	AddMacro(paste0_s(s$name,"_DT"), paste0_s("constData.ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
 	g = Globals
 	g$opstr = ifelse(g$op == "SUM", "Add", "Max")
 	AddMacro(paste0_s("AddTo", g$name, "(x__)"), paste0_s("glob.", g$opstr, "ToGlobal<", g$Index, ">(x__, acc.getNodeType())"))
@@ -71,7 +71,7 @@ struct CalculateGlobals<IntegrateGlobals> {
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		globals[I] = globals[I] + x;
 		if (I < SUM_GLOBALS) {
-			globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+			globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + constData.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
 		}
 	}
 	template <int I>
@@ -81,9 +81,9 @@ struct CalculateGlobals<IntegrateGlobals> {
 	CudaDeviceFunction void inline Glob() {
 		for (int i=0; i<GLOBALS; i++) {
 			if (i < SUM_GLOBALS) {
-            	CudaAtomicAddReduceWarp(&constContainer.Globals[i], globals[i]);
+            	CudaAtomicAddReduceWarp(&constData.Globals[i], globals[i]);
 			} else {
-				CudaAtomicMaxReduceWarp(&constContainer.Globals[i], globals[i]);
+				CudaAtomicMaxReduceWarp(&constData.Globals[i], globals[i]);
 			}
 		}
 	}
@@ -98,13 +98,13 @@ struct CalculateGlobals<OnlyObjective> {
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		if (I < SUM_GLOBALS) {
-			obj = obj + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+			obj = obj + constData.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
 		}
 	}
 	template <int I>
 	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {}
 	CudaDeviceFunction void inline Glob() {
-        CudaAtomicAddReduceWarp(&constContainer.Globals[GLOBALS_Objective], obj);		
+        CudaAtomicAddReduceWarp(&constData.Globals[GLOBALS_Objective], obj);
 	}
 };
 
@@ -123,13 +123,13 @@ struct CalculateGlobalsAdjoint {
 	CudaDeviceFunction inline real_t& DTBRef() { return duals_dt[I]; }
 	CudaDeviceFunction void inline Glob(const flag_t& NodeType) {
         int z = NodeType >> ZONE_SHIFT;
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncWarpOr(nz == z)) { 
+		for (int nz = 0; nz < constData.MaxZones; nz++) if (CudaSyncWarpOr(nz == z)) {
 			for (int i=0; i<ZONESETTINGS; i++) {
 				real_t val;
 				val = (nz == z) ? duals[i] : 0.0f;
-    	        CudaAtomicAddReduceWarp(constContainer.ZoneSettingGrad( i , nz), val); 
+    	        CudaAtomicAddReduceWarp(constData.ZoneSettingGrad( i , nz), val);
 				val = (nz == z) ? duals_dt[i] : 0.0f;
-	            CudaAtomicAddReduceWarp(constContainer.ZoneSettingGrad( i + DT_OFFSET, nz), val); 
+	            CudaAtomicAddReduceWarp(constData.ZoneSettingGrad( i + DT_OFFSET, nz), val);
 			}
 		}
 	}
@@ -168,7 +168,7 @@ template < class LA > struct Node < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	CudaDeviceFunction inline Node(const LA& acc_):acc(acc_) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
-		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
+		<?%s setting$name ?> =  constData.ZoneSetting(<?%s setting$Index ?>, z); <?R
 		} ?>
 	};
 	CudaDeviceFunction void inline Glob() {

@@ -39,7 +39,13 @@ CudaDeviceFunction real_t rise_nan() {
 #endif
 
 #include "LatticeContainer.h"
+#include "LatticeData.hpp"
 CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
+CudaDeviceFunction CudaConstantMemory LatticeData      constData;
+
+void LatticeData::CopyToConst() const {
+  CudaCopyToConstant("constData", constData, this, sizeof(LatticeData));
+}
 
 #include "LatticeAccess.hpp"
 #include "Particle.hpp"

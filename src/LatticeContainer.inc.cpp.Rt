@@ -143,7 +143,6 @@ void FTabs::Free() { <?R
 /// Allocation of memory of a container
 void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 {
-    iter = 0;
     nx = nx_;
     ny = ny_;
     nz = nz_;
@@ -157,18 +156,7 @@ void LatticeContainer::Alloc(int nx_, int ny_, int nz_)
 	ALLOCPRINT2;
     CudaMemset( tmp, 0, size ); 
     NodeType = (flag_t*)tmp;
-
-    Q = NULL;
-    particle_data_size = 0;
-    particle_data = NULL;
-
-    size = (size_t) GLOBALS * sizeof(real_t);
-	ALLOCPRINT1;
-    CudaMalloc( (void**)&tmp, size );
-	ALLOCPRINT2;
-    CudaMemset( tmp, 0, size ); // CudaKernelRun(clearmem,dim3(size/sizeof(real_t)),dim3(1),((real_t*)tmp));
-    Globals = (real_t*)tmp;
-	ST.setsize(0, ST_GPU);
+    Q = nullptr;
 }
 
 void LatticeContainer::ActivateCuts() {
@@ -418,7 +406,7 @@ CudaGlobalFunction void ColorKernel( uchar4 *optr, int z )
   \param optr 4-component graphics buffer
 */
 void LatticeContainer::Color( uchar4 *optr ) {
-   CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));	
+   CudaCopyToConstant("constContainer", constContainer, this, sizeof(LatticeContainer));
    CudaKernelRun( ColorKernel , dim3(floor(nx/X_BLOCK),ny,1), dim3(X_BLOCK) , optr, nz/2);
 };
 

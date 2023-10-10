@@ -1,0 +1,101 @@
+<?R
+	source("conf.R")
+	c_header();
+?>
+/** \file LatticeData.hpp
+*/
+
+#ifndef LATTICEDATA_HPP
+#define LATTICEDATA_HPP
+
+#include "SyntheticTurbulence.h"
+#include "SolidContainer.h"
+
+#ifndef SETTINGS_H
+<?R
+	for (v in rows(Settings)) { ?>
+    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
+	} ?>
+    void initSettings();
+    void setConstSetting(int i, real_t tmp);
+
+#define SETTINGS_H 1
+#endif
+
+#include "Consts.h"
+#include "cross.h"
+
+struct LatticeData {
+    size_t particle_data_size;
+    real_t *particle_data;
+    solidcontainer_t::finder_t solidfinder;
+    real_t *Globals; ///< Pointer to the GPU table to store the calculated values of Globals
+    int iter;
+    int reset_iter; ///< number of last average reset, for dynamics
+    int ZoneIndex;
+    int MaxZones;
+    real_t **ZoneSettings;
+    real_t *ConstZoneSettings;
+    STWaveSet ST;
+
+    void CopyToConst() const;
+
+    CudaDeviceFunction real_t ZoneSetting(const int &s, const int &z) {
+        const int i = s + ZONESETTINGS * z;
+        const real_t *w = ZoneSettings[i];
+        if (w == NULL) return ConstZoneSettings[i];
+        return w[ZoneIndex];
+    }
+
+    CudaDeviceFunction real_t ZoneSetting_DT(const int &s, const int &z) {
+        const int i = s + ZONESETTINGS * z;
+        const real_t *w = ZoneSettings[i + DT_OFFSET];
+        if (w == NULL) return 0;
+        return w[ZoneIndex];
+    }
+
+    CudaDeviceFunction real_t *ZoneSettingGrad(const int &s, const int &z) {
+        const int i = s + ZONESETTINGS * z;
+        real_t *w = ZoneSettings[i + GRAD_OFFSET];
+        if (w == NULL) return &ConstZoneSettings[i + GRAD_OFFSET];
+        return &w[ZoneIndex];
+    }
+
+    CudaDeviceFunction vector_t getST(real_t x, real_t y, real_t z) {
+        return calc(ST, x, y, z);
+    }
+
+    void clearGlobals() {
+        CudaMemset(Globals, 0, GLOBALS * sizeof(real_t));
+    }
+
+    void Alloc() {
+        iter = 0;
+        particle_data_size = 0;
+        particle_data = nullptr;
+
+        char *tmp{};
+        const size_t size = GLOBALS * sizeof(real_t);
+        debug2("Allocating: %ld b\n", size);
+        CudaMalloc((void **) &tmp, size);
+        debug1("got address: (%p - %p)\n", tmp, (unsigned char *) tmp + size);
+        CudaMemset(tmp, 0, size);
+        Globals = (real_t *) tmp;
+        ST.setsize(0, ST_GPU);
+    }
+
+      <?R for (v in rows(Globals)) { ?>
+/// Get [<?%s v$comment ?>] from GPU memory
+        inline real_t get<?%s v$name ?>(){
+                real_t ret;
+                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
+                return ret;
+        }
+  <?R } ?>
+/// Get all the globals from GPU memory
+	inline void getGlobals(real_t * tab) {
+                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
+	}
+};
+
+#endif // LATTICEDATA_HPP

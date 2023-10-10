@@ -12,9 +12,10 @@
 #include "Sampler.h"
 #include "SolidContainer.h"
 #include "Lists.h"
+#include "LatticeContainer.h"
+#include "LatticeData.hpp"
 
 class lbRegion;
-class LatticeContainer;
 
 #define ITER_STREAM   0x000
 #define ITER_NORM     0x001
@@ -40,6 +41,7 @@ class Lattice {
 private:
   Model_m my_model;
   LatticeContainer * container; ///< Main Container object
+  LatticeData*       data; ///< Auxiliary data - particles, Zones, etc.
   storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
   storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
   size_t bufsize[27]; ///< Sizes of the Buffers

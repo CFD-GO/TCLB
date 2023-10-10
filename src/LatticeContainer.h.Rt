@@ -5,20 +5,6 @@
 /** \file LatticeContainer.h
   File defining LatticeContainer and some additional CUDA functions
 */
-#include "SyntheticTurbulence.h"
-#include "SolidContainer.h"
-
-#ifndef SETTINGS_H
-<?R
-	for (v in rows(Settings)) { ?>
-    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
-	} ?>
-    void initSettings();
-    void setConstSetting(int i, real_t tmp);
-
-#define SETTINGS_H 1
-#endif
-
 
 #ifndef LATTICECONTAINER_H
 
@@ -43,50 +29,15 @@ class LatticeContainer {
 #endif
   flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
   cut_t* Q; 
-  size_t particle_data_size;
-  real_t* particle_data;
-  solidcontainer_t::finder_t solidfinder;
-  real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
   int nx, ny, nz; ///< Size of the Lattice region
-  int iter; ///< Iteration number
   real_t px,py,pz;
-  int reset_iter; //< number of last average reset,for dynamics 
-  int ZoneIndex;
-  int MaxZones;
-  real_t** ZoneSettings;
-  real_t* ConstZoneSettings;
-  STWaveSet ST;
+
   void Alloc (int,int,int);
   void Free();
   void ActivateCuts();
   CudaDeviceFunction void fill();
   
   CudaDeviceFunction flag_t getType(int x, int y, int z) const { return NodeType[(x + nx*(y + ny*z))]; }
-
-  CudaDeviceFunction inline const real_t ZoneSetting(const int & s, const int & z) {
-    const int i = s + ZONESETTINGS * z;
-    const real_t * w = ZoneSettings[i];
-    if (w == NULL) return ConstZoneSettings[i];
-    return w[ZoneIndex];
-  }
-
-  CudaDeviceFunction inline const real_t ZoneSetting_DT(const int & s, const int & z) {
-    const int i = s + ZONESETTINGS * z;
-    const real_t * w = ZoneSettings[i + DT_OFFSET];
-    if (w == NULL) return 0;
-    return w[ZoneIndex];
-  }
-
-  CudaDeviceFunction inline real_t * ZoneSettingGrad(const int & s, const int & z) {
-    const int i = s + ZONESETTINGS * z;
-    real_t * w = ZoneSettings[i + GRAD_OFFSET];
-    if (w == NULL) return & ConstZoneSettings[i + GRAD_OFFSET];
-    return & w[ZoneIndex];
-  }
-
-  CudaDeviceFunction inline vector_t getST(real_t x, real_t y, real_t z) {
-	return calc(ST, x,y,z);
-  }
 
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
@@ -95,23 +46,6 @@ class LatticeContainer {
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
 
   void CopyToConst();
-
-  inline void clearGlobals() {
-        CudaMemset(Globals, 0, GLOBALS*sizeof(real_t));
-  }
-
-  <?R for (v in rows(Globals)) { ?>
-/// Get [<?%s v$comment ?>] from GPU memory
-        inline real_t get<?%s v$name ?>(){
-                real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
-                return ret;
-        }
-  <?R } ?>
-/// Get all the globals from GPU memory
-	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
-	}
 };
 
 template<class T> CudaGlobalFunction void Kernel();
