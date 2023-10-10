@@ -165,7 +165,6 @@ template < class LA > struct Node < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	real_t <?%s setting$name ?>; <?R
 		}
 ?>
-	//CudaDeviceFunction inline Node(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)),acc(x_,y_,z_,NodeType) {
 	CudaDeviceFunction inline Node(const LA& acc_):acc(acc_) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
