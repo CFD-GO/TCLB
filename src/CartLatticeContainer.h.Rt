@@ -2,24 +2,25 @@
 	source("conf.R");
 	c_header()
 ?>
-/** \file LatticeContainer.h
-  File defining LatticeContainer and some additional CUDA functions
+/** \file CartLatticeContainer.h
+  File defining CartLatticeContainer and some additional CUDA functions
 */
 
 #ifndef LATTICECONTAINER_H
+#define LATTICECONTAINER_H
 
 #include "Consts.h"
 
 /// Container class used for storing all the data needed on GPU
 /**
   Main class for storing the data needed on GPU and running kernels.
-  LatticeContainer is the container class which
+  CartLatticeContainer is the container class which
   owns all the data needed by the kernels on device
   like pointers to the global gpu memory etc.
   It defines push/pop functions allowing access
   to node data stored in memory.
 */
-class LatticeContainer {
+class CartLatticeContainer {
 	public:
   FTabs in; ///< Main FTabs used for Primal iteration as input
   FTabs out; ///< Main FTabs used for Primal iteration as output
@@ -72,7 +73,6 @@ ifdef() ?>
 void * BAlloc(size_t size);
 void BPreAlloc(void **, size_t size);
 
-static_assert(std::is_trivially_copyable<LatticeContainer>::value, "LatticeContainer must be trivially copyable");
+static_assert(std::is_trivially_copyable<CartLatticeContainer>::value, "CartLatticeContainer must be trivially copyable");
 
-#endif
-#define LATTICECONTAINER_H 1
+#endif // LATTICECONTAINER_H

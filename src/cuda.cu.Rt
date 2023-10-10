@@ -7,8 +7,8 @@
         Main CUDA C file
         Here is nearly all of the CUDA C code. It includes:
           Node.hpp
-          LatticeContainer.h
-          LatticeContainer.c
+          CartLatticeContainer.h
+          CartLatticeContainer.c
           Dynamics.c
           Dynamics.h
           Dynamics_b.c (adjoint)
@@ -38,10 +38,10 @@ CudaDeviceFunction real_t rise_nan() {
 	#include "ADTools.cu"
 #endif
 
-#include "LatticeContainer.h"
+#include "CartLatticeContainer.h"
 #include "LatticeData.hpp"
-CudaDeviceFunction CudaConstantMemory LatticeContainer constContainer;
-CudaDeviceFunction CudaConstantMemory LatticeData      constData;
+CudaDeviceFunction CudaConstantMemory CartLatticeContainer constContainer;
+CudaDeviceFunction CudaConstantMemory LatticeData          constData;
 
 void LatticeData::CopyToConst() const {
   CudaCopyToConstant("constData", constData, this, sizeof(LatticeData));
@@ -50,4 +50,4 @@ void LatticeData::CopyToConst() const {
 #include "LatticeAccess.hpp"
 #include "Particle.hpp"
 #include "Node.hpp"
-#include "LatticeContainer.inc.cpp"
+#include "CartLatticeContainer.inc.cpp"

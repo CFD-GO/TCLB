@@ -28,12 +28,12 @@
 #endif
 
 
-/// LatticeContainer stored in the GPU const memory
+/// CartLatticeContainer stored in the GPU const memory
 /**
         This is the main container that is stored in the GPU const memory.
         It is used to pass all the needed information on buffers etc to the kernels
 */
-CudaExternConstantMemory(LatticeContainer constContainer);
+CudaExternConstantMemory(CartLatticeContainer constContainer);
 
 /// Calculate the Snapshot level for the optimal Checkpoiting technique
 /**
@@ -94,7 +94,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	segment_iterations = 0;
 	callback_iter = 1;
 	nSnaps = ns;
-	container = new LatticeContainer;
+	container = new CartLatticeContainer;
 	data = new LatticeData;
 	sample = new Sampler(this);
 	Snaps = new FTabs[nSnaps];
