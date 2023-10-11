@@ -21,7 +21,7 @@
   to node data stored in memory.
 */
 class CartLatticeContainer {
-	public:
+public:
   FTabs in; ///< Main FTabs used for Primal iteration as input
   FTabs out; ///< Main FTabs used for Primal iteration as output
 #ifdef ADJOINT
@@ -33,45 +33,12 @@ class CartLatticeContainer {
   int nx, ny, nz; ///< Size of the Lattice region
   real_t px,py,pz;
 
-  void Alloc (int,int,int);
-  void Free();
-  void ActivateCuts();
-  CudaDeviceFunction void fill();
+  inline void Alloc (int,int,int);
+  inline void Free();
+  inline void ActivateCuts();
   
   CudaDeviceFunction flag_t getType(int x, int y, int z) const { return NodeType[(x + nx*(y + ny*z))]; }
-
-  void Color( uchar4 *optr );
-  template<class N> inline void RunBorderT(CudaStream_t);
-  template<class N> inline void RunInteriorT(CudaStream_t);
-  template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
-  template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
-
-  void CopyToConst();
 };
-
-template<class T> CudaGlobalFunction void Kernel();
-template < eOperationType I, eCalculateGlobals G, eStage S > class InteriorExecutor;
-template < eOperationType I, eCalculateGlobals G, eStage S > class BorderExecutor;
-
-<?R
-for (q in rows(Quantities)) { ifdef(q$adjoint);
-        if (q$adjoint) {
-          node = "Node_Adj"
-        } else {
-          node = "Node"
-        }
-?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
-	for (tp in c("float","double"))
-        { ?>
-CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
-<?R
-	}
-}
-ifdef() ?>
-
-void * BAlloc(size_t size);
-void BPreAlloc(void **, size_t size);
 
 static_assert(std::is_trivially_copyable<CartLatticeContainer>::value, "CartLatticeContainer must be trivially copyable");
 

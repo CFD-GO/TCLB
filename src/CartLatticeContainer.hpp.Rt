@@ -1,0 +1,55 @@
+<?R
+	source("conf.R");
+	c_header()
+?>
+/** \file CartLatticeContainer.hpp
+*/
+
+#ifndef CARTLATTICECONTAINER_HPP
+#define CARTLATTICECONTAINER_HPP
+
+#include "CartLatticeContainer.h"
+#include "AllocUtils.h"
+
+/// Allocation of memory of a container
+void CartLatticeContainer::Alloc(int nx_, int ny_, int nz_)
+{
+    nx = nx_;
+    ny = ny_;
+    nz = nz_;
+
+    char * tmp=NULL;
+    size_t size;
+
+    size = (size_t) nx*ny*nz*sizeof(flag_t);
+	ALLOCPRINT1;
+    CudaMalloc( (void**)&tmp, size );
+	ALLOCPRINT2;
+    CudaMemset( tmp, 0, size );
+    NodeType = (flag_t*)tmp;
+    Q = nullptr;
+}
+
+void CartLatticeContainer::ActivateCuts() {
+    if (Q == NULL) {
+            void * tmp;
+            size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
+                ALLOCPRINT1;
+            CudaMalloc( (void**)&tmp, size );
+                ALLOCPRINT2;
+            CudaMemset( tmp, 0, size );
+            Q = (cut_t*)tmp;
+    }
+}
+
+/// Destroy Container
+/**
+  cannot do a constructor and destructor - because this class lives on GPU
+*/
+void CartLatticeContainer::Free()
+{
+    CudaFree( NodeType );
+    if (Q != NULL) CudaFree( Q );
+}
+
+#endif // CARTLATTICECONTAINER_HPP

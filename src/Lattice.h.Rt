@@ -12,8 +12,7 @@
 #include "Sampler.h"
 #include "SolidContainer.h"
 #include "Lists.h"
-#include "CartLatticeContainer.h"
-#include "LatticeData.hpp"
+#include "CartLatticeExecutor.h"
 
 class lbRegion;
 
@@ -40,8 +39,7 @@ const int maxSnaps=33;
 class Lattice {
 private:
   Model_m my_model;
-  CartLatticeContainer * container; ///< Main Container object
-  LatticeData*           data; ///< Auxiliary data - particles, Zones, etc.
+  CartLatticeExecutor* executor; ///< Main execution context, including the lattice container, data, etc.
   storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
   storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
   size_t bufsize[27]; ///< Sizes of the Buffers
@@ -57,6 +55,7 @@ private:
   CudaStream_t inStream; ///< CUDA Stream for CPU->GPU momory copy
   CudaStream_t outStream; ///< CUDA Stream for GPU->CPU momory copy
   int reverse_save; ///< Flag stating if recording (Now)
+
 public:
   Model* model;
   ZoneSettings zSet;
