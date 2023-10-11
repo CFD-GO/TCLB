@@ -6,6 +6,10 @@
     \file Global.h
     Declaration of global variables and functions. Including MPI connectivity info.
 */
+
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
 #include "Consts.h"
 #include "types.h"
 #include <string>
@@ -16,15 +20,11 @@
   #include <unistd.h>
 #endif
 
-#ifndef GLOBAL_H
     #define BOUNDARY_UX UX_mid
     #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
     
     #include "MPMD.hpp"
     extern MPMDHelper MPMD;
-    
-#define GLOBAL_H 1
-#endif
 
 #ifndef INFO_H
     #include "cross.h"
@@ -65,10 +65,10 @@ for (m in Margin) { ?>
     for (m in NonEmptyMargin) { ?>
         storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
     } ?>
-        void Alloc(int,int,int);
-        void Clear(int,int,int);
-        void PreAlloc(int,int,int);
-        void Free();
+        inline void Alloc(int,int,int);
+        inline void Clear(int,int,int);
+        inline void PreAlloc(int,int,int);
+        inline void Free();
     };
 
 #define INFO_H 1
@@ -169,6 +169,61 @@ int kbhit(void);
 #define DEBUG_H 1
 #endif
 
+/// Allocation of memory for an FTabs
+void FTabs::Alloc(int nx,int ny,int nz) {
+  size_t size;
+  char * tmp = NULL;
+<?R for (m in NonEmptyMargin) { ?>
+  size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  debug2("Allocating: %ld b\n", size);
+#ifdef DIRECT_MEM
+  CudaMallocHost( (void**)&tmp, size );
+#else
+  CudaMalloc( (void**)&tmp, size );
+#endif
+  debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size);
+  CudaMemset( tmp, 0, size );
+  <?%s m$name ?>=  (storage_t*)tmp;
+<?R } ?>
+}
+
+/// Preallocation of a FTabs
+/**
+  Aglomerates all the allocation into one big memory chunk
+*/
+void FTabs::PreAlloc(int nx,int ny,int nz) {
+  size_t size;
+<?R for (m in NonEmptyMargin) { ?>
+  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  CudaPreAlloc( (void**)&<?%s m$name ?>, size );
+<?R } ?>
+}
+
+/// Clearing (zero-ing) of a FTabs
+void FTabs::Clear(int nx,int ny,int nz) {
+  size_t size;
+<?R for (m in NonEmptyMargin) { ?>
+  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  CudaMemset( <?%s m$name ?>, 0, size );
+<?R } ?>
+}
+
+inline void NullSafeFree(void * ptr) {
+  if (ptr)
+#ifdef DIRECT_MEM
+    CudaFreeHost(ptr);
+#else
+    CudaFree(ptr);
+#endif
+}
+
+/// Free FTabs memory
+void FTabs::Free() { <?R
+for (m in NonEmptyMargin) { ?>
+  NullSafeFree(<?%s m$name ?>);
+  <?%s m$name ?> = nullptr;<?R
+} ?>
+}
 
 #ifndef D2Q9_w_and_e
 
@@ -214,3 +269,5 @@ CudaConstantMemory real_t const d3q27_ez[27] = {0, 0, 0, 0, 0, 1,-1, 1, 1, 1, 1,
 
 #endif
 #define D3Q27_w_and_e
+
+#endif // GLOBAL_H

@@ -9,7 +9,6 @@
 #define CARTLATTICECONTAINER_HPP
 
 #include "CartLatticeContainer.h"
-#include "AllocUtils.h"
 
 /// Allocation of memory of a container
 void CartLatticeContainer::Alloc(int nx_, int ny_, int nz_)
@@ -22,24 +21,24 @@ void CartLatticeContainer::Alloc(int nx_, int ny_, int nz_)
     size_t size;
 
     size = (size_t) nx*ny*nz*sizeof(flag_t);
-	ALLOCPRINT1;
+    debug2("Allocating: %ld b\n", size);
     CudaMalloc( (void**)&tmp, size );
-	ALLOCPRINT2;
+    debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size);
     CudaMemset( tmp, 0, size );
     NodeType = (flag_t*)tmp;
     Q = nullptr;
 }
 
 void CartLatticeContainer::ActivateCuts() {
-    if (Q == NULL) {
-            void * tmp;
-            size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
-                ALLOCPRINT1;
-            CudaMalloc( (void**)&tmp, size );
-                ALLOCPRINT2;
-            CudaMemset( tmp, 0, size );
-            Q = (cut_t*)tmp;
-    }
+  if (Q == NULL) {
+    void * tmp;
+    size_t size = (size_t) nx*ny*nz*sizeof(cut_t)*26;
+    debug2("Allocating: %ld b\n", size);
+    CudaMalloc( (void**)&tmp, size );
+    debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size);
+    CudaMemset( tmp, 0, size );
+    Q = (cut_t*)tmp;
+  }
 }
 
 /// Destroy Container

@@ -7,14 +7,6 @@
         Defines Node based on supplied Dynamics
 */
 
-
-<?R
-	for (v in rows(Settings)) { ?>
-/// GPU Constant memory variable for [<?%s v$comment?>]
-CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
-        }
-?>
-
 <?R
 	paste0_s = function(...) if (any(sapply(list(...),length) < 1)) character(0) else paste0(...)
 	macros = NULL

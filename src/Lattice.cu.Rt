@@ -17,8 +17,6 @@
 #include <assert.h>
 #include "SolidTree.hpp"
 #include "SolidGrid.hpp"
-#include "AllocUtils.h"
-
 #include "CartLatticeContainer.hpp"
 
 #ifdef ENABLE_NVPROF
@@ -141,6 +139,11 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	executor->getData().particle_data_size = 0;
 	SC.balls = &RFI;
 	RFI.name = "TCLB";
+}
+
+/// Preallocation of a buffer (combines allocation into one big allocation)
+static void BPreAlloc(void ** ptr, size_t size) {
+  CudaMalloc( ptr, size );
 }
 
 /// Initialization of MPI buffors

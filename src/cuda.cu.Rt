@@ -6,9 +6,7 @@
 /** \file cuda.cu
         Main CUDA C file
         Here is nearly all of the CUDA C code. It includes:
-          Node.hpp
-          CartLatticeContainer.h
-          CartLatticeContainer.c
+          CartLatticeContainer.hpp
           Dynamics.c
           Dynamics.h
           Dynamics_b.c (adjoint)
@@ -25,9 +23,8 @@ if (exists('Extra_Dynamics_C_Header')) {
 #include "Consts.h"
 #include "cross.h"
 #include "cross.hpp"
-#include "Global.h"
-#include <cassert>
 
+#include <cassert>
 CudaDeviceFunction real_t rise_nan() {
 	assert(false);
 	return NAN;
@@ -38,98 +35,18 @@ CudaDeviceFunction real_t rise_nan() {
 	#include "ADTools.cu"
 #endif
 
-#include "LatticeData.hpp"
+/// Constant memory variables
 #include "CartLatticeContainer.h"
-#include "AllocUtils.h"
+#include "LatticeData.hpp"
 
-// Const container and data live in this translation unit
 CudaDeviceFunction CudaConstantMemory CartLatticeContainer constContainer;
 CudaDeviceFunction CudaConstantMemory LatticeData          constData;
 
+// Settings <?R for (v in rows(Settings)) { ?>
+/// GPU Constant memory variable for [<?%s v$comment?>]
+CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f;
+<?R } ?>
+
+// These headers depend on contant memory variables
 #include "Particle.hpp"
 #include "CartLatticeExecutor.hpp"
-
-/// Allocation of memory for an FTabs
-void FTabs::Alloc(int nx,int ny,int nz) {
-  size_t size;
-  char * tmp = NULL;
-  <?R for (m in NonEmptyMargin) { ?>
-    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
-    ALLOCPRINT1;
-    #ifdef DIRECT_MEM
-      CudaMallocHost( (void**)&tmp, size );
-    #else
-      CudaMalloc( (void**)&tmp, size );
-    #endif
-    ALLOCPRINT2;
-    CudaMemset( tmp, 0, size );
-    <?%s m$name ?>=  (storage_t*)tmp;
-  <?R } ?>
-}
-
-/// Preallocation of a FTabs
-/**
-  Aglomerates all the allocation into one big memory chunk
-*/
-void FTabs::PreAlloc(int nx,int ny,int nz) {
-  size_t size;
-  <?R for (m in NonEmptyMargin) { ?>
-    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
-    CudaPreAlloc( (void**)&<?%s m$name ?>, size );
-  <?R } ?>
-}
-
-/// Clearing (zero-ing) of a FTabs
-void FTabs::Clear(int nx,int ny,int nz) {
-  size_t size;
-  <?R for (m in NonEmptyMargin) { ?>
-    size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
-    CudaMemset( <?%s m$name ?>, 0, size );
-  <?R } ?>
-}
-
-/// NULL-safe free
-inline void MyFree(void * ptr) {
-    if (ptr != NULL) {
-        #ifdef DIRECT_MEM
-	    CudaFreeHost( ptr );
-	#else
-	    CudaFree( ptr );
-	#endif
-	ptr = NULL;
-    }
-}
-
-/// Free FTabs memory
-void FTabs::Free() { <?R
-    for (m in NonEmptyMargin) { ?>
-    MyFree(<?%s m$name ?>);
-    <?%s m$name ?> = NULL;<?R
-    } ?>
-}
-
-/// Init Settings with 0 in GPU constant memory
-void initSettings() {
-  real_t val = 0;
-<?R for (v in rows(Settings)) {
-  if (is.na(v$derived)) { ?>
-    CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
-  }} ?>
-}
-
-/// Set Setting in GPU constant memory
-/**
-  Sets a Setting in the constant memory of GPU
-  \param i Index of the Setting
-  \param tmp value of the Setting
-*/
-void setConstSetting(int i, real_t tmp) {
-  switch (i) {
-<?R
-        for (v in rows(Settings)) if (is.na(v$derived)) { ?>
-  case <?%s v$Index ?>:
-    CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &tmp, sizeof(real_t));
-    break; <?R
-    } ?>
-  }
-}
