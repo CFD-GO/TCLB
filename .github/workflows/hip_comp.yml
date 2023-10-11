@@ -5,6 +5,8 @@ on: [ push, pull_request ]
 jobs:
   test:
     runs-on: ubuntu-latest
+    container:
+      image: cfdgo/tclb:ubuntu-22.04-big-hip-5.6.1
     strategy:
       fail-fast: false
       matrix:
@@ -20,14 +22,6 @@ jobs:
       uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Install dependencies
-      uses: ./.github/actions/install
-      with:
-        r: true
-        rdep: true
-        openmpi: true
-        rinside: true
-        hip: 5.4.1
     - name: Configure
       uses: ./.github/actions/configure
       with:
