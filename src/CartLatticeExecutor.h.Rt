@@ -11,21 +11,15 @@ c_header();
 #include "CartLatticeContainer.h"
 #include "LatticeData.hpp"
 
-class CartLatticeExecutor {
-  CartLatticeContainer m_container;
-  LatticeData          m_data;
+struct CartLatticeExecutor {
+  CartLatticeContainer container;
+  LatticeData          data;
 
-public:
   template < eOperationType I, eCalculateGlobals G, eStage S >
   void RunBorder(CudaStream_t stream) const;
   template < eOperationType I, eCalculateGlobals G, eStage S >
   void RunInterior(CudaStream_t stream) const;
   void Color(uchar4 *out_ptr);
-
-  CartLatticeContainer&       getContainer()       { return m_container; }
-  const CartLatticeContainer& getContainer() const { return m_container; }
-  LatticeData&                getData()            { return m_data; }
-  const LatticeData&          getData() const      { return m_data; }
 
   void CopyToConst() const;
 

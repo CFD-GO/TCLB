@@ -22,8 +22,8 @@ static void CopyObjToConst(const T& host_obj, T& const_symbol) {
 }
 
 void CartLatticeExecutor::CopyToConst() const {
-  CopyObjToConst(m_container, constContainer);
-  CopyObjToConst(m_data, constData);
+  CopyObjToConst(container, constContainer);
+  CopyObjToConst(data, constData);
 }
 
 /// Main Kernel
@@ -169,12 +169,12 @@ void RunBorderImpl(const CartLatticeContainer& container, CudaStream_t stream) {
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeExecutor::RunInterior(CudaStream_t stream) const {
-  RunInteriorImpl< InteriorExecutor< I, G, S > >(m_container, stream);
+  RunInteriorImpl< InteriorExecutor< I, G, S > >(container, stream);
 }
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeExecutor::RunBorder(CudaStream_t stream) const {
-  RunBorderImpl< BorderExecutor< I, G, S > >(m_container, stream);
+  RunBorderImpl< BorderExecutor< I, G, S > >(container, stream);
 }
 
 /// Old function for graphics output
@@ -242,7 +242,7 @@ CudaGlobalFunction void ColorKernel(uchar4 *optr, int z)
 */
 void CartLatticeExecutor::Color(uchar4 *optr) {
   CopyToConst();
-  CudaKernelRun(ColorKernel, dim3(floor(m_container.nx / X_BLOCK), m_container.ny, 1), dim3(X_BLOCK), optr, m_container.nz / 2);
+  CudaKernelRun(ColorKernel, dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK), optr, container.nz / 2);
 }
 
 // Quantity getters

@@ -58,9 +58,9 @@ void Lattice::setPosition(double px_, double py_, double pz_)
 	px = px_;
 	py = py_;
 	pz = pz_;
-	executor.getContainer().px = px + 0.5 + region.dx;
-	executor.getContainer().py = py + 0.5 + region.dy;
-	executor.getContainer().pz = pz + 0.5 + region.dz;
+	executor.container.px = px + 0.5 + region.dx;
+	executor.container.py = py + 0.5 + region.dy;
+	executor.container.pz = pz + 0.5 + region.dz;
 }
 
 /// Calculation of the offset from X, Y and Z
@@ -90,11 +90,11 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	sample = new Sampler(this);
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
-	executor.getContainer().Alloc(_region.nx,_region.ny,_region.nz);
-	executor.getData().Alloc();
+	executor.container.Alloc(_region.nx,_region.ny,_region.nz);
+	executor.data.Alloc();
 	setPosition(0.0,0.0,0.0);
-	executor.getData().iter = 0;
-	executor.getData().reset_iter = 0;
+	executor.data.iter = 0;
+	executor.data.reset_iter = 0;
 	DEBUG_M;
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
@@ -113,10 +113,10 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	CudaAllocFinalize();
 	DEBUG_M;
 
-	executor.getContainer().in = Snaps[0];
-	executor.getContainer().out = Snaps[1];
+	executor.container.in = Snaps[0];
+	executor.container.out = Snaps[1];
 #ifdef ADJOINT
-	executor.getContainer().adjout = aSnaps[0];
+	executor.container.adjout = aSnaps[0];
 #endif
 	aSnap = 0;
 	for (int i=0; i < SETTINGS; i++) {
@@ -125,17 +125,17 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
         CudaStreamCreate(&kernelStream);
         CudaStreamCreate(&inStream);
         CudaStreamCreate(&outStream);
-        executor.getData().ZoneSettings = zSet.gpuTab;
-        executor.getData().ConstZoneSettings = zSet.gpuConst;
-        executor.getData().ZoneIndex = 0;
+        executor.data.ZoneSettings = zSet.gpuTab;
+        executor.data.ConstZoneSettings = zSet.gpuConst;
+        executor.data.ZoneIndex = 0;
 <?R for (s in rows(ZoneSettings)) { ?>
 //        zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
 <?R } ?>
         ZoneIter = 0;
 	particle_data_size_max = 0;
-	SC.InitFinder(executor.getData().solidfinder);
-	executor.getData().particle_data = NULL;
-	executor.getData().particle_data_size = 0;
+	SC.InitFinder(executor.data.solidfinder);
+	executor.data.particle_data = NULL;
+	executor.data.particle_data_size = 0;
 	SC.balls = &RFI;
 	RFI.name = "TCLB";
 }
@@ -390,28 +390,28 @@ void Lattice::CopyInParticles() {
 		RFI.SendParticles();
 	DEBUG_PROF_POP();
 	if (RFI.size() > particle_data_size_max) {
-		if (executor.getData().particle_data != NULL) CudaFree(executor.getData().particle_data);
+		if (executor.data.particle_data != NULL) CudaFree(executor.data.particle_data);
 		particle_data_size_max = RFI.size();
-		CudaMalloc(&executor.getData().particle_data, RFI.mem_size());
+		CudaMalloc(&executor.data.particle_data, RFI.mem_size());
 	}
-	executor.getData().particle_data_size = RFI.size();
+	executor.data.particle_data_size = RFI.size();
 	for (size_t i=0; i<RFI.size(); i++){
 		RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
 		RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
 		RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
 	}
 	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(executor.getData().particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
+		CudaMemcpyAsync(executor.data.particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 	}
 	DEBUG_PROF_PUSH("Tree Build");
 		SC.Build();
 	DEBUG_PROF_POP();
-	SC.CopyToGPU(executor.getData().solidfinder, kernelStream);
+	SC.CopyToGPU(executor.data.solidfinder, kernelStream);
 }
 
 void Lattice::CopyOutParticles() {
 	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(RFI.Particles(), executor.getData().particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
+		CudaMemcpyAsync(RFI.Particles(), executor.data.particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
 	}
     CudaStreamSynchronize(kernelStream);
 	DEBUG_PROF_PUSH("Testing particles for NaNs");
@@ -437,15 +437,15 @@ void Lattice::SetFirstTabs(int tab0, int tab1) {
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
-		gpuout[i] = executor.getContainer().out.<?%s m$name ?> = gpubuf[i];
+		gpuout[i] = executor.container.out.<?%s m$name ?> = gpubuf[i];
 		nodeout[i] = to;
 		nodein[i] = from;
 		i ++;
 	} else {
-		executor.getContainer().out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+		executor.container.out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
 	} <?R
 	} ?>
-	executor.getContainer().in = Snaps[tab0];
+	executor.container.in = Snaps[tab0];
 }
 
 <?R for (a in rows(Actions)) { ?>
@@ -466,8 +466,8 @@ void Lattice::<?%s a$FunName ?>(int tab0, int tab1, int iter_type)
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 
 	debug1("ZoneIter: %d (in <?%s a$FunName ?>)\n", ZoneIter);
-	executor.getData().ZoneIndex = ZoneIter;
-	executor.getData().MaxZones = zSet.MaxZones;
+	executor.data.ZoneIndex = ZoneIter;
+	executor.data.MaxZones = zSet.MaxZones;
 	SetFirstTabs(tab0, tab1); <?R
 	old_stage_level = 0
 	action_stages = Stages[a$stages,,drop=FALSE]
@@ -484,7 +484,7 @@ void Lattice::<?%s a$FunName ?>(int tab0, int tab1, int iter_type)
 <?R if (old_stage_level > 0) { ?>
 	MPIStream_B();
 	CudaDeviceSynchronize();
-	executor.getContainer().in = Snaps[tab1]; <?R
+	executor.container.in = Snaps[tab1]; <?R
     }
     old_stage_level = old_stage_level + 1
 ?>
@@ -540,8 +540,8 @@ inline void Lattice::<?%s a$FunName ?>_Adj(int tab0, int tab1, int adjtab0, int 
 	int i=0;
 	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
-	executor.getData().ZoneIndex = ZoneIter;
-	executor.getData().MaxZones = zSet.MaxZones;
+	executor.data.ZoneIndex = ZoneIter;
+	executor.data.MaxZones = zSet.MaxZones;
 
 	debug1("ZoneIter: %d (in <?%s a$FunName ?>_Adj)\n", ZoneIter);
 <?R
@@ -551,15 +551,15 @@ inline void Lattice::<?%s a$FunName ?>_Adj(int tab0, int tab1, int adjtab0, int 
 	from = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
 		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
-		gpuin[i] = executor.getContainer().adjin.<?%s m$name ?> = gpubuf[i];
+		gpuin[i] = executor.container.adjin.<?%s m$name ?> = gpubuf[i];
 		nodeout[i] = to;
 		nodein[i] = from;
 		i ++;
 	} else {
-		executor.getContainer().adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
+		executor.container.adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
 	}
-	executor.getContainer().in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-	executor.getContainer().adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
+	executor.container.in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
+	executor.container.adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
 <?R
 	}
 
@@ -770,7 +770,7 @@ Lattice::~Lattice()
 {
 	RFI.Close();
         CudaAllocFreeAll();
-	executor.getContainer().Free();
+	executor.container.Free();
 	for (int i=0; i<nSnaps; i++) {
 		Snaps[i].Free();
 	}
@@ -797,19 +797,19 @@ void Lattice::Init()
 	iSnaps[0]=0;
 	Record_Iter=0;
 	Iter = 0;
-	executor.getData().iter = 0;
+	executor.data.iter = 0;
 	Snap=0;
    MPI_Barrier(MPMD.local);
    Action_Init(1,0,ITER_NO);
    MPI_Barrier(MPMD.local);
 	Iter = 0;
-	executor.getData().iter = 0;
+	executor.data.iter = 0;
 	clearGlobals();
 }
 
 void Lattice::GenerateST() {
 	ST.Generate();
-	ST.CopyToGPU(executor.getData().ST);
+	ST.CopyToGPU(executor.data.ST);
 }
 
 
@@ -895,7 +895,7 @@ void Lattice::Iterate(int niter, int iter_type)
 	        case ITER_ADJOINT:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
-					executor.getData().clearGlobals();
+					executor.data.clearGlobals();
 					iter_type = iter_type | ITER_GLOBS;
 				}
 				Record_Iter -= 1;
@@ -910,7 +910,7 @@ void Lattice::Iterate(int niter, int iter_type)
                 case ITER_NORM:
 			if (last_glob) {
 				IterateTill(niter+Record_Iter-1, iter_type);
-				executor.getData().clearGlobals();
+				executor.data.clearGlobals();
 				IterateTill(Record_Iter+1, iter_type | ITER_GLOBS);
 			} else {
 				IterateTill(niter+Record_Iter, iter_type);
@@ -927,7 +927,7 @@ void Lattice::Iterate(int niter, int iter_type)
 	                iter_type |= ITER_STEADY;
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
-					executor.getData().clearGlobals();
+					executor.data.clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration_Adj(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
@@ -936,23 +936,23 @@ void Lattice::Iterate(int niter, int iter_type)
                 case ITER_NORM:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
-					executor.getData().clearGlobals();
+					executor.data.clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration(Snap, (Snap+1) % 2, iter_type);
 				Iter ++;
-				executor.getData().iter ++;
+				executor.data.iter ++;
 			}
 			break;
                 case ITER_OPT:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
-					executor.getData().clearGlobals();
+					executor.data.clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
 				Iteration_Opt(Snap, (Snap+1) % 2, aSnap, (aSnap+1) % 2, iter_type);
 				Iter ++;
-				executor.getData().iter ++;
+				executor.data.iter ++;
 			}
                         break;
 		}
@@ -992,12 +992,12 @@ void Lattice::IterateAction(int action, int niter, int iter_type)
                 case ITER_NORM:
 			for (i=0; i< niter; i++) {
 				if ((last_glob) && (i == niter -1)) {
-					executor.getData().clearGlobals();
+					executor.data.clearGlobals();
 					iter_type |= ITER_GLOBS;
 				}
 				RunAction(action, Snap, (Snap+1) % 2, iter_type);
 				Iter ++;
-				executor.getData().iter ++;
+				executor.data.iter ++;
 			}
 			break;
                 case ITER_OPT:
@@ -1028,14 +1028,14 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
 	if (region.isEqual(over)) {
 		output("overwriting all flags\n");
-		CudaMemcpy(executor.getContainer().NodeType, mask, sizeof(flag_t)*region.sizeL(), CudaMemcpyHostToDevice);
+		CudaMemcpy(executor.container.NodeType, mask, sizeof(flag_t)*region.sizeL(), CudaMemcpyHostToDevice);
 	} else {
 		lbRegion inter = region.intersect(over);
 	        int x = inter.dx;
 	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
 	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
 	        {
-	                CudaMemcpy2D(&executor.getContainer().NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
+	                CudaMemcpy2D(&executor.container.NodeType[region.offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
 	        }
 	}
 }
@@ -1043,7 +1043,7 @@ void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
 {
 	if (Q == NULL) return;
-	executor.getContainer().ActivateCuts();
+	executor.container.ActivateCuts();
 	lbRegion inter = region.intersect(over);
         int x = inter.dx;
 	size_t regsize = region.size();
@@ -1052,7 +1052,7 @@ void Lattice::CutsOverwrite(cut_t * Q, lbRegion over)
         for (int z = inter.dz; z<inter.dz+inter.nz; z++)
         for (int d = 0; d<26; d++)
         {
-                CudaMemcpy2D(&executor.getContainer().Q[region.offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, CudaMemcpyHostToDevice);
+                CudaMemcpy2D(&executor.container.Q[region.offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, CudaMemcpyHostToDevice);
         }
 
 }
@@ -1063,14 +1063,14 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 	size_t offset;
 	lbRegion inter = region.intersect(over);
 	if (region.isEqual(over)) {
-                CudaMemcpy(NodeType, executor.getContainer().NodeType, sizeof(flag_t)*region.sizeL(), CudaMemcpyDeviceToHost);
+                CudaMemcpy(NodeType, executor.container.NodeType, sizeof(flag_t)*region.sizeL(), CudaMemcpyDeviceToHost);
         } else {
 	        int x = inter.dx;
 	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
 	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
 	        {
 			offset = region.offsetL(x,y,z);
-			CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &executor.getContainer().NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
+			CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &executor.container.NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
 		}
 	}
 }
@@ -1190,8 +1190,8 @@ void Lattice::GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale)
 */
 void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scale)
 {
-	executor.getContainer().in = Snaps[Snap];
-	<?R if (q$adjoint) { ?> executor.getContainer().adjin = aSnaps[aSnap]; <?R } ?>
+	executor.container.in = Snaps[Snap];
+	<?R if (q$adjoint) { ?> executor.container.adjin = aSnaps[aSnap]; <?R } ?>
         executor.CopyToConst();
 
 	lbRegion inter = region.intersect(over);
@@ -1265,7 +1265,7 @@ void Lattice::pop_settings()
 */
 void Lattice::getGlobals(real_t * tab) {
         real_t tabl[ GLOBALS ];
-        executor.getData().getGlobals(tabl); <?R
+        executor.data.getGlobals(tabl); <?R
         by(Globals,Globals$op,function(G) { n = nrow(G); ?>
                 MPI_Reduce(
                         &tabl[<?%s G$Index[1] ?>],
@@ -1298,7 +1298,7 @@ void Lattice::calcGlobals() {
 ?>
 	tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
 	for (int i=0; i< GLOBALS ; i++) globals[i] += tab[i];
-	executor.getData().clearGlobals();
+	executor.data.clearGlobals();
 }
 
 /// Clear the internal globals table
@@ -1345,7 +1345,7 @@ void Lattice::SetSetting(const Model::Setting& set, real_t val) {
 }
 
 void Lattice::resetAverage() {
-	executor.getData().reset_iter = executor.getData().iter;
+	executor.data.reset_iter = executor.data.iter;
         <?R for (f in rows(Fields))  if (f$average) { ?>
           CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));
 	 <?R } ?>
@@ -1353,8 +1353,8 @@ void Lattice::resetAverage() {
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
 {
-       	executor.getContainer().in = Snaps[Snap];
-       	<?R if (q$adjoint) { ?> executor.getContainer().adjin = aSnaps[aSnap]; <?R } ?>
+       	executor.container.in = Snaps[Snap];
+       	<?R if (q$adjoint) { ?> executor.container.adjin = aSnaps[aSnap]; <?R } ?>
         executor.CopyToConst();
 	lbRegion small = region.intersect(over);
 	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , small, (<?%s q$type?>*) buf, scale);
@@ -1368,7 +1368,7 @@ void Lattice::updateAllSamples(){
 	 	 if (sample->quant->in("<?%s q$name ?>"))
 		{
                         double v = sample->units.alt("<?%s q$unit ?>");
-			GetSample<?%s q$name ?>(sample->spoints[j].location,1/v,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(executor.getData().iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
+			GetSample<?%s q$name ?>(sample->spoints[j].location,1/v,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(executor.data.iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
 		}
 		<?R }; ifdef() ?>
 	} }
