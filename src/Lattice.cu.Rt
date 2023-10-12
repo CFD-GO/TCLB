@@ -76,7 +76,7 @@ int Lattice::Offset(int x, int y, int z)
         \param mpi_ MPI Information
         \param ns Number of Snapshots
 */
-Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZONE_MAX), region(_region), mpi(mpi_)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): executor(_region.nx,_region.ny,_region.nz), zSet(ZONESETTINGS, ZONE_MAX), region(_region), mpi(mpi_)
 {
 	DEBUG_M;
 	model = &my_model;
@@ -90,8 +90,6 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	sample = new Sampler(this);
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
-	executor.container.Alloc(_region.nx,_region.ny,_region.nz);
-	executor.data.Alloc();
 	setPosition(0.0,0.0,0.0);
 	executor.data.iter = 0;
 	executor.data.reset_iter = 0;
@@ -770,7 +768,6 @@ Lattice::~Lattice()
 {
 	RFI.Close();
         CudaAllocFreeAll();
-	executor.container.Free();
 	for (int i=0; i<nSnaps; i++) {
 		Snaps[i].Free();
 	}

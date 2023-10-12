@@ -34,9 +34,9 @@ public:
   int nx, ny, nz; ///< Size of the Lattice region
   real_t px,py,pz;
 
-  inline void Alloc (int,int,int);
-  inline void Free();
-  inline void ActivateCuts();
+  void Alloc (int,int,int);
+  void Free();
+  void ActivateCuts();
   
   CudaDeviceFunction flag_t getType(int x, int y, int z) const { return NodeType[(x + nx*(y + ny*z))]; }
 };

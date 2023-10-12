@@ -15,6 +15,19 @@ struct CartLatticeExecutor {
   CartLatticeContainer container;
   LatticeData          data;
 
+  CartLatticeExecutor(int nx, int ny, int nz) {
+    container.Alloc(nx, ny, nz);
+    data.Alloc();
+  }
+
+  CartLatticeExecutor(const CartLatticeExecutor&)            = default;
+  CartLatticeExecutor(CartLatticeExecutor&&)                 = default;
+  CartLatticeExecutor& operator=(const CartLatticeExecutor&) = default;
+  CartLatticeExecutor& operator=(CartLatticeExecutor&&)      = default;
+  ~CartLatticeExecutor() {
+    container.Free();
+  }
+
   template < eOperationType I, eCalculateGlobals G, eStage S >
   void RunBorder(CudaStream_t stream) const;
   template < eOperationType I, eCalculateGlobals G, eStage S >
