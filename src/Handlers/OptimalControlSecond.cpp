@@ -1,10 +1,5 @@
-<?R
-#include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "OptimalControlSecond.h"
+
 std::string OptimalControlSecond::xmlname = "OptimalControlSecond";
 
 int OptimalControlSecond::Init () {
@@ -30,13 +25,12 @@ int OptimalControlSecond::Init () {
 					return -1;
                                 }
                         }
-		<?R for (v in rows(ZoneSettings)) { ?>
-		        if (par == "<?%s v$name?>") par_index = <?%s v$Index?>;
-		<?R } ?>
-			if (par_index < 0) {
+			const Model::ZoneSetting& it = solver->lattice->model->zonesettings.by_name(par);
+			if (!it) {
 				error("Unknown param %s in OptimalControl\n", par.c_str());
 				return -1;
 			}
+			par_index = it.id;
 			output("Selected %s (%d) in zone \"%s\" (%d) for optimal control\n", par.c_str(), par_index, zone.c_str(), zone_number);
 		} else {
 			ERROR("Parameter \"what\" needed in %s\n",node.name());

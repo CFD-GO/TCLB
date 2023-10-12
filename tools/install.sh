@@ -30,7 +30,7 @@ function rm_tmp {
   fi
   return 0;
 }
-  
+
 function pms_error {
 	if test -z "$PMS"
 	then
@@ -48,7 +48,7 @@ function try {
 	for RETRY in $(seq $TRYCOUNT)
 	do
 		FIRST=false; LAST=false; RTXT=""
-		test "$RETRY" == 1 && FIRST=true	
+		test "$RETRY" == 1 && FIRST=true
 		test "$RETRY" == "$TRYCOUNT" && LAST=true
 		$FIRST || RTXT=" (retry $RETRY/$TRYCOUNT)"
 		if $DRY
@@ -100,7 +100,7 @@ function install_rpackage_github {
 	name=$(echo $1 | sed "s/\//./g")
 	rm -f $name.tar.gz
 	try "Downloading $name" wget $WGETOPT https://github.com/$1/archive/master.tar.gz -O $name.tar.gz
-	try "Installing $name" R CMD INSTALL $name.tar.gz 
+	try "Installing $name" R CMD INSTALL $name.tar.gz
 }
 
 function install_rpackage {
@@ -117,6 +117,18 @@ function install_rpackage {
 		if (! require('$name')) stop("Failed to load $name");
 EOF
 }
+
+function install_apt {
+	comment="$1"
+	shift
+	try "$comment" $SUDO apt-get install -y --allow-unauthenticated "$@"
+}
+
+function update_apt {
+	CLEAN_APT=true
+	try "Updating APT" $SUDO apt-get update -qq
+}
+
 
 function gitdep.cp {
 	echo -n "Copy $1... "
@@ -178,6 +190,9 @@ GITHUB=false
 RSTUDIO_REPO=false
 SUDO=""
 VERB=false
+SMALL=false
+CLEAN=false
+CLEAN_APT=false
 
 case "$1" in
 -v|--verbose) VERB=true; shift ;;
@@ -187,7 +202,7 @@ esac
 for i in apt-get yum brew
 do
 	if test -f "$(command -v $i)"
-	then 
+	then
 		verb "Discovered Package Manager: $i"
 		PMS=$i
 		break
@@ -237,6 +252,7 @@ do
 		echo "    --retry N       : retry failed steps N times"
 		echo "    --retry-delay M : delay M seconds between retries"
 		echo "    --group         : Use github actions workflow annotation for output"
+		echo "    --small         : Installing the minimal for compilation"
 		echo "    --help          : display this help message"
 		echo ""
 		echo "  *) needs sudo"
@@ -244,6 +260,7 @@ do
 		exit 0;
 		;;
 	--dry) DRY=true ;;
+	--small) SMALL=true ;;
 	--group) GRPOUTPUT=true ;;
 	--retry) shift; TRYCOUNT="$1" ;;
 	--retry-delay) shift; TRYDELAY="$1" ;;
@@ -251,7 +268,8 @@ do
 	--pms) shift; PMS="$1" ;;
 	--github) GITHUB=true ;;
 	--rstudio-repo) RSTUDIO_REPO=true ;;
-        -v|--verbose) error "-v/--verbose should be the first argument" ;;
+	--clean) CLEAN=true ;;
+    -v|--verbose) error "-v/--verbose should be the first argument" ;;
 	--sudo)
 		if test "$UID" == "0"
 		then
@@ -298,8 +316,8 @@ do
 				try "Adding repository" add-apt-repository "deb ${CRAN}/bin/linux/ubuntu $DIST/"
 				try "Adding repository key" apt-key adv --keyserver hkp://keyserver.ubuntu.com:80/ --recv-keys E084DAB9
 			fi
-			try "Updating APT" $SUDO apt-get update -qq
-			try "Installing R base" $SUDO apt-get install -y --allow-unauthenticated --no-install-recommends r-base-dev r-recommended qpdf
+			update_apt
+			install_apt "Installing R base" r-base-dev r-recommended qpdf
 			;;
 		brew)
 			try "Installing R from brew" brew install r
@@ -315,14 +333,13 @@ do
 		case "$1" in
 		*/*) GITHUB=true ;;
 		esac
-		
+
 		if $GITHUB
 		then
 			install_rpackage_github "$1"
 		else
 			install_rpackage "$1"
 		fi
-		shift
 		;;
 	rdep)
 		if $GITHUB
@@ -363,7 +380,7 @@ do
 		CUDA=$1
 		shift
 		echo "#### Installing CUDA library ####"
-		
+
 		case "$PMS" in
 		apt-get)
 			OS=ubuntu1204
@@ -377,10 +394,15 @@ do
 			try "Downloading CUDA keyring file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
 			try "Installing CUDA dist" $SUDO dpkg -i tmp.keyring.deb
 			try "Planting pin file" $SUDO mv tmp.pinfile /etc/apt/preferences.d/cuda-repository-pin-600
-			try "Updating APT" $SUDO apt-get update -qq
+			update_apt
 			CUDA_APT=${CUDA%-*}
 			CUDA_APT=${CUDA_APT/./-}
-			try "Installing CUDA form APT" $SUDO apt-get install -y cuda-compiler-${CUDA_APT} cuda-libraries-${CUDA_APT} cuda-libraries-dev-${CUDA_APT}
+			if $SMALL
+			then
+				install_apt "Installing CUDA form APT" cuda-nvcc-${CUDA_APT}
+			else
+				install_apt "Installing CUDA form APT" cuda-compiler-${CUDA_APT} cuda-libraries-${CUDA_APT} cuda-libraries-dev-${CUDA_APT}
+			fi
 #			try "Clean APT" $SUDO apt-get clean
 			;;
 		*)
@@ -401,13 +423,29 @@ do
 			if test "$(lsb_release -si)" == "Ubuntu"
 			then
 				OS="$(lsb_release -sc)"
-			fi			
-			AMDGPU_DEB="$(printf amdgpu-install_%d.%d.%d%02d%02d-1_all.deb "$V1" "$V2" "$V1" "$V2" "$V3")"
-			AMDGPU_VER="$HIP"
-			try "Updating APT" $SUDO apt-get update
-			try "Download AMDGPU install deb" wget https://repo.radeon.com/amdgpu-install/$AMDGPU_VER/ubuntu/$OS/$AMDGPU_DEB
-			try "Installing deb" $SUDO apt-get install ./$AMDGPU_DEB
-			try "Installing ROCm (amdgpu-install)" $SUDO amdgpu-install -y --usecase=rocm
+			fi
+			echo "OS codename: $OS"
+			try "Download ROCM key" wget https://repo.radeon.com/rocm/rocm.gpg.key -O rocm.gpg.key
+			try "De-armoring the key" gpg --output rocm.gpg --dearmor rocm.gpg.key
+			try "Create keyrings dir" $SUDO mkdir --parents --mode=0755 /etc/apt/keyrings
+			try "Planting ROCM key" $SUDO mv rocm.gpg /etc/apt/keyrings/rocm.gpg
+			if ! $SMALL
+			then
+				echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/amdgpu/$HIP/ubuntu $OS main" >amdgpu.list
+				try "Planting the APT source" $SUDO mv amdgpu.list /etc/apt/sources.list.d/amdgpu.list
+			fi
+			echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/$HIP $OS main" >rocm.list
+			try "Planting the APT source" $SUDO mv rocm.list /etc/apt/sources.list.d/rocm.list
+			echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' >rocm-pin-600
+			try "Planting PIN" $SUDO mv rocm-pin-600 /etc/apt/preferences.d/rocm-pin-600
+			update_apt
+			if $SMALL
+			then
+				install_apt "Installing ROCm" rocm-hip-runtime-dev
+			else
+				install_apt "Installing ROCm" rocm-hip-sdk amdgpu-dkms
+			fi
+			install_apt "Install missing package for HIP" libstdc++-12-dev
 			;;
 		*)
 			pms_error HIP ;;
@@ -422,8 +460,8 @@ do
 			echo "Don't forget to load mpi module before compilation."
 			;;
 		apt-get)
-			try "Updating APT" $SUDO apt-get update -qq
-			try "Installing OpenMPI from APT" $SUDO apt-get install -y openmpi-bin libopenmpi-dev
+			update_apt
+			install_apt "Installing OpenMPI from APT" openmpi-bin libopenmpi-dev
 #			try "Clean APT" $SUDO apt-get clean
 			;;
 		brew)
@@ -436,7 +474,8 @@ do
 	lcov)
 		case "$PMS" in
 		apt-get)
-			try "Installing lcov and time" $SUDO apt-get install -y time lcov
+			update_apt
+			install_apt "Installing lcov and time" time lcov
 			;;
 		*)
 			pms_error lcov ;;
@@ -468,11 +507,12 @@ do
 		case "$PMS" in
 		yum)
 			try "Installing python-devel from yum" $SUDO yum install -y python-devel
-			try "Installing numpy from yum" $SUDO yum install -y numpy 
+			try "Installing numpy from yum" $SUDO yum install -y numpy
 			try "Installing sympy from yum" $SUDO yum install -y sympy
 			;;
 		apt-get)
-			try "Installing python-dev from APT" $SUDO apt-get install -qq python3-dev python3-numpy python3-sympy
+			update_apt
+			install_apt "Installing python-dev from APT" python3-dev python3-numpy python3-sympy
 			;;
 		brew)
 			try "Installing Python from brew (this should install headers as well)" brew install python
@@ -484,7 +524,7 @@ do
 	module)
 		case "$PMS" in
 		yum)
-			try "Installing dependencies: tcl" $SUDO yum -y install tcl 
+			try "Installing dependencies: tcl" $SUDO yum -y install tcl
 			try "Installing dependencies: tcl-devel" $SUDO yum -y install tcl-devel
 			;;
 		*)
@@ -497,7 +537,7 @@ do
 		try "make" make
 		try "make install" make install
 		try "Leaving module directory" cd ..
-		try "Remember to restart terminal" . ~/.bashrc	
+		try "Remember to restart terminal" . ~/.bashrc
 		;;
 	tapenade)
 		if echo "$2" | grep -Eq '^[0-9]*[.][0-9]*$'
@@ -524,10 +564,18 @@ do
 		;;
 	-*)
 		echo "Unknown option $1" ; usage ;;
-	*)		
+	*)
 		echo "Unknown installation '$1'"; usage ;;
 	esac
 	shift
 done
+
+if $CLEAN
+then
+	if $CLEAN_APT
+	then
+		try "Cleaning apt" $SUDO apt-get -y clean
+	fi
+fi
 
 exit 0;

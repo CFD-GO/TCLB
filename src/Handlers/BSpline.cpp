@@ -1,6 +1,7 @@
 #include "BSpline.h"
 std::string BSpline::xmlname = "BSpline";
 #include "../HandlerFactory.h"
+#include "../spline.h"
 
 int BSpline::Init () {
 		Pars = -1;

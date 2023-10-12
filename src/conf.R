@@ -14,6 +14,12 @@ if (!exists("ADJOINT")) ADJOINT=0
 if (!exists("DOUBLE")) DOUBLE=0
 if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
+if (!exists("X_MOD")) X_MOD=0
+if (!exists("CPU_LAYOUT")) CPU_LAYOUT=FALSE
+if (!exists("plot.access")) plot.access=FALSE
+
+memory_arr_cpu = CPU_LAYOUT
+memory_arr_mod = X_MOD
 
 # SYMALGEBRA=TRUE
 
@@ -31,67 +37,7 @@ if (is.null(Options$autosym)) Options$autosym = FALSE
 
 #source("linemark.R")
 
-rows = function(x) {
-	rows_df= function(x) {
-		if (nrow(x) > 0) {
-			lapply(1:nrow(x),function(i) lapply(x,"[[",i))
-		} else {
-			list()
-		}
-	};
-	switch( class(x),
-		list       = x,
-		data.frame = rows_df(x)
-	)
-}
-
-table_from_text = function(text) {
-	con = textConnection(text);
-	tab = read.table(con, header=T);
-	close(con);
-	tab
-}
-
-c_table_decl = function(d, sizes=TRUE) {
-	trim <- function (x) gsub("^\\s+|\\s+$", "", x)
-	d = as.character(d)
-	sel = grepl("\\[",d)
-	if(any(sel)) {
-		w = d[sel]
-#		w = regmatches(w,regexec("([^[]*)\\[ *([^\\] ]*) *]",w))
-		r = regexpr("\\[[^]]*\\]",w)
-		w = lapply(1:length(r), function(i) {
-			a_=w[i]
-			c(a_,
-				trim(substr(a_,1,r[i]-1)),
-				trim(substr(a_,r[i]+1,r[i]+attr(r,"match.length")[i]-2))
-			)
-		})
-
-		w = do.call(rbind,w)
-		w = data.frame(w)
-		w[,3] = as.integer(as.character(w[,3]))
-		if (sizes) {
-			w = by(w,w[,2],function(x) {paste(x[1,2],"[",max(x[,3])+1,"]",sep="")})
-		} else {
-			w = by(w,w[,2],function(x) {x[1,2]})
-		}
-		w = do.call(c,as.list(w))
-	} else {
-		w = c()
-	}
-	w = c(w,d[!sel])
-	w
-}
-
-
-ifdef.global.mark = F
-ifdef = function(val=F, tag="ADJOINT") {
-	if ((!ifdef.global.mark) && ( val)) cat("\n#ifdef",tag,"\n");
-	if (( ifdef.global.mark) && (!val)) cat("\n#endif //",tag,"\n");
-	ifdef.global.mark <<- val
-}
-
+source("lib/utils.R")
 
 DensityAll = data.frame(parameter=logical(0))
 Globals = data.frame()
@@ -100,10 +46,23 @@ ZoneSettings = data.frame()
 Quantities = data.frame()
 NodeTypes = data.frame()
 Fields = data.frame()
-Stages=NULL
+Stages = NULL
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                      optimise_for_static_access=TRUE) {
+PartMargin=NA
+permissive.access=FALSE
+
+SetOptions = function(...) {
+  args = list(...)
+  optnames = c("permissive.access","PartMargin")
+  idx = match(names(args), optnames)
+  if (any(is.na(idx))) stop("Unknown options in SetOption: ", names(args)[is.na(idx)])
+  if (any(duplicated(idx))) stop("Duplicated options in SetOption: ", names(args)[duplicated(idx)])
+  for (i in seq_along(args)) {
+    assign(optnames[idx[i]], args[[i]], envir = .GlobalEnv)
+  }
+}
+
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL, ...) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
@@ -122,8 +81,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		average=average,
 		symX=sym[1],
 		symY=sym[2],
-		symZ=sym[3],
-        optimise_for_static_access=optimise_for_static_access
+		symZ=sym[3]
 	)
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
@@ -136,7 +94,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 			average=d$average,
 			sym=sym,
 			shift=shift,
-            optimise_for_static_access=optimise_for_static_access
+            ...
 		)
 	}
 }
@@ -169,11 +127,11 @@ convert_to_shift_list = function(n, x) {
   x = lapply(x,function(x) if (is.null(x)) no_shift() else x)
   tp = sapply(x,function(x) identical(class(x),"tclbshift"))
   if (any(!tp)) stop("All elements of shift have to be of tclbshift class")
-  x    
+  x
 }
 
 AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment="", adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL,
-                    optimise_for_static_access=TRUE) {
+                    optimise_for_static_access=TRUE, non.mandatory=FALSE) {
         shift = convert_to_shift_list(length(name), shift)
 	if (missing(name)) stop("Have to supply name in AddField!")
 	if (missing(group)) group = name
@@ -195,7 +153,8 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 			symY=sym[2],
 			symZ=sym[3],
 			shift=I(shift),
-            optimise_for_static_access=optimise_for_static_access
+            optimise_for_static_access=optimise_for_static_access,
+			non.mandatory=non.mandatory
 		)
 
 		if (any(Fields$name == d$name)) {
@@ -215,7 +174,7 @@ AddField = function(name, stencil2d=NA, stencil3d=NA, dx=0, dy=0, dz=0, comment=
 }
 
 
-AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, ...) {
+AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, equation, zonal=FALSE, preload=TRUE, ...) {
 	if (missing(name)) stop("Have to supply name in AddSetting!")
 	if (any(unit == "")) stop("Empty unit in AddSetting not allowed")
 	if (missing(comment)) {
@@ -231,7 +190,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 			equation = as.character(der[[1]]);
 		} else {
 			stop("Only one derived setting allowed in AddSetting!");
-		} 
+		}
 	} else {
 		if (missing(equation)) stop("'derived' provided, but no 'equation' in AddSetting")
 	}
@@ -242,6 +201,7 @@ AddSetting = function(name,  comment, default=0, unit="1", adjoint=F, derived, e
 		unit=unit,
 		default=default,
 		adjoint=adjoint,
+		preload=preload,
 		comment=comment
 	)
 	if (zonal) {
@@ -292,7 +252,7 @@ AddQuantity = function(name, unit="1", vector=F, comment="", adjoint=F) {
 		comment=comment
 	)
 	Quantities <<- rbind(Quantities,q)
-}	
+}
 
 AddNodeType = function(name, group) {
 	NodeTypes <<- rbind(NodeTypes, data.frame(
@@ -330,62 +290,56 @@ AddDescription = function(short, long) {
 }
 
 
-AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, no.overwrite=FALSE, fixedPoint=FALSE, particle=FALSE) {
+AddStage = function(name, main=name, load.densities=FALSE, save.fields=FALSE, read.fields=NA, can.overwrite=FALSE, default=FALSE, fixedPoint=FALSE, particle=FALSE, particle.margin) {
 	s = data.frame(
 		name = name,
 		main = main,
 		adjoint = FALSE,
 		fixedPoint=fixedPoint,
-		particle=particle
+		particle=particle,
+		can.overwrite=can.overwrite
 	)
 	sel = Stages$name == name
 	if (any(sel)) {
-		if (no.overwrite) return();
-		s$index = Stages$index[sel]
-		s$tag = Stages$tag[sel]
-		Stages[sel,] <<- s
-	} else {
-		if (is.null(Stages)) {
-			s$index = 1
-		} else {
-			s$index = nrow(Stages) + 1
-		}
-		s$tag = paste("S",s$index,sep="__")
-		Stages <<- rbind(Stages,s)
+		if (default) return();
+		stop("Two stages defined with the same name")
 	}
-	if (is.character(load.densities)) {
-		sel = load.densities %in% DensityAll$name
-		if (any(!sel)) stop(paste("Unknown densities in AddStage:", load.densities[!sel]))
-		load.densities = DensityAll$name %in% load.densities
+        s$loadtag = paste0("LoadIn",s$name)
+        s$savetag = paste0("SaveIn",s$name)
+        s$readtag = paste0("ReadIn",s$name)
+        Stages <<- rbind(Stages,s)
+	if (! missing(particle.margin)) {
+		if (! particle) stop("particle.margin declared in a stage, but particle=FALSE")
+		PartMargin <<- max(PartMargin,particle.margin,na.rm=TRUE)
 	}
-	if (is.logical(load.densities)) {
-		if ((length(load.densities) != 1) && (length(load.densities) != nrow(DensityAll))) stop("Wrong length of load.densities in AddStage")
-		if (nrow(DensityAll) > 0) {
-			DensityAll[,s$tag] <<- load.densities
-		} else {
-			DensityAll[,s$tag] <<- logical(0);
-		}
-	} else stop("load.densities should be logical or character")
 
-	if (is.character(save.fields)) {
-		sel = save.fields %in% Fields$name
-		if (any(!sel)) stop(paste("Unknown fields in AddStage:", save.fields[!sel]))
-		save.fields = Fields$name %in% save.fields
+	selection = function(tab,sel) {
+		if (is.character(sel)) {
+			if (any(!(sel %in% tab$name))) stop("load/save/read name not found in AddStage")
+			sel = tab$name %in% sel
+		}
+		if (is.logical(sel)) {
+			if (length(sel) == 1) sel = rep(sel, nrow(tab))
+			if (length(sel) != nrow(tab)) stop("load/save/read invalid length in AddStage")
+			return(sel)
+		} else {
+			stop("load/save/read invalid type in AddStage")
+		}
 	}
-	if (is.logical(save.fields)) {
-		if ((length(save.fields) != 1) && (length(save.fields) != nrow(Fields))) stop("Wrong length of save.fields in AddStage")
-		if (nrow(Fields) > 0) {
-  		  Fields[,s$tag] <<- save.fields
-                } else {
-  		  Fields[,s$tag] <<- logical(0)
-                }
-	} else stop("save.fields should be logical or character in AddStage")
+
+	sel = selection(DensityAll, load.densities)
+	DensityAll[, s$loadtag] <<- sel
+	sel = selection(Fields, save.fields)
+	Fields[, s$savetag] <<- sel
+	sel = selection(Fields, read.fields)
+	Fields[, s$readtag] <<- sel
 }
 
-Actions = list()
+Actions = NULL
 
 AddAction = function(name, stages) {
-	Actions[[name]] <<- stages
+	a = data.frame(name=name, stages=I(list(stages)))
+	Actions <<- rbind(Actions, a)
 }
 
 Objectives = list()
@@ -455,44 +409,143 @@ if (Options$autosym) { ## Automatic symmetries
   }
 }
 
-if (!"Iteration" %in% names(Actions)) {
+if (!"Iteration" %in% Actions$name) {
 	AddAction(name="Iteration", stages=c("BaseIteration"))
 }
-if (!"Init" %in% names(Actions)) {
+if (!"Init" %in% Actions$name) {
 	AddAction(name="Init", stages=c("BaseInit"))
 }
-AllStages = do.call(c,Actions)
+AllStages = unique(do.call(c,Actions$stages))
 
 if (("BaseIteration" %in% AllStages) && (!"BaseIteration" %in% Stages$name)) {
-	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, no.overwrite=TRUE)
+	AddStage(main="Run", name="BaseIteration", load.densities=TRUE, save.fields=TRUE, default=TRUE)
 }
 if (("BaseInit" %in% AllStages) && (!"BaseInit" %in% Stages$name)) {
-	AddStage(main="Init", name="BaseInit", load.densities=FALSE, save.fields=TRUE, no.overwrite=TRUE)
+	AddStage(main="Init", name="BaseInit", load.densities=FALSE, save.fields=TRUE, default=TRUE)
 }
 
 if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
-ntag = paste("Stage",Stages$name,sep="_")
-i = match(Stages$tag,names(DensityAll))
-if (any(is.na(i))) stop("Some stage didn't load properly")
-names(DensityAll)[i] = ntag
-i = match(Stages$tag,names(Fields))
-if (any(is.na(i))) stop("Some stage didn't load properly")
-names(Fields)[i] = ntag
-Stages$tag = ntag
-#Stages = Stages[order(Stages$level),]
+
 row.names(Stages)=Stages$name
 
-for (n in names(Actions)) { a = Actions[[n]]
-	if (length(a) != 0) {
-		if (any(! a %in% row.names(Stages))) stop(paste("Some stages in action",n,"were not defined"))
-		sel = Stages[a,"tag"]
-		f = Fields[,sel,drop=F]
-		s = apply(f,1,sum)
-		if (any(s) > 1) {
-			stop(paste("Field", Fields$name[s>1],"is saved more then once in Action",n))
+if (plot.access) {
+	
+	pa_fi = Fields
+	pa_fi$index = seq_len(nrow(pa_fi))
+	pa_fi = by(pa_fi, pa_fi$group, function(x) {x$groupsize = nrow(x); x})
+	pa_fi = do.call(rbind,pa_fi)
+	pa_fi = pa_fi[rev(seq_len(nrow(pa_fi))),]
+	pa_fi$boxh = pmin(1,sqrt(3/pa_fi$groupsize))
+	pa_fi$boxupper = cumsum(pa_fi$boxh)
+	pa_fi$boxlower = c(0,pa_fi$boxupper[-length(pa_fi$boxupper)])
+	pa_fi$boxmid = (pa_fi$boxupper + pa_fi$boxlower)/2
+	#pa_sft = diff(pa_fi$boxmid)
+	#sel = diff(as.integer(factor(pa_fi$group))) != 0
+	#pa_sft[sel] = 1
+	#pa_sft = cumsum(c(pa_fi$boxmid[1],pa_sft))
+	#pa_sft = pa_sft - pa_fi$boxmid
+	#pa_fi$boxupper = pa_fi$boxupper + pa_sft
+	#pa_fi$boxlower = pa_fi$boxlower + pa_sft
+	#pa_fi$boxmid   = pa_fi$boxmid   + pa_sft
+	pa_fi = pa_fi[order(pa_fi$index),]
+	pa_frange = range(pa_fi$boxupper,pa_fi$boxlower)
+	pa_f = max(pa_fi$boxupper)
+	pa_s = max(sapply(Actions,length))
+	pa_ws = 10
+	pa_scale = 0.2
+	pa_ylab = max(strwidth(Fields$name,units="in")) + 0.3
+	#pa_ylab = 2 # in
+	pa_main = 0.8 # in
+	pa_leg = 0.6 # in
+	pdf("field_access.pdf",width=pa_ylab+pa_scale*(1+pa_ws*pa_s),height=pa_scale*diff(pa_frange)+pa_main+pa_leg)
+	par(mai=c(pa_leg,pa_ylab,pa_main,0))
+}
+Actions$FunName = ifelse(Actions$name == "Iteration", "Iteration", paste0("Action_",Actions$name))
+
+for (a in rows(Actions)) {
+	if (length(a$stages) != 0) {
+		if (!all(a$stages %in% Stages$name)) stop(paste("Some stages in action",a$name,"were not defined"))
+		if (a$name == "Init") {
+			bufin = rep(FALSE, nrow(Fields))
+		} else {
+			bufin = rep(TRUE, nrow(Fields))
 		}
+		bufout = rep(FALSE, nrow(Fields))
+		first = TRUE
+		pa_si = 0
+		if (plot.access) {
+			pa_s = length(a$stages)
+			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=a$name,asp=1)
+			legend(par('usr')[2], par('usr')[3], xpd=TRUE, yjust=1, xjust=1, ncol=2, cex=0.7, bty = "n", bg="white",
+				legend = c("Previous iteration", "Newly written field", "Previously written field", "Density read", "Declared read access", "Implicit (undeclared) read access"),
+				pch=c(15,15,15,NA,NA,NA),lty=c(NA,NA,NA,1,1,1),col=c("lightblue", "green","darkgreen","black","green","gray"))
+			axis(2,at=pa_fi$boxmid,labels = Fields$name,las=1)
+			pa_col = rep("white",nrow(pa_fi))
+			pa_col[bufin] = "lightblue"
+			rect(-0.5,pa_fi$boxlower,0.5,pa_fi$boxupper,col=pa_col,border="darkblue")
+			pa_sl = strwidth(Stages$name,units="in")
+			pa_yscaling = par("pin")[2]/diff(par("usr")[3:4])
+			pa_sl = max(pa_sl) / pa_yscaling
+		}
+		for (sn in a$stages) {
+			pa_si = pa_si + 1
+			s = Stages[Stages$name == sn,]
+			ss = Fields[,s$savetag]
+			sr = Fields[,s$readtag]
+			sl = DensityAll[,s$loadtag]
+			sl = Fields$name %in% unique(DensityAll$field[sl])
+			sr[(!bufin) & is.na(sr)] = FALSE
+			if (plot.access) {
+				pa_col = rep("white",nrow(pa_fi))
+				pa_col[bufout] = "darkgreen"
+				pa_col[ss] = "green"
+				rect(pa_ws*pa_si-0.5,pa_fi$boxlower,pa_ws*pa_si+0.5,pa_fi$boxupper,col=pa_col)
+				rect(pa_ws*(pa_si-0.5)-0.7,pa_f/2-pa_sl/2-0.5,pa_ws*(pa_si-0.5)+0.7,pa_f/2+pa_sl/2+0.5)
+				text(pa_ws*(pa_si-0.5),pa_f/2,labels=sn,srt=90)
+				pa_a1x = pa_ws*(pa_si-1)+0.5
+				pa_a1y = pa_fi$boxmid
+				pa_a2x = pa_ws*(pa_si-0.5)-0.7
+				pa_a2y = (pa_fi$boxmid/diff(pa_frange)-0.5)*pa_sl + pa_f/2
+				pa_col = rep("white",nrow(pa_fi))
+				pa_col[sr & (!is.na(sr))] = "green"
+				pa_col[is.na(sr)] = "gray"
+				pa_col[sl] = "black"
+				pa_col[(!bufin) & (sr | sl)] = "red"
+				sel = pa_col != "white"; if (any(sel)) segments(pa_a1x,pa_a1y[sel],pa_a2x,pa_a2y[sel],col=pa_col[sel])
+				pa_a1x = pa_ws*(pa_si-0.5)+0.7
+				pa_a1y = (pa_fi$boxmid/diff(pa_frange)-0.5)*pa_sl + pa_f/2
+				pa_a2x = pa_ws*(pa_si-0)-0.5
+				pa_a2y = pa_fi$boxmid
+				pa_col = rep("white",nrow(pa_fi))
+				pa_col[ss] = "black"
+				pa_col[bufout & ss] = "red"
+				sel = pa_col != "white"; if (any(sel)) segments(pa_a1x,pa_a1y[sel],pa_a2x,pa_a2y[sel],col=pa_col[sel])
+			}
+			sel = (!bufin) & (sr | sl)
+			if (any(sel) && (! permissive.access)) stop("Reading fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' werent yet written in action '",a$name,"'")
+			sel = bufout & ss
+			if (any(sel) && (! s$can.overwrite) && (! permissive.access)) stop("Overwriting fields [", paste(Fields$name[sel],collapse=", "),"] in stage '", sn,"' that were written earlier in action '",a$name,"'")
+			bufout = bufout | ss
+			bufin = bufout
+			first=FALSE
+			Fields[,s$readtag] = sr
+		}
+		sel = (! bufout) & (! Fields$non.mandatory)
+		if (any( sel ) && (! permissive.access)) stop("Fields [", paste(Fields$name[sel],collapse=", "),"] were not written in action '",a$name,"' (all fields need to be written*)\n*) in special cases you can mark a field as non.mandatory=TRUE")
 	} else {
 		stop(paste("There is a empty Action:",n))
+	}
+}
+
+if (plot.access) {
+	dev.off()
+}
+
+for (tag in Stages$readtag) {
+	if (permissive.access) {
+		Fields[,tag] = TRUE
+	} else {
+		Fields[is.na(Fields[,tag]),tag] = TRUE
 	}
 }
 
@@ -503,11 +556,16 @@ if (nrow(NodeTypes) > 0) {
   NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
           n = nrow(tab)
           l = ceiling(log2(n+1))
-          tab$index = 1:n
-          tab$Index = tab$name
-          tab$value = NodeShift*(1:n)
-          tab$mask  = NodeShift*((2^l)-1)
+          tab$index    = 1:n
+          tab$Index    = paste("NODE",tab$name,sep="_")
+          tab$value    = NodeShift*(1:n)
+          tab$mask     = NodeShift*((2^l)-1)
+          tab$max      = n
+          tab$bits     = l
+          tab$capacity = 2^l
           tab$shift = NodeShiftNum
+          tab$groupIndex = paste("NODE",tab$group,sep="_")
+          tab$save = TRUE
           NodeShift    <<- NodeShift * (2^l)
           NodeShiftNum <<- NodeShiftNum + l
           tab
@@ -532,24 +590,65 @@ NodeTypes = rbind(NodeTypes,data.frame(
         name="DefaultZone",
         group="SETTINGZONE",
         index=1,
-        Index="DefaultZone",
+        Index="ZONE_DefaultZone",
         value=0,
+        max=ZoneMax,
+        bits=ZoneBits,
+        capacity=ZoneMax,
         mask=(ZoneMax-1)*NodeShift,
-        shift=NodeShiftNum
+        shift=NodeShiftNum,
+        groupIndex = "NODE_SETTINGZONE",
+        save = TRUE
 ))
 NodeShiftNum = FlagTBits
 NodeShift = 2^NodeShiftNum
 
-if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds short int")
+if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds size of flag_t")
 
-Node=NodeTypes$value
-names(Node) = NodeTypes$name
+#ALLBits = ZoneShift
+#ALLMax = 2^ZoneShift
+ALLBits = FlagTBits
+ALLMax = 2^ALLBits
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="None",
+        group="NONE",
+        index=1,
+        Index="NODE_None",
+        value=0,
+        max=0,
+        bits=0,
+        capacity=0,
+        mask=0,
+        shift=0,
+        groupIndex = "NODE_NONE",
+        save = FALSE
+))
 
-i = !duplicated(NodeTypes$group)
-Node_Group=NodeTypes$mask[i]
-names(Node_Group) = NodeTypes$group[i]
-Node_Group["ALL"] = sum(Node_Group)
+NodeTypes = rbind(NodeTypes,data.frame(
+        name="Clear",
+        group="ALL",
+        index=1,
+        Index="NODE_Clear",
+        value=0,
+        max=ALLMax,
+        bits=ALLBits,
+        capacity=ALLMax,
+        mask=(ALLMax-1),
+        shift=0,
+        groupIndex = "NODE_ALL",
+        save = FALSE
+))
 
+NodeTypeGroups = unique(data.frame(
+        name=NodeTypes$group,
+        Index=NodeTypes$groupIndex,
+        max=NodeTypes$max,
+        bits=NodeTypes$bits,
+        capacity=NodeTypes$capacity,
+        mask=NodeTypes$mask,
+        shift=NodeTypes$shift,
+        save=NodeTypes$save
+))
 
 Scales = data.frame(name=c("dx","dt","dm"), unit=c("m","s","kg"));
 
@@ -589,10 +688,25 @@ if (ADJOINT==1) {
 	AddSetting(name="GradientSmooth", comment="Gradient smoothing in OptSolve", adjoint=T)
 	AddGlobal(name="AdjointRes", comment="square L2 norm of adjoint change", adjoint=T)
 }
-	for (g in rows(Globals)) if (! g$adjoint){
+
+AddGlobal(name="Objective",comment="Objective function");
+
+
+tmp_c = Globals[Globals$op != "SUM",,drop=FALSE]; tmp_c = tmp_c[order(tmp_c$op),,drop=FALSE]
+tmp_b = Globals[Globals$name == "Objective",,drop=FALSE]
+tmp_a = Globals[Globals$op == "SUM" & Globals$name != "Objective",,drop=FALSE]
+
+Globals = rbind(tmp_a,tmp_b,tmp_c)
+SumGlobals = sum(Globals$op == "SUM")
+ObjGlobalsIdx = which(Globals$name == "Objective")
+
+if (any(Globals$op[seq_len(SumGlobals)] != "SUM")) stop("Something went wrong with ordering of globals")
+
+	for (g in rows(Globals)[Globals$op == "SUM" & Globals$name != "Objective"]) if (! g$adjoint){
 		AddSetting(
 			name=paste(g$name,"InObj",sep=""),
 			comment=paste("Weight of [",g$comment,"] in objective",sep=""),
+			preload=FALSE,
 			adjoint=T,
 			zonal=T
 		)
@@ -605,8 +719,6 @@ DensityAD = DensityAll[  DensityAll$adjoint, ]
 Fields$nicename = gsub("[][ ]","",Fields$name)
 
 AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
-
-AddGlobal(name="Objective",comment="Objective function");
 
 Margin = data.frame(
 	name = paste("block",1:27,sep=""),
@@ -692,11 +804,11 @@ Dispatch = cbind(
 sel = Dispatch$stage
 Dispatch$suffix[sel] = paste("_", Dispatch$stage_name[sel], Dispatch$suffix[sel], sep="")
 
-Globals = Globals[order(Globals$op),]
 
+if (is.na(PartMargin)) PartMargin = 0.5
 
 Consts = NULL
-for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings")) {
+for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities","Scales","Fields","Stages","ZoneSettings","Actions")) {
 	v = get(n)
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
@@ -704,24 +816,38 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 		v$index = 1:nrow(v)-1
 		v$nicename = gsub("[][ ]","",v$name)
 		v$Index = paste(" ",toupper(n), "_", v$nicename, " ", sep="")
+		row.names(v) = v$name
 		Consts = rbind(Consts, data.frame(name=v$Index, value=v$index));
 		assign(n,v)
 	}
 	assign(n,v)
 }
+
+ret = merge(
+	data.frame(name = paste0(Globals$name,"InObj"), glob.idx=Globals$index),
+	data.frame(name = ZoneSettings$name, set.idx=ZoneSettings$index)
+)
+if (nrow(ret) > 0) {
+	InObjOffset = ret$set.idx - ret$glob.idx
+	if (any(InObjOffset != InObjOffset[1])) stop("Not all InObj offsets are the same. this should not happen")
+	InObjOffset = InObjOffset[1]
+} else {
+	InObjOffset = 0
+}
+Consts = rbind(Consts, data.frame(name="IN_OBJ_OFFSET",value=InObjOffset))
+Consts = rbind(Consts, data.frame(name="SUM_GLOBALS",value=SumGlobals))
 Consts = rbind(Consts, data.frame(name="ZONE_SHIFT",value=ZoneShift))
 Consts = rbind(Consts, data.frame(name="ZONE_MAX",value=ZoneMax))
 Consts = rbind(Consts, data.frame(name="DT_OFFSET",value=ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="GRAD_OFFSET",value=2*ZoneMax*nrow(ZoneSettings)))
 Consts = rbind(Consts, data.frame(name="TIME_SEG",value=4*ZoneMax*nrow(ZoneSettings)))
 
-Consts = rbind(Consts, data.frame(name="ACTIONS", value=length(Actions)))
-Consts = rbind(Consts, data.frame(name=paste0(" ACTION_", names(Actions), " "),value=seq_len(length(Actions))-1))
+is.power.of.two = function(x) { 2^floor(log(x)/log(2))-x != 0 }
 
-offsets = function(d2=FALSE, cpu=FALSE) {
-  def.cpu = cpu
+if (is.power.of.two(memory_arr_mod)) stop("memory_arr_mod has to be a power of 2")
+
+offsets = function() {
   mw = PV(c("nx","ny","nz"))
-  if2d3d = c(FALSE,FALSE,d2 == TRUE)
   one = PV(c(1L,1L,1L))
   bp = expand.grid(x=1:3,y=1:3,z=1:3)
   p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
@@ -729,7 +855,6 @@ offsets = function(d2=FALSE, cpu=FALSE) {
   tab2 = c(0,-1,1)
   get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
   sizes = c(one,mw,one)
-  sizes[c(FALSE,FALSE,FALSE, if2d3d, FALSE,FALSE,FALSE)] = PV(1L)
   size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
   MarginNSize = PV(rep(0L,27))
   calc.functions = function(f) {
@@ -743,14 +868,12 @@ offsets = function(d2=FALSE, cpu=FALSE) {
     mins = pmin(mins,0)
     maxs = pmax(maxs,0)
     nsizes = c(PV(as.integer(-mins)),one,PV(as.integer(maxs)))
-    if (any(mins[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
-    if (any(maxs[if2d3d] != 0)) stop("jump in Z in 2d have to be 0")
     nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
     mSize = MarginNSize
     MarginNSize <<- mSize + nsize
-    offset.p = function(positions,cpu) {
-      positions[c(mins > -2, if2d3d, maxs < 2)] = PV(0L)
-      if (cpu) {
+    offset.p = function(positions) {
+      positions[c(mins > -2, c(FALSE,FALSE,FALSE), maxs < 2)] = PV(0L)
+      if (memory_arr_cpu) {
         offset =  (positions[p$x] +
                      (positions[p$y] +
                         (positions[p$z]
@@ -758,38 +881,56 @@ offsets = function(d2=FALSE, cpu=FALSE) {
                      ) * sizes[p$x] * nsizes[p$x]
         ) * MarginNSize +
           mSize
+      } else if (memory_arr_mod != 0) {
+		positions__x = positions[p$x]
+		positions_nx  = sizes[p$x]*nsizes[p$x]
+		positions__x_mod = PV("((",ToC(positions__x),")&",memory_arr_mod-1,")")
+		positions__x_div = (positions__x - positions__x_mod)*(1/memory_arr_mod)
+		positions_nx_mod = PV(rep(memory_arr_mod, nrow(p)))
+		positions_nx_div = positions_nx*(1/memory_arr_mod)
+		sel = is.zero(positions_nx - PV(1L))
+		dim(sel) = NULL
+		positions__x_mod[sel] = positions__x[sel]
+		positions__x_div[sel] = PV(0L)
+		positions_nx_mod[sel] = positions_nx[sel]
+		positions_nx_div[sel] = PV(1L)
+		offset = positions__x_mod + positions_nx_mod*(
+			positions[p$y] + sizes[p$y]*nsizes[p$y]*(
+				positions__x_div + positions_nx_div*(
+					positions[p$z]
+				)
+			)
+		) + mSize * size
       } else {
-        offset =   positions[p$x] +
-          (positions[p$y] +
-             (positions[p$z]
-             ) * sizes[p$y] * nsizes[p$y]
-          ) * sizes[p$x] * nsizes[p$x] +
-          mSize * size
-      }
+		offset = positions[p$x] + sizes[p$x]*nsizes[p$x]*(
+			positions[p$y] + sizes[p$y]*nsizes[p$y]*(
+				positions[p$z]
+			)
+		) + mSize * size	
+	  }
+	  sel = is.zero(nsize)
+	  dim(sel) = NULL
+      offset[sel] = PV("NA")
       offset
     }
     list(get_offsets = 
-      function(w,dw,cpu=def.cpu) {
-	if (is.numeric(dw)) {
-          tab1 = c(ifelse(dw<0,1,0),ifelse(dw<0,-1,0),0,0,0)
-          tab2 = c(0,0,0,ifelse(dw>0,-1,0),ifelse(dw>0,1,0))
-          tab3 = c(dw<0,TRUE,TRUE,TRUE,dw>0)
-	  dw = PV(as.integer(dw))
-	} else {
-          tab1 = c(1,1,1,-1,-1,-1,0,0,0)
-          tab2 = c(0,0,0,-1,-1,-1,1,1,1)
-          tab3 = c(mins<0,TRUE,TRUE,TRUE,maxs>0)
-	}
+      function(w,dw) {
+		if (is.numeric(dw)) dw = PV(as.integer(dw))
+		dw_neg = sapply(1:3, function(i) { if (is.numeric(dw[[i]])) dw[[i]]<0 else mins[i]<0 })
+		dw_pos = sapply(1:3, function(i) { if (is.numeric(dw[[i]])) dw[[i]]>0 else maxs[i]>0 })
+		tab1 = c(ifelse(dw_neg,1,0),ifelse(dw_neg,-1,0),0,0,0)
+		tab2 = c(0,0,0,ifelse(dw_pos,-1,0),ifelse(dw_pos,1,0))
+		tab3 = c(dw_neg,TRUE,TRUE,TRUE,dw_pos)
 	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw),cpu=cpu)
+        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw))
         cond = c(w+dw,mw-w-dw-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
       },
       put_offsets = 
-      function(w,cpu=def.cpu) {
-        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w),cpu=cpu)
+      function(w) {
+        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w))
         cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
         list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
       },
@@ -810,7 +951,7 @@ offsets = function(d2=FALSE, cpu=FALSE) {
 }
 
 if (NEED_OFFSETS) {
-    ret = offsets(cpu=FALSE)
+    ret = offsets()
     Fields = ret$Fields
     for (i in 1:length(Margin)) {
             Margin[[i]]$Size = ret$MarginSizes[i]
@@ -825,11 +966,21 @@ if (NEED_OFFSETS) {
     NonEmptyMargin = Margin[NonEmptyMargin]
 }
 
+BorderMargin = data.frame(
+	name = c("x","y","z"),
+	min  = c(min(0,Fields$minx),min(0,Fields$miny),min(0,Fields$minz)),
+    max  = c(max(0,Fields$maxx),max(0,Fields$maxy),max(0,Fields$maxz))
+)
+BorderMargin$min[1] = 0  # We do not separate border in X direction.
+BorderMargin$max[1] = 0
+
+
+
 Enums = list(
 	eOperationType=c("Primal","Tangent","Adjoint","Optimize","SteadyAdjoint"),
 	eCalculateGlobals=c("NoGlobals", "IntegrateGlobals", "OnlyObjective", "IntegrateLast"),
 	eModel=paste("model",as.character(MODEL),sep="_"),
-	eAction=names(Actions),
+	eAction=Actions$name,
 	eStage=c(Stages$name,"Get"),
 	eTape = c("NoTape", "RecordTape")
 )

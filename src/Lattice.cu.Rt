@@ -16,7 +16,8 @@
 #include "Lattice.h"
 #include <mpi.h>
 #include <assert.h>
-#include "BallTree.hpp"
+#include "SolidTree.hpp"
+#include "SolidGrid.hpp"
 
 #ifdef ENABLE_NVPROF
 	#include <nvToolsExt.h>
@@ -83,9 +84,10 @@ int Lattice::Offset(int x, int y, int z)
         \param mpi_ MPI Information
         \param ns Number of Snapshots
 */
-Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mpi_)
+Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZONE_MAX), region(_region), mpi(mpi_)
 {
 	DEBUG_M;
+	model = &my_model;
 	reverse_save=0;
 	Record_Iter = 0;
 	Iter = 0;
@@ -94,7 +96,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	callback_iter = 1;
 	nSnaps = ns;
 	container = new LatticeContainer;
-	sample = new Sampler;
+	sample = new Sampler(this);
 	Snaps = new FTabs[nSnaps];
 	iSnaps = new int[maxSnaps];
 	container->Alloc(_region.nx,_region.ny,_region.nz);
@@ -105,7 +107,7 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 	for (int i=0; i < nSnaps; i++) {
 		Snaps[i].PreAlloc(_region.nx,_region.ny,_region.nz);
 	}
-	for (int i=0; i < maxSnaps; i++) {	
+	for (int i=0; i < maxSnaps; i++) {
 		iSnaps[i]= -1;
 	}
 #ifdef ADJOINT
@@ -131,14 +133,6 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
         CudaStreamCreate(&kernelStream);
         CudaStreamCreate(&inStream);
         CudaStreamCreate(&outStream);
-	for (int i=0; i < 4; i++)
-	        CudaEventCreate( &kernelEv[i] );
-	for (int i=0; i < 28; i++)
-	        CudaEventCreate( &outEv[i] );
-	for (int i=0; i < 28; i++)
-	        CudaEventCreate( &inEv[i] );
-	for (int i=0; i < 28; i++)
-	        CudaEventCreate( &mpiEv[i] );
         container->ZoneSettings = zSet.gpuTab;
         container->ConstZoneSettings = zSet.gpuConst;
         container->ZoneIndex = 0;
@@ -147,11 +141,10 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns):region(_region), mpi(mp
 <?R } ?>
         ZoneIter = 0;
 	particle_data_size_max = 0;
+	SC.InitFinder(container->solidfinder);
 	container->particle_data = NULL;
 	container->particle_data_size = 0;
-	container->balltree_data = NULL;
-	balltree_data_size_max = 0;
-	BT.balls = &RFI;
+	SC.balls = &RFI;
 	RFI.name = "TCLB";
 }
 
@@ -178,7 +171,7 @@ void Lattice::MPIInit(MPIInfo mpi_)
 	if ((mpi.rank != to) && (size > 0)) {
 		CudaMallocHost(&ptr,size);
 		mpiout[bufnumber] = ptr;
-		gpuout[bufnumber] = NULL; 
+		gpuout[bufnumber] = NULL;
 		nodeout[bufnumber] = to;
 		CudaMallocHost(&ptr,size);
 		mpiin[bufnumber] = ptr;
@@ -216,7 +209,7 @@ void Lattice::startRecord()
 	if (Snap != 0) {
 		warning("Snap = %d at startRecord\n", Snap);
 	}
-	for (int i=0; i < maxSnaps; i++) {	
+	for (int i=0; i < maxSnaps; i++) {
 		iSnaps[i]= -1;
 	}
 	{
@@ -394,37 +387,55 @@ inline void Lattice::MPIStream_B(int tag)
 }
 
 
-<?R for (n in names(Actions)) {
-        a = Actions[[n]]
-        if (n == "Iteration") {
-                FunName = "Iteration"
-        } else {
-                FunName = paste("Action",n,sep="_")
-        } ?>
-/// Normal (Primal) Iteration
-/**
-        One Primal Iteration
-        \param tab0 Snapshot from which to start
-        \param tab1 Snapshot in which to put result
-        \param iter_type Type of the iteration
-*/
-void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
-{
-	DEBUG_PROF_PUSH("<?%s n ?>");
-	real_t * tmp;
-	int size, from, to;
-	MPI_Status status;
-	MPI_Request request;
-	int i=0;
-	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
-	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+void Lattice::CopyInParticles() {
+	DEBUG_PROF_PUSH("Get Particles");
+		RFI.SendSizes();
+		RFI.SendParticles();
+	DEBUG_PROF_POP();
+	if (RFI.size() > particle_data_size_max) {
+		if (container->particle_data != NULL) CudaFree(container->particle_data);
+		particle_data_size_max = RFI.size();
+		CudaMalloc(&container->particle_data, RFI.mem_size());
+	}
+	container->particle_data_size = RFI.size();
+	for (size_t i=0; i<RFI.size(); i++){
+		RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
+		RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
+		RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
+	}
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
+	}
+	DEBUG_PROF_PUSH("Tree Build");
+		SC.Build();
+	DEBUG_PROF_POP();
+	SC.CopyToGPU(container->solidfinder, kernelStream);
+}
 
-	debug1("ZoneIter: %d (in <?%s FunName ?>)\n", ZoneIter);
-	container->ZoneIndex = ZoneIter;
-	container->MaxZones = zSet.MaxZones;
-<?R
-	for (m in NonEmptyMargin) {
-?>
+void Lattice::CopyOutParticles() {
+	if (RFI.mem_size() > 0) {
+		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
+	}
+    CudaStreamSynchronize(kernelStream);
+	DEBUG_PROF_PUSH("Testing particles for NaNs");
+		int nans = 0;
+		for (size_t i=0; i<RFI.size(); i++){
+			for (int j=0; j<3; j++){
+				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
+					nans++;
+					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+				}
+			}
+		}
+		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
+	DEBUG_PROF_POP();
+	RFI.SendForces();
+}
+
+void Lattice::SetFirstTabs(int tab0, int tab1) {
+	int from, to;
+	int i = 0; <?R
+	for (m in NonEmptyMargin) { ?>
 	from = mpi.node[mpi.rank].<?%s m$opposite_side ?>;
 	to = mpi.node[mpi.rank].<?%s m$side ?>;
 	if (mpi.rank != to) {
@@ -435,15 +446,35 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		i ++;
 	} else {
 		container->out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
-	}
-	container->in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-<?R
-	}
-?>
-<?R
+	} <?R
+	} ?>
+	container->in = Snaps[tab0];
+}
+
+<?R for (a in rows(Actions)) { ?>
+/// Normal (Primal) Iteration
+/**
+        One Primal Iteration
+        \param tab0 Snapshot from which to start
+        \param tab1 Snapshot in which to put result
+        \param iter_type Type of the iteration
+*/
+void Lattice::<?%s a$FunName ?>(int tab0, int tab1, int iter_type)
+{
+	DEBUG_PROF_PUSH("<?%s a$name ?>");
+	real_t * tmp;
+	int size, from, to;
+	int i=0;
+	debug1("Iteration %d -> %d type: %d. iter: %d\n", tab0, tab1, iter_type, Iter);
+	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
+
+	debug1("ZoneIter: %d (in <?%s a$FunName ?>)\n", ZoneIter);
+	container->ZoneIndex = ZoneIter;
+	container->MaxZones = zSet.MaxZones;
+	SetFirstTabs(tab0, tab1); <?R
 	old_stage_level = 0
-	action_stages = Stages[a,]
-	sel = which(action_stages$particle)	
+	action_stages = Stages[a$stages,,drop=FALSE]
+	sel = which(action_stages$particle)
 	action_stages$first_particle = FALSE
 	action_stages$first_particle[head(sel,1)] = TRUE
 	action_stages$last_particle = FALSE
@@ -451,53 +482,15 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 	for (stage in rows(action_stages)) {
 ?>
 	DEBUG_PROF_PUSH("<?%s stage$name ?>");
-//---------------- STAGE: <?%s stage$name ?> ----------------------- <?R
-                 if (old_stage_level > 0) { 
-                	for (m in NonEmptyMargin) { ?>
-	container->in.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>; <?R
-                        } 
-                 }
-                 old_stage_level = old_stage_level + 1 ?>
-
 <?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
-<?R if (stage$first_particle) { ?>
-	DEBUG_PROF_PUSH("Get Particles");
-	RFI.SendSizes();
-	RFI.SendParticles();
-	DEBUG_PROF_POP();
-	if (RFI.size() > particle_data_size_max) {
-		if (container->particle_data != NULL) CudaFree(container->particle_data);
-		particle_data_size_max = RFI.size();
-		CudaMalloc(&container->particle_data, RFI.mem_size());
-	}
-	container->particle_data_size = RFI.size();
-//		for (size_t i=0; i<RFI.size(); i++){
-//			printf("Particle: pos:%lg %lg %lg r:%lg\n",RFI.RawData(i, RFI_DATA_POS+0), RFI.RawData(i, RFI_DATA_POS+1), RFI.RawData(i, RFI_DATA_POS+2), RFI.RawData(i, RFI_DATA_R));
-//		}
-	if (true) {
-		for (size_t i=0; i<RFI.size(); i++){
-			RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
-			RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
-			RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
-		}
-	}
-
-	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
-	}
-	DEBUG_PROF_PUSH("Tree Build");
-		BT.Build();
-	DEBUG_PROF_POP();
-		if (BT.size() > balltree_data_size_max) {
-			if (container->balltree_data != NULL) CudaFree(container->balltree_data);
-			balltree_data_size_max = BT.size();
-			CudaMalloc(&container->balltree_data, BT.mem_size());
-		}
-		container->balltree_data_size = BT.size();
-		if (BT.mem_size() > 0) {
-			CudaMemcpyAsync(container->balltree_data, BT.Tree(), BT.mem_size(), CudaMemcpyHostToDevice, kernelStream);
-		}
-<?R } ?>
+<?R if (stage$first_particle) { ?> CopyInParticles(); <?R } ?>
+<?R if (old_stage_level > 0) { ?>
+	MPIStream_B();
+	CudaDeviceSynchronize();
+	container->in = Snaps[tab1]; <?R
+    }
+    old_stage_level = old_stage_level + 1
+?>
 	container->CopyToConst();
 	DEBUG_PROF_PUSH("Calculation");
 	switch(iter_type & ITER_INTEG){
@@ -505,57 +498,33 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
 		container->RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
-	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+	case ITER_OBJ:
+		container->RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream); break;
 #endif
-                break;
-	}	
-        CudaStreamSynchronize(kernelStream);
-
-        MPIStream_A();
-
+	}
+    CudaStreamSynchronize(kernelStream);
+    MPIStream_A();
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
 		container->RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS:
 		container->RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(kernelStream); break;
-	case ITER_OBJ:
 #ifdef ADJOINT
-		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream);
+	case ITER_OBJ:
+		container->RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(kernelStream); break;
 #endif
-                break;
-	}	
-	
-	MPIStream_B();
-	DEBUG_PROF_POP();
-<?R if (stage$last_particle) { ?>
-	if (RFI.mem_size() > 0) {
-		CudaMemcpyAsync(RFI.Particles(), container->particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
-	}
-        CudaStreamSynchronize(kernelStream);
-	DEBUG_PROF_PUSH("Testing particles for NaNs");
-	{	int nans = 0;
-		for (size_t i=0; i<RFI.size(); i++){
-			for (int j=0; j<3; j++){
-				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
-					nans++;
-					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
-				}
-			}
-		}
-		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
 	}
 	DEBUG_PROF_POP();
-	RFI.SendForces();
-<?R } ?>
-        CudaDeviceSynchronize();
+<?R if (stage$last_particle) { ?> CopyOutParticles() <?R } ?>
 <?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
 	DEBUG_PROF_POP();
 <?R } ?>
+	MPIStream_B();
+	CudaDeviceSynchronize();
 	Snap = tab1;
 	MarkIteration();
-	updateAllSamples();	
+	updateAllSamples();
 	DEBUG_PROF_POP();
 };
 
@@ -566,20 +535,18 @@ void Lattice::<?%s FunName ?>(int tab0, int tab1, int iter_type)
         \param tab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+inline void Lattice::<?%s a$FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
 	real_t * tmp;
 	int size, from, to;
-	MPI_Status status;
-	MPI_Request request;
 	int i=0;
 	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
 	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
 	container->ZoneIndex = ZoneIter;
 	container->MaxZones = zSet.MaxZones;
 
-	debug1("ZoneIter: %d (in <?%s FunName ?>_Adj)\n", ZoneIter);
+	debug1("ZoneIter: %d (in <?%s a$FunName ?>_Adj)\n", ZoneIter);
 <?R
 	for (m in NonEmptyMargin) {
 ?>
@@ -599,7 +566,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 <?R
 	}
 
-	for (s in a) {
+	for (s in a$stages) {
                  stage = Stages[s,,drop=F] ?>
 
        	container->CopyToConst();
@@ -615,7 +582,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	        container->RunInterior< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS | ITER_STEADY:
 	        container->RunInterior< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
-	}	
+	}
 
         MPIStream_B();
 
@@ -629,7 +596,7 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
 	        container->RunBorder< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream); break;
 	case ITER_GLOBS | ITER_STEADY:
 	        container->RunBorder< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream); break;
-	}	
+	}
 	DEBUG_M;
         CudaDeviceSynchronize();
 <?R } ?>
@@ -650,13 +617,13 @@ inline void Lattice::<?%s FunName ?>_Adj(int tab0, int tab1, int adjtab0, int ad
         \param adjtab1 Adjoint Snapshot in which to put result
         \param iter_type Type of the iteration
 */
-inline void Lattice::<?%s FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
+inline void Lattice::<?%s a$FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
 {
 #ifdef ADJOINT
-        <?%s FunName ?>(tab0, tab1, iter_type);
-        <?%s FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
+        <?%s a$FunName ?>(tab0, tab1, iter_type);
+        <?%s a$FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
         container->RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
-        container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream); 
+        container->RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream);
         CudaDeviceSynchronize();
 #else
 	ERROR("This model doesn't have adjoint!\n");
@@ -809,7 +776,7 @@ Lattice::~Lattice()
 	for (int i=0; i<nSnaps; i++) {
 		Snaps[i].Free();
 	}
-	delete[] Snaps;	
+	delete[] Snaps;
 	delete[] iSnaps;
 }
 
@@ -847,10 +814,6 @@ void Lattice::Init()
 //   Stream();
 //   container->Init();
 //   Stream();
-}
-
-void Lattice::BeforeIt()
-{
 }
 
 void Lattice::GenerateST() {
@@ -1069,26 +1032,6 @@ void Lattice::IterateAction(int action, int niter, int iter_type)
 	FinalIteration();
 };
 
-void Lattice::AfterIt()
-{
-	float t;
-	for (int i=0; i < 4; i++) {
-		HANDLE_ERROR(CudaEventQuery(kernelEv[i]));
-		CudaEventElapsedTime(&t, kernelEv[0], kernelEv[i]);
-		debug2("[%d] kernelEv[%d] --> %f\n", D_MPI_RANK, i, t);
-	}
-	for (int i = 0; i < bufnumber; i++) {
-<?R
-	for (Ev in c("outEv","mpiEv","inEv")) {
-?>
-		HANDLE_ERROR(CudaEventQuery( <?%s Ev ?>[i] ));
-		CudaEventElapsedTime(&t, kernelEv[0], <?%s Ev ?>[i]);
-		debug2("[%d] <?%s Ev ?>[%d] --> %f\n", D_MPI_RANK, i, t);
-<?R } ?>
-	}
-
-}
-
 /// Overwrite NodeType in a region
 void Lattice::FlagOverwrite(flag_t * mask, lbRegion over)
 {
@@ -1141,8 +1084,31 @@ void Lattice::GetFlags(lbRegion over, flag_t * NodeType)
 	}
 }
 
+void Lattice::GetCoords(real_t* tab) {
+	return;
+}
+
+void Lattice::Get_Field(int id, real_t * tab) { <?R
+	for (f in rows(Fields)) if (f$parameter) { ?>
+	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>(tab); <?R
+	} ?>
+}
+void Lattice::Get_Field_Adj(int id, real_t * tab) {
+#ifdef ADJOINT <?R
+	for (f in rows(Fields)) if (f$parameter) { ?>
+	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>_Adj(tab); <?R
+	} ?>
+#endif
+}
+void Lattice::Set_Field(int id, real_t * tab) { <?R
+	for (f in rows(Fields)) if (f$parameter) { ?>
+	if (id == <?%s f$Index ?>) return Set_<?%s f$nicename ?>(tab); <?R
+	} ?>
+}
+
+
 <?R
-	for (f in rows(Fields)[Fields$parameter]) { 
+	for (f in rows(Fields)[Fields$parameter]) {
 
 	for (adjoint in c(TRUE,FALSE)) {
 	if (adjoint) {
@@ -1165,7 +1131,7 @@ void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 	debug2("Pulling all <?%s f$nicename ?>\n");
 	CudaMemcpy(
 		tab,
-		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],
 		region.sizeL()*sizeof(real_t),
 		CudaMemcpyDeviceToHost);
 }
@@ -1180,7 +1146,7 @@ void Lattice::Clear_<?%s f$nicename ?><?%s suff ?>()
 {
 	debug2("Clearing all <?%s f$nicename ?>\n");
 	CudaMemset(
-		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index ?>*region.sizeL()],
 		0,
 		region.sizeL()*sizeof(real_t));
 }
@@ -1195,7 +1161,7 @@ void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 {
 	debug2("Setting all <?%s f$nicename ?>\n");
 	CudaMemcpy(
-		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()], 
+		&<?%s from ?>.block14[<?%s f$Index?>*region.sizeL()],
 		tab,
 		region.sizeL()*sizeof(real_t),
 		CudaMemcpyHostToDevice);
@@ -1204,6 +1170,25 @@ void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
 <?R }
 ifdef()
 } ?>
+
+
+/// Get Quantity
+/**
+        Retrive the values of the Quantity
+        from the GPU memory
+*/
+void Lattice::GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale)
+{
+	switch(quant) {	<?R
+		for (q in rows(Quantities)) { ifdef(q$adjoint);
+	?>
+		case <?%s q$Index ?>: return Get<?%s q$name ?>(over, (<?%s q$type ?> *) tab, scale); <?R
+		}
+		ifdef();
+	?>
+	}
+}
+
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 
@@ -1226,7 +1211,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 		small.dx -= region.dx;
 		small.dy -= region.dy;
 		small.dz -= region.dz;
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , (small, buf, scale));
+		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , small, buf, scale);
 		CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
@@ -1319,7 +1304,7 @@ void Lattice::calcGlobals() {
 	obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
 		}
 	}
-?>	
+?>
 	tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
 	for (int i=0; i< GLOBALS ; i++) globals[i] += tab[i];
 	container->clearGlobals();
@@ -1358,62 +1343,43 @@ void Lattice::setSetting(int i, real_t tmp) {
 	setConstSetting(i,tmp);
 }
 
-<?R
-        for (v in rows(Settings)) {
-                if (is.na(v$derived)) {
-                        tmp = paste(v$name,"_",sep="");
-                } else {
-                        tmp = v$name;
-                }
-        ?>
-/// Set [<?%s v$comment ?>]
-/**
-        Set <?%s v$name ?> Setting (<?%s v$comment ?>). <?R
-if (!is.na(v$derived)) { ?>
-        <?%s v$name ?> is a dummy setting. It sets <?%s v$derived ?>
-        with the equation <?%s v$derived ?> = <?%s v$equation ?><?R
-} ?>
-*/
-void Lattice::<?%s v$FunName ?>(real_t <?%s tmp ?>) {
-	if (reverse_save) push_setting(<?%s v$Index ?>, settings[<?%s v$Index ?>], <?%s tmp ?>);
-        output("[%d] Settings [<?%s v$comment ?>] to %f\n", D_MPI_RANK, <?%s tmp ?>);
-	setSetting(<?%s v$Index ?>, <?%s tmp ?>); <?R
-                if (!is.na(v$derived)) {
-                        i = which(as.character(Settings$name) == as.character(v$derived));
-                        if (is.null(i)) stop(paste(v$derived, "was declared as derived of",v$name,". But", v$derived, "doesn't exist\n"));
-                        sel = Settings[i[1],]; ?>
-        <?%s sel$FunName ?>(<?%s v$equation ?>); <?R
-                } ?>
-} <?R
-        } ?>
+void Lattice::SetSetting(const Model::Setting& set, real_t val) {
+        if (reverse_save) push_setting(set.id, settings[set.id], val);
+        setSetting(set.id, val);
+        if(set.isDerived) {
+                const Model::Setting& der = model->settings.by_id(set.derivedSetting);
+                double der_val = set.derivedValue(val);
+                SetSetting(der, der_val);
+        }
+}
 
 void Lattice::resetAverage() {
 	container->reset_iter = container->iter;
         <?R for (f in rows(Fields))  if (f$average) { ?>
-          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));          
+          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*region.sizeL()],0,region.sizeL()*sizeof(real_t));
 	 <?R } ?>
-} 
+}
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
-{	
+{
        	container->in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> container->adjin = aSnaps[aSnap]; <?R } ?>
        	container->CopyToConst();
 	lbRegion small = region.intersect(over);
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , (small, (<?%s q$type?>*) buf, scale));
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , small, (<?%s q$type?>*) buf, scale);
 }
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(){
  if (sample->size != 0) {
 	for (size_t j = 0; j < sample->spoints.size(); j++) {
-		if (mpi.rank == sample->spoints[j].rank) { 
+		if (mpi.rank == sample->spoints[j].rank) {
 		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 	 	 if (sample->quant->in("<?%s q$name ?>"))
 		{
                         double v = sample->units.alt("<?%s q$unit ?>");
 			GetSample<?%s q$name ?>(sample->spoints[j].location,1/v,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(container->iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
 		}
-		<?R }; ifdef() ?>	 
+		<?R }; ifdef() ?>
 	} }
  }
 }

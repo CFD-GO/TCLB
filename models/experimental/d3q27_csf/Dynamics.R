@@ -1,3 +1,10 @@
+# Setting permissive access policy.
+#  * This skips checks of fields being overwritten or read prematurely.
+#  * Otherwise the model compilation was failing.
+#  * This should be removed if the issue is fixed
+SetOptions(permissive.access=TRUE)  ### WARNING
+
+
 
 U = expand.grid(-1:1,-1:1,-1:1)
 

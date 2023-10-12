@@ -9,6 +9,7 @@
 #include "Global.h"
 #include "Lattice.h"
 #include <mpi.h>
+#include "range_int.hpp"
 
 #ifndef STORAGE_BITS
   #define storage_to_real(x__) x__
@@ -34,11 +35,9 @@
 #endif
 
 /// Get only type of node
-template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
+CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
 {
-  node.NodeType = NodeType[(node.x_ + nx*node.y_ + nx*ny*node.z_)];
-
-<?R #	InOut("type", "in", Density); ?>
+  return NodeType[(x + nx*(y + ny*z))];
 }
 
 /// Push all densities
@@ -73,6 +72,10 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
       MContext
   }
 
+  range_int=function(x) {
+    paste0("range_int<",x,">()")
+  }
+
   if.apply = function(table, conditions, selection, fun) {
     n = length(conditions)
     if (ncol(table) != n) stop("number of columns in table should be equal to the number of conditions in if.apply")
@@ -89,7 +92,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
         sel2 = v == -1
         sel3 = v == 0
         if (any(sel1)) { ?>
-                 if (<?R C(conditions[l],float=FALSE) ?> < 0) { <?R
+                 if (ensure_range_int(<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?>) < <?%s range_int(0) ?>) { <?R
           req(j[sel1],l+1);
           if (any(sel2)) {?>
                  } else { <?R
@@ -97,7 +100,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
           } ?>
                  } <?R
         } else if (any(sel2)) { ?>
-                 if (<?R C(conditions[l],float=FALSE) ?> >= 0) { <?R
+                 if (ensure_range_int(<?R C(conditions[l],float=FALSE,wrap.const=range_int) ?>) >= <?%s range_int(0) ?>) { <?R
           req(j[sel2],l+1); ?>
                  } <?R
         }
@@ -122,7 +125,7 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
    } else if (access == "add") { ?>
         <?%s m ?>[<?R C(off,float=FALSE) ?>] += <?%s d ?>; <?R
    } else if (access == "atomicadd") { ?>
-        atomicAddP(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
+        CudaAtomicAdd(&( <?%s m ?>[<?R C(off,float=FALSE) ?>] ),<?%s d ?>); <?R
    } else stop("Unknown access type in field.access.one");
   }
 
@@ -200,8 +203,12 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
 		suffix="_param"
 	)
  ))
-
-
+ all_stages = lapply(all_stages, function(s) {
+  if (is.null(s$load.densities))  s$load.densities = DensityAll[,s$loadtag];
+  if (is.null(s$save.fields))  s$save.fields = Fields[,s$savetag];
+  if (is.null(s$suffix))  s$suffix = paste("_",s$name,sep="")
+  s
+ })
 
   storage_convert = function(type, val, f){
     shift = f$shift
@@ -218,13 +225,6 @@ template <class N> CudaDeviceFunction void LatticeContainer::getType(N & node)
   real_to_storage = function(val,f) storage_convert("real_to_storage",val,f)
 
 
-
- txtlapply(all_stages, function(s) {
-# lapply(1:length(s_list), function(s_i) {
-# for (s in c(rows(Stages),list(NULL))) {
-  if (is.null(s$load.densities))  s$load.densities = DensityAll[,s$tag];
-  if (is.null(s$save.fields))  s$save.fields = Fields[,s$tag];
-  if (is.null(s$suffix))  s$suffix = paste("_",s$name,sep="")
 
 resolve.symmetries = function(D) {
   if (nrow(D) < 1) return();
@@ -252,198 +252,229 @@ resolve.symmetries = function(D) {
 }
 
 ?>
-template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>(N & node)
+
+template < class x_t, class y_t, class z_t >
+class LatticeAccess {
+  private:
+  const x_t x;
+  const y_t y;
+  const z_t z;
+  const flag_t nt;
+  const range_int<0,1,0,1> nx, ny, nz;
+  public:
+  CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_) :
+    x(x_),y(y_),z(z_),
+    nt(constContainer.getType(x,y,z)),
+    nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
+    { }
+  CudaDeviceFunction real_t getX() const { return constContainer.px + x; }
+  CudaDeviceFunction real_t getY() const { return constContainer.py + y; }
+  CudaDeviceFunction real_t getZ() const { return constContainer.pz + z; }
+  CudaDeviceFunction flag_t getNodeType() const { return nt; }
+
+  CudaDeviceFunction inline cut_t getQ(const int& d) const  {
+    if (constContainer.Q == NULL) return NO_CUT;
+    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
+    return constContainer.Q[i];
+  }
+
+<?R for (f in rows(Fields)) { ?>
+  template <class dx_t, class dy_t, class dz_t>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const;
+<?R } ?>
+<?R for (s in rows(all_stages)) { ?>
+  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>(N & f) const;
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>(N & f) const;
+#ifdef ADJOINT
+  template<class N>  CudaDeviceFunction void push<?%s s$suffix ?>_adj(N & f) const;
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>_adj(N & f) const;
+#endif
+<?R } ?>
+};
+
+<?R for (f in rows(Fields)) { ?>
+template < class x_t, class y_t, class z_t >
+template <class dx_t, class dy_t, class dz_t>
+CudaDeviceFunction real_t LatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
 {
-	storage_t val;
+  storage_t ret; <?R
+  con = make.context("constContainer.in");
+  p = PV(c("x","y","z"));
+  dp = PV(c("dx","dy","dz"));
+  if (f$minx == f$maxx) dp[1] = f$minx
+  if (f$miny == f$maxy) dp[2] = f$miny
+  if (f$minz == f$maxz) dp[3] = f$minz
+  con=load.field("ret", f, p, dp, con) ?>
+  return <?%s storage_to_real("ret",f)?>;
+}
+<?R } ?>
+
 <?R
-  con = make.context("in",pocket=TRUE);
-  for (d in rows(Density)[s$load.densities]) { ?>
-//--------------------------- <?%s d$name ?> ----------------------<?R
-    f = rows(Fields)[Fields$name == d$field][[1]]
-    p = PV(c("node.x_","node.y_","node.z_"));
+  p = PV(c("x","y","z"));
+for (s in rows(all_stages)) { ?>
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(N & node) const
+{
+	storage_t val; <?R
+  con = make.context("constContainer.in",pocket=TRUE);
+  for (d in rows(Density)[s$load.densities]) {
+    f = rows(Fields)[[match(d$field, Fields$name)]]
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field("val", f, p, dp,con) ?>
 	<?%s paste("node",d$name,sep=".") ?> = <?%s storage_to_real("val",f)?>; <?R
-  }
-  if (Options$autosym) resolve.symmetries(Density[s$load.densities,,drop=FALSE])
-?>
+  } ?>
 }
 
-template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>(N & node)
-{	storage_t val;
-<?R
-  con = make.context("out",pocket=TRUE);
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>(N & node) const
+{
+  storage_t val; <?R
+  con = make.context("constContainer.out",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) { ?>
-//--------------------------- <?%s f$name ?> ----------------------
   val = <?%s real_to_storage(paste("node",f$name,sep="."),f) ?>; <?R
-    p = PV(c("node.x_","node.y_","node.z_"));
     con=save.field("val", f, p, con)
-  }?>
+  } ?>
 }
+
 <?R if (ADJOINT) { ?>
-template <class N> CudaDeviceFunction void LatticeContainer::push<?%s s$suffix ?>_adj(N & node)
-{
-<?R
-  con = make.context("adjout",pocket=TRUE);
-  for (d in rows(Density)[s$load.densities]) { ?>
-//--------------------------- <?%s d$name ?> ----------------------<?R
-    con = field.access(
-     d=paste("node",d$adjoint_name,sep="."),
-     f=rows(Fields)[Fields$name == d$field][[1]],
-     p=PV(c("node.x_","node.y_","node.z_")),
-     dp=c(-d$dx, -d$dy, -d$dz),
-     pattern="get",
-     access="atomicadd",
-     MContext=con
-    )
-  }?>
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>_adj(N & node) const
+{ <?R
+  con = make.context("constContainer.adjout",pocket=TRUE);
+  for (d in rows(Density)[s$load.densities]) {
+    f = rows(Fields)[[match(d$field, Fields$name)]]
+    dp = c(-d$dx, -d$dy, -d$dz)
+    val = paste("node",d$adjoint_name,sep=".")
+    con = field.access(d=val, f, p, dp, pattern="get", access="atomicadd", MContext=con)
+  } ?>
 }
 
-template <class N> CudaDeviceFunction void LatticeContainer::pop<?%s s$suffix ?>_adj(N & node)
-{
-<?R
-  con = make.context("adjin",pocket=TRUE);
-  for (f in rows(Fields)[s$save.fields]) { ?>
-//--------------------------- <?%s f$name ?> ----------------------<?R
-    p = PV(c("node.x_","node.y_","node.z_"));
-    con = field.access(
-     d=paste("node",f$adjoint_name,sep="."),
-     f=f,
-     p=PV(c("node.x_","node.y_","node.z_")),
-     pattern="put",
-     access="getsum",
-     MContext=con
-    )
-  }?>
+template < class x_t, class y_t, class z_t >
+template <class N>
+CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>_adj(N & node) const
+{ <?R
+  con = make.context("constContainer.adjin",pocket=TRUE);
+  for (f in rows(Fields)[s$save.fields]) {
+    val = paste("node",f$adjoint_name,sep=".")
+    con = field.access( d=val, f, p, pattern="put", access="getsum", MContext=con)
+  } ?>
 }
-<?R } # end of ADJOINT part ?>
-<?R }) ?>
+<?R } } ?>
 
 
-<?R
+<?R if (Options$autosym) { ?> //-------------- autosym
 
- job_tab = do.call(rbind,
-  lapply(seq_len(nrow(Fields)), function(i) {
-   f = rows(Fields)[[i]]
-   expand.grid(field=i,  dz=f$minz:f$maxz, dy=f$miny:f$maxy, dx=f$minx:f$maxx)
-  })
- )
+template < class PARENT >
+class SymmetryAccess : public PARENT {
+  typedef PARENT parent;
+  public:
+  template <typename... Args>
+  CudaDeviceFunction SymmetryAccess(Args&&... args) : parent(std::forward<Args>(args)...) { }
 
-
-# txtlapply(rows(job_tab), function(job) {
-#  f = rows(Fields)[[job$field]]
-#  dx = job$dx
-#  dy = job$dy
-#  dz = job$dz
-
-suffix = ""
-if (Options$autosym) suffix = "0"
-
-    for (f in rows(Fields)) {
-    if (f$optimise_for_static_access) {
-    for (dz in f$minz:f$maxz) {
-    for (dy in f$miny:f$maxy) {
-    for (dx in f$minx:f$maxx) { ?>
-template <>
-CudaDeviceFunction real_t LatticeContainer::load<?%s suffix ?>_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt)
-{
-  storage_t ret; <?R
-  con = make.context("in");
-  p = PV(c("x","y","z"));
-  dp = c(dx, dy, dz)
-  con=load.field("ret", f, p, dp, con) ?>
-  return <?%s storage_to_real("ret",f)?>;
-}
-<?R }}} ?>
-
-template <int DY, int DZ>
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx)
-{
-  switch(dx) {
-<?R  for (dx in f$minx:f$maxx) { ?>
-    case <?%d dx ?>: return load_<?%s f$nicename ?> < <?%d dx ?>, DY, DZ > (x, y, z, nt);
+<?R for (f in rows(Fields)) { ?>
+private:
+  template <class dx_t, class dy_t, class dz_t>
+  CudaDeviceFunction real_t loadX_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const;
+  template <class dx_t, class dy_t, class dz_t>
+  CudaDeviceFunction real_t loadY_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const;
+public:
+  template <class dx_t, class dy_t, class dz_t>
+  CudaDeviceFunction real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const;
 <?R } ?>
-    default: return NAN;
-  }
-}
-template < int DZ >
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy)
-{
-  switch(dy) {
-<?R  for (dy in f$miny:f$maxy) { ?>
-    case <?%d dy ?>: return load_<?%s f$nicename ?> < <?%d dy ?>, DZ > (x, y, z, nt, dx);
+<?R for (s in rows(all_stages)) { ?>
+  template<class N>  CudaDeviceFunction void pop<?%s s$suffix ?>(N & f) const;
 <?R } ?>
-    default: return NAN;
-  }
-}
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz)
-{
-  switch(dz) {
-<?R  for (dz in f$minz:f$maxz) { ?>
-    case <?%d dz ?>: return load_<?%s f$nicename ?> < <?%d dz ?> > (x, y, z, nt, dx, dy);
-<?R } ?>
-    default: return NAN;
-  }
-}
-<?R } else { ?>
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?>  (const int & x, const int & y, const int & z, const flag_t & nt, const int & dx, const int & dy, const int & dz)
-{
-  storage_t ret; <?R
-  con = make.context("in");
-  p = PV(c("x","y","z"));
-  dp = PV(c("dx","dy","dz"));
-  con=load.field("ret", f, p, dp, con) ?>
-  return <?%s storage_to_real("ret",f)?>;
-}
+};
 
-
+<?R for (f in rows(Fields)) { ?>
 <?R
-    }
-    }
-?>
-
-<?R
-if (Options$autosym) {
-  sym_load = function(f,d,i,sig=1) {
-   if (i > 3) {
-    if (sig < 0) { ?>
-    return -load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
-<?R } else { ?>
-    return load0_<?%s f$nicename ?> < <?%d d[1] ?>, <?%d d[2] ?>, <?%d d[3] ?> > (x,y,z,nt);
-<?R }
-   } else {
+  ch = c("X","Y","Z")
+  d = PV(c("dx","dy","dz"))
+  funs = c(
+    "parent::load_",
+    "loadX_",
+    "loadY_",
+    "load_"
+  )
+  for (i in 1:3) {
+    this_fun = funs[i+1];
+    next_fun = funs[i];
     s = names(symmetries)[i]
     fn = f[[s]]
     if (substr(fn,1,1) == "-") {
-     nsig = -1;
+     sig = "-";
      fn = substr(fn,2,nchar(fn))
     } else {
-     nsig = 1;
+     sig = "";
     }
+    
     si = which(Fields$name == fn)
     sf = rows(Fields)[[si]]
     sd = d
-    sd[i] = -sd[i]
-    ch = c("X","Y","Z")[i]
-    if (d[i] > 0) { ?>
-    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_plus) { <?R sym_load(sf,sd,i+1,sig*nsig) ?> }
-    <?R } else if (d[i] < 0) { ?>
-    if ((nt & NODE_SYM<?%s ch ?>) == NODE_Symmetry<?%s ch ?>_minus) { <?R sym_load(sf,sd,i+1,sig*nsig) ?> }
-    <?R } ?>
-    <?R sym_load(f,d,i+1,sig)
+    sd[i] = sd[i]*(-1)
+?>
+template < class PARENT >
+template <class dx_t, class dy_t, class dz_t>
+CudaDeviceFunction real_t SymmetryAccess< PARENT >::<?%s paste0(this_fun, f$nicename) ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
+{
+  <?R if (paste0("SYM",ch[i]) %in% NodeTypes$group) { ?>
+  if (<?R C(d[i]) ?> > range_int<0>()) {
+    if ((this->NodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_Symmetry<?%s ch[i] ?>_plus) {
+      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd,sep=", ") ?>);
+    }
+  } else if (<?R C(d[i]) ?> < range_int<0>()) {
+    if ((this->NodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_Symmetry<?%s ch[i] ?>_minus) {
+      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd,sep=", ") ?>);
     }
   }
-
-    for (f in rows(Fields)) {
-    for (dz in f$minz:f$maxz) {
-    for (dy in f$miny:f$maxy) {
-    for (dx in f$minx:f$maxx) { ?>
-template <>
-CudaDeviceFunction real_t LatticeContainer::load_<?%s f$nicename ?> < <?%d dx ?>, <?%d dy ?>, <?%d dz ?> > (const int & x, const int & y, const int & z, const flag_t & nt) {
-<?R sym_load(f,c(dx,dy,dz),1); ?>
+  <?R } ?>
+  return <?%s paste0(next_fun, f$nicename) ?>(<?R C(d,sep=", ") ?>);
 }
+<?R } ?>
+<?R } ?>
+
+<?R for (s in rows(all_stages)) { ?>
+template < class PARENT >
+template <class N>
+CudaDeviceFunction void SymmetryAccess< PARENT >::pop<?%s s$suffix ?>(N & node) const
+{
+  parent::pop<?%s s$suffix ?>(node);
+  <?R resolve.symmetries(Density[s$load.densities,,drop=FALSE]) ?>
+}
+<?R } } ?>
+
+template < class PARENT >
+class DynamicAccess : public PARENT {
+  typedef PARENT parent;
+  public:
+  template <typename... Args>
+  CudaDeviceFunction DynamicAccess(Args&&... args) : parent(std::forward<Args>(args)...) { }
+<?R for (f in rows(Fields)) { ?>
+public:
+  template <class dx_t, class dy_t, class dz_t=range_int<0> >
+  CudaDeviceFunction inline real_t load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz = range_int<0>()) const {
+    return parent::load_<?%s f$nicename ?>(
+      range_int< <?%d f$minx ?>, 0, <?%d f$maxx ?>, 0 >::ensure(dx),
+      range_int< <?%d f$miny ?>, 0, <?%d f$maxy ?>, 0 >::ensure(dy),
+      range_int< <?%d f$minz ?>, 0, <?%d f$maxz ?>, 0 >::ensure(dz)
+    );
+  }
+  template <int dx, int dy, int dz=0>
+  CudaDeviceFunction inline real_t load_<?%s f$nicename ?> () const {
+    return parent::load_<?%s f$nicename ?>(range_int< dx >(),range_int< dy >(),range_int< dz >());
+  }
+<?R } ?>
+};
 
 <?R
-}}}}
-}
- ?>
+  composite = c("DynamicAccess")
+  if (Options$autosym) composite = c(composite, "SymmetryAccess")
+  str = "ACC"
+  for (i in rev(composite)) str = paste0(i,"< ",str, " >")
+?>
+template < class ACC >
+using AccessComposite = <?%s str ?>;
+

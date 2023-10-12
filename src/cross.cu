@@ -122,9 +122,9 @@ CudaError HandleError( CudaError err,
 
         CudaError cudaPreAlloc(void ** ptr, size_t size) {
                 debug1("Preallocation of %d b\n", (int) size);
-                CudaError ret = CudaMalloc(ptr, size);
+                CudaMalloc(ptr, size); // This macro has error checking already
                 CudaMemset( *ptr, 0, size );
-                return ret;
+                return CudaSuccess;
         }
 
         CudaError cudaAllocFinalize() {

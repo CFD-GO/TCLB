@@ -1,3 +1,6 @@
+#ifndef SAMPLER_H
+#define SAMPLER_H
+
 #include <mpi.h>
 #include "utils.h"
 #include "Consts.h"
@@ -12,14 +15,17 @@ Class used for optimal storing and output of the evolution of the particular poi
 Each point and output data is controlled, by the mpi rank related to that point, according to initial mesh division
 */
 
+class Lattice;
+
 struct sreg {
 	int rank;
 	lbRegion location;
 };
 class Sampler {
        	typedef std::map< std::string , int > Location;
+       	Lattice *lattice;
        	public:
-		Sampler();
+		Sampler(Lattice *lattice_);
 		lbRegion position;
 		real_t *gpu_buffer;
                	Location location;
@@ -47,3 +53,4 @@ inline int csvWriteElement(FILE * f, vector_t tmp) {
        	return csvWriteElement(f, tmp.z);
 }
 
+#endif

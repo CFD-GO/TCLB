@@ -1,3 +1,10 @@
+# Setting permissive access policy.
+#  * This skips checks of fields being overwritten or read prematurely.
+#  * Otherwise the model compilation was failing.
+#  * This should be removed if the issue is fixed
+SetOptions(permissive.access=TRUE)  ### WARNING
+
+
 x = c(0,1,-1);
 P = expand.grid(x=0:2,y=0:2,z=0:2)
 U = expand.grid(x,x,x)

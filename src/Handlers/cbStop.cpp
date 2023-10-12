@@ -1,10 +1,5 @@
-<?R
-#include "../HandlerFactory.h"
-source("conf.R")
-	c_header()
-?>
-
 #include "cbStop.h"
+
 std::string cbStop::xmlname = "Stop";
 
 void cbStop::AddStop(int what_, int stop_type_, double limit_) {
@@ -18,18 +13,21 @@ int cbStop::Init () {
 		Callback::Init();
 		double stop;
 		pugi::xml_attribute attr;
-		<?R 
-		        for (g in rows(Globals)) { ?>
-		attr = node.attribute("<?%s g$name ?>Change");
-		if (attr) AddStop(<?%s g$Index ?>, STOP_CHANGE, attr.as_double());
-		attr = node.attribute("<?%s g$name ?>PercentChange");
-		if (attr) AddStop(<?%s g$Index ?>, STOP_PERCENTCHANGE, attr.as_double());
-		attr = node.attribute("<?%s g$name ?>Above");
-		if (attr) AddStop(<?%s g$Index ?>, STOP_ABOVE, attr.as_double());
-		attr = node.attribute("<?%s g$name ?>Below");
-		if (attr) AddStop(<?%s g$Index ?>, STOP_BELOW, attr.as_double());
-		<?R
-		        } ?>
+		for (const Model::Global& it : solver->lattice->model->globals) {
+			std::string nm;
+			nm = it.name + "Change";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it.id, STOP_CHANGE, attr.as_double());
+			nm = it.name + "PercentChange";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it.id, STOP_PERCENTCHANGE, attr.as_double());
+			nm = it.name + "Above";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it.id, STOP_ABOVE, attr.as_double());
+			nm = it.name + "Below";
+			attr = node.attribute(nm.c_str());
+			if (attr) AddStop(it.id, STOP_BELOW, attr.as_double());
+		}
 		if (what.size() < 1) {
 			error("No *Change attribute in %s\n", node.name());
 			return -1;

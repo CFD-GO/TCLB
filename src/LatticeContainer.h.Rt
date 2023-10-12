@@ -6,7 +6,7 @@
   File defining LatticeContainer and some additional CUDA functions
 */
 #include "SyntheticTurbulence.h"
-#include "BallTree.h"
+#include "SolidContainer.h"
 
 #ifndef SETTINGS_H
 <?R
@@ -47,13 +47,9 @@ class LatticeContainer {
   cut_t* Q; 
   size_t particle_data_size;
   real_t* particle_data;
-  size_t balltree_data_size;
-  tr_elem* balltree_data;
+  solidcontainer_t::finder_t solidfinder;
   real_t * Globals; ///< Pointer to the GPU table to store the calculated values of Globals
-  int dx, dy, dz; ///< Offset of the region to calculate in the interior kernel run
   int nx, ny, nz; ///< Size of the Lattice region
-  int fx, fy, fz; ///< End of the region to calculate in the interior kernel run
-  int kx,ky; ///< X and Y thread division
   int iter; ///< Iteration number
   real_t px,py,pz;
   int reset_iter; //< number of last average reset,for dynamics 
@@ -66,17 +62,8 @@ class LatticeContainer {
   void Free();
   void ActivateCuts();
   CudaDeviceFunction void fill();
-<?R for (s in c(paste("_",Stages$name,sep=""),"","_param","_noparam")) {
-  ?>
-  template<class N>  CudaDeviceFunction void push<?%s s ?>(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s ?>(N & f);
-#ifdef ADJOINT
-  template<class N>  CudaDeviceFunction void push<?%s s ?>_adj(N & f);
-  template<class N>  CudaDeviceFunction void pop<?%s s ?>_adj(N & f);
-#endif
-<?R } ?>
-
-  template<class N>  CudaDeviceFunction void getType(N & f);
+  
+  CudaDeviceFunction flag_t getType(int x, int y, int z) const;
 
 //  template <class N> CudaDeviceFunction void pop_new(N & node); <?R
   for (f in rows(Fields)) {
@@ -126,13 +113,6 @@ class LatticeContainer {
     return & w[ZoneIndex];
   }
 
-  CudaDeviceFunction inline const cut_t getQ(const int & x, const int & y, const int & z, const int & d) {
-    if (Q == NULL) return NO_CUT;
-    size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
-    return Q[i];
-  }
-
-
   CudaDeviceFunction inline vector_t getST(real_t x, real_t y, real_t z) {
 	return calc(ST, x,y,z);
   }
@@ -140,10 +120,8 @@ class LatticeContainer {
   void Color( uchar4 *optr );
   template<class N> inline void RunBorderT(CudaStream_t);
   template<class N> inline void RunInteriorT(CudaStream_t);
-  template<class N> inline void RunParticlesT(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunBorder(CudaStream_t);
   template < eOperationType I, eCalculateGlobals G, eStage S > void RunInterior(CudaStream_t);
-  template < eOperationType I, eCalculateGlobals G, eStage S > void RunParticles(CudaStream_t);
   
   void CopyToConst();
   void WaitAll();
@@ -167,8 +145,9 @@ class LatticeContainer {
 	}
 };
 
-template<class N> CudaGlobalFunction void RunKernel();
-CudaGlobalFunction void ColorKernel( uchar4 *optr);
+template<class T> CudaGlobalFunction void Kernel();
+template < eOperationType I, eCalculateGlobals G, eStage S > class InteriorExecutor;
+template < eOperationType I, eCalculateGlobals G, eStage S > class BorderExecutor;
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);

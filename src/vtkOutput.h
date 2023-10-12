@@ -21,24 +21,26 @@ public:
 	inline void Init(lbRegion tot, lbRegion region, char* selection) { Init(tot, region, selection, 0.05); }
 	inline void Init(lbRegion tot, lbRegion region, char* selection, double spacing) { Init( tot, region, selection, spacing, 0.0, 0.0, 0.0); }
 	void Init(int width, int height);
-	void WriteField(char * name, void * data, int elem, char * tp, int components);
-	inline void WriteField(char * name, float * data) { WriteField(name, (void*) data, sizeof(float), "Float32", 1); };
-	inline void WriteField(char * name, float2 * data) { WriteField(name, (void*) data, sizeof(float2), "Float32", 2); };
-	inline void WriteField(char * name, float3 * data) { WriteField(name, (void*) data, sizeof(float3), "Float32", 3); };
-	inline void WriteField(char * name, double * data) { WriteField(name, (void*) data, sizeof(double), "Float64", 1); };
-	inline void WriteField(char * name, double2 * data) { WriteField(name, (void*) data, sizeof(double2), "Float64", 2); };
-	inline void WriteField(char * name, double3 * data) { WriteField(name, (void*) data, sizeof(double3), "Float64", 3); };
+	void WriteField(const char * name, void * data, int elem, const char * tp, int components);
+	inline void WriteField(const char * name, float * data) { WriteField(name, (void*) data, sizeof(float), "Float32", 1); };
+	inline void WriteField(const char * name, float * data, int comp) { WriteField(name, (void*) data, sizeof(float)*comp, "Float32", comp); };
+	inline void WriteField(const char * name, float2 * data) { WriteField(name, (void*) data, sizeof(float2), "Float32", 2); };
+	inline void WriteField(const char * name, float3 * data) { WriteField(name, (void*) data, sizeof(float3), "Float32", 3); };
+	inline void WriteField(const char * name, double * data) { WriteField(name, (void*) data, sizeof(double), "Float64", 1); };
+	inline void WriteField(const char * name, double * data, int comp) { WriteField(name, (void*) data, sizeof(double)*comp, "Float64", comp); };
+	inline void WriteField(const char * name, double2 * data) { WriteField(name, (void*) data, sizeof(double2), "Float64", 2); };
+	inline void WriteField(const char * name, double3 * data) { WriteField(name, (void*) data, sizeof(double3), "Float64", 3); };
 #ifndef CALC_DOUBLE_PRECISION
-	inline void WriteField(char * name, vector_t * data) { WriteField(name, (void*) data, sizeof(vector_t), "Float32", 3); };
+	inline void WriteField(const char * name, vector_t * data) { WriteField(name, (void*) data, sizeof(vector_t), "Float32", 3); };
 #else
-	inline void WriteField(char * name, vector_t * data) { WriteField(name, (void*) data, sizeof(vector_t), "Float64", 3); };
+	inline void WriteField(const char * name, vector_t * data) { WriteField(name, (void*) data, sizeof(vector_t), "Float64", 3); };
 #endif
-	inline void WriteField(char * name, int * data) { WriteField(name, (void*) data, sizeof(int), "Int32", 1); };
-	inline void WriteField(char * name, char * data) { WriteField(name, (void*) data, sizeof(char), "Int8", 1); };
-	inline void WriteField(char * name, unsigned char * data) { WriteField(name, (void*) data, sizeof(char), "UInt8", 1); };
-	inline void WriteField(char * name, short int * data) { WriteField(name, (void*) data, sizeof(short int), "Int16", 1); };
-	inline void WriteField(char * name, unsigned short int * data) { WriteField(name, (void*) data, sizeof(unsigned short int), "UInt16", 1); };
-	inline void WriteField(char * name, unsigned int * data) { WriteField(name, (void*) data, sizeof(unsigned int), "UInt32", 1); };
+	inline void WriteField(const char * name, int * data) { WriteField(name, (void*) data, sizeof(int), "Int32", 1); };
+	inline void WriteField(const char * name, char * data) { WriteField(name, (void*) data, sizeof(char), "Int8", 1); };
+	inline void WriteField(const char * name, unsigned char * data) { WriteField(name, (void*) data, sizeof(char), "UInt8", 1); };
+	inline void WriteField(const char * name, short int * data) { WriteField(name, (void*) data, sizeof(short int), "Int16", 1); };
+	inline void WriteField(const char * name, unsigned short int * data) { WriteField(name, (void*) data, sizeof(unsigned short int), "UInt16", 1); };
+	inline void WriteField(const char * name, unsigned int * data) { WriteField(name, (void*) data, sizeof(unsigned int), "UInt32", 1); };
 	void Finish();
 	void Close();
 };

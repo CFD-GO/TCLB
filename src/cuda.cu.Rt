@@ -25,6 +25,13 @@ if (exists('Extra_Dynamics_C_Header')) {
 #include "cross.h"
 #include "cross.hpp"
 #include "Global.h"
+#include "assert.h"
+
+CudaDeviceFunction real_t rise_nan() {
+	assert(false);
+	return NAN;
+}
+#define RISENAN rise_nan()
 
 
 class Node;
@@ -47,188 +54,170 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f; <?R
 #include "LatticeAccess.inc.cpp"
 
 
-
-#define GET_MACRO(_1,_2,_3,NAME,...) NAME <?R
-        for (f in rows(Fields)) { ?>
-#define <?%s f$nicename ?>_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> < x__, y__, z__ > (x_,y_,z_,NodeType))
-#define <?%s f$nicename ?>_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < x__, y__, 0 > (x_,y_,z_,NodeType))
-#define <?%s f$nicename ?>(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_3, <?%s f$nicename ?>_2)(__VA_ARGS__)
-#define <?%s f$nicename ?>_dyn_3(x__,y__,z__) (constContainer.load_<?%s f$nicename ?> (x_,y_,z_,NodeType,x__, y__, z__))
-#define <?%s f$nicename ?>_dyn_2(x__,y__) (constContainer.load_<?%s f$nicename ?> < 0 > (x_,y_,z_,NodeType,x__, y__))
-#define <?%s f$nicename ?>_dyn(...) GET_MACRO(__VA_ARGS__, <?%s f$nicename ?>_dyn_3, <?%s f$nicename ?>_dyn_2)(__VA_ARGS__) <?R
-        }
-?>
-
-#define X (constContainer.px + x_)
-#define Y (constContainer.py + y_)
-#define Z (constContainer.pz + z_)
-#define Time (constContainer.iter)
-#define SyntheticTurbulence(x__,y__,z__) constContainer.getST(x__,y__,z__)
-#define average_iter (constContainer.iter - constContainer.reset_iter)  //Look nicer in Dynamics
-<?R
-	for(s in rows(ZoneSettings)) { ?>
-//#define <?%s s$name ?> constContainer.ZoneSettings[<?%s s$Index ?> + ZONESETTINGS * (NodeType >> ZONE_SHIFT)][constContainer.ZoneIndex]
-#define <?%s s$name ?> constContainer.ZoneSetting(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
-#define <?%s s$name ?>_DT constContainer.ZoneSetting_DT(<?%s s$Index ?>, NodeType >> ZONE_SHIFT)
-<?R
-        }
-?>
-
 #include "Particle.hpp"
 
+
+
 <?R
+	paste0_s = function(...) if (any(sapply(list(...),length) < 1)) character(0) else paste0(...)
+	macros = NULL
+	AddMacro = function(name, definition) {
+		token = sub("[(].*","",name)
+		macros <<- rbind(macros, data.frame(name=name, token=token, definition=definition))
+	}
+	f = Fields
+	AddMacro(paste0_s(f$nicename,"(...)"), paste0_s("acc.template load_", f$nicename, "< __VA_ARGS__ >()"))
+	AddMacro(paste0_s(f$nicename,"_dyn(...)"), paste0_s("acc.template load_", f$nicename, "(__VA_ARGS__)"))
+	XYZ = c("X","Y","Z")
+	AddMacro(XYZ, paste0_s("acc.get", XYZ,"()"))
+	AddMacro("NodeType", paste0_s("acc.getNodeType()"))
+	AddMacro("Time", paste0_s("(constContainer.iter)"))
+	AddMacro("SyntheticTurbulence(x__,y__,z__)","constContainer.getST(x__,y__,z__)")
+	AddMacro("average_iter","(constContainer.iter - constContainer.reset_iter)")
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
-	Q = paste("Q",P$x,P$y,P$z,sep="")
-	for (i in 2:length(Q)) { ?>
-#define <?%s Q[i] ?> constContainer.getQ(x_,y_,z_,<?%d i-2 ?>)
-<?R     } ?>
+	Q = paste("Q",P$x,P$y,P$z,sep="")[-1]
+	AddMacro(Q, paste0_s("(acc.getQ(",seq_along(Q)-1,"))"))
+	s = ZoneSettings[! as.logical(ZoneSettings$preload),,drop=FALSE]
+	AddMacro(s$name, paste0_s("constContainer.ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	s = ZoneSettings
+	AddMacro(paste0_s(s$name,"_DT"), paste0_s("constContainer.ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	g = Globals
+	g$opstr = ifelse(g$op == "SUM", "Add", "Max")
+	AddMacro(paste0_s("AddTo", g$name, "(x__)"), paste0_s("glob.", g$opstr, "ToGlobal<", g$Index, ">(x__, acc.getNodeType())"))
+	n = NodeTypes
+	AddMacro(paste0_s("Iam",n$name),paste0_s("((acc.getNodeType() & ", n$groupIndex, ") == ", n$Index,")"))
+	n = NodeTypeGroups
+	AddMacro(paste0_s("Iam",n$name),paste0_s("(acc.getNodeType() & ", n$Index, ")"))
+?>
 
+template <eCalculateGlobals G>
+struct CalculateGlobals {};
 
-<?R	for (n in rows(NodeTypes)) {	?>
-#define Iam<?%s n$name ?> ((NodeType & NODE_<?%s n$group?>) == NODE_<?%s n$name ?>)
-<?R	}	?>
-<?R	for (n in names(Node_Group)) {	?>
-#define Iam<?%s n ?> (NodeType & NODE_<?%s n ?>)
-<?R	}	?>
+template <>
+struct CalculateGlobals<NoGlobals> {
+	template <int I>
+	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {}
+	template <int I>
+	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {}
+	CudaDeviceFunction void inline Glob() {}
+};
 
+template <>
+struct CalculateGlobals<IntegrateGlobals> {
+	real_t globals[GLOBALS];
+	CudaDeviceFunction CalculateGlobals() {
+		for (int i=0; i<GLOBALS; i++) {
+            globals[i] = 0.0;
+		}
+	}
+	template <int I>
+	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
+		globals[I] = globals[I] + x;
+		if (I < SUM_GLOBALS) {
+			globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+		}
+	}
+	template <int I>
+	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {
+		globals[I] = max(globals[I], x);
+	}
+	CudaDeviceFunction void inline Glob() {
+		for (int i=0; i<GLOBALS; i++) {
+			if (i < SUM_GLOBALS) {
+            	CudaAtomicAddReduceWarp(&constContainer.Globals[i], globals[i]);
+			} else {
+				CudaAtomicMaxReduceWarp(&constContainer.Globals[i], globals[i]);
+			}
+		}
+	}
+};
 
+template <>
+struct CalculateGlobals<OnlyObjective> {
+	real_t obj;
+	CudaDeviceFunction CalculateGlobals() {
+		obj = 0.0;
+	}
+	template <int I>
+	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
+		if (I < SUM_GLOBALS) {
+			obj = obj + constContainer.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+		}
+	}
+	template <int I>
+	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {}
+	CudaDeviceFunction void inline Glob() {
+        CudaAtomicAddReduceWarp(&constContainer.Globals[GLOBALS_Objective], obj);		
+	}
+};
 
+struct CalculateGlobalsAdjoint {
+	real_t duals[ZONESETTINGS];
+	real_t duals_dt[ZONESETTINGS];
+	CudaDeviceFunction CalculateGlobalsAdjoint() {
+		for (int i=0; i<ZONESETTINGS; i++) {
+            duals[i] = 0.0;
+			duals_dt[i] = 0.0;
+		}
+	}
+	template <int I>
+	CudaDeviceFunction inline real_t& BRef() { return duals[I]; }
+	template <int I>
+	CudaDeviceFunction inline real_t& DTBRef() { return duals_dt[I]; }
+	CudaDeviceFunction void inline Glob(const flag_t& NodeType) {
+        int z = NodeType >> ZONE_SHIFT;
+		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncWarpOr(nz == z)) { 
+			for (int i=0; i<ZONESETTINGS; i++) {
+				real_t val;
+				val = (nz == z) ? duals[i] : 0.0f;
+    	        CudaAtomicAddReduceWarp(constContainer.ZoneSettingGrad( i , nz), val); 
+				val = (nz == z) ? duals_dt[i] : 0.0f;
+	            CudaAtomicAddReduceWarp(constContainer.ZoneSettingGrad( i + DT_OFFSET, nz), val); 
+			}
+		}
+	}
+};
 
 
 #define NODE_H
 
-
-template < eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
-        int x_,y_,z_;
-        CudaDeviceFunction inline void Pre(){};
-        CudaDeviceFunction inline void ExecElement(){};
-        CudaDeviceFunction inline void LoadElement(){};
-        CudaDeviceFunction inline void SaveElement(){};
+template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node_Run {
         CudaDeviceFunction inline void RunElement(){};
-        CudaDeviceFunction inline void Glob(){};
-	CudaDeviceFunction inline void OutOfDomain() {};
-        CudaDeviceFunction inline void GlobDiff(){};
-        CudaDeviceFunction inline void GlobDiffOutOfDomain(){};
+		CudaDeviceFunction inline Node_Run(const LA& acc_) {};
 };
 
 <?R
+	writeLines(paste("#define", macros$name, macros$definition, sep=" "))
+
 for (tp in rows(Dispatch)) {
 	s = Stages[Stages$name == tp$stage_name, ];
-#	GlobalsD = Globals[-nrow(Globals),];
-	GlobalsD = Globals[,];
-	GlobalsD$zonal = FALSE;
-	ik = nrow(ZoneSettings);
-	if (ik > 0) {
-		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
-		k = nrow(GlobalsD) - ik:1 + 1;
-		GlobalsD$name[k] = paste0(ZoneSettings$name,"B");
-		GlobalsD$adjoint[k] = TRUE;
-		GlobalsD$zonal[k] = TRUE;
-		GlobalsD$op[k] = "SUM";
-		GlobalsD$var[k] = paste0(ZoneSettings$name,"b");
-		GlobalsD$Index[k] = ZoneSettings$Index;
-
-		GlobalsD = do.call(rbind, c(list(GlobalsD),rep(NA,ik)));
-		k = nrow(GlobalsD) - ik:1 + 1;
-		GlobalsD$name[k] = paste0(ZoneSettings$name,"_DTB");
-		GlobalsD$adjoint[k] = TRUE;
-		GlobalsD$zonal[k] = TRUE;
-		GlobalsD$op[k] = "SUM";
-		GlobalsD$var[k] = paste0(ZoneSettings$name,"_DTb");
-		GlobalsD$Index[k] = paste0(ZoneSettings$Index,"+DT_OFFSET");
-	}
-	cat("\n")
 	ifdef(tp$adjoint_ver)
 	suff=tp$suffix
-	       if (tp$Stream == "Adj") {
-	        GlobalsD$sel = GlobalsD$adjoint
-	} else if (tp$Stream == "Opt") {
-	        GlobalsD$sel = TRUE
-	} else if (tp$Stream == "Init") {
-	        GlobalsD$sel = FALSE
-	} else if (tp$Stream == "No") {
-	        GlobalsD$sel = ! GlobalsD$adjoint
-	} else {
-	        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (conf.R)"));
-	} ?>
+	?>
 //-------------------[ <?%20s paste("Node",tp$suffix,sep="") ?> --- Action:<?%5s tp$Stream ?>, Globals:<?%5s tp$Globals ?> ]-------------------- <?R
-	for (g in rows(GlobalsD)) if (g$sel) {
-		if (tp$Globals == "Globs") {
-		        if (g$op == "SUM") {
-				if (g$adjoint) { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x) <?R
-				} else { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = <?%s g$var ?> + (x); Objective = Objective + (x) * <?%s g$name ?>InObj <?R
-				}
-	                } else if (g$op == "MAX") { ?>
-#define AddTo<?%s g$name ?>(x) <?%s g$var ?> = max(<?%s g$var ?>,x) <?R
-                        }
-		} else if (tp$Globals == "Obj") { ?>
-#define AddTo<?%s g$name ?>(x) Objective = Objective + (x) * <?%s g$name ?>InObj <?R
-		} else { ?>
-#define AddTo<?%s g$name ?>(x) <?R
-		}
-	} else { ?>
-#define AddTo<?%s g$name ?>(x) <?R
-	}
-        if (tp$Globals == "Globs") {
-                Globs = GlobalsD[GlobalsD$sel,]
-        } else if (tp$Globals == "Obj") {
-                Globs = Globals[nrow(Globals),]
-		Globs$zonal = FALSE
-        } else {
-                Globs = NULL
-        } 	
         T1 = switch(tp$Action, No="Primal", Adj="Adjoint", Opt="Optimize", SAdj="SteadyAdjoint")
         T2 = switch(tp$Globals, No="NoGlobals", Globs="IntegrateGlobals", Obj="OnlyObjective")
         T3 = tp$stage_name
 ?>
-template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
-	int x_,y_,z_; <?R
-	for (g in rows(Globs)) { ?>
-	real_t <?%s g$var ?>; ///< <?%s g$comment ?><?R
-        } ?>
-	CudaDeviceFunction void inline Pre() { <?R
-	for (g in rows(Globs)) if (!g$zonal){ ?>
-		<?%s g$var ?> = 0.0f; <?R
-        } ?>
-	}
-	CudaDeviceFunction void inline PreDiff() { <?R
-	for (g in rows(Globs)) if (g$zonal) { ?>
-		<?%s g$var ?> = 0.0f; <?R
-        } ?>
-	}
-	CudaDeviceFunction void inline Glob() { <?R
-        for (g in rows(Globs)) if (!g$zonal) {
-		where_to_put_it = paste0("&constContainer.Globals[", g$Index, "]")
-                if (g$op == "SUM") { ?>
-                atomicSum(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-                } else if (g$op == "MAX") { ?>
-                atomicMaxReduce(<?%s where_to_put_it ?>, <?%s g$var ?>); <?R
-                }
-        } ?>
-	}
-	CudaDeviceFunction void inline GlobDiff() {
-	<?R if (any(Globs$zonal)) { ?>
-		int z = NodeType >> ZONE_SHIFT;
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(nz == z)){<?R
-        for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-                atomicSumDiff(<?%s where_to_put_it ?>, <?%s g$var ?>, nz == z); <?R
-        } ?>
+template < class LA > struct Node_Run < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
+	const LA& acc;
+	CalculateGlobals< <?%s T2 ?> > glob;
+<?R
+		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
+	real_t <?%s setting$name ?>; <?R
 		}
-	<?R } ?>
+?>
+	//CudaDeviceFunction inline Node_Run(int x__,int y__,int z__):x_(x__),y_(y__),z_(z__),NodeType(constContainer.getType(x_,y_,z_)),acc(x_,y_,z_,NodeType) {
+	CudaDeviceFunction inline Node_Run(const LA& acc_):acc(acc_) {
+		int z = NodeType >> ZONE_SHIFT; <?R
+		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
+		<?%s setting$name ?> =  constContainer.ZoneSetting(<?%s setting$Index ?>, z); <?R
+		} ?>
+	};
+	CudaDeviceFunction void inline Glob() {
+		glob.Glob();
 	}
-	CudaDeviceFunction void inline GlobDiffOutOfDomain() { 
-	<?R if (any(Globs$zonal)) { ?>
-		for (int nz = 0; nz < constContainer.MaxZones; nz++) if (CudaSyncThreadsOr(false)){<?R
-        for (g in rows(Globs)) if (g$zonal) {
-		where_to_put_it = paste0("constContainer.ZoneSettingGrad(", g$Index,", nz)") ?>
-                atomicSumDiff(<?%s where_to_put_it ?>, 0.0f, false); <?R
-        } ?>
-		}
-	<?R } ?> 
-	} <?R
+	<?R
 		if (! tp$adjoint) { ?>
 	#include "Dynamics.h" <?R
 		} else { ?>
@@ -276,12 +265,10 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	} ?>
 
 	CudaDeviceFunction inline void LoadElement() {
-	   constContainer.getType(*this);
-	   PreDiff();
 		<?R
 		if (tp$Stream == "Adj") { ?>
-		constContainer.pop_<?%s s$name ?>(*this);
-		constContainer.pop_<?%s s$name ?>_adj(*this);<?R
+		acc.pop_<?%s s$name ?>(*this);
+		acc.pop_<?%s s$name ?>_adj(*this);<?R
 		        for (d in rows(Density)) if (d$parameter) {
         		        if (tp$Globals == "Globs") { ?>
                 old_<?%s d$adjoint_name ?> = <?%s d$adjoint_name ?>; <?R
@@ -291,11 +278,11 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                                 }
                         }
 		} else if (tp$Stream == "Opt") { ?>
-		constContainer.pop_param(*this);
-		constContainer.pop_param_adj(*this); <?R
+		acc.pop_param(*this);
+		acc.pop_param_adj(*this); <?R
 		} else if (tp$Stream == "Init") {
 		} else if (tp$Stream == "No") { ?>
-	        constContainer.pop_<?%s s$name ?>(*this); <?R
+	        acc.pop_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
@@ -307,23 +294,18 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
                 old_<?%s d$adjoint_name ?> -= <?%s d$adjoint_name ?>;
                 AddToAdjointRes(old_<?%s d$adjoint_name ?>*old_<?%s d$adjoint_name ?>); <?R
                         } ?>
-		constContainer.push_<?%s s$name ?>_adj(*this); <?R
+		acc.push_<?%s s$name ?>_adj(*this); <?R
 		} else if (tp$Stream == "Opt") { ?>
-		constContainer.push_param(*this); <?R
+		acc.push_param(*this); <?R
 		} else if (tp$Stream == "Init") { ?>
-		constContainer.push_<?%s s$name ?>(*this); <?R
+		acc.push_<?%s s$name ?>(*this); <?R
 		} else if (tp$Stream == "No") { ?>
-		constContainer.push_<?%s s$name ?>(*this); <?R
+		acc.push_<?%s s$name ?>(*this); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
-	   GlobDiff();
 	}
-	<?R
-		ExecArgType = ""
-		ExecArg  = ""
-	?>
-	CudaDeviceFunction inline void ExecElement(<?%s ExecArgType ?>) {
+	CudaDeviceFunction inline void ExecElement() {
 		<?R
 		if (tp$Stream == "Adj") { ?>
 		Run_b(); <?R
@@ -332,27 +314,23 @@ template <> struct Node_Run < <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		} else if (tp$Stream == "Init") { ?>
 		Init();<?R
 		} else if (tp$Stream == "No") { ?>
-		<?%s s$main ?>(<?%s ExecArg ?>); <?R
+		<?%s s$main ?>(); <?R
 		} else {
 		        stop(paste("Unknown Action:",tp$Stream,"in Dispatch (cuda.cu / conf.R)"));
 		} ?>
 	}
-	CudaDeviceFunction inline void RunElement(<?%s ExecArgType ?>) {
+	CudaDeviceFunction inline void RunElement() {
 		LoadElement();
-		ExecElement(<?%s ExecArg ?>);
+		ExecElement();
 		SaveElement();
-	}
-	CudaDeviceFunction inline void OutOfDomain() {
-	   GlobDiffOutOfDomain();
+		Glob();
 	} <?R
         } ########################################################################################### ?>
 }; <?R
-	for (g in rows(GlobalsD)) { ?>
-#undef AddTo<?%s g$name ?><?R
-	}
 } 
 cat("\n")
 ifdef()
-?>
 
+	writeLines(paste("#undef", macros$token, sep=" "))
+?>
 #include "LatticeContainer.inc.cpp"
