@@ -16,56 +16,6 @@ using CartLatticeAccessInterior = AccessComposite< CartLatticeAccess<
   range_int< <?%d BorderMargin$max[2] ?>,0,<?%d BorderMargin$min[2]-1 ?>,1>,
   range_int< <?%d BorderMargin$max[3] ?>,0,<?%d BorderMargin$min[3]-1 ?>,1> > >;
 
-// Quantity getters
-<?R
-        for (q in rows(Quantities))
-        {
-                ifdef(q$adjoint); ?>
-/// Calculate quantity [<?%s q$comment ?>] kernel
-/**
-  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
-  \param r Lattice region to calculate the quantity
-  \param tab buffor to put the calculated result
-  \param scale Scale to rescale the result (for units)
-*/
-inline CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
-{
-  using LA = CartLatticeAccessAll;
-  int x = CudaBlock.x+r.dx;
-  int y = CudaBlock.y+r.dy;
-  int z = CudaBlock.z+r.dz;
-  LA acc(x,y,z); <?R
-    if (q$adjoint) { ?>
-      Node< LA, Adjoint, NoGlobals, Get > now(acc); <?R
-    } else { ?>
-      Node< LA, Primal, NoGlobals, Get > now(acc); <?R
-    }?>
-    <?%s q$type ?> w;
-//  if (now.NodeType) {
-      acc.pop(now); <?R
-      if (q$adjoint) { ?>
-        acc.pop_adj(now); <?R
-      } ?>
-      w = now.get<?%s q$name ?>(); <?R
-      if (q$type == "vector_t") {
-        for (coef in c("x","y","z")) { ?>
-          w.<?%s coef ?> *= scale; <?R
-        }
-      } else { ?>
-        w *= scale; <?R
-      } ?>
-//  } else { <?R
-      if (q$type == "vector_t") {
-        for (coef in c("x","y","z")) { ?>
-//        w.<?%s coef ?> = nan(""); <?R
-        }
-      } else { ?>
-//      w = nan(""); <?R
-      } ?>
-//  }
-  tab[r.offset(x,y,z)] = w;
-}
-
 template<class T>
 static void CopyObjToConst(const T& host_obj, const T& const_symbol) {
   CudaCopyToConstant("copy to GPU constant memory", const_symbol, &host_obj, sizeof(T));
@@ -293,6 +243,56 @@ CudaGlobalFunction void ColorKernel(uchar4 *optr, int z)
 void CartLatticeExecutor::Color(uchar4 *optr) {
   CopyToConst();
   CudaKernelRun(ColorKernel, dim3(floor(m_container.nx / X_BLOCK), m_container.ny, 1), dim3(X_BLOCK), optr, m_container.nz / 2);
+}
+
+// Quantity getters
+<?R
+        for (q in rows(Quantities))
+        {
+                ifdef(q$adjoint); ?>
+/// Calculate quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  \param r Lattice region to calculate the quantity
+  \param tab buffor to put the calculated result
+  \param scale Scale to rescale the result (for units)
+*/
+inline CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
+{
+  using LA = CartLatticeAccessAll;
+  int x = CudaBlock.x+r.dx;
+  int y = CudaBlock.y+r.dy;
+  int z = CudaBlock.z+r.dz;
+  LA acc(x,y,z); <?R
+    if (q$adjoint) { ?>
+      Node< LA, Adjoint, NoGlobals, Get > now(acc); <?R
+    } else { ?>
+      Node< LA, Primal, NoGlobals, Get > now(acc); <?R
+    }?>
+    <?%s q$type ?> w;
+//  if (now.NodeType) {
+      acc.pop(now); <?R
+      if (q$adjoint) { ?>
+        acc.pop_adj(now); <?R
+      } ?>
+      w = now.get<?%s q$name ?>(); <?R
+      if (q$type == "vector_t") {
+        for (coef in c("x","y","z")) { ?>
+          w.<?%s coef ?> *= scale; <?R
+        }
+      } else { ?>
+        w *= scale; <?R
+      } ?>
+//  } else { <?R
+      if (q$type == "vector_t") {
+        for (coef in c("x","y","z")) { ?>
+//        w.<?%s coef ?> = nan(""); <?R
+        }
+      } else { ?>
+//      w = nan(""); <?R
+      } ?>
+//  }
+  tab[r.offset(x,y,z)] = w;
 }
 
 <?R
