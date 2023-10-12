@@ -1,24 +1,13 @@
 {
-	"name": "Small",
-	"build": {
-		"dockerfile": "Dockerfile",
-		"context": ".."
-	},
+	"name": "Big (R+VTK)",
+	"image": "cfdgo/tclb:ubuntu-22.04-big",
+	"postCreateCommand": "make configure && ./configure --disable-cuda --enable-cpu-layout --with-openmp",
 	"customizations": {
-		"codespaces": {
-			"openFiles": [
-				".devcontainer/README.md"
-			]
-		},
 		"vscode": {
 			"extensions": [
+				"REditorSupport.r",
 				"CFD-GO.tclb-helper"
-			],
-			"settings": {
-				"workbench.editorAssociations": {
-					"*.md": "vscode.markdown.preview.editor"
-				}				
-			}
+			]
 		}
 	}
 }
