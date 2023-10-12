@@ -1376,4 +1376,40 @@ void Lattice::updateAllSamples(){
  }
 }
 
+/// Preallocation of a FTabs
+/**
+  Aglomerates all the allocation into one big memory chunk
+*/
+void FTabs::PreAlloc(int nx,int ny,int nz) {
+  size_t size;
+<?R for (m in NonEmptyMargin) { ?>
+  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  CudaPreAlloc( (void**)&<?%s m$name ?>, size );
+<?R } ?>
+}
 
+/// Clearing (zero-ing) of a FTabs
+void FTabs::Clear(int nx,int ny,int nz) {
+  size_t size;
+<?R for (m in NonEmptyMargin) { ?>
+  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  CudaMemset( <?%s m$name ?>, 0, size );
+<?R } ?>
+}
+
+inline void NullSafeFree(void * ptr) {
+  if (ptr)
+#ifdef DIRECT_MEM
+    CudaFreeHost(ptr);
+#else
+    CudaFree(ptr);
+#endif
+}
+
+/// Free FTabs memory
+void FTabs::Free() { <?R
+for (m in NonEmptyMargin) { ?>
+  NullSafeFree(<?%s m$name ?>);
+  <?%s m$name ?> = nullptr;<?R
+} ?>
+}
