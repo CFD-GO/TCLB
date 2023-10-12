@@ -98,4 +98,6 @@ struct LatticeData {
 	}
 };
 
+static_assert(std::is_trivially_copyable<LatticeData>::value, "LatticeData must be trivially copyable");
+
 #endif // LATTICEDATA_HPP
