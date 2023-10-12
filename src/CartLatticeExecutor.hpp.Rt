@@ -257,7 +257,7 @@ void CartLatticeExecutor::Color(uchar4 *optr) {
   \param tab buffor to put the calculated result
   \param scale Scale to rescale the result (for units)
 */
-inline CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale)
 {
   using LA = CartLatticeAccessAll;
   int x = CudaBlock.x+r.dx;
