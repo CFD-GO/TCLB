@@ -300,16 +300,6 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
   ifdef();
 ?>
 
-<?R   for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) {
-      st = Stages[tp$Stage,,drop=FALSE]
-      ifdef(tp$adjoint)
-      ?>
-template void CartLatticeExecutor::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
-template void CartLatticeExecutor::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
-    };
-  ifdef();
-?>
-
 /// Init Settings with 0 in GPU constant memory
 void initSettings() {
   real_t val = 0;

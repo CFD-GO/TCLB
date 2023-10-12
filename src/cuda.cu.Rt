@@ -50,3 +50,13 @@ CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f;
 // These headers depend on contant memory variables
 #include "Particle.hpp"
 #include "CartLatticeExecutor.hpp"
+
+<?R   for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) {
+      st = Stages[tp$Stage,,drop=FALSE]
+      ifdef(tp$adjoint)
+      ?>
+template void CartLatticeExecutor::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
+template void CartLatticeExecutor::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
+    };
+  ifdef();
+?>
