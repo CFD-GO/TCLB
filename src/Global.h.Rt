@@ -65,7 +65,6 @@ for (m in Margin) { ?>
     for (m in NonEmptyMargin) { ?>
         storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
     } ?>
-        inline void Alloc(int,int,int);
         inline void Clear(int,int,int);
         inline void PreAlloc(int,int,int);
         inline void Free();
@@ -168,24 +167,6 @@ int kbhit(void);
 	
 #define DEBUG_H 1
 #endif
-
-/// Allocation of memory for an FTabs
-void FTabs::Alloc(int nx,int ny,int nz) {
-  size_t size;
-  char * tmp = NULL;
-<?R for (m in NonEmptyMargin) { ?>
-  size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
-  debug2("Allocating: %ld b\n", size);
-#ifdef DIRECT_MEM
-  CudaMallocHost( (void**)&tmp, size );
-#else
-  CudaMalloc( (void**)&tmp, size );
-#endif
-  debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size);
-  CudaMemset( tmp, 0, size );
-  <?%s m$name ?>=  (storage_t*)tmp;
-<?R } ?>
-}
 
 /// Preallocation of a FTabs
 /**
