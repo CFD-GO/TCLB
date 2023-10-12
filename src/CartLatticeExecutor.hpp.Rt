@@ -17,7 +17,7 @@ using CartLatticeAccessInterior = AccessComposite< CartLatticeAccess<
   range_int< <?%d BorderMargin$max[3] ?>,0,<?%d BorderMargin$min[3]-1 ?>,1> > >;
 
 template<class T>
-static void CopyObjToConst(const T& host_obj, const T& const_symbol) {
+static void CopyObjToConst(const T& host_obj, T& const_symbol) {
   CudaCopyToConstant("copy to GPU constant memory", const_symbol, &host_obj, sizeof(T));
 }
 
