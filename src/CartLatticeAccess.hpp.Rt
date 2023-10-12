@@ -250,7 +250,7 @@ resolve.symmetries = function(D) {
 
 ?>
 
-CudaDeviceFunction flag_t getContainerType(const CartLatticeContainer& container, int x, int y, int z) {
+CudaDeviceFunction flag_t fetchNodeType(const CartLatticeContainer& container, int x, int y, int z) {
   return container.NodeType[(x + container.nx*(y + container.ny*z))];
 }
 
@@ -265,7 +265,7 @@ class CartLatticeAccess {
   public:
   CudaDeviceFunction CartLatticeAccess(const int& x_, const int& y_, const int& z_) :
     x(x_),y(y_),z(z_),
-    nt{getContainerType(constContainer, x, y, z)},
+    nt(fetchNodeType(constContainer, x, y, z)),
     nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
     { }
   CudaDeviceFunction real_t getX() const { return constContainer.px + x; }
