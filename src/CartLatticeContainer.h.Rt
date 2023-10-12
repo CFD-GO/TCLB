@@ -33,8 +33,6 @@ public:
   cut_t* Q; 
   int nx, ny, nz; ///< Size of the Lattice region
   real_t px,py,pz;
-  
-  CudaDeviceFunction flag_t getType(int x, int y, int z) const { return NodeType[(x + nx*(y + ny*z))]; }
 };
 
 static_assert(std::is_trivially_copyable<CartLatticeContainer>::value, "CartLatticeContainer must be trivially copyable");
