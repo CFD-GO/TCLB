@@ -55,21 +55,6 @@ for (m in Margin) { ?>
 
     void fillSides(MPIInfo, int, int, int);
 
-/// Main data structure for the lattice
-/**
-    Main data structure for storing solution (Snapshots)
-    in the lattice. It stores the internal part of the fields
-    and margins.
-*/
-    struct FTabs { <?R
-    for (m in NonEmptyMargin) { ?>
-        storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
-    } ?>
-        inline void Clear(int,int,int);
-        inline void PreAlloc(int,int,int);
-        inline void Free();
-    };
-
 #define INFO_H 1
 #endif
 /*

@@ -12,6 +12,21 @@
 #include "Consts.h"
 #include "Global.h"
 
+/// Main data structure for the lattice
+/**
+    Main data structure for storing solution (Snapshots)
+    in the lattice. It stores the internal part of the fields
+    and margins.
+*/
+struct FTabs { <?R
+for (m in NonEmptyMargin) { ?>
+  storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
+} ?>
+  void Clear(int,int,int);
+  void PreAlloc(int,int,int);
+  void Free();
+};
+
 /// Container class used for storing all the data needed on GPU
 /**
   Main class for storing the data needed on GPU and running kernels.
