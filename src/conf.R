@@ -995,7 +995,7 @@ AllKernels = expand.grid(
 
 AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))
 AllKernels$TemplateArgs = paste(AllKernels$Op, ",", AllKernels$Globals, ",", AllKernels$Stage)
-AllKernels$Node = paste("Node_Run <", AllKernels$TemplateArgs, ">")
+AllKernels$Node = paste("Node <", AllKernels$TemplateArgs, ">")
 
 
 ################################################################################

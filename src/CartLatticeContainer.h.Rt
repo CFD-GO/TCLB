@@ -1,0 +1,55 @@
+<?R
+	source("conf.R");
+	c_header()
+?>
+/** \file CartLatticeContainer.h
+  File defining CartLatticeContainer and some additional CUDA functions
+*/
+
+#ifndef LATTICECONTAINER_H
+#define LATTICECONTAINER_H
+
+#include "Consts.h"
+#include "Global.h"
+
+/// Main data structure for the lattice
+/**
+    Main data structure for storing solution (Snapshots)
+    in the lattice. It stores the internal part of the fields
+    and margins.
+*/
+struct FTabs { <?R
+for (m in NonEmptyMargin) { ?>
+  storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
+} ?>
+  void Clear(int,int,int);
+  void PreAlloc(int,int,int);
+  void Free();
+};
+
+/// Container class used for storing all the data needed on GPU
+/**
+  Main class for storing the data needed on GPU and running kernels.
+  CartLatticeContainer is the container class which
+  owns all the data needed by the kernels on device
+  like pointers to the global gpu memory etc.
+  It defines push/pop functions allowing access
+  to node data stored in memory.
+*/
+class CartLatticeContainer {
+public:
+  FTabs in; ///< Main FTabs used for Primal iteration as input
+  FTabs out; ///< Main FTabs used for Primal iteration as output
+#ifdef ADJOINT
+  FTabs adjout; ///< FTabs used for Adjoint iteration as output
+  FTabs adjin; ///< FTabs used for Adjoint iteration as input
+#endif
+  flag_t * NodeType; ///< Table of flags/NodeTypes of all the nodes
+  cut_t* Q; 
+  int nx, ny, nz; ///< Size of the Lattice region
+  real_t px,py,pz;
+};
+
+static_assert(std::is_trivially_copyable<CartLatticeContainer>::value, "CartLatticeContainer must be trivially copyable");
+
+#endif // LATTICECONTAINER_H
