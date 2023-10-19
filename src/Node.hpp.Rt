@@ -61,12 +61,10 @@ struct CalculateGlobals<IntegrateGlobals> {
     real_t globals[GLOBALS];
     const LatticeData* data;
 
-    CudaDeviceFunction CalculateGlobals(const LatticeData& data_) : data(&data_) {}
-	CudaDeviceFunction CalculateGlobals() {
-		for (int i=0; i<GLOBALS; i++) {
-            globals[i] = 0.0;
-		}
-	}
+    CudaDeviceFunction CalculateGlobals(const LatticeData& data_) : data(&data_) {
+      for (int i=0; i<GLOBALS; i++)
+        globals[i] = 0.0;
+    }
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		globals[I] = globals[I] + x;
@@ -94,10 +92,7 @@ struct CalculateGlobals<OnlyObjective> {
 	real_t obj;
 	const LatticeData* data;
 
-	CudaDeviceFunction CalculateGlobals(const LatticeData& data_) : data(&data_) {}
-	CudaDeviceFunction CalculateGlobals() {
-		obj = 0.0;
-	}
+	CudaDeviceFunction CalculateGlobals(const LatticeData& data_) : obj(0.), data(&data_) {}
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		if (I < SUM_GLOBALS) {
