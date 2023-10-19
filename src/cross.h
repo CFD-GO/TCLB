@@ -174,7 +174,7 @@
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( hipGetDeviceCount( a__ ) )
     #define CudaDeviceReset() HANDLE_ERROR( hipDeviceReset( ) )
     #define CudaFuncAttributes hipFuncAttributes
-    #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( hipFuncGetAttributes(a__, reinterpret_cast<const void*>(&b__)) )
+    #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( hipFuncGetAttributes(a__, reinterpret_cast<const void*>(b__)) )
    #endif
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
