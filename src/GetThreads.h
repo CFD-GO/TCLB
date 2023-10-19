@@ -1,8 +1,14 @@
 #include "Global.h"
-#include <typeinfo>
 #include "cross.h"
 
-template <class E> CudaGlobalFunction void Kernel();
+#include <typeinfo>
+#include <type_traits>
+
+template <class E, class ...Arg>
+CudaGlobalFunction void Kernel(const Arg... args) {
+    E e;
+    e.Execute(args...);
+}
 
 std::string cxx_demangle(std::string str);
 
@@ -11,16 +17,16 @@ inline int ceiling_div(const int & x, const int & y) {
 }
 
 /// Get maximal number of threads for all the kernels on runtime
-template < class T > int GetThreads() {
-	dim3 ret;
-	CudaFuncAttributes * attr = new CudaFuncAttributes;
-	CudaFuncGetAttributes(attr, Kernel<T>) ;
-	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr->constSizeBytes);
-	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr->localSizeBytes);
-	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr->maxThreadsPerBlock);
-	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr->numRegs);
-	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr->sharedSizeBytes);
-	return attr->maxThreadsPerBlock;
+template < class E, class ...Args > int GetThreads() {
+	CudaFuncAttributes attr;
+    using kernel_ptr_t = void(*)(typename std::add_const<Args>::type...);
+	CudaFuncGetAttributes(&attr, (kernel_ptr_t)(Kernel<E, Args...>)) ;
+	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr.constSizeBytes);
+	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr.localSizeBytes);
+	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr.maxThreadsPerBlock);
+	debug1( "[%d] Reg   Number:%d\n", D_MPI_RANK, attr.numRegs);
+	debug1( "[%d] Shared   mem:%ld\n", D_MPI_RANK, attr.sharedSizeBytes);
+	return attr.maxThreadsPerBlock;
 }
 
 class ThreadNumberCalculatorBase {
@@ -43,11 +49,11 @@ class ThreadNumberCalculatorBase {
   void print();
 };
 
-template < class T > class ThreadNumberCalculator : public ThreadNumberCalculatorBase {
+template < class T, class ...Args > class ThreadNumberCalculator : public ThreadNumberCalculatorBase {
   public:
   virtual void Init() {
     name = cxx_demangle(typeid(T).name());
-    maxthr = GetThreads< T >();
+    maxthr = GetThreads< T, Args... >();
     thr.z = 1;
     int val = maxthr;
     if (maxthr < X_BLOCK) {
@@ -63,14 +69,14 @@ template < class T > class ThreadNumberCalculator : public ThreadNumberCalculato
   };
 };
 
-template < class T > class ThreadNumber {
-  typedef ThreadNumberCalculator< T > calc_t;
+template < class ...T > class ThreadNumber {
+  typedef ThreadNumberCalculator< T... > calc_t;
   static calc_t calc;
   public:
   static inline dim3 threads() { return calc.threads(); }
 };
 
-template < class T > ThreadNumberCalculator<T> ThreadNumber<T>::calc;
+template < class ...T > ThreadNumberCalculator<T...> ThreadNumber<T...>::calc;
 
 /// Initialize Thread/Block number variables
 int InitDim();

@@ -10,20 +10,10 @@
 
 #include "SyntheticTurbulence.h"
 #include "SolidContainer.h"
-
-#ifndef SETTINGS_H
-<?R
-	for (v in rows(Settings)) { ?>
-    CudaExternConstantMemory(real_t <?%s v$name ?>); <?R
-	} ?>
-    void initSettings();
-    void setConstSetting(int i, real_t tmp);
-
-#define SETTINGS_H 1
-#endif
-
 #include "Consts.h"
 #include "cross.h"
+
+#include <array>
 
 struct LatticeData {
     size_t particle_data_size;
@@ -37,24 +27,23 @@ struct LatticeData {
     real_t **ZoneSettings;
     real_t *ConstZoneSettings;
     STWaveSet ST;
+    real_t settings[SETTINGS]; ///< settings initialized to zero
 
-    void CopyToConst() const;
-
-    CudaDeviceFunction real_t ZoneSetting(const int &s, const int &z) {
+    CudaDeviceFunction real_t ZoneSetting(const int &s, const int &z) const {
         const int i = s + ZONESETTINGS * z;
         const real_t *w = ZoneSettings[i];
         if (w == NULL) return ConstZoneSettings[i];
         return w[ZoneIndex];
     }
 
-    CudaDeviceFunction real_t ZoneSetting_DT(const int &s, const int &z) {
+    CudaDeviceFunction real_t ZoneSetting_DT(const int &s, const int &z) const {
         const int i = s + ZONESETTINGS * z;
         const real_t *w = ZoneSettings[i + DT_OFFSET];
         if (w == NULL) return 0;
         return w[ZoneIndex];
     }
 
-    CudaDeviceFunction real_t *ZoneSettingGrad(const int &s, const int &z) {
+    CudaDeviceFunction real_t *ZoneSettingGrad(const int &s, const int &z) const {
         const int i = s + ZONESETTINGS * z;
         real_t *w = ZoneSettings[i + GRAD_OFFSET];
         if (w == NULL) return &ConstZoneSettings[i + GRAD_OFFSET];

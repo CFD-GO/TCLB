@@ -503,7 +503,6 @@ void Lattice::<?%s a$FunName ?>(int tab0, int tab1, int iter_type)
     }
     old_stage_level = old_stage_level + 1
 ?>
-    executor.CopyToConst();
 	DEBUG_PROF_PUSH("Calculation");
 	switch(iter_type & ITER_INTEG){
 	case ITER_NO:
@@ -580,9 +579,6 @@ inline void Lattice::<?%s a$FunName ?>_Adj(int tab0, int tab1, int adjtab0, int 
 
 	for (s in a$stages) {
                  stage = Stages[s,,drop=F] ?>
-
-
-        executor.CopyToConst();
 
         MPIStream_A();
 
@@ -1225,7 +1221,6 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 {
 	executor.container.in = Snaps[Snap];
 	<?R if (q$adjoint) { ?> executor.container.adjin = aSnaps[aSnap]; <?R } ?>
-        executor.CopyToConst();
 
 	lbRegion inter = region.intersect(over);
 	if (inter.size()==0) return;
@@ -1235,7 +1230,7 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 		small.dx -= region.dx;
 		small.dy -= region.dy;
 		small.dz -= region.dz;
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , small, buf, scale);
+		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , small, buf, scale, executor.container, executor.data);
 		CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
@@ -1359,12 +1354,19 @@ double Lattice::getObjective() {
 /**
         Set a specific Setting
         \param i Index of the Setting
-        \param tmp Value of the Setting
+        \param val Value of the Setting
 */
-void Lattice::setSetting(int i, real_t tmp) {
-	settings[i] = tmp;
-        debug1("[%d] Settings %d to %f\n", D_MPI_RANK,i, tmp);
-	setConstSetting(i,tmp);
+void Lattice::setSetting(int i, real_t val) {
+  executor.data.settings[i] = val;
+}
+
+/// Set a Setting
+/**
+        Get a specific Setting
+        \param i Index of the Setting
+*/
+real_t Lattice::getSetting(int i) {
+  return executor.data.settings[i];
 }
 
 void Lattice::SetSetting(const Model::Setting& set, real_t val) {
@@ -1388,9 +1390,8 @@ void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
 {
        	executor.container.in = Snaps[Snap];
        	<?R if (q$adjoint) { ?> executor.container.adjin = aSnaps[aSnap]; <?R } ?>
-        executor.CopyToConst();
 	lbRegion small = region.intersect(over);
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , small, (<?%s q$type?>*) buf, scale);
+	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , small, (<?%s q$type?>*) buf, scale, executor.container, executor.data);
 }
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(){

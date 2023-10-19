@@ -187,6 +187,7 @@ void GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale);
   double getObjective();
   void resetAverage();
   void setSetting(int i, real_t tmp);
+  real_t getSetting(int i);
   void SetSetting(const Model::Setting& set, real_t val);
   void GenerateST();
 };
