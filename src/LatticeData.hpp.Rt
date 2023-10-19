@@ -50,7 +50,7 @@ struct LatticeData {
         return &w[ZoneIndex];
     }
 
-    CudaDeviceFunction vector_t getST(real_t x, real_t y, real_t z) {
+    CudaDeviceFunction vector_t getST(real_t x, real_t y, real_t z) const {
         return calc(ST, x, y, z);
     }
 
