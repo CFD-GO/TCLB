@@ -52,7 +52,7 @@ struct Particle {
 	double pos[3];
 	double rad;
 	double dist;
-	Particle(int i_, const real_t org[3]): balli(i_) {
+	Particle(const real_t* dummy, int i_, const real_t org[3]): balli(i_) {
 		//printf("load Particle... ");
 		dist = 0;
 		for (int i=0;i<3;i++) {
