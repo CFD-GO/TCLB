@@ -40,15 +40,6 @@ void start_walltime() {
 
 int D_MPI_RANK;
 int D_TERMINAL;
-/*
-void initSettings() {
-	real_t val = 0;
-<?R for (v in rows(Settings)) {
-	if (is.na(v$derived)) { ?>
-			CudaCopyToConstant("<?%s v$name ?>", <?%s v$name ?>, &val, sizeof(real_t)); <?R
-	}} ?>
-}
-*/
 
 /// Generate the connectivity information
 /*

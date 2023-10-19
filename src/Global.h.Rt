@@ -6,6 +6,10 @@
     \file Global.h
     Declaration of global variables and functions. Including MPI connectivity info.
 */
+
+#ifndef GLOBAL_H
+#define GLOBAL_H
+
 #include "Consts.h"
 #include "types.h"
 #include <string>
@@ -16,15 +20,11 @@
   #include <unistd.h>
 #endif
 
-#ifndef GLOBAL_H
     #define BOUNDARY_UX UX_mid
     #define NUMBER_OF_DENSITIES <?%d nrow(DensityAll) ?>
     
     #include "MPMD.hpp"
     extern MPMDHelper MPMD;
-    
-#define GLOBAL_H 1
-#endif
 
 #ifndef INFO_H
     #include "cross.h"
@@ -54,22 +54,6 @@ for (m in Margin) { ?>
     };
 
     void fillSides(MPIInfo, int, int, int);
-
-/// Main data structure for the lattice
-/**
-    Main data structure for storing solution (Snapshots)
-    in the lattice. It stores the internal part of the fields
-    and margins.
-*/
-    struct FTabs { <?R
-    for (m in NonEmptyMargin) { ?>
-        storage_t* <?%s m$name ?>; ///< Data on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] margin<?R
-    } ?>
-        void Alloc(int,int,int);
-        void Clear(int,int,int);
-        void PreAlloc(int,int,int);
-        void Free();
-    };
 
 #define INFO_H 1
 #endif
@@ -169,7 +153,6 @@ int kbhit(void);
 #define DEBUG_H 1
 #endif
 
-
 #ifndef D2Q9_w_and_e
 
 CudaConstantMemory const  real_t 	wt[5] = {2./6., 	1./6., 1./6., 1./6., 1./6.};
@@ -214,3 +197,5 @@ CudaConstantMemory real_t const d3q27_ez[27] = {0, 0, 0, 0, 0, 1,-1, 1, 1, 1, 1,
 
 #endif
 #define D3Q27_w_and_e
+
+#endif // GLOBAL_H

@@ -2,14 +2,17 @@
 	source("conf.R")
         c_header()
 ?>
-/** \file LatticeAccess.cu
+/** \file CartLatticeAccess.hpp
 */
+
+#ifndef LATTICEACCESS_HPP
+#define LATTICEACCESS_HPP
 
 #include "Consts.h"
 #include "Global.h"
-#include "Lattice.h"
 #include <mpi.h>
 #include "range_int.hpp"
+#include "CartLatticeContainer.h"
 
 #ifndef STORAGE_BITS
   #define storage_to_real(x__) x__
@@ -33,12 +36,6 @@
   #define storage_to_real_shift(x__,y__) storage_to_real(x__)
   #define real_to_storage_shift(x__,y__) real_to_storage(x__)
 #endif
-
-/// Get only type of node
-CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
-{
-  return NodeType[(x + nx*(y + ny*z))];
-}
 
 /// Push all densities
 
@@ -253,8 +250,12 @@ resolve.symmetries = function(D) {
 
 ?>
 
+CudaDeviceFunction flag_t fetchNodeType(const CartLatticeContainer& container, int x, int y, int z) {
+  return container.NodeType[(x + container.nx*(y + container.ny*z))];
+}
+
 template < class x_t, class y_t, class z_t >
-class LatticeAccess {
+class CartLatticeAccess {
   private:
   const x_t x;
   const y_t y;
@@ -262,9 +263,9 @@ class LatticeAccess {
   const flag_t nt;
   const range_int<0,1,0,1> nx, ny, nz;
   public:
-  CudaDeviceFunction LatticeAccess(const int& x_, const int& y_, const int& z_) :
+  CudaDeviceFunction CartLatticeAccess(const int& x_, const int& y_, const int& z_) :
     x(x_),y(y_),z(z_),
-    nt(constContainer.getType(x,y,z)),
+    nt(fetchNodeType(constContainer, x, y, z)),
     nx(constContainer.nx),ny(constContainer.ny),nz(constContainer.nz)
     { }
   CudaDeviceFunction real_t getX() const { return constContainer.px + x; }
@@ -295,7 +296,7 @@ class LatticeAccess {
 <?R for (f in rows(Fields)) { ?>
 template < class x_t, class y_t, class z_t >
 template <class dx_t, class dy_t, class dz_t>
-CudaDeviceFunction real_t LatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
+CudaDeviceFunction real_t CartLatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?> (const dx_t & dx, const dy_t & dy, const dz_t & dz) const
 {
   storage_t ret; <?R
   con = make.context("constContainer.in");
@@ -314,7 +315,7 @@ CudaDeviceFunction real_t LatticeAccess< x_t, y_t, z_t >::load_<?%s f$nicename ?
 for (s in rows(all_stages)) { ?>
 template < class x_t, class y_t, class z_t >
 template <class N>
-CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(N & node) const
+CudaDeviceFunction void CartLatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(N & node) const
 {
 	storage_t val; <?R
   con = make.context("constContainer.in",pocket=TRUE);
@@ -328,7 +329,7 @@ CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(N & 
 
 template < class x_t, class y_t, class z_t >
 template <class N>
-CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>(N & node) const
+CudaDeviceFunction void CartLatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>(N & node) const
 {
   storage_t val; <?R
   con = make.context("constContainer.out",pocket=TRUE);
@@ -341,7 +342,7 @@ CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>(N &
 <?R if (ADJOINT) { ?>
 template < class x_t, class y_t, class z_t >
 template <class N>
-CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>_adj(N & node) const
+CudaDeviceFunction void CartLatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>_adj(N & node) const
 { <?R
   con = make.context("constContainer.adjout",pocket=TRUE);
   for (d in rows(Density)[s$load.densities]) {
@@ -354,7 +355,7 @@ CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::push<?%s s$suffix ?>_adj
 
 template < class x_t, class y_t, class z_t >
 template <class N>
-CudaDeviceFunction void LatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>_adj(N & node) const
+CudaDeviceFunction void CartLatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>_adj(N & node) const
 { <?R
   con = make.context("constContainer.adjin",pocket=TRUE);
   for (f in rows(Fields)[s$save.fields]) {
@@ -478,3 +479,4 @@ public:
 template < class ACC >
 using AccessComposite = <?%s str ?>;
 
+#endif // LATTICEACCESS_HPP

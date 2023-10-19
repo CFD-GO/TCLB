@@ -1,0 +1,49 @@
+<?R
+        source("conf.R")
+c_header();
+?>
+/** \file CartLatticeExecutor.h
+*/
+
+#ifndef CARTLATTICEEXECUTOR_H
+#define CARTLATTICEEXECUTOR_H
+
+#include "CartLatticeContainer.h"
+#include "LatticeData.hpp"
+
+struct CartLatticeExecutor {
+  CartLatticeContainer container;
+  LatticeData          data;
+
+  template < eOperationType I, eCalculateGlobals G, eStage S >
+  void RunBorder(CudaStream_t stream) const;
+  template < eOperationType I, eCalculateGlobals G, eStage S >
+  void RunInterior(CudaStream_t stream) const;
+  void Color(uchar4 *out_ptr);
+
+  void CopyToConst() const;
+
+  template < eOperationType I, eCalculateGlobals G, eStage S >
+  static CudaDeviceFunction void NodeToColor(int x, int y, int z, uchar4 *optr);
+};
+
+CudaGlobalFunction void ColorKernel(uchar4 *optr, int z);
+
+<?R
+for (q in rows(Quantities)) { ifdef(q$adjoint);
+        if (q$adjoint) {
+          node = "Node_Adj"
+        } else {
+          node = "Node"
+        }
+?>
+CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale); <?R
+  for (tp in c("float","double"))
+  { ?>
+CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int);
+<?R
+  }
+}
+ifdef() ?>
+
+#endif // CARTLATTICEEXECUTOR_H
