@@ -19,7 +19,8 @@ inline int ceiling_div(const int & x, const int & y) {
 /// Get maximal number of threads for all the kernels on runtime
 template < class E, class ...Args > int GetThreads() {
 	CudaFuncAttributes attr;
-	CudaFuncGetAttributes(&attr, (+Kernel<E, Args...>)) ;
+    auto attr_ptr = &attr;
+	CudaFuncGetAttributes(attr_ptr, (+Kernel<E, Args...>)) ;
 	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr.constSizeBytes);
 	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr.localSizeBytes);
 	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr.maxThreadsPerBlock);
