@@ -89,7 +89,7 @@ class Tester {
 		typedef typename container_t::set_found_t< Particle > set_found_t;
 		real_t lower[3] = {pos[0]-offset,pos[1]-offset,pos[2]-offset};
 		real_t upper[3] = {pos[0]+offset,pos[1]+offset,pos[2]+offset};
-		for (auto part : set_found_t(finder, pos, lower, upper)) {
+        for (auto part : set_found_t(finder, nullptr, pos, lower, upper)) {
 			if (part.dist <= part.rad+offset) ret.push_back(part.balli);
 		}
 		std::sort(ret.begin(),ret.end());
