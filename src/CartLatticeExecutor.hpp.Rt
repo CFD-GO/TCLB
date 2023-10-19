@@ -118,7 +118,11 @@ void RunInteriorImpl(const CartLatticeContainer& container, const LatticeData& d
   blx.x = ceiling_div(totx, thr.y);
   int toty = nz - <?%d BorderMargin$max[3]-BorderMargin$min[3] ?>;
   blx.y = toty;
+#ifndef CROSS_CPU
   CudaKernelRunNoWait(Kernel< EX >, blx, thr, stream, container, data);
+#else
+  CudaKernelRunNoWait([](const CartLatticeContainer& c, const LatticeData& d) { EX exe; exe.Execute(c, d); }, blx, thr, stream, container, data);
+#endif
 };
 
 /// Run the border kernel
@@ -147,7 +151,11 @@ void RunBorderImpl(const CartLatticeContainer& container, const LatticeData& dat
   int totx = <?%s blx ?>;
   blx.x = ceiling_div(totx, thr.y);
   blx.y = <?%d thy ?>;
+#ifndef CROSS_CPU
   CudaKernelRunNoWait(Kernel< EX >, blx, thr, stream, container, data);
+#else
+  CudaKernelRunNoWait([](const CartLatticeContainer& c, const LatticeData& d) { EX exe; exe.Execute(c, d); }, blx, thr, stream, container, data);
+#endif
 <?R } ?>
 };
 
@@ -227,7 +235,11 @@ CudaGlobalFunction void ColorKernel(uchar4 *optr, int z, const CartLatticeContai
   \param optr 4-component graphics buffer
 */
 void CartLatticeExecutor::Color(uchar4 *optr) const {
+#ifndef CROSS_CPU
   CudaKernelRun(ColorKernel, dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK), optr, container.nz / 2, container, data);
+#else
+  CudaKernelRun([](uchar4 *optr, int z, const CartLatticeContainer& c, const LatticeData& d) { ColorKernel(optr, z, c, d); }, dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK), optr, container.nz / 2, container, data);
+#endif
 }
 
 // Quantity getters
