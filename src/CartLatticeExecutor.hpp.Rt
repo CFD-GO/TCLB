@@ -22,12 +22,12 @@ using CartLatticeAccessInterior = AccessComposite< CartLatticeAccess<
   container.dx/dy is to calculate only internal nodes
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
-class InteriorExecutor {
+class CartInteriorExecutor {
   CartLatticeContainer container;
   LatticeData          data;
 
 public:
-  InteriorExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
+  CartInteriorExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
 
   CudaHostFunction LaunchParams ComputeLaunchParams(dim3 thr) const {
     const int nx = container.nx;
@@ -70,12 +70,12 @@ public:
   iterates over border elements and runs them with RunElement function
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
-class BorderExecutor {
+class CartBorderExecutor {
   CartLatticeContainer container;
   LatticeData          data;
 
 public:
-  BorderExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
+  CartBorderExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
 
   CudaHostFunction LaunchParams ComputeLaunchParams(dim3 thr) const {
     const int nx = container.nx;
@@ -150,78 +150,81 @@ public:
   }
 };
 
-
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeExecutor::RunInterior(CudaStream_t stream) const {
-  const InteriorExecutor< I, G, S > executor(container, data);
+  const CartInteriorExecutor< I, G, S > executor(container, data);
   LaunchExecutorNoWait(executor, stream);
 }
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeExecutor::RunBorder(CudaStream_t stream) const {
-  const BorderExecutor< I, G, S > executor(container, data);
+  const CartBorderExecutor< I, G, S > executor(container, data);
   LaunchExecutorNoWait(executor, stream);
 }
 
-/// Old function for graphics output
-/**
-  calculates the color for one node
-*/
+
 template < eOperationType I, eCalculateGlobals G, eStage S >
-static CudaDeviceFunction void NodeToColor(int x, int y, int z, uchar4 *optr, const CartLatticeContainer& container, const LatticeData& data) {
-  using LA = CartLatticeAccessAll;
-  using N  = Node<LA, I, G, S>;
+class CartColorExecutor{
+  CartLatticeContainer container;
+  LatticeData          data;
 
-  int offset = x + y * container.nx;
-  float l = 0.0; float w = 0.0;
-  int r = 0,g = 0,b = 0;
-  if (x < 0 || y < 0 || z < 0) return;
-  if (x >= container.nx || y >= container.ny || z >= container.nz) return;
+  uchar4* optr;
+  int     z;
 
-  {
+public:
+  CartColorExecutor(const CartLatticeContainer& container_, const LatticeData& data_, uchar4* optr_, int z_)
+    : container(container_), data(data_), optr(optr_), z(z_)
+  {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3) const {
+    return LaunchParams{dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK)};
+  }
+
+  CudaDeviceFunction void Execute() const {
+    using LA = CartLatticeAccessAll;
+    using N  = Node<LA, I, G, S>;
+
+    const int x = CudaThread.x + CudaBlock.x * CudaNumberOfThreads.x;
+    const int y = CudaBlock.y;
+
+    int offset = x + y * container.nx;
+    float l = 0.; float w = 0.;
+    int r = 0, g = 0, b = 0;
+    if (x < 0 || y < 0 || z < 0 || x >= container.nx || y >= container.ny || z >= container.nz)
+      return;
+
     LA acc(x, y, z, container);
     N now(acc, data);
     acc.pop(now);
     float2 v = now.Color();
     l = v.x;
     w = v.y;
-  }
 
-  if (ISFINITE(l)) {
-    l = l * 111;
-    if (               (l <-111)) {r = 255; g = 255; b = 255; }
-    if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
-    if ((l >=  -11) && (l <  -1)) {r = 0; g = (255*(-l-1))/10; b = 255; }
-    if ((l >=   -1) && (l <   0)) {r = 0; g = 0; b = 255*(-l); }
-    if ((l >=    0) && (l <   1)) {r = 255*l; g = 0; b = 0; }
-    if ((l >=    1) && (l <  11)) {r = 255; g = 255*(l-1)/10; b = 0; }
-    if ((l >=   11) && (l < 111)) {r = 255; g = 255; b = 255*(l-11)/100; }
-    if ((l >=  111)             ) {r = 255; g = 255; b = 255; }
-    r=r*w;
-    g=g*w + (1-w)*255;
-    b=b*w;
-  } else {
-    r = 255;
-    g = 0;
-    b = 255;
-  }
-  optr[offset].x = r;
-  optr[offset].y = g;
-  optr[offset].z = b;
-  optr[offset].w = 255;
-}
+    if (ISFINITE(l)) {
+      l = l * 111;
+      if (               (l <-111)) {r = 255; g = 255; b = 255; }
+      if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
+      if ((l >=  -11) && (l <  -1)) {r = 0; g = (255*(-l-1))/10; b = 255; }
+      if ((l >=   -1) && (l <   0)) {r = 0; g = 0; b = 255*(-l); }
+      if ((l >=    0) && (l <   1)) {r = 255*l; g = 0; b = 0; }
+      if ((l >=    1) && (l <  11)) {r = 255; g = 255*(l-1)/10; b = 0; }
+      if ((l >=   11) && (l < 111)) {r = 255; g = 255; b = 255*(l-11)/100; }
+      if ((l >=  111)             ) {r = 255; g = 255; b = 255; }
+      r=r*w;
+      g=g*w + (1-w)*255;
+      b=b*w;
+    } else {
+      r = 255;
+      g = 0;
+      b = 255;
+    }
 
-/// Kernel for graphics output
-CudaGlobalFunction void ColorKernel(uchar4 *optr, int z, const CartLatticeContainer& container, const LatticeData& data)
-{
-  NodeToColor< Primal, NoGlobals, Get >(
-    CudaThread.x+CudaBlock.x*CudaNumberOfThreads.x,
-    CudaBlock.y,
-    z,
-    optr,
-    container,
-    data);
-}
+    optr[offset].x = r;
+    optr[offset].y = g;
+    optr[offset].z = b;
+    optr[offset].w = 255;
+  }
+};
 
 /// Runs kernel for rendering graphics
 /**
@@ -229,11 +232,8 @@ CudaGlobalFunction void ColorKernel(uchar4 *optr, int z, const CartLatticeContai
   \param optr 4-component graphics buffer
 */
 void CartLatticeExecutor::Color(uchar4 *optr) const {
-#ifndef CROSS_CPU
-  CudaKernelRun(ColorKernel, dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK), optr, container.nz / 2, container, data);
-#else
-  CudaKernelRun([](uchar4 *optr, int z, const CartLatticeContainer& c, const LatticeData& d) { ColorKernel(optr, z, c, d); }, dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK), optr, container.nz / 2, container, data);
-#endif
+  const CartColorExecutor< Primal, NoGlobals, Get > executor(container, data, optr, container.nz / 2);
+  LaunchExecutor(executor);
 }
 
 // Quantity getters

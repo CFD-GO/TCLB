@@ -92,9 +92,9 @@ LaunchParams ComputeLaunchParams(const EX& executor) {
 }
 
 template<class EX>
-void LaunchExecutor(const EX& executor, CudaStream_t stream) {
+void LaunchExecutor(const EX& executor) {
   const auto exec_params = ComputeLaunchParams(executor);
-  CudaKernelRun(Kernel< EX >, exec_params.blx, exec_params.thr, stream, executor);
+  CudaKernelRun(Kernel< EX >, exec_params.blx, exec_params.thr, executor);
 }
 
 template<class EX>
