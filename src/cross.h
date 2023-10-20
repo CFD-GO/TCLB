@@ -182,6 +182,15 @@
     CudaError HandleError( CudaError err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
     #define ISFINITE(l__) isfinite(l__)
+
+    template <class E, class ...Arg>
+    CudaGlobalFunction void Kernel(const Arg... args) {
+        E e;
+        e.Execute(args...);
+    }
+    #define WRAP_EXECUTOR_AS_KERNEL(executor_type__)                    Kernel<executor_type__>
+    #define WRAP_EXECUTOR_AS_KERNEL_ARGPACK(executor_type__,arg_pack__) Kernel<executor_type__, arg_pack__>
+
   #else
     #include <assert.h>
     #include <time.h>
@@ -281,7 +290,21 @@
     extern uint3 CpuThread;
     extern uint3 CpuSize;
 
-    #include <functional>
+    #include <utility>
+    template <class E>
+    struct KernelGenericLambda {
+        template <class... Args>
+        void operator()(Args&&... args) const {
+            E executor;
+            executor.Execute(std::forward<Args>(args)...);
+        }
+        // We need this to decay to a function pointer for the puposes of CudaFuncGetAttributes
+        // The function pointer is not actually used, hence the nullptr return value
+        using dummy_fun_ptr_t = void(*)();
+        operator dummy_fun_ptr_t() const noexcept { return nullptr; }
+    };
+    #define WRAP_EXECUTOR_AS_KERNEL(executor_type__)                    KernelGenericLambda<executor_type__>{}
+    #define WRAP_EXECUTOR_AS_KERNEL_ARGPACK(executor_type__,arg_pack__) KernelGenericLambda<executor_type__>{}
 
     template <typename F, typename ...P>
     inline void CPUKernelRun(F &&func, const dim3& blocks, P &&... args) {

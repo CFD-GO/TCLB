@@ -2,13 +2,6 @@
 #include "cross.h"
 
 #include <typeinfo>
-#include <type_traits>
-
-template <class E, class ...Arg>
-CudaGlobalFunction void Kernel(const Arg... args) {
-    E e;
-    e.Execute(args...);
-}
 
 std::string cxx_demangle(std::string str);
 
@@ -20,7 +13,7 @@ inline int ceiling_div(const int & x, const int & y) {
 template < class E, class ...Args > int GetThreads() {
 	CudaFuncAttributes attr;
     auto attr_ptr = &attr;
-	CudaFuncGetAttributes(attr_ptr, (+Kernel<E, Args...>)) ;
+	CudaFuncGetAttributes(attr_ptr, (+WRAP_EXECUTOR_AS_KERNEL_ARGPACK(E, Args...))) ;
 	debug1( "[%d] Constant mem:%ld\n", D_MPI_RANK, attr.constSizeBytes);
 	debug1( "[%d] Local    mem:%ld\n", D_MPI_RANK, attr.localSizeBytes);
 	debug1( "[%d] Max  threads:%d\n", D_MPI_RANK, attr.maxThreadsPerBlock);
