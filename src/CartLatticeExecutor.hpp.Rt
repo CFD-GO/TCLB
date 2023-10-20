@@ -22,8 +22,31 @@ using CartLatticeAccessInterior = AccessComposite< CartLatticeAccess<
   container.dx/dy is to calculate only internal nodes
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
-struct InteriorExecutor {
-  CudaDeviceFunction void Execute(const CartLatticeContainer& container, const LatticeData& data) const {
+class InteriorExecutor {
+  CartLatticeContainer container;
+  LatticeData          data;
+
+public:
+  InteriorExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3 thr) const {
+    const int nx = container.nx;
+    const int ny = container.ny;
+    const int nz = container.nz;
+    dim3 blx;
+#ifdef GRID3D
+    blx.z = nx/thr.x;
+#else
+    blx.z = 1;
+#endif
+    int totx = ny - <?%d BorderMargin$max[2]-BorderMargin$min[2] ?>;
+    blx.x = ceiling_div(totx, thr.y);
+    int toty = nz - <?%d BorderMargin$max[3]-BorderMargin$min[3] ?>;
+    blx.y = toty;
+    return LaunchParams{blx, thr};
+  }
+
+  CudaDeviceFunction void Execute() const {
     using LA = CartLatticeAccessInterior;
     using N  = Node<LA, I, G, S>;
     int x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + <?%d BorderMargin$max[1] ?>;
@@ -47,10 +70,37 @@ struct InteriorExecutor {
   iterates over border elements and runs them with RunElement function
 */
 template < eOperationType I, eCalculateGlobals G, eStage S >
-struct BorderExecutor {
-  CudaDeviceFunction void Execute(const CartLatticeContainer& container, const LatticeData& data) const {
-    using LA = CartLatticeAccessAll;
-    using N  = Node<LA, I, G, S>;
+class BorderExecutor {
+  CartLatticeContainer container;
+  LatticeData          data;
+
+public:
+  BorderExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3 thr) const {
+    const int nx = container.nx;
+    const int ny = container.ny;
+    const int nz = container.nz;
+<?R
+    thy = BorderMargin$max[2] - BorderMargin$min[2] + BorderMargin$max[3] - BorderMargin$min[3]
+    blx = "nz"
+    if (BorderMargin$max[3] != 0 || BorderMargin$min[3] != 0) blx = "max(ny,nz)"
+    if (thy > 0) {
+?>
+    dim3 blx;
+#ifdef GRID3D
+    blx.z = nx/thr.x;
+#else
+    blx.z = 1;
+#endif
+    int totx = <?%s blx ?>;
+    blx.x = ceiling_div(totx, thr.y);
+    blx.y = <?%d thy ?>;
+    return LaunchParams{blx, thr};
+<?R } ?>
+  }
+
+  CudaDeviceFunction void Execute() const {
     int x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + <?%d BorderMargin$max[1] ?>;
     int a_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y;
     int y_,z_;
@@ -86,6 +136,9 @@ struct BorderExecutor {
       break;
     }
 
+    using LA = CartLatticeAccessAll;
+    using N  = Node<LA, I, G, S>;
+
 #ifndef GRID3D
     for (; x_ < container.nx; x_ += CudaNumberOfThreads.x)
 #endif
@@ -97,68 +150,17 @@ struct BorderExecutor {
   }
 };
 
-/// Run the interior kernel
-/**
-  Dispatch the kernel running RunElement on all interior elements of the lattice
-  \param stream CUDA Stream to which add the kernel run
-*/
-template <class EX>
-void RunInteriorImpl(const CartLatticeContainer& container, const LatticeData& data, CudaStream_t stream) {
-  const int nx = container.nx;
-  const int ny = container.ny;
-  const int nz = container.nz;
-  dim3 thr = ThreadNumber< EX, CartLatticeContainer, LatticeData >::threads();
-  dim3 blx;
-#ifdef GRID3D
-  blx.z = nx/thr.x;
-#else
-  blx.z = 1;
-#endif
-  int totx = ny - <?%d BorderMargin$max[2]-BorderMargin$min[2] ?>;
-  blx.x = ceiling_div(totx, thr.y);
-  int toty = nz - <?%d BorderMargin$max[3]-BorderMargin$min[3] ?>;
-  blx.y = toty;
-  CudaKernelRunNoWait(WRAP_EXECUTOR_AS_KERNEL( EX ), blx, thr, stream, container, data);
-};
-
-/// Run the border kernel
-/**
-  Dispatch the kernel running RunElement on all border elements of the Lattice
-  \param stream CUDA Stream to which add the kernel run
-*/
-template <class EX>
-void RunBorderImpl(const CartLatticeContainer& container, const LatticeData& data, CudaStream_t stream) {
-  const int nx = container.nx;
-  const int ny = container.ny;
-  const int nz = container.nz;
-<?R
-  thy = BorderMargin$max[2] - BorderMargin$min[2] + BorderMargin$max[3] - BorderMargin$min[3]
-  blx = "nz"
-  if (BorderMargin$max[3] != 0 || BorderMargin$min[3] != 0) blx = "max(ny,nz)"
-  if (thy > 0) {
-?>
-  dim3 thr = ThreadNumber< EX, CartLatticeContainer, LatticeData >::threads();
-  dim3 blx;
-#ifdef GRID3D
-  blx.z = nx/thr.x;
-#else
-  blx.z = 1;
-#endif
-  int totx = <?%s blx ?>;
-  blx.x = ceiling_div(totx, thr.y);
-  blx.y = <?%d thy ?>;
-  CudaKernelRunNoWait(WRAP_EXECUTOR_AS_KERNEL( EX ), blx, thr, stream, container, data);
-<?R } ?>
-};
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeExecutor::RunInterior(CudaStream_t stream) const {
-  RunInteriorImpl< InteriorExecutor< I, G, S > >(container, data, stream);
+  const InteriorExecutor< I, G, S > executor(container, data);
+  LaunchExecutorNoWait(executor, stream);
 }
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeExecutor::RunBorder(CudaStream_t stream) const {
-  RunBorderImpl< BorderExecutor< I, G, S > >(container, data, stream);
+  const BorderExecutor< I, G, S > executor(container, data);
+  LaunchExecutorNoWait(executor, stream);
 }
 
 /// Old function for graphics output
