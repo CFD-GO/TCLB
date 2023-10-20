@@ -14,7 +14,7 @@ EMBEDED_PYTHON = @EMBEDED_PYTHON@
 
 WITH_LAMMPS = @WITH_LAMMPS@
 
-SOURCE_CU=Global.cu Lattice.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu CartLatticeContainer.cu Dynamics.c
+SOURCE_CU=Global.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu CartLatticeContainer.cu Dynamics.c
 SOURCE=$(SOURCE_CU)
 HEADERS=Global.h gpu_anim.h CartLatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h types.h pugixml.hpp pugiconfig.hpp
 

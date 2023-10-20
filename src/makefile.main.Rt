@@ -17,7 +17,7 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
 
-SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp
+SOURCE_PLAN+=Global.cpp Lattice.cpp vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp
 SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
