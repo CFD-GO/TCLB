@@ -2,10 +2,10 @@
         source("conf.R")
 c_header();
 ?>
-/** \file CartLatticeExecutor.hpp
+/** \file CartLatticeLauncher.hpp
 */
 
-#include "CartLatticeExecutor.h"
+#include "CartLatticeLauncher.h"
 #include "CartLatticeAccess.hpp"
 #include "Node.hpp"
 #include "GetThreads.h"
@@ -151,13 +151,13 @@ public:
 };
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
-void CartLatticeExecutor::RunInterior(CudaStream_t stream) const {
+void CartLatticeLauncher::RunInterior(CudaStream_t stream) const {
   const CartInteriorExecutor< I, G, S > executor(container, data);
   LaunchExecutorNoWait(executor, stream);
 }
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
-void CartLatticeExecutor::RunBorder(CudaStream_t stream) const {
+void CartLatticeLauncher::RunBorder(CudaStream_t stream) const {
   const CartBorderExecutor< I, G, S > executor(container, data);
   LaunchExecutorNoWait(executor, stream);
 }
@@ -231,7 +231,7 @@ public:
   Runs the kernel for rendering graphics
   \param optr 4-component graphics buffer
 */
-void CartLatticeExecutor::Color(uchar4 *optr) const {
+void CartLatticeLauncher::Color(uchar4 *optr) const {
   const CartColorExecutor< Primal, NoGlobals, Get > executor(container, data, optr, container.nz / 2);
   LaunchExecutor(executor);
 }
@@ -318,7 +318,7 @@ public:
   \param tab buffer to put the calculated result
   \param scale Scale to rescale the result (for units)
 */
-void CartLatticeExecutor::GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
+void CartLatticeLauncher::GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
   const GetQuantityExecutor<?%s q$name ?> executor(container, data, r, tab, scale);
   LaunchExecutor(executor);
 }
@@ -330,7 +330,7 @@ void CartLatticeExecutor::GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* 
   \param tab buffer to put the sampled result
   \param scale Scale to rescale the result (for units)
 */
-void CartLatticeExecutor::SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
+void CartLatticeLauncher::SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
   const GetQuantitySampleExecutor<?%s q$name ?> executor(container, data, r, tab, scale);
   LaunchExecutor(executor);
 }

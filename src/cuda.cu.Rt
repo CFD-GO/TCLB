@@ -28,7 +28,7 @@ if (exists('Extra_Dynamics_C_Header')) {
 	#include "ADTools.cu"
 #endif
 
-#include "CartLatticeExecutor.hpp"
+#include "CartLatticeLauncher.hpp"
 
 /*
 #include <cassert>
@@ -43,8 +43,8 @@ CudaDeviceFunction real_t rise_nan() {
       st = Stages[tp$Stage,,drop=FALSE]
       ifdef(tp$adjoint)
       ?>
-template void CartLatticeExecutor::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
-template void CartLatticeExecutor::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
+template void CartLatticeLauncher::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
+template void CartLatticeLauncher::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
     };
   ifdef();
 ?>
