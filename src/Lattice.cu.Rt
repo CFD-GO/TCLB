@@ -1211,7 +1211,6 @@ void Lattice::GetQuantity(int quant, lbRegion over, real_t * tab, real_t scale)
 
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
-
 /// Get [<?%s q$comment ?>]
 /**
         Retrive the values of the Quantity <?%s q$name ?> (<?%s q$comment ?>)
@@ -1226,12 +1225,13 @@ void Lattice::Get<?%s q$name ?>(lbRegion over, <?%s q$type ?> * tab, real_t scal
 	if (inter.size()==0) return;
 	<?%s q$type ?> * buf=NULL;
 	CudaMalloc((void**)&buf, inter.sizeL()*sizeof(<?%s q$type ?>));
-        {	lbRegion small = inter;
-		small.dx -= region.dx;
-		small.dy -= region.dy;
-		small.dz -= region.dz;
-		CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny,small.nz) , dim3(1) , small, buf, scale, executor.container, executor.data);
-		CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
+    {
+        lbRegion small = inter;
+        small.dx -= region.dx;
+        small.dy -= region.dy;
+        small.dz -= region.dz;
+        executor.GetQuantity<?%s q$name ?>(small, buf, scale);
+        CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
 	}
 	CudaFree(buf);
 }
@@ -1388,10 +1388,11 @@ void Lattice::resetAverage() {
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 void Lattice::GetSample<?%s q$name ?>(lbRegion over, real_t scale,real_t* buf)
 {
-       	executor.container.in = Snaps[Snap];
-       	<?R if (q$adjoint) { ?> executor.container.adjin = aSnaps[aSnap]; <?R } ?>
-	lbRegion small = region.intersect(over);
-	CudaKernelRun( get<?%s q$name ?> , dim3(small.nx,small.ny) , dim3(1) , small, (<?%s q$type?>*) buf, scale, executor.container, executor.data);
+    executor.container.in = Snaps[Snap];
+<?R if (q$adjoint) { ?>
+    executor.container.adjin = aSnaps[aSnap]; <?R } ?>
+    lbRegion small = region.intersect(over);
+    executor.SampleQuantity<?%s q$name ?>(small, (<?%s q$type ?>*)buf, scale);
 }
 <?R } ;ifdef() ?>
 void Lattice::updateAllSamples(){

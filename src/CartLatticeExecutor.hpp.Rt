@@ -237,24 +237,28 @@ void CartLatticeExecutor::Color(uchar4 *optr) const {
 }
 
 // Quantity getters
-<?R
-        for (q in rows(Quantities))
-        {
-                ifdef(q$adjoint); ?>
-/// Calculate quantity [<?%s q$comment ?>] kernel
-/**
-  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
-  \param r Lattice region to calculate the quantity
-  \param tab buffor to put the calculated result
-  \param scale Scale to rescale the result (for units)
-*/
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale, const CartLatticeContainer container, const LatticeData data)
-{
-  using LA = CartLatticeAccessAll;
-  int x = CudaBlock.x+r.dx;
-  int y = CudaBlock.y+r.dy;
-  int z = CudaBlock.z+r.dz;
-  LA acc(x, y, z, container); <?R
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+
+class GetQuantityExecutor<?%s q$name ?>Base {
+protected:
+  CartLatticeContainer container;
+  LatticeData          data;
+
+  lbRegion        small;
+  <?%s q$type ?>* buf;
+  real_t          scale;
+
+public:
+  GetQuantityExecutor<?%s q$name ?>Base(const CartLatticeContainer& container_, const LatticeData& data_, const lbRegion& small_, <?%s q$type ?>* buf_, real_t scale_)
+    : container(container_), data(data_), small(small_), buf(buf_), scale(scale_)
+  {}
+
+  CudaDeviceFunction void Execute() const {
+    using LA = CartLatticeAccessAll;
+    int x = CudaBlock.x + small.dx;
+    int y = CudaBlock.y + small.dy;
+    int z = CudaBlock.z + small.dz;
+    LA acc(x, y, z, container); <?R
     if (q$adjoint) { ?>
       Node< LA, Adjoint, NoGlobals, Get > now(acc, data); <?R
     } else { ?>
@@ -283,10 +287,54 @@ CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real
 //      w = nan(""); <?R
       } ?>
 //  }
-  tab[r.offset(x,y,z)] = w;
+    buf[small.offset(x,y,z)] = w;
+  }
+};
+
+class GetQuantityExecutor<?%s q$name ?> : public GetQuantityExecutor<?%s q$name ?>Base {
+public:
+  template<class... Args>
+  GetQuantityExecutor<?%s q$name ?>(Args&&... args) : GetQuantityExecutor<?%s q$name ?>Base(std::forward<Args>(args)...) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3) const {
+    return LaunchParams{dim3(small.nx, small.ny, small.nz), dim3(1)};
+  }
+};
+
+class GetQuantitySampleExecutor<?%s q$name ?> : public GetQuantityExecutor<?%s q$name ?>Base {
+public:
+  template<class... Args>
+  GetQuantitySampleExecutor<?%s q$name ?>(Args&&... args) : GetQuantityExecutor<?%s q$name ?>Base(std::forward<Args>(args)...) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3) const {
+    return LaunchParams{dim3(small.nx, small.ny), dim3(1)};
+  }
+};
+
+/// Calculate quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  \param r Lattice region to calculate the quantity
+  \param tab buffer to put the calculated result
+  \param scale Scale to rescale the result (for units)
+*/
+void CartLatticeExecutor::GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
+  const GetQuantityExecutor<?%s q$name ?> executor(container, data, r, tab, scale);
+  LaunchExecutor(executor);
+}
+
+/// Sample quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to sample quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  \param r Lattice region to sample the quantity
+  \param tab buffer to put the sampled result
+  \param scale Scale to rescale the result (for units)
+*/
+void CartLatticeExecutor::SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
+  const GetQuantitySampleExecutor<?%s q$name ?> executor(container, data, r, tab, scale);
+  LaunchExecutor(executor);
 }
 
 <?R
-  }
-  ifdef();
-?>
+}
+ifdef(); ?>

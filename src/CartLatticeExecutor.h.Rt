@@ -20,9 +20,6 @@ struct CartLatticeExecutor {
   template < eOperationType I, eCalculateGlobals G, eStage S >
   void RunInterior(CudaStream_t stream) const;
   void Color(uchar4 *out_ptr) const;
-};
-
-CudaGlobalFunction void ColorKernel(uchar4 *optr, int z);
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);
@@ -32,13 +29,11 @@ for (q in rows(Quantities)) { ifdef(q$adjoint);
           node = "Node"
         }
 ?>
-CudaGlobalFunction void get<?%s q$name ?>(lbRegion r, <?%s q$type ?> * tab, real_t scale, const CartLatticeContainer, const LatticeData); <?R
-  for (tp in c("float","double"))
-  { ?>
-CudaGlobalFunction void get<?%s q$name ?>_<?%s tp ?>(lbRegion , <?%s tp ?> *, int, const CartLatticeContainer, const LatticeData);
+  void GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const;
+  void SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const;
 <?R
-  }
 }
 ifdef() ?>
+};
 
 #endif // CARTLATTICEEXECUTOR_H
