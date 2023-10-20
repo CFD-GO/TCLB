@@ -109,15 +109,7 @@ CudaDeviceFunction real_t getPsi(){
 	return ( <?R C( sum( g[2:9] ))  ?> ) / (1. - wp0);
 }
 
-
-//CudaDeviceFunction real_t getSubiter(){
-//	return subiter;
-//}
- 
-
 CudaDeviceFunction real_t getrho_e(){
-//    const real_t psi = getPsi();
-//	return -2. * n_inf * z * el * sinh( z * el / kb/ T * psi);
     return el*(ez*getn0() - ez* getn1());	
 }
 
@@ -287,15 +279,15 @@ CudaDeviceFunction void Init() {
     real_t Jy = u.y / rho;
 
 <?R
-    psi0=PV("psi0");
-    phi0=PV("phi0");
+    Psi0=PV("Psi0");
+    Phi0=PV("Phi0");
 
-	C( g, psi0 * wp0 );
+	C( g, Psi0 * wp0 );
     C( f, feq );
 
     C( h_0, n_inf_0 * wi);
     C( h_1, n_inf_1 * wi);
-    C(phi, wp0 * phi0);
+    C(phi, wp0 * Phi0);
 ?>
 
 <?R if ( any( DensityAll$group=="BC" ) ) { ?>

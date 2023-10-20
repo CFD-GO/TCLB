@@ -99,8 +99,8 @@ AddSetting(name="el_kbT",  unit="C/J", comment='')
 AddSetting(name="epsilon",  unit="C2/J/m", comment='')
 AddSetting(name="dt", comment='')
 
-AddSetting(name="psi0",  unit="V", default=1., comment='')
-AddSetting(name="phi0",  unit="V", default=1., comment='')
+AddSetting(name="Psi0",  unit="V", default=1., comment='')
+AddSetting(name="Phi0",  unit="V", default=1., comment='')
 
 
 AddSetting(name="ez",  default=1., comment='')
