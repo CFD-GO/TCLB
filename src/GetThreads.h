@@ -98,7 +98,7 @@ void LaunchExecutor(const EX& executor) {
 }
 
 template<class EX>
-void LaunchExecutorNoWait(const EX& executor, CudaStream_t stream) {
+void LaunchExecutorAsync(const EX& executor, CudaStream_t stream) {
   const auto exec_params = ComputeLaunchParams(executor);
-  CudaKernelRunNoWait(Kernel< EX >, exec_params.blx, exec_params.thr, stream, executor);
+  CudaKernelRunAsync(Kernel< EX >, exec_params.blx, exec_params.thr, stream, executor);
 }

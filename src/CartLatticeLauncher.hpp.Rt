@@ -153,13 +153,13 @@ public:
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeLauncher::RunInterior(CudaStream_t stream) const {
   const CartInteriorExecutor< I, G, S > executor(container, data);
-  LaunchExecutorNoWait(executor, stream);
+  LaunchExecutorAsync(executor, stream);
 }
 
 template < eOperationType I, eCalculateGlobals G, eStage S >
 void CartLatticeLauncher::RunBorder(CudaStream_t stream) const {
   const CartBorderExecutor< I, G, S > executor(container, data);
-  LaunchExecutorNoWait(executor, stream);
+  LaunchExecutorAsync(executor, stream);
 }
 
 
