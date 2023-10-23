@@ -17,16 +17,16 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
 
-SOURCE_PLAN+=Global.cpp Lattice.cu vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp
+SOURCE_PLAN+=Global.cpp Lattice.cpp vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp
 SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=main.cpp
-SOURCE_PLAN+=Global.h gpu_anim.h CartLatticeContainer.h LatticeData.hpp CartLatticeExecutor.h CartLatticeExecutor.hpp Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
+SOURCE_PLAN+=Global.h gpu_anim.h CartLatticeContainer.h LatticeData.hpp CartLatticeLauncher.h CartLatticeLauncher.hpp Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
 SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp Node.hpp
 SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
 SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
-SOURCE_PLAN+=SolidTree.h SolidTree.hpp SolidTree.cpp SolidAll.h SolidGrid.h SolidGrid.hpp
+SOURCE_PLAN+=SolidTree.h SolidTree.hpp SolidAll.h SolidGrid.h SolidGrid.hpp
 SOURCE_PLAN+=SolidContainer.h
 SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
 SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h

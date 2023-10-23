@@ -165,8 +165,7 @@ void MainFree( Solver *d);
 */
 	int Solver::writeLog(const char * filename)
 	{ 
-	        FILE * f = NULL;
-		double v;
+	    FILE * f = NULL;
 		double * glob = lattice->globals;
 	        if (mpi.rank == 0) {
 			int j=0;
@@ -174,22 +173,21 @@ void MainFree( Solver *d);
 	                assert( f != NULL );
 			fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, get_walltime(), opt_iter);
 			for (int i=0; i< SETTINGS; i++) {
-				v = lattice->settings[i];
+				const double v = lattice->getSetting(i);
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
 			for (int i=0; i< ZONESETTINGS; i++) {
-			    	for (std::map<std::string,int>::iterator it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
+			    	for (const auto& map_entry : geometry->SettingZones) {
 			    		int ind = lattice->ZoneIter;
-			    		int zone = it->second;
-			    		v = lattice->zSet.get(i, zone, ind);
-//					v = lattice->settings[i];
-					fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
-		                }
+			    		int zone = map_entry.second;
+			    		const double v = lattice->zSet.get(i, zone, ind);
+					    fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
+		            }
 				j++;
 			}
 			for (int i=0; i< GLOBALS; i++) {
-				v = glob[i];
+				const double v = glob[i];
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
@@ -390,9 +388,6 @@ void MainFree( Solver *d);
 <?R for (s in rows(ZoneSettings)) { ?>
 		lattice->zSet.set(<?%s s$Index ?>, -1, units.alt("<?%s s$default ?>"));
 <?R } ?>
-
-		// Setting global variables
-		initSettings();
 
 		geometry = new Geometry(region, mpi.totalregion, units);
 

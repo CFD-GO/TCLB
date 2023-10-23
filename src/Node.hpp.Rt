@@ -7,6 +7,8 @@
         Defines Node based on supplied Dynamics
 */
 
+#include "Particle.hpp"
+
 <?R
 	paste0_s = function(...) if (any(sapply(list(...),length) < 1)) character(0) else paste0(...)
 	macros = NULL
@@ -20,16 +22,16 @@
 	XYZ = c("X","Y","Z")
 	AddMacro(XYZ, paste0_s("acc.get", XYZ,"()"))
 	AddMacro("NodeType", paste0_s("acc.getNodeType()"))
-	AddMacro("Time", paste0_s("(constData.iter)"))
-	AddMacro("SyntheticTurbulence(x__,y__,z__)","constData.getST(x__,y__,z__)")
-	AddMacro("average_iter","(constData.iter - constData.reset_iter)")
+	AddMacro("Time", paste0_s("(data->iter)"))
+	AddMacro("SyntheticTurbulence(x__,y__,z__)","data->getST(x__,y__,z__)")
+	AddMacro("average_iter","(data->iter - data->reset_iter)")
 	P = expand.grid(x=0:2,y=0:2,z=0:2)
 	Q = paste("Q",P$x,P$y,P$z,sep="")[-1]
 	AddMacro(Q, paste0_s("(acc.getQ(",seq_along(Q)-1,"))"))
 	s = ZoneSettings[! as.logical(ZoneSettings$preload),,drop=FALSE]
-	AddMacro(s$name, paste0_s("constData.ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	AddMacro(s$name, paste0_s("data->ZoneSetting(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
 	s = ZoneSettings
-	AddMacro(paste0_s(s$name,"_DT"), paste0_s("constData.ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
+	AddMacro(paste0_s(s$name,"_DT"), paste0_s("data->ZoneSetting_DT(", s$Index, ", acc.getNodeType() >> ZONE_SHIFT)"))
 	g = Globals
 	g$opstr = ifelse(g$op == "SUM", "Add", "Max")
 	AddMacro(paste0_s("AddTo", g$name, "(x__)"), paste0_s("glob.", g$opstr, "ToGlobal<", g$Index, ">(x__, acc.getNodeType())"))
@@ -37,6 +39,8 @@
 	AddMacro(paste0_s("Iam",n$name),paste0_s("((acc.getNodeType() & ", n$groupIndex, ") == ", n$Index,")"))
 	n = NodeTypeGroups
 	AddMacro(paste0_s("Iam",n$name),paste0_s("(acc.getNodeType() & ", n$Index, ")"))
+	s = Settings[is.na(Settings$derived), ]
+    AddMacro(s$name, paste0_s("data->settings[",s$Index,"]"))
 ?>
 
 template <eCalculateGlobals G>
@@ -44,6 +48,7 @@ struct CalculateGlobals {};
 
 template <>
 struct CalculateGlobals<NoGlobals> {
+    CudaDeviceFunction CalculateGlobals(const LatticeData&) {}
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {}
 	template <int I>
@@ -53,17 +58,18 @@ struct CalculateGlobals<NoGlobals> {
 
 template <>
 struct CalculateGlobals<IntegrateGlobals> {
-	real_t globals[GLOBALS];
-	CudaDeviceFunction CalculateGlobals() {
-		for (int i=0; i<GLOBALS; i++) {
-            globals[i] = 0.0;
-		}
-	}
+    real_t globals[GLOBALS];
+    const LatticeData* data;
+
+    CudaDeviceFunction CalculateGlobals(const LatticeData& data_) : data(&data_) {
+      for (int i=0; i<GLOBALS; i++)
+        globals[i] = 0.0;
+    }
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		globals[I] = globals[I] + x;
 		if (I < SUM_GLOBALS) {
-			globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + constData.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+			globals[GLOBALS_Objective] = globals[GLOBALS_Objective] + data->ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
 		}
 	}
 	template <int I>
@@ -73,9 +79,9 @@ struct CalculateGlobals<IntegrateGlobals> {
 	CudaDeviceFunction void inline Glob() {
 		for (int i=0; i<GLOBALS; i++) {
 			if (i < SUM_GLOBALS) {
-            	CudaAtomicAddReduceWarp(&constData.Globals[i], globals[i]);
+            	CudaAtomicAddReduceWarp(&data->Globals[i], globals[i]);
 			} else {
-				CudaAtomicMaxReduceWarp(&constData.Globals[i], globals[i]);
+				CudaAtomicMaxReduceWarp(&data->Globals[i], globals[i]);
 			}
 		}
 	}
@@ -84,25 +90,28 @@ struct CalculateGlobals<IntegrateGlobals> {
 template <>
 struct CalculateGlobals<OnlyObjective> {
 	real_t obj;
-	CudaDeviceFunction CalculateGlobals() {
-		obj = 0.0;
-	}
+	const LatticeData* data;
+
+	CudaDeviceFunction CalculateGlobals(const LatticeData& data_) : obj(0.), data(&data_) {}
 	template <int I>
 	CudaDeviceFunction inline void AddToGlobal(const real_t& x, const flag_t& NodeType) {
 		if (I < SUM_GLOBALS) {
-			obj = obj + constData.ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
+			obj = obj + data->ZoneSetting(I + IN_OBJ_OFFSET, NodeType >> ZONE_SHIFT);
 		}
 	}
 	template <int I>
 	CudaDeviceFunction inline void MaxToGlobal(const real_t& x, const flag_t& NodeType) {}
 	CudaDeviceFunction void inline Glob() {
-        CudaAtomicAddReduceWarp(&constData.Globals[GLOBALS_Objective], obj);
+        CudaAtomicAddReduceWarp(&data->Globals[GLOBALS_Objective], obj);
 	}
 };
 
 struct CalculateGlobalsAdjoint {
 	real_t duals[ZONESETTINGS];
 	real_t duals_dt[ZONESETTINGS];
+	const LatticeData* data;
+
+    CudaDeviceFunction CalculateGlobalsAdjoint(const LatticeData& data_) : data(&data_) {}
 	CudaDeviceFunction CalculateGlobalsAdjoint() {
 		for (int i=0; i<ZONESETTINGS; i++) {
             duals[i] = 0.0;
@@ -115,25 +124,42 @@ struct CalculateGlobalsAdjoint {
 	CudaDeviceFunction inline real_t& DTBRef() { return duals_dt[I]; }
 	CudaDeviceFunction void inline Glob(const flag_t& NodeType) {
         int z = NodeType >> ZONE_SHIFT;
-		for (int nz = 0; nz < constData.MaxZones; nz++) if (CudaSyncWarpOr(nz == z)) {
+		for (int nz = 0; nz < data->MaxZones; nz++) if (CudaSyncWarpOr(nz == z)) {
 			for (int i=0; i<ZONESETTINGS; i++) {
 				real_t val;
 				val = (nz == z) ? duals[i] : 0.0f;
-    	        CudaAtomicAddReduceWarp(constData.ZoneSettingGrad( i , nz), val);
+    	        CudaAtomicAddReduceWarp(data->ZoneSettingGrad( i , nz), val);
 				val = (nz == z) ? duals_dt[i] : 0.0f;
-	            CudaAtomicAddReduceWarp(constData.ZoneSettingGrad( i + DT_OFFSET, nz), val);
+	            CudaAtomicAddReduceWarp(data->ZoneSettingGrad( i + DT_OFFSET, nz), val);
 			}
 		}
 	}
 };
 
+template <class T>
+CudaDeviceFunction T ParticleIteratorXBlockT(real_t x, real_t y, real_t z, const LatticeData* data) {
+	real_t mar = PART_MAR;
+	real_t point[3] = {x,y,z};
+	real_t lower[3] = {x-CudaThread.x-mar,y-mar,z-mar};
+	real_t upper[3] = {x-CudaThread.x+CudaNumberOfThreads.x-1.0f+mar,y+mar,z+mar};
+	return T(data->solidfinder, data->particle_data, point, lower, upper);
+}
+
+template <class T>
+CudaDeviceFunction T ParticleIteratorT(real_t x, real_t y, real_t z, const LatticeData* data) {
+	real_t mar = PART_MAR;
+	real_t point[3] = {x,y,z};
+	real_t lower[3] = {x-mar,y-mar,z-mar};
+	real_t upper[3] = {x+mar,y+mar,z+mar};
+	return T(data->solidfinder, data->particle_data, point, lower, upper);
+}
 
 #ifndef NODE_HPP
 #define NODE_HPP
 
 template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node {
         CudaDeviceFunction inline void RunElement(){};
-		CudaDeviceFunction inline Node(const LA& acc_) {};
+		CudaDeviceFunction inline Node(const LA& acc_, const LatticeData&) {};
 };
 
 <?R
@@ -151,16 +177,17 @@ for (tp in rows(Dispatch)) {
 ?>
 template < class LA > struct Node < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	const LA& acc;
+	const LatticeData* data;
 	CalculateGlobals< <?%s T2 ?> > glob;
 <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
 	real_t <?%s setting$name ?>; <?R
 		}
 ?>
-	CudaDeviceFunction inline Node(const LA& acc_):acc(acc_) {
+	CudaDeviceFunction Node(const LA& acc_, const LatticeData& data_) : acc(acc_), data(&data_), glob(data_) {
 		int z = NodeType >> ZONE_SHIFT; <?R
 		for(setting in rows(ZoneSettings)) if (setting$preload) { ?>
-		<?%s setting$name ?> =  constData.ZoneSetting(<?%s setting$Index ?>, z); <?R
+		<?%s setting$name ?> =  data->ZoneSetting(<?%s setting$Index ?>, z); <?R
 		} ?>
 	};
 	CudaDeviceFunction void inline Glob() {
@@ -273,7 +300,21 @@ template < class LA > struct Node < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 		ExecElement();
 		SaveElement();
 		Glob();
-	} <?R
+	}
+#ifdef USE_ADDOPP
+    CudaDeviceFunction set_found_t_s SyncParticleIterator(real_t x, real_t y, real_t z) {
+        return ParticleIteratorT< set_found_t_s >(x, y, z, data);
+    }
+#else
+    CudaDeviceFunction set_found_t_s SyncParticleIterator(real_t x, real_t y, real_t z) {
+        return ParticleIteratorXBlockT< set_found_t_s >(x, y, z, data);
+    }
+#endif
+
+    CudaDeviceFunction set_found_t_i ParticleIterator(real_t x, real_t y, real_t z) {
+        return ParticleIteratorT< set_found_t_i >(x, y, z, data);
+    }
+	<?R
         } ########################################################################################### ?>
 }; <?R
 } 
