@@ -5,7 +5,7 @@ std::string acModel::xmlname = "Model";
 int acModel::Init () {
 		int ret = GenericContainer::Init();
 		if (ret) return ret;
-		solver->lattice->Init();
+                solver->getCartLattice()->Init();
 		solver->iter = 0;
 		return 0;
 	}

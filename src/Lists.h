@@ -1,14 +1,18 @@
 #ifndef LISTS_H
 #define LISTS_H
+
+#include <mpi.h>
+
+#include <functional>
 #include <string>
 #include <vector>
+
 #include "Consts.h"
 #include "types.h"
-#include <mpi.h>
 #include "Things.h"
 
-typedef double (*DerivedFunction)(double);
-typedef void (*ObjectiveFunction)(double*, double*, double*);
+using DerivedFunction = std::function<double(double)>;
+using ObjectiveFunction = std::function<void(double*, double*, double*)>;
 
 class Model {
 public:

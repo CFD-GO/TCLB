@@ -22,6 +22,7 @@ int acRunAction::Init () {
 		}
 		action = act.id;
 		if (GenericAction::ExecuteInternal()) return -1;
+                const auto lattice = solver->getCartLattice();
 		int stop=0;
 		do {
 			int next_it = Next(solver->iter);
@@ -32,7 +33,7 @@ int acRunAction::Init () {
 			solver->steps = next_it;
 			MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPMD.local);
 			solver->iter += solver->steps;
-			solver->lattice->IterateAction(action, solver->steps, solver->iter_type);
+			lattice->IterateAction(action, solver->steps, solver->iter_type);
 			CudaDeviceSynchronize();
 			MPI_Barrier(MPMD.local);
 			for (size_t i=0; i<solver->hands.size(); i++) {

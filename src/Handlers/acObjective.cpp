@@ -1,40 +1,36 @@
 #include "acObjective.h"
+
+#include <algorithm>
+
 std::string acObjective::xmlname = "Objective";
 
 int acObjective::Init () {
-	Model * model = solver->lattice->model;
-	int zone_number = 0;
-	size_t n =  model->globals.size();
-	double* glob = new double[n];
-	double* grad = new double[n];
-	double* inObj = new double[n];
-	double obj = 0;
-	for (size_t i = 0; i < n; i++) {
-		glob[i] = solver->lattice->globals[i];
-		inObj[i] = 0;
-	}
-	MPI_Bcast(glob, model->globals.size(), MPI_DOUBLE, 0, solver->mpi_comm);
+	const auto& model = *solver->lattice->model;
+	size_t n =  model.globals.size();
+        std::vector<double> glob, grad(n), inObj(n, 0.);
+        glob.reserve(n);
+        std::copy_n(solver->lattice->globals.cbegin(), n, std::back_inserter(glob));
+	MPI_Bcast(glob.data(), n, MPI_DOUBLE, 0, solver->mpi_comm);
 	pugi::xml_attribute attr;
-	for (const Model::Objective& it : model->objectives) {
-		attr = node.attribute(it.name.c_str());
+        double obj_sum = 0;
+	for (const Model::Objective& obj : model.objectives) {
+		attr = node.attribute(obj.name.c_str());
 		if (attr) {
 			double weight = attr.as_double();
 			double ret;
-			it.fun(glob, &ret, grad);
-			obj = obj + weight * ret;
+			obj.fun(glob.data(), &ret, grad.data());
+			obj_sum += weight * ret;
 			for (size_t i = 0; i < n; i++) {
-				inObj[i] = inObj[i] + weight * grad[i];
+				inObj[i] += + weight * grad[i];
 			}
 		}
 	}
-	for (const Model::Global& it : model->globals) {
-		if (it.inObjId >= 0) solver->lattice->zSet.set(it.inObjId, zone_number, inObj[it.id]);
+        int zone_number = 0;
+	for (const Model::Global& g : model.globals) {
+            if (g.inObjId >= 0) solver->lattice->zSet.set(g.inObjId, zone_number, inObj[g.id]);
 	}
-	const Model::Global& obj_glob = model->globals.by_name("Objective");
-	if (obj_glob) solver->lattice->globals[ obj_glob.id ] = obj;
-	delete[] glob;
-	delete[] grad;
-	delete[] inObj;
+	const Model::Global& obj_glob = model.globals.by_name("Objective");
+	if (obj_glob) solver->lattice->globals[ obj_glob.id ] = obj_sum;
 	return 0;
 }
 

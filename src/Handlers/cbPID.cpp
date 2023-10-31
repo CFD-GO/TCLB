@@ -40,8 +40,9 @@ int cbPID::Init () {
 		if (zone == "") {
 			zone_number = -1;
 		} else{
-			if (solver->geometry->SettingZones.count(zone) > 0) { 
-				zone_number = solver->geometry->SettingZones[zone];
+                        const auto lattice = solver->getCartLattice();
+			if (lattice->geometry->SettingZones.count(zone) > 0) {
+				zone_number = lattice->geometry->SettingZones[zone];
 			} else {
 				ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
 				return -1;

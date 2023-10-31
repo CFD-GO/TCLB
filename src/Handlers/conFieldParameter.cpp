@@ -41,8 +41,9 @@ int conFieldParameter::Init () {
 		if (attr) {
 			std::string zone = attr.value();
 			int zone_number = -1;
-			if (solver->geometry->SettingZones.count(zone) > 0) { 
-				zone_number = solver->geometry->SettingZones[zone];
+                        const auto lattice = solver->getCartLattice();
+			if (lattice->geometry->SettingZones.count(zone) > 0) {
+				zone_number = lattice->geometry->SettingZones[zone];
 			} else {
 				ERROR("Unknown zone %s in %s\n", zone.c_str(), node.name());
 				return -1;
@@ -60,12 +61,13 @@ bool conFieldParameter::FlagInDesignSpace(flag_t flag) {
 }
 
 bool conFieldParameter::InDesignSpace(size_t i) {
-	return FlagInDesignSpace(solver->geometry->geom[i]);
+	return FlagInDesignSpace(solver->getCartLattice()->geometry->geom[i]);
 }
 
 
 int conFieldParameter::CalculateNumberOfParameters () {
-	size_t n = solver->region.sizeL();
+        const auto lattice = solver->getCartLattice();
+	size_t n = lattice->getLocalRegion().sizeL();
 	int j=0;
 	for (size_t i=0; i<n; i++) if (InDesignSpace(i)) j++;
 	Par_size = j;
@@ -90,13 +92,14 @@ int conFieldParameter::NumberOfParameters () {
 
 
 int conFieldParameter::LocalParameters(int type, double * tab) {
-	size_t n = solver->region.sizeL();
+        const auto lattice = solver->getCartLattice();
+        size_t n = lattice->getLocalRegion().sizeL();
 	real_t * buf = new real_t[n];
 
-		if ((type == PAR_GET) || (type == PAR_SET)) solver->lattice->Get_Field(field_id, buf);
+		if ((type == PAR_GET) || (type == PAR_SET)) lattice->Get_Field(field_id, buf);
 		if ( type == PAR_GRAD ) {
 		#ifdef ADJOINT
-			solver->lattice->Get_Field_Adj(field_id,buf);
+			lattice->Get_Field_Adj(field_id,buf);
 		#else
 			ERROR("Cannot get gradient of Field Parameter without adjoint\n");
 		#endif // ADJOINT
@@ -135,9 +138,9 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 	case PAR_T:
 		{
 			size_t i=0;
-			for (int z=0; z<solver->region.nz; z++)
-			for (int y=0; y<solver->region.ny; y++)
-			for (int x=0; x<solver->region.nx; x++) {
+			for (int z=0; z<lattice->getLocalRegion().nz; z++)
+			for (int y=0; y<lattice->getLocalRegion().ny; y++)
+			for (int x=0; x<lattice->getLocalRegion().nx; x++) {
 				if (InDesignSpace(i)) {
 					switch(type) {
 						case PAR_X: tab[j] = x; break;
@@ -152,7 +155,7 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 		}
 		break;
 	}
-	if ( type == PAR_SET ) solver->lattice->Set_Field(field_id, buf);
+	if ( type == PAR_SET ) lattice->Set_Field(field_id, buf);
 	assert(j == Par_size);
 	delete[] buf;
 	return 0;

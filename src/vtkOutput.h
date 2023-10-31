@@ -1,8 +1,8 @@
 
 #ifndef VTKOUTPUT_H
+#include "Region.h"
 #include "cross.h"
 #include "types.h"
-#include "Region.h"
 void fprintB64(FILE* f, void * tab, int len);
 
 class vtkFileOut {

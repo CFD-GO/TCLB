@@ -15,10 +15,10 @@
 #include <iostream>
 
 
-PFNGLBINDBUFFERARBPROC    glBindBuffer     = NULL;
-PFNGLDELETEBUFFERSARBPROC glDeleteBuffers  = NULL;
-PFNGLGENBUFFERSARBPROC    glGenBuffers     = NULL;
-PFNGLBUFFERDATAARBPROC    glBufferData     = NULL;
+extern PFNGLBINDBUFFERARBPROC    glBindBuffer;
+extern PFNGLDELETEBUFFERSARBPROC glDeleteBuffers;
+extern PFNGLGENBUFFERSARBPROC    glGenBuffers;
+extern PFNGLBUFFERDATAARBPROC    glBufferData;
 
 
 struct GPUAnimBitmap {

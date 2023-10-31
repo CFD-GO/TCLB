@@ -3,11 +3,12 @@
 std::string cbFailcheck::xmlname = "Failcheck";
 
 int cbFailcheck::Init () {
-		Callback::Init();
-		currentlyactive = false;
-		reg.dx = solver->region.dx;
-		reg.dy = solver->region.dy;
-		reg.dz = solver->region.dz;
+	Callback::Init();
+	currentlyactive = false;
+        const auto lattice = solver->getCartLattice();
+	reg.dx = lattice->getLocalRegion().dx;
+	reg.dy = lattice->getLocalRegion().dy;
+	reg.dz = lattice->getLocalRegion().dz;
 	
 
 
@@ -65,7 +66,7 @@ int cbFailcheck::DoIt () {
 			int comp = 1;
 			if (it.isVector) comp = 3;
                     real_t* tmp = new real_t[reg.size()*comp];
-		    solver->lattice->GetQuantity(it.id, reg, tmp, 1);
+		    solver->getCartLattice()->GetQuantity(it.id, reg, tmp, 1);
                     bool cond = false;
                     for (int k = 0; k < reg.size()*comp; k++){  
 	       		    cond = cond || (std::isnan(tmp[k]));

@@ -1,6 +1,7 @@
 #include "cbBIN.h"
 std::string cbBIN::xmlname = "BIN";
 #include "../HandlerFactory.h"
+#include "../vtkLattice.h"
 
 int cbBIN::Init () {
 		Callback::Init();
@@ -13,7 +14,8 @@ int cbBIN::Init () {
 
 int cbBIN::DoIt () {
 		Callback::DoIt();
-		return solver->writeBIN(nm.c_str());
+                const auto filename = solver->outIterFile(nm, "");
+                return binWriteLattice(filename, *solver->getCartLattice(), solver->units);
 	};
 
 

@@ -73,7 +73,7 @@
       #define CudaNumberOfThreads blockDim
     #endif
 
-   #ifndef CROSS_HIP 
+   #ifndef CROSS_HIP
     #define CudaError cudaError_t
     #define CudaSuccess cudaSuccess
     #define CudaGetErrorString(a__) cudaGetErrorString(a__)
@@ -349,4 +349,23 @@
   CudaError cudaAllocFinalize();
   CudaError cudaAllocFreeAll();
 
+#ifdef ENABLE_NVPROF
+#include <nvToolsExt.h>
+#define DEBUG_PROF_PUSH(x__) nvtxRangePushA(x__)
+#define DEBUG_PROF_POP() nvtxRangePop()
+#else
+#define DEBUG_PROF_PUSH(x__)
+#define DEBUG_PROF_POP()
+#endif
+
+// Calculating the right number of threads per block
+struct ThreadsPerBlock {
+#ifdef CROSS_CPU
+    static constexpr int xsdim = 1;
+    static constexpr int ysdim = 1;
+#else
+    static constexpr int xsdim = 32;
+    static constexpr int ysdim = 1;
+#endif
+};
 #endif // CROSS_H

@@ -4,26 +4,30 @@ std::string InternalTopology::xmlname = "InternalTopology";
 
 int InternalTopology::Init () {
 		Pars = -1;
+                par_struct.Par_disp = std::make_unique<int[]>(solver->mpi_size);
+                par_struct.Par_sizes = std::make_unique<int[]>(solver->mpi_size);
 		return Design::Init();
 	};
 
 
 int InternalTopology::NumberOfParameters () {
 		if (Pars < 0) {
-			Pars =  solver->getPars();
+                    const auto lattice = solver->getCartLattice();
+		    Pars =  lattice->getPars(par_struct);
 		}
 		return Pars;
 	};
 
 
 int InternalTopology::Parameters (int type, double * tab) {
+                const auto lattice = solver->getCartLattice();
 		switch(type){
 		case PAR_GET:
-			return solver->getPar(tab);
+			return lattice->getPar(par_struct, tab);
 		case PAR_SET:
-			return solver->setPar(tab);
+			return lattice->setPar(par_struct, tab);
 		case PAR_GRAD:
-			return solver->getDPar(tab);
+			return lattice->getDPar(par_struct, tab);
 		case PAR_UPPER:
 			for (int i=0;i<Pars;i++) tab[i]=1;
 			return 0;

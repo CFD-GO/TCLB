@@ -15,14 +15,34 @@
 
 #include <array>
 
+inline CudaDeviceFunction vector_t calcST(const STWaveSet &ST, real_t x, real_t y, real_t z) {
+  vector_t ret;
+  ret.x=0;ret.y=0;ret.z=0;
+  for (int i=0; i<ST.nmodes; i++) {
+    real_t x1 = ST.data[i*ST_DATA+ST_WAVE_X];
+    real_t y1 = ST.data[i*ST_DATA+ST_WAVE_Y];
+    real_t z1 = ST.data[i*ST_DATA+ST_WAVE_Z];
+    real_t x2 = ST.data[i*ST_DATA+ST_SINE_X];
+    real_t y2 = ST.data[i*ST_DATA+ST_SINE_Y];
+    real_t z2 = ST.data[i*ST_DATA+ST_SINE_Z];
+    real_t w = ST.data[i*ST_DATA+ST_WAVE_L];
+    w = (x1*x + y1*y + z1*z) * w;
+    real_t sw = sin(w), cw = cos(w);
+    ret.x += sw*x2 + cw*(y1*z2-z1*y2);
+    ret.y += sw*y2 + cw*(z1*x2-x1*z2);
+    ret.z += sw*z2 + cw*(x1*y2-y1*x2);
+  }
+  return ret;
+}
+
 struct LatticeData {
     size_t particle_data_size;
     real_t *particle_data;
     solidcontainer_t::finder_t solidfinder;
     real_t *Globals; ///< Pointer to the GPU table to store the calculated values of Globals
-    int iter;
-    int reset_iter; ///< number of last average reset, for dynamics
-    int ZoneIndex;
+    int iter = 0;
+    int reset_iter = 0; ///< number of last average reset, for dynamics
+    int ZoneIndex = 0;
     int MaxZones;
     real_t **ZoneSettings;
     real_t *ConstZoneSettings;
@@ -31,27 +51,24 @@ struct LatticeData {
 
     CudaDeviceFunction real_t ZoneSetting(const int &s, const int &z) const {
         const int i = s + ZONESETTINGS * z;
-        const real_t *w = ZoneSettings[i];
-        if (w == NULL) return ConstZoneSettings[i];
-        return w[ZoneIndex];
+        const real_t* w = ZoneSettings[i];
+        return w ? w[ZoneIndex] : ConstZoneSettings[i];
     }
 
     CudaDeviceFunction real_t ZoneSetting_DT(const int &s, const int &z) const {
         const int i = s + ZONESETTINGS * z;
         const real_t *w = ZoneSettings[i + DT_OFFSET];
-        if (w == NULL) return 0;
-        return w[ZoneIndex];
+        return w ? w[ZoneIndex] : 0.;
     }
 
     CudaDeviceFunction real_t *ZoneSettingGrad(const int &s, const int &z) const {
         const int i = s + ZONESETTINGS * z;
         real_t *w = ZoneSettings[i + GRAD_OFFSET];
-        if (w == NULL) return &ConstZoneSettings[i + GRAD_OFFSET];
-        return &w[ZoneIndex];
+        return w ? &w[ZoneIndex] : &ConstZoneSettings[i + GRAD_OFFSET];
     }
 
     CudaDeviceFunction vector_t getST(real_t x, real_t y, real_t z) const {
-        return calc(ST, x, y, z);
+        return calcST(ST, x, y, z);
     }
 
     void clearGlobals() {

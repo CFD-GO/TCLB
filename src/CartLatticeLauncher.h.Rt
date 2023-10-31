@@ -9,17 +9,17 @@ c_header();
 #define CARTLATTICEEXECUTOR_H
 
 #include "CartLatticeContainer.h"
+#include "Region.h"
 #include "LatticeData.hpp"
 
 struct CartLatticeLauncher {
   CartLatticeContainer container;
-  LatticeData          data;
 
   template < eOperationType I, eCalculateGlobals G, eStage S >
-  void RunBorder(CudaStream_t stream) const;
+  void RunBorder(CudaStream_t stream, const LatticeData& data) const;
   template < eOperationType I, eCalculateGlobals G, eStage S >
-  void RunInterior(CudaStream_t stream) const;
-  void Color(uchar4 *out_ptr) const;
+  void RunInterior(CudaStream_t stream, const LatticeData& data) const;
+  void Color(uchar4 *out_ptr, const LatticeData& data) const;
 
 <?R
 for (q in rows(Quantities)) { ifdef(q$adjoint);
@@ -29,8 +29,8 @@ for (q in rows(Quantities)) { ifdef(q$adjoint);
           node = "Node"
         }
 ?>
-  void GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const;
-  void SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const;
+  void GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
+  void SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
 <?R
 }
 ifdef() ?>

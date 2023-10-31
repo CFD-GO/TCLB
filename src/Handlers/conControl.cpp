@@ -21,9 +21,10 @@ int conControl::Param (pugi::xml_node n) {
                 return -2;
 	}
 
+        const auto lattice = solver->getCartLattice();
 	if (zone != "") {
-		if (solver->geometry->SettingZones.count(zone) > 0) { 
-			zone_number = solver->geometry->SettingZones[zone];
+		if (lattice->geometry->SettingZones.count(zone) > 0) {
+			zone_number = lattice->geometry->SettingZones[zone];
 		} else {
 			ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
 			return -1;

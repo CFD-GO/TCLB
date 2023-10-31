@@ -41,37 +41,6 @@ void start_walltime() {
 int D_MPI_RANK;
 int D_TERMINAL;
 
-/// Generate the connectivity information
-/*
-	Generate the connectivity information for a 3D torus MPI topology
-	\param mpi MPI information table to fill
-	\param nx Number of segments in X direction
-	\param ny Number of segments in Y direction
-	\param nz Number of segments in Z direction
-*/
-void fillSides(MPIInfo mpi, int nx, int ny, int nz)
-{
-	int x, y, z, k, j;
-<?R
-	sides = function(name, dx, dy, dz) {
-?>
-		j = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
-		mpi.node[k].<?%s name ?> = j;
-<?R
-	}
-?>
-	for (x=0; x<nx; x++)
-	for (y=0; y<ny; y++)
-	for (z=0; z<nz; z++) {
-		k = x + y * nx + z * nx * ny;
-<?R
-	for (m in Margin) {
-		sides(m$side, -m$dx, -m$dy, -m$dz);
-	}
-?>
-	}
-}
-
 #define OUTPUT_LINE_LEN 80
 int D_print_level=0;
 int D_only_root_level=6;

@@ -1,20 +1,23 @@
-
 #ifndef REGION_H
-#include <stdio.h>
-class lbRegion {
-public:
-  int dx,dy,dz;
-  int nx,ny,nz;
-  inline lbRegion():dx(0),dy(0),dz(0),nx(1),ny(1),nz(1){}
-  inline lbRegion(int w, int h):dx(0),dy(0),dz(0),nx(w),ny(h),nz(1) {};
-  inline lbRegion(int x, int y, int w, int h):dx(x),dy(y),dz(0),nx(w),ny(h),nz(1){};
-  inline lbRegion(int x, int y, int z, int w, int h, int d):dx(x),dy(y),dz(z),nx(w),ny(h),nz(d){};
-  CudaHostFunction CudaDeviceFunction inline int size() { return nx*ny*nz; };
-  CudaHostFunction CudaDeviceFunction inline size_t sizeL() { return nx*ny*nz; };
-  inline int isIn(int x, int y) { return (x >= dx) && (y >= dy) && (x-dx < nx) && (y-dy < ny); }
-  inline int isIn(int x, int y, int z) { return (x >= dx) && (y >= dy) && (z >= dz) && (x-dx < nx) && (y-dy < ny) && (z-dz < nz); }
-  inline int isEqual(const lbRegion& other) { return (other.dx == dx) && (other.dy == dy) && (other.dz == dz) && (other.nx == nx) && (other.ny == ny) && (other.nz == nz); }
-  inline lbRegion intersect(lbRegion w) {
+#define REGION_H 1
+
+#include "cross.h"
+
+#include <cstdio>
+
+struct lbRegion {
+  int dx = 0, dy = 0, dz = 0;
+  int nx = 1, ny = 1, nz = 1;
+  lbRegion() = default;
+  lbRegion(int w, int h) : nx(w), ny(h) {}
+  lbRegion(int x, int y, int w, int h) : dx(x), dy(y), nx(w), ny(h) {}
+  lbRegion(int x, int y, int z, int w, int h, int d) : dx(x), dy(y), dz(z), nx(w), ny(h), nz(d) {}
+  CudaHostFunction CudaDeviceFunction int size() const { return nx*ny*nz; }
+  CudaHostFunction CudaDeviceFunction size_t sizeL() const { return nx*ny*nz; }
+  int isIn(int x, int y) const { return (x >= dx) && (y >= dy) && (x-dx < nx) && (y-dy < ny); }
+  int isIn(int x, int y, int z) const { return (x >= dx) && (y >= dy) && (z >= dz) && (x-dx < nx) && (y-dy < ny) && (z-dz < nz); }
+  int isEqual(const lbRegion& other) const { return (other.dx == dx) && (other.dy == dy) && (other.dz == dz) && (other.nx == nx) && (other.ny == ny) && (other.nz == nz); }
+  lbRegion intersect(const lbRegion& w) const {
     lbRegion ret;
     ret.dx = max(dx,w.dx);
     ret.dy = max(dy,w.dy);
@@ -28,7 +31,7 @@ public:
   int offset(int x,int y) const {
     return (x-dx) + (y-dy) * nx;
   };
-  inline void print() {
+  void print() const {
     printf("Region: %dx%dx%d + %d,%d,%d\n", nx,ny,nz,dx,dy,dz);
   };
   CudaHostFunction CudaDeviceFunction int offset(int x,int y,int z) const {
@@ -37,8 +40,6 @@ public:
   CudaHostFunction CudaDeviceFunction size_t offsetL(int x,int y,int z) const {
     return (x-dx) + (y-dy) * nx + (z-dz) * nx * ny;
   };
-
 };
 
 #endif
-#define REGION_H 1

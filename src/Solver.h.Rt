@@ -10,86 +10,60 @@
 #include "Global.h"
 #include <mpi.h>
 #include "cross.h"
-#include "Region.h"
 #include "Lattice.h"
-#include "vtkLattice.h"
-#include "Geometry.h"
-#include "def.h"
 #include "utils.h"
 #include "unit.h"
+#include "Handlers.h"
 
 #include <fstream>
 #include <iostream>
 #include <vector>
 #include <iomanip>
-#include <assert.h>
-#include "Handlers.h"
-
-#ifdef GRAPHICS
-    const int desired_fps = 10;
-	class GPUAnimBitmap;
-#else
-    const int desired_fps = 1;
-#endif
-
-using namespace std;
-
-/// Class storing all the processor-common information
-/**
- It is used to broadcast all the common information among the processes
- */
-struct InfoBlock {
-	char conffile[STRING_LEN]; ///< Path to the config file
-	lbRegion region; ///< Global region of the lattice
-<?R
-        for (v in rows(Settings)) { ?>
-	real_t setting_<?%s v$name ?>; ///< Value of [<?%s v$comment ?>]
-	int ifset_<?%s v$name ?>; ///< True if [<?%s v$comment ?>] was set<?R
-	}
-?>
-	int xsdim,ysdim; ///< X and Y thread divisions
-        char outpath[STRING_LEN]; ///< Output prefix
-};
-
+#include <cassert>
+#include <filesystem>
 
 /// Main solver class
 /**
  This class is responsible for the solver initialization and run
 */
 class Solver {
-    public:
-	InfoBlock info; ///< Information common among the cores
-	MPIInfo mpi; ///< Information on MPI connectivity
-	MPI_Comm mpi_comm; ///< Solver's MPMD.local
-	pugi::xml_document configfile;
-        Lattice * lattice; ///< Main Lattice object
-	Geometry * geometry; ///< Main Geometry object
-	lbRegion region; ///< Global region
-        int iter; ///< Iteration (Now)
-        int opt_iter; ///< Optimization iteration
-	int mpi_rank; ///< MPI rank
-	int mpi_size; ///< MPI size
+public:
+    std::unique_ptr<LatticeBase> lattice; ///< Main Lattice object
+    MPI_Comm mpi_comm; ///< Solver's MPMD.local
+    int iter = 0; ///< Iteration (Now)
+    int opt_iter = 0; ///< Optimization iteration
+	int mpi_rank = 0; ///< MPI rank
+	int mpi_size = 1; ///< MPI size
 	std::vector<Handler> hands; ///< Stack of handlers
-	int steps; ///< steps to the next monitor-callback
-	int saveN, saveI; ///< No idea what it is TODO
-	char ** saveFile; ///< It shouldn't be here TODO
+	int steps = 1; ///< steps to the next monitor-callback
+	int saveN = 0, saveI = 0; ///< No idea what it is TODO
+	pugi::xml_document configfile;
+	std::string conffile_path; ///< Path to the config file
+    std::string outpath; ///< Output prefix
 	UnitEnv units; ///< Units object connected to this lattice
-	int iter_type; ///< Iteration type (Now) - primal/adjoint/etc.
-#ifdef GRAPHICS
-	GPUAnimBitmap * bitmap; ///< Maybe we have a bitmap for animation
-#endif
-	void print(const char * str);
+	int iter_type = ITER_NORM; ///< Iteration type (Now) - primal/adjoint/etc.
 	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
-	
-	inline Solver() : mpi_comm(MPMD.local), lattice(NULL) { Init(); };
-	~Solver();
-	inline Solver(MPI_Comm mpi_comm_) : mpi_comm(mpi_comm_), lattice(NULL) { Init(); };
-	void Init();
-	void saveInit(int n);
-        inline void setWidth(int &w){region.nx = w;};
-        inline void setHeight(int &h){region.ny = h;};
-        inline int getWidth(){return region.nx;};
-        inline int getHeight(){return region.ny;};
+
+    Solver() = default;
+    Solver(const Solver&) = delete;
+    Solver(Solver&&) = default;
+    Solver& operator=(const Solver&) = delete;
+    Solver& operator=(Solver&&) = default;
+    ~Solver() = default;
+
+    int initCartLattice(int,int,int,int);
+    Lattice* getCartLattice() const;
+
+    int EventLoop() const { return lattice->EventLoop(); }
+	void print(const char * str);
+
+	size_t getLocalLatticeSize() const { return lattice->getLocalSize(); }
+	size_t getGlobalLatticeSize() const { return lattice->getGlobalSize(); }
+
+    void initMPI(MPI_Comm comm);
+    int initLog(const char * filename);
+    int writeLog(const char * filename);
+
 /// Generate a Iteration-specific filename
 /**
  Generate a filename starting with the output prefix, continuing with the name, process number,
@@ -98,10 +72,12 @@ class Solver {
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-        inline void outIterFile(const char * name, const char * suffix, char * out) {
-                sprintf(out, "%s_%s_P%02d_%08d%s", info.outpath, name, mpi_rank, iter, suffix);
-		mkpath(out);
-        };
+    std::string outIterFile(const std::string& name, const std::string& suffix) {
+        auto path = formatAsString("%s_%s_P%02d_%08d%s", outpath, name, mpi_rank, iter, suffix);
+		mkdir_p(path);
+		return path;
+    }
+
 /// Generate a Case-specific filename
 /**
  Generate a filename starting with the output prefix, continuing with the name, process number,
@@ -110,10 +86,12 @@ class Solver {
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-        inline void outGlobalFile(const char * name, const char * suffix, char * out) {
-                sprintf(out, "%s_%s_P%02d%s", info.outpath, name, mpi_rank, suffix);
-		mkpath(out);
-        };
+    std::string outGlobalFile(const std::string& name, const std::string& suffix) {
+        auto path = formatAsString("%s_%s_P%02d%s", outpath, name, mpi_rank, suffix);
+        mkdir_p(path);
+        return path;
+    }
+
 /// Generate a Iteration-specific collective filename
 /**
  Generate a filename starting with the output prefix, continuing with the name,
@@ -122,50 +100,27 @@ class Solver {
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-        inline void outIterCollectiveFile(const char * name, const char * suffix, char * out) {
-                sprintf(out, "%s_%s_%08d%s", info.outpath, name, iter, suffix);
-		mkpath(out);
-        };
+    std::string outIterCollectiveFile(const std::string& name, const std::string& suffix) {
+        auto path = formatAsString("%s_%s_%08d%s", outpath, name, iter, suffix);
+        mkdir_p(path);
+        return path;
+    }
 
-/// Set output prefix
-	void setOutput(const char * out);
+	void setOutput(std::string out);
 	void setUnit(std::string, std::string, std::string);
 	void Gauge();
-	int initLog(const char * filename);
-	int writeLog(const char * filename);
-	int writeVTK(const char * nm, name_set * s, lbRegion region);
-	int writeTXT(const char * nm, name_set * s, int type);
-	int writeBIN(const char * nm);
-	int setSize(int,int,int,int);
-	int MPIDivision();
-	int InitAll(int);
-	int RunMainLoop();
-	int EventLoop();
-
-	int Par_size; ///< Parameter space dimension
-	int *Par_sizes; ///< Parameter space dimensions on all the processors
-	int *Par_disp; ///< Offsets in the Parameter vector for all the processors
-	int getPars();
-	int getDPar(double * wb);
-	int getPar(double * wb);
-	int setPar(const double * w);
-	int saveComp(const char*, const char*);
-	int loadComp(const char*, const char*);
-    int getComponentIntoBuffer(const char*, real_t *&, long int* , long int* );
-    int loadComponentFromBuffer(const char*, real_t*);
-    int getQuantityIntoBuffer(const char*, real_t*&, long int*, long int*);
 
 /// Gets a Global index by name
 /**
  Gets the index of a Global by it's name
- \param nm Name of the Global
+ \param name Name of the Global
  \return Index of the Global requested
 */
-	inline int getGlobal(const char * nm) { <?R
+	int getGlobal(std::string_view name) { <?R
         for (v in rows(Globals)) { ?>
-        	if (strcmp(nm,"<?%s v$name ?>") == 0) return <?%s v$Index ?>; <?R
+     	if (name == "<?%s v$name ?>") return <?%s v$Index ?>; <?R
 	} ?>
-	        return -1;
+            return -1;
 	};
 
 /// Gets a Global name by index
@@ -174,16 +129,15 @@ class Solver {
  \param i Index of the Global
  \return char * constant name of the Global requested, or "UNKNOWN" if the index is wrong
 */
-	inline char * getGlobal(const int i) {
-	        switch(i) { <?R
+    char * getGlobal(const int i) {
+	    switch(i) { <?R
 	for (v in rows(Globals)) { ?>
-                	case <?%s v$Index ?>: return "<?%s v$name ?>"; <?R
+            case <?%s v$Index ?>: return "<?%s v$name ?>"; <?R
 	} ?>
-	        }
-	        return "UNKNOWN";
-	};
-	
-};   
+	    }
+	    return "UNKNOWN";
+    }
+};
 
 /// Gets a Setting index by name
 /**

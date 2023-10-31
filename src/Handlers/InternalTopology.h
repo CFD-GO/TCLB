@@ -9,6 +9,7 @@
 
 class  InternalTopology  : public  Design  {
 	int Pars;
+        ParStruct par_struct;
 public:
 	static std::string xmlname;
 int Init ();

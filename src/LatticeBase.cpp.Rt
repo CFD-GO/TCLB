@@ -1,0 +1,205 @@
+<?R
+source("conf.R")
+c_header();
+?>
+
+#include "LatticeBase.hpp"
+
+LatticeBase::LatticeBase(int zonesettings, int zones, const UnitEnv& units_)
+  : model(new Model_m), zSet(zonesettings, zones), units(&units_) {
+    data.Alloc();
+    SC.InitFinder(data.solidfinder);
+    data.particle_data = nullptr;
+    data.particle_data_size = 0;
+    SC.balls = &RFI;
+    RFI.name = "TCLB";
+    CudaStreamCreate(&kernelStream);
+    CudaStreamCreate(&inStream);
+    CudaStreamCreate(&outStream);
+    data.ZoneSettings = zSet.gpuTab;
+    data.ConstZoneSettings = zSet.gpuConst;
+
+	// Setting settings to default
+<?R for (v in rows(Settings)) {
+        if (is.na(v$derived)) { ?>
+    setSetting(<?%s v$index ?>,units->alt("<?%s v$default ?>")); <?R
+}} ?>
+<?R for (s in rows(ZoneSettings)) { ?>
+    zSet.set(<?%s s$Index ?>, -1, units->alt("<?%s s$default ?>"));
+<?R } ?>
+}
+
+/// Push a setting on to the stack (recording)
+/**
+        Push a setting and it's value on the stack,
+        during adjoint recording.
+        \param i Index of the Setting
+        \param old Old value of the Setting
+        \param nw New value of the Setting
+*/
+void LatticeBase::push_setting(int i, real_t old, real_t nw) {
+    const auto old_new_p = std::make_pair(old, nw);
+    const auto i_rec_p = std::make_pair(i, old_new_p);
+    settings_record.emplace_back(Record_Iter, i_rec_p);
+    settings_i = settings_record.size();
+}
+
+/// Reconstruct the values of the settings in a iteration
+/**
+        Reconstructs the values of all the settings
+        in a specific iteration of the recorded solution
+        from the settings stack.
+*/
+void LatticeBase::pop_settings() {
+    while (settings_i > 0) {
+        if (settings_record[settings_i - 1].first <= Record_Iter) break;
+        settings_i--;
+        debug1("set %d to (back) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.second, settings_record[settings_i].second.second.first);
+        setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
+    }
+    while (settings_i < settings_record.size()) {
+        if (settings_record[settings_i].first > Record_Iter) break;
+        debug1("set %d to (front) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.first, settings_record[settings_i].second.second.second);
+        setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
+        settings_i++;
+    }
+}
+
+/// Set a Setting
+/**
+        Set a specific Setting
+        \param i Index of the Setting
+        \param val Value of the Setting
+*/
+void LatticeBase::setSetting(int i, real_t val) {
+    data.settings[i] = val;
+}
+
+/// Set a Setting
+/**
+        Get a specific Setting
+        \param i Index of the Setting
+*/
+real_t LatticeBase::getSetting(int i) {
+    return data.settings[i];
+}
+
+void LatticeBase::SetSetting(const Model::Setting& set, real_t val) {
+    if (reverse_save) push_setting(set.id, settings[set.id], val);
+    setSetting(set.id, val);
+    if (set.isDerived) {
+        const Model::Setting& der = model->settings.by_id(set.derivedSetting);
+        double der_val = set.derivedValue(val);
+        SetSetting(der, der_val);
+    }
+}
+
+void LatticeBase::CopyInParticles() {
+    DEBUG_PROF_PUSH("Get Particles");
+    RFI.SendSizes();
+    RFI.SendParticles();
+    DEBUG_PROF_POP();
+    if (RFI.size() > particle_data_size_max) {
+        if (data.particle_data != NULL) CudaFree(data.particle_data);
+        particle_data_size_max = RFI.size();
+        CudaMalloc(&data.particle_data, RFI.mem_size());
+    }
+    data.particle_data_size = RFI.size();
+    for (size_t i = 0; i < RFI.size(); i++) {
+        RFI.RawData(i, RFI_DATA_FORCE + 0) = 0;
+        RFI.RawData(i, RFI_DATA_FORCE + 1) = 0;
+        RFI.RawData(i, RFI_DATA_FORCE + 2) = 0;
+    }
+    if (RFI.mem_size() > 0) { CudaMemcpyAsync(data.particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream); }
+    DEBUG_PROF_PUSH("Tree Build");
+    SC.Build();
+    DEBUG_PROF_POP();
+    SC.CopyToGPU(data.solidfinder, kernelStream);
+}
+
+void LatticeBase::CopyOutParticles() {
+    if (RFI.mem_size() > 0) { CudaMemcpyAsync(RFI.Particles(), data.particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream); }
+    CudaStreamSynchronize(kernelStream);
+    DEBUG_PROF_PUSH("Testing particles for NaNs");
+    int nans = 0;
+    for (size_t i = 0; i < RFI.size(); i++) {
+        for (int j = 0; j < 3; j++) {
+            if (!isfinite(RFI.RawData(i, RFI_DATA_FORCE + j))) {
+                nans++;
+                RFI.RawData(i, RFI_DATA_FORCE + j) = 0.0;
+            }
+        }
+    }
+    if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
+    DEBUG_PROF_POP();
+    RFI.SendForces();
+}
+
+void LatticeBase::GenerateST() {
+    ST.Generate();
+    ST.CopyToGPU(data.ST);
+}
+
+/// Retrive the Globals
+/**
+        Get the Globals from GPU memory and MPI-reduce them
+        \param tab Vector to store the result
+*/
+void LatticeBase::getGlobals(real_t * tab) {
+    real_t tabl[ GLOBALS ];
+    data.getGlobals(tabl); <?R
+        by(Globals,Globals$op,function(G) { n = nrow(G); ?>
+              MPI_Reduce(
+                  &tabl[<?%s G$Index[1] ?>],
+                         &tab[<?%s G$Index[1] ?>],
+                               <?%s G$Index[n] ?> - <?%s G$Index[1] ?> + 1,
+                               MPI_REAL_T,
+                               MPI_<?%s G$op[1] ?>,
+                               0,
+                               MPMD.local); <?R
+        }) ?>
+}
+
+
+/// Update the internal globals table
+/**
+        Retrive Globals values from GPU, reduce them and calculate the objective
+*/
+void LatticeBase::calcGlobals() {
+    real_t tab[ GLOBALS ];
+    getGlobals(tab);
+    double obj =0;
+<?R
+    for (m in rows(Globals)) {
+        i = which(Settings$name == paste(m$name,"InObj",sep=""));
+        if (length(i) == 1) {
+            s = Settings[Settings$name == paste(m$name,"InObj",sep=""),]; ?>
+            obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
+        }
+    }
+?>
+    tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
+    for (int i = 0; i < GLOBALS ; i++) globals[i] += tab[i];
+    data.clearGlobals();
+}
+
+/// Clear the internal globals table
+void LatticeBase::clearGlobals() { <?R
+for( g in rows(Globals) ) if (!g$adjoint) { ?>
+    globals[<?%s g$Index ?>] = 0; <?R
+}
+?>
+}
+
+/// Clear the internal globals table (derivative part)
+void LatticeBase::clearGlobals_Adj() { <?R
+for( g in rows(Globals) ) if (g$adjoint) { ?>
+    globals[<?%s g$Index ?>] = 0; <?R
+}
+?>
+}
+
+/// Return the objective function value
+double LatticeBase::getObjective() {
+    return globals[<?%s Globals$Index[Globals$name == "Objective"] ?>];
+}

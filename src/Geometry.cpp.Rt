@@ -1,3 +1,7 @@
+<?R
+source("conf.R")
+?>
+
 #include "Consts.h"
 #ifdef EMBEDED_PYTHON
     #include <Python.h>
@@ -20,7 +24,6 @@
 #include "Region.h"
 #include "Geometry.h"
 #include "Global.h"
-#include "def.h"
 #include "vtkOutput.h"
 #include "utils.h"
 #include "spline.h"
@@ -1198,11 +1201,48 @@ int Geometry::loadZone(const char *name)
 
 }
 
+pugi::xml_document& getXMLDef() {
+  static pugi::xml_document xml_def;
+  static bool dummy_static_init = [&] () -> bool {
+    const char* xml_definition = "<Geometry>\
+    	<Zone name='Inlet'> <Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
+    	<Zone name='Outlet'> <Box dx='-1' dy='0' dz='0' fx='-1' fy='-1' fz='-1'/></Zone>\
+    	<Zone name='Channel'>\
+    		<Box dx='0' dy='0' dz='0' fx='-1' fy='0' fz='-1'/>\
+    		<Box dx='0' dy='-1' dz='0' fx='-1' fy='-1' fz='-1'/>\
+    	</Zone>\
+    	<Zone name='Tunnel'>\
+    		<Box dx='0' dy='0' dz='0' fx='-1' fy='0' fz='-1'/>\
+    		<Box dx='0' dy='-1' dz='0' fx='-1' fy='-1' fz='-1'/>\
+    		<Box dx='0' dy='0' dz='0' fx='-1' fy='-1' fz='0'/>\
+    		<Box dx='0' dy='0' dz='-1' fx='-1' fy='-1' fz='-1'/>\
+    	</Zone>\
+    	<Zone name='Tunnel'> <Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
+    	<Zone name='Inlet'><Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
+    	<Mask name='NONE' value='0'/>\
+    	<Type name='None' value='0' mask='NONE'/>\
+    <?R for (n in rows(NodeTypeGroups)) {
+    ?>	<Mask name='<?%s n$name ?>' value='<?%f n$mask ?>'/>\
+    <?R }
+        for (n in rows(NodeTypes)) {
+    ?>	<Type name='<?%s n$name ?>' value='<?%d n$value ?>' mask='<?%s n$group ?>'/>\
+    <?R } ?>\
+    </Geometry>";
+    const auto init_status = xml_def.load_string(xml_definition);
+    if(!init_status) {
+      ERROR("Error while parsing in-program default settings xml: %s\n", init_status.description());
+      std::terminate();
+    }
+    return true;
+  }();
+  return xml_def;
+}
+
 /// Loades Geometry from a XML tree
 int Geometry::load(pugi::xml_node & node)
 {
 	output("loading geometry ...\n");
-    pugi::xml_node geom_def = xml_def.child("Geometry");
+    pugi::xml_node geom_def = getXMLDef().child("Geometry");
     fg_xml = node;
     for (pugi::xml_node z = geom_def.first_child(); z; z = z.next_sibling()) {
 	pugi::xml_attribute attr = z.attribute("name");

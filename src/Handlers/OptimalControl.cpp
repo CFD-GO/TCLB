@@ -9,17 +9,18 @@ int OptimalControl::Init () {
 		par_index = -10;
 		Pars = -1;
 		pugi::xml_attribute attr = node.attribute("what");
+                const auto lattice = solver->getCartLattice();
 		if (attr) {
 	                par = attr.value();
                         size_t i = par.find_first_of('-');
-                        if (i == string::npos) {
+                        if (i == std::string::npos) {
 				ERROR("Can only optimal control a parameters in a specific zone\n");
 				return -1;
                         } else {
                                 zone = par.substr(i+1);
                                 par = par.substr(0,i);
-                                if (solver->geometry->SettingZones.count(zone) > 0) { 
-                                        zone_number = solver->geometry->SettingZones[zone];
+                                if (lattice->geometry->SettingZones.count(zone) > 0) {
+                                        zone_number = lattice->geometry->SettingZones[zone];
                                 } else {
                                         ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
 					return -1;
@@ -55,7 +56,8 @@ int OptimalControl::Init () {
 			upper = 1;
 		}
 		if (solver->mpi_rank == 0) {
-			f = fopen((std::string(solver->info.outpath) + "_OC_" + par + "_" + zone + ".dat").c_str(),"w");
+                        const auto path = solver->outpath + "_OC_" + par + "_" + zone + ".dat";
+			f = fopen(path.c_str(),"w");
 			assert( f != NULL );
 		} else {
 			f = NULL;

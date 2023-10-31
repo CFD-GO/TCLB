@@ -1,6 +1,7 @@
 #include "cbTXT.h"
 std::string cbTXT::xmlname = "TXT";
 #include "../HandlerFactory.h"
+#include "../vtkLattice.h"
 
 int cbTXT::Init () {
 		Callback::Init();
@@ -24,7 +25,9 @@ int cbTXT::Init () {
 
 int cbTXT::DoIt () {
 		Callback::DoIt();
-		return solver->writeTXT(nm.c_str(), &s, txt_type);
+                const auto filename = solver->outIterFile(nm, "");
+                auto& lattice = *solver->getCartLattice();
+                return txtWriteLattice(filename.c_str(), lattice, solver->units, s, txt_type);
 	};
 
 

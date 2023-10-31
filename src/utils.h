@@ -4,31 +4,31 @@
 #include <set>
 #include <string>
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstdio>
 #include <cstring>
-#include <errno.h>
-#include <assert.h>
+#include <cerrno>
+#include <cassert>
 #include <sys/stat.h>
+#include <string>
+#include <filesystem>
 
-inline void stripbare(char * str)
-{
-	int i = 0, j=0;
-	while (str[i])
-	{
-		str[j] = str[i];
-		if (str[j] == '/') j = -1;
-		i++;j++;
-	}
-	str[j] = 0;
-	i = 0;
-	j = -1;
-	while (str[i]) {
-		if (str[i] == '.') j =i;
-		i++;
-	}
-	if (j == -1) j = i;
-	str[j] = 0;
+namespace detail {
+template <typename T>
+T maybeString(const T& t) {
+    return t;
+}
+inline const char* maybeString(const std::string& str) { return str.c_str(); }
+}  // namespace detail
+
+template <class... Args>
+std::string formatAsString(const char* format, Args... args) {
+    const int n_chars = std::snprintf(nullptr, 0, format, args...);
+    assert(n_chars >= 0);
+    std::string retval;
+    retval.resize(static_cast<typename std::string::size_type>(n_chars + 1));
+    std::sprintf(&retval[0], format, detail::maybeString(args)...);
+    return retval;
 }
 
 inline int myround(double v) {
@@ -41,7 +41,7 @@ class name_set {
 	public:
 	bool all;
         typedef std::set<std::string>::iterator iterator;
-		inline void add_from_string(std::string in, char separator) {
+		void add_from_string(std::string in, char separator) {
 			if (in == "all") {
 				all = true;
 				return;
@@ -56,34 +56,49 @@ class name_set {
 				if( *curr == separator ) ts = curr + 1;
 			}
 		}
-		inline name_set(char * str) {
+		name_set(char * str) {
 			all = false;
 			add_from_string(str, ',');
 		}
-		inline name_set() {
+		name_set() {
 			all=false;
 		}
-		inline bool in(std::string what) {
+		bool in(std::string what) const {
 		        if (all) return true;
 			return myset.count(what) > 0;
 		}
-		inline bool explicitlyIn(std::string what) {
+		bool explicitlyIn(std::string what) const {
 			return myset.count(what) > 0;
 		}
-        inline int size(){
+        int size(){
             return myset.size();
         }
-        inline std::set< std::string >::iterator begin(){ 
+        std::set< std::string >::iterator begin(){
             return myset.begin();
-        }   
-        inline std::set< std::string >::iterator end(){ 
+        }
+        std::set< std::string >::iterator end(){
             return myset.end();
         }
 };
 
+inline int mkdir_p(const std::string& path,
+                   std::filesystem::perms perms = std::filesystem::perms::owner_all   |
+                                                  std::filesystem::perms::group_all   |
+                                                  std::filesystem::perms::others_read |
+                                                  std::filesystem::perms::others_exec) {
+    try {
+        const std::filesystem::path fs_path(path);
+        std::filesystem::create_directories(fs_path);
+        std::filesystem::permissions(fs_path, perms);
+        return EXIT_SUCCESS;
+    } catch(...) {
+        debug1("Failed to create %s\n", path.c_str());
+        return EXIT_FAILURE;
+    }
+}
 
 // This function creates the full path to a file (creates all the directories)
-inline int mkpath(char* file_path_, mode_t mode) {
+inline int mkpath(char* file_path_, mode_t mode = 0775) {
   char file_path[1024];
   if (file_path_ == NULL) return -1;
   if (*file_path_ == '\0') return 0;
@@ -109,10 +124,6 @@ inline int mkpath(char* file_path_, mode_t mode) {
     *p='/';
   }
   return 0;
-}
-
-inline int mkpath(char* file_path_) {
-  return mkpath(file_path_, 0775);
 }
 
 inline FILE* fopen_gz(const char* filename, const char * mode) {
@@ -153,4 +164,4 @@ inline FILE* fopen_gz(const char* filename, const char * mode) {
 	return NULL;
 }
 
-#endif                
+#endif

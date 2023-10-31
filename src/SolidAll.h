@@ -45,12 +45,12 @@ private:
     size_t part_size;
 public:
     BALLS* balls;
-    inline void Build() {
+    void Build() {
         part_size = balls->size();
     }
-    inline void InitFinder(finder_t& f) { f.size = 0; };
-    inline void CleanFinder(finder_t& f) { };
-    inline void CopyToGPU(finder_t& f, CudaStream_t stream) { f.size = part_size; };
+    void InitFinder(finder_t& f) { f.size = 0; };
+    void CleanFinder(finder_t& f) { };
+    void CopyToGPU(finder_t& f, CudaStream_t stream) { f.size = part_size; };
 };
 
 #define SOLIDALL_H

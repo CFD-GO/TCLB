@@ -43,8 +43,8 @@ CudaDeviceFunction real_t rise_nan() {
       st = Stages[tp$Stage,,drop=FALSE]
       ifdef(tp$adjoint)
       ?>
-template void CartLatticeLauncher::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
-template void CartLatticeLauncher::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
+template void CartLatticeLauncher::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const;
+template void CartLatticeLauncher::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const; <?R
     };
   ifdef();
 ?>

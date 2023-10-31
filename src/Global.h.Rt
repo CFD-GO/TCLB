@@ -12,6 +12,8 @@
 
 #include "Consts.h"
 #include "types.h"
+#include "cross.h"
+
 #include <string>
 
 #ifdef _WIN32
@@ -25,38 +27,6 @@
     
     #include "MPMD.hpp"
     extern MPMDHelper MPMD;
-
-#ifndef INFO_H
-    #include "cross.h"
-    #include "Region.h"
-    typedef struct {
-        float x;
-        float y;
-    } vector_t_b;
-
-/// Information on connectivity of a processor
-    struct NodeInfo {
-        lbRegion region; ///< Local Lattice region
-        int rank; ///< MPI rank of the processor <?R
-for (m in Margin) { ?>
-        int <?%s m$side ?>; ///< MPI rank of the processor on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] side <?R
-} ?>
-    };
-
-/// Gathered connectivity info
-    struct MPIInfo {
-        NodeInfo * node; ///< Table of all processors info
-        lbRegion totalregion; ///< Global Lattice region
-        int size; ///< MPI size
-        int rank; ///< (My) MPI rank
-        int gpu; ///< (My) GPU selected
-	int divx, divy, divz; ///< MPI division
-    };
-
-    void fillSides(MPIInfo, int, int, int);
-
-#define INFO_H 1
-#endif
 /*
 #ifndef SETTINGS_H
 <?R

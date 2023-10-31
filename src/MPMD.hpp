@@ -11,22 +11,16 @@
 #include <cstring>
 
 struct MPMDIntercomm {
-   MPI_Comm local;
-   MPI_Comm work;
-   int local_size;
-   int work_size;
-   bool in_world;
-   bool in_local;
-   bool in_work;
+   MPI_Comm local = MPI_COMM_NULL;
+   MPI_Comm work = MPI_COMM_NULL;
+   int local_size = 0;
+   int work_size = 0;
+   bool in_world = false;
+   bool in_local = false;
+   bool in_work = false;
+   bool connected = false;
    std::string name;
-   bool connected;
-   inline MPMDIntercomm() {
-      local = work = MPI_COMM_NULL;
-      local_size = work_size = 0;
-      connected = in_world = in_local = in_work = false;
-      name = "";
-   }
-   inline operator bool() const { return connected; }
+   operator bool() const { return connected; }
 };
 
 inline void MPI_Exchange(void * out, int out_count, void * in, int in_count, MPI_Datatype datatype, MPI_Comm intercomm, MPI_Comm comm) {
@@ -43,14 +37,14 @@ inline void MPI_Exchange(void * out, int out_count, void * in, int in_count, MPI
    MPI_Bcast(in, in_count, datatype, 0, comm);
 }
 
-template <typename T> inline MPI_Datatype MPI_Auto_datatype();
+template <typename T> MPI_Datatype MPI_Auto_datatype();
 template <> inline MPI_Datatype MPI_Auto_datatype< int >() { return MPI_INT; }
 template <> inline MPI_Datatype MPI_Auto_datatype< unsigned int >() { return MPI_UNSIGNED; }
 template <> inline MPI_Datatype MPI_Auto_datatype< long int >() { return MPI_LONG; }
 template <> inline MPI_Datatype MPI_Auto_datatype< unsigned long int >() { return MPI_UNSIGNED_LONG; }
 template <> inline MPI_Datatype MPI_Auto_datatype< char >() { return MPI_CHAR; }
 
-template <class T> inline T MPI_Exchange(T& out, MPI_Comm intercomm, MPI_Comm comm) {
+template <class T> T MPI_Exchange(T& out, MPI_Comm intercomm, MPI_Comm comm) {
    T ret;
    MPI_Exchange(&out, 1, &ret, 1, MPI_Auto_datatype<T>(), intercomm, comm);
    return ret;
@@ -64,7 +58,7 @@ inline int MPI_Exchange(int& out, MPI_Comm intercomm, MPI_Comm comm) {
 }
 
 template <class T>
-inline T MPI_Exchange_container(T& out, MPI_Comm intercomm, MPI_Comm comm) {
+T MPI_Exchange_container(T& out, MPI_Comm intercomm, MPI_Comm comm) {
    size_t my_size = out.size();
    size_t other_size = MPI_Exchange(my_size, intercomm, comm);
    size_t mx = my_size;
@@ -80,7 +74,7 @@ inline T MPI_Exchange_container(T& out, MPI_Comm intercomm, MPI_Comm comm) {
 }
 
 template <class T>
-inline std::vector<T> MPI_Exchange(std::vector<T>& out, MPI_Comm intercomm, MPI_Comm comm) {
+std::vector<T> MPI_Exchange(std::vector<T>& out, MPI_Comm intercomm, MPI_Comm comm) {
    return MPI_Exchange_container(out, intercomm, comm);
 }
 
@@ -101,14 +95,14 @@ class MPMDHelper {
 
 
 public:
-   MPI_Comm world;
-   MPI_Comm local;
+   MPI_Comm world = MPI_COMM_NULL;
+   MPI_Comm local = MPI_COMM_NULL;
    MPI_Group local_group;
    MPI_Comm work;
    MPI_Group work_group;
    
    int world_rank, world_size;
-   int local_rank, local_size;
+   int local_rank = -1, local_size;
    int work_rank,  work_size;
    int universe_size;
    bool in_work;
@@ -123,23 +117,12 @@ public:
    std::string name;
    std::string host_name;
 
-   inline MPMDHelper() {
-      world = MPI_COMM_NULL;
-      local = MPI_COMM_NULL;
-      local_rank = -1;
-   };
-
-   inline ~MPMDHelper() {
-   };
-
    MPMDIntercomm operator[](const std::string& key) {
       intercomm_map::iterator it = intercomm.find(key);
-      if (it != intercomm.end()) return it->second;
-      return MPMDIntercomm();
+      return it != intercomm.end() ? it->second : MPMDIntercomm();
    };
-
    
-   inline void Init(const MPI_Comm& world_, const std::string& name_, std::vector<int> excl = std::vector<int>()) {
+   void Init(const MPI_Comm& world_, const std::string& name_, std::vector<int> excl = std::vector<int>()) {
       int mylen,maxlen;
       
       world = world_;
@@ -245,7 +228,7 @@ public:
    }
 
 
-   inline intercomm_t ConnectIntercomm(MPI_Comm inter, bool world_=true, bool work_=false) {
+   intercomm_t ConnectIntercomm(MPI_Comm inter, bool world_=true, bool work_=false) {
       intercomm_t ret;
       ret.in_world = world_;
       MPI_Comm my_comm = local;
@@ -287,7 +270,7 @@ public:
       return ret;
    }
 
-   inline intercomm_t Spawn( char *command, char *argv[], int maxprocs, MPI_Info info, bool work_ = false) {
+   intercomm_t Spawn( char *command, char *argv[], int maxprocs, MPI_Info info, bool work_ = false) {
       MPI_Comm comm, inter;
       std::vector<int> err(maxprocs);
       int root;
@@ -307,8 +290,7 @@ public:
       }
    }
 
-   inline void Identify(bool world_ = false) {
-//      printf("MPMD: %03d.%03d world:%d/%d local:%d/%d color:%d/%d leader:%d/%d --- %s @ %s\n", color, local_rank, world_rank, world_size, local_rank, local_size,  color, colors, local_leader, leader, my_name, host_name);
+   void Identify(bool world_ = false) {
       char iden_c[400];
       std::string iden = "MPMD: ";
       iden += name;

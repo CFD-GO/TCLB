@@ -1,6 +1,7 @@
 #include "cbVTK.h"
 std::string cbVTK::xmlname = "VTK";
 #include "../HandlerFactory.h"
+#include "../vtkLattice.h"
 
 int cbVTK::Init () {
 		Callback::Init();
@@ -14,7 +15,9 @@ int cbVTK::Init () {
 			s.add_from_string("all",',');
 		}
 
-		reg = solver->mpi.totalregion;
+                const auto lattice = solver->getCartLattice();
+                const auto& global_region = lattice->connectivity.global_region;
+		reg = global_region;
 	
 		attr = node.attribute("dx");
 		if (attr) { reg.dx = solver->units.alt(attr.value()); }
@@ -37,15 +40,15 @@ int cbVTK::Init () {
 
 		attr = node.attribute("nx");
 		if (attr) { reg.nx = solver->units.alt(attr.value()); }
-		if (reg.nx < 0) { reg.nx = solver->mpi.totalregion.nx - reg.dx + reg.nx; }
+		if (reg.nx < 0) { reg.nx = global_region.nx - reg.dx + reg.nx; }
 		attr = node.attribute("ny");
 		if (attr) { reg.ny = solver->units.alt(attr.value()); }
-		if (reg.ny < 0) { reg.ny = solver->mpi.totalregion.ny - reg.dy + reg.nz; }
+		if (reg.ny < 0) { reg.ny = global_region.ny - reg.dy + reg.nz; }
 		attr = node.attribute("nz");
 		if (attr) { reg.nz = solver->units.alt(attr.value()); }
-		if (reg.nz < 0) { reg.nz = solver->mpi.totalregion.nz - reg.dz + reg.nz; }
+		if (reg.nz < 0) { reg.nz = global_region.nz - reg.dz + reg.nz; }
 
-		reg = reg.intersect(solver->mpi.totalregion);
+		reg = reg.intersect(global_region);
 
 		debug1("VTK \"%s\" with output region: %dx%dx%d + %d,%d,%d from total region %dx%dx%d + %d,%d,%d", nm.c_str(), 
 		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz,solver->mpi.totalregion.nx,solver->mpi.totalregion.ny,solver->mpi.totalregion.nz,solver->mpi.totalregion.dx,solver->mpi.totalregion.dy,solver->mpi.totalregion.dz);
@@ -60,7 +63,9 @@ int cbVTK::Init () {
 
 int cbVTK::DoIt () {
 		Callback::DoIt();
-		return solver->writeVTK(nm.c_str(), &s, reg);
+                const auto filename = solver->outIterFile(nm, ".vti");
+                auto& lattice = *solver->getCartLattice();
+                return vtkWriteLattice(filename.c_str(), lattice, solver->units, s, lattice.getLocalRegion());
 	};
 
 

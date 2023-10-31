@@ -16,9 +16,10 @@ int acLoadMemoryDump::Init () {
 		if (attr2) {
             error("Depreceted API call. Use LoadBinary with comp parameter");
         }
-		solver->lattice->loadSolution(attr.value());
-		return 0;
-	}
+        const auto lattice = solver->getCartLattice();
+        lattice->loadSolution(attr.value());
+        return 0;
+}
 
 
 // Register the handler (basing on xmlname) in the Handler Factory

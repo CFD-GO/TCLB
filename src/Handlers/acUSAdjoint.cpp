@@ -6,7 +6,8 @@ int acUSAdjoint::Init () {
 		old_iter_type = solver->iter_type;
 		int skip_grad = solver->iter_type & ITER_SKIPGRAD;
 		solver->iter_type = ITER_NORM | ITER_GLOBS;
-		solver->lattice->startRecord();
+                const auto lattice = solver->getCartLattice();
+		lattice->startRecord();
 		GenericAction::ExecuteInternal();
 		everyIter = solver->iter - startIter;
 		if (everyIter <= 0) {
@@ -15,7 +16,7 @@ int acUSAdjoint::Init () {
 		}
 		if (skip_grad) {
 			output("Skipping adjoint, as gradient is not needed");
-			solver->lattice->rewindRecord();
+			lattice->rewindRecord();
 			solver->iter -= everyIter;
 		} else {
                     solver->iter_type = (old_iter_type & (~ITER_TYPE)) | ITER_ADJOINT;
@@ -28,7 +29,7 @@ int acUSAdjoint::Init () {
                             solver->steps = next_it;
                             MPI_Bcast(&solver->steps, 1, MPI_INT, 0, MPMD.local);
                             solver->iter -= solver->steps;
-                            solver->lattice->Iterate(solver->steps, solver->iter_type);
+                            lattice->Iterate(solver->steps, solver->iter_type);
                             CudaDeviceSynchronize();
                             MPI_Barrier(MPMD.local);
                             for (size_t i=0; i<solver->hands.size(); i++) {
@@ -38,7 +39,7 @@ int acUSAdjoint::Init () {
                             }
                     } while (!Now(solver->iter));
 		}
-		solver->lattice->stopRecord();
+		lattice->stopRecord();
 		solver->iter += everyIter*2;
 		CudaDeviceSynchronize();
 		MPI_Barrier(MPMD.local);

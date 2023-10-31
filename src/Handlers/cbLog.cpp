@@ -3,13 +3,11 @@ std::string cbLog::xmlname = "Log";
 #include "../HandlerFactory.h"
 
 int cbLog::Init () {
-		char fn[2*STRING_LEN];
 		Callback::Init();
 		pugi::xml_attribute attr = node.attribute("name");
 		std::string nm = "Log";
 		if (attr) nm = attr.value();
-		solver->outIterFile(nm.c_str(), ".csv", fn);
-		filename = fn;
+		filename = solver->outIterFile(nm, ".csv");
 		solver->initLog(filename.c_str());
 		old_iter_type = solver->iter_type;
 		solver->iter_type |= ITER_LASTGLOB;

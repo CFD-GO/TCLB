@@ -57,9 +57,9 @@ AC_ARG_WITH([storage],
 	AS_HELP_STRING([--with-storage],
 		[type of storage used: half, half-shift, float, float-shift, double]))
 
-AC_ARG_ENABLE([cpp11],
-	AS_HELP_STRING([--enable-cpp11],
-		[enable C++ 11 standard]))
+AC_ARG_ENABLE([cpp17],
+	AS_HELP_STRING([--enable-cpp17],
+		[enable C++ 17 standard]))
 
 AC_ARG_WITH([cuda-arch],
 	AS_HELP_STRING([--with-cuda-arch=arch],
@@ -891,10 +891,10 @@ then
 fi
 
 
-if test "x${enable_cpp11}" != "xno"
+if test "x${enable_cpp17}" != "xno"
 then
-	CPPFLAGS="${CPPFLAGS} -std=c++11"
-	NVFLAGS="${NVFLAGS} -std=c++11"
+	CPPFLAGS="${CPPFLAGS} -std=c++17"
+	NVFLAGS="${NVFLAGS} -std=c++17"
 fi
 
 AC_CHECK_HEADERS([chrono],[AC_DEFINE([USE_STEADY_CLOCK], [1], [Using chrono's steady_clock])],[])
