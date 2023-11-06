@@ -91,7 +91,7 @@ inline int mkdir_p(const std::string& path,
                                                   std::filesystem::perms::others_read |
                                                   std::filesystem::perms::others_exec) {
     try {
-        const std::filesystem::path fs_path(path);
+        const auto fs_path = std::filesystem::path(path).parent_path();
         std::filesystem::create_directories(fs_path);
         std::filesystem::permissions(fs_path, perms);
         return EXIT_SUCCESS;
