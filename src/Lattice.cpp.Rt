@@ -249,7 +249,7 @@ int Lattice::saveComp(const std::string& filename, const char* comp) const {
     for (d in rows(DensityAll)) if (d$parameter) {
 ?>
 	if (strcmp(comp, "<?%s d$name ?>") == 0) {
-        lattice->Get_<?%s d$nicename ?>(buf.get();
+        Get_<?%s d$nicename ?>(buf.get());
         somethingWritten = true;
     }
 <?R
@@ -1303,7 +1303,7 @@ int Lattice::loadComp(const char* filename, const char* comp) const {
     assert(n == nn);
     fclose(f);
 <?R for (d in rows(DensityAll)) if (d$parameter) { ?>
-    if (std::string_view(comp) == "<?%s d$name ?>") Set_<?%s d$nicename ?>(buf.get(); <?R
+    if (std::string_view(comp) == "<?%s d$name ?>") Set_<?%s d$nicename ?>(buf.get()); <?R
 } ?>
     return 0;
 }
