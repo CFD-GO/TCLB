@@ -1308,6 +1308,108 @@ int Lattice::loadComp(const char* filename, const char* comp) const {
     return 0;
 }
 
+
+int Lattice::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
+    const auto& region = getLocalRegion();
+    int n = region.size();
+
+    dim[0] = region.nx;
+    dim[1] = region.ny;
+    dim[2] = region.nz;
+
+    offsets[0] = region.dx;
+    offsets[1] = region.dy;
+    offsets[2] = region.dz;
+
+    buf = new real_t[n];
+
+    output("Providing component %s to buffer..\n", comp);
+    bool somethingWritten = false;
+<?R
+    for (d in rows(DensityAll)) if (d$parameter){
+?>
+	if (std::string_view(comp) == "<?%s d$name ?>") {
+        Get_<?%s d$nicename ?>(buf);
+        somethingWritten = true;
+    }
+<?R
+}
+?>
+    if (!somethingWritten){
+        output("Possible densities:\n");
+    <?R
+        for (d in rows(DensityAll)) if (d$parameter){
+            ?> output("-> <?%s d$name ?>\n") ; <?R
+        }
+    ?>
+    }
+    assert(somethingWritten);
+    if (somethingWritten) {
+        output("...provided %s\n", comp);
+    } else {
+     	output("...not saved %s\n", comp);
+    }
+	return n;
+}
+
+int Lattice::getQuantityIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
+    const auto& region = getLocalRegion();
+    int n = region.size();
+
+    dim[0] = region.nx;
+    dim[1] = region.ny;
+    dim[2] = region.nz;
+    dim[3] = 1;
+
+    offsets[0] = region.dx;
+    offsets[1] = region.dy;
+    offsets[2] = region.dz;
+
+	output("Providing quantity %s to buffer..\n", comp);
+    bool somethingWritten = false;
+<?R
+for (q in rows(Quantities)){ ifdef(q$adjoint);
+?>
+    if (std::string_view(comp) == "<?%s q$name ?>") {
+        <?%s q$type ?>* tmp_<?%s q$name ?> = new <?%s q$type ?>[n];
+        <?R if (q$type == 'vector_t') { ?>
+            dim[3] = 3;
+<?R } ?>
+        Get<?%s q$name ?>(region, tmp_<?%s q$name ?>, 1);
+        buf = (real_t*)tmp_<?%s q$name ?>;
+        somethingWritten = true;
+    }
+<?R
+}
+ifdef();
+?>
+    if (!somethingWritten){
+        output("Possible quantities:\n");
+<?R
+for (d in rows(Quantities)) {
+     ?> output("-> <?%s d$name ?>\n"); <?R
+}
+?>
+    }
+    assert(somethingWritten);
+    if (somethingWritten) {
+        output("...provided %s\n", comp);
+    } else {
+        output("...not saved %s\n", comp);
+    }
+    return n;
+}
+
+
+int Lattice::loadComponentFromBuffer(const char* comp,  real_t* buf) {
+    int n = getLocalRegion().size();
+<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
+    if (std::string_view(comp) == "<?%s d$name ?>") Set_<?%s d$nicename ?>(buf); <?R
+} ?>
+    delete [] buf;
+    return 0;
+}
+
 void Lattice::resetAverage() {
 	data.reset_iter = data.iter;
         <?R for (f in rows(Fields))  if (f$average) { ?>

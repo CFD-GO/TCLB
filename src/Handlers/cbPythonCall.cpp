@@ -84,7 +84,9 @@ int cbPythonCall::DoIt () {
 	
 	    pModule = PyImport_ImportModule(module.value());
 	    //Py_DECREF(pName);
-        	
+
+            const auto lattice = solver->getCartLattice();
+
 	    if (pModule != NULL) {
             int buff_id = 0; 
 	        pFunc = PyObject_GetAttrString( pModule, function.value() );
@@ -104,7 +106,7 @@ int cbPythonCall::DoIt () {
                     real_t * buffer;
                     long int dims[3];
 
-                    long int size = solver->getComponentIntoBuffer(component, buffer, dims, offsets );
+                    long int size = lattice->getComponentIntoBuffer(component, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
                         pInputData = PyArray_SimpleNewFromData(3, dims, NPY_FLOAT, buffer);
@@ -128,7 +130,7 @@ int cbPythonCall::DoIt () {
                     real_t * buffer;
                     long int dims[4];
 
-                    long int size = solver->getQuantityIntoBuffer(quantity, buffer, dims, offsets );
+                    long int size = lattice->getQuantityIntoBuffer(quantity, buffer, dims, offsets );
     
                     if (sizeof(real_t) == sizeof(float) ) {
                         pInputData = PyArray_SimpleNewFromData(4, dims, NPY_FLOAT, buffer);
@@ -153,9 +155,9 @@ int cbPythonCall::DoIt () {
                 }
 
                 pGlobalSize = PyTuple_New(3);    
-                PyTuple_SetItem(pGlobalSize, 0, PyLong_FromLong(solver->info.region.nx));
-                PyTuple_SetItem(pGlobalSize, 1, PyLong_FromLong(solver->info.region.ny));
-                PyTuple_SetItem(pGlobalSize, 2, PyLong_FromLong(solver->info.region.nz));
+                PyTuple_SetItem(pGlobalSize, 0, PyLong_FromLong(lattice->connectivity.global_region.nx));
+                PyTuple_SetItem(pGlobalSize, 1, PyLong_FromLong(lattice->connectivity.global_region.ny));
+                PyTuple_SetItem(pGlobalSize, 2, PyLong_FromLong(lattice->connectivity.global_region.nz));
 
                 //first one defines number of extra arguments used
                 PyTuple_SetItem(pArgs, 0, PyLong_FromLong( extra_args ));
@@ -199,7 +201,7 @@ int cbPythonCall::DoIt () {
                 for (int k =0; k < 10; k++){
                     debug1("PythonCall after,comp %s,  buffer %d, value %d: %f\n",component,buff_id,k, buffers[buff_id][k]);
                 }
-                int status = solver->loadComponentFromBuffer(component, buffers[buff_id]);
+                int status = lattice->loadComponentFromBuffer(component, buffers[buff_id]);
                 buff_id++;
             }           
             for (; buff_id <= all_buff; buff_id++){

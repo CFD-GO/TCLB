@@ -165,6 +165,10 @@ void GetQuantity(int quant, const lbRegion& over, real_t * tab, real_t scale);
   int getPar(const ParStruct& par_struct, double * wb);
   int setPar(const ParStruct& par_struct, double * w);
 
+  int getComponentIntoBuffer(const char*, real_t *&, long int* , long int* );
+  int loadComponentFromBuffer(const char*, real_t*);
+  int getQuantityIntoBuffer(const char*, real_t*&, long int*, long int*);
+
   void updateAllSamples();
   void resetAverage();
 };
