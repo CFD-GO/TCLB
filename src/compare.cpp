@@ -9,7 +9,6 @@
 #include <set>
 #include <memory>
 #include <math.h>
-#include <cstring>
 
 std::string getPath (const std::string& str)
 {
@@ -29,37 +28,38 @@ struct base64decoder {
 			rev64[((unsigned char *)base64char)[i]] = i;
 		rev64[(unsigned char)'='] = 0;
 	};
-	void dc64(const unsigned char *txt, size_t n4, unsigned char *optr, size_t n3) {
+	void dc64(const unsigned char *txt, unsigned char *optr, int n) {
 		int v;
-		size_t i,j;
-		for (i=0,j=0; i < n4 && j < n3; i += 4, j += 3) {
-			v = 0;
-			if (i+0 < n4) v += rev64[txt[i+0]];
+		while (n > 0) {
+			v = rev64[txt[0]];
 			v <<= 6;
-			if (i+1 < n4) v += rev64[txt[i+1]];
+			v += rev64[txt[1]];
 			v <<= 6;
-			if (i+2 < n4) v += rev64[txt[i+2]];
+			v += rev64[txt[2]];
 			v <<= 6;
-			if (i+3 < n4) v += rev64[txt[i+3]];
+			v += rev64[txt[3]];
 
-			if (j+2 < n3) optr[j+2] = static_cast<unsigned char>(v & 0xFF);
+			if (n > 2) optr[2] = v & 0xFF;
 			v >>= 8;
-			if (j+1 < n3) optr[j+1] = static_cast<unsigned char>(v & 0xFF);
+			if (n > 1) optr[1] = v & 0xFF;
 			v >>= 8;
-			if (j+0 < n3) optr[j+0] = static_cast<unsigned char>(v);
+			if (n > 0) optr[0] = v;
+			n -= 3;
+			optr += 3;
+			txt += 4;
 		}
-		assert(j >= n3);
 	}
 
-	void decode64(const char *txt, size_t txtlen, void **out, size_t *outlen) {
-		txt += 1; txtlen -= 1;
-		size_t len;
-		dc64((unsigned char *)txt, 8, (unsigned char *)&len, 4);
-		txt += 8; txtlen -= 8;
-		unsigned char *ptr = (unsigned char *)malloc(len);
-		dc64((unsigned char *)txt, txtlen, ptr, len);
-		*outlen = len;
-		*out = ptr;
+	void decode64(const char *txt, void **optr, int len) {
+		int nlen;
+		unsigned char *ptr;
+		txt += 1;
+		dc64((unsigned char *)txt, (unsigned char *)&nlen, 4);
+		txt += 8;
+		assert(len == nlen);
+		ptr = (unsigned char *)malloc(nlen);
+		dc64((unsigned char *)txt, ptr, nlen);
+		*optr = ptr;
 	}
 };
 
@@ -119,7 +119,7 @@ struct Tab : public TabBase {
 					}
 				}
 			}
-		}
+		}	
 		return diff;
 	}
 	Tab(int dx_, int dy_, int dz_, int nx_, int ny_, int nz_, int comp_, std::string fname_, std::string ftype_) :
@@ -133,10 +133,7 @@ struct Tab : public TabBase {
 		assert(std::string("base64") == node.attribute("encoding").value());
 		size_t psize = 1L * (pnx - pdx) * (pny - pdy) * (pnz - pdz) * comp;
 		T *ptr;
-		size_t len4 = strlen(node.child_value());
-		size_t len = 0;
-		b64.decode64(node.child_value(), len4, (void **)&ptr, &len);
-		assert(len == psize * sizeof(T));
+		b64.decode64(node.child_value(), (void **)&ptr, psize * sizeof(T));
 		T* tmp = ptr;
 		for (int z = pdz; z < pnz; z++) {
 			for (int y = pdy; y < pny; y++) {
@@ -149,7 +146,7 @@ struct Tab : public TabBase {
 				}
 			}
 		}
-		free(ptr);
+		free(ptr);		
 	}
 };
 
@@ -160,7 +157,7 @@ struct Tabs {
 	typedef TabBase* TabBasePtr;
 	typedef std::map<std::string, TabBasePtr> TabMap;
 	TabMap tab;
-
+	
 	Tabs(std::string filename_) : filename(filename_) {
 		path = getPath(filename);
 		printf("Reading %s\n", filename.c_str());
@@ -258,7 +255,7 @@ int main(int argc, char *argv[]) {
 	Tabs tabs1(argv[1]);
 	Tabs tabs2(argv[2]);
 	printf("Epsilon: %lg, Delta: %d, %d, %d\n", eps, delta_x, delta_y, delta_z);
-
+	
 	std::set< std::string > names;
 	for (Tabs::TabMap::iterator it = tabs1.tab.begin(); it != tabs1.tab.end(); it++) names.insert(it->first);
 	for (Tabs::TabMap::iterator it = tabs2.tab.begin(); it != tabs2.tab.end(); it++) names.insert(it->first);
@@ -290,7 +287,7 @@ int main(int argc, char *argv[]) {
 				result = false;
 			} else {
 				printf(" --- OK\n");
-			}
+			}		
 		}
 	}
 	if (result) {
