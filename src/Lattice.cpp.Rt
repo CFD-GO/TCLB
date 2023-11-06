@@ -243,7 +243,7 @@ int Lattice::saveComp(const std::string& filename, const char* comp) const {
 	const int n = getLocalRegion().size();
 	const auto fn = formatAsString("%s_%s_%d.comp", filename, comp, D_MPI_RANK);
 	auto buf = std::make_unique<real_t[]>(n);
-	output("Saving component %s to file %s\n", comp, fn);
+	output("Saving component %s to file %s\n", comp, fn.c_str());
     bool somethingWritten = false;
 <?R
     for (d in rows(DensityAll)) if (d$parameter) {
