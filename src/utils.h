@@ -22,13 +22,17 @@ inline const char* maybeString(const std::string& str) { return str.c_str(); }
 }  // namespace detail
 
 template <class... Args>
-std::string formatAsString(const char* format, Args... args) {
-    const int n_chars = std::snprintf(nullptr, 0, format, args...);
-    assert(n_chars >= 0);
-    std::string retval;
-    retval.resize(static_cast<typename std::string::size_type>(n_chars + 1));
-    std::sprintf(&retval[0], format, detail::maybeString(args)...);
-    return retval;
+std::string formatAsString(const char* format, Args&&... args) {
+    if constexpr (sizeof...(Args) == 0) {
+        return format;
+    } else {
+        const int n_chars = std::snprintf(nullptr, 0, format, detail::maybeString(args)...);
+        assert(n_chars >= 0);
+        std::string retval;
+        retval.resize(static_cast<typename std::string::size_type>(n_chars + 1));
+        std::sprintf(&retval[0], format, detail::maybeString(args)...);
+        return retval;
+    }
 }
 
 inline int myround(double v) {

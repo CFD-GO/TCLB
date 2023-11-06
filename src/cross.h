@@ -180,7 +180,7 @@
 //    cudaError_t cudaAllocFinalize();
 
     CudaError HandleError( CudaError err, const char *file, int line );
-    #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
+    #define HANDLE_ERROR( err ) ((void)HandleError( err, __FILE__, __LINE__ ))
     #define ISFINITE(l__) isfinite(l__)
 
   #else
