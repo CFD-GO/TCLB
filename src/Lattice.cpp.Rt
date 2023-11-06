@@ -1090,7 +1090,7 @@ void Lattice::Set_Field(int id, real_t * tab) { <?R
         Retrive the values of the density <?%s f$nicename ?> (<?%s f$comment ?>)
         from the GPU memory
 */
-void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
+void Lattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab) const
 {
 	debug2("Pulling all <?%s f$nicename ?>\n");
 	CudaMemcpy(
@@ -1121,7 +1121,7 @@ void Lattice::Clear_<?%s f$nicename ?><?%s suff ?>()
         the density <?%s f$nicename ?> (<?%s f$comment ?>)
         in the GPU memory
 */
-void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab)
+void Lattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab) const
 {
 	debug2("Setting all <?%s f$nicename ?>\n");
 	CudaMemcpy(

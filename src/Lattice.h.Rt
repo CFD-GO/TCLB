@@ -144,7 +144,7 @@ for (a in rows(Actions)) { ?>
 <?R for (d in rows(DensityAll)) { ?>
   void Get_<?%s d$nicename ?>(real_t * tab) const;
   void Clear_<?%s d$nicename ?>();
-  void Set_<?%s d$nicename ?>(real_t * tab);
+  void Set_<?%s d$nicename ?>(real_t * tab) const;
   void Get_<?%s d$nicename ?>_Adj(real_t * tab) const;
   void Clear_<?%s d$nicename ?>_Adj();
   void Set_<?%s d$nicename ?>_Adj(real_t * tab);
