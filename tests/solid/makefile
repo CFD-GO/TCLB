@@ -10,7 +10,7 @@ all: main
 run: main
 	./main
 
-main.o: main.cpp $(SRC)/SolidTree.hpp $(SRC)/SolidTree.h $(SRC)/SolidGrid.h $(SRC)/SolidGrid.hpp $(SRC)/SolidAll.h
+main.o: main.cpp $(SRC)/SolidTree.h $(SRC)/SolidGrid.h $(SRC)/SolidAll.h
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 main: main.o

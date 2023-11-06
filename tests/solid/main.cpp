@@ -19,10 +19,8 @@ typedef float real_t;
 
 const int max_cache_size = 1024;
 #include "SolidTree.h"
-#include "SolidTree.hpp"
 #include "SolidAll.h"
 #include "SolidGrid.h"
-#include "SolidGrid.hpp"
 
 
 struct ball {
