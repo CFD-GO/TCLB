@@ -130,8 +130,8 @@ int Lattice::EventLoop() {
 #ifdef GRAPHICS
     bitmap->idle_func();
     glutMainLoopEvent();
-    return 0;
 #endif
+    return 0;
 }
 
 /// Preallocation of a buffer (combines allocation into one big allocation)
@@ -1195,11 +1195,12 @@ int Lattice::getPars(ParStruct& par_struct) {
   debug1("Par_size: %d\n",par_struct.Par_size);
   MPI_Gather(&par_struct.Par_size, 1, MPI_INT, par_struct.Par_sizes.get(), 1, MPI_INT, 0, MPMD.local);
   if (connectivity.mpi_rank == 0) {
-  	int i;
   	par_struct.Par_disp[0] = 0;
   	const auto mpi_size = connectivity.nodes.size();
-  	for (i=0; i<mpi_size-1; i++) par_struct.Par_disp[i+1] = par_struct.Par_disp[i] + par_struct.Par_sizes[i];
-  	for (i=0; i<mpi_size; i++) debug2("Proc: %d Parameters: %d Disp: %d\n", i, par_struct.Par_sizes[i], par_struct.Par_disp[i]);
+  	for (size_t i = 0; i < mpi_size - 1; ++i)
+  	    par_struct.Par_disp[i + 1] = par_struct.Par_disp[i] + par_struct.Par_sizes[i];
+  	for (size_t i = 0; i < mpi_size; ++i)
+  	    debug2("Proc: %d Parameters: %d Disp: %d\n", i, par_struct.Par_sizes[i], par_struct.Par_disp[i]);
   	return par_struct.Par_disp[mpi_size-1] + par_struct.Par_sizes[mpi_size-1];
   }
   return 0;
