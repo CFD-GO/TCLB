@@ -65,7 +65,7 @@ int cbVTK::DoIt () {
 		Callback::DoIt();
                 const auto filename = solver->outIterFile(nm, ".vti");
                 auto& lattice = *solver->getCartLattice();
-                return vtkWriteLattice(filename.c_str(), lattice, solver->units, s, lattice.getLocalRegion());
+                return vtkWriteLattice(filename.c_str(), lattice, solver->units, s, lattice.connectivity.global_region);
 	};
 
 
