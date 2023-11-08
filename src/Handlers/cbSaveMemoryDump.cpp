@@ -13,7 +13,7 @@ int cbSaveMemoryDump::Init () {
                 fn = attr.value();
             }
 		} else {
-            fn = ((std::string) solver->outpath) + "_" + attr.value();
+            fn = solver->outpath + "_" + attr.value();
         }
 		return 0;
 	}

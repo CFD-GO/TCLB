@@ -407,35 +407,38 @@ int main ( int argc, char * argv[] )
         // Setting main callback
         solver_builder.setCallback();
 
-        // The solver has been built!
-        const auto solver = solver_builder.build();
+        {
+            // The solver has been built!
+            const auto solver = solver_builder.build();  // cannot outlive cuda finalization
 
-	// Initializing CUDA events
-	CudaEventCreate( &start );
-	CudaEventCreate( &stop );
-	CudaEventRecord( start, 0 );
+            // Initializing CUDA events
+            CudaEventCreate(&start);
+            CudaEventCreate(&stop);
+            CudaEventRecord(start, 0);
 
-	// Running main handler (it makes all the magic)
-	{
-		Handler hand(config, solver.get());
-		if (!hand) {
-			error("Something went wrong in xml run!\n");
-			return -1;
-		}
-	}
-    #ifdef EMBEDED_PYTHON
-    Py_Finalize();
-    #endif
+            // Running main handler (it makes all the magic)
+            {
+            Handler hand(config, solver.get());
+            if (!hand) {
+                error("Something went wrong in xml run!\n");
+                return -1;
+            }
+            }
 
-	// Finish and clean up
-	debug2("CudaFree ...\n");
-	CudaEventDestroy( start );
-	CudaEventDestroy( stop );
+#ifdef EMBEDED_PYTHON
+            Py_Finalize();
+#endif
 
-	if (solver->mpi_rank == 0) {
-		double duration = get_walltime();
-		output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration /60/60);
-	}
+            // Finish and clean up
+            debug2("CudaFree ...\n");
+            CudaEventDestroy(start);
+            CudaEventDestroy(stop);
+
+            if (solver->mpi_rank == 0) {
+            double duration = get_walltime();
+            output("Total duration: %lf s = %lf min = %lf h\n", duration, duration / 60, duration / 60 / 60);
+            }
+        }
 	CudaDeviceReset();
 	MPI_Finalize();
 }

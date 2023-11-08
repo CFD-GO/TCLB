@@ -36,14 +36,13 @@ CudaError HandleError( CudaError err,
 #ifndef CROSS_SYNCALLOC
 
         struct ptrpair {
-                void ** ptr;
-                size_t size;
-                ptrpair() { ptr=NULL; size = 0; }
-                ptrpair(const ptrpair & p) { ptr=p.ptr; size=p.size; };
-                ptrpair(void ** ptr_, size_t size_) { ptr=ptr_; size=size_; };
-                inline const bool operator< (const ptrpair & B) const {
+                void ** ptr = nullptr;
+                size_t size = 0;
+                ptrpair() = default;
+                ptrpair(void ** ptr_, size_t size_) { ptr=ptr_; size=size_; }
+                bool operator< (const ptrpair & B) const {
                         return size < B.size;
-                };
+                }
         };
 
         std::vector< ptrpair > ptrlist;
@@ -103,14 +102,11 @@ CudaError HandleError( CudaError err,
 
 
         CudaError cudaAllocFreeAll() {
-                std::pair< void *, std::vector< ptrpair > > ptr_list;
                 while (!freelist.empty()) {
-                        ptr_list = freelist.back();
+                        auto& ptr_list = freelist.back();
                         CudaFree(ptr_list.first);
-                        std::vector< ptrpair >::iterator it;
-                        for (it=ptr_list.second.begin(); it != ptr_list.second.end(); it++) {
-                                *((*it).ptr) = NULL;
-                        }
+                        for(const auto& ptr_pair : ptr_list.second)
+                            *ptr_pair.ptr = nullptr;
                         freelist.pop_back();
                 }
                 return CudaSuccess;

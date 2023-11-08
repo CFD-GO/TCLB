@@ -51,7 +51,7 @@ int cbVTK::Init () {
 		reg = reg.intersect(global_region);
 
 		debug1("VTK \"%s\" with output region: %dx%dx%d + %d,%d,%d from total region %dx%dx%d + %d,%d,%d", nm.c_str(), 
-		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz,solver->mpi.totalregion.nx,solver->mpi.totalregion.ny,solver->mpi.totalregion.nz,solver->mpi.totalregion.dx,solver->mpi.totalregion.dy,solver->mpi.totalregion.dz);
+		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz,global_region.nx,global_region.ny,global_region.nz,global_region.dx,global_region.dy,global_region.dz);
 		if (reg.size() == 0) {
 			ERROR("VTK \"%s\" output has size 0", nm.c_str());
 			return -1;

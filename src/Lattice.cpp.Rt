@@ -227,8 +227,8 @@ std::string Lattice::saveSolution(const std::string& filename) {
 	auto fn = formatAsString("%s_%d.pri", filename, D_MPI_RANK);
 	save(Snaps[Snap], fn.c_str());
 #ifdef ADJOINT
-	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
-	save(aSnaps[aSnap], fn.c_str();
+	fn = formatAsString("%s_%d.adj", filename, D_MPI_RANK);
+	save(aSnaps[aSnap], fn.c_str());
 #endif
 	return fn;
 }
@@ -248,7 +248,7 @@ int Lattice::saveComp(const std::string& filename, const char* comp) const {
 <?R
     for (d in rows(DensityAll)) if (d$parameter) {
 ?>
-	if (strcmp(comp, "<?%s d$name ?>") == 0) {
+	if (std::string_view(comp) == "<?%s d$name ?>") {
         Get_<?%s d$nicename ?>(buf.get());
         somethingWritten = true;
     }
@@ -273,12 +273,11 @@ int Lattice::saveComp(const std::string& filename, const char* comp) const {
         \param filename Prefix/path for the dumped binary files
 */
 void Lattice::loadSolution(const char * filename) {
-	char fn[STRING_LEN];
-	sprintf(fn, "%s_%d.pri", filename, D_MPI_RANK);
-	if (load(Snaps[Snap], fn)) exit(-1);
+	auto fn = formatAsString("%s_%d.pri", filename, D_MPI_RANK);
+	if (load(Snaps[Snap], fn.c_str())) exit(-1);
 #ifdef ADJOINT
-	sprintf(fn, "%s_%d.adj", filename, D_MPI_RANK);
-	load(aSnaps[aSnap], fn);
+	fn = formatAsString("%s_%d.adj", filename, D_MPI_RANK);
+	load(aSnaps[aSnap], fn.c_str());
 #endif
 }
 
