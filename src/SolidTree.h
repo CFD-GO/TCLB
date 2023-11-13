@@ -7,6 +7,7 @@
 #include <vector>
 #include <set>
 #include <math.h>
+#include "types.h"
 
 struct tr_elem {
     tr_flag_t flag;
