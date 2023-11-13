@@ -2,6 +2,7 @@
 #define GEOMETRY_H
 
 #include "unit.h"
+#include "pugixml.hpp"
 #include <map>
 /// STL triangle structure
 #ifdef _WIN32

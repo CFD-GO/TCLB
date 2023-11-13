@@ -47,7 +47,7 @@ public:
 			ret = (*it)->Produce(input);
 			if (ret) return ret;
 		}
-		return NULL;
+		return nullptr;
 	};
 	// Template class for registration of the worker functions
 	template <Product* (*T)(const Input&)>

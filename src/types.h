@@ -28,6 +28,11 @@
   #define CUT_MAX 65000
   #define CUT_LEN(x__) (0.005f * (x__))
 
+  typedef char tr_flag_t;
+  typedef int tr_addr_t;
+  typedef double tr_real_t;
+
+
 /*
   struct vector_t {
     real_t x,y,z;
