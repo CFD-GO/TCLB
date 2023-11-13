@@ -81,7 +81,7 @@ void fillSides(MPIInfo mpi, int nx, int ny, int nz)
 	}
 }
 
-#define OUTPUT_LINE_LEN 80
+#define OUTPUT_LINE_LEN 160
 int D_print_level=0;
 int D_only_root_level=6;
 int D_error_level=8;
@@ -173,19 +173,22 @@ int special_print(FILE* f, char * rank, int level, int color, int lines, char * 
     if (lines) {
       int i=0;
       for (char * bf = buf; *bf; bf++) {
-        if (i >= OUTPUT_LINE_LEN) {
-          line[i] = '\0';
-          fprintf(f,format,rank,line);
+        line[i] = bf[0];
+        i++;
+        if (i >= OUTPUT_LINE_LEN || bf[0] == '\n') {
+	  if (i > 0) {
+            if (line[i-1] == '\n') i--;
+            line[i] = '\0';
+            fprintf(f,format,rank,line);
+          }
           i=0;
         }
-        line[i] = *bf;
-        i++;
       }
       if (i > 0) {
         if (line[i-1] == '\n') i--;
-      }
-      line[i] = '\0';
-      return fprintf(f,format,rank,line);
+        line[i] = '\0';
+        return fprintf(f,format,rank,line);
+      } else return 0;
     } else {
       int i=strlen(buf);
       if (i > 0) {
@@ -202,8 +205,28 @@ int myprint(int level, int all, const char *fmt, ...)
     if (level < D_print_level) return 0;
     va_list args;
     va_start(args, fmt);
-    static char buf[100*OUTPUT_LINE_LEN];
-    vsprintf(buf, fmt, args);
+    char * buf = nullptr;
+    const int max_buf_size = 200*OUTPUT_LINE_LEN;
+    static std::vector<char> buf_dyn;
+    const int buf_size = 5*OUTPUT_LINE_LEN;
+    static char buf_stat[buf_size];
+
+    int ret = vsnprintf(&buf_stat[0], buf_size, fmt, args);
+    if (ret < 0) {
+	buf = "=== vsnprintf failed in myprint ===";
+    } else if (ret < buf_size) {
+	buf = &buf_stat[0];
+    } else if (ret < max_buf_size) {
+	buf_dyn.resize(ret+1);
+	int ret2 = vsnprintf(&buf_dyn[0], buf_dyn.size(), fmt, args);
+	if (ret != ret2) {
+	    buf = "=== vsnprintf failed to be consistent in myprint ===";
+        } else {
+	    buf = &buf_dyn[0];
+        }
+    } else {
+	buf = "=== output does not fit in buffer in myprint ===";
+    }
     char* rank="";
     if ((level < D_only_root_level) && (!all)) {
       if (D_MPI_RANK != 0) return 0;
