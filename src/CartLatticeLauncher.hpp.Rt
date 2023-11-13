@@ -1,0 +1,340 @@
+<?R
+        source("conf.R")
+c_header();
+?>
+/** \file CartLatticeLauncher.hpp
+*/
+
+#include "CartLatticeLauncher.h"
+#include "CartLatticeAccess.hpp"
+#include "Node.hpp"
+#include "GetThreads.h"
+
+using CartLatticeAccessAll      = AccessComposite< CartLatticeAccess< range_int<0,0,-1,1>, range_int<0,0,-1,1>, range_int<0,0,-1,1> > >;
+using CartLatticeAccessInterior = AccessComposite< CartLatticeAccess<
+  range_int< <?%d BorderMargin$max[1] ?>,0,<?%d BorderMargin$min[1]-1 ?>,1>,
+  range_int< <?%d BorderMargin$max[2] ?>,0,<?%d BorderMargin$min[2]-1 ?>,1>,
+  range_int< <?%d BorderMargin$max[3] ?>,0,<?%d BorderMargin$min[3]-1 ?>,1> > >;
+
+/// Main Kernel
+/**
+  iterates over all elements and runs them with RunElement function.
+  container.dx/dy is to calculate only internal nodes
+*/
+template < eOperationType I, eCalculateGlobals G, eStage S >
+class CartInteriorExecutor {
+  CartLatticeContainer container;
+  LatticeData          data;
+
+public:
+  CartInteriorExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3 thr) const {
+    const int nx = container.nx;
+    const int ny = container.ny;
+    const int nz = container.nz;
+    dim3 blx;
+#ifdef GRID3D
+    blx.z = nx/thr.x;
+#else
+    blx.z = 1;
+#endif
+    int totx = ny - <?%d BorderMargin$max[2]-BorderMargin$min[2] ?>;
+    blx.x = ceiling_div(totx, thr.y);
+    int toty = nz - <?%d BorderMargin$max[3]-BorderMargin$min[3] ?>;
+    blx.y = toty;
+    return LaunchParams{blx, thr};
+  }
+
+  CudaDeviceFunction void Execute() const {
+    using LA = CartLatticeAccessInterior;
+    using N  = Node<LA, I, G, S>;
+    int x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + <?%d BorderMargin$max[1] ?>;
+    int y_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y + <?%d BorderMargin$max[2] ?>;
+    int z_ = CudaBlock.y                                      + <?%d BorderMargin$max[3] ?>;
+    if (y_ < container.ny - <?%d -BorderMargin$min[2] ?>) {
+#ifndef GRID3D
+      for (; x_ < container.nx; x_ += CudaNumberOfThreads.x)
+#endif
+      {
+        LA acc(x_, y_, z_, container);
+        N now(acc, data);
+        now.RunElement();
+      }
+    }
+  }
+};
+
+/// Border Kernel
+/**
+  iterates over border elements and runs them with RunElement function
+*/
+template < eOperationType I, eCalculateGlobals G, eStage S >
+class CartBorderExecutor {
+  CartLatticeContainer container;
+  LatticeData          data;
+
+public:
+  CartBorderExecutor(const CartLatticeContainer& container_, const LatticeData& data_) : container(container_), data(data_) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3 thr) const {
+    const int nx = container.nx;
+    const int ny = container.ny;
+    const int nz = container.nz;
+<?R
+    thy = BorderMargin$max[2] - BorderMargin$min[2] + BorderMargin$max[3] - BorderMargin$min[3]
+    blx = "nz"
+    if (BorderMargin$max[3] != 0 || BorderMargin$min[3] != 0) blx = "max(ny,nz)"
+    if (thy > 0) {
+?>
+    dim3 blx;
+#ifdef GRID3D
+    blx.z = nx/thr.x;
+#else
+    blx.z = 1;
+#endif
+    int totx = <?%s blx ?>;
+    blx.x = ceiling_div(totx, thr.y);
+    blx.y = <?%d thy ?>;
+    return LaunchParams{blx, thr};
+<?R } ?>
+  }
+
+  CudaDeviceFunction void Execute() const {
+    int x_ = CudaThread.x + CudaBlock.z*CudaNumberOfThreads.x + <?%d BorderMargin$max[1] ?>;
+    int a_ = CudaThread.y + CudaBlock.x*CudaNumberOfThreads.y;
+    int y_,z_;
+    switch (CudaBlock.y) { <?R
+    i = 0
+    if (BorderMargin$max[2] > BorderMargin$min[2]) for (y in BorderMargin$min[2]:BorderMargin$max[2]) if (y != 0) { ?>
+    case <?%d i ?>:
+      z_ = a_; <?R
+      if (y > 0) { ?>
+        y_ = <?%d y - 1 ?>; <?R
+      } else if (y < 0) { ?>
+        y_ = container.ny - <?%d -y ?>; <?R
+      } ?>
+      if (z_ >= container.nz) return;
+      break; <?R
+      i = i + 1;
+      }
+      if (BorderMargin$max[3] > BorderMargin$min[3]) for (z in BorderMargin$min[3]:BorderMargin$max[3]) if (z != 0) { ?>
+    case <?%d i ?>:
+      y_ = a_ + <?%d BorderMargin$max[2] ?>; <?R
+      if (z > 0) { ?>
+        z_ = <?%d z - 1 ?>; <?R
+      } else if (z < 0) { ?>
+      z_ = container.nz - <?%d -z ?>; <?R
+      } ?>
+      if (y_ >= container.ny - <?%d -BorderMargin$min[2] ?>) return;
+      break; <?R
+      i = i + 1;
+      } ?>
+    default:
+      assert(CudaThread.y < <?%d i ?>);
+      y_ = 0;z_ = 0;
+      break;
+    }
+
+    using LA = CartLatticeAccessAll;
+    using N  = Node<LA, I, G, S>;
+
+#ifndef GRID3D
+    for (; x_ < container.nx; x_ += CudaNumberOfThreads.x)
+#endif
+    {
+      LA acc(x_, y_, z_, container);
+      N now(acc, data);
+      now.RunElement();
+    }
+  }
+};
+
+template < eOperationType I, eCalculateGlobals G, eStage S >
+void CartLatticeLauncher::RunInterior(CudaStream_t stream) const {
+  const CartInteriorExecutor< I, G, S > executor(container, data);
+  LaunchExecutorAsync(executor, stream);
+}
+
+template < eOperationType I, eCalculateGlobals G, eStage S >
+void CartLatticeLauncher::RunBorder(CudaStream_t stream) const {
+  const CartBorderExecutor< I, G, S > executor(container, data);
+  LaunchExecutorAsync(executor, stream);
+}
+
+
+template < eOperationType I, eCalculateGlobals G, eStage S >
+class CartColorExecutor{
+  CartLatticeContainer container;
+  LatticeData          data;
+
+  uchar4* optr;
+  int     z;
+
+public:
+  CartColorExecutor(const CartLatticeContainer& container_, const LatticeData& data_, uchar4* optr_, int z_)
+    : container(container_), data(data_), optr(optr_), z(z_)
+  {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3) const {
+    return LaunchParams{dim3(floor(container.nx / X_BLOCK), container.ny, 1), dim3(X_BLOCK)};
+  }
+
+  CudaDeviceFunction void Execute() const {
+    using LA = CartLatticeAccessAll;
+    using N  = Node<LA, I, G, S>;
+
+    const int x = CudaThread.x + CudaBlock.x * CudaNumberOfThreads.x;
+    const int y = CudaBlock.y;
+
+    int offset = x + y * container.nx;
+    float l = 0.; float w = 0.;
+    int r = 0, g = 0, b = 0;
+    if (x < 0 || y < 0 || z < 0 || x >= container.nx || y >= container.ny || z >= container.nz)
+      return;
+
+    LA acc(x, y, z, container);
+    N now(acc, data);
+    acc.pop(now);
+    float2 v = now.Color();
+    l = v.x;
+    w = v.y;
+
+    if (ISFINITE(l)) {
+      l = l * 111;
+      if (               (l <-111)) {r = 255; g = 255; b = 255; }
+      if ((l >= -111) && (l < -11)) {r = 255*(-l-11)/100; g = 255; b = 255; }
+      if ((l >=  -11) && (l <  -1)) {r = 0; g = (255*(-l-1))/10; b = 255; }
+      if ((l >=   -1) && (l <   0)) {r = 0; g = 0; b = 255*(-l); }
+      if ((l >=    0) && (l <   1)) {r = 255*l; g = 0; b = 0; }
+      if ((l >=    1) && (l <  11)) {r = 255; g = 255*(l-1)/10; b = 0; }
+      if ((l >=   11) && (l < 111)) {r = 255; g = 255; b = 255*(l-11)/100; }
+      if ((l >=  111)             ) {r = 255; g = 255; b = 255; }
+      r=r*w;
+      g=g*w + (1-w)*255;
+      b=b*w;
+    } else {
+      r = 255;
+      g = 0;
+      b = 255;
+    }
+
+    optr[offset].x = r;
+    optr[offset].y = g;
+    optr[offset].z = b;
+    optr[offset].w = 255;
+  }
+};
+
+/// Runs kernel for rendering graphics
+/**
+  Runs the kernel for rendering graphics
+  \param optr 4-component graphics buffer
+*/
+void CartLatticeLauncher::Color(uchar4 *optr) const {
+  const CartColorExecutor< Primal, NoGlobals, Get > executor(container, data, optr, container.nz / 2);
+  LaunchExecutor(executor);
+}
+
+// Quantity getters
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+
+class GetQuantityExecutor<?%s q$name ?>Base {
+protected:
+  CartLatticeContainer container;
+  LatticeData          data;
+
+  lbRegion        small;
+  <?%s q$type ?>* buf;
+  real_t          scale;
+
+public:
+  GetQuantityExecutor<?%s q$name ?>Base(const CartLatticeContainer& container_, const LatticeData& data_, const lbRegion& small_, <?%s q$type ?>* buf_, real_t scale_)
+    : container(container_), data(data_), small(small_), buf(buf_), scale(scale_)
+  {}
+
+  CudaDeviceFunction void Execute() const {
+    using LA = CartLatticeAccessAll;
+    int x = CudaBlock.x + small.dx;
+    int y = CudaBlock.y + small.dy;
+    int z = CudaBlock.z + small.dz;
+    LA acc(x, y, z, container); <?R
+    if (q$adjoint) { ?>
+      Node< LA, Adjoint, NoGlobals, Get > now(acc, data); <?R
+    } else { ?>
+      Node< LA, Primal, NoGlobals, Get > now(acc, data); <?R
+    }?>
+    <?%s q$type ?> w;
+//  if (now.NodeType) {
+      acc.pop(now); <?R
+      if (q$adjoint) { ?>
+        acc.pop_adj(now); <?R
+      } ?>
+      w = now.get<?%s q$name ?>(); <?R
+      if (q$type == "vector_t") {
+        for (coef in c("x","y","z")) { ?>
+          w.<?%s coef ?> *= scale; <?R
+        }
+      } else { ?>
+        w *= scale; <?R
+      } ?>
+//  } else { <?R
+      if (q$type == "vector_t") {
+        for (coef in c("x","y","z")) { ?>
+//        w.<?%s coef ?> = nan(""); <?R
+        }
+      } else { ?>
+//      w = nan(""); <?R
+      } ?>
+//  }
+    buf[small.offset(x,y,z)] = w;
+  }
+};
+
+class GetQuantityExecutor<?%s q$name ?> : public GetQuantityExecutor<?%s q$name ?>Base {
+public:
+  template<class... Args>
+  GetQuantityExecutor<?%s q$name ?>(Args&&... args) : GetQuantityExecutor<?%s q$name ?>Base(std::forward<Args>(args)...) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3) const {
+    return LaunchParams{dim3(small.nx, small.ny, small.nz), dim3(1)};
+  }
+};
+
+class GetQuantitySampleExecutor<?%s q$name ?> : public GetQuantityExecutor<?%s q$name ?>Base {
+public:
+  template<class... Args>
+  GetQuantitySampleExecutor<?%s q$name ?>(Args&&... args) : GetQuantityExecutor<?%s q$name ?>Base(std::forward<Args>(args)...) {}
+
+  CudaHostFunction LaunchParams ComputeLaunchParams(dim3) const {
+    return LaunchParams{dim3(small.nx, small.ny), dim3(1)};
+  }
+};
+
+/// Calculate quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to calculate quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  \param r Lattice region to calculate the quantity
+  \param tab buffer to put the calculated result
+  \param scale Scale to rescale the result (for units)
+*/
+void CartLatticeLauncher::GetQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
+  const GetQuantityExecutor<?%s q$name ?> executor(container, data, r, tab, scale);
+  LaunchExecutor(executor);
+}
+
+/// Sample quantity [<?%s q$comment ?>] kernel
+/**
+  Kernel to sample quantity <?%s q$name ?> (<?%s q$comment ?>) over a region
+  \param r Lattice region to sample the quantity
+  \param tab buffer to put the sampled result
+  \param scale Scale to rescale the result (for units)
+*/
+void CartLatticeLauncher::SampleQuantity<?%s q$name ?>(lbRegion r, <?%s q$type ?>* tab, real_t scale) const {
+  const GetQuantitySampleExecutor<?%s q$name ?> executor(container, data, r, tab, scale);
+  LaunchExecutor(executor);
+}
+
+<?R
+}
+ifdef(); ?>
