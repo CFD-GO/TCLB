@@ -7,10 +7,7 @@
 #include <vector>
 #include <set>
 #include <math.h>
-
-typedef char tr_flag_t;
-typedef int tr_addr_t;
-typedef double tr_real_t;
+#include "types.h"
 
 struct tr_elem {
     tr_flag_t flag;

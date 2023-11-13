@@ -3,7 +3,6 @@
 
 #include "unit.h"
 #include "pugixml.hpp"
-
 #include <map>
 
 /// STL triangle structure
