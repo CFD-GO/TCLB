@@ -7,6 +7,7 @@
 #include <vector>
 #include <set>
 #include <math.h>
+#include "types.h"
 
 typedef int gr_addr_t;
 
