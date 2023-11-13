@@ -206,9 +206,9 @@ int myprint(int level, int all, const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     char * buf = nullptr;
-    const size_t max_buf_size = 200*OUTPUT_LINE_LEN;
+    const int max_buf_size = 200*OUTPUT_LINE_LEN;
     static std::vector<char> buf_dyn;
-    const size_t buf_size = 5*OUTPUT_LINE_LEN;
+    const int buf_size = 5*OUTPUT_LINE_LEN;
     static char buf_stat[buf_size];
 
     int ret = vsnprintf(&buf_stat[0], buf_size, fmt, args);
