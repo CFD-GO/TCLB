@@ -56,16 +56,16 @@
       #ifndef CROSS_HIP 
        #define CudaKernelRun(a__,b__,c__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() )
        #ifdef CROSS_SYNC
-         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
+         #define CudaKernelRunAsync(a__,b__,c__,e__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( cudaDeviceSynchronize()); HANDLE_ERROR( cudaGetLastError() );
        #else
-         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__,0,e__>>>(__VA_ARGS__);
+         #define CudaKernelRunAsync(a__,b__,c__,e__,...) a__<<<b__,c__,0,e__>>>(__VA_ARGS__);
        #endif
       #else
        #define CudaKernelRun(a__,b__,c__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() )
        #ifdef CROSS_SYNC
-         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() );
+         #define CudaKernelRunAsync(a__,b__,c__,e__,...) a__<<<b__,c__>>>(__VA_ARGS__); HANDLE_ERROR( hipDeviceSynchronize()); HANDLE_ERROR( hipGetLastError() );
        #else
-         #define CudaKernelRunNoWait(a__,b__,c__,e__,...) a__<<<b__,c__,0,e__>>>(__VA_ARGS__);
+         #define CudaKernelRunAsync(a__,b__,c__,e__,...) a__<<<b__,c__,0,e__>>>(__VA_ARGS__);
        #endif
       #endif
       #define CudaBlock blockIdx
@@ -174,7 +174,7 @@
     #define CudaGetDeviceCount(a__) HANDLE_ERROR( hipGetDeviceCount( a__ ) )
     #define CudaDeviceReset() HANDLE_ERROR( hipDeviceReset( ) )
     #define CudaFuncAttributes hipFuncAttributes
-    #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( hipFuncGetAttributes(a__, reinterpret_cast<const void*>(&b__)) )
+    #define CudaFuncGetAttributes(a__,b__) HANDLE_ERROR( hipFuncGetAttributes(a__, reinterpret_cast<const void*>(b__)) )
    #endif
 //    cudaError_t cudaPreAlloc(void ** ptr, size_t size);
 //    cudaError_t cudaAllocFinalize();
@@ -182,6 +182,7 @@
     CudaError HandleError( CudaError err, const char *file, int line );
     #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
     #define ISFINITE(l__) isfinite(l__)
+
   #else
     #include <assert.h>
     #include <time.h>
@@ -281,8 +282,7 @@
     extern uint3 CpuThread;
     extern uint3 CpuSize;
 
-    #include <functional>
-
+    #include <utility>
     template <typename F, typename ...P>
     inline void CPUKernelRun(F &&func, const dim3& blocks, P &&... args) {
       #pragma omp parallel for collapse(3) schedule(static)
@@ -302,7 +302,7 @@
     }
 
     template <typename F, typename ...P>
-    inline void CudaKernelRunNoWait(F &&func, const dim3& blocks, const dim3& threads, CudaStream_t stream, P &&... args) {
+    inline void CudaKernelRunAsync(F &&func, const dim3& blocks, const dim3& threads, CudaStream_t stream, P &&... args) {
       CPUKernelRun(func, blocks, std::forward<P>(args)...);
     }
 

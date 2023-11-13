@@ -24,39 +24,27 @@ if (exists('Extra_Dynamics_C_Header')) {
 #include "cross.h"
 #include "cross.hpp"
 
+#ifdef ADJOINT
+	#include "ADTools.cu"
+#endif
+
+#include "CartLatticeLauncher.hpp"
+
+/*
 #include <cassert>
 CudaDeviceFunction real_t rise_nan() {
 	assert(false);
 	return NAN;
 }
 #define RISENAN rise_nan()
-
-#ifdef ADJOINT
-	#include "ADTools.cu"
-#endif
-
-/// Constant memory variables
-#include "CartLatticeContainer.h"
-#include "LatticeData.hpp"
-
-CudaDeviceFunction CudaConstantMemory CartLatticeContainer constContainer;
-CudaDeviceFunction CudaConstantMemory LatticeData          constData;
-
-// Settings <?R for (v in rows(Settings)) { ?>
-/// GPU Constant memory variable for [<?%s v$comment?>]
-CudaDeviceFunction CudaConstantMemory real_t <?%s v$name ?> = 0.0f;
-<?R } ?>
-
-// These headers depend on contant memory variables
-#include "Particle.hpp"
-#include "CartLatticeExecutor.hpp"
+*/
 
 <?R   for (tp in rows(AllKernels)[order(AllKernels$adjoint)]) {
       st = Stages[tp$Stage,,drop=FALSE]
       ifdef(tp$adjoint)
       ?>
-template void CartLatticeExecutor::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
-template void CartLatticeExecutor::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
+template void CartLatticeLauncher::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const;
+template void CartLatticeLauncher::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream) const; <?R
     };
   ifdef();
 ?>

@@ -19,6 +19,7 @@ public:
     template <class T>
     class set_found_t {
         const finder_t& finder;
+        real_t* particle_data;
         real_t point[3];
         int mins[3];
         int maxs[3];
@@ -62,7 +63,7 @@ public:
             CudaDeviceFunction iterator_t() : set(NULL) { balli = -1; };
             friend class set_found_t;
         public:
-            CudaDeviceFunction T operator* () { return T(balli,set->point); }
+            CudaDeviceFunction T operator* () { return T(set->particle_data, balli, set->point); }
             CudaDeviceFunction iterator_t& operator++() { 
                 ++d;
                 go();
@@ -74,7 +75,7 @@ public:
             typedef iterator_t iterator;
             CudaDeviceFunction inline iterator begin() { return iterator(*this); };
             CudaDeviceFunction inline iterator end()   { return iterator(); };
-            CudaDeviceFunction inline set_found_t(const finder_t& finder_, const real_t point_[], const real_t lower[], const real_t upper[]): finder(finder_) {
+            CudaDeviceFunction inline set_found_t(const finder_t& finder_, real_t* particle_data_, const real_t point_[], const real_t lower[], const real_t upper[]): finder(finder_),  particle_data(particle_data_) {
                 for (int i=0;i<3;i++) { point[i]=point_[i]; }
                 real_t d = 0.5*finder.delta;
                 for (int k=0; k<3; k++) {
@@ -87,6 +88,7 @@ public:
     };
     template <class T, int MAX_CACHE>
     class cache_set_found_t {
+        real_t* particle_data;
         real_t point[3];
         size_t cache_size;
         tr_addr_t cache[MAX_CACHE];
@@ -96,7 +98,7 @@ public:
             CudaDeviceFunction iterator_t(const cache_set_found_t& set_, const size_t& i_) : set(&set_), i(i_) { };
             friend class cache_set_found_t;
         public:
-            CudaDeviceFunction T operator* () { return T(set->cache[i],set->point); }
+            CudaDeviceFunction T operator* () { return T(set->particle_data, set->cache[i], set->point); }
             CudaDeviceFunction iterator_t& operator++() { 
                 ++i;
 	            return *this;
@@ -107,7 +109,7 @@ public:
             typedef iterator_t iterator;
             CudaDeviceFunction inline iterator begin() { return iterator(*this, 0); };
             CudaDeviceFunction inline iterator end()   { return iterator(*this, cache_size); };
-            CudaDeviceFunction inline cache_set_found_t(const finder_t& finder, const real_t point_[], const real_t lower[], const real_t upper[]) {
+            CudaDeviceFunction inline cache_set_found_t(const finder_t& finder, real_t* particle_data_, const real_t point_[], const real_t lower[], const real_t upper[]) : particle_data(particle_data_) {
                 for (int i=0;i<3;i++) { point[i]=point_[i]; }
                 int mins[3];
                 int maxs[3];
