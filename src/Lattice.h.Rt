@@ -1,6 +1,6 @@
 <?R
-        source("conf.R")
-	c_header();
+    source("conf.R")
+    c_header();
 ?>
 #ifndef LATTICE_H
 #define LATTICE_H 1
@@ -12,6 +12,40 @@
 #include "Geometry.h"
 
 #include <memory>
+
+// Offset directions (Q) stored as constexpr array of int triplets; for compile-time computations requiring Q
+inline constexpr auto offset_directions = std::array{
+<?R
+ret = lapply(rows(Fields), function(f) {
+    U = unique( expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz ) )
+})
+ret = do.call(rbind, ret)
+cat(paste0("    std::array{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=", \n"))
+?>
+};
+
+inline constexpr auto offset_direction_weights = [] {
+    std::array<size_t, offset_directions.size()> retval{};
+    const auto update_dir = [&retval](int x, int y, int z) {
+        const auto dir = std::array{x, y, z};
+        size_t i = 0;
+        for(auto dir_uniq : offset_directions) {
+            if(dir[0] == dir_uniq[0] && dir[1] == dir_uniq[1] && dir[2] == dir_uniq[2]) { // constexpr operator== behind C++20
+                ++retval[i];
+                return;
+            }
+            ++i;
+        }
+    };
+<?R
+ret = lapply(rows(Fields), function(f) {
+    U =expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz )
+})
+ret = do.call(rbind, ret)
+cat(paste0("    update_dir(",ret$dx,", ",ret$dy,", ",ret$dz,");", collapse="\n"))
+?>
+    return retval;
+}();
 
 #ifdef GRAPHICS
     const int desired_fps = 10;

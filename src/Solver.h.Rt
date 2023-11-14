@@ -72,7 +72,7 @@ public:
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-    std::string outIterFile(const std::string& name, const std::string& suffix) {
+    std::string outIterFile(const std::string& name, const std::string& suffix) const {
         auto path = formatAsString("%s_%s_P%02d_%08d%s", outpath, name, mpi_rank, iter, suffix);
 		mkdir_p(path);
 		return path;
@@ -86,7 +86,7 @@ public:
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-    std::string outGlobalFile(const std::string& name, const std::string& suffix) {
+    std::string outGlobalFile(const std::string& name, const std::string& suffix) const {
         auto path = formatAsString("%s_%s_P%02d%s", outpath, name, mpi_rank, suffix);
         mkdir_p(path);
         return path;

@@ -22,7 +22,7 @@
 #include "glue.hpp"
 #include "unit.h"
 #include "utils.h"
-
+#include "toArb.h"
 #include "Solver.h"
 #include "xpath_modification.h"
 #include "mpitools.hpp"
@@ -410,6 +410,25 @@ int main ( int argc, char * argv[] )
         {
             // The solver has been built!
             const auto solver = solver_builder.build();  // cannot outlive cuda finalization
+
+            if(config.attribute("toArb")) {
+                if(solver->mpi_size != 1) {
+                    ERROR("toArb must be run with a single MPI rank");
+                    return EXIT_FAILURE;
+                }
+                if(solver->getCartLattice()->geometry->load(geom)) {
+                    ERROR("Error while loading geometry for toArb");
+                    return EXIT_FAILURE;
+                }
+                output("Writing arbitrary lattice data to .cxn file...");
+                if(toArbitrary(*solver)) {
+                    ERROR("Error exporting to .cxn file");
+                    return EXIT_FAILURE;
+                } else {
+                    output("Successfully wrote arbitrary lattice to .cxn file");
+                    return EXIT_SUCCESS;
+                }
+            }
 
             // Initializing CUDA events
             CudaEventCreate(&start);
