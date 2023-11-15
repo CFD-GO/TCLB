@@ -67,16 +67,15 @@ static auto makeArbLatticeIndexMap(const lbRegion& region, const std::vector<boo
     return retval;
 }
 
-static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes) {
+static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes, double underlying_grid_size) {
     file << "OFFSET_DIRECTIONS " << offset_directions.size() << '\n';
     for (const auto [x, y, z] : offset_directions) file << x << ' ' << y << ' ' << z << '\n';
+    file << "GRID_SIZE " << underlying_grid_size << '\n';
     file << "NODES " << n_nodes << '\n';
     return file.good() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static int writeArbLatticeNodes(const Lattice& lattice, const std::unordered_map<long int, long int>& lin_to_arb_index_map, const std::vector<bool>& void_bmp, std::fstream& file, double spacing) {
-    const auto& geo = *lattice.geometry;
-    const auto& model = lattice.model;
+static int writeArbLatticeNodes(const Geometry& geo, const Model& model, const std::unordered_map<long int, long int>& lin_to_arb_index_map, const std::vector<bool>& void_bmp, std::fstream& file, double spacing) {
     const auto nx = geo.totalregion.nx, ny = geo.totalregion.ny, nz = geo.totalregion.nz;
     for (long int z = 0; z < nz; z++)
         for (long int y = 0; y < ny; y++)
@@ -100,11 +99,11 @@ static int writeArbLatticeNodes(const Lattice& lattice, const std::unordered_map
 
                 // Groups & zones
                 const auto flag = geo.geom[geo.region.offset(x, y, z)];
-                const int zone_flag = (flag & model->settingzones.flag) >> model->settingzones.shift;
-                const size_t n_groups = std::count_if(model->nodetypeflags.cbegin(), model->nodetypeflags.cend(), [flag](const auto& ntf) { return ntf.flag != 0 && (flag & ntf.group_flag) == ntf.flag; });
+                const int zone_flag = (flag & model.settingzones.flag) >> model.settingzones.shift;
+                const size_t n_groups = std::count_if(model.nodetypeflags.cbegin(), model.nodetypeflags.cend(), [flag](const auto& ntf) { return ntf.flag != 0 && (flag & ntf.group_flag) == ntf.flag; });
                 const size_t n_zones = zone_flag == 0 ? 0 : std::count_if(geo.SettingZones.cbegin(), geo.SettingZones.cend(), [zone_flag](const auto& zone_map_entry) { return zone_map_entry.second == zone_flag; });
                 file << n_groups + n_zones << ' ';
-                for (const auto& ntf : model->nodetypeflags)
+                for (const auto& ntf : model.nodetypeflags)
                     if (ntf.flag != 0 && (flag & ntf.group_flag) == ntf.flag) file << ntf.name << ' ';
                 if (zone_flag != 0)
                     for (const auto& [name, zf] : geo.SettingZones)
@@ -119,18 +118,18 @@ static int writeArbLatticeNodes(const Lattice& lattice, const std::unordered_map
     return file.good() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static int writeArbLattice(const Lattice& lattice, const std::unordered_map<long int, long int>& lin_to_arb_index_map, const std::vector<bool>& void_bmp, const std::string& filename, double spacing) {
+static int writeArbLattice(const Geometry& geo, const Model& model, const std::unordered_map<long int, long int>& lin_to_arb_index_map, const std::vector<bool>& void_bmp, const std::string& filename, double spacing) {
     std::fstream file(filename, std::ios_base::out);
     if (!file.good()) {
         ERROR("Failed to open .cxn file for writing");
         return EXIT_FAILURE;
     }
-    if (writeArbLatticeHeader(file, lin_to_arb_index_map.size())) return EXIT_FAILURE;
-    if (writeArbLatticeNodes(lattice, lin_to_arb_index_map, void_bmp, file, spacing)) return EXIT_FAILURE;
+    if (writeArbLatticeHeader(file, lin_to_arb_index_map.size(), spacing)) return EXIT_FAILURE;
+    if (writeArbLatticeNodes(geo, model, lin_to_arb_index_map, void_bmp, file, spacing)) return EXIT_FAILURE;
     return EXIT_SUCCESS;
 }
 
-static int writeArbXml(const Solver& solver, const std::string& cxn_path) {
+static int writeArbXml(const Solver& solver, const Geometry& geo, const Model& model, const std::string& cxn_path) {
     pugi::xml_document restartfile;
     for (pugi::xml_node n = solver.configfile.first_child(); n; n = n.next_sibling()) restartfile.append_copy(n);
     pugi::xml_node n0 = restartfile.child("CLBConfig");
@@ -147,12 +146,12 @@ static int writeArbXml(const Solver& solver, const std::string& cxn_path) {
     pugi::xml_node n2 = n0.insert_child_before("ArbitraryLattice", n1);
     n0.remove_child(n1);
     n2.append_attribute("file").set_value(cxn_path.c_str());
-    for (const auto& ntf : solver.lattice->model->nodetypeflags) {
+    for (const auto& ntf : model.nodetypeflags) {
         if (ntf.flag == 0) continue;
         pugi::xml_node n3 = n2.append_child(ntf.name.c_str());
         n3.append_attribute("group").set_value(ntf.name.c_str());
     }
-    for (const auto& [name, zs] : solver.getCartLattice()->geometry->SettingZones) {
+    for (const auto& [name, zs] : geo.SettingZones) {
         if (zs == 0) continue;
         pugi::xml_node n3 = n2.append_child("None");
         const auto zone_str = std::string("Z_") + name;
@@ -164,16 +163,17 @@ static int writeArbXml(const Solver& solver, const std::string& cxn_path) {
     return restartfile.save_file(filename.c_str()) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-int toArbitrary(const Solver& solver) {
-    const auto cart_lattice_ptr = solver.getCartLattice();
-    const auto& model = cart_lattice_ptr->model;
-    const auto& geo = *cart_lattice_ptr->geometry;
+static long int liRegionSize(const lbRegion& region) {
+    const long int nx = region.nx, ny = region.ny, nz = region.nz;
+    return nx * ny * nz;
+}
 
+int toArbitrary(const Solver& solver, const Geometry& geo, const Model& model) {
     auto attr = solver.configfile.child("CLBConfig").attribute("remove_bulk");
     const char* remove_bulk = attr ? attr.value() : nullptr;
     big_flag_t bulk_flag = -1, bulk_mask = 0;  // Match nothing by default
     if (remove_bulk) {
-        const auto& ntf = model->nodetypeflags.by_name(remove_bulk);
+        const auto& ntf = model.nodetypeflags.by_name(remove_bulk);
         bulk_flag = ntf.flag;
         bulk_mask = ntf.group_flag;
     }
@@ -181,8 +181,9 @@ int toArbitrary(const Solver& solver) {
     const auto void_bmp = makeVoidBmp(geo.totalregion, bulk_bmp);
     bulk_bmp = {};  // Explicitly free memory for subsequent stages
     const auto id_map = makeArbLatticeIndexMap(geo.totalregion, void_bmp);
+    output(formatAsString("Interior size: %lu / %li", id_map.size(), liRegionSize(geo.totalregion)).c_str());
     const auto filename = solver.outGlobalFile("ARB", ".cxn");
     const double spacing = 1 / solver.units.alt("m");
-    if (writeArbLattice(*cart_lattice_ptr, id_map, void_bmp, filename, spacing)) return EXIT_FAILURE;
-    return writeArbXml(solver, filename);
+    if (writeArbLattice(geo, model, id_map, void_bmp, filename, spacing)) return EXIT_FAILURE;
+    return writeArbXml(solver, geo, model, filename);
 }

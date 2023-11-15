@@ -207,6 +207,10 @@ int selectDevice(pugi::xml_node config) {
     return EXIT_SUCCESS;
 }
 
+std::array<int, 3> readLatticeDims(const UnitEnv& units, pugi::xml_node geom) {
+    return {myround(units.alt(geom.attribute("nx").value(), 1)), myround(units.alt(geom.attribute("ny").value(), 1)), myround(units.alt(geom.attribute("nz").value(), 1))};
+}
+
 class SolverBuilder {
     std::unique_ptr<Solver> solver = std::make_unique<Solver>();
     int n_snaps = 2;
@@ -250,9 +254,7 @@ class SolverBuilder {
     }
     int setGeometry(pugi::xml_node geom) {
         // Reading the size of mesh
-        const int nx = myround(solver->units.alt(geom.attribute("nx").value(), 1));
-        const int ny = myround(solver->units.alt(geom.attribute("ny").value(), 1));
-        const int nz = myround(solver->units.alt(geom.attribute("nz").value(), 1));
+        const auto [nx, ny, nz] = readLatticeDims(solver->units, geom);
         notice("Mesh size in config file: %dx%dx%d\n", nx, ny, nz);
 
         // Initializing the lattice of a specific size
@@ -299,6 +301,29 @@ class SolverBuilder {
         return 0;
     };
 };
+
+// Invoke toArb based on the provided geometry and units
+int convertToArbitrary(const std::unique_ptr<Solver>& solver, pugi::xml_node geo_xml, const Model& model) {
+    if (solver->mpi_size != 1) {
+        ERROR("toArb must be run with a single MPI rank");
+        return EXIT_FAILURE;
+    }
+    const auto [nx, ny, nz] = readLatticeDims(solver->units, geo_xml);
+    const auto region = lbRegion(0, 0, 0, nx, ny, nz);
+    Geometry geometry(region, region, solver->units);
+    if (geometry.load(geo_xml)) {
+        ERROR("Error while loading geometry for toArb");
+        return EXIT_FAILURE;
+    }
+    output("Writing arbitrary lattice data to .cxn file...");
+    if (toArbitrary(*solver, geometry, model)) {
+        ERROR("Error exporting to .cxn file");
+        return EXIT_FAILURE;
+    } else {
+        output("Successfully wrote arbitrary lattice to .cxn file");
+        return EXIT_SUCCESS;
+    }
+}
 
 // Main program function
 int main ( int argc, char * argv[] )
@@ -396,12 +421,19 @@ int main ( int argc, char * argv[] )
 	if(const int status = solver_builder.setUnits(config); status)
             return EXIT_FAILURE;
 
+        // XML geometry node
+        auto geo_xml = getXMLChild(config, "Geometry");
+
+        // Generate arbitrary lattice files
+        // This has to be called before lattice initialization, since we want to avoid storing the entire Cartesian lattice
+        if(config.attribute("toArb"))
+            return convertToArbitrary(solver_builder.build(), geo_xml, Model_m()); // TODO: model initialization where?
+
         // Snaps
         solver_builder.setSnaps();
 
         // Geometry
-        auto geom = getXMLChild(config, "Geometry");
-        if(const int status = solver_builder.setGeometry(geom); status)
+        if(const int status = solver_builder.setGeometry(geo_xml); status)
             return EXIT_FAILURE;
 
         // Setting main callback
@@ -410,25 +442,6 @@ int main ( int argc, char * argv[] )
         {
             // The solver has been built!
             const auto solver = solver_builder.build();  // cannot outlive cuda finalization
-
-            if(config.attribute("toArb")) {
-                if(solver->mpi_size != 1) {
-                    ERROR("toArb must be run with a single MPI rank");
-                    return EXIT_FAILURE;
-                }
-                if(solver->getCartLattice()->geometry->load(geom)) {
-                    ERROR("Error while loading geometry for toArb");
-                    return EXIT_FAILURE;
-                }
-                output("Writing arbitrary lattice data to .cxn file...");
-                if(toArbitrary(*solver)) {
-                    ERROR("Error exporting to .cxn file");
-                    return EXIT_FAILURE;
-                } else {
-                    output("Successfully wrote arbitrary lattice to .cxn file");
-                    return EXIT_SUCCESS;
-                }
-            }
 
             // Initializing CUDA events
             CudaEventCreate(&start);

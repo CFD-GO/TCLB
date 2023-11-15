@@ -3,6 +3,6 @@
 
 #include "Solver.h"
 
-int toArbitrary(const Solver& solver);
+int toArbitrary(const Solver& solver, const Geometry& geo, const Model& model);
 
 #endif

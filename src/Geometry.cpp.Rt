@@ -1151,7 +1151,7 @@ int Geometry::Draw(pugi::xml_node & node)
 	} else if (strcmp(n.name(), "Text") == 0) {
 	    lbRegion crop = getRegion(n.parent());
 	    crop = region.intersect(crop);
-	    crop.print();
+	    // crop.print();
 	    if (!n.attribute("file")) {
 		error("No 'file' attribute in 'Text' element in xml conf\n");
 		return -1;
