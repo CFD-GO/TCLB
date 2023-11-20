@@ -49,8 +49,7 @@ Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units
     for (size_t i = 0; i < region.sizeL(); i++) {
 	geom[i] = 0;
     }
-    output("Creating geom size:%ld\n", region.sizeL());
-    SettingZones["DefaultZone"] = 0;
+    output("Creating geom size: %ld\n", region.sizeL());
 }
 
 inline void Geometry::ActivateCuts() {
@@ -196,20 +195,10 @@ int Geometry::setMode(const pugi::char_t * mode)
 	return 0;
 }
 
-int Geometry::setZone(const pugi::char_t * name)
+void Geometry::setZone(int zone_number)
 {
-    int ZoneNumber;
-    if (SettingZones.count(name) > 0) {
-        ZoneNumber = SettingZones[name];
-    } else {
-        ZoneNumber = SettingZones.size();
-        debug1("Setting new zone: %s -> %d\n", name, ZoneNumber);
-        SettingZones[name] = ZoneNumber;
-    }
-    assert(ZoneNumber < ZONE_MAX);
-    fg      = (fg      &(~ NODE_SETTINGZONE )) |  (ZoneNumber << ZONE_SHIFT);
+    fg      = (fg      &(~ NODE_SETTINGZONE )) |  (zone_number << ZONE_SHIFT);
     fg_mask =  fg_mask |   NODE_SETTINGZONE;
-    return 0;
 }
 
 #define MAX_INT 2e9;
@@ -1193,12 +1182,11 @@ int Geometry::loadZone(const char *name)
 {
     pugi::xml_node node = fg_xml.find_child_by_attribute("Zone", "name", name);
     if (!node) {
-	error("Unknown zone (in xml): %s", name);
-	return -1;
+        error("Unknown zone (in xml): %s", name);
+        return -1;
     }
     E(Draw(node));
     return 0;
-
 }
 
 pugi::xml_document& getXMLDef() {
@@ -1238,50 +1226,39 @@ pugi::xml_document& getXMLDef() {
   return xml_def;
 }
 
-/// Loades Geometry from a XML tree
-int Geometry::load(pugi::xml_node & node)
+/// Loads Geometry from a XML tree
+int Geometry::load(pugi::xml_node& node, const std::map<std::string, int>& zone_map)
 {
-	output("loading geometry ...\n");
+    using namespace std::string_view_literals;
+	output("Loading geometry...");
     pugi::xml_node geom_def = getXMLDef().child("Geometry");
     fg_xml = node;
     for (pugi::xml_node z = geom_def.first_child(); z; z = z.next_sibling()) {
-	pugi::xml_attribute attr = z.attribute("name");
-	if (!attr)
-	    continue;
-	if (node.find_child_by_attribute(z.name(), "name", attr.value()))
-	    continue;
-	node.prepend_copy(z);
+        pugi::xml_attribute attr = z.attribute("name");
+        if (!attr) continue;
+        if (node.find_child_by_attribute(z.name(), "name", attr.value())) continue;
+        node.prepend_copy(z);
     }
     for (pugi::xml_node n = node.first_child(); n; n = n.next_sibling()) {
-	if (strcmp(n.name(), "Zone") == 0)
-	    continue;
-	if (strcmp(n.name(), "Type") == 0)
-	    continue;
-	if (strcmp(n.name(), "Mask") == 0)
-	    continue;
-	E(setFlag(n.name()));
-	for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
-	    if (strcmp(attr.name(), "name") == 0) {
-	        E(setZone(attr.value()));
-	    } else if (strcmp(attr.name(), "mask") == 0) {
-	        E(setMask(attr.value()));
-	    } else if (strcmp(attr.name(), "mode") == 0) {
-	        E(setMode(attr.value()));
-	    } else {
-	        
-	    }
-	}
-	{
-	    pugi::xml_attribute attr = n.attribute("zone");
-	    if (attr) {
-		loadZone(attr.value());
-	    }
+        if(n.name() == "Zone"sv || n.name() == "Type"sv || n.name() == "Mask"sv) continue;
+        E(setFlag(n.name()));
+        for (pugi::xml_attribute attr = n.first_attribute(); attr; attr = attr.next_attribute()) {
+	        if (attr.name() == "name"sv) {
+	            const int zone_number = zone_map.at(std::string(attr.value()));
+                setZone(zone_number);
+            } else if (attr.name() == "mask"sv) {
+                E(setMask(attr.value()));
+            } else if (attr.name() == "mode"sv) {
+                E(setMode(attr.value()));
+            }
         }
-	E(Draw(n));
+        if (auto attr = n.attribute("zone"); attr) {
+            loadZone(attr.value());
+        }
+        E(Draw(n));
     }
-    if (node.attribute("save")) {
-		writeVTI(node.attribute("save").value());
-    }
+    if (node.attribute("save"))
+        writeVTI(node.attribute("save").value());
     return 0;
 }
 

@@ -41,6 +41,25 @@ AC_ARG_WITH([hdf5-include],
 	AS_HELP_STRING([--with-hdf5-include=hdf5],
 		[specify the full path to your hdf5 installation (headers)]))
 
+AC_ARG_WITH([parmetis],
+	AS_HELP_STRING([--with-parmetis=parmetis],
+		[specify the full path to your parmetis installation]))
+AC_ARG_WITH([parmetis-lib],
+	AS_HELP_STRING([--with-parmetis-lib=parmetis],
+		[specify the full path to your parmetis installation (libraries)]))
+AC_ARG_WITH([parmetis-include],
+	AS_HELP_STRING([--with-parmetis-include=parmetis],
+		[specify the full path to your parmetis installation (headers)]))
+AC_ARG_WITH([metis],
+	AS_HELP_STRING([--with-metis=metis],
+		[specify the full path to your metis installation]))
+AC_ARG_WITH([metis-lib],
+	AS_HELP_STRING([--with-metis-lib=metis],
+		[specify the full path to your metis installation (libraries)]))
+AC_ARG_WITH([metis-include],
+	AS_HELP_STRING([--with-metis-include=metis],
+		[specify the full path to your metis installation (headers)]))
+
 AC_ARG_WITH([eigen],
 	AS_HELP_STRING([--with-eigen=eigen],
 		[specify the full path to your Eigen installation (headers)]))
@@ -548,6 +567,110 @@ if test "x${with_hdf5}" != "xno"; then
 	fi
 fi
 
+if test "x${with_parmetis}" != "xno"; then
+    AC_MSG_CHECKING([METIS path])
+    need_parmetis="no"
+    has_parmetis="no"
+    need_metis="no"
+    has_metis="no"
+
+    # First, try to detect metis
+    if test "x${with_metis}" != "x"; then
+        if test "x${with_metis}" == "xno"; then
+            AC_MSG_ERROR([metis was disabled by the user, but it is needed as a dependency for parmetis])
+        fi
+    	METIS_LIB="${with_metis}/lib"
+    	METIS_INCLUDE="${with_metis}/include"
+    	need_metis="yes"
+    fi
+    if test "x${with_metis_lib}" != "x"
+    then
+    	METIS_LIB="${with_metis_lib}"
+    	need_metis="yes"
+    fi
+    if test "x${with_metis_include}" != "x"
+    then
+    	METIS_INCLUDE="${with_metis_include}"
+    	need_metis="yes"
+    fi
+    if test "x${METIS_LIB}" != "x"
+    then
+    	if test -d "${METIS_LIB}"
+    	then
+    		LDFLAGS="${LDFLAGS} -L${METIS_LIB}"
+    	else
+    		AC_MSG_ERROR([${METIS_LIB}: No such directory])
+    	fi
+    fi
+    if test "x${METIS_INCLUDE}" != "x"
+    then
+    	if test -d "${METIS_INCLUDE}"
+    	then
+    		CPPFLAGS="${CPPFLAGS} -I${METIS_INCLUDE}"
+    	else
+    		AC_MSG_ERROR([${METIS_INCLUDE}: No such directory])
+    	fi
+    fi
+    has_metis="yes"
+    AC_CHECK_HEADERS([metis.h],[],[has_metis="no"])
+    AC_CHECK_LIB([metis],[METIS_PartGraphKway],[],[has_metis="no"])
+
+    # Now, on to parmetis
+    AC_MSG_CHECKING([ParMETIS path])
+	if test "x${with_parmetis}" != "x"; then
+		PARMETIS_LIB="${with_parmetis}/lib"
+		PARMETIS_INCLUDE="${with_parmetis}/include"
+		need_parmetis="yes"
+	fi
+	if test "x${with_parmetis_lib}" != "x"
+	then
+		PARMETIS_LIB="${with_parmetis_lib}"
+		need_parmetis="yes"
+	fi
+	if test "x${with_parmetis_include}" != "x"
+	then
+		PARMETIS_INCLUDE="${with_parmetis_include}"
+		need_parmetis="yes"
+	fi
+
+    # Early error if ParMETIS is needed, but METIS (its dependency) is not available
+	if test "x${need_parmetis}" == "xyes"; then
+	    if test "x${has_metis}" != "xyes"; then
+	        AC_MSG_ERROR([parmetis was requested, but metis cannot be compiled and linked correctly])
+	    fi
+	fi
+
+	if test "x${PARMETIS_LIB}" != "x"
+	then
+		if test -d "${PARMETIS_LIB}"
+		then
+			LDFLAGS="${LDFLAGS} -L${PARMETIS_LIB}"
+		else
+			AC_MSG_ERROR([${PARMETIS_LIB}: No such directory])
+		fi
+	fi
+	if test "x${PARMETIS_INCLUDE}" != "x"
+	then
+		if test -d "${PARMETIS_INCLUDE}"
+		then
+			CPPFLAGS="${CPPFLAGS} -I${PARMETIS_INCLUDE}"
+		else
+			AC_MSG_ERROR([${PARMETIS_INCLUDE}: No such directory])
+		fi
+	fi
+	has_parmetis="yes"
+	AC_CHECK_HEADERS([parmetis.h],[],[has_parmetis="no"])
+	AC_CHECK_LIB([parmetis],[ParMETIS_V3_PartGeomKway],[],[has_parmetis="no"],[-lmetis])
+
+	if test "x${has_parmetis}" == "xyes"; then
+		AC_DEFINE([WITH_PARMETIS], [1], [Using ParMETIS])
+	else
+		if test "x${need_parmetis}" == "xyes"; then
+			AC_MSG_ERROR([parmetis not found])
+		fi
+	fi
+fi
+
 
 if  test "x${with_python}" == "xyes"; then
    
@@ -587,7 +710,6 @@ if  test "x${with_python}" == "xyes"; then
     AC_MSG_RESULT([${PF}])
 	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
 fi
-
 
 
 NLOPT=""

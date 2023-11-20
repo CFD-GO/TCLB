@@ -11,6 +11,7 @@
 #include <mpi.h>
 #include "cross.h"
 #include "Lattice.h"
+#include "ArbLattice.hpp"
 #include "utils.h"
 #include "unit.h"
 #include "Handlers.h"
@@ -41,6 +42,7 @@ public:
 	std::string conffile_path; ///< Path to the config file
     std::string outpath; ///< Output prefix
 	UnitEnv units; ///< Units object connected to this lattice
+	std::map<std::string, int> setting_zones = {{"DefaultZone", 0}};
 	int iter_type = ITER_NORM; ///< Iteration type (Now) - primal/adjoint/etc.
 	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
 
@@ -52,6 +54,7 @@ public:
     ~Solver() = default;
 
     int initCartLattice(int,int,int,int);
+    int initArbLattice(size_t num_snaps, const std::string& cxn_path);
     Lattice* getCartLattice() const;
 
     int EventLoop() const { return lattice->EventLoop(); }

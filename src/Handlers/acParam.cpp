@@ -18,11 +18,11 @@ int acParam::Init () {
 		if (attr) gauge = attr.value();
 		attr = context_attribute("permissive");
 		if (attr) permissive = attr.as_bool();
-                const auto lattice = solver->getCartLattice();
 		if (zone != "") {
-			if (lattice->geometry->SettingZones.count(zone) > 0) {
-				zone_number = lattice->geometry->SettingZones[zone];
-			} else {
+                        const auto zone_iter = solver->setting_zones.find(zone);
+                        if (zone_iter != solver->setting_zones.end())
+                                zone_number = zone_iter->second;
+			else {
 				ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
 				return -1;
 			}

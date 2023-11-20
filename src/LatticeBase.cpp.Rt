@@ -6,7 +6,7 @@ c_header();
 #include "LatticeBase.hpp"
 
 LatticeBase::LatticeBase(int zonesettings, int zones, const UnitEnv& units_)
-  : model(new Model_m), zSet(zonesettings, zones), units(&units_) {
+  : model(std::make_unique<Model_m>()), zSet(zonesettings, zones), units(&units_) {
     data.Alloc();
     SC.InitFinder(data.solidfinder);
     data.particle_data = nullptr;

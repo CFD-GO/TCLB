@@ -1,5 +1,7 @@
 #include "cbRunR.h"
 
+#include <algorithm>
+
 #ifdef WITH_R
 
 #define rNull Rcpp::NumericVector(0)
@@ -48,9 +50,10 @@ public:
 		WARNING("in zone %s setting parameter %s\n", zone.c_str(), name.c_str());
 		Rcpp::NumericVector v(v_);
 	        int zone_number = -1;
-                if (solver->geometry->SettingZones.count(zone) > 0) { 
-                        zone_number = solver->geometry->SettingZones[zone];
-                } else {
+                const auto zone_iter = solver->setting_zones.find(zone);
+                if (zone_iter != solver->setting_zones.end())
+                        zone_number = zone_iter->second;
+                else {
                         WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), name.c_str());
                         return;
                 }
@@ -58,9 +61,8 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		for (std::map<std::string,int>::iterator it = solver->geometry->SettingZones.begin(); it != solver->geometry->SettingZones.end(); it++) {
-			ret.push_back(it->first);
-		}
+                ret.reserve(solver->setting_zones.size());
+                std::transform(solver->setting_zones.cbegin(), solver->setting_zones.cend(), std::back_inserter(ret), [](const auto& pair){ return pair.first; });
 		return ret;
 	}
 

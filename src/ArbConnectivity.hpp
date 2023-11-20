@@ -1,15 +1,50 @@
 #ifndef ARBCONNECTIVITY_HPP
 #define ARBCONNECTIVITY_HPP
 
-#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <vector>
 
-using arb_local_id = std::uint32;
-using arb_global_id = std::uint64;
+struct ArbLatticeConnectivity {
+    using Index = long;
+    using ZoneIndex = unsigned short;
 
-template <size_t Q>  // number of connectivity directions
-struct ArbConnectivity {
-    std::vector<std::array<arb_local_id, Q>> neighbors;
-    std::vector<arb_global_id> global_ids;
+    size_t chunk_begin{}, chunk_end{}, num_nodes_global{}, Q{};
+    std::unique_ptr<double[]> coords;
+    std::unique_ptr<Index[]> nbrs;
+    std::unique_ptr<ZoneIndex[]> zones_per_node;
+    std::vector<ZoneIndex> zones;
+    double grid_size{};
+
+    ArbLatticeConnectivity() = default;
+    ArbLatticeConnectivity(size_t chunk_begin_, size_t chunk_end_, size_t num_nodes_global_, size_t Q_)
+        : chunk_begin(chunk_begin_),
+          chunk_end(chunk_end_),
+          num_nodes_global(num_nodes_global_),
+          Q(Q_),
+          coords(std::make_unique<double[]>(3 * (chunk_end_ - chunk_begin_))),
+          nbrs(std::make_unique<Index[]>((chunk_end_ - chunk_begin_) * Q)),
+          zones_per_node(std::make_unique<ZoneIndex[]>(chunk_end_ - chunk_begin_)) {
+        zones.reserve(getLocalSize());
+    }
+
+    size_t getLocalSize() const { return chunk_end - chunk_begin; }
+
+    double& coord(size_t dim, size_t local_node_ind) { return coords[local_node_ind + dim * getLocalSize()]; }
+    double coord(size_t dim, size_t local_node_ind) const { return coords[local_node_ind + dim * getLocalSize()]; }
+    Index& neighbor(size_t q, size_t local_node_ind) { return nbrs[local_node_ind + q * getLocalSize()]; }
+    Index neighbor(size_t q, size_t local_node_ind) const { return nbrs[local_node_ind + q * getLocalSize()]; }
 };
+
+inline auto computeInitialNodeDist(size_t num_nodes_global, size_t comm_size) -> std::vector<long> {
+    const auto chunk_size = num_nodes_global / comm_size;
+    const auto div_remainder = num_nodes_global % comm_size;
+    auto retval = std::vector<long>{};
+    retval.reserve(comm_size + 1);
+    retval.push_back(0);
+    for (size_t i = 0; i != comm_size; ++i) retval.push_back(static_cast<long>(chunk_size + (i < div_remainder)));
+    std::inclusive_scan(retval.begin(), retval.end(), retval.begin());
+    return retval;
+}
 
 #endif  // ARBCONNECTIVITY_HPP

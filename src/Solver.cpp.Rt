@@ -57,8 +57,8 @@ using namespace std;
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
 		    <?R for (v in ZoneSettings$name) { ?>
-		    	for (auto it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
-	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"",it->first.c_str(), it->first.c_str());
+		    	for (const auto& [name, id] : setting_zones) {
+	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"", name.c_str(), name.c_str());
 	                }
 		    <?R } ?>
 		    <?R for (v in Globals$name) { ?>
@@ -105,11 +105,10 @@ using namespace std;
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
-			const auto& geometry = getCartLattice()->geometry;
 			for (int i=0; i< ZONESETTINGS; i++) {
-			    	for (const auto& map_entry : geometry->SettingZones) {
+			    	for (const auto& [name, id] : setting_zones) {
 			    		int ind = lattice->ZoneIter;
-			    		int zone = map_entry.second;
+			    		int zone = id;
 			    		const double v = lattice->zSet.get(i, zone, ind);
 					    fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 		            }
@@ -133,7 +132,7 @@ using namespace std;
 Lattice* Solver::getCartLattice() const {
     auto retval = dynamic_cast<Lattice*>(lattice.get());
     if(!retval) {
-        error("Error: Attempting to access a non-Cartesian Lattice via the Cartesian interface (likely in a handler)\nThis error is fatal\n");
+        ERROR("Attempting to access a non-Cartesian Lattice via the Cartesian interface (likely in a handler)");
         std::terminate();
     }
     return retval;
@@ -286,4 +285,22 @@ int Solver::initCartLattice(int nx, int ny, int nz, int ns) {
     debug0("Lattice done");
 
     return 0;
+}
+
+/// Initialize arbitrary lattice base on data read from .cxn file
+/**
+
+*/
+int Solver::initArbLattice(size_t num_snaps, const std::string& cxn_path) {
+    try {
+        debug0("Creating ArbLattice object ...");
+        lattice = std::make_unique<ArbLattice>(num_snaps, units, setting_zones, cxn_path, mpi_comm);
+        debug0("ArbLattice done");
+        const auto sz_msg = "Global lattice size: " + std::to_string(lattice->getGlobalSize());
+        output(sz_msg.c_str());
+        return EXIT_SUCCESS;
+    } catch(const std::exception& e) {
+        ERROR(e.what());
+        return EXIT_FAILURE;
+    }
 }

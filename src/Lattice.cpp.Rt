@@ -80,12 +80,6 @@ static void AllocContainer(CartLatticeContainer& container, int nx, int ny, int 
   container.Q        = nullptr;
 }
 
-/// Constructor based on size
-/**
-        Main constructor of Lattice
-        \param _region Local region of the Lattice
-        \param ns Number of Snapshots
-*/
 Lattice::Lattice(CartConnectivity connect, int ns, const UnitEnv& units_)
     : LatticeBase(ZONESETTINGS, ZONE_MAX, units_),
       connectivity(std::move(connect)),
