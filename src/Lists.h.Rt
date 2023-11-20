@@ -183,6 +183,22 @@ cat(paste0("        std::array{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=",
 ?>
     };
 
+    static constexpr bool isStencilSymmetric() {
+        const auto contains_dir = [&](const std::array<int, 3>& dir) {
+            for (auto d : offset_directions)
+                if (d[0] == dir[0] && d[1] == dir[1] && d[2] == dir[2])
+                    return true;
+            return false;
+        };
+
+        for(auto ofs_dir : offset_directions) {
+            const auto neg_dir = std::array{-ofs_dir[0], -ofs_dir[1], -ofs_dir[2]};
+            if (!contains_dir(neg_dir))
+                return false;
+        }
+        return true;
+    }
+
     static constexpr std::array<size_t, offset_directions.size()> offset_direction_weights = [] {
         std::array<size_t, offset_directions.size()> retval{};
         const auto update_dir = [&retval](int x, int y, int z) {
@@ -209,5 +225,6 @@ cat(paste0("        update_dir(",ret$dx,", ",ret$dy,", ",ret$dz,");", collapse="
     }();
 };
 
+static_assert(Model_m::isStencilSymmetric(), "The stencil must be symmetric");
 
 #endif
