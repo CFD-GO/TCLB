@@ -176,9 +176,9 @@ public:
     static constexpr auto offset_directions = std::array{
 <?R
 ret = lapply(rows(Fields), function(f) {
-    U = unique( expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz ) )
+    U = expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz )
 })
-ret = do.call(rbind, ret)
+ret = unique( do.call(rbind, ret) )
 cat(paste0("        std::array{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=", \n"))
 ?>
     };
