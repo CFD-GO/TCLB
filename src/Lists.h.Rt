@@ -168,63 +168,108 @@ public:
     Objectives objectives;
 };
 
-class Model_m : public Model {
-public:
-    Model_m();
+// constexpr operator== for arrays is locked behind C++20
+template<typename T, size_t N>
+constexpr bool arraysEqual(const std::array<T, N>& a1, const std::array<T, N>& a2) {
+    for (size_t i = 0; i != N; ++i)
+        if (a1[i] != a2[i])
+            return false;
+    return true;
+}
 
-    // Offset directions (Q) stored as constexpr array of int triplets; for compile-time computations requiring Q
-    static constexpr auto offset_directions = std::array{
+using OffsetDir = std::array<int, 3>;
+
+// It is an annoying limitation of C++ <20 that static constexpr member functions cannot be called in the definition of static constexpr member variables
+// For this reason, we define some preliminary utilities at namespace scope, and then call them in the class body
+namespace model_details {
+
+inline constexpr auto makeOffsetDirections() {
+    return std::array{
 <?R
 ret = lapply(rows(Fields), function(f) {
     U = expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz )
 })
 ret = unique( do.call(rbind, ret) )
-cat(paste0("        std::array{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=", \n"))
+cat(paste0("        OffsetDir{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=", \n"))
 ?>
     };
+}
 
-    static constexpr bool isStencilSymmetric() {
-        const auto contains_dir = [&](const std::array<int, 3>& dir) {
-            for (auto d : offset_directions)
-                if (d[0] == dir[0] && d[1] == dir[1] && d[2] == dir[2])
-                    return true;
-            return false;
-        };
+template<size_t N>
+constexpr size_t lookupOffsetDirInd(const std::array<OffsetDir, N>& offset_directions, OffsetDir d) {
+    for (size_t i = 0; i != offset_directions.size(); ++i)
+        if (arraysEqual(offset_directions[i], d))
+            return i;
+    throw "Failed direction lookup (exception in constant-evaluated function will result in compiler error)";
+}
 
-        for(auto ofs_dir : offset_directions) {
-            const auto neg_dir = std::array{-ofs_dir[0], -ofs_dir[1], -ofs_dir[2]};
-            if (!contains_dir(neg_dir))
-                return false;
-        }
-        return true;
-    }
-
-    static constexpr std::array<size_t, offset_directions.size()> offset_direction_weights = [] {
-        std::array<size_t, offset_directions.size()> retval{};
-        const auto update_dir = [&retval](int x, int y, int z) {
-            const auto dir = std::array{x, y, z};
-            size_t i = 0;
-            for(auto dir_uniq : offset_directions) {
-                if(dir[0] == dir_uniq[0] && dir[1] == dir_uniq[1] && dir[2] == dir_uniq[2]) { // constexpr operator== behind C++20
-                    ++retval[i];
-                    return;
-                }
-                ++i;
-            }
-        };
+template<size_t Q>
+constexpr auto makeFieldStreamingTable(const std::array<OffsetDir, Q>& offset_directions) {
+    constexpr size_t NF = <?R cat(nrow(Fields)) ?>;
+    std::array<std::array<bool, Q>, NF> retval{};
+    const auto set_field_dir = [&](size_t field_ind, int x, int y, int z) {
+        const auto dir_ind = lookupOffsetDirInd(offset_directions, OffsetDir{x, y, z});
+        retval[field_ind][dir_ind] = true;
+    };
 
 <?R
-ret = lapply(rows(Fields), function(f) {
-    U =expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz )
-})
-ret = do.call(rbind, ret)
-cat(paste0("        update_dir(",ret$dx,", ",ret$dy,", ",ret$dz,");", collapse="\n"))
+field_ind = 0
+for (f in rows(Fields)) {
+  dirs = expand.grid(dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz)
+  for (d in rows(dirs)) {
+    cat(paste0("        set_field_dir(", field_ind, ", ", d$dx, ", ", d$dy,", ", d$dz, ");\n"))
+  }
+  field_ind = field_ind + 1
+}
 ?>
 
-        return retval;
-    }();
-};
+    return retval;
+}
 
-static_assert(Model_m::isStencilSymmetric(), "The stencil must be symmetric");
+template<size_t NF, size_t Q>
+constexpr auto makeOffsetWgtTable(const std::array<std::array<bool, Q>, NF>& field_dir_table) {
+    std::array<size_t, Q> retval{};
+    for (const auto& field_dirs : field_dir_table) {
+        size_t i = 0;
+        for (auto is_active : field_dirs) {
+            if (is_active)
+                ++retval[i];
+            ++i;
+        }
+    }
+    return retval;
+}
+
+template<size_t Q>
+constexpr bool isStencilSymmetric(const std::array<OffsetDir, Q>& offset_dirs) {
+    const auto contains_dir = [&](const OffsetDir& dir) {
+        for (auto d : offset_dirs)
+            if (arraysEqual(d, dir))
+                return true;
+        return false;
+    };
+    for(auto ofs_dir : offset_dirs) {
+        const auto neg_dir = std::array{-ofs_dir[0], -ofs_dir[1], -ofs_dir[2]};
+        if (!contains_dir(neg_dir))
+            return false;
+    }
+    return true;
+}
+
+} // namespace model_details
+
+class Model_m : public Model {
+public:
+    Model_m();
+
+    // Offset directions (Q) stored as constexpr array of int triplets; for compile-time computations requiring Q
+    static constexpr auto offset_directions = model_details::makeOffsetDirections();                           /// Array of offset directions
+    static constexpr size_t Q  = offset_directions.size();                                                     /// Number of offset directions
+    static constexpr size_t NF = <?R cat(nrow(Fields)) ?>;                                                     /// Number of fields
+    static constexpr auto field_streaming_table = model_details::makeFieldStreamingTable(offset_directions);   /// fst[f][q] == true => we need to get the field value from the node at direction (index) q
+    static constexpr auto offset_direction_weights = model_details::makeOffsetWgtTable(field_streaming_table); /// sum of fst columns, needed to correctly weight the connectivity graph during partitioning
+
+    static_assert(model_details::isStencilSymmetric(offset_directions), "The stencil must be symmetric");
+};
 
 #endif
