@@ -1,10 +1,27 @@
 #include "ArbLattice.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <fstream>
+#include <numeric>
 #include <optional>
+#include <unordered_set>
 
 #include "PartitionArbLattice.hpp"
+#include "UtilTypes.hpp"
+#include "mpitools.hpp"
+
+ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& zone_map, const std::string& cxn_path, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), num_snaps(num_snaps_), comm(comm_) {
+    readFromCxn(zone_map, cxn_path);
+    global_node_dist = computeInitialNodeDist(connect.num_nodes_global, mpitools::MPI_Size(comm));
+    partition();
+    if (connect.getLocalSize() == 0) throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
+    computeGhostNodes();
+    computeLocalPermutation();
+    local_bounding_box = getLocalBoundingBox();
+}
 
 std::unordered_map<std::string, int> ArbLattice::makeGroupZoneMap(const std::map<std::string, int>& zone_map) const {
     std::unordered_map<std::string, int> retval;
@@ -14,15 +31,13 @@ std::unordered_map<std::string, int> ArbLattice::makeGroupZoneMap(const std::map
     return retval;
 }
 
-void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const std::string& cxn_path, MPI_Comm comm) {
+void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const std::string& cxn_path) {
     using namespace std::string_literals;
     using namespace std::string_view_literals;
 
     const auto gz_map = makeGroupZoneMap(zone_map);
 
-    int comm_rank{}, comm_size{};
-    MPI_Comm_rank(comm, &comm_rank);
-    MPI_Comm_size(comm, &comm_size);
+    const int comm_rank = mpitools::MPI_Rank(comm), comm_size = mpitools::MPI_Size(comm);
 
     // Open file + utils for error reporting
     std::fstream file(cxn_path, std::ios_base::in);
@@ -168,12 +183,14 @@ void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const s
             check_file_ok("Failed to read node data");
         }
     });
+}
 
-    if (comm_size == 1) return;
+void ArbLattice::partition() {
+    if (mpitools::MPI_Size(comm) == 1) return;
 
-    const auto zero_dir_ind = std::distance(Model_m::offset_directions.cbegin(), std::find(Model_m::offset_directions.cbegin(), Model_m::offset_directions.cend(), std::array{0, 0, 0}));  // Note: the behavior is still correct even if (0,0,0) is not an offset direction
+    const auto zero_dir_ind = std::distance(Model_m::offset_directions.cbegin(), std::find(Model_m::offset_directions.cbegin(), Model_m::offset_directions.cend(), OffsetDir{0, 0, 0}));  // Note: the behavior is still correct even if (0,0,0) is not an offset direction
     const auto offset_dir_wgts = std::vector(Model_m::offset_direction_weights.begin(), Model_m::offset_direction_weights.end());
-    const auto [dist, log] = partitionArbLattice(connect, offset_dir_wgts, zero_dir_ind, comm);
+    auto [dist, log] = partitionArbLattice(connect, offset_dir_wgts, zero_dir_ind, comm);
     for (const auto& [type, msg] : log) switch (type) {
             case PartOutput::MsgType::Notice:
                 NOTICE(msg.c_str());
@@ -184,4 +201,50 @@ void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const s
             case PartOutput::MsgType::Error:
                 throw std::runtime_error(msg);
         }
+    global_node_dist = std::move(dist);
+}
+
+void ArbLattice::computeGhostNodes() {
+    std::unordered_set<long> ghosts;
+    const Span all_nbrs(connect.nbrs.get(), Q * connect.getLocalSize());
+    for (auto nbr : all_nbrs)
+        if (connect.isGhost(nbr)) ghosts.insert(nbr);
+    ghost_nodes.reserve(ghosts.size());
+    std::copy(ghosts.cbegin(), ghosts.cend(), std::back_inserter(ghost_nodes));
+    std::sort(ghost_nodes.begin(), ghost_nodes.end());
+}
+
+void ArbLattice::computeLocalPermutation() {
+    local_permutation.resize(connect.getLocalSize());
+    std::iota(local_permutation.begin(), local_permutation.end(), 0);
+    const auto is_border_node = [&](int lid) {
+        for (size_t q = 0; q != Q; ++q) {
+            const auto nbr = connect.neighbor(q, lid);
+            if (connect.isGhost(nbr)) return true;
+        }
+        return false;
+    };
+    const auto interior_begin = std::stable_partition(local_permutation.begin(), local_permutation.end(), is_border_node);
+    num_border_nodes = static_cast<size_t>(std::distance(local_permutation.begin(), interior_begin));
+    const auto by_zyx = [&](int lid1, int lid2) {  // Sort by z, then y, then x -> this should help with coalesced memory access
+        const auto get_zyx = [&](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
+        return get_zyx(lid1) < get_zyx(lid2);
+    };
+    std::sort(local_permutation.begin(), interior_begin, by_zyx);
+    std::sort(interior_begin, local_permutation.end(), by_zyx);
+}
+
+int ArbLattice::fullLatticePos(double pos) const {
+    const auto retval = std::lround(pos / connect.grid_size - .5);
+    assert(retval <= std::numeric_limits<int>::max() && retval >= std::numeric_limits<int>::min());
+    return static_cast<int>(retval);
+}
+
+lbRegion ArbLattice::getLocalBoundingBox() const {
+    const auto x = Span(connect.coords.get(), connect.getLocalSize()), y = Span(std::next(connect.coords.get(), connect.getLocalSize()), connect.getLocalSize()), z = Span(std::next(connect.coords.get(), 2 * connect.getLocalSize()), connect.getLocalSize());
+    const auto [minx_it, maxx_it] = std::minmax_element(x.begin(), x.end());
+    const auto [miny_it, maxy_it] = std::minmax_element(y.begin(), y.end());
+    const auto [minz_it, maxz_it] = std::minmax_element(z.begin(), z.end());
+    const double x_min = *minx_it, x_max = *maxx_it, y_min = *miny_it, y_max = *maxy_it, z_min = *minz_it, z_max = *maxz_it;
+    return lbRegion(x_min, y_min, z_min, x_max - x_min, y_max - y_min, z_max - z_min);
 }

@@ -217,7 +217,7 @@ field_ind = 0
 for (f in rows(Fields)) {
   dirs = expand.grid(dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz)
   for (d in rows(dirs)) {
-    cat(paste0("        set_field_dir(", field_ind, ", ", d$dx, ", ", d$dy,", ", d$dz, ");\n"))
+    cat(paste0("    set_field_dir(", field_ind, ", ", d$dx, ", ", d$dy,", ", d$dz, ");\n"))
   }
   field_ind = field_ind + 1
 }

@@ -29,6 +29,7 @@ struct ArbLatticeConnectivity {
     }
 
     size_t getLocalSize() const { return chunk_end - chunk_begin; }
+    bool isGhost(Index nbr) const { return nbr != -1 && (nbr < static_cast<Index>(chunk_begin) || nbr >= static_cast<Index>(chunk_end)); }
 
     double& coord(size_t dim, size_t local_node_ind) { return coords[local_node_ind + dim * getLocalSize()]; }
     double coord(size_t dim, size_t local_node_ind) const { return coords[local_node_ind + dim * getLocalSize()]; }
