@@ -241,7 +241,7 @@ void ArbLattice::allocDeviceMemory() {
     // Pitches get updated based on CUDA/HIP padding
     const auto local_sz = connect.getLocalSize();
     sizes.neighbors_pitch = local_sz;
-    neighbors_device = cudaMakeUnique2D<int>(sizes.neighbors_pitch, Q);
+    neighbors_device = cudaMakeUnique2D<unsigned>(sizes.neighbors_pitch, Q);
     sizes.coords_pitch = local_sz;
     coords_device = cudaMakeUnique2D<real_t>(sizes.coords_pitch, 3);
     sizes.snaps_pitch = local_sz + ghost_nodes.size() + 1;
@@ -264,12 +264,12 @@ void ArbLattice::copyToDevice() const {
     CudaMemcpyAsync(coords_device.get(), coords.data(), coords.size() * sizeof(typename decltype(coords)::value_type), CudaMemcpyHostToDevice, inStream);
 
     // Neighbors
-    std::pmr::vector<int> nbrs(sizes.neighbors_pitch * Q, &global_pinned_resource);
-    const size_t invalid_nbr = local_sz + ghost_nodes.size();
-    const auto nbr_global_to_local = [&](ArbLatticeConnectivity::Index gid) -> int {
+    std::pmr::vector<unsigned> nbrs(sizes.neighbors_pitch * Q, &global_pinned_resource);
+    const unsigned invalid_nbr = local_sz + ghost_nodes.size();
+    const auto nbr_global_to_local = [&](ArbLatticeConnectivity::Index gid) -> unsigned {
         if (gid == -1) return invalid_nbr;  // dummy row
         else if (connect.isGhost(gid))
-            return static_cast<int>(local_sz + std::distance(ghost_nodes.cbegin(), std::lower_bound(ghost_nodes.cbegin(), ghost_nodes.cend(), gid)));
+            return static_cast<unsigned>(local_sz + std::distance(ghost_nodes.cbegin(), std::lower_bound(ghost_nodes.cbegin(), ghost_nodes.cend(), gid)));
         else
             return local_permutation[gid - local_sz];
     };

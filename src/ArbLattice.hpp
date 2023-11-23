@@ -18,13 +18,12 @@
 //     - Owned boundary nodes (i.e. nodes which have ghost nodes among their neighbors) occupy the initial B indices, starting at 0. Their numbering within [0, B) is arbitrary w.r.t. the global scheme
 //     - Owned interior nodes occupy the indices [B, B + I), where I is the number of interior nodes. Again, their order within that interval is arbitrary
 //     - Ghost nodes (i.e. nodes neighboring owned nodes, but not owned by the current rank) occupy indices [B + I, B + I + G), where G is the number of ghost nodes. **Their numbering within that interval corresponds to the global numbering scheme (important for optimal packing)**
-//     - There is at least one padding index, corresponding to the row where dummy values (NaNs) will be stored for when a nonexistent neighbor is accessed
+//     - There is at least one padding index B + I + G, corresponding to the row where dummy values (NaNs) will be stored for when a nonexistent neighbor is accessed, more padding may be present to promote coalesced memory access
 // Note that the GPU is only aware of the local numbering scheme, which uses 32b indexing, saving memory bandwidth. Local indexing can additionally put "similar" nodes next to each other, minimizing branching and promoting coalesced memory access.
 // Naming: GID == global ID; LID == local ID
 
 class ArbLattice : public LatticeBase {
    private:
-    /// Simple utility struct for keeping track of sizes of allocated device memory, along with their pitches
     struct SizeInfo {
         size_t border_nodes;     /// Number of border nodes, i.e., nodes which have a ghost neighbor
         size_t snaps;            /// Number of snaps to hold
@@ -33,16 +32,16 @@ class ArbLattice : public LatticeBase {
         size_t snaps_pitch;      /// B + I + G + 1 + padding
     };
 
-    ArbLatticeConnectivity connect;           /// Lattice connectivity info
-    std::vector<long> global_node_dist;       /// Node distribution (in the ParMETIS sense), describing the GID node intervals owned by each process (identical in all ranks)
-    std::vector<long> ghost_nodes;            /// Sorted GIDs of ghost nodes
-    SizeInfo sizes;                           /// Sizes of various data structures/allocations
-    MPI_Comm comm;                            /// Communicator associated with the lattice
-    std::vector<unsigned> local_permutation;  /// The permutation of owned nodes w.r.t. the global indexing scheme, see comment at the top
-    lbRegion local_bounding_box;              /// The bounding box of the local region (if the arbitrary lattice is a subset of a full Cartesian lattice, we can use this for some optimizations)
-    CudaUniquePtr<int> neighbors_device;      /// Device allocation of the neighbor table: (B + I) x Q
-    CudaUniquePtr<real_t> coords_device;      /// Device allocation of node coordinates: (B + I) x 3
-    CudaUniquePtr<real_t> snaps_device;       /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
+    ArbLatticeConnectivity connect;            /// Lattice connectivity info
+    std::vector<long> global_node_dist;        /// Node distribution (in the ParMETIS sense), describing the GID node intervals owned by each process (identical in all ranks)
+    std::vector<long> ghost_nodes;             /// Sorted GIDs of ghost nodes
+    SizeInfo sizes;                            /// Sizes of various data structures/allocations
+    MPI_Comm comm;                             /// Communicator associated with the lattice
+    std::vector<unsigned> local_permutation;   /// The permutation of owned nodes w.r.t. the global indexing scheme, see comment at the top
+    lbRegion local_bounding_box;               /// The bounding box of the local region (if the arbitrary lattice is a subset of a full Cartesian lattice, we can use this for some optimizations)
+    CudaUniquePtr<unsigned> neighbors_device;  /// Device allocation of the neighbor table: (B + I) x Q
+    CudaUniquePtr<real_t> coords_device;       /// Device allocation of node coordinates: (B + I) x 3
+    CudaUniquePtr<real_t> snaps_device;        /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
 
    public:
     static constexpr size_t Q = Model_m::Q;    /// Stencil size

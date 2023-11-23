@@ -40,4 +40,8 @@ void CudaFillNAsync(T* device_ptr, size_t N, T value, CudaStream_t stream) {
     template void CudaFillNAsync<type__>(type__ * device_ptr, size_t N, type__ value, CudaStream_t stream);
 
 INSTANTIATE_FOR_TYPE(int)
-INSTANTIATE_FOR_TYPE(real_t)
+INSTANTIATE_FOR_TYPE(unsigned)
+INSTANTIATE_FOR_TYPE(long)
+INSTANTIATE_FOR_TYPE(unsigned long)
+INSTANTIATE_FOR_TYPE(float)
+INSTANTIATE_FOR_TYPE(double)
