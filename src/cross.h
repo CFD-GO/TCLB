@@ -202,11 +202,11 @@
     struct double3 { double x,y,z; };
     struct uint3 { unsigned int x,y,z; };
     struct dim3 {
-      unsigned int x,y,z;
-      inline dim3(int x_, int y_, int z_):x(x_),y(y_),z(z_) {};
-      inline dim3(int x_, int y_):x(x_),y(y_),z(1) {};
-      inline dim3(int x_):x(x_),y(1),z(1) {};
-      inline dim3():x(1),y(1),z(1) {};
+      unsigned int x = 1, y = 1, z = 1;
+      constexpr dim3(int x_, int y_, int z_) : x(x_), y(y_), z(z_) {}
+      constexpr dim3(int x_, int y_) : x(x_), y(y_) {}
+      constexpr dim3(int x_) : x(x_) {}
+      constexpr dim3() = default;
     };
     struct uchar4 { unsigned char x,y,z,w; };
 

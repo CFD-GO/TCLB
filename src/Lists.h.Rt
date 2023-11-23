@@ -16,6 +16,7 @@
 #include "Consts.h"
 #include "types.h"
 #include "Things.h"
+#include "cross.h"
 
 using DerivedFunction = std::function<double(double)>;
 using ObjectiveFunction = std::function<void(double*, double*, double*)>;
@@ -169,16 +170,8 @@ public:
     Objectives objectives;
 };
 
-// constexpr operator== for arrays is locked behind C++20
-template<typename T, size_t N>
-constexpr bool arraysEqual(const std::array<T, N>& a1, const std::array<T, N>& a2) {
-    for (size_t i = 0; i != N; ++i)
-        if (a1[i] != a2[i])
-            return false;
-    return true;
-}
-
-using OffsetDir = std::array<int, 3>;
+struct OffsetDir { int x, y, z; };
+inline constexpr bool operator==(const OffsetDir& d1, const OffsetDir& d2) { return d1.x == d2.x && d1.y == d2.y && d1.z == d2.z; }
 
 // It is an annoying limitation of C++ <20 that static constexpr member functions cannot be called in the definition of static constexpr member variables
 // For this reason, we define some preliminary utilities at namespace scope, and then call them in the class body
@@ -199,7 +192,7 @@ cat(paste0("        OffsetDir{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=", 
 template<size_t N>
 constexpr size_t lookupOffsetDirInd(const std::array<OffsetDir, N>& offset_directions, OffsetDir d) {
     for (size_t i = 0; i != offset_directions.size(); ++i)
-        if (arraysEqual(offset_directions[i], d))
+        if (offset_directions[i] == d)
             return i;
     throw "Failed direction lookup (exception in constant-evaluated function will result in compiler error)";
 }
@@ -245,21 +238,28 @@ template<size_t Q>
 constexpr bool isStencilSymmetric(const std::array<OffsetDir, Q>& offset_dirs) {
     const auto contains_dir = [&](const OffsetDir& dir) {
         for (auto d : offset_dirs)
-            if (arraysEqual(d, dir))
+            if (d == dir)
                 return true;
         return false;
     };
     for(auto ofs_dir : offset_dirs) {
-        const auto neg_dir = std::array{-ofs_dir[0], -ofs_dir[1], -ofs_dir[2]};
+        const auto neg_dir = OffsetDir{-ofs_dir.x, -ofs_dir.y, -ofs_dir.z};
         if (!contains_dir(neg_dir))
             return false;
     }
     return true;
 }
 
+struct StencilBox {
+    OffsetDir min, max;
+
+    constexpr OffsetDir getOffsets() const { return min; }
+    constexpr OffsetDir getSizes() const { return {max.x - min.x, max.y - min.y, max.z - min.z}; }
+};
+
 template<size_t Q>
-constexpr std::array<OffsetDir, 2> computeOfsDirBoundingBox(const std::array<OffsetDir, Q>& offset_dirs) {
-    std::array<OffsetDir, 2> retval{};
+constexpr StencilBox computeStencilBox(const std::array<OffsetDir, Q>& offset_dirs) {
+    StencilBox retval{};
     auto& [mins, maxs] = retval;
     auto& [minx, miny, minz] = mins;
     auto& [maxx, maxy, maxz] = maxs;
@@ -290,13 +290,33 @@ public:
     static constexpr auto field_streaming_table = model_details::makeFieldStreamingTable(offset_directions);   /// fst[f][q] == true => we need to get the field value from the node at direction (index) q
     static constexpr auto offset_direction_weights = model_details::makeOffsetWgtTable(field_streaming_table); /// sum of fst columns, needed to correctly weight the connectivity graph during partitioning
 
+    // Statically get offset direction index
     template<int X, int Y, int Z>
     struct GetDirIndex {
         static constexpr int value = model_details::lookupOffsetDirInd(offset_directions, OffsetDir{X, Y, Z});
     };
 
+    // Dynamically get offset direction index
+    static constexpr auto stencil_sizes = model_details::computeStencilBox(offset_directions).getSizes();
+    static constexpr auto stencil_offsets = model_details::computeStencilBox(offset_directions).getOffsets();
+    CudaHostFunction CudaDeviceFunction static int computeOffsetHash(OffsetDir offset, OffsetDir stencil_ofs, OffsetDir stencil_sz) {
+        return (offset.x - stencil_ofs.x) + (offset.y - stencil_ofs.y) * stencil_sz.x + (offset.z - stencil_ofs.z) * stencil_sz.x * stencil_sz.y;
+    }
+    static auto makeDynamicOffsetIndLookupTable() {
+        constexpr size_t stencil_box_sz = stencil_sizes.x * stencil_sizes.y * stencil_sizes.z;
+        std::array<int, stencil_box_sz> retval;
+        retval.fill(-1); // Initialize with invalid index in case the stencil is not a box
+        for(const auto offset : offset_directions)
+            retval[computeOffsetHash(offset, stencil_offsets, stencil_sizes)] = model_details::lookupOffsetDirInd(offset_directions, offset);
+        return retval;
+    }
+
+    // The device cant access static constexpr members, so we need to pass them as arguments
+    CudaDeviceFunction static int getDirIndex(OffsetDir offset, OffsetDir stencil_ofs, OffsetDir stencil_sz, const int* dir_lookup) {
+        return dir_lookup[computeOffsetHash(offset, stencil_ofs, stencil_sz)];
+    }
+
 private:
-    static constexpr std::array<OffsetDir, 2> bounding_box = model_details::computeOfsDirBoundingBox(offset_directions);
 
     static_assert(model_details::isStencilSymmetric(offset_directions), "The stencil must be symmetric");
 };

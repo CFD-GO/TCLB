@@ -77,11 +77,11 @@ void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const s
 
     // Offset directions
     const auto q_provided = process_section("OFFSET_DIRECTIONS", [&file](size_t n_q_provided) {
-        std::vector<std::array<int, 3>> retval;
+        std::vector<OffsetDir> retval;
         retval.reserve(n_q_provided);
         for (size_t i = 0; i != n_q_provided; ++i) {
-            std::array<int, 3> dirs{};
-            file >> dirs[0] >> dirs[1] >> dirs[2];
+            OffsetDir dirs{};
+            file >> dirs.x >> dirs.y >> dirs.z;
             retval.push_back(dirs);
         }
         return retval;
