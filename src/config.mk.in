@@ -14,11 +14,11 @@ EMBEDED_PYTHON = @EMBEDED_PYTHON@
 
 WITH_LAMMPS = @WITH_LAMMPS@
 
-SOURCE_CU=Global.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu CartLatticeContainer.cu Dynamics.c
+SOURCE_CU=Global.cu main.cu vtkLattice.cu vtkOutput.cu cross.cu cuda.cu CartLatticeContainer.cu Dynamics.c CudaUtils.cu
 SOURCE=$(SOURCE_CU)
 HEADERS=Global.h gpu_anim.h CartLatticeContainer.h Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h gl_helper.h Dynamics.h types.h pugixml.hpp pugiconfig.hpp
 
-OBJ  = vtkOutput.o cuda.o Global.o Lattice.o ArbLattice.o vtkLattice.o LatticeBase.o cross.o pugixml.o Geometry.o unit.o Solver.o SyntheticTurbulence.o Sampler.o ZoneSettings.o RemoteForceInterface.o hdf5Lattice.o xpath_modification.o GetThreads.o Lists.o toArb.o PartitionArbLattice.o
+OBJ  = vtkOutput.o cuda.o Global.o Lattice.o ArbLattice.o vtkLattice.o LatticeBase.o cross.o pugixml.o Geometry.o unit.o Solver.o SyntheticTurbulence.o Sampler.o ZoneSettings.o RemoteForceInterface.o hdf5Lattice.o xpath_modification.o GetThreads.o Lists.o toArb.o PartitionArbLattice.o CudaUtils.o
 
 AOUT = main empty compare simplepart
 

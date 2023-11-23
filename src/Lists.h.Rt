@@ -9,6 +9,7 @@
 #include <mpi.h>
 
 #include <functional>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -256,6 +257,26 @@ constexpr bool isStencilSymmetric(const std::array<OffsetDir, Q>& offset_dirs) {
     return true;
 }
 
+template<size_t Q>
+constexpr std::array<OffsetDir, 2> computeOfsDirBoundingBox(const std::array<OffsetDir, Q>& offset_dirs) {
+    std::array<OffsetDir, 2> retval{};
+    auto& [mins, maxs] = retval;
+    auto& [minx, miny, minz] = mins;
+    auto& [maxx, maxy, maxz] = maxs;
+    minx = miny = minz = std::numeric_limits<int>::max();
+    maxx = maxy = maxz = std::numeric_limits<int>::min();
+    const auto set_minmax = [](int val, int& min, int& max) {
+        if (val > max) max = val;
+        if (val < min) min = val;
+    };
+    for (const auto& [dx, dy, dz] : offset_dirs) {
+        set_minmax(dx, minx, maxx);
+        set_minmax(dy, miny, maxy);
+        set_minmax(dz, minz, maxz);
+    }
+    return retval;
+}
+
 } // namespace model_details
 
 class Model_m : public Model {
@@ -268,6 +289,14 @@ public:
     static constexpr size_t NF = <?R cat(nrow(Fields)) ?>;                                                     /// Number of fields
     static constexpr auto field_streaming_table = model_details::makeFieldStreamingTable(offset_directions);   /// fst[f][q] == true => we need to get the field value from the node at direction (index) q
     static constexpr auto offset_direction_weights = model_details::makeOffsetWgtTable(field_streaming_table); /// sum of fst columns, needed to correctly weight the connectivity graph during partitioning
+
+    template<int X, int Y, int Z>
+    struct GetDirIndex {
+        static constexpr int value = model_details::lookupOffsetDirInd(offset_directions, OffsetDir{X, Y, Z});
+    };
+
+private:
+    static constexpr std::array<OffsetDir, 2> bounding_box = model_details::computeOfsDirBoundingBox(offset_directions);
 
     static_assert(model_details::isStencilSymmetric(offset_directions), "The stencil must be symmetric");
 };

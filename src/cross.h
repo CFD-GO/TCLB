@@ -93,6 +93,7 @@
     #endif
     #define CudaMemset(a__,b__,c__) HANDLE_ERROR( cudaMemset(a__, b__, c__) )
     #define CudaMalloc(a__,b__) HANDLE_ERROR( cudaMalloc(a__,b__) )
+    #define CudaMallocPitch(a__, b__, c__, d__) HANDLE_ERROR( cudaMallocPitch(a__, b__, c__, d__) )
     #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
     #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( cudaMallocHost(a__,b__) )
@@ -144,6 +145,7 @@
     #endif
     #define CudaMemset(a__,b__,c__) HANDLE_ERROR( hipMemset(a__, b__, c__) )
     #define CudaMalloc(a__,b__) HANDLE_ERROR( hipMalloc(a__,b__) )
+    #define CudaMallocPitch(a__, b__, c__, d__) HANDLE_ERROR( hipMallocPitch(a__, b__, c__, d__) )
     #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
     #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( hipHostMalloc(a__,b__) )
@@ -248,8 +250,9 @@
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
     #define CudaMemcpyAsync(a__,b__,c__,d__,e__) CudaMemcpy(a__, b__, c__, d__)
     #define CudaMemset(a__,b__,c__) memset(a__, b__, c__)
-    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
-    #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
+    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) )
+    #define CudaMallocPitch(a__, b__, c__, d__) assert( ((*b__ = c__), *((void**)(a__)) = malloc(c__ * d__)) )
+    #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) )
     #define CudaFree(a__) free(a__)
     #define CudaFreeHost(a__) free(a__)
 

@@ -9,11 +9,14 @@
 #include <optional>
 #include <unordered_set>
 
+#include "GetThreads.h"
 #include "PartitionArbLattice.hpp"
 #include "UtilTypes.hpp"
 #include "mpitools.hpp"
+#include "pinned_allocator.hpp"
 
-ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& zone_map, const std::string& cxn_path, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), num_snaps(num_snaps_), comm(comm_) {
+ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& zone_map, const std::string& cxn_path, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), comm(comm_) {
+    sizes.snaps = num_snaps_;
     readFromCxn(zone_map, cxn_path);
     global_node_dist = computeInitialNodeDist(connect.num_nodes_global, mpitools::MPI_Size(comm));
     partition();
@@ -225,13 +228,59 @@ void ArbLattice::computeLocalPermutation() {
         return false;
     };
     const auto interior_begin = std::stable_partition(local_permutation.begin(), local_permutation.end(), is_border_node);
-    num_border_nodes = static_cast<size_t>(std::distance(local_permutation.begin(), interior_begin));
+    sizes.border_nodes = static_cast<size_t>(std::distance(local_permutation.begin(), interior_begin));
     const auto by_zyx = [&](int lid1, int lid2) {  // Sort by z, then y, then x -> this should help with coalesced memory access
         const auto get_zyx = [&](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
         return get_zyx(lid1) < get_zyx(lid2);
     };
     std::sort(local_permutation.begin(), interior_begin, by_zyx);
     std::sort(interior_begin, local_permutation.end(), by_zyx);
+}
+
+void ArbLattice::allocDeviceMemory() {
+    // Pitches get updated based on CUDA/HIP padding
+    const auto local_sz = connect.getLocalSize();
+    sizes.neighbors_pitch = local_sz;
+    neighbors_device = cudaMakeUnique2D<int>(sizes.neighbors_pitch, Q);
+    sizes.coords_pitch = local_sz;
+    coords_device = cudaMakeUnique2D<real_t>(sizes.coords_pitch, 3);
+    sizes.snaps_pitch = local_sz + ghost_nodes.size() + 1;
+    snaps_device = cudaMakeUnique2D<real_t>(sizes.snaps_pitch, sizes.snaps * NF);
+}
+
+void ArbLattice::copyToDevice() const {
+    const auto local_sz = connect.getLocalSize();
+
+    // Set all snap values to NaN
+    CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, std::numeric_limits<real_t>::signaling_NaN(), inStream);
+
+    // Coordinates
+    std::pmr::vector<real_t> coords(sizes.coords_pitch * 3, &global_pinned_resource);
+    for (size_t dim = 0; dim != 3; ++dim) {
+        size_t i = 0;
+        for (; i != local_sz; ++i) coords[local_permutation[i] + dim * sizes.coords_pitch] = connect.coord(dim, i);
+        for (; i != sizes.coords_pitch; ++i) coords[i + dim * sizes.coords_pitch] = std::numeric_limits<real_t>::signaling_NaN();  // padding
+    }
+    CudaMemcpyAsync(coords_device.get(), coords.data(), coords.size() * sizeof(typename decltype(coords)::value_type), CudaMemcpyHostToDevice, inStream);
+
+    // Neighbors
+    std::pmr::vector<int> nbrs(sizes.neighbors_pitch * Q, &global_pinned_resource);
+    const size_t invalid_nbr = local_sz + ghost_nodes.size();
+    const auto nbr_global_to_local = [&](ArbLatticeConnectivity::Index gid) -> int {
+        if (gid == -1) return invalid_nbr;  // dummy row
+        else if (connect.isGhost(gid))
+            return static_cast<int>(local_sz + std::distance(ghost_nodes.cbegin(), std::lower_bound(ghost_nodes.cbegin(), ghost_nodes.cend(), gid)));
+        else
+            return local_permutation[gid - local_sz];
+    };
+    for (size_t q = 0; q != Q; ++q) {
+        size_t lid = 0;
+        for (; lid != local_sz; ++lid) nbrs[local_permutation[lid] + q * sizes.neighbors_pitch] = nbr_global_to_local(connect.neighbor(q, lid));
+        for (; lid != sizes.neighbors_pitch; ++lid) nbrs[lid + q * sizes.neighbors_pitch] = invalid_nbr;
+    }
+    CudaMemcpyAsync(neighbors_device.get(), nbrs.data(), nbrs.size() * sizeof(typename decltype(nbrs)::value_type), CudaMemcpyHostToDevice, inStream);
+
+    CudaStreamSynchronize(inStream);
 }
 
 int ArbLattice::fullLatticePos(double pos) const {
@@ -241,7 +290,8 @@ int ArbLattice::fullLatticePos(double pos) const {
 }
 
 lbRegion ArbLattice::getLocalBoundingBox() const {
-    const auto x = Span(connect.coords.get(), connect.getLocalSize()), y = Span(std::next(connect.coords.get(), connect.getLocalSize()), connect.getLocalSize()), z = Span(std::next(connect.coords.get(), 2 * connect.getLocalSize()), connect.getLocalSize());
+    const auto local_sz = connect.getLocalSize();
+    const auto x = Span(connect.coords.get(), local_sz), y = Span(std::next(connect.coords.get(), local_sz), local_sz), z = Span(std::next(connect.coords.get(), 2 * local_sz), local_sz);
     const auto [minx_it, maxx_it] = std::minmax_element(x.begin(), x.end());
     const auto [miny_it, maxy_it] = std::minmax_element(y.begin(), y.end());
     const auto [minz_it, maxz_it] = std::minmax_element(z.begin(), z.end());
