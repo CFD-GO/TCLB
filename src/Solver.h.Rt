@@ -54,7 +54,7 @@ public:
     ~Solver() = default;
 
     int initCartLattice(int,int,int,int);
-    int initArbLattice(size_t num_snaps, const std::string& cxn_path);
+    int initArbLattice(size_t num_snaps, pugi::xml_node arb_node);
     Lattice* getCartLattice() const;
 
     int EventLoop() const { return lattice->EventLoop(); }

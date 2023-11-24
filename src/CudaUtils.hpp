@@ -46,6 +46,27 @@ CudaUniquePtr<T> cudaMakeUnique2D(size_t& num_cols, size_t num_rows) {
     return CudaUniquePtr<T>(static_cast<T*>(ptr));
 }
 
+/// Copy std::vector to device
+/// \tparam T data type
+/// \tparam Alloc allocator type
+/// \param device_ptr destination device pointer
+/// \param vec source host vector
+template <typename T, typename Alloc>
+void copyVecToDevice(T* device_ptr, const std::vector<T, Alloc>& vec) {
+    CudaMemcpy(device_ptr, vec.data(), vec.size() * sizeof(T), CudaMemcpyHostToDevice);
+}
+
+/// Copy std::vector to device asynchronously
+/// \tparam T data type
+/// \tparam Alloc allocator type
+/// \param device_ptr destination device pointer
+/// \param vec source host vector
+/// \param stream execution stream
+template <typename T, typename Alloc>
+void copyVecToDeviceAsync(T* device_ptr, const std::vector<T, Alloc>& vec, CudaStream_t stream) {
+    CudaMemcpyAsync(device_ptr, vec.data(), vec.size() * sizeof(T), CudaMemcpyHostToDevice, stream);
+}
+
 /// std::fill_n executed in device memory
 /// \tparam T type array to fill
 /// \param device_ptr pointer to beginning of memory region

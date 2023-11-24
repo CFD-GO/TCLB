@@ -5,40 +5,36 @@
 #include <cassert>
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <numeric>
 #include <optional>
 #include <unordered_set>
 
 #include "GetThreads.h"
 #include "PartitionArbLattice.hpp"
-#include "UtilTypes.hpp"
 #include "mpitools.hpp"
 #include "pinned_allocator.hpp"
+#include "utils.h"
 
-ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& zone_map, const std::string& cxn_path, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), comm(comm_) {
+ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), comm(comm_) {
     sizes.snaps = num_snaps_;
-    readFromCxn(zone_map, cxn_path);
+    const auto name_attr = arb_node.attribute("file");
+    if (!name_attr) throw std::runtime_error{"The ArbitraryLattice node lacks the \"file\" attribute"};
+    const std::string cxn_path = name_attr.value();
+    readFromCxn(cxn_path);
     global_node_dist = computeInitialNodeDist(connect.num_nodes_global, mpitools::MPI_Size(comm));
     partition();
     if (connect.getLocalSize() == 0) throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
     computeGhostNodes();
     computeLocalPermutation();
+    allocDeviceMemory();
+    initDeviceData(arb_node, setting_zones);
     local_bounding_box = getLocalBoundingBox();
 }
 
-std::unordered_map<std::string, int> ArbLattice::makeGroupZoneMap(const std::map<std::string, int>& zone_map) const {
-    std::unordered_map<std::string, int> retval;
-    int group_zone_ind = 0;
-    for (const auto& ntf : model->nodetypeflags) retval.emplace(ntf.name, group_zone_ind++);
-    for (const auto& [name, zs] : zone_map) retval.emplace("_Z_" + name, group_zone_ind++);
-    return retval;
-}
-
-void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const std::string& cxn_path) {
+void ArbLattice::readFromCxn(const std::string& cxn_path) {
     using namespace std::string_literals;
     using namespace std::string_view_literals;
-
-    const auto gz_map = makeGroupZoneMap(zone_map);
 
     const int comm_rank = mpitools::MPI_Rank(comm), comm_size = mpitools::MPI_Size(comm);
 
@@ -110,41 +106,13 @@ void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const s
     file >> grid_size;
     check_file_ok("Failed to read section: GRID_SIZE");
 
-    // Groups (and zones) present in the .cxn file
-    const auto groups = process_section("NODE_GROUPS", [&file](size_t n_groups) {
-        std::vector<std::string> retval(n_groups);
+    // Labels present in the .cxn file
+    const auto labels = process_section("NODE_LABELS", [&file](size_t n_labels) {
+        std::vector<std::string> retval(n_labels);
         for (auto& g : retval) file >> g;
         return retval;
     });
-    size_t n_groups = groups.size();
-
-    // Check all required groups are present, construct lookup table from groups in the file to groups from the argument
-    std::vector<int> group_lookup_table(groups.size());
-    std::transform(groups.cbegin(), groups.cend(), group_lookup_table.begin(), [&](const std::string& g) -> int {
-        const auto iter = gz_map.find(g);
-        if (iter == gz_map.end()) {
-            warning("Ignoring unknown group/zone \"%s\"\n", g.c_str());
-            --n_groups;
-            return -1;
-        }
-        return iter->second;
-    });
-    const auto lookup_group = [&group_lookup_table](int id) -> std::optional<int> {
-        if (id == -1) return {};
-        else
-            return {group_lookup_table[id]};
-    };
-    if (n_groups != gz_map.size()) {
-        std::vector<std::string> missing_zones;
-        for (const auto& [name, ind] : gz_map)
-            if (std::find(groups.cbegin(), groups.cend(), name) == groups.cend()) missing_zones.push_back(name);
-        std::string err_msg("The following "s + (missing_zones.size() > 1 ? "groups and/or zones were" : "group/zone was") + " not present in the file: ");
-        for (const auto& miss : missing_zones) err_msg.append(miss).append(", ");
-        err_msg.pop_back();
-        err_msg.pop_back();
-        err_msg = wrap_err_msg(err_msg);
-        throw std::runtime_error(err_msg);
-    }
+    for (size_t i = 0; i != labels.size(); ++i) label_to_ind_map.emplace(labels[i], i);
 
     // Nodes header
     process_section("NODES", [&](size_t num_nodes_global) {
@@ -175,12 +143,8 @@ void ArbLattice::readFromCxn(const std::map<std::string, int>& zone_map, const s
             auto& n_zones = connect.zones_per_node[local_node_ind];
             file >> n_zones;
             for (size_t z = 0; z != n_zones; ++z) {
-                int file_zone;
-                file >> file_zone;
-                const auto zone = lookup_group(file_zone);
-                if (zone) connect.zones.push_back(*zone);
-                else
-                    --n_zones;
+                auto& zone = connect.zones.emplace_back();
+                file >> zone;
             }
 
             check_file_ok("Failed to read node data");
@@ -246,25 +210,67 @@ void ArbLattice::allocDeviceMemory() {
     coords_device = cudaMakeUnique2D<real_t>(sizes.coords_pitch, 3);
     sizes.snaps_pitch = local_sz + ghost_nodes.size() + 1;
     snaps_device = cudaMakeUnique2D<real_t>(sizes.snaps_pitch, sizes.snaps * NF);
+    node_types_device = cudaMakeUnique<flag_t>(local_sz);
 }
 
-void ArbLattice::copyToDevice() const {
+void ArbLattice::computeNodeTypes(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
     const auto local_sz = connect.getLocalSize();
+    node_types_host.resize(local_sz);
+    for (auto n = arb_node.first_child(); n; n = n.next_sibling()) {
+        // Requested node type
+        const auto ntf_iter = std::find_if(model->nodetypeflags.cbegin(), model->nodetypeflags.cend(), [name = n.name()](const auto& ntf) { return ntf.name == name; });
+        if (ntf_iter == model->nodetypeflags.cend()) {
+            const auto err_str = formatAsString("Unknown node type: %s", n.name());
+            throw std::runtime_error{err_str};
+        }
 
-    // Set all snap values to NaN
-    CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, std::numeric_limits<real_t>::signaling_NaN(), inStream);
+        // Determine whether we're in a zone and set mask and accordingly
+        const auto group_attr = n.attribute("group");
+        const auto zone_attr = n.attribute("name");
+        if (!group_attr) {
+            const auto err_str = formatAsString("The %s node lacks the \"group\" attribute", n.name());
+            throw std::runtime_error{err_str};
+        }
+        const flag_t mask = ntf_iter->group_flag | (zone_attr ? model->settingzones.flag : 0);
+        const flag_t val = ntf_iter->flag | (zone_attr ? (setting_zones.at(zone_attr.value()) << model->settingzones.shift) : 0);
 
-    // Coordinates
-    std::pmr::vector<real_t> coords(sizes.coords_pitch * 3, &global_pinned_resource);
+        // Label ID to match
+        const std::string group_name = group_attr.value();
+        const auto label_iter = label_to_ind_map.find(group_name);
+        if (label_iter == label_to_ind_map.end()) {
+            const auto err_str = formatAsString("The required label %s is missing from the .cxn file", group_name);
+            throw std::runtime_error{err_str};
+        }
+        const auto label_match = label_iter->second;
+
+        // TODO: what about masks in the XML?
+
+        // Update the node type masks based on the mask and value corresponding to the current group/zone
+        for (size_t label_i = 0, i = 0; i != local_sz; ++i) {
+            for (ArbLatticeConnectivity::ZoneIndex zi = 0; zi != connect.zones_per_node[i]; ++zi) {
+                const auto label = connect.zones[label_i++];
+                if (label == label_match) {
+                    flag_t& dest = node_types_host[local_permutation[i]];
+                    dest = (dest & ~mask) | val;
+                    break;
+                }
+            }
+        }
+    }
+}
+std::pmr::vector<real_t> ArbLattice::computeCoords() const {
+    const auto local_sz = connect.getLocalSize();
+    std::pmr::vector<real_t> retval(sizes.coords_pitch * 3, &global_pinned_resource);
     for (size_t dim = 0; dim != 3; ++dim) {
         size_t i = 0;
-        for (; i != local_sz; ++i) coords[local_permutation[i] + dim * sizes.coords_pitch] = connect.coord(dim, i);
-        for (; i != sizes.coords_pitch; ++i) coords[i + dim * sizes.coords_pitch] = std::numeric_limits<real_t>::signaling_NaN();  // padding
+        for (; i != local_sz; ++i) retval[local_permutation[i] + dim * sizes.coords_pitch] = connect.coord(dim, i);
+        for (; i != sizes.coords_pitch; ++i) retval[i + dim * sizes.coords_pitch] = std::numeric_limits<real_t>::signaling_NaN();  // padding
     }
-    CudaMemcpyAsync(coords_device.get(), coords.data(), coords.size() * sizeof(typename decltype(coords)::value_type), CudaMemcpyHostToDevice, inStream);
-
-    // Neighbors
-    std::pmr::vector<unsigned> nbrs(sizes.neighbors_pitch * Q, &global_pinned_resource);
+    return retval;
+}
+std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
+    const auto local_sz = connect.getLocalSize();
+    std::pmr::vector<unsigned> retval(sizes.neighbors_pitch * Q, &global_pinned_resource);
     const unsigned invalid_nbr = local_sz + ghost_nodes.size();
     const auto nbr_global_to_local = [&](ArbLatticeConnectivity::Index gid) -> unsigned {
         if (gid == -1) return invalid_nbr;  // dummy row
@@ -275,11 +281,20 @@ void ArbLattice::copyToDevice() const {
     };
     for (size_t q = 0; q != Q; ++q) {
         size_t lid = 0;
-        for (; lid != local_sz; ++lid) nbrs[local_permutation[lid] + q * sizes.neighbors_pitch] = nbr_global_to_local(connect.neighbor(q, lid));
-        for (; lid != sizes.neighbors_pitch; ++lid) nbrs[lid + q * sizes.neighbors_pitch] = invalid_nbr;
+        for (; lid != local_sz; ++lid) retval[local_permutation[lid] + q * sizes.neighbors_pitch] = nbr_global_to_local(connect.neighbor(q, lid));
+        for (; lid != sizes.neighbors_pitch; ++lid) retval[lid + q * sizes.neighbors_pitch] = invalid_nbr;
     }
-    CudaMemcpyAsync(neighbors_device.get(), nbrs.data(), nbrs.size() * sizeof(typename decltype(nbrs)::value_type), CudaMemcpyHostToDevice, inStream);
+    return retval;
+}
 
+void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+    CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, std::numeric_limits<real_t>::signaling_NaN(), inStream);
+    computeNodeTypes(arb_node, setting_zones);
+    copyVecToDeviceAsync(node_types_device.get(), node_types_host, inStream);
+    const auto nbrs = computeNeighbors();
+    copyVecToDeviceAsync(neighbors_device.get(), nbrs, inStream);
+    const auto coords = computeCoords();
+    copyVecToDeviceAsync(coords_device.get(), coords, inStream);
     CudaStreamSynchronize(inStream);
 }
 

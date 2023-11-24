@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <mpi.h>
 
+#include <algorithm>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -241,25 +242,11 @@ class SolverBuilder {
         }
         return EXIT_SUCCESS;
     }
-    int setZonesFromGeometry(pugi::xml_node geo_node) {
-        using namespace std::string_view_literals;
-        for (auto n = geo_node.first_child(); n; n = n.next_sibling())
-            for (auto attr = n.first_attribute(); attr; attr = attr.next_attribute())
-                if (attr.name() == "name"sv) insertZone(attr.value());
-        return EXIT_SUCCESS;
-    }
-    int setZonesFromArbitrary(pugi::xml_node arb_node) {
-        using namespace std::string_view_literals;
-        for (auto n = arb_node.first_child(); n; n = n.next_sibling())
-            if (n.name() == "Zone"sv) {
-                const auto name_attr = n.attribute("name");
-                if (!name_attr) {
-                    ERROR("Zones in the \"ArbitraryLattice\" section must have the \"name\" attribute");
-                    return EXIT_FAILURE;
-                }
-                insertZone(name_attr.value());
-            }
-        return EXIT_SUCCESS;
+    void setZones(pugi::xml_node node) {  // This works for **both** the Geometry and ArbitraryLattice nodes
+        for (auto n = node.first_child(); n; n = n.next_sibling()) {
+            const auto attr = n.attribute("name");
+            if (attr) insertZone(attr.value());
+        }
     }
     void setSnaps() {
         // Finding the adjoint element
@@ -273,20 +260,12 @@ class SolverBuilder {
     int setGeometry(pugi::xml_node geom) {
         // Reading the size of mesh
         const auto [nx, ny, nz] = readLatticeDims(solver->units, geom);
-        notice("Mesh size in config file: %dx%dx%d\n", nx, ny, nz);
+        NOTICE("Mesh size in config file: %dx%dx%d\n", nx, ny, nz);
 
         // Initializing the lattice of a specific size
         return solver->initCartLattice(nx, ny, nz, n_snaps);
     }
-    int setArbitrary(pugi::xml_node arb_node) {
-        const auto cxn_path_attr = arb_node.attribute("file");
-        if (!cxn_path_attr) {
-            ERROR("\"file\" attribute missing from \"ArbitraryLattice\" node");
-            return EXIT_FAILURE;
-        }
-        const std::string cxn_path = cxn_path_attr.value();
-        return solver->initArbLattice(n_snaps, cxn_path);
-    }
+    int setArbitrary(pugi::xml_node arb_node) { return solver->initArbLattice(n_snaps, arb_node); }
     void setCallback() { solver->lattice->setCallback(MainCallback(solver.get())); }
 
    private:
@@ -351,7 +330,7 @@ int convertToArbitrary(const std::unique_ptr<Solver>& solver, pugi::xml_node geo
         ERROR("Error exporting to .cxn file");
         return EXIT_FAILURE;
     } else {
-        notice("toArb completed successfully");
+        NOTICE("toArb completed successfully");
         return EXIT_SUCCESS;
     }
 }
@@ -436,10 +415,9 @@ int main(int argc, char* argv[]) {
     // Units
     if (solver_builder.setUnits(config)) return EXIT_FAILURE;
 
-    // XML geometry node
+    // Geometry/ArbitraryLattice XML nodes responsible for most of initialization
     auto geo_xml = config.find_node([](auto node) { return "Geometry"sv == node.name(); });
-    if (geo_xml)
-        if (solver_builder.setZonesFromGeometry(geo_xml)) return EXIT_FAILURE;
+    auto arb_xml = config.find_node([](auto node) { return "ArbitraryLattice"sv == node.name(); });
 
     // Generate arbitrary lattice files
     // This has to be called before lattice initialization, since we want to avoid storing the entire Cartesian lattice
@@ -448,16 +426,12 @@ int main(int argc, char* argv[]) {
             ERROR("Conversion to arbitrary lattice requested without providing the geometry");
             return EXIT_FAILURE;
         }
+        solver_builder.setZones(geo_xml);
         return convertToArbitrary(solver_builder.build(), geo_xml, Model_m());  // TODO: model initialization where?
     }
 
     // Snaps
     solver_builder.setSnaps();
-
-    // XML arbitrary lattice node
-    auto arb_xml = config.find_node([](auto node) { return "ArbitraryLattice"sv == node.name(); });
-    if (arb_xml)
-        if (solver_builder.setZonesFromArbitrary(arb_xml)) return EXIT_FAILURE;
 
     // Initialize lattice according to the specified type (Cartesian or arbitrary)
     if (geo_xml && arb_xml) {
@@ -467,10 +441,12 @@ int main(int argc, char* argv[]) {
         ERROR("Either \"ArbitraryLattice\" or \"Geometry\" must be specified");
         return EXIT_FAILURE;
     } else if (geo_xml) {
-        notice("Using Cartesian lattice");
+        NOTICE("Using Cartesian lattice");
+        solver_builder.setZones(geo_xml);
         if (solver_builder.setGeometry(geo_xml)) return EXIT_FAILURE;
     } else if (arb_xml) {
-        notice("Using arbitrary lattice");
+        NOTICE("Using arbitrary lattice");
+        solver_builder.setZones(arb_xml);
         if (solver_builder.setArbitrary(arb_xml)) return EXIT_FAILURE;
     }  // else __builtin_unreachable();
 
@@ -481,7 +457,6 @@ int main(int argc, char* argv[]) {
 
         // The solver has been built!
         const auto solver = solver_builder.build();
-
 
         // Initializing CUDA events
         CudaEventCreate(&start);

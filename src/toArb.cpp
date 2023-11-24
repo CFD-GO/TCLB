@@ -71,7 +71,7 @@ static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes, double unde
     file << "OFFSET_DIRECTIONS " << Model_m::offset_directions.size() << '\n';
     for (const auto [x, y, z] : Model_m::offset_directions) file << x << ' ' << y << ' ' << z << '\n';
     file << "GRID_SIZE " << underlying_grid_size << '\n';
-    file << "NODE_GROUPS " << model.nodetypeflags.size() + zone_map.size() << '\n';
+    file << "NODE_LABELS " << model.nodetypeflags.size() + zone_map.size() << '\n';
     for (const auto& ntf : model.nodetypeflags) file << ntf.name << '\n';
     for (const auto& [name, zf] : zone_map) file << "_Z_" << name << '\n';
     file << "NODES " << n_nodes << '\n';
@@ -155,12 +155,14 @@ static int writeArbXml(const Solver& solver, const Geometry& geo, const Model& m
     n2.append_attribute("file").set_value(cxn_path.c_str());
     for (const auto& ntf : model.nodetypeflags) {
         if (ntf.flag == 0) continue;
-        pugi::xml_node n3 = n2.append_child("Group");
-        n3.append_attribute("name").set_value(ntf.name.c_str());
+        pugi::xml_node n3 = n2.append_child(ntf.name.c_str());
+        n3.append_attribute("group").set_value(ntf.name.c_str());
     }
     for (const auto& [name, zs] : solver.setting_zones) {
         if (zs == 0) continue;
-        auto n3 = n2.append_child("Zone");
+        auto n3 = n2.append_child("None");
+        const auto group_str = "_Z_" + name;
+        n3.append_attribute("group").set_value(group_str.c_str());
         n3.append_attribute("name").set_value(name.c_str());
     }
 

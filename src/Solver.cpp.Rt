@@ -291,10 +291,10 @@ int Solver::initCartLattice(int nx, int ny, int nz, int ns) {
 /**
 
 */
-int Solver::initArbLattice(size_t num_snaps, const std::string& cxn_path) {
+int Solver::initArbLattice(size_t num_snaps, pugi::xml_node arb_node) {
     try {
         debug0("Creating ArbLattice object ...");
-        lattice = std::make_unique<ArbLattice>(num_snaps, units, setting_zones, cxn_path, mpi_comm);
+        lattice = std::make_unique<ArbLattice>(num_snaps, units, setting_zones, arb_node, mpi_comm);
         debug0("ArbLattice done");
         const auto sz_msg = "Global lattice size: " + std::to_string(lattice->getGlobalSize());
         output(sz_msg.c_str());
