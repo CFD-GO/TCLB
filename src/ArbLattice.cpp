@@ -14,7 +14,6 @@
 #include "PartitionArbLattice.hpp"
 #include "mpitools.hpp"
 #include "pinned_allocator.hpp"
-#include "utils.h"
 
 ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), comm(comm_) {
     sizes.snaps = num_snaps_;
@@ -213,51 +212,49 @@ void ArbLattice::allocDeviceMemory() {
     node_types_device = cudaMakeUnique<flag_t>(local_sz);
 }
 
-void ArbLattice::computeNodeTypes(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
-    const auto local_sz = connect.getLocalSize();
-    node_types_host.resize(local_sz);
-    for (auto n = arb_node.first_child(); n; n = n.next_sibling()) {
+std::vector<ArbLattice::NodeTypeBrush> ArbLattice::parseBrushFromXml(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) const {
+    std::vector<ArbLattice::NodeTypeBrush> retval;
+    for (auto node = arb_node.first_child(); node; node = node.next_sibling()) {
         // Requested node type
-        const auto ntf_iter = std::find_if(model->nodetypeflags.cbegin(), model->nodetypeflags.cend(), [name = n.name()](const auto& ntf) { return ntf.name == name; });
-        if (ntf_iter == model->nodetypeflags.cend()) {
-            const auto err_str = formatAsString("Unknown node type: %s", n.name());
-            throw std::runtime_error{err_str};
-        }
+        const auto ntf_iter = std::find_if(model->nodetypeflags.cbegin(), model->nodetypeflags.cend(), [name = node.name()](const auto& ntf) { return ntf.name == name; });
+        if (ntf_iter == model->nodetypeflags.cend()) throw std::runtime_error{formatAsString("Unknown node type: %s", node.name())};
 
-        // Determine whether we're in a zone and set mask and accordingly
-        const auto group_attr = n.attribute("group");
-        const auto zone_attr = n.attribute("name");
-        if (!group_attr) {
-            const auto err_str = formatAsString("The %s node lacks the \"group\" attribute", n.name());
-            throw std::runtime_error{err_str};
-        }
-        const flag_t mask = ntf_iter->group_flag | (zone_attr ? model->settingzones.flag : 0);
-        const flag_t val = ntf_iter->flag | (zone_attr ? (setting_zones.at(zone_attr.value()) << model->settingzones.shift) : 0);
+        // Determine what kind of node we're parsing and update the brush accordingly
+        const auto group_attr = node.attribute("group");
+        const auto zone_attr = node.attribute("name");
+        if (group_attr) {
+            const flag_t mask = ntf_iter->group_flag | (zone_attr ? model->settingzones.flag : 0);
+            const flag_t value = ntf_iter->flag | (zone_attr ? (setting_zones.at(zone_attr.value()) << model->settingzones.shift) : 0);
+            const std::string group_name = group_attr.value();
+            const auto label_iter = label_to_ind_map.find(group_name);
+            if (label_iter == label_to_ind_map.end()) throw std::runtime_error{formatAsString("The required label %s is missing from the .cxn file", group_name)};
+            const auto label = label_iter->second;
+            const auto has_label = [label](Span<const ArbLatticeConnectivity::ZoneIndex> labels, std::array<double, 3>) { return std::find(labels.begin(), labels.end(), label) != labels.end(); };
+            retval.push_back(NodeTypeBrush{has_label, mask, value});
+        } else
+            throw std::runtime_error{std::string("The ArbitraryLattice XML node contains an incorrectly specified child named ") + node.name()};  // TODO: implement other node types, e.g. <Box>
+    }
+    return retval;
+}
 
-        // Label ID to match
-        const std::string group_name = group_attr.value();
-        const auto label_iter = label_to_ind_map.find(group_name);
-        if (label_iter == label_to_ind_map.end()) {
-            const auto err_str = formatAsString("The required label %s is missing from the .cxn file", group_name);
-            throw std::runtime_error{err_str};
-        }
-        const auto label_match = label_iter->second;
-
-        // TODO: what about masks in the XML?
-
-        // Update the node type masks based on the mask and value corresponding to the current group/zone
-        for (size_t label_i = 0, i = 0; i != local_sz; ++i) {
-            for (ArbLatticeConnectivity::ZoneIndex zi = 0; zi != connect.zones_per_node[i]; ++zi) {
-                const auto label = connect.zones[label_i++];
-                if (label == label_match) {
-                    flag_t& dest = node_types_host[local_permutation[i]];
-                    dest = (dest & ~mask) | val;
-                    break;
-                }
+void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+    const auto local_sz = connect.getLocalSize();
+    const auto zone_sizes = Span(connect.zones_per_node.get(), local_sz);
+    auto zone_offsets = std::vector<size_t>(local_sz);
+    std::transform_exclusive_scan(zone_sizes.begin(), zone_sizes.end(), zone_offsets.begin(), size_t{0}, std::plus{}, [](auto label) -> size_t { return label; });  // labels are stored as a short type, we need to cast it to size_t before computing the scan
+    const auto brushes = parseBrushFromXml(arb_node, setting_zones);
+    node_types_host = std::pmr::vector<flag_t>(local_sz, &global_pinned_resource);
+    for (size_t i = 0; i != local_sz; ++i) {
+        const auto labels = Span(std::next(connect.zones.data(), zone_offsets[i]), connect.zones_per_node[i]);
+        const auto point = std::array{connect.coord(0, i), connect.coord(1, i), connect.coord(2, i)};
+        for (const auto& [pred, mask, val] : brushes)
+            if (pred(labels, point)) {
+                auto& dest = node_types_host[local_permutation[i]];
+                dest = (dest & ~mask) | val;
             }
-        }
     }
 }
+
 std::pmr::vector<real_t> ArbLattice::computeCoords() const {
     const auto local_sz = connect.getLocalSize();
     std::pmr::vector<real_t> retval(sizes.coords_pitch * 3, &global_pinned_resource);
@@ -268,6 +265,7 @@ std::pmr::vector<real_t> ArbLattice::computeCoords() const {
     }
     return retval;
 }
+
 std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
     const auto local_sz = connect.getLocalSize();
     std::pmr::vector<unsigned> retval(sizes.neighbors_pitch * Q, &global_pinned_resource);
@@ -289,7 +287,7 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
 
 void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
     CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, std::numeric_limits<real_t>::signaling_NaN(), inStream);
-    computeNodeTypes(arb_node, setting_zones);
+    computeNodeTypesOnHost(arb_node, setting_zones);
     copyVecToDeviceAsync(node_types_device.get(), node_types_host, inStream);
     const auto nbrs = computeNeighbors();
     copyVecToDeviceAsync(neighbors_device.get(), nbrs, inStream);

@@ -11,6 +11,7 @@
 #include "Lists.h"
 #include "Region.h"
 #include "pugixml.hpp"
+#include "utils.h"
 
 // Note on node numbering: We have 2 indexing schemes - a global and a local one.
 // Globally, nodes are numbered such that consecutive ranks own monotonically increasing intervals, (e.g. rank 0 owns nodes [0, n_0), rank 1 owns nodes [n_0, n_1), etc.) This is required for ParMETIS, but it is also a convenient scheme in general.
@@ -45,7 +46,7 @@ class ArbLattice : public LatticeBase {
     CudaUniquePtr<real_t> coords_device;                    /// Device allocation of node coordinates: (B + I) x 3
     CudaUniquePtr<real_t> snaps_device;                     /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
     CudaUniquePtr<flag_t> node_types_device;                /// Device allocation of node type array: (B + I)
-    std::vector<flag_t> node_types_host;                    /// Host allocation of node type array: (B + I)
+    std::pmr::vector<flag_t> node_types_host;               /// Host (pinned) allocation of node type array: (B + I)
 
    public:
     static constexpr size_t Q = Model_m::Q;    /// Stencil size
@@ -60,17 +61,23 @@ class ArbLattice : public LatticeBase {
     void IterateTill(int, int) final {}
 
    private:
-    void readFromCxn(const std::string& cxn_path);                                                    /// Read the lattice info from a .cxn file
-    void partition();                                                                                 /// Repartition the lattice, if ParMETIS is not present this is a noop
-    void computeLocalPermutation();                                                                   /// Compute the local permutation, see comment at the top
-    void computeGhostNodes();                                                                         /// Retrieve GIDs of ghost nodes from the connectivity info structure
-    void allocDeviceMemory();                                                                         /// Allocate required device memory
-    void computeNodeTypes(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);  /// Compute the node types to be stored on the device
-    std::pmr::vector<real_t> computeCoords() const;                                                   /// Compute the coordinates 2D array to be stored on the device
-    std::pmr::vector<unsigned> computeNeighbors() const;                                              /// Compute the neighbors 2D array to be stored on the device
-    void initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);    /// Initialize data residing in device memory
-    int fullLatticePos(double pos) const;                                                             /// Compute the position (in terms of lattice offsets) of a node, assuming the arbitrary lattice is a subset of a Cartesian lattice
-    lbRegion getLocalBoundingBox() const;                                                             /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
+    struct NodeTypeBrush {
+        std::function<bool(Span<const ArbLatticeConnectivity::ZoneIndex>, std::array<double, 3>)> pred;  /// Predicate to determine whether the brush is applicable to this node, takes the labels and coordinates of the node
+        flag_t mask, value;                                                                              /// Mask and value of the brush
+    };
+
+    void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file
+    void partition();                                                                                                              /// Repartition the lattice, if ParMETIS is not present this is a noop
+    void computeLocalPermutation();                                                                                                /// Compute the local permutation, see comment at the top
+    void computeGhostNodes();                                                                                                      /// Retrieve GIDs of ghost nodes from the connectivity info structure
+    void allocDeviceMemory();                                                                                                      /// Allocate required device memory
+    std::vector<NodeTypeBrush> parseBrushFromXml(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) const;  /// Parse the arbitrary lattice XML to determine the brush sequence to be applied to each node
+    void computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                         /// Compute the node types to be stored on the device
+    std::pmr::vector<real_t> computeCoords() const;                                                                                /// Compute the coordinates 2D array to be stored on the device
+    std::pmr::vector<unsigned> computeNeighbors() const;                                                                           /// Compute the neighbors 2D array to be stored on the device
+    void initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                                 /// Initialize data residing in device memory
+    int fullLatticePos(double pos) const;                                                                                          /// Compute the position (in terms of lattice offsets) of a node, assuming the arbitrary lattice is a subset of a Cartesian lattice
+    lbRegion getLocalBoundingBox() const;                                                                                          /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
 };
 
 #endif  // ARBLATTICE_HPP
