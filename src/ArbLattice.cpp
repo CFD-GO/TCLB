@@ -223,7 +223,7 @@ void ArbLattice::allocDeviceMemory() {
     sizes.coords_pitch = local_sz;
     coords_device = cudaMakeUnique2D<real_t>(sizes.coords_pitch, 3);
     sizes.snaps_pitch = local_sz + ghost_nodes.size() + 1;
-    snaps_device = cudaMakeUnique2D<real_t>(sizes.snaps_pitch, sizes.snaps * NF);
+    snaps_device = cudaMakeUnique2D<storage_t>(sizes.snaps_pitch, sizes.snaps * NF);
     node_types_device = cudaMakeUnique<flag_t>(local_sz);
 }
 
@@ -301,7 +301,8 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
 }
 
 void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
-    CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, std::numeric_limits<real_t>::signaling_NaN(), inStream);
+    fillWithStorageNaNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, inStream);
+    // CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, getStorageNaN(), inStream);
     computeNodeTypesOnHost(arb_node, setting_zones);
     copyVecToDeviceAsync(node_types_device.get(), node_types_host, inStream);
     const auto nbrs = computeNeighbors();

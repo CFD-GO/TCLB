@@ -44,7 +44,7 @@ class ArbLattice : public LatticeBase {
     std::unordered_map<std::string, int> label_to_ind_map;  /// Label string to unique ID
     CudaUniquePtr<unsigned> neighbors_device;               /// Device allocation of the neighbor table: (B + I) x Q
     CudaUniquePtr<real_t> coords_device;                    /// Device allocation of node coordinates: (B + I) x 3
-    CudaUniquePtr<real_t> snaps_device;                     /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
+    CudaUniquePtr<storage_t> snaps_device;                  /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
     CudaUniquePtr<flag_t> node_types_device;                /// Device allocation of node type array: (B + I)
     std::pmr::vector<flag_t> node_types_host;               /// Host (pinned) allocation of node type array: (B + I)
     pugi::xml_node initialized_from;                        /// XML node from which this node was initialized - avoid reinitialization if called multiple times with the same arguments

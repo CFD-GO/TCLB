@@ -109,4 +109,18 @@ void LaunchExecutorAsync(const EX& executor, CudaStream_t stream) {
     CudaKernelRunAsync(Kernel<EX>, exec_params.blx, exec_params.thr, stream, executor);
 }
 
+/// Utility (non-virtual) base class for executors operating on a linear iteration space
+/// Computes LaunchParams so that there is enough blocks and threads to cover an iteration space of size \p size
+struct LinearExecutor {
+    size_t size;
+    LaunchParams ComputeLaunchParams(dim3 max_threads) const {
+        const size_t max_threads_per_block = max_threads.x * max_threads.y * max_threads.z;
+        const size_t blocks_needed = (size + max_threads_per_block - 1) / max_threads_per_block;
+        dim3 blocks, threads;
+        blocks.x = blocks_needed;
+        threads.x = max_threads_per_block;
+        return {blocks, threads};
+    }
+};
+
 #endif  // THREADS_H
