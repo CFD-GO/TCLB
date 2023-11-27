@@ -30,6 +30,8 @@ typedef long long int storage_t;
 #endif
 
 #ifdef STORAGE_SHIFT
+CudaDeviceFunction real_t storage_to_real(storage_t);
+CudaDeviceFunction storage_t real_to_storage(real_t);
 inline CudaDeviceFunction real_t storage_to_real_shift(const storage_t& v, const real_t& shft) {
     return storage_to_real(v) + shft;
 }
@@ -50,16 +52,6 @@ typedef char tr_flag_t;
 typedef int tr_addr_t;
 typedef double tr_real_t;
 
-/*
-  struct vector_t {
-    real_t x,y,z;
-    template <typename T> CudaDeviceFunction CudaHostFunction inline operator T () {
-      T p;
-      p.x = x; p.y = y; p.z = z;
-      return p;
-    }
-  };
-*/
 #endif
 
 #ifndef MPI_TYPES_H
