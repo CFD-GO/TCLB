@@ -27,13 +27,13 @@ struct StorageNaNFillExecutor : LinearExecutor {
 
 template <typename T>
 void CudaFillN(T* device_ptr, size_t N, T value) {
-    detail::FillExecutor<T> fill_exec{N, device_ptr, value};
+    detail::FillExecutor<T> fill_exec{{N}, device_ptr, value};
     LaunchExecutor(fill_exec);
 }
 
 template <typename T>
 void CudaFillNAsync(T* device_ptr, size_t N, T value, CudaStream_t stream) {
-    detail::FillExecutor<T> fill_exec{N, device_ptr, value};
+    detail::FillExecutor<T> fill_exec{{N}, device_ptr, value};
     LaunchExecutorAsync(fill_exec, stream);
 }
 
@@ -49,11 +49,11 @@ INSTANTIATE_FOR_TYPE(float)
 INSTANTIATE_FOR_TYPE(double)
 
 void fillWithStorageNaN(storage_t* device_ptr, size_t N) {
-    detail::StorageNaNFillExecutor exec{N, device_ptr};
+    detail::StorageNaNFillExecutor exec{{N}, device_ptr};
     LaunchExecutor(exec);
 }
 
 void fillWithStorageNaNAsync(storage_t* device_ptr, size_t N, CudaStream_t stream) {
-    detail::StorageNaNFillExecutor exec{N, device_ptr};
+    detail::StorageNaNFillExecutor exec{{N}, device_ptr};
     LaunchExecutorAsync(exec, stream);
 }
