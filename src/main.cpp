@@ -214,7 +214,6 @@ std::array<int, 3> readLatticeDims(const UnitEnv& units, pugi::xml_node geom) {
 
 class SolverBuilder {
     std::unique_ptr<Solver> solver = std::make_unique<Solver>();
-    int n_snaps = 2;
 
    public:
     std::unique_ptr<Solver> build() {
@@ -249,12 +248,14 @@ class SolverBuilder {
         }
     }
     void setSnaps() {
+        int num_snaps = 2;
         // Finding the adjoint element
         pugi::xml_node adj = solver->configfile.find_node([](pugi::xml_node node) { return std::string_view(node.name()) == "Adjoint" ? (std::string_view(node.attribute("type").value()) != "steady") : false; });
         if (adj) {
             const auto attr = adj.attribute("NumberOfSnaps");
-            n_snaps = attr ? std::max(attr.as_int(), 2) : 10;
-            NOTICE("Will be running nonstationary adjoint at %d Snaps\n", D_MPI_RANK, n_snaps);
+            num_snaps = attr ? std::max(attr.as_int(), 2) : 10;
+            solver->num_snaps = num_snaps;
+            NOTICE("Will be running nonstationary adjoint at %d Snaps\n", D_MPI_RANK, num_snaps);
         }
     }
     int setGeometry(pugi::xml_node geom) {
@@ -263,9 +264,9 @@ class SolverBuilder {
         NOTICE("Mesh size in config file: %dx%dx%d\n", nx, ny, nz);
 
         // Initializing the lattice of a specific size
-        return solver->initCartLattice(nx, ny, nz, n_snaps);
+        return solver->initCartLattice(nx, ny, nz);
     }
-    int setArbitrary(pugi::xml_node arb_node) { return solver->initArbLattice(n_snaps, arb_node); }
+    int setArbitrary(pugi::xml_node arb_node) { return solver->initArbLattice(arb_node); }
     void setCallback() { solver->lattice->setCallback(MainCallback(solver.get())); }
 
    private:

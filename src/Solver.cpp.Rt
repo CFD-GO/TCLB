@@ -130,9 +130,26 @@ using namespace std;
 	}
 
 Lattice* Solver::getCartLattice() const {
+    if(!lattice) {
+        ERROR("Accessing Cartesian lattice before initialization");
+        std::terminate();
+    }
     auto retval = dynamic_cast<Lattice*>(lattice.get());
     if(!retval) {
         ERROR("Attempting to access a non-Cartesian Lattice via the Cartesian interface (likely in a handler)");
+        std::terminate();
+    }
+    return retval;
+}
+
+ArbLattice* Solver::getArbLattice() const {
+    if(!lattice) {
+        ERROR("Accessing arbitrary lattice before initialization");
+        std::terminate();
+    }
+    auto retval = dynamic_cast<ArbLattice*>(lattice.get());
+    if(!retval) {
+        ERROR("Attempting to access a non-arbitrary Lattice via the Arbitrary interface (likely in a handler)");
         std::terminate();
     }
     return retval;
@@ -273,7 +290,7 @@ static CartConnectivity makeConnectivity(int nx, int ny, int nz, MPI_Comm comm) 
 	\param nz Z size of the lattice (1 for 3D)
 	\param ns Number of Snapshots allocated
 */
-int Solver::initCartLattice(int nx, int ny, int nz, int ns) {
+int Solver::initCartLattice(int nx, int ny, int nz) {
     output("Global lattice size: %dx%dx%d\n", nx, ny, nz);
     auto connect = makeConnectivity(nx, ny, nz, mpi_comm);
 
@@ -281,17 +298,17 @@ int Solver::initCartLattice(int nx, int ny, int nz, int ns) {
     output("Local lattice size: %dx%dx%d\n", local_region.nx, local_region.ny, local_region.nz);
 
     debug0("Creating Lattice object ...");
-    lattice = std::make_unique<Lattice>(std::move(connect), ns, units);
+    lattice = std::make_unique<Lattice>(std::move(connect), num_snaps, units);
     debug0("Lattice done");
 
     return 0;
 }
 
-/// Initialize arbitrary lattice base on data read from .cxn file
+/// Initialize arbitrary lattice based on the passed xml node
 /**
-
+    /param arb_node ArbitraryLattice xml node
 */
-int Solver::initArbLattice(size_t num_snaps, pugi::xml_node arb_node) {
+int Solver::initArbLattice(pugi::xml_node arb_node) {
     try {
         debug0("Creating ArbLattice object ...");
         lattice = std::make_unique<ArbLattice>(num_snaps, units, setting_zones, arb_node, mpi_comm);

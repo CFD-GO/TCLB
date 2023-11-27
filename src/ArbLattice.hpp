@@ -37,7 +37,7 @@ class ArbLattice : public LatticeBase {
     ArbLatticeConnectivity connect;                         /// Lattice connectivity info
     std::vector<long> global_node_dist;                     /// Node distribution (in the ParMETIS sense), describing the GID node intervals owned by each process (identical in all ranks)
     std::vector<long> ghost_nodes;                          /// Sorted GIDs of ghost nodes
-    SizeInfo sizes;                                         /// Sizes of various data structures/allocations
+    SizeInfo sizes{};                                       /// Sizes of various data structures/allocations
     MPI_Comm comm;                                          /// Communicator associated with the lattice
     std::vector<unsigned> local_permutation;                /// The permutation of owned nodes w.r.t. the global indexing scheme, see comment at the top
     lbRegion local_bounding_box;                            /// The bounding box of the local region (if the arbitrary lattice is a subset of a full Cartesian lattice, we can use this for some optimizations)
@@ -47,18 +47,20 @@ class ArbLattice : public LatticeBase {
     CudaUniquePtr<real_t> snaps_device;                     /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
     CudaUniquePtr<flag_t> node_types_device;                /// Device allocation of node type array: (B + I)
     std::pmr::vector<flag_t> node_types_host;               /// Host (pinned) allocation of node type array: (B + I)
+    pugi::xml_node initialized_from;                        /// XML node from which this node was initialized - avoid reinitialization if called multiple times with the same arguments
 
    public:
     static constexpr size_t Q = Model_m::Q;    /// Stencil size
     static constexpr size_t NF = Model_m::NF;  /// Number of fields
 
     ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_);
+    int reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);  /// Init if passed args differ from those passed at construction or the last call to reinitialize (avoid duplicating work)
 
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
 
-    void Iterate(int, int) final {}
-    void IterateTill(int, int) final {}
+    void Iterate(int a, int b) final { output("Iterate called with: %d %d", a, b); }
+    void IterateTill(int a, int b) final { output("IterateTill called with: %d %d", a, b); }
 
    private:
     struct NodeTypeBrush {
@@ -66,6 +68,7 @@ class ArbLattice : public LatticeBase {
         flag_t mask, value;                                                                              /// Mask and value of the brush
     };
 
+    void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file
     void partition();                                                                                                              /// Repartition the lattice, if ParMETIS is not present this is a noop
     void computeLocalPermutation();                                                                                                /// Compute the local permutation, see comment at the top

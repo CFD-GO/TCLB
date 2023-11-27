@@ -16,7 +16,12 @@
 #include "pinned_allocator.hpp"
 
 ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), comm(comm_) {
+    initialize(num_snaps_, setting_zones, arb_node);
+}
+
+void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
     sizes.snaps = num_snaps_;
+    initialized_from = arb_node;
     const auto name_attr = arb_node.attribute("file");
     if (!name_attr) throw std::runtime_error{"The ArbitraryLattice node lacks the \"file\" attribute"};
     const std::string cxn_path = name_attr.value();
@@ -29,6 +34,16 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
     allocDeviceMemory();
     initDeviceData(arb_node, setting_zones);
     local_bounding_box = getLocalBoundingBox();
+}
+
+int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
+    if (num_snaps_ != sizes.snaps || arb_node != initialized_from) try {
+            initialize(num_snaps_, setting_zones, arb_node);
+        } catch (const std::exception& e) {
+            ERROR(e.what());
+            return EXIT_FAILURE;
+        }
+    return EXIT_SUCCESS;
 }
 
 void ArbLattice::readFromCxn(const std::string& cxn_path) {

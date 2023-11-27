@@ -38,6 +38,7 @@ public:
 	std::vector<Handler> hands; ///< Stack of handlers
 	int steps = 1; ///< steps to the next monitor-callback
 	int saveN = 0, saveI = 0; ///< No idea what it is TODO
+	int num_snaps = 2; ///< Number of snaps, this is passed down to the lattice member
 	pugi::xml_document configfile;
 	std::string conffile_path; ///< Path to the config file
     std::string outpath; ///< Output prefix
@@ -53,9 +54,10 @@ public:
     Solver& operator=(Solver&&) = default;
     ~Solver() = default;
 
-    int initCartLattice(int,int,int,int);
-    int initArbLattice(size_t num_snaps, pugi::xml_node arb_node);
+    int initCartLattice(int nx, int ny, int nz);
+    int initArbLattice(pugi::xml_node arb_node);
     Lattice* getCartLattice() const;
+    ArbLattice* getArbLattice() const;
 
     int EventLoop() const { return lattice->EventLoop(); }
 	void print(const char * str);
