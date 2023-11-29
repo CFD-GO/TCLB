@@ -363,13 +363,13 @@ void ArbLattice::clearAdjoint() {
 #endif
     zSet.ClearGrad();
 }
-void ArbLattice::Iteration(int, int, int) {
+void ArbLattice::IterationPrimal(int, int, int) {
     throw std::runtime_error{"UNIMPLEMENTED"};
 }
-void ArbLattice::Iteration_Adj(int, int, int, int, int) {
+void ArbLattice::IterationAdjoint(int, int, int, int, int) {
     throw std::runtime_error{"UNIMPLEMENTED"};
 }
-void ArbLattice::Iteration_Opt(int, int, int, int, int) {
+void ArbLattice::IterationOptimization(int, int, int, int, int) {
     throw std::runtime_error{"UNIMPLEMENTED"};
 }
 void ArbLattice::RunAction(int, int, int, int) {

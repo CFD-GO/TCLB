@@ -298,20 +298,20 @@ public:
 
     // Dynamically get offset direction index
     static constexpr auto stencil_sizes = model_details::computeStencilBox(offset_directions).getSizes();
+    static constexpr size_t stencil_box_sz = stencil_sizes.x * stencil_sizes.y * stencil_sizes.z;
     static constexpr auto stencil_offsets = model_details::computeStencilBox(offset_directions).getOffsets();
     CudaHostFunction CudaDeviceFunction static int computeOffsetHash(OffsetDir offset, OffsetDir stencil_ofs, OffsetDir stencil_sz) {
         return (offset.x - stencil_ofs.x) + (offset.y - stencil_ofs.y) * stencil_sz.x + (offset.z - stencil_ofs.z) * stencil_sz.x * stencil_sz.y;
     }
-    static auto makeDynamicOffsetIndLookupTable() {
-        constexpr size_t stencil_box_sz = stencil_sizes.x * stencil_sizes.y * stencil_sizes.z;
-        std::array<int, stencil_box_sz> retval;
-        retval.fill(-1); // Initialize with invalid index in case the stencil is not a box
+    static constexpr auto makeDynamicOffsetIndLookupTable() {
+        std::array<int, stencil_box_sz> retval{};
+        for(auto& i : retval) i = -1; // Initialize with invalid index in case the stencil is not a box
         for(const auto offset : offset_directions)
             retval[computeOffsetHash(offset, stencil_offsets, stencil_sizes)] = model_details::lookupOffsetDirInd(offset_directions, offset);
         return retval;
     }
 
-    // The device cant access static constexpr members, so we need to pass them as arguments
+    // The device cant access static constexpr members of non-scalar type, so we need to pass them as arguments
     CudaDeviceFunction static int getDirIndex(OffsetDir offset, OffsetDir stencil_ofs, OffsetDir stencil_sz, const int* dir_lookup) {
         return dir_lookup[computeOffsetHash(offset, stencil_ofs, stencil_sz)];
     }

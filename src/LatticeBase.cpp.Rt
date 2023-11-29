@@ -339,7 +339,7 @@ void LatticeBase::Iterate(int num_iters, int iter_type) {
                         std::terminate();
                     }
                     IterateTill(Record_Iter, ITER_NORM);
-                    Iteration_Adj(Snap, (Snap + 1) % 2, aSnap % 2, (aSnap + 1) % 2, iter_type);
+                    IterationAdjoint(Snap, (Snap + 1) % 2, aSnap % 2, (aSnap + 1) % 2, iter_type);
                 }
                 break;
             case ITER_NORM:
@@ -364,7 +364,7 @@ void LatticeBase::Iterate(int num_iters, int iter_type) {
                         data.clearGlobals();
                         iter_type |= ITER_GLOBS;
                     }
-                    Iteration_Adj(Snap, (Snap + 1) % 2, aSnap, (aSnap + 1) % 2, iter_type);
+                    IterationAdjoint(Snap, (Snap + 1) % 2, aSnap, (aSnap + 1) % 2, iter_type);
                 }
                 break;
             case ITER_NORM:
@@ -373,7 +373,7 @@ void LatticeBase::Iterate(int num_iters, int iter_type) {
                         data.clearGlobals();
                         iter_type |= ITER_GLOBS;
                     }
-                    Iteration(Snap, (Snap + 1) % 2, iter_type);
+                    IterationPrimal(Snap, (Snap + 1) % 2, iter_type);
                     ++Iter;
                     ++data.iter;
                 }
@@ -384,7 +384,7 @@ void LatticeBase::Iterate(int num_iters, int iter_type) {
                         data.clearGlobals();
                         iter_type |= ITER_GLOBS;
                     }
-                    Iteration_Opt(Snap, (Snap + 1) % 2, aSnap, (aSnap + 1) % 2, iter_type);
+                    IterationOptimization(Snap, (Snap + 1) % 2, aSnap, (aSnap + 1) % 2, iter_type);
                     ++Iter;
                     ++data.iter;
                 }
@@ -449,7 +449,7 @@ void LatticeBase::IterateTill(int it, int iter_type)
 		int s3 = s2;
 		if (s2 >= num_snaps) s3=0;
 		pop_settings();
-		Iteration(s1, s3, iter_type);
+		IterationPrimal(s1, s3, iter_type);
 		Record_Iter = i+1;
 		if (s2 >= num_snaps){
 			if (reverse_save) {

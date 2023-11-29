@@ -133,9 +133,9 @@ class LatticeBase {
     void Stream() { IterateT(ITER_STREAM); }
     void IterateT(int iter_type) { Iterate(1, iter_type); }
 
-    virtual void Iteration(int, int, int) = 0;
-    virtual void Iteration_Adj(int, int, int, int, int) = 0;
-    virtual void Iteration_Opt(int, int, int, int, int) = 0;
+    virtual void IterationPrimal(int, int, int) = 0;
+    virtual void IterationAdjoint(int, int, int, int, int) = 0;
+    virtual void IterationOptimization(int, int, int, int, int) = 0;
     virtual void RunAction(int, int, int, int) = 0;
     void RunAction(int action, int iter_type) { RunAction(action, Snap, (Snap + 1) % 2, iter_type); }
 

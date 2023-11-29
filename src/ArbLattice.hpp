@@ -74,11 +74,11 @@ class ArbLattice : public LatticeBase {
     int loadAdj(const std::string& filename, int asnap_ind) final;         /// TODO
     void saveAdj(const std::string& filename, int asnap_ind) const final;  /// TODO
 #endif
-    void clearAdjoint() final;                          /// TODO
-    void Iteration(int, int, int) final;                /// TODO
-    void Iteration_Adj(int, int, int, int, int) final;  /// TODO
-    void Iteration_Opt(int, int, int, int, int) final;  /// TODO
-    void RunAction(int, int, int, int) final;           /// TODO
+    void clearAdjoint() final;                                  /// TODO
+    void IterationPrimal(int, int, int) final;                  /// TODO
+    void IterationAdjoint(int, int, int, int, int) final;       /// TODO
+    void IterationOptimization(int, int, int, int, int) final;  /// TODO
+    void RunAction(int, int, int, int) final;                   /// TODO
 
     void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file

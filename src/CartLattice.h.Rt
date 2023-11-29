@@ -62,6 +62,12 @@ private:
   void saveAdj(const std::string& filename, int asnap_ind) const final { saveImpl(aSnaps[asnap_ind], filename.c_str()); }
 #endif
 
+<?R for (a in rows(Actions)) { ?>
+  void <?%s a$FunName ?>_Adj(int, int, int, int, int);
+  void <?%s a$FunName ?>_Opt(int, int, int, int, int);
+  void <?%s a$FunName ?>(int, int, int); <?R
+} ?>
+
 public:
   std::unique_ptr<Sampler> sample; //initializing sampler with zero size
   real_t px, py, pz;
@@ -91,17 +97,16 @@ public:
   void saveToTab(real_t * tab) { saveToTab(tab,Snap); }
   void loadFromTab(real_t * tab, int snap);
   void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); }
-  void clearAdjoint();
+  void clearAdjoint() final;
   void clearDPar();
   void MPIStream_A();
   void MPIStream_B(int );
   void MPIStream_B() { MPIStream_B(0); }
-  void SetFirstTabs(int, int); <?R
-for (a in rows(Actions)) { ?>
-  void <?%s a$FunName ?>_Adj(int, int, int, int, int);
-  void <?%s a$FunName ?>_Opt(int, int, int, int, int);
-  void <?%s a$FunName ?>(int, int, int); <?R
-} ?>
+  void SetFirstTabs(int, int);
+
+  void IterationPrimal(int a, int b, int c) final { Iteration(a, b, c); }
+  void IterationAdjoint(int a, int b, int c, int d, int e) final { Iteration_Adj(a, b, c, d, e); }
+  void IterationOptimization(int a, int b, int c, int d, int e) final {Iteration_Opt(a, b, c, d, e); }
   void GetCoords(real_t*);
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
