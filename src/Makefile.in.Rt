@@ -13,7 +13,7 @@ OPT :=  -D GRAPHICS
 		OPT += -D ADJOINT
 <?R } ?>
 
-OBJS := cuda.o Lattice.o vtkLattice.o Global.o vtkOutput.o cross.o
+OBJS := cuda.o CartLattice.o vtkLattice.o Global.o vtkOutput.o cross.o
 OBJS_CPP := Solver.o
 #compiler/preprocessor options
 INCS := -I. -I@CUDA_HOME@/include @R_INCLUDE@ @RCPP_CXX@ -I$(MPI_INCLUDES)

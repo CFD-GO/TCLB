@@ -59,14 +59,26 @@ class ArbLattice : public LatticeBase {
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
 
-    void Iterate(int a, int b) final { output("Iterate called with: %d %d", a, b); }
-    void IterateTill(int a, int b) final { output("IterateTill called with: %d %d", a, b); }
-
    private:
     struct NodeTypeBrush {
         std::function<bool(Span<const ArbLatticeConnectivity::ZoneIndex>, std::array<double, 3>)> pred;  /// Predicate to determine whether the brush is applicable to this node, takes the labels and coordinates of the node
         flag_t mask, value;                                                                              /// Mask and value of the brush
     };
+
+    void initLatticeDerived() final;                                                 /// Initialization by model/init handlers TODO
+    int loadComp(const std::string& filename, const std::string& comp) final;        /// TODO
+    int saveComp(const std::string& filename, const std::string& comp) const final;  /// TODO
+    int loadPrimal(const std::string& filename, int snap_ind) final;                 /// TODO
+    void savePrimal(const std::string& filename, int snap_ind) const final;          /// TODO
+#ifdef ADJOINT
+    int loadAdj(const std::string& filename, int asnap_ind) final;         /// TODO
+    void saveAdj(const std::string& filename, int asnap_ind) const final;  /// TODO
+#endif
+    void clearAdjoint() final;                          /// TODO
+    void Iteration(int, int, int) final;                /// TODO
+    void Iteration_Adj(int, int, int, int, int) final;  /// TODO
+    void Iteration_Opt(int, int, int, int, int) final;  /// TODO
+    void RunAction(int, int, int, int) final;           /// TODO
 
     void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file

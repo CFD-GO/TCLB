@@ -129,12 +129,12 @@ using namespace std;
 		return 0;
 	}
 
-Lattice* Solver::getCartLattice() const {
+CartLattice* Solver::getCartLattice() const {
     if(!lattice) {
         ERROR("Accessing Cartesian lattice before initialization");
         std::terminate();
     }
-    auto retval = dynamic_cast<Lattice*>(lattice.get());
+    auto retval = dynamic_cast<CartLattice*>(lattice.get());
     if(!retval) {
         ERROR("Attempting to access a non-Cartesian Lattice via the Cartesian interface (likely in a handler)");
         std::terminate();
@@ -298,7 +298,7 @@ int Solver::initCartLattice(int nx, int ny, int nz) {
     output("Local lattice size: %dx%dx%d\n", local_region.nx, local_region.ny, local_region.nz);
 
     debug0("Creating Lattice object ...");
-    lattice = std::make_unique<Lattice>(std::move(connect), num_snaps, units);
+    lattice = std::make_unique<CartLattice>(std::move(connect), num_snaps, units);
     debug0("Lattice done");
 
     return 0;

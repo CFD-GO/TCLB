@@ -10,7 +10,7 @@
 #include "Global.h"
 #include <mpi.h>
 #include "cross.h"
-#include "Lattice.h"
+#include "CartLattice.h"
 #include "ArbLattice.hpp"
 #include "utils.h"
 #include "unit.h"
@@ -56,7 +56,7 @@ public:
 
     int initCartLattice(int nx, int ny, int nz);
     int initArbLattice(pugi::xml_node arb_node);
-    Lattice* getCartLattice() const;
+    CartLattice* getCartLattice() const;
     ArbLattice* getArbLattice() const;
 
     int EventLoop() const { return lattice->EventLoop(); }

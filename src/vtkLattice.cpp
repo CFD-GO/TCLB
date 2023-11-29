@@ -5,7 +5,7 @@
 #include "vtkLattice.h"
 #include "Global.h"
 
-int vtkWriteLattice(const std::string& filename, Lattice& lattice, const UnitEnv& units, const name_set& what, const lbRegion& total_output_reg)
+int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units, const name_set& what, const lbRegion& total_output_reg)
 {
 	const lbRegion& local_reg = lattice.getLocalRegion();
 	const lbRegion reg = local_reg.intersect(total_output_reg);
@@ -51,7 +51,7 @@ int vtkWriteLattice(const std::string& filename, Lattice& lattice, const UnitEnv
 	return 0;
 }
 
-int binWriteLattice(const std::string& filename, Lattice& lattice, const UnitEnv& units)
+int binWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units)
 {
 	const lbRegion& reg = lattice.getLocalRegion();
 	FILE * f;
@@ -95,7 +95,7 @@ template <typename T> int txtWriteField(FILE * f, T * tmp, int stop, int n)
 }
 
 
-int txtWriteLattice(const std::string& filename, Lattice& lattice, const UnitEnv& units, const name_set& what, int type)
+int txtWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units, const name_set& what, int type)
 {
 	const lbRegion& reg = lattice.getLocalRegion();
 	int size = reg.size();

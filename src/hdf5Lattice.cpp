@@ -27,7 +27,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 {
 #ifdef WITH_HDF5
 	Glue glue;
-	Lattice * lattice = solver->lattice;
+	CartLattice * lattice = solver->lattice;
 	UnitEnv * units = &solver->units;
 	double unit;
 

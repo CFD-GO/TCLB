@@ -2,8 +2,8 @@
     source("conf.R")
     c_header();
 ?>
-#ifndef LATTICE_H
-#define LATTICE_H 1
+#ifndef CARTLATTICE_H
+#define CARTLATTICE_H
 
 #include "LatticeBase.hpp"
 #include "CartLatticeLauncher.h"
@@ -31,13 +31,12 @@ struct ParStruct {
   Class for all the memory allocation, storage, calculation
   recording for unsteady adjoint etc.
 */
-class Lattice : public LatticeBase {
+class CartLattice : public LatticeBase {
 public:
   CartConnectivity connectivity; ///< Who's my neighbor? Which regions do they own?
   std::unique_ptr<Geometry> geometry; ///< Main Geometry object
 
 private:
-  static constexpr int maxSnaps = 33;
 
   CartLatticeLauncher launcher; ///< Main execution context, encapsulates the lattice container
   storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
@@ -45,27 +44,34 @@ private:
   size_t bufsize[27]; ///< Sizes of the Buffers
   int nodein[27], nodeout[27]; ///< MPI Ranks of sources and destinations for Buffers
   int bufnumber; ///< Number of non-NULL Buffers
-  int nSnaps; ///< Number of Snapshots
   std::unique_ptr<FTabs[]> Snaps; ///< Snapshots
-  std::unique_ptr<int[]> iSnaps = std::make_unique<int[]>(maxSnaps); ///< Snapshot number (Now)
+
 #ifdef ADJOINT
   std::array<FTabs, 2> aSnaps; ///< Adjoint Snapshots
 #endif
 #ifdef GRAPHICS
 	std::unique_ptr<GPUAnimBitmap> bitmap; ///< Maybe we have a bitmap for animation
 #endif
+  void initLatticeDerived() final;
+  int saveImpl(FTabs&, const char* filename) const;
+  int loadImpl(FTabs&, const char* filename);
+  int loadPrimal(const std::string& filename, int snap_ind) final { return loadImpl(Snaps[snap_ind], filename.c_str()); }
+  void savePrimal(const std::string& filename, int snap_ind) const final { saveImpl(Snaps[snap_ind], filename.c_str()); }
+#ifdef ADJOINT
+  int loadAdj(const std::string& filename, int asnap_ind) final { return loadImpl(aSnaps[asnap_ind], filename.c_str()); }
+  void saveAdj(const std::string& filename, int asnap_ind) const final { saveImpl(aSnaps[asnap_ind], filename.c_str()); }
+#endif
 
 public:
   std::unique_ptr<Sampler> sample; //initializing sampler with zero size
   real_t px, py, pz;
-  int Snap, aSnap = 0; ///< Snapshot and Adjoint Snapshot number (Now)
 
-  Lattice (CartConnectivity connect, int ns, const UnitEnv& units_);
-  Lattice(const Lattice&) = delete;
-  Lattice(Lattice&&) = delete;
-  Lattice& operator=(const Lattice&) = delete;
-  Lattice& operator=(Lattice&&) = delete;
-  ~Lattice ();
+  CartLattice (CartConnectivity connect, int ns, const UnitEnv& units_);
+  CartLattice(const CartLattice&) = delete;
+  CartLattice(CartLattice&&) = delete;
+  CartLattice& operator=(const CartLattice&) = delete;
+  CartLattice& operator=(CartLattice&&) = delete;
+  ~CartLattice ();
 
   const lbRegion& getLocalRegion() const { return connectivity.getLocalRegion(); }
   const lbRegion& getGlobalRegion() const { return connectivity.global_region; }
@@ -79,36 +85,14 @@ public:
   void setPosition(double, double, double);
   void FlagOverwrite(flag_t *, const lbRegion&);
   void CutsOverwrite(cut_t * Q, const lbRegion& over);
-  void Init();
-  void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize);
-  int save(FTabs&, const char * filename);
-  int load(FTabs&, const char * filename);
-  std::string saveSolution(const std::string& filename);
-  void loadSolution(const char * filename);
+  void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize) const;
   size_t sizeOfTab();
   void saveToTab(real_t * tab, int snap);
   void saveToTab(real_t * tab) { saveToTab(tab,Snap); }
   void loadFromTab(real_t * tab, int snap);
   void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); }
-  void startRecord();
-  void rewindRecord();
-  void stopRecord();
   void clearAdjoint();
   void clearDPar();
-  void MarkIteration() {
-    ++total_iterations;
-    if (callback) callback_iter = callback(segment_iterations, total_iterations);
-  }
-  void FinalIteration() {
-	total_iterations = segment_iterations;
-    if (callback) callback_iter = callback(segment_iterations, total_iterations);
-  }
-  void InitialIteration(int segiter) {
-    total_iterations = 0;
-    segment_iterations = segiter;
-    if (callback) callback_iter = callback(segment_iterations, total_iterations);
-  }
-  int getSnap(int );
   void MPIStream_A();
   void MPIStream_B(int );
   void MPIStream_B() { MPIStream_B(0); }
@@ -122,7 +106,6 @@ for (a in rows(Actions)) { ?>
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
   void Get_Field_Adj(int, real_t * tab);
-  void IterateAction(int action, int iter, int iter_type);
   void RunAction(int action, int a, int b, int iter_type) {
 		switch (action) { <?R
     for (a in rows(Actions)) { ?>
@@ -130,14 +113,9 @@ for (a in rows(Actions)) { ?>
     } ?>
 		}
 	}
-  void RunAction(int action, int iter_type) {
-    RunAction(action, Snap, (Snap+1) % 2, iter_type);
-  }
 
-  int loadComp(const char* filename, const char* comp) const;
-
-  void Iterate(int, int) override;
-  void IterateTill(int, int) override;
+  int loadComp(const std::string& filename, const std::string& comp) final;
+  int saveComp(const std::string& filename, const std::string& comp) const final;
 
   void GetFlags(const lbRegion&, flag_t *) const;
 <?R for (d in rows(DensityAll)) { ?>
@@ -156,8 +134,6 @@ void GetQuantity(int quant, const lbRegion& over, real_t * tab, real_t scale);
   <?R tp = "double" ?>
   void Get<?%s q$name ?>_<?%s tp ?>(const lbRegion& over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>
-
-  int saveComp(const std::string& filename, const char* comp) const;
 
   int getPars(ParStruct& par_struct);
   int getDPar(const ParStruct& par_struct, double * wb);

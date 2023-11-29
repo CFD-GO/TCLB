@@ -17,13 +17,14 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
 
-SOURCE_PLAN+=Global.cpp Lattice.cpp vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp CudaUtils.hpp CudaUtils.cu
+SOURCE_PLAN+=Global.cpp CartLattice.cpp vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp CudaUtils.hpp CudaUtils.cu
 SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
 SOURCE_PLAN+=toArb.h toArb.cpp ArbConnectivity.hpp ArbLattice.hpp ArbLattice.cpp PartitionArbLattice.hpp PartitionArbLattice.cpp UtilTypes.hpp
 SOURCE_PLAN+=main.cpp
 SOURCE_PLAN+=Global.h gpu_anim.h LatticeData.hpp LatticeBase.hpp LatticeBase.cpp cross.h cross.hpp StorageConversions.h
-SOURCE_PLAN+=Lattice.h Region.h vtkLattice.h vtkOutput.h CartLatticeContainer.h CartLatticeLauncher.h CartLatticeLauncher.hpp CartConnectivity.hpp
+SOURCE_PLAN+=CartLattice.h Region.h vtkLattice.h vtkOutput.h CartLatticeContainer.h CartLatticeLauncher.h CartLatticeLauncher.hpp CartConnectivity.hpp
+SOURCE_PLAN+=ArbLatticeAccess.hpp ArbLatticeContainer.hpp ArbLatticeLauncher.h ArbLatticeLauncher.hpp
 SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp Node.hpp
 SOURCE_PLAN+=Geometry.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp

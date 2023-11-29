@@ -15,7 +15,7 @@
 #include "mpitools.hpp"
 #include "pinned_allocator.hpp"
 
-ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, units_), comm(comm_) {
+ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, num_snaps_, units_), comm(comm_) {
     initialize(num_snaps_, setting_zones, arb_node);
 }
 
@@ -327,3 +327,52 @@ lbRegion ArbLattice::getLocalBoundingBox() const {
     const double x_min = *minx_it, x_max = *maxx_it, y_min = *miny_it, y_max = *maxy_it, z_min = *minz_it, z_max = *maxz_it;
     return lbRegion(x_min, y_min, z_min, x_max - x_min, y_max - y_min, z_max - z_min);
 }
+
+/// TODO section
+void ArbLattice::initLatticeDerived() {
+}
+int ArbLattice::loadComp(const std::string& filename, const std::string& comp) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+    return -1;
+}
+int ArbLattice::saveComp(const std::string& filename, const std::string& comp) const {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+    return -1;
+}
+int ArbLattice::loadPrimal(const std::string& filename, int snap_ind) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+    return -1;
+}
+void ArbLattice::savePrimal(const std::string& filename, int snap_ind) const {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+}
+#ifdef ADJOINT
+int ArbLattice::loadAdj(const std::string& filename, int asnap_ind) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+    return -1;
+}
+void ArbLattice::saveAdj(const std::string& filename, int asnap_ind) const {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+}
+#endif
+void ArbLattice::clearAdjoint() {
+#ifdef ADJOINT
+    debug1("Clearing adjoint\n");
+    aSnaps[0].Clear(getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
+    aSnaps[1].Clear(getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
+#endif
+    zSet.ClearGrad();
+}
+void ArbLattice::Iteration(int, int, int) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+}
+void ArbLattice::Iteration_Adj(int, int, int, int, int) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+}
+void ArbLattice::Iteration_Opt(int, int, int, int, int) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+}
+void ArbLattice::RunAction(int, int, int, int) {
+    throw std::runtime_error{"UNIMPLEMENTED"};
+}
+///
