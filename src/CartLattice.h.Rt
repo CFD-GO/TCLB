@@ -111,7 +111,7 @@ public:
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
   void Get_Field_Adj(int, real_t * tab);
-  void RunAction(int action, int a, int b, int iter_type) {
+  void RunAction(int action, int a, int b, int iter_type) final {
 		switch (action) { <?R
     for (a in rows(Actions)) { ?>
 		case <?%s a$Index ?>: return <?%s a$FunName ?>(a, b, iter_type); <?R
