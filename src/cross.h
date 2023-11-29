@@ -6,10 +6,12 @@
 //     CROSS_HIP - cross-compilation for AMD ROCm (HIP)
 //   additionals:
 //     CROSS_SYNC - make all call synchronious
-#include "../config.h"
+
 
 #ifndef CROSS_H
-  #define CROSS_H
+#define CROSS_H
+
+#include "../config.h"
 
   #ifndef CROSS_CPU
     #ifndef __CUDACC__
