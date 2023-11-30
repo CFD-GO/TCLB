@@ -21,6 +21,9 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
 
 void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
     sizes.snaps = num_snaps_;
+#ifdef ADJOINT
+    sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
+#endif
     initialized_from = arb_node;
     const auto name_attr = arb_node.attribute("file");
     if (!name_attr) throw std::runtime_error{"The ArbitraryLattice node lacks the \"file\" attribute"};
@@ -33,11 +36,16 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     computeLocalPermutation();
     allocDeviceMemory();
     initDeviceData(arb_node, setting_zones);
+    initContainer();
     local_bounding_box = getLocalBoundingBox();
 }
 
 int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
-    if (num_snaps_ != sizes.snaps || arb_node != initialized_from) try {
+    size_t adjoint_snaps = 0;
+#ifdef ADJOINT
+    adjoint_snaps += 2;
+#endif
+    if (num_snaps_ + adjoint_snaps != sizes.snaps || arb_node != initialized_from) try {
             initialize(num_snaps_, setting_zones, arb_node);
         } catch (const std::exception& e) {
             ERROR(e.what());
@@ -290,7 +298,7 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
         else if (connect.isGhost(gid))
             return static_cast<unsigned>(local_sz + std::distance(ghost_nodes.cbegin(), std::lower_bound(ghost_nodes.cbegin(), ghost_nodes.cend(), gid)));
         else
-            return local_permutation[gid - local_sz];
+            return local_permutation[gid - connect.chunk_begin];
     };
     for (size_t q = 0; q != Q; ++q) {
         size_t lid = 0;
@@ -302,7 +310,6 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
 
 void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
     fillWithStorageNaNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, inStream);
-    // CudaFillNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, getStorageNaN(), inStream);
     computeNodeTypesOnHost(arb_node, setting_zones);
     copyVecToDeviceAsync(node_types_device.get(), node_types_host, inStream);
     const auto nbrs = computeNeighbors();
@@ -310,6 +317,22 @@ void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::str
     const auto coords = computeCoords();
     copyVecToDeviceAsync(coords_device.get(), coords, inStream);
     CudaStreamSynchronize(inStream);
+}
+
+void ArbLattice::initContainer() {
+    setSnapIn(0);
+    setSnapOut(1);
+#ifdef ADJOINT
+    setAdjSnapOut(0);
+#endif
+    launcher.container.nbrs = neighbors_device.get();
+    launcher.container.coords = coords_device.get();
+    launcher.container.node_types = node_types_device.get();
+    launcher.container.nbrs_pitch = sizes.neighbors_pitch;
+    launcher.container.coords_pitch = sizes.coords_pitch;
+    launcher.container.snaps_pitch = sizes.snaps_pitch;
+    launcher.container.num_border_nodes = sizes.border_nodes;
+    launcher.container.num_interior_nodes = connect.getLocalSize() - sizes.border_nodes;
 }
 
 int ArbLattice::fullLatticePos(double pos) const {
@@ -328,9 +351,22 @@ lbRegion ArbLattice::getLocalBoundingBox() const {
     return lbRegion(x_min, y_min, z_min, x_max - x_min, y_max - y_min, z_max - z_min);
 }
 
-/// TODO section
-void ArbLattice::initLatticeDerived() {
+storage_t* ArbLattice::getSnapPtr(int snap_ind) {
+    return std::next(snaps_device.get(), sizes.snaps_pitch * NF * snap_ind);
 }
+
+#ifdef ADJOINT
+storage_t* ArbLattice::getAdjointSnap(int snap_ind) {
+    return std::next(snaps_device.get(), sizes.snaps_pitch * NF * (sizes.snaps - 2 + snap_ind));
+}
+#endif
+
+void ArbLattice::SetFirstTabs(int tab_in, int tab_out) {
+    launcher.container.snap_in = getSnapPtr(tab_in);
+    launcher.container.snap_out = getSnapPtr(tab_out);
+}
+
+/// TODO section
 int ArbLattice::loadComp(const std::string& filename, const std::string& comp) {
     throw std::runtime_error{"UNIMPLEMENTED"};
     return -1;
@@ -362,17 +398,5 @@ void ArbLattice::clearAdjoint() {
     aSnaps[1].Clear(getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
 #endif
     zSet.ClearGrad();
-}
-void ArbLattice::IterationPrimal(int, int, int) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-}
-void ArbLattice::IterationAdjoint(int, int, int, int, int) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-}
-void ArbLattice::IterationOptimization(int, int, int, int, int) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-}
-void ArbLattice::RunAction(int, int, int, int) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
 }
 ///

@@ -37,8 +37,6 @@ public:
   std::unique_ptr<Geometry> geometry; ///< Main Geometry object
 
 private:
-
-  CartLatticeLauncher launcher; ///< Main execution context, encapsulates the lattice container
   storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
   storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
   size_t bufsize[27]; ///< Sizes of the Buffers
@@ -52,7 +50,6 @@ private:
 #ifdef GRAPHICS
 	std::unique_ptr<GPUAnimBitmap> bitmap; ///< Maybe we have a bitmap for animation
 #endif
-  void initLatticeDerived() final;
   int saveImpl(FTabs&, const char* filename) const;
   int loadImpl(FTabs&, const char* filename);
   int loadPrimal(const std::string& filename, int snap_ind) final { return loadImpl(Snaps[snap_ind], filename.c_str()); }
@@ -64,9 +61,17 @@ private:
 
 <?R for (a in rows(Actions)) { ?>
   void <?%s a$FunName ?>_Adj(int, int, int, int, int);
-  void <?%s a$FunName ?>_Opt(int, int, int, int, int);
-  void <?%s a$FunName ?>(int, int, int); <?R
+  void <?%s a$FunName ?>_Opt(int, int, int, int, int); <?R
 } ?>
+
+protected:
+  CartLatticeLauncher launcher; ///< Main execution context, encapsulates the lattice container
+
+  void MPIStream_A();
+  void MPIStream_B();
+  void SetFirstTabs(int, int);
+  void setSnapIn(int tab) { launcher.container.in = Snaps[tab]; }
+  void setSnapOut(int tab) { launcher.container.out = Snaps[tab]; }
 
 public:
   std::unique_ptr<Sampler> sample; //initializing sampler with zero size
@@ -77,7 +82,7 @@ public:
   CartLattice(CartLattice&&) = delete;
   CartLattice& operator=(const CartLattice&) = delete;
   CartLattice& operator=(CartLattice&&) = delete;
-  ~CartLattice ();
+  virtual ~CartLattice ();
 
   const lbRegion& getLocalRegion() const { return connectivity.getLocalRegion(); }
   const lbRegion& getGlobalRegion() const { return connectivity.global_region; }
@@ -99,25 +104,11 @@ public:
   void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); }
   void clearAdjoint() final;
   void clearDPar();
-  void MPIStream_A();
-  void MPIStream_B(int );
-  void MPIStream_B() { MPIStream_B(0); }
-  void SetFirstTabs(int, int);
 
-  void IterationPrimal(int a, int b, int c) final { Iteration(a, b, c); }
-  void IterationAdjoint(int a, int b, int c, int d, int e) final { Iteration_Adj(a, b, c, d, e); }
-  void IterationOptimization(int a, int b, int c, int d, int e) final {Iteration_Opt(a, b, c, d, e); }
   void GetCoords(real_t*);
   void Get_Field(int, real_t * tab);
   void Set_Field(int, real_t * tab);
   void Get_Field_Adj(int, real_t * tab);
-  void RunAction(int action, int a, int b, int iter_type) final {
-		switch (action) { <?R
-    for (a in rows(Actions)) { ?>
-		case <?%s a$Index ?>: return <?%s a$FunName ?>(a, b, iter_type); <?R
-    } ?>
-		}
-	}
 
   int loadComp(const std::string& filename, const std::string& comp) final;
   int saveComp(const std::string& filename, const std::string& comp) const final;

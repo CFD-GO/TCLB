@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ArbConnectivity.hpp"
+#include "ArbLatticeLauncher.h"
 #include "CudaUtils.hpp"
 #include "LatticeBase.hpp"
 #include "Lists.h"
@@ -28,7 +29,7 @@ class ArbLattice : public LatticeBase {
    private:
     struct SizeInfo {
         size_t border_nodes;     /// Number of border nodes, i.e., nodes which have a ghost neighbor
-        size_t snaps;            /// Number of snaps to hold
+        size_t snaps;            /// Number of snaps to hold, including adjoint snaps (if present)
         size_t neighbors_pitch;  /// B + I + padding
         size_t coords_pitch;     /// B + I + padding (should be the same as neighbors_pitch, but let's be extra safe since they come from separate pitched allocation calls)
         size_t snaps_pitch;      /// B + I + G + 1 + padding
@@ -54,10 +55,28 @@ class ArbLattice : public LatticeBase {
     static constexpr size_t NF = Model_m::NF;  /// Number of fields
 
     ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_);
+    ArbLattice(const ArbLattice&) = default;
+    ArbLattice(ArbLattice&&) = default;
+    ArbLattice& operator=(const ArbLattice&) = default;
+    ArbLattice& operator=(ArbLattice&&) = default;
+    virtual ~ArbLattice() = default;
+
     int reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);  /// Init if passed args differ from those passed at construction or the last call to reinitialize (avoid duplicating work)
 
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
+
+   protected:
+    ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
+    void SetFirstTabs(int tab0, int tab1);
+    void setSnapIn(int tab) { launcher.container.snap_in = getSnapPtr(tab); }
+    void setSnapOut(int tab) { launcher.container.snap_out = getSnapPtr(tab); }
+#ifdef ADJOINT
+    void setAdjSnapIn(int tab) { launcher.container.adj_snap_in = getAdjointSnap(tab); }
+    void setAdjSnapOut(int tab) { launcher.container.adj_snap_out = getAdjointSnap(tab); }
+#endif
+    void MPIStream_A() {}  /// TODO
+    void MPIStream_B() {}  /// TODO
 
    private:
     struct NodeTypeBrush {
@@ -65,7 +84,11 @@ class ArbLattice : public LatticeBase {
         flag_t mask, value;                                                                              /// Mask and value of the brush
     };
 
-    void initLatticeDerived() final;                                                 /// Initialization by model/init handlers TODO
+    storage_t* getSnapPtr(int snap_ind);  /// Get device pointer to the specified snap (somewhere within the total snap allocation)
+#ifdef ADJOINT
+    storage_t* getAdjointSnap(int snap_ind);  /// Get device pointer to the specified adjoint snap, snap_ind must be 0 or 1
+#endif
+
     int loadComp(const std::string& filename, const std::string& comp) final;        /// TODO
     int saveComp(const std::string& filename, const std::string& comp) const final;  /// TODO
     int loadPrimal(const std::string& filename, int snap_ind) final;                 /// TODO
@@ -74,11 +97,7 @@ class ArbLattice : public LatticeBase {
     int loadAdj(const std::string& filename, int asnap_ind) final;         /// TODO
     void saveAdj(const std::string& filename, int asnap_ind) const final;  /// TODO
 #endif
-    void clearAdjoint() final;                                  /// TODO
-    void IterationPrimal(int, int, int) final;                  /// TODO
-    void IterationAdjoint(int, int, int, int, int) final;       /// TODO
-    void IterationOptimization(int, int, int, int, int) final;  /// TODO
-    void RunAction(int, int, int, int) final;                   /// TODO
+    void clearAdjoint() final;  /// TODO
 
     void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file
@@ -91,6 +110,7 @@ class ArbLattice : public LatticeBase {
     std::pmr::vector<real_t> computeCoords() const;                                                                                /// Compute the coordinates 2D array to be stored on the device
     std::pmr::vector<unsigned> computeNeighbors() const;                                                                           /// Compute the neighbors 2D array to be stored on the device
     void initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                                 /// Initialize data residing in device memory
+    void initContainer();                                                                                                          /// Initialize the data residing in launcher.container
     int fullLatticePos(double pos) const;                                                                                          /// Compute the position (in terms of lattice offsets) of a node, assuming the arbitrary lattice is a subset of a Cartesian lattice
     lbRegion getLocalBoundingBox() const;                                                                                          /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
 };

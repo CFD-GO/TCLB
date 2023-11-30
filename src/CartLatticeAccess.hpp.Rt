@@ -25,7 +25,7 @@
     MContext$PocketMove = FALSE
     MContext$Offset = list()
     for ( i in 1:length(Margin) ) MContext$Offset[[i]] = PV(0L)
-    if (missing(buf)) stop("No Buffor provided");
+    if (missing(buf)) stop("No Buffer provided");
     if (pocket) {
       MContext$Pocket = "pocket" ?>
       FTabs <?%s MContext$Pocket ?> = <?%s buf ?>; <?R

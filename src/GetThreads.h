@@ -100,27 +100,39 @@ LaunchParams ComputeLaunchParams(const EX& executor) {
 template <class EX>
 void LaunchExecutor(const EX& executor) {
     const auto exec_params = ComputeLaunchParams(executor);
+    debug1("Launching kernel: blocks: %dx%dx%d; threads: %dx%dx%d;", exec_params.blx.x, exec_params.blx.y, exec_params.blx.z, exec_params.thr.x, exec_params.thr.y, exec_params.thr.z);
     CudaKernelRun(Kernel<EX>, exec_params.blx, exec_params.thr, executor);
 }
 
 template <class EX>
 void LaunchExecutorAsync(const EX& executor, CudaStream_t stream) {
     const auto exec_params = ComputeLaunchParams(executor);
+    debug1("Launching async kernel: blocks: %dx%dx%d; threads: %dx%dx%d; stream: %p", exec_params.blx.x, exec_params.blx.y, exec_params.blx.z, exec_params.thr.x, exec_params.thr.y, exec_params.thr.z, stream);
     CudaKernelRunAsync(Kernel<EX>, exec_params.blx, exec_params.thr, stream, executor);
 }
 
-/// Utility (non-virtual) base class for executors operating on a linear iteration space
-/// Computes LaunchParams so that there is enough blocks and threads to cover an iteration space of size \p size
+/// Base class for executors operating on a linear iteration space
+/// Computes LaunchParams so that there is enough blocks and threads to cover an iteration space of size `size`
+/// Uses the maximum dim3 number of threads per block, and assigns blocks linearly along x
 struct LinearExecutor {
-    size_t size;
+    unsigned size;
     LaunchParams ComputeLaunchParams(dim3 max_threads) const {
-        const size_t max_threads_per_block = max_threads.x * max_threads.y * max_threads.z;
-        const size_t blocks_needed = (size + max_threads_per_block - 1) / max_threads_per_block;
+        const unsigned max_threads_per_block = max_threads.x * max_threads.y * max_threads.z;
+        const unsigned blocks_needed = std::max(1u, (size + max_threads_per_block - 1) / max_threads_per_block);
         dim3 blocks, threads;
         blocks.x = blocks_needed;
         threads.x = max_threads_per_block;
         return {blocks, threads};
     }
+
+   protected:
+    /// Get the linear grid index of the current thread (You must pass in the grid params, since they're only available in device code)
+    CudaDeviceFunction unsigned threadID(dim3 thread, dim3 block, dim3 block_size) const {
+        const auto threads_per_block = block_size.x * block_size.y * block_size.z;
+        return thread.x + block_size.x * (thread.y + thread.z * block_size.y) + block.x * threads_per_block;
+    }
+    /// Check whether the current thread is within the execution range
+    CudaDeviceFunction bool inRange(unsigned thread_id) const { return thread_id < size; }
 };
 
 #endif  // THREADS_H

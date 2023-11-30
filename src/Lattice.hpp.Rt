@@ -1,0 +1,132 @@
+<?R
+source("conf.R")
+c_header();
+?>
+
+#ifndef LATTICE_HPP
+#define LATTICE_HPP
+
+#include <utility>
+
+#include "Global.h"
+
+template <typename LatticeType>
+struct Lattice : public LatticeType {
+    template <typename... Args>
+    Lattice(Args&&... args) : LatticeType(std::forward<Args>(args)...) {}  // Lattice is stateless, pass all ctor args through to the base object
+
+    void RunAction(int action, int a, int b, int iter_type) final {
+        switch (action) {
+<?R for (a in rows(Actions)) { ?>
+            case <?%s a$Index ?>: return <?%s a$FunName ?>(a, b, iter_type);
+<?R } ?>
+        }
+    }
+    void IterationPrimal(int a, int b, int c) final { Iteration(a, b, c); }
+    void IterationAdjoint(int a, int b, int c, int d, int e) final { Iteration_Adj(a, b, c, d, e); }
+    void IterationOptimization(int a, int b, int c, int d, int e) final {Iteration_Opt(a, b, c, d, e); }
+
+   private:
+    void initLatticeDerived() final
+    {
+        output("Initializing Lattice ...\n");
+   	    LatticeType::iSnaps[LatticeType::getSnap(0)]=0;
+   	    LatticeType::iSnaps[0] = 0;
+   	    LatticeType::Snap = 0;
+        MPI_Barrier(MPMD.local);
+        Action_Init(1, 0, ITER_NO);
+        MPI_Barrier(MPMD.local);
+   }
+
+<?R for (a in rows(Actions)) { ?>
+    /// Normal (primal) iteration
+    void <?%s a$FunName ?>(int tab_in, int tab_out, int iter_type) {
+        DEBUG_PROF_PUSH("<?%s a$name ?>");
+        debug1("Iteration %d -> %d type: %d. iter: %d\n", tab_in, tab_out, iter_type, LatticeType::Iter);
+        LatticeType::ZoneIter = (LatticeType::Iter + LatticeType::Record_Iter) % LatticeType::zSet.getLen();
+
+        debug1("ZoneIter: %d (in <?%s a$FunName ?>)\n", LatticeType::ZoneIter);
+        LatticeType::data.ZoneIndex = LatticeType::ZoneIter;
+        LatticeType::data.MaxZones = LatticeType::zSet.MaxZones;
+        LatticeType::SetFirstTabs(tab_in, tab_out);
+<?R
+        old_stage_level = 0
+        action_stages = Stages[a$stages,,drop=FALSE]
+        sel = which(action_stages$particle)
+        action_stages$first_particle = FALSE
+        action_stages$first_particle[head(sel,1)] = TRUE
+        action_stages$last_particle = FALSE
+        action_stages$last_particle[tail(sel,1)] = TRUE
+        for (stage in rows(action_stages)) {
+?>
+        DEBUG_PROF_PUSH("<?%s stage$name ?>");
+<?R if (stage$fixedPoint) { ?> for (int fix=0; fix<100; fix++) { <?R } ?>
+<?R if (stage$first_particle) { ?> LatticeType::CopyInParticles(); <?R } ?>
+<?R if (old_stage_level > 0) { ?>
+        LatticeType::MPIStream_B();
+        CudaDeviceSynchronize();
+        LatticeType::setSnapIn(tab_out); // launcher.container.in = Snaps[tab1];
+<?R }
+        old_stage_level = old_stage_level + 1
+?>
+        DEBUG_PROF_PUSH("Calculation");
+        switch(iter_type & ITER_INTEG) {
+            case ITER_NO:
+                LatticeType::launcher.template RunBorder< Primal, NoGlobals, <?%s stage$name ?> > (LatticeType::kernelStream, LatticeType::data);
+                break;
+            case ITER_GLOBS:
+                LatticeType::launcher.template RunBorder< Primal, IntegrateGlobals, <?%s stage$name ?> >(LatticeType::kernelStream, LatticeType::data);
+                break;
+#ifdef ADJOINT
+            case ITER_OBJ:
+                LatticeType::launcher.template RunBorder< Primal, OnlyObjective, <?%s stage$name ?> >(LatticeType::kernelStream, LatticeType::data);
+                break;
+#endif
+        }
+        CudaStreamSynchronize(LatticeType::kernelStream);
+        LatticeType::MPIStream_A();
+        switch(iter_type & ITER_INTEG) {
+            case ITER_NO:
+                LatticeType::launcher.template RunInterior< Primal, NoGlobals, <?%s stage$name ?> > (LatticeType::kernelStream, LatticeType::data);
+                break;
+            case ITER_GLOBS:
+                LatticeType::launcher.template RunInterior< Primal, IntegrateGlobals, <?%s stage$name ?> >(LatticeType::kernelStream, LatticeType::data);
+                break;
+#ifdef ADJOINT
+            case ITER_OBJ:
+                LatticeType::launcher.template RunInterior< Primal, OnlyObjective, <?%s stage$name ?> >(LatticeType::kernelStream, LatticeType::data);
+                break;
+#endif
+        }
+        DEBUG_PROF_POP();
+<?R if (stage$last_particle) { ?> LatticeType::CopyOutParticles() <?R } ?>
+<?R if (stage$fixedPoint) { ?> } // for(fix) <?R } ?>
+        DEBUG_PROF_POP();
+<?R } ?>
+        LatticeType::MPIStream_B();
+        CudaDeviceSynchronize();
+        LatticeType::Snap = tab_out;
+        LatticeType::MarkIteration();
+        if constexpr(std::is_same_v<LatticeType, CartLattice>) /// TODO
+            LatticeType::updateAllSamples();
+        DEBUG_PROF_POP();
+    }
+
+    void <?%s a$FunName ?>_Adj(int, int, int, int, int) {} /// TODO
+
+    void <?%s a$FunName ?>_Opt(int, int, int, int, int) {
+#ifdef ADJOINT
+        <?%s a$FunName ?>(tab0, tab1, iter_type);
+        <?%s a$FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
+        LatticeType::launcher.RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream, data);
+        LatticeType::launcher.RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream, data);
+        CudaDeviceSynchronize();
+#else
+    	ERROR("This model doesn't have adjoint!\n");
+    	exit (-1);
+#endif
+    }
+<?R } ?>
+};
+
+#endif  // LATTICE_HPP

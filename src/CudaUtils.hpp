@@ -74,7 +74,7 @@ void copyVecToDeviceAsync(T* device_ptr, const std::vector<T, Alloc>& vec, CudaS
 /// \param N number of elements to write
 /// \param value value to write
 template <typename T>
-void CudaFillN(T* device_ptr, size_t N, T value);
+void CudaFillN(T* device_ptr, unsigned N, T value);
 
 /// std::fill_n executed asynchronously in device memory
 /// \tparam T type of the array being filled
@@ -83,12 +83,12 @@ void CudaFillN(T* device_ptr, size_t N, T value);
 /// \param value value to write
 /// \param stream CUDA stream in which the fill will be executed
 template <typename T>
-void CudaFillNAsync(T* device_ptr, size_t N, T value, CudaStream_t stream);
+void CudaFillNAsync(T* device_ptr, unsigned N, T value, CudaStream_t stream);
 
 /// Fill array with storage NaNs. This needs special treatment, since we cannot obtain a NaN value on host for fp16.
-void fillWithStorageNaN(storage_t* device_ptr, size_t N);
+void fillWithStorageNaN(storage_t* device_ptr, unsigned N);
 
 /// Fill array with storage NaNs. This needs special treatment, since we cannot obtain a NaN value on host for fp16.
-void fillWithStorageNaNAsync(storage_t* device_ptr, size_t N, CudaStream_t stream);
+void fillWithStorageNaNAsync(storage_t* device_ptr, unsigned N, CudaStream_t stream);
 
 #endif  // CUDAUTILS_HPP

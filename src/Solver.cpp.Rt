@@ -4,6 +4,7 @@
 ?>
 
 #include "Solver.h"
+#include "Lattice.hpp"
 
 using namespace std;
 	
@@ -298,7 +299,7 @@ int Solver::initCartLattice(int nx, int ny, int nz) {
     output("Local lattice size: %dx%dx%d\n", local_region.nx, local_region.ny, local_region.nz);
 
     debug0("Creating Lattice object ...");
-    lattice = std::make_unique<CartLattice>(std::move(connect), num_snaps, units);
+    lattice = std::make_unique<Lattice<CartLattice>>(std::move(connect), num_snaps, units);
     debug0("Lattice done");
 
     return 0;
@@ -311,7 +312,7 @@ int Solver::initCartLattice(int nx, int ny, int nz) {
 int Solver::initArbLattice(pugi::xml_node arb_node) {
     try {
         debug0("Creating ArbLattice object ...");
-        lattice = std::make_unique<ArbLattice>(num_snaps, units, setting_zones, arb_node, mpi_comm);
+        lattice = std::make_unique<Lattice<ArbLattice>>(num_snaps, units, setting_zones, arb_node, mpi_comm);
         debug0("ArbLattice done");
         const auto sz_msg = "Global lattice size: " + std::to_string(lattice->getGlobalSize());
         output(sz_msg.c_str());
