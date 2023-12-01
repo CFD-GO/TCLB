@@ -333,6 +333,11 @@ void ArbLattice::initContainer() {
     launcher.container.snaps_pitch = sizes.snaps_pitch;
     launcher.container.num_border_nodes = sizes.border_nodes;
     launcher.container.num_interior_nodes = connect.getLocalSize() - sizes.border_nodes;
+
+    const auto dyn_offs_lu = Model_m::makeDynamicOffsetIndLookupTable();
+    std::copy(dyn_offs_lu.begin(), dyn_offs_lu.end(), launcher.container.dynamic_offset_lookup_table);
+    launcher.container.stencil_offset = Model_m::stencil_offsets;
+    launcher.container.stencil_size = Model_m::stencil_sizes;
 }
 
 int ArbLattice::fullLatticePos(double pos) const {
