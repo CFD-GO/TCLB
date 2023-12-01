@@ -112,7 +112,7 @@ struct Lattice : public LatticeType {
         DEBUG_PROF_POP();
     }
 
-    void <?%s a$FunName ?>_Adj(int, int, int, int, int) { std::runtime_error{"Adjoint not implemented"}; } /// TODO
+    void <?%s a$FunName ?>_Adj(int, int, int, int, int) { throw std::runtime_error{"Adjoint not implemented"}; } /// TODO
 
     void <?%s a$FunName ?>_Opt(int, int, int, int, int) {
 #ifdef ADJOINT
