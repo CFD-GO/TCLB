@@ -55,9 +55,9 @@ class ArbLattice : public LatticeBase {
     static constexpr size_t NF = Model_m::NF;  /// Number of fields
 
     ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_);
-    ArbLattice(const ArbLattice&) = default;
+    ArbLattice(const ArbLattice&) = delete;
     ArbLattice(ArbLattice&&) = default;
-    ArbLattice& operator=(const ArbLattice&) = default;
+    ArbLattice& operator=(const ArbLattice&) = delete;
     ArbLattice& operator=(ArbLattice&&) = default;
     virtual ~ArbLattice() = default;
 
