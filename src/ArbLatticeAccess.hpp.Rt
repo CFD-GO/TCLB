@@ -92,12 +92,12 @@ private:
         storeImpl<<?%s trimws(f$Index)?>>(val_to_store);
     }
 public:
-    template <int dx, int dy, int dz>
+    template <int dx, int dy, int dz = 0>
     CudaDeviceFunction real_t load_<?%s f$nicename ?>() const {
         const storage_t stored_val = loadStaticImpl<<?%s trimws(f$Index)?>, dx, dy, dz>();
         return <?%s storage_to_real("stored_val", f)?>;
     }
-    CudaDeviceFunction real_t load_<?%s f$nicename ?>(int dx, int dy, int dz) const {
+    CudaDeviceFunction real_t load_<?%s f$nicename ?>(int dx, int dy, int dz = 0) const {
         const storage_t stored_val = loadDynamicImpl<<?%s trimws(f$Index)?>>(dx, dy, dz);
         return <?%s storage_to_real("stored_val", f)?>;
     }
