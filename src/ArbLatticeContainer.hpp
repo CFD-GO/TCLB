@@ -10,11 +10,11 @@
 struct ArbLatticeContainer {
     const unsigned* nbrs;
     const real_t* coords;
-    const real_t* snap_in;
-    real_t* snap_out;
+    const storage_t* snap_in;
+    storage_t* snap_out;
 #ifdef ADJOINT
-    const real_t* adj_snap_in;
-    real_t* adj_snap_out;
+    const storage_t* adj_snap_in;
+    storage_t* adj_snap_out;
 #endif
     const flag_t* node_types;
     unsigned nbrs_pitch, coords_pitch, snaps_pitch, num_border_nodes, num_interior_nodes;
