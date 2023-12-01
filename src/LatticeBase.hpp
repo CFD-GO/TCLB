@@ -37,9 +37,9 @@ class LatticeBase {
    public:
     LatticeBase(int zonesettings, int zones, int num_snaps_, const UnitEnv& units_);
     LatticeBase(const LatticeBase&) = delete;
-    LatticeBase(LatticeBase&&) = default;
+    LatticeBase(LatticeBase&&) = delete;
     LatticeBase& operator=(const LatticeBase&) = delete;
-    LatticeBase& operator=(LatticeBase&&) = default;
+    LatticeBase& operator=(LatticeBase&&) = delete;
     virtual ~LatticeBase() = default;
 
     std::unique_ptr<Model> model;             ///<

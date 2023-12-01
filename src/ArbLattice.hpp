@@ -56,9 +56,9 @@ class ArbLattice : public LatticeBase {
 
     ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_);
     ArbLattice(const ArbLattice&) = delete;
-    ArbLattice(ArbLattice&&) = default;
+    ArbLattice(ArbLattice&&) = delete;
     ArbLattice& operator=(const ArbLattice&) = delete;
-    ArbLattice& operator=(ArbLattice&&) = default;
+    ArbLattice& operator=(ArbLattice&&) = delete;
     virtual ~ArbLattice() = default;
 
     int reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);  /// Init if passed args differ from those passed at construction or the last call to reinitialize (avoid duplicating work)

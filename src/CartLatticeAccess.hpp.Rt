@@ -253,7 +253,7 @@ class CartLatticeAccess {
   CudaDeviceFunction real_t getZ() const { return container->pz + z; }
   CudaDeviceFunction flag_t getNodeType() const { return nt; }
 
-  CudaDeviceFunction inline cut_t getQ(const int& d) const  {
+  CudaDeviceFunction cut_t getQ(int d) const  {
     if (!container->Q) return NO_CUT;
     size_t i = ((((size_t)d)*nz+z)*ny+y)*nx+x;
     return container->Q[i];
