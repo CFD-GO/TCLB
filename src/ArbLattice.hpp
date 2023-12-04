@@ -14,19 +14,19 @@
 #include "pugixml.hpp"
 #include "utils.h"
 
-// Note on node numbering: We have 2 indexing schemes - a global and a local one.
-// Globally, nodes are numbered such that consecutive ranks own monotonically increasing intervals, (e.g. rank 0 owns nodes [0, n_0), rank 1 owns nodes [n_0, n_1), etc.) This is required for ParMETIS, but it is also a convenient scheme in general.
-//     When communicating between ranks, only this numbering is used.
-// Locally, nodes are permuted such that:
-//     - Owned boundary nodes (i.e. nodes which have ghost nodes among their neighbors) occupy the initial B indices, starting at 0. Their numbering within [0, B) is arbitrary w.r.t. the global scheme
-//     - Owned interior nodes occupy the indices [B, B + I), where I is the number of interior nodes. Again, their order within that interval is arbitrary
-//     - Ghost nodes (i.e. nodes neighboring owned nodes, but not owned by the current rank) occupy indices [B + I, B + I + G), where G is the number of ghost nodes. **Their numbering within that interval corresponds to the global numbering scheme (important for optimal packing)**
-//     - There is at least one padding index B + I + G, corresponding to the row where dummy values (NaNs) will be stored for when a nonexistent neighbor is accessed, more padding may be present to promote coalesced memory access
-// Note that the GPU is only aware of the local numbering scheme, which uses 32b indexing, saving memory bandwidth. Local indexing can additionally put "similar" nodes next to each other, minimizing branching and promoting coalesced memory access.
-// Naming: GID == global ID; LID == local ID
+/// Note on node numbering: We have 2 indexing schemes - a global and a local one.
+/// Globally, nodes are numbered such that consecutive ranks own monotonically increasing intervals, (e.g. rank 0 owns nodes [0, n_0), rank 1 owns nodes [n_0, n_1), etc.) This is required for ParMETIS, but it is also a convenient scheme in general.
+///     When communicating between ranks, only this numbering is used.
+/// Locally, nodes are permuted such that:
+///     - Owned boundary nodes (i.e. nodes which have ghost nodes among their neighbors) occupy the initial B indices, starting at 0. Their numbering within [0, B) is arbitrary w.r.t. the global scheme
+///     - Owned interior nodes occupy the indices [B, B + I), where I is the number of interior nodes. Again, their order within that interval is arbitrary
+///     - Ghost nodes (i.e. nodes neighboring owned nodes, but not owned by the current rank) occupy indices [B + I, B + I + G), where G is the number of ghost nodes. **Their numbering within that interval corresponds to the global numbering scheme (important for optimal packing)**
+///     - There is at least one padding index B + I + G, corresponding to the row where dummy values (NaNs) will be stored for when a nonexistent neighbor is accessed, more padding may be present to promote coalesced memory access
+/// Note that the GPU is only aware of the local numbering scheme, which uses 32b indexing, saving memory bandwidth. Local indexing can additionally put "similar" nodes next to each other, minimizing branching and promoting coalesced memory access.
+/// Naming: GID == global ID; LID == local ID
 
 class ArbLattice : public LatticeBase {
-   private:
+    /// Group sizes of various structures together
     struct SizeInfo {
         size_t border_nodes;     /// Number of border nodes, i.e., nodes which have a ghost neighbor
         size_t snaps;            /// Number of snaps to hold, including adjoint snaps (if present)
@@ -35,6 +35,15 @@ class ArbLattice : public LatticeBase {
         size_t snaps_pitch;      /// B + I + G + 1 + padding
     };
 
+   public:
+    /// Struct for storing arb lattice geometry info for export to VTU (ParaView unstructured grid format). Note that the ordering is permuted, so that solution data can be directly written to the results file
+    struct ArbVTUGeom {
+        size_t num_cubes, num_verts;        /// Number of cubes (equal to number of nodes) and number of unique cube vertices
+        std::unique_ptr<double[]> coords;   /// Vertex coordinates, stored as Aos, verts x 3
+        std::unique_ptr<unsigned[]> verts;  /// Vertex indices, stored as Aos, nodes x 8
+    };
+
+   private:
     ArbLatticeConnectivity connect;                         /// Lattice connectivity info
     std::vector<long> global_node_dist;                     /// Node distribution (in the ParMETIS sense), describing the GID node intervals owned by each process (identical in all ranks)
     std::vector<long> ghost_nodes;                          /// Sorted GIDs of ghost nodes
@@ -42,6 +51,7 @@ class ArbLattice : public LatticeBase {
     MPI_Comm comm;                                          /// Communicator associated with the lattice
     std::vector<unsigned> local_permutation;                /// The permutation of owned nodes w.r.t. the global indexing scheme, see comment at the top
     lbRegion local_bounding_box;                            /// The bounding box of the local region (if the arbitrary lattice is a subset of a full Cartesian lattice, we can use this for some optimizations)
+    ArbVTUGeom vtu_geom;                                    /// Pre-computed geometry of the lattice for export to .vtu
     std::unordered_map<std::string, int> label_to_ind_map;  /// Label string to unique ID
     CudaUniquePtr<unsigned> neighbors_device;               /// Device allocation of the neighbor table: (B + I) x Q
     CudaUniquePtr<real_t> coords_device;                    /// Device allocation of node coordinates: (B + I) x 3
@@ -66,14 +76,16 @@ class ArbLattice : public LatticeBase {
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
 
+    const ArbVTUGeom& getVTUGeom() const { return vtu_geom; }
+
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
     void SetFirstTabs(int tab0, int tab1);
     void setSnapIn(int tab) { launcher.container.snap_in = getSnapPtr(tab); }
     void setSnapOut(int tab) { launcher.container.snap_out = getSnapPtr(tab); }
 #ifdef ADJOINT
-    void setAdjSnapIn(int tab) { launcher.container.adj_snap_in = getAdjointSnap(tab); }
-    void setAdjSnapOut(int tab) { launcher.container.adj_snap_out = getAdjointSnap(tab); }
+    void setAdjSnapIn(int tab) { launcher.container.adj_snap_in = getAdjointSnapPtr(tab); }
+    void setAdjSnapOut(int tab) { launcher.container.adj_snap_out = getAdjointSnapPtr(tab); }
 #endif
     void MPIStream_A() {}  /// TODO
     void MPIStream_B() {}  /// TODO
@@ -86,7 +98,7 @@ class ArbLattice : public LatticeBase {
 
     storage_t* getSnapPtr(int snap_ind);  /// Get device pointer to the specified snap (somewhere within the total snap allocation)
 #ifdef ADJOINT
-    storage_t* getAdjointSnap(int snap_ind);  /// Get device pointer to the specified adjoint snap, snap_ind must be 0 or 1
+    storage_t* getAdjointSnapPtr(int snap_ind);  /// Get device pointer to the specified adjoint snap, snap_ind must be 0 or 1
 #endif
 
     int loadComp(const std::string& filename, const std::string& comp) final;        /// TODO
@@ -113,6 +125,7 @@ class ArbLattice : public LatticeBase {
     void initContainer();                                                                                                          /// Initialize the data residing in launcher.container
     int fullLatticePos(double pos) const;                                                                                          /// Compute the position (in terms of lattice offsets) of a node, assuming the arbitrary lattice is a subset of a Cartesian lattice
     lbRegion getLocalBoundingBox() const;                                                                                          /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
+    ArbVTUGeom makeVTUGeom() const;                                                                                                /// Compute VTU geometry
 };
 
 #endif  // ARBLATTICE_HPP

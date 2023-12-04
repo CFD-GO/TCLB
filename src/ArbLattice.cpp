@@ -38,6 +38,7 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     initDeviceData(arb_node, setting_zones);
     initContainer();
     local_bounding_box = getLocalBoundingBox();
+    vtu_geom = makeVTUGeom();
 }
 
 int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
@@ -348,12 +349,58 @@ int ArbLattice::fullLatticePos(double pos) const {
 
 lbRegion ArbLattice::getLocalBoundingBox() const {
     const auto local_sz = connect.getLocalSize();
-    const auto x = Span(connect.coords.get(), local_sz), y = Span(std::next(connect.coords.get(), local_sz), local_sz), z = Span(std::next(connect.coords.get(), 2 * local_sz), local_sz);
+    const Span x(connect.coords.get(), local_sz), y(std::next(connect.coords.get(), local_sz), local_sz), z(std::next(connect.coords.get(), 2 * local_sz), local_sz);
     const auto [minx_it, maxx_it] = std::minmax_element(x.begin(), x.end());
     const auto [miny_it, maxy_it] = std::minmax_element(y.begin(), y.end());
     const auto [minz_it, maxz_it] = std::minmax_element(z.begin(), z.end());
-    const double x_min = *minx_it, x_max = *maxx_it, y_min = *miny_it, y_max = *maxy_it, z_min = *minz_it, z_max = *maxz_it;
-    return lbRegion(x_min, y_min, z_min, x_max - x_min, y_max - y_min, z_max - z_min);
+    const int x_min = fullLatticePos(*minx_it), x_max = fullLatticePos(*maxx_it), y_min = fullLatticePos(*miny_it), y_max = fullLatticePos(*maxy_it), z_min = fullLatticePos(*minz_it), z_max = fullLatticePos(*maxz_it);
+    return lbRegion(x_min, y_min, z_min, x_max - x_min + 1, y_max - y_min + 1, z_max - z_min + 1);
+}
+
+ArbLattice::ArbVTUGeom ArbLattice::makeVTUGeom() const {
+    using Index = std::int64_t;
+    const Index nx = local_bounding_box.nx + 1, ny = local_bounding_box.ny + 1, nz = local_bounding_box.nz + 1, sx = local_bounding_box.dx, sy = local_bounding_box.dy, sz = local_bounding_box.dz;
+    const auto lin_pos_bb = [&](Index x, Index y, Index z) { return x + y * nx + z * nx * ny; };
+    const auto get_bb_verts = [&](unsigned node) {
+        const double x = connect.coord(0, node), y = connect.coord(1, node), z = connect.coord(2, node);
+        const int posx = fullLatticePos(x), posy = fullLatticePos(y), posz = fullLatticePos(z);
+        std::array<Index, 8> retval{};
+        size_t i = 0;
+        for (int dx = 0; dx != 2; ++dx)
+            for (int dy = 0; dy != 2; ++dy)
+                for (int dz = 0; dz != 2; ++dz) retval[i++] = lin_pos_bb(posx - sx + dx, posy - sy + dy, posz - sz + dz);
+        return retval;
+    };
+    const auto full_to_red_map = std::invoke([&] {  // Map from full bounding box to reduced space
+        std::unordered_map<Index, unsigned> retval;
+        for (unsigned node = 0; node != connect.getLocalSize(); ++node) {
+            const auto verts = get_bb_verts(node);
+            for (auto v : verts) retval.emplace(v, 0);
+        }
+        unsigned red_ind = 0;
+        for (auto& [_, i] : retval) i = red_ind++;
+        return retval;
+    });
+
+    ArbVTUGeom retval{connect.getLocalSize(), full_to_red_map.size(), std::make_unique<double[]>(full_to_red_map.size() * 3), std::make_unique<unsigned[]>(connect.getLocalSize() * 8)};
+    // Iterating across the entire bounding box is a bit hairy, but saves memory compared to the alternative (and we only do it once)
+    for (Index vx = sx; vx != nx + sx; ++vx)
+        for (Index vy = sy; vy != ny + sy; ++vy)
+            for (Index vz = sz; vz != nz + sz; ++vz) {
+                const auto lin_ind = lin_pos_bb(vx, vy, vz);
+                if (const auto iter = full_to_red_map.find(lin_ind); iter != full_to_red_map.end()) {
+                    const auto red_ind = iter->second;
+                    retval.coords[red_ind * 3] = static_cast<double>(vx) * connect.grid_size;
+                    retval.coords[red_ind * 3 + 1] = static_cast<double>(vy) * connect.grid_size;
+                    retval.coords[red_ind * 3 + 2] = static_cast<double>(vz) * connect.grid_size;
+                }
+            }
+    for (unsigned node = 0; node != connect.getLocalSize(); ++node) {
+        const auto verts = get_bb_verts(node);
+        const auto node_permuted = local_permutation[node];
+        std::transform(verts.begin(), verts.end(), std::next(retval.verts.get(), node_permuted * verts.size()), [&](Index v) { return full_to_red_map.at(v); });
+    }
+    return retval;
 }
 
 storage_t* ArbLattice::getSnapPtr(int snap_ind) {
@@ -361,14 +408,14 @@ storage_t* ArbLattice::getSnapPtr(int snap_ind) {
 }
 
 #ifdef ADJOINT
-storage_t* ArbLattice::getAdjointSnap(int snap_ind) {
+storage_t* ArbLattice::getAdjointSnapPtr(int snap_ind) {
     return std::next(snaps_device.get(), sizes.snaps_pitch * NF * (sizes.snaps - 2 + snap_ind));
 }
 #endif
 
 void ArbLattice::SetFirstTabs(int tab_in, int tab_out) {
-    launcher.container.snap_in = getSnapPtr(tab_in);
-    launcher.container.snap_out = getSnapPtr(tab_out);
+    setSnapIn(tab_in);
+    setSnapOut(tab_out);
 }
 
 /// TODO section
@@ -404,4 +451,4 @@ void ArbLattice::clearAdjoint() {
 #endif
     zSet.ClearGrad();
 }
-///
+/// TODO section end
