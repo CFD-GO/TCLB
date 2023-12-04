@@ -1,3 +1,8 @@
+<?R
+source("conf.R")
+c_header();
+?>
+
 #ifndef ARBLATTICELAUNCHER_H
 #define ARBLATTICELAUNCHER_H
 
@@ -11,6 +16,17 @@ struct ArbLatticeLauncher {
     void RunBorder(CudaStream_t stream, const LatticeData& data) const;
     template <eOperationType I, eCalculateGlobals G, eStage S>
     void RunInterior(CudaStream_t stream, const LatticeData& data) const;
+
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint);
+if (q$adjoint) {
+  node = "Node_Adj"
+} else {
+  node = "Node"
+}
+?>
+    void GetQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
+<?R }
+ifdef() ?>
 };
 
 #endif  // ARBLATTICELAUNCHER_H

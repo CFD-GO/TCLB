@@ -102,7 +102,7 @@ public:
         const storage_t stored_val = loadStaticImpl<<?%s trimws(f$Index)?>, dx, dy, dz>();
         return <?%s storage_to_real("stored_val", f)?>;
     }
-    template<int = 0, int = 0, int = 0> // Dummy template args are to get around nvcc template overloading bug(?)
+    template<int = 0, int = 0, int = 0> // Dummy template params are to get around nvcc template overloading bug(?)
     CudaDeviceFunction real_t load_<?%s f$nicename ?>(int dx, int dy, int dz = 0) const {
         const storage_t stored_val = loadDynamicImpl<<?%s trimws(f$Index)?>>(dx, dy, dz);
         return <?%s storage_to_real("stored_val", f)?>;
