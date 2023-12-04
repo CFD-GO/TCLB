@@ -4,7 +4,6 @@
 ?>
 
 #include "Solver.h"
-#include "Lattice.hpp"
 
 using namespace std;
 	
@@ -320,5 +319,19 @@ int Solver::initArbLattice(pugi::xml_node arb_node) {
     } catch(const std::exception& e) {
         ERROR(e.what());
         return EXIT_FAILURE;
+    }
+}
+
+Solver::LatticeVariant Solver::getLatticeVariant() const {
+    if(!lattice.get()) {
+        ERROR("Lattice was requested before it was initialized");
+        std::terminate();
+    } else if (const auto cart_ptr = dynamic_cast<Lattice<CartLattice>*>(lattice.get()); cart_ptr)
+        return {cart_ptr};
+    else if (const auto arb_ptr = dynamic_cast<Lattice<ArbLattice>*>(lattice.get()); arb_ptr)
+        return {arb_ptr};
+    else {
+        ERROR("Solver owns unknown lattice type, this should not happen");
+        std::terminate();
     }
 }

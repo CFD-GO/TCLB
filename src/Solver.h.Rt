@@ -15,13 +15,14 @@
 #include "utils.h"
 #include "unit.h"
 #include "Handlers.h"
+#include "Lattice.hpp"
 
-#include <fstream>
-#include <iostream>
-#include <vector>
-#include <iomanip>
 #include <cassert>
-#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <variant>
+#include <vector>
 
 /// Main solver class
 /**
@@ -58,6 +59,9 @@ public:
     int initArbLattice(pugi::xml_node arb_node);
     CartLattice* getCartLattice() const;
     ArbLattice* getArbLattice() const;
+
+    using LatticeVariant = std::variant<Lattice<CartLattice>*, Lattice<ArbLattice>*>;
+    LatticeVariant getLatticeVariant() const;
 
     int EventLoop() const { return lattice->EventLoop(); }
 	void print(const char * str);

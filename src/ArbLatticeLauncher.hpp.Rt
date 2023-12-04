@@ -11,6 +11,7 @@ c_header();
 #include "GetThreads.h"
 #include "LatticeData.hpp"
 #include "Node.hpp"
+#include "CudaUtils.hpp"
 
 template <eOperationType I, eCalculateGlobals G, eStage S>
 struct ArbLatticeExecutor : public LinearExecutor {
@@ -41,6 +42,23 @@ template <eOperationType I, eCalculateGlobals G, eStage S>
 void ArbLatticeLauncher::RunInterior(CudaStream_t stream, const LatticeData& data) const {
     const ArbLatticeExecutor<I, G, S> executor{{container.num_interior_nodes}, container, data, container.num_border_nodes};
     LaunchExecutorAsync(executor, stream);
+}
+
+void ArbLatticeLauncher::getQuantity(int quant, real_t* host_tab, real_t scale, const LatticeData& data) const {
+    const size_t num_nodes = container.num_border_nodes + container.num_interior_nodes;
+	switch(quant) {	<?R
+for (q in rows(Quantities)) { ifdef(q$adjoint);
+?>
+        case <?%s q$Index ?>: {
+            const auto gpu_tab = cudaMakeUnique<<?%s q$type ?>>(num_nodes);
+            getQuantity<?%s q$name ?>(gpu_tab.get(), scale, data);
+            CudaMemcpy(host_tab, gpu_tab.get(), num_nodes * sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
+            break;
+        } <?R
+}
+ifdef();
+?>
+	}
 }
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint);
@@ -84,7 +102,7 @@ if (q$type == "vector_t") {
     }
 };
 
-void ArbLatticeLauncher::GetQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const {
+void ArbLatticeLauncher::getQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const {
     const GetQuantityArbExecutor<?%s q$name?> executor{{container.num_border_nodes + container.num_interior_nodes}, container, data, tab, scale};
     LaunchExecutor(executor);
 }

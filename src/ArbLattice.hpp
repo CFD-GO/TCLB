@@ -76,6 +76,8 @@ class ArbLattice : public LatticeBase {
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
 
+    void getQuantity(int quant, real_t* host_tab, real_t scale); /// Write GPU data to \p host_tab
+
     const ArbVTUGeom& getVTUGeom() const { return vtu_geom; }
 
    protected:

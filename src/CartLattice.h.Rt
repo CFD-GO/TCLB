@@ -67,6 +67,10 @@ protected:
   void SetFirstTabs(int, int);
   void setSnapIn(int tab) { launcher.container.in = Snaps[tab]; }
   void setSnapOut(int tab) { launcher.container.out = Snaps[tab]; }
+#ifdef ADJOINT
+  void setAdjSnapIn(int tab) { launcher.container.adjin = aSnaps[tab]; }
+  void setAdjSnapOut(int tab) { launcher.container.adjout = aSnaps[tab]; }
+#endif
 
 public:
   std::unique_ptr<Sampler> sample; //initializing sampler with zero size

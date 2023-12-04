@@ -17,6 +17,9 @@ struct ArbLatticeLauncher {
     template <eOperationType I, eCalculateGlobals G, eStage S>
     void RunInterior(CudaStream_t stream, const LatticeData& data) const;
 
+    void getQuantity(int quant, real_t* host_tab, real_t scale, const LatticeData& data) const;
+
+private:
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint);
 if (q$adjoint) {
   node = "Node_Adj"
@@ -24,7 +27,7 @@ if (q$adjoint) {
   node = "Node"
 }
 ?>
-    void GetQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
+    void getQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
 <?R }
 ifdef() ?>
 };

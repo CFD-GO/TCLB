@@ -125,4 +125,16 @@ inline FILE* fopen_gz(const char* filename, const char* mode) {
     return NULL;
 }
 
+/// C++17 idiom for grouping together different callables of different types into a single overload set, usually used to visit a variant
+template <typename... Fun>
+struct OverloadSet : public Fun... {
+    using Fun::operator()...;
+};
+template <typename... Fun>
+OverloadSet(Fun...) -> OverloadSet<Fun...>;
+
+/// Small utility for static assertions within `if constexpr` statements
+template<typename T>
+inline constexpr bool always_false = false;
+
 #endif

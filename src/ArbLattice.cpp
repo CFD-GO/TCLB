@@ -418,6 +418,14 @@ void ArbLattice::SetFirstTabs(int tab_in, int tab_out) {
     setSnapOut(tab_out);
 }
 
+void ArbLattice::getQuantity(int quant, real_t* host_tab, real_t scale) {
+    setSnapIn(Snap);
+#ifdef ADJOINT
+    setAdjSnapIn(aSnap);
+#endif
+    launcher.getQuantity(quant, host_tab, scale, data);
+}
+
 /// TODO section
 int ArbLattice::loadComp(const std::string& filename, const std::string& comp) {
     throw std::runtime_error{"UNIMPLEMENTED"};
