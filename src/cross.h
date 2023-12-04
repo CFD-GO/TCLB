@@ -203,6 +203,7 @@
     struct float3 { float x,y,z; };
     struct double2 { double x,y; };
     struct double3 { double x,y,z; };
+    struct uint3 { unsigned int x,y,z; };
     struct dim3 {
       unsigned int x = 1, y = 1, z = 1;
       constexpr dim3(int x_, int y_, int z_) : x(x_), y(y_), z(z_) {}
@@ -280,12 +281,12 @@
     #define CudaDeviceReset()
 
     #define RunKernelMaxThreads 1
-    extern dim3 CpuBlock;
+    extern uint3 CpuBlock;
     #ifdef CROSS_OPENMP
       #pragma omp threadprivate(CpuBlock)
     #endif
-    extern dim3 CpuThread;
-    extern dim3 CpuSize;
+    extern uint3 CpuThread;
+    extern uint3 CpuSize;
 
     template <typename F, typename ...P>
     inline void CPUKernelRun(F &&func, const dim3& blocks, P &&... args) {

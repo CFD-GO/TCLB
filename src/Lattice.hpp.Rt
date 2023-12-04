@@ -65,7 +65,7 @@ struct Lattice : public LatticeType {
 <?R if (old_stage_level > 0) { ?>
         LatticeType::MPIStream_B();
         CudaDeviceSynchronize();
-        LatticeType::setSnapIn(tab_out); // launcher.container.in = Snaps[tab1];
+        LatticeType::setSnapIn(tab_out);
 <?R }
         old_stage_level = old_stage_level + 1
 ?>

@@ -9,7 +9,7 @@
 
 #ifdef CROSS_CPU
 
-dim3 CpuBlock, CpuThread, CpuSize;
+uint3 CpuBlock, CpuThread, CpuSize;
 
 void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height) {
 	char * dst = (char*) dst_, *src = (char*) src_;

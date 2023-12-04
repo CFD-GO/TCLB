@@ -127,7 +127,8 @@ struct LinearExecutor {
 
    protected:
     /// Get the linear grid index of the current thread (You must pass in the grid params, since they're only available in device code)
-    CudaDeviceFunction unsigned threadID(dim3 thread, dim3 block, dim3 block_size) const {
+    template<typename D1, typename D2, typename D3>
+    CudaDeviceFunction unsigned threadID(D1 thread, D2 block, D3 block_size) const {
         const auto threads_per_block = block_size.x * block_size.y * block_size.z;
         return thread.x + block_size.x * (thread.y + thread.z * block_size.y) + block.x * threads_per_block;
     }

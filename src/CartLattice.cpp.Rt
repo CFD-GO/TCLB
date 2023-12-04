@@ -77,8 +77,8 @@ CartLattice::CartLattice(CartConnectivity connect, int ns, const UnitEnv& units_
 	DEBUG_M;
 	CudaAllocFinalize();
 	DEBUG_M;
-	launcher.container.in = Snaps[0];
-	launcher.container.out = Snaps[1];
+	setSnapIn(0);
+	setSnapOut(1);
 #ifdef ADJOINT
 	launcher.container.adjout = aSnaps[0];
 #endif
@@ -298,111 +298,6 @@ void CartLattice::SetFirstTabs(int tab0, int tab1) {
 	} ?>
 	launcher.container.in = Snaps[tab0];
 }
-
-<?R for (a in rows(Actions)) { ?>
-/// Adjoint Iteration
-/**
-        One Adjoint Iteration
-        \param tab0 Adjoint Snapshot from which to start
-        \param tab1 Adjoint Snapshot in which to put result
-        \param iter_type Type of the iteration
-*/
-inline void CartLattice::<?%s a$FunName ?>_Adj(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
-{
-#ifdef ADJOINT
-	real_t * tmp;
-	int size, from, to;
-	int i=0;
-	debug1("[%d] Iteration_Adj %d -> %d type: %d\n", D_MPI_RANK, adjtab0, adjtab1, iter_type);
-	ZoneIter = (Iter + Record_Iter) % zSet.getLen();
-	data.ZoneIndex = ZoneIter;
-	data.MaxZones = zSet.MaxZones;
-
-	debug1("ZoneIter: %d (in <?%s a$FunName ?>_Adj)\n", ZoneIter);
-<?R
-	for (m in NonEmptyMargin) {
-?>
-	to = connectivity.nodes[connectivity.mpi_rank].<?%s m$opposite_side ?>;
-	from = connectivity.nodes[connectivity.mpi_rank].<?%s m$side ?>;
-	if (connectivity.mpi_rank != to) {
-		gpuout[i] = aSnaps[adjtab0].<?%s m$name ?>;
-		gpuin[i] = launcher.container.adjin.<?%s m$name ?> = gpubuf[i];
-		nodeout[i] = to;
-		nodein[i] = from;
-		i ++;
-	} else {
-		launcher.container.adjin.<?%s m$name ?> = aSnaps[adjtab0].<?%s m$name ?>;
-	}
-	launcher.container.in.<?%s m$name ?> = Snaps[tab0].<?%s m$name ?>;
-	launcher.container.adjout.<?%s m$name ?> = aSnaps[adjtab1].<?%s m$name ?>;
-<?R
-	}
-
-	for (s in a$stages) {
-                 stage = Stages[s,,drop=F] ?>
-
-        MPIStream_A();
-
-	switch(iter_type & ITER_INTEG){
-	case ITER_NO:
-	        launcher.RunInterior< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	case ITER_GLOBS:
-	        launcher.RunInterior< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	case ITER_NO | ITER_STEADY:
-	        launcher.RunInterior< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	case ITER_GLOBS | ITER_STEADY:
-	        launcher.RunInterior< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	}
-
-        MPIStream_B();
-
-	DEBUG_M;
-	switch(iter_type & ITER_INTEG){
-	case ITER_NO:
-	        launcher.RunBorder< Adjoint, NoGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	case ITER_GLOBS:
-	        launcher.RunBorder< Adjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	case ITER_NO | ITER_STEADY:
-	        launcher.RunBorder< SteadyAdjoint, NoGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	case ITER_GLOBS | ITER_STEADY:
-	        launcher.RunBorder< SteadyAdjoint, IntegrateGlobals, <?%s stage$name ?> > (kernelStream, data); break;
-	}
-	DEBUG_M;
-        CudaDeviceSynchronize();
-<?R } ?>
-	aSnap = adjtab1;
-	MarkIteration();
-#else
-	ERROR("This model doesn't have adjoint!\n");
-	exit (-1);
-#endif
-};
-
-/// Combined Primal+Adjoint Iteration
-/**
-        One combined Primal+Adjoint Iteration (steepest descent included)
-        \param tab0 Snapshot from which to start
-        \param tab1 Snapshot in which to put result
-        \param adjtab0 Adjoint Snapshot from which to start
-        \param adjtab1 Adjoint Snapshot in which to put result
-        \param iter_type Type of the iteration
-*/
-inline void CartLattice::<?%s a$FunName ?>_Opt(int tab0, int tab1, int adjtab0, int adjtab1, int iter_type)
-{
-#ifdef ADJOINT
-        <?%s a$FunName ?>(tab0, tab1, iter_type);
-        <?%s a$FunName ?>_Adj(tab0, tab1, adjtab0, adjtab1, iter_type | ITER_STEADY);
-        launcher.RunInterior< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream, data);
-        launcher.RunBorder< Optimize, NoGlobals, <?%s stage$name ?> > (kernelStream, data);
-        CudaDeviceSynchronize();
-#else
-	ERROR("This model doesn't have adjoint!\n");
-	exit (-1);
-#endif
-};
-
-<?R } ?>
-
 
 /// Function listing all buffers in FTabs
 void CartLattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) const {

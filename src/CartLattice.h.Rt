@@ -59,11 +59,6 @@ private:
   void saveAdj(const std::string& filename, int asnap_ind) const final { saveImpl(aSnaps[asnap_ind], filename.c_str()); }
 #endif
 
-<?R for (a in rows(Actions)) { ?>
-  void <?%s a$FunName ?>_Adj(int, int, int, int, int);
-  void <?%s a$FunName ?>_Opt(int, int, int, int, int); <?R
-} ?>
-
 protected:
   CartLatticeLauncher launcher; ///< Main execution context, encapsulates the lattice container
 
