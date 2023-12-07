@@ -1,6 +1,7 @@
 
 #ifndef REGION_H
 #include <stdio.h>
+#include "cross.h"
 class lbRegion {
 public:
   int dx,dy,dz;

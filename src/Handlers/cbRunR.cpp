@@ -413,10 +413,12 @@ SEXP Dollar(std::string name) {
 		for (size_t i=0;i<size;i++) {
 			small[i] = 1 + ((NodeType[i] & it.flag) >> it.shift);
 		}
-		Rcpp::CharacterVector levels(it.max);
+		Rcpp::CharacterVector levels(it.max+1);
+		levels[0] = "None";
 		for (const Model::NodeTypeFlag& it2 : solver->lattice->model->nodetypeflags) {
 			if (it2.group_id == it.id) {
-				levels[it2.flag >> it.shift] = it2.name;
+				int idx = it2.flag >> it.shift;
+				if (idx < levels.size()) levels[idx] = it2.name;
 			}
 		}
 		small.attr("levels") = levels;
