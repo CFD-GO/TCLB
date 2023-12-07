@@ -72,13 +72,11 @@ class ArbLattice : public LatticeBase {
     virtual ~ArbLattice() = default;
 
     int reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);  /// Init if passed args differ from those passed at construction or the last call to reinitialize (avoid duplicating work)
-
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
-
-    void getQuantity(int quant, real_t* host_tab, real_t scale); /// Write GPU data to \p host_tab
-
+    void getQuantity(int quant, real_t* host_tab, real_t scale);  /// Write GPU data to \p host_tab
     const ArbVTUGeom& getVTUGeom() const { return vtu_geom; }
+    Span<const flag_t> getNodeTypes() const { return {node_types_host.data(), node_types_host.size()}; } /// Get host view of node types (permuted)
 
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
