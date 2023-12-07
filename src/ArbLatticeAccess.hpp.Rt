@@ -121,9 +121,8 @@ for (d in rows(Density)[s$load.densities]) {
     template<class Node>
     CudaDeviceFunction void push<?%s s$suffix ?>(const Node& node) const {
 <?R
-for (d in rows(Density)[s$load.densities]) {
-  f = rows(Fields)[[match(d$field, Fields$name)]]
-  cat(paste0("        store_", f$nicename, "(node.", d$name, ");\n"))
+for (f in rows(Fields)[s$save.fields]) {
+  cat(paste0("        store_", f$nicename, "(node.", f$name, ");\n"))
 } ?>    }
 #ifdef ADJOINT
     template<class Node>

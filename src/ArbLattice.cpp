@@ -39,6 +39,8 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     initContainer();
     local_bounding_box = getLocalBoundingBox();
     vtu_geom = makeVTUGeom();
+
+    debug1("Initialized arbitrary lattice with: border nodes=%lu; interior nodes=%lu; ghost nodes=%lu", sizes.border_nodes, getLocalSize() - sizes.border_nodes, ghost_nodes.size());
 }
 
 int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
