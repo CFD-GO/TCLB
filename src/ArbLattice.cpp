@@ -36,6 +36,7 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     computeLocalPermutation();
     allocDeviceMemory();
     initDeviceData(arb_node, setting_zones);
+    initCommManager();
     initContainer();
     local_bounding_box = getLocalBoundingBox();
     vtu_geom = makeVTUGeom();
@@ -292,6 +293,11 @@ std::pmr::vector<real_t> ArbLattice::computeCoords() const {
     return retval;
 }
 
+unsigned int ArbLattice::lookupLocalGhostIndex(ArbLatticeConnectivity::Index gid) const {
+    const unsigned local_sz = connect.getLocalSize();
+    return local_sz + static_cast<unsigned>(std::distance(ghost_nodes.begin(), std::lower_bound(ghost_nodes.begin(), ghost_nodes.end(), gid)));
+}
+
 std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
     const auto local_sz = connect.getLocalSize();
     std::pmr::vector<unsigned> retval(sizes.neighbors_pitch * Q, &global_pinned_resource);
@@ -299,7 +305,7 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
     const auto nbr_global_to_local = [&](ArbLatticeConnectivity::Index gid) -> unsigned {
         if (gid == -1) return invalid_nbr;  // dummy row
         else if (connect.isGhost(gid))
-            return static_cast<unsigned>(local_sz + std::distance(ghost_nodes.cbegin(), std::lower_bound(ghost_nodes.cbegin(), ghost_nodes.cend(), gid)));
+            return lookupLocalGhostIndex(gid);
         else
             return local_permutation[gid - connect.chunk_begin];
     };
@@ -336,6 +342,13 @@ void ArbLattice::initContainer() {
     launcher.container.snaps_pitch = sizes.snaps_pitch;
     launcher.container.num_border_nodes = sizes.border_nodes;
     launcher.container.num_interior_nodes = connect.getLocalSize() - sizes.border_nodes;
+
+    launcher.container.pack_buf = comm_manager.send_buf_device.get();
+    launcher.container.unpack_buf = comm_manager.recv_buf_device.get();
+    launcher.container.pack_inds = comm_manager.pack_inds.get();
+    launcher.container.unpack_inds = comm_manager.unpack_inds.get();
+    launcher.container.pack_sz = comm_manager.send_buf_host.size();
+    launcher.container.unpack_sz = comm_manager.recv_buf_host.size();
 
     const auto dyn_offs_lu = Model_m::makeDynamicOffsetIndLookupTable();
     std::copy(dyn_offs_lu.begin(), dyn_offs_lu.end(), launcher.container.dynamic_offset_lookup_table);
@@ -429,6 +442,109 @@ void ArbLattice::getQuantity(int quant, real_t* host_tab, real_t scale) {
     setAdjSnapIn(aSnap);
 #endif
     launcher.getQuantity(quant, host_tab, scale, data);
+}
+
+#include <iostream>
+
+void ArbLattice::initCommManager() {
+    if (mpitools::MPI_Size(comm) == 1) return;
+    const auto& field_table = Model_m::field_streaming_table;
+    using NodeFieldP = std::array<size_t, 2>;              // Node + field index. We can be a bit wasteful with storing both as 64b, since the number of border nodes is relatively small
+    std::map<int, std::vector<NodeFieldP>> needed_fields;  // in_nbrs to required N-F pairs, **we need it to be sorted**
+    for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+        for (size_t q = 0; q != Q; ++q) {
+            const auto nbr = connect.neighbor(q, node);
+            if (nbr != -1 && connect.isGhost(nbr)) {
+                const int owner = std::distance(global_node_dist.cbegin(), std::upper_bound(global_node_dist.cbegin(), global_node_dist.cend(), nbr)) - 1;
+                auto& owner_set = needed_fields[owner];
+                for (size_t f = 0; f != NF; ++f)
+                    if (field_table.at(f).at(q)) owner_set.push_back(NodeFieldP{static_cast<size_t>(nbr), f});
+            }
+        }
+    }
+    for (auto& [id, vec] : needed_fields) {
+        std::sort(vec.begin(), vec.end());
+        vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
+        comm_manager.in_nbrs.emplace_back(id, vec.size());
+    }
+    comm_manager.recv_buf_host = std::pmr::vector<storage_t>(std::transform_reduce(comm_manager.in_nbrs.cbegin(), comm_manager.in_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; }), &global_pinned_resource);
+    comm_manager.recv_buf_device = cudaMakeUnique<storage_t>(comm_manager.recv_buf_host.size());
+    comm_manager.unpack_inds = cudaMakeUnique<size_t>(comm_manager.recv_buf_host.size());
+    std::pmr::vector<size_t> unpack_inds_host(comm_manager.recv_buf_host.size(), &global_pinned_resource);
+    auto unpack_ind_iter = unpack_inds_host.begin();
+    for (const auto& [id, set] : needed_fields) {
+        unpack_ind_iter = std::transform(set.begin(), set.end(), unpack_ind_iter, [&](NodeFieldP nfp) {
+            const auto [node, field] = nfp;
+            return lookupLocalGhostIndex(node) + field * sizes.snaps_pitch;
+        });
+    }
+    CudaMemcpyAsync(comm_manager.unpack_inds.get(), unpack_inds_host.data(), unpack_inds_host.size() * sizeof(size_t), CudaMemcpyHostToDevice, inStream);
+
+    std::vector<size_t> comm_sizes_in(mpitools::MPI_Size(comm));
+    std::vector<size_t> comm_sizes(mpitools::MPI_Size(comm));
+    for (const auto& [id, set] : needed_fields) comm_sizes_in[id] = set.size();
+    MPI_Alltoall(comm_sizes_in.data(), 1, mpitools::getMPIType<size_t>(), comm_sizes.data(), 1, mpitools::getMPIType<size_t>(), comm);
+    int out_id = 0;
+    for (auto sz : comm_sizes) {
+        if (sz != 0) comm_manager.out_nbrs.emplace_back(out_id, sz);
+        ++out_id;
+    }
+    comm_manager.send_buf_host = std::pmr::vector<storage_t>(std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; }), &global_pinned_resource);
+    comm_manager.send_buf_device = cudaMakeUnique<storage_t>(comm_manager.send_buf_host.size());
+    comm_manager.pack_inds = cudaMakeUnique<size_t>(comm_manager.send_buf_host.size());
+
+    std::vector<MPI_Request> reqs(comm_manager.out_nbrs.size() + comm_manager.in_nbrs.size(), MPI_REQUEST_NULL);
+    auto get_req = [&reqs, i = 0]() mutable { return &reqs[i++]; };
+    std::map<int, std::vector<NodeFieldP>> requested_fields;
+    for (const auto [id, sz] : comm_manager.out_nbrs) {
+        auto& rf = requested_fields[id];
+        rf.resize(sz);
+        MPI_Irecv(rf.data(), rf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
+    }
+    for (const auto [id, nf] : needed_fields) MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
+    std::pmr::vector<size_t> pack_inds_host(comm_manager.send_buf_host.size(), &global_pinned_resource);
+    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
+    auto pack_ind_iter = pack_inds_host.begin();
+    for (const auto& [id, nfps] : requested_fields) {
+        pack_ind_iter = std::transform(nfps.begin(), nfps.end(), pack_ind_iter, [&](const NodeFieldP nfp) {
+            const auto [node, field] = nfp;
+            if (node < connect.chunk_begin or node >= connect.chunk_end) std::cerr << node << '\n';
+            const auto lid = local_permutation.at(node - connect.chunk_begin);
+            return lid + field * sizes.snaps_pitch;
+        });
+    }
+    CudaMemcpyAsync(comm_manager.pack_inds.get(), pack_inds_host.data(), pack_inds_host.size() * sizeof(size_t), CudaMemcpyHostToDevice, inStream);
+    CudaStreamSynchronize(inStream);
+}
+
+void ArbLattice::communicateBorder() {
+    std::vector<MPI_Request> reqs(comm_manager.in_nbrs.size() + comm_manager.out_nbrs.size(), MPI_REQUEST_NULL);
+    auto get_req = [&reqs, i = 0]() mutable { return &reqs[i++]; };
+    size_t offset = 0;
+    for (const auto [id, sz] : comm_manager.in_nbrs) {
+        MPI_Irecv(std::next(comm_manager.recv_buf_host.data(), offset), sz, mpitools::getMPIType<storage_t>(), id, 0, comm, get_req());
+        offset += sz;
+    }
+    offset = 0;
+    for (const auto [id, sz] : comm_manager.out_nbrs) {
+        MPI_Isend(std::next(comm_manager.send_buf_host.data(), offset), sz, mpitools::getMPIType<storage_t>(), id, 0, comm, get_req());
+        offset += sz;
+    }
+    MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
+}
+
+void ArbLattice::MPIStream_A() {
+    if (mpitools::MPI_Size(comm) == 1) return;
+    launcher.pack(outStream);
+    CudaMemcpyAsync(comm_manager.send_buf_host.data(), comm_manager.send_buf_device.get(), comm_manager.send_buf_host.size() * sizeof(storage_t), CudaMemcpyDeviceToHost, outStream);
+}
+
+void ArbLattice::MPIStream_B() {
+    if (mpitools::MPI_Size(comm) == 1) return;
+    CudaStreamSynchronize(outStream);
+    communicateBorder();
+    CudaMemcpyAsync(comm_manager.recv_buf_device.get(), comm_manager.recv_buf_host.data(), comm_manager.recv_buf_host.size() * sizeof(storage_t), CudaMemcpyHostToDevice, inStream);
+    launcher.unpack(inStream);
 }
 
 /// TODO section

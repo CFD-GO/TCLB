@@ -35,6 +35,13 @@ class ArbLattice : public LatticeBase {
         size_t snaps_pitch;      /// B + I + G + 1 + padding
     };
 
+    struct CommManager {
+        std::vector<std::pair<int, size_t>> in_nbrs, out_nbrs;      /// Neighbor IDs + how many elements they are sending
+        std::pmr::vector<storage_t> recv_buf_host, send_buf_host;   /// Comm buffers - these are sent/received on host | TODO: CUDA + MPI
+        CudaUniquePtr<storage_t> recv_buf_device, send_buf_device;  /// Comm buffers - these are packed and unpacked on the device
+        CudaUniquePtr<size_t> unpack_inds, pack_inds;               /// Recipes for how to pack/unpack the comm buffers from/into snaps
+    };
+
    public:
     /// Struct for storing arb lattice geometry info for export to VTU (ParaView unstructured grid format). Note that the ordering is permuted, so that solution data can be directly written to the results file
     struct ArbVTUGeom {
@@ -49,6 +56,7 @@ class ArbLattice : public LatticeBase {
     std::vector<long> ghost_nodes;                          /// Sorted GIDs of ghost nodes
     SizeInfo sizes{};                                       /// Sizes of various data structures/allocations
     MPI_Comm comm;                                          /// Communicator associated with the lattice
+    CommManager comm_manager;                               /// Object for managing data required for MPI communication of border snap values
     std::vector<unsigned> local_permutation;                /// The permutation of owned nodes w.r.t. the global indexing scheme, see comment at the top
     lbRegion local_bounding_box;                            /// The bounding box of the local region (if the arbitrary lattice is a subset of a full Cartesian lattice, we can use this for some optimizations)
     ArbVTUGeom vtu_geom;                                    /// Pre-computed geometry of the lattice for export to .vtu
@@ -76,7 +84,7 @@ class ArbLattice : public LatticeBase {
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
     void getQuantity(int quant, real_t* host_tab, real_t scale);  /// Write GPU data to \p host_tab
     const ArbVTUGeom& getVTUGeom() const { return vtu_geom; }
-    Span<const flag_t> getNodeTypes() const { return {node_types_host.data(), node_types_host.size()}; } /// Get host view of node types (permuted)
+    Span<const flag_t> getNodeTypes() const { return {node_types_host.data(), node_types_host.size()}; }  /// Get host view of node types (permuted)
 
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
@@ -87,8 +95,8 @@ class ArbLattice : public LatticeBase {
     void setAdjSnapIn(int tab) { launcher.container.adj_snap_in = getAdjointSnapPtr(tab); }
     void setAdjSnapOut(int tab) { launcher.container.adj_snap_out = getAdjointSnapPtr(tab); }
 #endif
-    void MPIStream_A() {}  /// TODO
-    void MPIStream_B() {}  /// TODO
+    void MPIStream_A();
+    void MPIStream_B();
 
    private:
     struct NodeTypeBrush {
@@ -122,10 +130,13 @@ class ArbLattice : public LatticeBase {
     std::pmr::vector<real_t> computeCoords() const;                                                                                /// Compute the coordinates 2D array to be stored on the device
     std::pmr::vector<unsigned> computeNeighbors() const;                                                                           /// Compute the neighbors 2D array to be stored on the device
     void initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                                 /// Initialize data residing in device memory
+    void initCommManager();                                                                                                        /// Compute which fields need to be sent to/received from which neighbors
     void initContainer();                                                                                                          /// Initialize the data residing in launcher.container
     int fullLatticePos(double pos) const;                                                                                          /// Compute the position (in terms of lattice offsets) of a node, assuming the arbitrary lattice is a subset of a Cartesian lattice
     lbRegion getLocalBoundingBox() const;                                                                                          /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
     ArbVTUGeom makeVTUGeom() const;                                                                                                /// Compute VTU geometry
+    void communicateBorder();                                                                                                      /// Send and receive border values in snap (overlapped with interior computation)
+    unsigned lookupLocalGhostIndex(ArbLatticeConnectivity::Index gid) const;                                                       /// For a given ghost gid, look up its local id
 };
 
 #endif  // ARBLATTICE_HPP
