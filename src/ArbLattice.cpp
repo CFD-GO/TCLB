@@ -501,7 +501,7 @@ void ArbLattice::initCommManager() {
         rf.resize(sz);
         MPI_Irecv(rf.data(), rf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
     }
-    for (const auto [id, nf] : needed_fields) MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
+    for (const auto& [id, nf] : needed_fields) MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
     std::pmr::vector<size_t> pack_inds_host(comm_manager.send_buf_host.size(), &global_pinned_resource);
     MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
     auto pack_ind_iter = pack_inds_host.begin();
