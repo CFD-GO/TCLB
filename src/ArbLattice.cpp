@@ -467,10 +467,11 @@ void ArbLattice::initCommManager() {
         vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
         comm_manager.in_nbrs.emplace_back(id, vec.size());
     }
-    comm_manager.recv_buf_host = std::pmr::vector<storage_t>(std::transform_reduce(comm_manager.in_nbrs.cbegin(), comm_manager.in_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; }), &global_pinned_resource);
-    comm_manager.recv_buf_device = cudaMakeUnique<storage_t>(comm_manager.recv_buf_host.size());
-    comm_manager.unpack_inds = cudaMakeUnique<size_t>(comm_manager.recv_buf_host.size());
-    std::pmr::vector<size_t> unpack_inds_host(comm_manager.recv_buf_host.size(), &global_pinned_resource);
+    size_t recv_buf_size = std::transform_reduce(comm_manager.in_nbrs.cbegin(), comm_manager.in_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
+    comm_manager.recv_buf_host = std::pmr::vector<storage_t>(recv_buf_size, &global_pinned_resource);
+    comm_manager.recv_buf_device = cudaMakeUnique<storage_t>(recv_buf_size);
+    comm_manager.unpack_inds = cudaMakeUnique<size_t>(recv_buf_size);
+    std::pmr::vector<size_t> unpack_inds_host(recv_buf_size, &global_pinned_resource);
     auto unpack_ind_iter = unpack_inds_host.begin();
     for (const auto& [id, set] : needed_fields) {
         unpack_ind_iter = std::transform(set.begin(), set.end(), unpack_ind_iter, [&](NodeFieldP nfp) {
@@ -478,6 +479,7 @@ void ArbLattice::initCommManager() {
             return lookupLocalGhostIndex(node) + field * sizes.snaps_pitch;
         });
     }
+    assert(unpack_ind_iter == unpack_inds_host.end());
     CudaMemcpyAsync(comm_manager.unpack_inds.get(), unpack_inds_host.data(), unpack_inds_host.size() * sizeof(size_t), CudaMemcpyHostToDevice, inStream);
 
     std::vector<size_t> comm_sizes_in(mpitools::MPI_Size(comm));
@@ -488,31 +490,42 @@ void ArbLattice::initCommManager() {
     for (auto sz : comm_sizes) {
         if (sz != 0) comm_manager.out_nbrs.emplace_back(out_id, sz);
         ++out_id;
-    }
-    comm_manager.send_buf_host = std::pmr::vector<storage_t>(std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; }), &global_pinned_resource);
-    comm_manager.send_buf_device = cudaMakeUnique<storage_t>(comm_manager.send_buf_host.size());
-    comm_manager.pack_inds = cudaMakeUnique<size_t>(comm_manager.send_buf_host.size());
+    } 
+    size_t send_buf_size = std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
+    comm_manager.send_buf_host = std::pmr::vector<storage_t>(send_buf_size, &global_pinned_resource);
+    comm_manager.send_buf_device = cudaMakeUnique<storage_t>(send_buf_size);
+    comm_manager.pack_inds = cudaMakeUnique<size_t>(send_buf_size);
 
-    std::vector<MPI_Request> reqs(comm_manager.out_nbrs.size() + comm_manager.in_nbrs.size(), MPI_REQUEST_NULL);
-    auto get_req = [&reqs, i = 0]() mutable { return &reqs[i++]; };
     std::map<int, std::vector<NodeFieldP>> requested_fields;
-    for (const auto [id, sz] : comm_manager.out_nbrs) {
+    for (const auto& [id, sz] : comm_manager.out_nbrs) {
         auto& rf = requested_fields[id];
         rf.resize(sz);
-        MPI_Irecv(rf.data(), rf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
     }
-    for (const auto [id, nf] : needed_fields) MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, get_req());
-    std::pmr::vector<size_t> pack_inds_host(comm_manager.send_buf_host.size(), &global_pinned_resource);
+    std::vector<MPI_Request> reqs;
+    reqs.reserve(requested_fields.size() + needed_fields.size());
+    for (      auto& [id, rf] : requested_fields) {
+        MPI_Request req;
+        MPI_Irecv(rf.data(), rf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, &req);
+        reqs.push_back(req);
+    }
+    for (const auto& [id, nf] : needed_fields) {
+        MPI_Request req;
+        MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, &req);
+        reqs.push_back(req);
+    }
     MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
+    std::pmr::vector<size_t> pack_inds_host(send_buf_size, &global_pinned_resource);
     auto pack_ind_iter = pack_inds_host.begin();
     for (const auto& [id, nfps] : requested_fields) {
         pack_ind_iter = std::transform(nfps.begin(), nfps.end(), pack_ind_iter, [&](const NodeFieldP nfp) {
             const auto [node, field] = nfp;
-            if (node < connect.chunk_begin or node >= connect.chunk_end) std::cerr << node << '\n';
+            assert(node >= connect.chunk_begin);
+            assert(node < connect.chunk_end);
             const auto lid = local_permutation.at(node - connect.chunk_begin);
             return lid + field * sizes.snaps_pitch;
         });
     }
+    assert(pack_ind_iter == pack_inds_host.end());
     CudaMemcpyAsync(comm_manager.pack_inds.get(), pack_inds_host.data(), pack_inds_host.size() * sizeof(size_t), CudaMemcpyHostToDevice, inStream);
     CudaStreamSynchronize(inStream);
 }
