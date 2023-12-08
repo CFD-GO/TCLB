@@ -361,15 +361,19 @@ lbRegion ArbLattice::getLocalBoundingBox() const {
 
 ArbLattice::ArbVTUGeom ArbLattice::makeVTUGeom() const {
     using Index = std::int64_t;
-    const Index nx = local_bounding_box.nx + 1, ny = local_bounding_box.ny + 1, nz = local_bounding_box.nz + 1, sx = local_bounding_box.dx, sy = local_bounding_box.dy, sz = local_bounding_box.dz;
-    const auto lin_pos_bb = [&](Index x, Index y, Index z) { return x + y * nx + z * nx * ny; };
+    // Bounding box for node-encapsulating cubes is larger by 1 (in each direction) than that of the nodes themselves
+    const Index nx = local_bounding_box.nx + 1, ny = local_bounding_box.ny + 1, nz = local_bounding_box.nz + 1;
+    const Index sx = local_bounding_box.dx, sy = local_bounding_box.dy, sz = local_bounding_box.dz;
+    const auto lin_pos_bb = [&](Index x, Index y, Index z) { return x + (y + z * ny) * nx; };
     const auto get_bb_verts = [&](unsigned node) {
         const double x = connect.coord(0, node), y = connect.coord(1, node), z = connect.coord(2, node);
         const int posx = fullLatticePos(x), posy = fullLatticePos(y), posz = fullLatticePos(z);
         static constexpr std::array offsets = {std::array{0, 0, 0}, std::array{1, 0, 0}, std::array{1, 1, 0}, std::array{0, 1, 0}, std::array{0, 0, 1}, std::array{1, 0, 1}, std::array{1, 1, 1}, std::array{0, 1, 1}};  // We need a specific ordering to agree with the vtu spec
         std::array<Index, 8> retval{};
-        size_t i = 0;
-        for (const auto [dx, dy, dz] : offsets) retval[i++] = lin_pos_bb(posx - sx + dx, posy - sy + dy, posz - sz + dz);
+        std::transform(offsets.begin(), offsets.end(), retval.begin(), [&](const auto& ofs) {
+            const auto [dx, dy, dz] = ofs;
+            return lin_pos_bb(posx - sx + dx, posy - sy + dy, posz - sz + dz);
+        });
         return retval;
     };
     const auto full_to_red_map = std::invoke([&] {  // Map from full bounding box to reduced space
@@ -388,7 +392,7 @@ ArbLattice::ArbVTUGeom ArbLattice::makeVTUGeom() const {
     for (Index vx = sx; vx != nx + sx; ++vx)
         for (Index vy = sy; vy != ny + sy; ++vy)
             for (Index vz = sz; vz != nz + sz; ++vz) {
-                const auto lin_ind = lin_pos_bb(vx, vy, vz);
+                const auto lin_ind = lin_pos_bb(vx - sx, vy - sy, vz - sz);
                 if (const auto iter = full_to_red_map.find(lin_ind); iter != full_to_red_map.end()) {
                     const auto red_ind = iter->second;
                     retval.coords[red_ind * 3] = static_cast<double>(vx) * connect.grid_size;

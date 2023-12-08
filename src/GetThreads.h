@@ -119,15 +119,14 @@ struct LinearExecutor {
     LaunchParams ComputeLaunchParams(dim3 max_threads) const {
         const unsigned max_threads_per_block = max_threads.x * max_threads.y * max_threads.z;
         const unsigned blocks_needed = std::max(1u, (size + max_threads_per_block - 1) / max_threads_per_block);
-        dim3 blocks, threads;
+        dim3 blocks;
         blocks.x = blocks_needed;
-        threads.x = max_threads_per_block;
-        return {blocks, threads};
+        return {blocks, max_threads};
     }
 
    protected:
     /// Get the linear grid index of the current thread (You must pass in the grid params, since they're only available in device code)
-    template<typename D1, typename D2, typename D3> /// TODO: the template here is due to the fact that we use uint3 instead of dim3 on CPU. Investigate why and unify everything to dim3
+    template <typename D1, typename D2, typename D3>  /// TODO: the template here is due to the fact that we use uint3 instead of dim3 on CPU. Investigate why and unify everything to dim3
     CudaDeviceFunction unsigned threadID(D1 thread, D2 block, D3 block_size) const {
         const auto threads_per_block = block_size.x * block_size.y * block_size.z;
         return thread.x + block_size.x * (thread.y + thread.z * block_size.y) + block.x * threads_per_block;

@@ -46,7 +46,6 @@ using namespace std;
 	int Solver::initLog(const char * filename)
 	{
 		if (mpi_rank == 0) {
-		    const auto& geometry = getCartLattice()->geometry;
             FILE * f = NULL;
             debug2("Initializing %s\n",filename);
             f = fopen(filename, "wt");
