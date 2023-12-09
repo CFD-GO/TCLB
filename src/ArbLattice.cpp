@@ -347,8 +347,8 @@ void ArbLattice::initContainer() {
     launcher.container.unpack_buf = comm_manager.recv_buf_device.get();
     launcher.container.pack_inds = comm_manager.pack_inds.get();
     launcher.container.unpack_inds = comm_manager.unpack_inds.get();
-    launcher.container.pack_sz = comm_manager.send_buf_host.size();
-    launcher.container.unpack_sz = comm_manager.recv_buf_host.size();
+    launcher.container.pack_sz = static_cast<unsigned int>(comm_manager.send_buf_host.size());
+    launcher.container.unpack_sz = static_cast<unsigned int>(comm_manager.recv_buf_host.size());
 
     const auto dyn_offs_lu = Model_m::makeDynamicOffsetIndLookupTable();
     std::copy(dyn_offs_lu.begin(), dyn_offs_lu.end(), launcher.container.dynamic_offset_lookup_table);
@@ -534,12 +534,12 @@ void ArbLattice::communicateBorder() {
     std::vector<MPI_Request> reqs(comm_manager.in_nbrs.size() + comm_manager.out_nbrs.size(), MPI_REQUEST_NULL);
     auto get_req = [&reqs, i = 0]() mutable { return &reqs[i++]; };
     size_t offset = 0;
-    for (const auto [id, sz] : comm_manager.in_nbrs) {
+    for (const auto& [id, sz] : comm_manager.in_nbrs) {
         MPI_Irecv(std::next(comm_manager.recv_buf_host.data(), offset), sz, mpitools::getMPIType<storage_t>(), id, 0, comm, get_req());
         offset += sz;
     }
     offset = 0;
-    for (const auto [id, sz] : comm_manager.out_nbrs) {
+    for (const auto& [id, sz] : comm_manager.out_nbrs) {
         MPI_Isend(std::next(comm_manager.send_buf_host.data(), offset), sz, mpitools::getMPIType<storage_t>(), id, 0, comm, get_req());
         offset += sz;
     }
@@ -558,6 +558,7 @@ void ArbLattice::MPIStream_B() {
     communicateBorder();
     CudaMemcpyAsync(comm_manager.recv_buf_device.get(), comm_manager.recv_buf_host.data(), comm_manager.recv_buf_host.size() * sizeof(storage_t), CudaMemcpyHostToDevice, inStream);
     launcher.unpack(inStream);
+    CudaStreamSynchronize(inStream);
 }
 
 /// TODO section

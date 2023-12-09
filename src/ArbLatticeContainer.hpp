@@ -24,7 +24,7 @@ struct ArbLatticeContainer {
     const storage_t* unpack_buf;
     const size_t* pack_inds;
     const size_t* unpack_inds;
-    size_t pack_sz, unpack_sz;
+    unsigned int pack_sz, unpack_sz;
 
     // Utilities to facilitate the dynamic lookup of the offset direction index
     int dynamic_offset_lookup_table[Model_m::stencil_box_sz];

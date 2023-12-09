@@ -670,8 +670,9 @@ int CartLattice::getPars(ParStruct& par_struct) {
   	const auto mpi_size = connectivity.nodes.size();
   	for (size_t i = 0; i < mpi_size - 1; ++i)
   	    par_struct.Par_disp[i + 1] = par_struct.Par_disp[i] + par_struct.Par_sizes[i];
-  	for (size_t i = 0; i < mpi_size; ++i)
+  	for (size_t i = 0; i < mpi_size; ++i) {
   	    debug2("Proc: %d Parameters: %d Disp: %d\n", i, par_struct.Par_sizes[i], par_struct.Par_disp[i]);
+	}
   	return par_struct.Par_disp[mpi_size-1] + par_struct.Par_sizes[mpi_size-1];
   }
   return 0;
