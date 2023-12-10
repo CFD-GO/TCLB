@@ -15,6 +15,8 @@
 #include "mpitools.hpp"
 #include "pinned_allocator.hpp"
 
+#include "vtuOutput.h"
+
 ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, num_snaps_, units_), comm(comm_) {
     initialize(num_snaps_, setting_zones, arb_node);
 }
@@ -36,10 +38,10 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     computeLocalPermutation();
     allocDeviceMemory();
     initDeviceData(arb_node, setting_zones);
-    initCommManager();
-    initContainer();
     local_bounding_box = getLocalBoundingBox();
     vtu_geom = makeVTUGeom();
+    initCommManager();
+    initContainer();
 
     debug1("Initialized arbitrary lattice with: border nodes=%lu; interior nodes=%lu; ghost nodes=%lu", sizes.border_nodes, getLocalSize() - sizes.border_nodes, ghost_nodes.size());
 }
@@ -295,7 +297,10 @@ std::pmr::vector<real_t> ArbLattice::computeCoords() const {
 
 unsigned int ArbLattice::lookupLocalGhostIndex(ArbLatticeConnectivity::Index gid) const {
     const unsigned local_sz = connect.getLocalSize();
-    return local_sz + static_cast<unsigned>(std::distance(ghost_nodes.begin(), std::lower_bound(ghost_nodes.begin(), ghost_nodes.end(), gid)));
+    const auto it = std::lower_bound(ghost_nodes.begin(), ghost_nodes.end(), gid);
+    assert(it != ghost_nodes.end());
+    assert(*it == gid);
+    return local_sz + static_cast<unsigned>(std::distance(ghost_nodes.begin(), it));
 }
 
 std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
@@ -495,6 +500,13 @@ void ArbLattice::initCommManager() {
     comm_manager.send_buf_host = std::pmr::vector<storage_t>(send_buf_size, &global_pinned_resource);
     comm_manager.send_buf_device = cudaMakeUnique<storage_t>(send_buf_size);
     comm_manager.pack_inds = cudaMakeUnique<size_t>(send_buf_size);
+    int rank = mpitools::MPI_Rank(comm);
+    for (const auto& [id, nfs] : needed_fields) {
+        for (const auto& nf : nfs) {
+            const auto& [ el, fl ] = nf;
+            printf("%d needs %ld %ld from %d\n", rank, el, fl, id);
+        }
+    }
 
     std::map<int, std::vector<NodeFieldP>> requested_fields;
     for (const auto& [id, sz] : comm_manager.out_nbrs) {
@@ -528,6 +540,40 @@ void ArbLattice::initCommManager() {
     assert(pack_ind_iter == pack_inds_host.end());
     CudaMemcpyAsync(comm_manager.pack_inds.get(), pack_inds_host.data(), pack_inds_host.size() * sizeof(size_t), CudaMemcpyHostToDevice, inStream);
     CudaStreamSynchronize(inStream);
+
+    if (true) {
+        std::string filename = formatAsString("tmp_%02d.vtu", rank);
+        const auto& [num_cells, num_points, coords, verts] = getVTUGeom();
+        VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, true, false);
+        {
+            std::vector< size_t > tab1(getLocalSize());
+            std::vector< int >    tab2(getLocalSize());
+            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+                auto i = local_permutation.at(node);
+                tab1[i] = node + connect.chunk_begin;
+                tab2[i] = rank;
+            }
+            vtu_file.writeField("globalId",     tab1.data());
+            vtu_file.writeField("globalIdRank", tab2.data());
+        }
+        {
+            std::vector< size_t > tab1(getLocalSize()*Q);
+            std::vector< int >    tab2(getLocalSize()*Q);
+            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+                auto i = local_permutation.at(node);
+                for (size_t q = 0; q != Q; ++q) {
+                    const auto nbr = connect.neighbor(q, node);
+                    tab1[i * Q + q] = nbr;
+                    const int owner = std::distance(global_node_dist.cbegin(), std::upper_bound(global_node_dist.cbegin(), global_node_dist.cend(), nbr)) - 1;
+                    tab2[i * Q + q] = owner;
+                }
+            }
+            vtu_file.writeField("neighbour",     tab1.data(), Q);
+            vtu_file.writeField("neighbourRank", tab2.data(), Q);
+        }
+        vtu_file.writeFooters();
+    }
+
 }
 
 void ArbLattice::communicateBorder() {
