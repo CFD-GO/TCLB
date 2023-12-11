@@ -19,6 +19,13 @@ struct ArbLatticeContainer {
     const flag_t* node_types;
     unsigned nbrs_pitch, coords_pitch, snaps_pitch, num_border_nodes, num_interior_nodes;
 
+    // Packing/unpacking on device
+    storage_t* pack_buf;
+    const storage_t* unpack_buf;
+    const size_t* pack_inds;
+    const size_t* unpack_inds;
+    unsigned int pack_sz, unpack_sz;
+
     // Utilities to facilitate the dynamic lookup of the offset direction index
     int dynamic_offset_lookup_table[Model_m::stencil_box_sz];
     OffsetDir stencil_offset, stencil_size;

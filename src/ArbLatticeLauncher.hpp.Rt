@@ -44,6 +44,32 @@ void ArbLatticeLauncher::RunInterior(CudaStream_t stream, const LatticeData& dat
     LaunchExecutorAsync(executor, stream);
 }
 
+struct ArbLatticePacker : public LinearExecutor {
+    const storage_t* src;
+    storage_t*       dest;
+    const size_t*    src_inds;
+    const size_t*    dest_inds;
+
+    CudaDeviceFunction void Execute() const {
+        const int i = threadID(CudaThread, CudaBlock, CudaNumberOfThreads);
+        if(inRange(i)) {
+            const size_t si = src_inds ? src_inds[i] : i;
+            const size_t di = dest_inds ? dest_inds[i] : i;
+            dest[di] = src[si];
+        }
+    }
+};
+
+void ArbLatticeLauncher::pack(CudaStream_t stream) const {
+    const ArbLatticePacker executor{{container.pack_sz}, container.snap_out, container.pack_buf, container.pack_inds, nullptr};
+    LaunchExecutorAsync(executor, stream);
+}
+
+void ArbLatticeLauncher::unpack(CudaStream_t stream) const {
+    const ArbLatticePacker executor{{container.unpack_sz}, container.unpack_buf, container.snap_out, nullptr, container.unpack_inds};
+    LaunchExecutorAsync(executor, stream);
+}
+
 void ArbLatticeLauncher::getQuantity(int quant, real_t* host_tab, real_t scale, const LatticeData& data) const {
     const size_t num_nodes = container.num_border_nodes + container.num_interior_nodes;
 	switch(quant) {	<?R

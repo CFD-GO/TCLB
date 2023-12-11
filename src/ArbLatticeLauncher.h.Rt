@@ -17,6 +17,9 @@ struct ArbLatticeLauncher {
     template <eOperationType I, eCalculateGlobals G, eStage S>
     void RunInterior(CudaStream_t stream, const LatticeData& data) const;
 
+    void pack(CudaStream_t stream) const;
+    void unpack(CudaStream_t stream) const;
+
     void getQuantity(int quant, real_t* host_tab, real_t scale, const LatticeData& data) const;
 
 private:

@@ -270,8 +270,8 @@
     #define CudaDeviceSynchronize()
     #define CudaDeviceSynchronize()
 
-    #define CudaStream_t int
-    #define CudaStreamCreate(a__)
+    #define CudaStream_t long unsigned int
+    #define CudaStreamCreate(a__) *a__ = 0
     #define CudaStreamSynchronize(a__)
 
     #define CudaDeviceSynchronize()
