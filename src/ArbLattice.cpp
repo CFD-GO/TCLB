@@ -239,8 +239,9 @@ void ArbLattice::computeGhostNodes() {
 }
 
 void ArbLattice::computeLocalPermutation() {
-    local_permutation.resize(connect.getLocalSize());
-    std::iota(local_permutation.begin(), local_permutation.end(), 0);
+    std::vector< size_t > lids; // globalIdx - chunk_begin of elements
+    lids.resize(connect.getLocalSize());
+    std::iota(lids.begin(), lids.end(), 0);
     const auto is_border_node = [&](int lid) {
         for (size_t q = 0; q != Q; ++q) {
             const auto nbr = connect.neighbor(q, lid);
@@ -248,14 +249,20 @@ void ArbLattice::computeLocalPermutation() {
         }
         return false;
     };
-    const auto interior_begin = std::stable_partition(local_permutation.begin(), local_permutation.end(), is_border_node);
-    sizes.border_nodes = static_cast<size_t>(std::distance(local_permutation.begin(), interior_begin));
+    const auto interior_begin = std::stable_partition(lids.begin(), lids.end(), is_border_node);
+    sizes.border_nodes = static_cast<size_t>(std::distance(lids.begin(), interior_begin));
     const auto by_zyx = [&](int lid1, int lid2) {  // Sort by z, then y, then x -> this should help with coalesced memory access
         const auto get_zyx = [&](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
         return get_zyx(lid1) < get_zyx(lid2);
     };
-    std::sort(local_permutation.begin(), interior_begin, by_zyx);
-    std::sort(interior_begin, local_permutation.end(), by_zyx);
+    std::sort(lids.begin(), interior_begin, by_zyx);
+    std::sort(interior_begin, lids.end(), by_zyx);
+    local_permutation.resize(connect.getLocalSize());
+    size_t i = 0;
+    for (const auto& lid : lids) {
+        local_permutation[lid] = i;
+        i++;
+    }
 }
 
 void ArbLattice::allocDeviceMemory() {
