@@ -27,6 +27,9 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
 #endif
     initialized_from = arb_node;
+    const auto debug_attr = arb_node.attribute("debug");
+    if (debug_attr) debug_name = debug_attr.value();
+
     const auto name_attr = arb_node.attribute("file");
     if (!name_attr) throw std::runtime_error{"The ArbitraryLattice node lacks the \"file\" attribute"};
     const std::string cxn_path = name_attr.value();
@@ -37,6 +40,32 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     computeGhostNodes();
     computeLocalPermutation();
     allocDeviceMemory();
+    if (debug_name.size() != 0) {
+        const int rank = mpitools::MPI_Rank(comm);
+        std::string filename;
+        size_t i;
+        FILE* f;
+        
+        filename = formatAsString("%s_P%02d_loc_perm.csv", debug_name, rank);
+        f = fopen(filename.c_str(),"w");
+        fprintf(f,"rank,globalIdx,idx\n");
+        i = connect.chunk_begin;
+        for (const auto& idx : local_permutation) {
+            fprintf(f, "%d,%ld,%d\n", rank, i, idx);
+            i++;
+        }
+        assert(i == connect.chunk_end);
+        i = getLocalSize();
+        for (const auto& gidx : ghost_nodes) {
+            fprintf(f, "%d,%ld,%ld\n", rank, gidx, i);
+            i++;
+        }
+        fprintf(f, "%d,%ld,%ld\n", rank, (long int) -1, i);
+        i++;
+        printf("i:%ld snaps_pitch: %ld\n", i, sizes.snaps_pitch); fflush(stdout);
+        assert(i <= sizes.snaps_pitch);
+        fclose(f);
+    }
     initDeviceData(arb_node, setting_zones);
     local_bounding_box = getLocalBoundingBox();
     vtu_geom = makeVTUGeom();
@@ -453,7 +482,8 @@ void ArbLattice::getQuantity(int quant, real_t* host_tab, real_t scale) {
 
 void ArbLattice::initCommManager() {
     if (mpitools::MPI_Size(comm) == 1) return;
-    const auto& field_table = Model_m::field_streaming_table;
+    int rank = mpitools::MPI_Rank(comm);
+     const auto& field_table = Model_m::field_streaming_table;
     using NodeFieldP = std::array<size_t, 2>;              // Node + field index. We can be a bit wasteful with storing both as 64b, since the number of border nodes is relatively small
     std::map<int, std::vector<NodeFieldP>> needed_fields;  // in_nbrs to required N-F pairs, **we need it to be sorted**
     for (size_t node = 0; node != connect.getLocalSize(); ++node) {
@@ -495,19 +525,12 @@ void ArbLattice::initCommManager() {
     for (auto sz : comm_sizes) {
         if (sz != 0) comm_manager.out_nbrs.emplace_back(out_id, sz);
         ++out_id;
-    } 
+    }
     size_t send_buf_size = std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
     comm_manager.send_buf_host = std::pmr::vector<storage_t>(send_buf_size, &global_pinned_resource);
     comm_manager.send_buf_device = cudaMakeUnique<storage_t>(send_buf_size);
     comm_manager.pack_inds = cudaMakeUnique<size_t>(send_buf_size);
-    int rank = mpitools::MPI_Rank(comm);
-    for (const auto& [id, nfs] : needed_fields) {
-        for (const auto& nf : nfs) {
-            const auto& [ el, fl ] = nf;
-            printf("%d needs %ld %ld from %d\n", rank, el, fl, id);
-        }
-    }
-
+ 
     std::map<int, std::vector<NodeFieldP>> requested_fields;
     for (const auto& [id, sz] : comm_manager.out_nbrs) {
         auto& rf = requested_fields[id];
@@ -534,6 +557,7 @@ void ArbLattice::initCommManager() {
             assert(node >= connect.chunk_begin);
             assert(node < connect.chunk_end);
             const auto lid = local_permutation.at(node - connect.chunk_begin);
+            assert(lid < sizes.border_nodes);
             return lid + field * sizes.snaps_pitch;
         });
     }
@@ -541,8 +565,41 @@ void ArbLattice::initCommManager() {
     CudaMemcpyAsync(comm_manager.pack_inds.get(), pack_inds_host.data(), pack_inds_host.size() * sizeof(size_t), CudaMemcpyHostToDevice, inStream);
     CudaStreamSynchronize(inStream);
 
-    if (true) {
-        std::string filename = formatAsString("tmp_%02d.vtu", rank);
+    if (debug_name.size() != 0) {
+        printf("rank %d snaps_pitch %ld\n", rank, sizes.snaps_pitch);
+        std::string filename;
+        size_t i;
+        FILE* f;
+        filename = formatAsString("%s_P%02d_pack.csv", debug_name, rank);
+        f = fopen(filename.c_str(),"w");
+        fprintf(f,"rank,id,globalIdx,field,idx\n");
+        i = 0;
+        for (const auto& [id, nfps] : requested_fields) {
+            for (const auto& [node, field] : nfps) {
+                assert(i < pack_inds_host.size());
+                const auto& idx = pack_inds_host[i];
+                fprintf(f, "%d,%d,%ld,%ld,%ld\n", rank, id, node, field, idx);
+                i++;
+            }
+        }
+        assert(i == pack_inds_host.size());
+        fclose(f);
+        filename = formatAsString("%s_P%02d_unpack.csv", debug_name, rank);
+        f = fopen(filename.c_str(),"w");
+        fprintf(f,"rank,id,globalIdx,field,idx\n");
+        i = 0;
+        for (const auto& [id, nfps] : needed_fields) {
+            for (const auto& [node, field] : nfps) {
+                assert(i < unpack_inds_host.size());
+                const auto& idx = unpack_inds_host[i];
+                fprintf(f, "%d,%d,%ld,%ld,%ld\n", rank, id, node, field, idx);
+                i++;
+            }
+        }
+        assert(i == unpack_inds_host.size());
+        fclose(f);
+
+        filename = formatAsString("%s_P%02d.vtu", debug_name, rank);
         const auto& [num_cells, num_points, coords, verts] = getVTUGeom();
         VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, true, false);
         {

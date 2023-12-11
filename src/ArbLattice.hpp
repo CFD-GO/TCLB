@@ -67,7 +67,7 @@ class ArbLattice : public LatticeBase {
     CudaUniquePtr<flag_t> node_types_device;                /// Device allocation of node type array: (B + I)
     std::pmr::vector<flag_t> node_types_host;               /// Host (pinned) allocation of node type array: (B + I)
     pugi::xml_node initialized_from;                        /// XML node from which this node was initialized - avoid reinitialization if called multiple times with the same arguments
-
+    std::string debug_name;                                 /// Prefix of debug files. Debug files are dumped if debug_name != ""
    public:
     static constexpr size_t Q = Model_m::Q;    /// Stencil size
     static constexpr size_t NF = Model_m::NF;  /// Number of fields
