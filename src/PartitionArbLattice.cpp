@@ -37,10 +37,13 @@ struct ParmetisGraph {
 
 static auto toParmetisFormat(const ArbLatticeConnectivity& connectivity, const std::vector<size_t>& dir_wgts, size_t comm_size) -> ParmetisGraph {
     auto row_sizes = std::vector<idx_t>(connectivity.getLocalSize(), connectivity.Q);
-    for (size_t i = 0, node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
-        for (size_t nbr_ind = 0; nbr_ind != connectivity.Q; ++nbr_ind)
-            if (connectivity.neighbor(nbr_ind, i) == -1 || static_cast<size_t>(connectivity.neighbor(nbr_ind, i)) == node) --row_sizes[i];
-        ++i;
+    for (size_t node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
+        size_t i = node - connectivity.chunk_begin;
+        for (size_t q = 0; q != connectivity.Q; ++q) {
+            auto nbr = connectivity.neighbor(q, i);
+            if (nbr == -1 || static_cast<size_t>(nbr) == node) --row_sizes[i];
+        }
+            
     }
     const auto row_sz_span = Span(row_sizes.cbegin(), row_sizes.cend());
     auto parmetis_graph = CrsGraph(row_sz_span);
@@ -50,26 +53,30 @@ static auto toParmetisFormat(const ArbLatticeConnectivity& connectivity, const s
     if (!edge_wgts_eq) edge_wgts.reserve(parmetis_graph.numEntries());
     std::vector<size_t> ind_tab(connectivity.Q);
     std::vector<idx_t> temp(connectivity.Q);
-    for (size_t local_node_ind = 0, node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
+    for (size_t  node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
+        size_t local_node_ind = node - connectivity.chunk_begin;
         auto graph_row = parmetis_graph.getRow(static_cast<idx_t>(local_node_ind));
-        for (size_t i = 0, nbr_ind = 0; nbr_ind != connectivity.Q; ++nbr_ind) {
+        size_t i = 0;
+        for (size_t nbr_ind = 0; nbr_ind != connectivity.Q; ++nbr_ind) {
             const auto nbr = connectivity.neighbor(nbr_ind, local_node_ind);
             if (nbr != -1 && static_cast<size_t>(nbr) != node) {
-                graph_row[i++] = static_cast<idx_t>(nbr);
+                graph_row[i] = static_cast<idx_t>(nbr);
+                i++;
                 if (!edge_wgts_eq) edge_wgts.push_back(static_cast<idx_t>(dir_wgts[nbr_ind]));
             }
         }
-        if (edge_wgts_eq) std::sort(graph_row.begin(), graph_row.end());
-        else {  // We need to permute the edge targets (i.e. nodes on the other side of the edge) and edge weights together
-            const auto node_inds = Span(ind_tab.data(), graph_row.size());
-            std::iota(node_inds.begin(), node_inds.end(), 0);
-            std::sort(node_inds.begin(), node_inds.end(), [&](size_t i1, size_t i2) { return graph_row[i1] < graph_row[i2]; });
-            std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return graph_row[i]; });
-            std::copy_n(temp.begin(), graph_row.size(), graph_row.begin());
-            auto this_nodes_edge_wgts_begin = std::prev(edge_wgts.end(), graph_row.size());
-            std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return this_nodes_edge_wgts_begin[i]; });
-            std::copy_n(temp.begin(), graph_row.size(), this_nodes_edge_wgts_begin);
-        }
+        assert(i == graph_row.size());
+        // if (edge_wgts_eq) std::sort(graph_row.begin(), graph_row.end());
+        // else {  // We need to permute the edge targets (i.e. nodes on the other side of the edge) and edge weights together
+        //     const auto node_inds = Span(ind_tab.data(), graph_row.size());
+        //     std::iota(node_inds.begin(), node_inds.end(), 0);
+        //     std::sort(node_inds.begin(), node_inds.end(), [&](size_t i1, size_t i2) { return graph_row[i1] < graph_row[i2]; });
+        //     std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return graph_row[i]; });
+        //     std::copy_n(temp.begin(), graph_row.size(), graph_row.begin());
+        //     auto this_nodes_edge_wgts_begin = std::prev(edge_wgts.end(), graph_row.size());
+        //     std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return this_nodes_edge_wgts_begin[i]; });
+        //     std::copy_n(temp.begin(), graph_row.size(), this_nodes_edge_wgts_begin);
+        // }
         ++local_node_ind;
     }
     return {std::move(parmetis_graph), std::move(node_wgts), std::move(edge_wgts), convertDistToParmetisInts(computeInitialNodeDist(connectivity.num_nodes_global, comm_size))};
