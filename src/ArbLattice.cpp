@@ -22,6 +22,7 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
 }
 
 void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
+    const int rank = mpitools::MPI_Rank(comm);
     sizes.snaps = num_snaps_;
 #ifdef ADJOINT
     sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
@@ -35,7 +36,13 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     const std::string cxn_path = name_attr.value();
     readFromCxn(cxn_path);
     global_node_dist = computeInitialNodeDist(connect.num_nodes_global, mpitools::MPI_Size(comm));
+    if (debug_name.size() != 0) {
+        connect.dump(formatAsString("%s_P%02d_conn_before.csv", debug_name, rank));
+    }
     partition();
+    if (debug_name.size() != 0) {
+        connect.dump(formatAsString("%s_P%02d_conn_after.csv", debug_name, rank));
+    }
     if (connect.getLocalSize() == 0) throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
     computeGhostNodes();
     computeLocalPermutation();
@@ -44,7 +51,6 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     local_bounding_box = getLocalBoundingBox();
     vtu_geom = makeVTUGeom();
     if (debug_name.size() != 0) {
-        const int rank = mpitools::MPI_Rank(comm);
         std::string filename;
         size_t i;
         FILE* f;
