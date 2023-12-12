@@ -139,27 +139,22 @@ inline void redistributeParmetisGraph(RefinementStageData& data, const std::vect
     static_assert(std::is_same_v<unsigned long, size_t>);
 
     // Count how many verts and edges we have to send and receive
-    const auto [src_sz, dest_sz] = std::invoke([&] {
-        std::vector<unsigned> src_size(comm_size * 2), dest_size(comm_size * 2);  // Number of vertices + sum of their degrees
-        idx_t i = 0;
-        for (auto dest : part) {
-            ++dest_size[dest * 2];
-            dest_size[dest * 2 + 1] += static_cast<unsigned>(graph.getRow(i++).size());
-        }
-        MPI_Alltoall(dest_size.data(), 2, MPI_UNSIGNED, src_size.data(), 2, MPI_UNSIGNED, comm);  // This has to be blocking, everything else depends on the result
-        return std::array{std::move(src_size), std::move(dest_size)};
-    });
+    std::vector<unsigned> src_sz(comm_size * 2), dest_sz(comm_size * 2);  // Number of vertices + sum of their degrees
+    for (idx_t i = 0; i<part.size(); i++) {
+        auto dest = part[i];
+        dest_sz[dest * 2] += 1;
+        dest_sz[dest * 2 + 1] += static_cast<unsigned>(graph.getRow(i).size());
+    }
+    MPI_Alltoall(dest_sz.data(), 2, MPI_UNSIGNED, src_sz.data(), 2, MPI_UNSIGNED, comm);  // This has to be blocking, everything else depends on the result
     constexpr auto count_nnz_verts = [](const std::vector<unsigned>& v) {
         size_t retval = 0;
         for (size_t i = 0; i < v.size(); i += 2) retval += (v[i] > 0);  // count only even inds, i.e. vertex counts
         return retval;
     };
-    const auto n_in_nbrs = count_nnz_verts(src_sz);
-    const auto n_out_nbrs = count_nnz_verts(dest_sz);
 
     // Requests vector: 4 per send + 4 per recv + 1 collective
-    auto reqs = std::vector<MPI_Request>(tags.size() * (n_in_nbrs + n_out_nbrs) + 1, MPI_REQUEST_NULL);
-    auto get_req = [&reqs, req_ind = 0]() mutable { return &reqs[req_ind++]; };
+    std::vector<MPI_Request> reqs;
+    auto get_req = [&reqs, req_ind = 0]() mutable { reqs.push_back(MPI_REQUEST_NULL); return &reqs.back(); };
 
     // Store the local base vertex index so that we can start gathering the new distribution into the existing vector
     const idx_t my_base_old = vert_dist[comm_rank];
@@ -434,19 +429,26 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
     auto connectivity_new = ArbLatticeConnectivity(vert_dist[comm_rank], vert_dist[comm_rank + 1], connectivity_initial.num_nodes_global, connectivity_initial.Q);
     connectivity_new.grid_size = connectivity_initial.grid_size;
     std::vector<size_t> rank_inds(comm_size), rank_zone_inds(comm_size);
-    const auto unpack_data = [&](idx_t lid, int og_owner) {
+    const auto unpack_data = [&](idx_t lid, int og_gid) {
+        const auto og_owner = compute_original_rank(og_gid);
         const auto& [coords, nbr_bmp, zone_sz, zones] = in_data_map.at(og_owner);
         const size_t i_node = rank_inds[og_owner]++;
         for (size_t dim = 0; dim != 3; ++dim) connectivity_new.coord(dim, lid) = coords[dim + i_node * 3];
+        connectivity_new.og_index[lid] = og_gid;
         const auto edges = graph.getRow(lid);
         const auto gid = vert_dist[comm_rank] + lid;
-        for (int qi = 0, active_ind = 0; qi != connectivity_initial.Q; ++qi) {
-            if (qi == self_edge_ind) connectivity_new.neighbor(qi, lid) = gid;
-            else if (!nbr_bmp[qi + i_node * connectivity_initial.Q])
+        int active_ind = 0;
+        for (int qi = 0; qi != connectivity_initial.Q; ++qi) {
+            if (qi == self_edge_ind) {
+                connectivity_new.neighbor(qi, lid) = gid;
+            } else if (!nbr_bmp[qi + i_node * connectivity_initial.Q]) {
                 connectivity_new.neighbor(qi, lid) = -1;
-            else
-                connectivity_new.neighbor(qi, lid) = edges[active_ind++];
+            } else {
+                connectivity_new.neighbor(qi, lid) = edges[active_ind];
+                active_ind++;
+            }
         }
+        assert(active_ind == edges.size());
         auto& zs = connectivity_new.zones_per_node[lid];
         zs = zone_sz[i_node];
         size_t& i_zone = rank_zone_inds[og_owner];
@@ -455,8 +457,7 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
     };
     idx_t lid = 0;
     for (auto og_gid : og_ids) {
-        const auto og_owner = compute_original_rank(og_gid);
-        unpack_data(lid++, og_owner);
+        unpack_data(lid++, og_gid);
     }
     return std::make_pair(std::move(connectivity_new), convertDistFromParmetisInts(vert_dist));
 }
