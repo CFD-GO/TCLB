@@ -4,22 +4,25 @@
 #  * This should be removed if the issue is fixed
 SetOptions(permissive.access=TRUE)  ### WARNING
 
-
 # Density - table of variables of LB Node to stream
 #	Velocity-based Evolution d3q27:
 source("lattice.R")
 
+# Densities for initialising with rinside
 AddDensity(name="Init_UX_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_UY_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_UZ_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_PhaseField_External", group="init", dx=0,dy=0,dz=0, parameter=TRUE)
 
+# macroscopic params
+# - consider migrating to fields
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="U", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="V", dx=0, dy=0, dz=0, group="Vel")
 AddDensity(name="W", dx=0, dy=0, dz=0, group="Vel")
 
 # normal direction
+# - consider migrating to fields
 AddDensity(name="nw_x", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_y", dx=0, dy=0, dz=0, group="nw")
 AddDensity(name="nw_z", dx=0, dy=0, dz=0, group="nw")
@@ -56,7 +59,6 @@ if (Options$staircaseimp) {
     extra_load_phase = c(extra_load_phase, "nw_actual")
     extra_fields_to_load_for_bc = c("nw_actual", "st_interpolation")
 }
-
 
 AddDensity("IsSpecialBoundaryPoint", dx=0, dy=0, dz=0, group="solid_boundary")
 AddQuantity("SpecialBoundaryPoint", unit = 1)
