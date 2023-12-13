@@ -27,6 +27,8 @@ class cbRunR : public  Callback  {
     bool interactive;
     bool echo;
     bool python;
+    static int s_tag;
+    int tag;
 public:
     int Init ();
     int DoIt ();

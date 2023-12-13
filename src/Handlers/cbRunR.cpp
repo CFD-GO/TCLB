@@ -737,9 +737,16 @@ int cbRunR::Init() {
 	attr = node.attribute("echo");
 	if (attr) echo = attr.as_bool();
 
+	s_tag++;
+	tag = s_tag;
+	
 	source = "";
-        for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+    for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 		if (par.type() == pugi::node_element) {
+			if (python) {
+				ERROR("Code-embedded xml nodes not supported for python");
+				return -1;
+			}
 			char nd_name[20];
 			sprintf(nd_name, "xml_%0zx", par.hash_value());
 			R[nd_name] = RunR::wrap_handler(solver,this,par);
@@ -756,20 +763,20 @@ int cbRunR::Init() {
 			output("Unknown\n");
 		}
 	}
-	
+	if (echo) {
+		output("-----[ %9s code %03d ]-----\n", node.name(), tag);
+		output("%s\n",source.c_str());
+		output("--------------------------------\n");
+	}
 	return 0;
 }
 
+int cbRunR::s_tag = 0;
 
 int cbRunR::DoIt() {
 	try {
 		if (source != "") {
-			solver->print("Running R ...");
-			if (echo) {
-				output("----- RunR -----\n");
-				output("%s\n",source.c_str());
-				output("----------------\n");
-			}
+			output("%8d it Executing %s code %03d\n", solver->iter, node.name(), tag);
 			if (python) {
 				RunPython::parseEval(source);
 			} else {
@@ -777,7 +784,7 @@ int cbRunR::DoIt() {
 			}
 		}
 		if (!interactive) {
-			if (echo) NOTICE("You can run interactive R session with Ctrl+X");
+			if (echo) NOTICE("You can run interactive %s session with Ctrl+X", node.name());
 			int c = kbhit();
 			if (c == 24) {
 				int a = getchar();
