@@ -147,7 +147,7 @@ inline void redistributeParmetisGraph(RefinementStageData& data, const std::vect
 
     // Count how many verts and edges we have to send and receive
     std::vector<unsigned> src_sz(comm_size * 2), dest_sz(comm_size * 2);  // Number of vertices + sum of their degrees
-    for (idx_t i = 0; i<part.size(); i++) {
+    for (size_t i = 0; i<part.size(); i++) {
         auto dest = part[i];
         dest_sz[dest * 2] += 1;
         dest_sz[dest * 2 + 1] += static_cast<unsigned>(graph.getRow(i).size());
@@ -317,7 +317,7 @@ inline auto invokeParmetisRepartitioner(const ParmetisGraph& dist_graph, MPI_Com
     return retval;
 }
 
-auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, const RefinementStageData& refine_data_final, MPI_Comm comm, int self_edge_ind = -1) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
+auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, const RefinementStageData& refine_data_final, MPI_Comm comm, size_t self_edge_ind = -1) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
     int comm_rank{}, comm_size{};
     MPI_Comm_rank(comm, &comm_rank);
     MPI_Comm_size(comm, &comm_size);
@@ -444,8 +444,8 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
         connectivity_new.og_index[lid] = og_gid;
         const auto edges = graph.getRow(lid);
         const auto gid = vert_dist[comm_rank] + lid;
-        int active_ind = 0;
-        for (int qi = 0; qi != connectivity_initial.Q; ++qi) {
+        size_t active_ind = 0;
+        for (size_t qi = 0; qi != connectivity_initial.Q; ++qi) {
             if (qi == self_edge_ind) {
                 connectivity_new.neighbor(qi, lid) = gid;
             } else if (!nbr_bmp[qi + i_node * connectivity_initial.Q]) {
@@ -479,7 +479,7 @@ inline auto getDefaultStopCriterion() {
 }
 
 template <typename StopCrit = decltype(getDefaultStopCriterion())>
-auto partitionLattice(const ArbLatticeConnectivity& connectivity, const std::vector<size_t>& dir_wgts, MPI_Comm comm, int self_edge_ind, std::vector<PartOutput::LoggedEvent>& log, StopCrit&& stop_criterion = getDefaultStopCriterion()) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
+auto partitionLattice(const ArbLatticeConnectivity& connectivity, const std::vector<size_t>& dir_wgts, MPI_Comm comm, size_t self_edge_ind, std::vector<PartOutput::LoggedEvent>& log, StopCrit&& stop_criterion = getDefaultStopCriterion()) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
     int comm_rank{}, comm_size{};
     MPI_Comm_rank(comm, &comm_rank);
     MPI_Comm_size(comm, &comm_size);
@@ -511,7 +511,7 @@ auto partitionLattice(const ArbLatticeConnectivity& connectivity, const std::vec
 }
 }  // namespace detail
 
-PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, int self_edge_ind, MPI_Comm comm) {
+PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, size_t self_edge_ind, MPI_Comm comm) {
     PartOutput retval;
     try {
         auto [connect_new, dist_new] = detail::partitionLattice(lattice, dir_wgts, comm, self_edge_ind, retval.event_log);
@@ -524,7 +524,7 @@ PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vecto
 
 #else
 
-PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, int self_edge_ind, MPI_Comm comm) {
+PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, size_t self_edge_ind, MPI_Comm comm) {
     int comm_size;
     MPI_Comm_size(comm, &comm_size);
     PartOutput retval;

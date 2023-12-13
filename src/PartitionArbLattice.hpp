@@ -25,6 +25,6 @@ struct PartOutput {
 /// \param dir_wgts offset direction weights (length must be equal to lattice.Q
 /// \param self_edge_ind index of the offset direction (0,0,0). If (0,0,0) is not an offset direction, self_edge_ind should be set to any value outside the interval [0, Q)
 /// \return distribution (in the ParMETIS sense) of nodes among the processes of comm
-PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, int self_edge_ind, MPI_Comm comm);
+PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, size_t self_edge_ind, MPI_Comm comm);
 
 #endif  // PARTITIONARBLATTICE_HPP
