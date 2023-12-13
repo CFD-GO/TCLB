@@ -6,10 +6,12 @@
 //     CROSS_HIP - cross-compilation for AMD ROCm (HIP)
 //   additionals:
 //     CROSS_SYNC - make all call synchronious
-#include "../config.h"
+
 
 #ifndef CROSS_H
-  #define CROSS_H
+#define CROSS_H
+
+#include "../config.h"
 
   #ifndef CROSS_CPU
     #ifndef __CUDACC__
@@ -93,6 +95,7 @@
     #endif
     #define CudaMemset(a__,b__,c__) HANDLE_ERROR( cudaMemset(a__, b__, c__) )
     #define CudaMalloc(a__,b__) HANDLE_ERROR( cudaMalloc(a__,b__) )
+    #define CudaMallocPitch(a__, b__, c__, d__) HANDLE_ERROR( cudaMallocPitch(a__, b__, c__, d__) )
     #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
     #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( cudaMallocHost(a__,b__) )
@@ -144,6 +147,7 @@
     #endif
     #define CudaMemset(a__,b__,c__) HANDLE_ERROR( hipMemset(a__, b__, c__) )
     #define CudaMalloc(a__,b__) HANDLE_ERROR( hipMalloc(a__,b__) )
+    #define CudaMallocPitch(a__, b__, c__, d__) HANDLE_ERROR( hipMallocPitch(a__, b__, c__, d__) )
     #define CudaPreAlloc(a__,b__) HANDLE_ERROR( cudaPreAlloc(a__,b__) )
     #define CudaAllocFinalize() HANDLE_ERROR( cudaAllocFinalize() )
     #define CudaMallocHost(a__,b__) HANDLE_ERROR( hipHostMalloc(a__,b__) )
@@ -184,11 +188,12 @@
     #define ISFINITE(l__) isfinite(l__)
 
   #else
-    #include <assert.h>
-    #include <time.h>
+    #include <cassert>
+    #include <ctime>
     #include <cstdlib>
     #include <cstring>
-    #include <math.h>
+    #include <cmath>
+    #include <utility>
     #ifdef CROSS_OPENMP
       #include <omp.h>
     #endif
@@ -200,11 +205,11 @@
     struct double3 { double x,y,z; };
     struct uint3 { unsigned int x,y,z; };
     struct dim3 {
-      unsigned int x,y,z;
-      inline dim3(int x_, int y_, int z_):x(x_),y(y_),z(z_) {};
-      inline dim3(int x_, int y_):x(x_),y(y_),z(1) {};
-      inline dim3(int x_):x(x_),y(1),z(1) {};
-      inline dim3():x(1),y(1),z(1) {};
+      unsigned int x = 1, y = 1, z = 1;
+      constexpr dim3(int x_, int y_, int z_) : x(x_), y(y_), z(z_) {}
+      constexpr dim3(int x_, int y_) : x(x_), y(y_) {}
+      constexpr dim3(int x_) : x(x_) {}
+      constexpr dim3() = default;
     };
     struct uchar4 { unsigned char x,y,z,w; };
 
@@ -248,8 +253,9 @@
     #define CudaMemcpy(a__,b__,c__,d__) memcpy(a__, b__, c__)
     #define CudaMemcpyAsync(a__,b__,c__,d__,e__) CudaMemcpy(a__, b__, c__, d__)
     #define CudaMemset(a__,b__,c__) memset(a__, b__, c__)
-    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
-    #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
+    #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) )
+    #define CudaMallocPitch(a__, b__, c__, d__) assert( ((*b__ = c__), *((void**)(a__)) = malloc(c__ * d__)) )
+    #define CudaMallocHost(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) )
     #define CudaFree(a__) free(a__)
     #define CudaFreeHost(a__) free(a__)
 
@@ -264,8 +270,8 @@
     #define CudaDeviceSynchronize()
     #define CudaDeviceSynchronize()
 
-    #define CudaStream_t int
-    #define CudaStreamCreate(a__)
+    #define CudaStream_t long unsigned int
+    #define CudaStreamCreate(a__) *a__ = 0
     #define CudaStreamSynchronize(a__)
 
     #define CudaDeviceSynchronize()
@@ -282,7 +288,6 @@
     extern uint3 CpuThread;
     extern uint3 CpuSize;
 
-    #include <utility>
     template <typename F, typename ...P>
     inline void CPUKernelRun(F &&func, const dim3& blocks, P &&... args) {
       #pragma omp parallel for collapse(3) schedule(static)

@@ -14,13 +14,13 @@ int acGeometry::Init () {
 		attr = node.attribute("pz");
 		if (attr) { pz = solver->units.alt(attr.value()); write_pos = true; }
 		if (write_pos) lattice->setPosition(px,py,pz);
-			if (lattice->geometry->load(node)) {
+			if (lattice->geometry->load(node, solver->setting_zones)) {
 				error("Error while loading geometry\n");
 				return -1;
 			}
 			lattice->FlagOverwrite(lattice->geometry->geom,lattice->geometry->region);
 			lattice->CutsOverwrite(lattice->geometry->Q,lattice->geometry->region);
-			lattice->zSet.zone_max(lattice->geometry->SettingZones.size()-1);
+			lattice->zSet.zone_max(solver->setting_zones.size() - 1);
 			return 0;
 	}
 

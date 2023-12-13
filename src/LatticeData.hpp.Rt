@@ -90,17 +90,17 @@ struct LatticeData {
         ST.setsize(0, ST_GPU);
     }
 
-      <?R for (v in rows(Globals)) { ?>
-/// Get [<?%s v$comment ?>] from GPU memory
-        inline real_t get<?%s v$name ?>(){
-                real_t ret;
-                CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
-                return ret;
-        }
-  <?R } ?>
-/// Get all the globals from GPU memory
-	inline void getGlobals(real_t * tab) {
-                CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
+<?R for (v in rows(Globals)) { ?>
+    /// Get [<?%s v$comment ?>] from GPU memory
+    real_t get<?%s v$name ?>(){
+        real_t ret;
+        CudaMemcpy(&ret, &Globals[<?%s v$Index ?>],sizeof(real_t),CudaMemcpyDeviceToHost);
+        return ret;
+    }
+<?R } ?>
+    /// Get all the globals from GPU memory
+	void getGlobals(real_t * tab) {
+        CudaMemcpy(tab, Globals, GLOBALS * sizeof(real_t), CudaMemcpyDeviceToHost);
 	}
 };
 

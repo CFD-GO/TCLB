@@ -10,17 +10,19 @@
 #include "Global.h"
 #include <mpi.h>
 #include "cross.h"
-#include "Lattice.h"
+#include "CartLattice.h"
+#include "ArbLattice.hpp"
 #include "utils.h"
 #include "unit.h"
 #include "Handlers.h"
+#include "Lattice.hpp"
 
-#include <fstream>
-#include <iostream>
-#include <vector>
-#include <iomanip>
 #include <cassert>
-#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <variant>
+#include <vector>
 
 /// Main solver class
 /**
@@ -37,10 +39,12 @@ public:
 	std::vector<Handler> hands; ///< Stack of handlers
 	int steps = 1; ///< steps to the next monitor-callback
 	int saveN = 0, saveI = 0; ///< No idea what it is TODO
+	int num_snaps = 2; ///< Number of snaps, this is passed down to the lattice member
 	pugi::xml_document configfile;
 	std::string conffile_path; ///< Path to the config file
     std::string outpath; ///< Output prefix
 	UnitEnv units; ///< Units object connected to this lattice
+	std::map<std::string, int> setting_zones = {{"DefaultZone", 0}};
 	int iter_type = ITER_NORM; ///< Iteration type (Now) - primal/adjoint/etc.
 	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
 
@@ -51,8 +55,13 @@ public:
     Solver& operator=(Solver&&) = default;
     ~Solver() = default;
 
-    int initCartLattice(int,int,int,int);
-    Lattice* getCartLattice() const;
+    int initCartLattice(int nx, int ny, int nz);
+    int initArbLattice(pugi::xml_node arb_node);
+    CartLattice* getCartLattice() const;
+    ArbLattice* getArbLattice() const;
+
+    using LatticeVariant = std::variant<Lattice<CartLattice>*, Lattice<ArbLattice>*>;
+    LatticeVariant getLatticeVariant() const;
 
     int EventLoop() const { return lattice->EventLoop(); }
 	void print(const char * str);
@@ -72,7 +81,7 @@ public:
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-    std::string outIterFile(const std::string& name, const std::string& suffix) {
+    std::string outIterFile(const std::string& name, const std::string& suffix) const {
         auto path = formatAsString("%s_%s_P%02d_%08d%s", outpath, name, mpi_rank, iter, suffix);
 		mkdir_p(path);
 		return path;
@@ -86,7 +95,7 @@ public:
  \param suffix Suffix (.vti, .csv, etc) of the file
  \param out Buffer for the returned file name
 */
-    std::string outGlobalFile(const std::string& name, const std::string& suffix) {
+    std::string outGlobalFile(const std::string& name, const std::string& suffix) const {
         auto path = formatAsString("%s_%s_P%02d%s", outpath, name, mpi_rank, suffix);
         mkdir_p(path);
         return path;

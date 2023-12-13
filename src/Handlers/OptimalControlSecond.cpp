@@ -9,7 +9,6 @@ int OptimalControlSecond::Init () {
 		par_index = -10;
 		Pars = -1;
 		pugi::xml_attribute attr = node.attribute("what");
-                const auto lattice = solver->getCartLattice();
 		if (attr) {
 	                par = attr.value();
                         size_t i = par.find_first_of('-');
@@ -19,9 +18,10 @@ int OptimalControlSecond::Init () {
                         } else {
                                 zone = par.substr(i+1);
                                 par = par.substr(0,i);
-                                if (lattice->geometry->SettingZones.count(zone) > 0) {
-                                        zone_number = lattice->geometry->SettingZones[zone];
-                                } else {
+                                const auto zone_iter = solver->setting_zones.find(zone);
+                                if (zone_iter != solver->setting_zones.end())
+                                        zone_number = zone_iter->second;
+                                else {
                                         ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
 					return -1;
                                 }

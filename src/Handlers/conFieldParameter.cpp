@@ -41,10 +41,10 @@ int conFieldParameter::Init () {
 		if (attr) {
 			std::string zone = attr.value();
 			int zone_number = -1;
-                        const auto lattice = solver->getCartLattice();
-			if (lattice->geometry->SettingZones.count(zone) > 0) {
-				zone_number = lattice->geometry->SettingZones[zone];
-			} else {
+                        const auto zone_iter = solver->setting_zones.find(zone);
+                        if (zone_iter != solver->setting_zones.end())
+                                zone_number = zone_iter->second;
+			else {
 				ERROR("Unknown zone %s in %s\n", zone.c_str(), node.name());
 				return -1;
 			}

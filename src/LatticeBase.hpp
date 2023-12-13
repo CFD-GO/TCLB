@@ -35,7 +35,7 @@ class LatticeBase {
     using setting_record_t = std::vector<std::pair<int, std::pair<int, std::pair<real_t, real_t> > > >;
 
    public:
-    LatticeBase(int zonesettings, int zones, const UnitEnv& units_);
+    LatticeBase(int zonesettings, int zones, int num_snaps_, const UnitEnv& units_);
     LatticeBase(const LatticeBase&) = delete;
     LatticeBase(LatticeBase&&) = delete;
     LatticeBase& operator=(const LatticeBase&) = delete;
@@ -60,6 +60,7 @@ class LatticeBase {
     int total_iterations = 0;                 ///< Total iteration number counter
     int segment_iterations = 0;               ///<
     int callback_iter = 1;                    ///<
+    int num_snaps;                            ///<
     solidcontainer_t SC;                      ///<
     size_t particle_data_size_max = 0;        ///<
     rfi_t RFI;                                ///<
@@ -67,12 +68,31 @@ class LatticeBase {
     std::string snapFileName;
 
    protected:
+    static constexpr int maxSnaps = 33;
+
     const UnitEnv* units;
+    std::unique_ptr<int[]> iSnaps = std::make_unique<int[]>(maxSnaps);  ///< Snapshot number (Now)
+    int Snap, aSnap = 0;                                                ///< Snapshot and Adjoint Snapshot number (Now)
+
+    virtual void initLatticeDerived() = 0;  /// Init derived lattice object when requested by handlers
+    void MarkIteration();
+    void FinalIteration();
+    void InitialIteration(int segiter);
+    int getSnap(int i) const;
+
+   private:
+    virtual int loadPrimal(const std::string& filename, int snap_ind) = 0;
+    virtual void savePrimal(const std::string& filename, int snap_ind) const = 0;
+#ifdef ADJOINT
+    virtual int loadAdj(const std::string& filename, int asnap_ind) = 0;
+    virtual void saveAdj(const std::string& filename, int asnap_ind) const = 0;
+#endif
+    virtual void clearAdjoint() = 0;
 
    public:
     virtual size_t getLocalSize() const = 0;
     virtual size_t getGlobalSize() const = 0;
-    virtual const std::map<std::string, int>& getSettingZones() const = 0;
+    void initLattice();  /// Called by handlers
 
     template <class F>
     void setCallback(F&& fun) {
@@ -96,14 +116,30 @@ class LatticeBase {
     void clearGlobals_Adj();
     double getObjective();
 
-    virtual void Iterate(int, int) = 0;
-    virtual void IterateTill(int, int) = 0;
+    void startRecord();
+    void rewindRecord();
+    void stopRecord();
+
+    void loadSolution(const std::string& filename);
+    std::string saveSolution(const std::string& filename) const;
+    virtual int saveComp(const std::string& filename, const std::string& comp) const = 0;
+    virtual int loadComp(const std::string& filename, const std::string& comp) = 0;
+
+    void Iterate(int num_iters, int iter_type);
+    void IterateTill(int it, int iter_type);
+    void IterateAction(int action, int niter, int iter_type);
     void Iterate() { IterateT(ITER_NORM); }
     void IterateG() { IterateT(ITER_GLOBS); }
     void Stream() { IterateT(ITER_STREAM); }
     void IterateT(int iter_type) { Iterate(1, iter_type); }
 
-    virtual int EventLoop() { return 0; } // Event loop does nothing by default
+    virtual void IterationPrimal(int, int, int) = 0;
+    virtual void IterationAdjoint(int, int, int, int, int) = 0;
+    virtual void IterationOptimization(int, int, int, int, int) = 0;
+    virtual void RunAction(int, int, int, int) = 0;
+    void RunAction(int action, int iter_type) { RunAction(action, Snap, (Snap + 1) % 2, iter_type); }
+
+    virtual int EventLoop() { return 0; }  // Event loop does nothing by default
 };
 
 #endif  // LATTICEBASE_HPP

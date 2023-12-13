@@ -46,7 +46,6 @@ using namespace std;
 	int Solver::initLog(const char * filename)
 	{
 		if (mpi_rank == 0) {
-		    const auto& geometry = getCartLattice()->geometry;
             FILE * f = NULL;
             debug2("Initializing %s\n",filename);
             f = fopen(filename, "wt");
@@ -57,8 +56,8 @@ using namespace std;
 	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
 		    <?R } ?>
 		    <?R for (v in ZoneSettings$name) { ?>
-		    	for (auto it = geometry->SettingZones.begin(); it != geometry->SettingZones.end(); it++) {
-	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"",it->first.c_str(), it->first.c_str());
+		    	for (const auto& [name, id] : setting_zones) {
+	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"", name.c_str(), name.c_str());
 	                }
 		    <?R } ?>
 		    <?R for (v in Globals$name) { ?>
@@ -105,11 +104,10 @@ using namespace std;
 				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 				j++;
 			}
-			const auto& geometry = getCartLattice()->geometry;
 			for (int i=0; i< ZONESETTINGS; i++) {
-			    	for (const auto& map_entry : geometry->SettingZones) {
+			    	for (const auto& [name, id] : setting_zones) {
 			    		int ind = lattice->ZoneIter;
-			    		int zone = map_entry.second;
+			    		int zone = id;
 			    		const double v = lattice->zSet.get(i, zone, ind);
 					    fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
 		            }
@@ -130,10 +128,27 @@ using namespace std;
 		return 0;
 	}
 
-Lattice* Solver::getCartLattice() const {
-    auto retval = dynamic_cast<Lattice*>(lattice.get());
+CartLattice* Solver::getCartLattice() const {
+    if(!lattice) {
+        ERROR("Accessing Cartesian lattice before initialization");
+        std::terminate();
+    }
+    auto retval = dynamic_cast<CartLattice*>(lattice.get());
     if(!retval) {
-        error("Error: Attempting to access a non-Cartesian Lattice via the Cartesian interface (likely in a handler)\nThis error is fatal\n");
+        ERROR("Attempting to access a non-Cartesian Lattice via the Cartesian interface (likely in a handler)");
+        std::terminate();
+    }
+    return retval;
+}
+
+ArbLattice* Solver::getArbLattice() const {
+    if(!lattice) {
+        ERROR("Accessing arbitrary lattice before initialization");
+        std::terminate();
+    }
+    auto retval = dynamic_cast<ArbLattice*>(lattice.get());
+    if(!retval) {
+        ERROR("Attempting to access a non-arbitrary Lattice via the Arbitrary interface (likely in a handler)");
         std::terminate();
     }
     return retval;
@@ -274,7 +289,7 @@ static CartConnectivity makeConnectivity(int nx, int ny, int nz, MPI_Comm comm) 
 	\param nz Z size of the lattice (1 for 3D)
 	\param ns Number of Snapshots allocated
 */
-int Solver::initCartLattice(int nx, int ny, int nz, int ns) {
+int Solver::initCartLattice(int nx, int ny, int nz) {
     output("Global lattice size: %dx%dx%d\n", nx, ny, nz);
     auto connect = makeConnectivity(nx, ny, nz, mpi_comm);
 
@@ -282,8 +297,40 @@ int Solver::initCartLattice(int nx, int ny, int nz, int ns) {
     output("Local lattice size: %dx%dx%d\n", local_region.nx, local_region.ny, local_region.nz);
 
     debug0("Creating Lattice object ...");
-    lattice = std::make_unique<Lattice>(std::move(connect), ns, units);
+    lattice = std::make_unique<Lattice<CartLattice>>(std::move(connect), num_snaps, units);
     debug0("Lattice done");
 
     return 0;
+}
+
+/// Initialize arbitrary lattice based on the passed xml node
+/**
+    /param arb_node ArbitraryLattice xml node
+*/
+int Solver::initArbLattice(pugi::xml_node arb_node) {
+    try {
+        debug0("Creating ArbLattice object ...");
+        lattice = std::make_unique<Lattice<ArbLattice>>(num_snaps, units, setting_zones, arb_node, mpi_comm);
+        debug0("ArbLattice done");
+        const auto sz_msg = "Global lattice size: " + std::to_string(lattice->getGlobalSize());
+        output(sz_msg.c_str());
+        return EXIT_SUCCESS;
+    } catch(const std::exception& e) {
+        ERROR(e.what());
+        return EXIT_FAILURE;
+    }
+}
+
+Solver::LatticeVariant Solver::getLatticeVariant() const {
+    if(!lattice.get()) {
+        ERROR("Lattice was requested before it was initialized");
+        std::terminate();
+    } else if (const auto cart_ptr = dynamic_cast<Lattice<CartLattice>*>(lattice.get()); cart_ptr)
+        return {cart_ptr};
+    else if (const auto arb_ptr = dynamic_cast<Lattice<ArbLattice>*>(lattice.get()); arb_ptr)
+        return {arb_ptr};
+    else {
+        ERROR("Solver owns unknown lattice type, this should not happen");
+        std::terminate();
+    }
 }

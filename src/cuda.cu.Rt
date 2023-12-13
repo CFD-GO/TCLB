@@ -29,6 +29,7 @@ if (exists('Extra_Dynamics_C_Header')) {
 #endif
 
 #include "CartLatticeLauncher.hpp"
+#include "ArbLatticeLauncher.hpp"
 
 /*
 #include <cassert>
@@ -44,7 +45,9 @@ CudaDeviceFunction real_t rise_nan() {
       ifdef(tp$adjoint)
       ?>
 template void CartLatticeLauncher::RunBorder   < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const;
-template void CartLatticeLauncher::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const; <?R
+template void CartLatticeLauncher::RunInterior < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const;
+template void ArbLatticeLauncher::RunBorder    < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const;
+template void ArbLatticeLauncher::RunInterior  < <?%s tp$TemplateArgs ?> > (CudaStream_t stream, const LatticeData& data) const; <?R
     };
   ifdef();
 ?>
