@@ -626,6 +626,7 @@ namespace RunR {
 			R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
 			R["[[.CLB"]          = Rcpp::InternalFunction( &CLBDollar );
 			R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
+			R["[[<-.CLB"]        = Rcpp::InternalFunction( &CLBDollarAssign );
 			R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
 			R["names.CLB"]       = Rcpp::InternalFunction( &CLBNames );
 			R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
@@ -820,7 +821,7 @@ int cbRunR::DoIt() {
 // Function created only to check to create Handler for specific conditions
 vHandler * Ask_For_RunR(const pugi::xml_node& node) {
   std::string name = node.name();
-  if (name == "RunR" | name == "RunPython") {
+  if (name == "RunR" || name == "RunPython") {
 #ifdef WITH_R
     return new cbRunR;
 #else
