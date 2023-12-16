@@ -37,10 +37,13 @@ struct ParmetisGraph {
 
 static auto toParmetisFormat(const ArbLatticeConnectivity& connectivity, const std::vector<size_t>& dir_wgts, size_t comm_size) -> ParmetisGraph {
     auto row_sizes = std::vector<idx_t>(connectivity.getLocalSize(), connectivity.Q);
-    for (size_t i = 0, node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
-        for (size_t nbr_ind = 0; nbr_ind != connectivity.Q; ++nbr_ind)
-            if (connectivity.neighbor(nbr_ind, i) == -1 || static_cast<size_t>(connectivity.neighbor(nbr_ind, i)) == node) --row_sizes[i];
-        ++i;
+    for (size_t node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
+        size_t i = node - connectivity.chunk_begin;
+        for (size_t q = 0; q != connectivity.Q; ++q) {
+            auto nbr = connectivity.neighbor(q, i);
+            if (nbr == -1 || static_cast<size_t>(nbr) == node) --row_sizes[i];
+        }
+            
     }
     const auto row_sz_span = Span(row_sizes.cbegin(), row_sizes.cend());
     auto parmetis_graph = CrsGraph(row_sz_span);
@@ -50,26 +53,30 @@ static auto toParmetisFormat(const ArbLatticeConnectivity& connectivity, const s
     if (!edge_wgts_eq) edge_wgts.reserve(parmetis_graph.numEntries());
     std::vector<size_t> ind_tab(connectivity.Q);
     std::vector<idx_t> temp(connectivity.Q);
-    for (size_t local_node_ind = 0, node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
+    for (size_t  node = connectivity.chunk_begin; node != connectivity.chunk_end; ++node) {
+        size_t local_node_ind = node - connectivity.chunk_begin;
         auto graph_row = parmetis_graph.getRow(static_cast<idx_t>(local_node_ind));
-        for (size_t i = 0, nbr_ind = 0; nbr_ind != connectivity.Q; ++nbr_ind) {
+        size_t i = 0;
+        for (size_t nbr_ind = 0; nbr_ind != connectivity.Q; ++nbr_ind) {
             const auto nbr = connectivity.neighbor(nbr_ind, local_node_ind);
             if (nbr != -1 && static_cast<size_t>(nbr) != node) {
-                graph_row[i++] = static_cast<idx_t>(nbr);
+                graph_row[i] = static_cast<idx_t>(nbr);
+                i++;
                 if (!edge_wgts_eq) edge_wgts.push_back(static_cast<idx_t>(dir_wgts[nbr_ind]));
             }
         }
-        if (edge_wgts_eq) std::sort(graph_row.begin(), graph_row.end());
-        else {  // We need to permute the edge targets (i.e. nodes on the other side of the edge) and edge weights together
-            const auto node_inds = Span(ind_tab.data(), graph_row.size());
-            std::iota(node_inds.begin(), node_inds.end(), 0);
-            std::sort(node_inds.begin(), node_inds.end(), [&](size_t i1, size_t i2) { return graph_row[i1] < graph_row[i2]; });
-            std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return graph_row[i]; });
-            std::copy_n(temp.begin(), graph_row.size(), graph_row.begin());
-            auto this_nodes_edge_wgts_begin = std::prev(edge_wgts.end(), graph_row.size());
-            std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return this_nodes_edge_wgts_begin[i]; });
-            std::copy_n(temp.begin(), graph_row.size(), this_nodes_edge_wgts_begin);
-        }
+        assert(i == graph_row.size());
+        // if (edge_wgts_eq) std::sort(graph_row.begin(), graph_row.end());
+        // else {  // We need to permute the edge targets (i.e. nodes on the other side of the edge) and edge weights together
+        //     const auto node_inds = Span(ind_tab.data(), graph_row.size());
+        //     std::iota(node_inds.begin(), node_inds.end(), 0);
+        //     std::sort(node_inds.begin(), node_inds.end(), [&](size_t i1, size_t i2) { return graph_row[i1] < graph_row[i2]; });
+        //     std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return graph_row[i]; });
+        //     std::copy_n(temp.begin(), graph_row.size(), graph_row.begin());
+        //     auto this_nodes_edge_wgts_begin = std::prev(edge_wgts.end(), graph_row.size());
+        //     std::transform(node_inds.begin(), node_inds.end(), temp.begin(), [&](size_t i) { return this_nodes_edge_wgts_begin[i]; });
+        //     std::copy_n(temp.begin(), graph_row.size(), this_nodes_edge_wgts_begin);
+        // }
         ++local_node_ind;
     }
     return {std::move(parmetis_graph), std::move(node_wgts), std::move(edge_wgts), convertDistToParmetisInts(computeInitialNodeDist(connectivity.num_nodes_global, comm_size))};
@@ -139,27 +146,22 @@ inline void redistributeParmetisGraph(RefinementStageData& data, const std::vect
     static_assert(std::is_same_v<unsigned long, size_t>);
 
     // Count how many verts and edges we have to send and receive
-    const auto [src_sz, dest_sz] = std::invoke([&] {
-        std::vector<unsigned> src_size(comm_size * 2), dest_size(comm_size * 2);  // Number of vertices + sum of their degrees
-        idx_t i = 0;
-        for (auto dest : part) {
-            ++dest_size[dest * 2];
-            dest_size[dest * 2 + 1] += static_cast<unsigned>(graph.getRow(i++).size());
-        }
-        MPI_Alltoall(dest_size.data(), 2, MPI_UNSIGNED, src_size.data(), 2, MPI_UNSIGNED, comm);  // This has to be blocking, everything else depends on the result
-        return std::array{std::move(src_size), std::move(dest_size)};
-    });
+    std::vector<unsigned> src_sz(comm_size * 2), dest_sz(comm_size * 2);  // Number of vertices + sum of their degrees
+    for (size_t i = 0; i<part.size(); i++) {
+        auto dest = part[i];
+        dest_sz[dest * 2] += 1;
+        dest_sz[dest * 2 + 1] += static_cast<unsigned>(graph.getRow(i).size());
+    }
+    MPI_Alltoall(dest_sz.data(), 2, MPI_UNSIGNED, src_sz.data(), 2, MPI_UNSIGNED, comm);  // This has to be blocking, everything else depends on the result
     constexpr auto count_nnz_verts = [](const std::vector<unsigned>& v) {
         size_t retval = 0;
         for (size_t i = 0; i < v.size(); i += 2) retval += (v[i] > 0);  // count only even inds, i.e. vertex counts
         return retval;
     };
-    const auto n_in_nbrs = count_nnz_verts(src_sz);
-    const auto n_out_nbrs = count_nnz_verts(dest_sz);
 
     // Requests vector: 4 per send + 4 per recv + 1 collective
-    auto reqs = std::vector<MPI_Request>(tags.size() * (n_in_nbrs + n_out_nbrs) + 1, MPI_REQUEST_NULL);
-    auto get_req = [&reqs, req_ind = 0]() mutable { return &reqs[req_ind++]; };
+    std::vector<MPI_Request> reqs;
+    auto get_req = [&reqs, req_ind = 0]() mutable { reqs.push_back(MPI_REQUEST_NULL); return &reqs.back(); };
 
     // Store the local base vertex index so that we can start gathering the new distribution into the existing vector
     const idx_t my_base_old = vert_dist[comm_rank];
@@ -315,7 +317,7 @@ inline auto invokeParmetisRepartitioner(const ParmetisGraph& dist_graph, MPI_Com
     return retval;
 }
 
-auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, const RefinementStageData& refine_data_final, MPI_Comm comm, int self_edge_ind = -1) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
+auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, const RefinementStageData& refine_data_final, MPI_Comm comm, size_t self_edge_ind = -1) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
     int comm_rank{}, comm_size{};
     MPI_Comm_rank(comm, &comm_rank);
     MPI_Comm_size(comm, &comm_size);
@@ -434,19 +436,26 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
     auto connectivity_new = ArbLatticeConnectivity(vert_dist[comm_rank], vert_dist[comm_rank + 1], connectivity_initial.num_nodes_global, connectivity_initial.Q);
     connectivity_new.grid_size = connectivity_initial.grid_size;
     std::vector<size_t> rank_inds(comm_size), rank_zone_inds(comm_size);
-    const auto unpack_data = [&](idx_t lid, int og_owner) {
+    const auto unpack_data = [&](idx_t lid, int og_gid) {
+        const auto og_owner = compute_original_rank(og_gid);
         const auto& [coords, nbr_bmp, zone_sz, zones] = in_data_map.at(og_owner);
         const size_t i_node = rank_inds[og_owner]++;
         for (size_t dim = 0; dim != 3; ++dim) connectivity_new.coord(dim, lid) = coords[dim + i_node * 3];
+        connectivity_new.og_index[lid] = og_gid;
         const auto edges = graph.getRow(lid);
         const auto gid = vert_dist[comm_rank] + lid;
-        for (int qi = 0, active_ind = 0; qi != connectivity_initial.Q; ++qi) {
-            if (qi == self_edge_ind) connectivity_new.neighbor(qi, lid) = gid;
-            else if (!nbr_bmp[qi + i_node * connectivity_initial.Q])
+        size_t active_ind = 0;
+        for (size_t qi = 0; qi != connectivity_initial.Q; ++qi) {
+            if (qi == self_edge_ind) {
+                connectivity_new.neighbor(qi, lid) = gid;
+            } else if (!nbr_bmp[qi + i_node * connectivity_initial.Q]) {
                 connectivity_new.neighbor(qi, lid) = -1;
-            else
-                connectivity_new.neighbor(qi, lid) = edges[active_ind++];
+            } else {
+                connectivity_new.neighbor(qi, lid) = edges[active_ind];
+                active_ind++;
+            }
         }
+        assert(active_ind == edges.size());
         auto& zs = connectivity_new.zones_per_node[lid];
         zs = zone_sz[i_node];
         size_t& i_zone = rank_zone_inds[og_owner];
@@ -455,8 +464,7 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
     };
     idx_t lid = 0;
     for (auto og_gid : og_ids) {
-        const auto og_owner = compute_original_rank(og_gid);
-        unpack_data(lid++, og_owner);
+        unpack_data(lid++, og_gid);
     }
     return std::make_pair(std::move(connectivity_new), convertDistFromParmetisInts(vert_dist));
 }
@@ -471,7 +479,7 @@ inline auto getDefaultStopCriterion() {
 }
 
 template <typename StopCrit = decltype(getDefaultStopCriterion())>
-auto partitionLattice(const ArbLatticeConnectivity& connectivity, const std::vector<size_t>& dir_wgts, MPI_Comm comm, int self_edge_ind, std::vector<PartOutput::LoggedEvent>& log, StopCrit&& stop_criterion = getDefaultStopCriterion()) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
+auto partitionLattice(const ArbLatticeConnectivity& connectivity, const std::vector<size_t>& dir_wgts, MPI_Comm comm, size_t self_edge_ind, std::vector<PartOutput::LoggedEvent>& log, StopCrit&& stop_criterion = getDefaultStopCriterion()) -> std::pair<ArbLatticeConnectivity, std::vector<long>> {
     int comm_rank{}, comm_size{};
     MPI_Comm_rank(comm, &comm_rank);
     MPI_Comm_size(comm, &comm_size);
@@ -503,7 +511,7 @@ auto partitionLattice(const ArbLatticeConnectivity& connectivity, const std::vec
 }
 }  // namespace detail
 
-PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, int self_edge_ind, MPI_Comm comm) {
+PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, size_t self_edge_ind, MPI_Comm comm) {
     PartOutput retval;
     try {
         auto [connect_new, dist_new] = detail::partitionLattice(lattice, dir_wgts, comm, self_edge_ind, retval.event_log);
@@ -516,7 +524,7 @@ PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vecto
 
 #else
 
-PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, int self_edge_ind, MPI_Comm comm) {
+PartOutput partitionArbLattice(ArbLatticeConnectivity& lattice, const std::vector<size_t>& dir_wgts, size_t self_edge_ind, MPI_Comm comm) {
     int comm_size;
     MPI_Comm_size(comm, &comm_size);
     PartOutput retval;

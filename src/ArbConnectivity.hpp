@@ -11,6 +11,7 @@ struct ArbLatticeConnectivity {
 
     size_t chunk_begin{}, chunk_end{}, num_nodes_global{}, Q{};
     std::unique_ptr<double[]> coords;
+    std::unique_ptr<Index[]> og_index;
     std::unique_ptr<Index[]> nbrs;
     std::unique_ptr<ZoneIndex[]> zones_per_node;
     std::vector<ZoneIndex> zones;
@@ -23,9 +24,25 @@ struct ArbLatticeConnectivity {
           num_nodes_global(num_nodes_global_),
           Q(Q_),
           coords(std::make_unique<double[]>(3 * (chunk_end_ - chunk_begin_))),
+          og_index(std::make_unique<Index[]>(chunk_end_ - chunk_begin_)),
           nbrs(std::make_unique<Index[]>((chunk_end_ - chunk_begin_) * Q)),
           zones_per_node(std::make_unique<ZoneIndex[]>(chunk_end_ - chunk_begin_)) {
         zones.reserve(getLocalSize());
+    }
+
+    void dump(std::string filename) {
+        FILE* f;
+        f = fopen(filename.c_str(),"w");
+        fprintf(f,"idx_og,idx");
+        for (size_t q=0;q<Q;q++) fprintf(f,",nbr%ld",q);
+        fprintf(f,"\n");
+        size_t n = chunk_end - chunk_begin;
+        for (size_t lid=0; lid<n; lid++) {
+            fprintf(f,"%ld,%ld",(size_t) og_index[lid],(size_t) lid + chunk_begin);
+            for (size_t q=0;q<Q;q++) fprintf(f,",%ld",(signed long int) neighbor(q, lid));
+            fprintf(f,"\n");
+        }
+        fclose(f);
     }
 
     size_t getLocalSize() const { return chunk_end - chunk_begin; }

@@ -22,6 +22,7 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
 }
 
 void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
+    const int rank = mpitools::MPI_Rank(comm);
     sizes.snaps = num_snaps_;
 #ifdef ADJOINT
     sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
@@ -35,13 +36,21 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     const std::string cxn_path = name_attr.value();
     readFromCxn(cxn_path);
     global_node_dist = computeInitialNodeDist(connect.num_nodes_global, mpitools::MPI_Size(comm));
+    if (debug_name.size() != 0) {
+        connect.dump(formatAsString("%s_P%02d_conn_before.csv", debug_name, rank));
+    }
     partition();
+    if (debug_name.size() != 0) {
+        connect.dump(formatAsString("%s_P%02d_conn_after.csv", debug_name, rank));
+    }
     if (connect.getLocalSize() == 0) throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
     computeGhostNodes();
     computeLocalPermutation();
     allocDeviceMemory();
+    initDeviceData(arb_node, setting_zones);
+    local_bounding_box = getLocalBoundingBox();
+    vtu_geom = makeVTUGeom();
     if (debug_name.size() != 0) {
-        const int rank = mpitools::MPI_Rank(comm);
         std::string filename;
         size_t i;
         FILE* f;
@@ -65,10 +74,42 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
         printf("i:%ld snaps_pitch: %ld\n", i, sizes.snaps_pitch); fflush(stdout);
         assert(i <= sizes.snaps_pitch);
         fclose(f);
+
+
+        filename = formatAsString("%s_P%02d.vtu", debug_name, rank);
+        const auto& [num_cells, num_points, coords, verts] = getVTUGeom();
+        VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, true, false);
+        {
+            std::vector< size_t > tab1(getLocalSize());
+            std::vector< int >    tab2(getLocalSize());
+            std::vector< size_t > tab3(getLocalSize());
+            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+                auto i = local_permutation.at(node);
+                tab1[i] = node + connect.chunk_begin;
+                tab2[i] = rank;
+                tab3[i] = connect.og_index[node];
+            }
+            vtu_file.writeField("globalId",     tab1.data());
+            vtu_file.writeField("globalIdRank", tab2.data());
+            vtu_file.writeField("globalIdOg", tab3.data());
+        }
+        {
+            std::vector< signed long int > tab1(getLocalSize()*Q);
+            std::vector< int >    tab2(getLocalSize()*Q);
+            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+                auto i = local_permutation.at(node);
+                for (size_t q = 0; q != Q; ++q) {
+                    const auto nbr = connect.neighbor(q, node);
+                    tab1[i * Q + q] = nbr;
+                    const int owner = std::distance(global_node_dist.cbegin(), std::upper_bound(global_node_dist.cbegin(), global_node_dist.cend(), nbr)) - 1;
+                    tab2[i * Q + q] = owner;
+                }
+            }
+            vtu_file.writeField("neighbour",     tab1.data(), Q);
+            vtu_file.writeField("neighbourRank", tab2.data(), Q);
+        }
+        vtu_file.writeFooters();
     }
-    initDeviceData(arb_node, setting_zones);
-    local_bounding_box = getLocalBoundingBox();
-    vtu_geom = makeVTUGeom();
     initCommManager();
     initContainer();
 
@@ -606,36 +647,6 @@ void ArbLattice::initCommManager() {
         assert(i == unpack_inds_host.size());
         fclose(f);
 
-        filename = formatAsString("%s_P%02d.vtu", debug_name, rank);
-        const auto& [num_cells, num_points, coords, verts] = getVTUGeom();
-        VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, true, false);
-        {
-            std::vector< size_t > tab1(getLocalSize());
-            std::vector< int >    tab2(getLocalSize());
-            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
-                auto i = local_permutation.at(node);
-                tab1[i] = node + connect.chunk_begin;
-                tab2[i] = rank;
-            }
-            vtu_file.writeField("globalId",     tab1.data());
-            vtu_file.writeField("globalIdRank", tab2.data());
-        }
-        {
-            std::vector< size_t > tab1(getLocalSize()*Q);
-            std::vector< int >    tab2(getLocalSize()*Q);
-            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
-                auto i = local_permutation.at(node);
-                for (size_t q = 0; q != Q; ++q) {
-                    const auto nbr = connect.neighbor(q, node);
-                    tab1[i * Q + q] = nbr;
-                    const int owner = std::distance(global_node_dist.cbegin(), std::upper_bound(global_node_dist.cbegin(), global_node_dist.cend(), nbr)) - 1;
-                    tab2[i * Q + q] = owner;
-                }
-            }
-            vtu_file.writeField("neighbour",     tab1.data(), Q);
-            vtu_file.writeField("neighbourRank", tab2.data(), Q);
-        }
-        vtu_file.writeFooters();
     }
 
 }
