@@ -22,12 +22,14 @@
 
 #ifdef WITH_R
 
-class RunR : public  Callback  {
+class cbRunR : public  Callback  {
     std::string source;
     bool interactive;
     bool echo;
+    bool python;
+    static int s_tag;
+    int tag;
 public:
-    static RInside R;
     int Init ();
     int DoIt ();
 };
