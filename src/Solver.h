@@ -42,7 +42,7 @@ public:
 	UnitEnv units; ///< Units object connected to this lattice
 	std::map<std::string, int> setting_zones = {{"DefaultZone", 0}};
 	int iter_type = ITER_NORM; ///< Iteration type (Now) - primal/adjoint/etc.
-	double LogScales[ GLOBALS + SETTINGS + ZONESETTINGS + SCALES ];
+    std::vector<double> LogScales;
 
     Solver() = default;
     Solver(const Solver&) = delete;
