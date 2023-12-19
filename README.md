@@ -134,7 +134,7 @@ Developed at:
 - [Interdisciplinary Centre for Mathematical and Computational Modelling](https://icm.edu.pl/en) at [University of Warsaw](https://www.uw.edu.pl/)
 
 ### Citation
-Please use **appropriate citations if using this software** in any research publication. The publication should cite [the original paper about TCLB](https://doi.org/10.1016/j.camwa.2015.12.043) and papers which describe the used LMB models. You can find the list of TCLB publications at [docs.tclb.io/general-info/publications/](https://docs.tclb.io/general-info/publications/). You can also find the information about published articles in the source code of the models.
+Please use **appropriate citations if using this software** in any research publication. The publication should cite [the original paper about TCLB](https://doi.org/10.1016/j.camwa.2015.12.043) and papers which describe the used LBM models. You can find the list of TCLB publications at [docs.tclb.io/general-info/publications/](https://docs.tclb.io/general-info/publications/). You can also find the information about published articles in the source code of the models.
 The code can be cited additionally, by its [Zenodo DOI](https://doi.org/10.5281/zenodo.3550331).
 
 ### License
@@ -143,4 +143,4 @@ This software is distributed under the [GPL v3 License](LICENSE).
 
 If you need this software under a different license, please contact the main author.
 
-Contact: llaniewski([monkey](https://en.wikipedia.org/wiki/At_sign#Names_in_other_languages))meil.pw.edu.pl
+Contact: lukasz.laniewski([monkey](https://en.wikipedia.org/wiki/At_sign#Names_in_other_languages))pw.edu.pl
