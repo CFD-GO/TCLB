@@ -48,7 +48,8 @@
 ?>
 
 typedef <?%s FlagT ?> flag_t;
-typedef unsigned int big_flag_t;
+//typedef unsigned int big_flag_t;
+typedef flag_t big_flag_t;
 
 <?R for (e in names(Enums)) { ?>
 enum <?%s e ?> { <?%s paste(Enums[[e]],collapse=",") ?> }; <?R

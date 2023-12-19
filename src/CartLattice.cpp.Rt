@@ -59,7 +59,7 @@ static void AllocContainer(CartLatticeContainer& container, int nx, int ny, int 
 CartLattice::CartLattice(CartConnectivity connect, int ns, const UnitEnv& units_)
     : LatticeBase(ZONESETTINGS, ZONE_MAX, ns, units_),
       connectivity(std::move(connect)),
-      geometry(std::make_unique<Geometry>(getLocalRegion(), connectivity.global_region, units_))
+      geometry(std::make_unique<Geometry>(getLocalRegion(), connectivity.global_region, units_, model.get()))
 {
 	DEBUG_M;
     AllocContainer(launcher.container, getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
