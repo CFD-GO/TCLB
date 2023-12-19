@@ -58,8 +58,9 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-                ret.reserve(solver->setting_zones.size());
-                std::transform(solver->setting_zones.cbegin(), solver->setting_zones.cend(), std::back_inserter(ret), [](const auto& pair){ return pair.first; });
+		for (const auto& [name, id] : solver->setting_zones) {
+			ret.push_back(name);
+		}
 		return ret;
 	}
 
@@ -453,7 +454,7 @@ class rInfo: public rWrapper {
 	SEXP Dollar(std::string name) {
 		Rcpp::CharacterVector ret;
 		if (name == "OutputPath") {
-			ret.push_back(this->solver->info.outpath);
+			ret.push_back(this->solver->outpath);
 			return ret;
 		}
 		ERROR("R: Not implemented!");
