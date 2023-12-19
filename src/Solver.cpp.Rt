@@ -154,23 +154,19 @@ ArbLattice* Solver::getArbLattice() const {
 */
 static void fillSides(CartConnectivity& connect, int nx, int ny, int nz)
 {
-<?R
-	sides = function(name, dx, dy, dz) {
-?>
-		connect.nodes[k].<?%s name ?> = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
-<?R
-	}
-?>
 	for (int x = 0; x < nx; x++)
 	    for (int y = 0; y < ny; y++)
 	        for (int z = 0; z < nz; z++) {
 		        const int k = x + y * nx + z * nx * ny;
-<?R
-	            for (m in Margin) {
-		            sides(m$side, -m$dx, -m$dy, -m$dz);
-	            }
-?>
-	}
+                int j = 0;
+                for (int dz = -1; dz <= 1; dz++)
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++){
+                            connect.nodes[k].side[j] = ((nx + x - dx) % nx) + ((ny + y - dy) % ny) * nx + ((nz + z - dz) % nz) * nx * ny;
+                            j++;
+                        }
+                assert(j == 27);
+            }
 }
 
 ///	Decompose the lattice for parallel processing
