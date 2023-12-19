@@ -1,8 +1,3 @@
-<?R
-    source("conf.R")
-	c_header();
-?>
-
 #include "Solver.h"
 
 using namespace std;

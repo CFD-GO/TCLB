@@ -1,8 +1,3 @@
-<?R
-source("conf.R")
-c_header();
-?>
-
 #ifndef CARTCONNECTIVITY_HPP
 #define CARTCONNECTIVITY_HPP
 
