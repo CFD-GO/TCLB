@@ -40,6 +40,7 @@
 
 #include <math.h>
 #define PI 3.1415926535897
+#define cs2 0.33333333
 
 <?R
 g = PV(Density$name[Density$group == "g"])
@@ -104,8 +105,25 @@ CudaDeviceFunction vector_t getNormal(){
 // 	HELPER FUNCTIONS:
 CudaDeviceFunction vector_t calcGradPhi(){
 	vector_t gradPhi;
-	// eq 34 from "Improved locality of the phase-field lattice Boltzmann 
-	//	model for immiscible fluids at high density ratios"
+	// eq 34 from "Improved locality of the phase-field lattice Boltzmann model for immiscible fluids at high density ratios"
+
+	gradPhi.x = 0.0;
+	gradPhi.y = 0.0;
+
+	real_t phi_a = PhaseF(0,0);
+	real_t phi_b, denom = 0.0;
+
+	for (int i = 1; i<9; i++) {
+		phi_b = PhaseF_dyn(d2q9_ex[i],d2q9_ey[i]);
+		if (!isnan(phi_b)){
+			gradPhi.x += wf[i]*d2q9_ex[i]*(phi_b-phi_a);
+			gradPhi.y += wf[i]*d2q9_ey[i]*(phi_b-phi_a);
+			denom += wf[i];
+		}
+	}
+	gradPhi.x = gradPhi.x/denom/cs2;
+	gradPhi.y = gradPhi.y/denom/cs2;
+
 	#ifdef OPTIONS_Outflow
 		if ((NodeType & NODE_BOUNDARY) == NODE_Neumann_E || (NodeType & NODE_BOUNDARY) == NODE_Convective_E) {
 			gradPhi.x = 0.0;
@@ -113,68 +131,11 @@ CudaDeviceFunction vector_t calcGradPhi(){
 		} else if ((NodeType & NODE_BOUNDARY) == NODE_Convective_N) {
 			gradPhi.x = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,-1) - PhaseF(-1,-1) )/6.0;
 			gradPhi.y = 0.0;
-		} else if ((NodeType & NODE_BOUNDARY) == NODE_Wall){
-			// compute gradient with one-sided diffs but first check if neighbours are nans
-			bool nan1 = isnan(PhaseF(1,0));
-			bool nan2 = isnan(PhaseF(-1,0));
-			bool nan3 = isnan(PhaseF(0,1));
-			bool nan4 = isnan(PhaseF(0,-1));
-
-			if ((nan1 && nan2) || (!nan1 && !nan2)){
-				gradPhi.x = 0.0;
-			} else if (nan1){
-				gradPhi.x = PhaseF(-1,0) - PhaseF(0,0);
-			} else {
-				gradPhi.x = PhaseF(1,0) - PhaseF(0,0);
-			}
-
-			if ((nan3 && nan4) || (!nan3 && !nan4)){
-				gradPhi.y = 0.0;
-			} else if (nan3){
-				gradPhi.y = PhaseF(0,-1) - PhaseF(0,0);
-			} else {
-				gradPhi.y = PhaseF(0,1) - PhaseF(0,0);
-			}
-		} else if (NodeType & NODE_BOUNDARY){
-			gradPhi.x = 0.0;
-			gradPhi.y = 0.0;
-		} else { 
-			gradPhi.x = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
-			gradPhi.y = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
-		}
-	#else
-		if ((NodeType & NODE_BOUNDARY) == NODE_Wall){
-			// compute gradient with one-sided diffs but first check if neighbours are nans
-			bool nan1 = isnan(PhaseF(1,0));
-			bool nan2 = isnan(PhaseF(-1,0));
-			bool nan3 = isnan(PhaseF(0,1));
-			bool nan4 = isnan(PhaseF(0,-1));
-
-			if ((nan1 && nan2) || (!nan1 && !nan2)){
-				gradPhi.x = 0.0;
-			} else if (nan1){
-				gradPhi.x = PhaseF(-1,0) - PhaseF(0,0);
-			} else {
-				gradPhi.x = PhaseF(1,0) - PhaseF(0,0);
-			}
-
-			if ((nan3 && nan4) || (!nan3 && !nan4)){
-				gradPhi.y = 0.0;
-			} else if (nan3){
-				gradPhi.y = PhaseF(0,-1) - PhaseF(0,0);
-			} else {
-				gradPhi.y = PhaseF(0,1) - PhaseF(0,0);
-			}
-		} else if (NodeType & NODE_BOUNDARY){
-			gradPhi.x = 0.0;
-			gradPhi.y = 0.0;
-		} else { 
-			gradPhi.x = (PhaseF(1,0) - PhaseF(-1,0))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(1,-1) - PhaseF(-1,1))/12.0;
-			gradPhi.y = (PhaseF(0,1) - PhaseF(0,-1))/3.0 + (PhaseF(1,1) - PhaseF(-1,-1) + PhaseF(-1,1) - PhaseF(1,-1))/12.0;
-		}
+		} 
 	#endif
-		gradPhi.z = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + 1e-12); // length
-		return gradPhi;
+
+	gradPhi.z = sqrt(gradPhi.x*gradPhi.x + gradPhi.y*gradPhi.y + 1e-12); // length
+	return gradPhi;
 }
 
 CudaDeviceFunction real_t get_lpPhi(real_t myPhase){
