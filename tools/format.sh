@@ -16,13 +16,22 @@ function formatRT {
 	R -s -e 'rtemplate::RTtokenize()' | format | R -s -e 'rtemplate::RTtokenize(inv=TRUE)'
 }
 
+function formatR {
+        R -s -e "formatR::tidy_source('stdin', wrap=FALSE, args.newline=TRUE)"
+}
+
 function format_sel {
-	if [[ -z "$1" || "$1" =~ \.[rR][tT]$ ]]
-	then
-		echo formatRT
-	else
-		echo format
-	fi
+        case "$1" in
+        *.[rR][tT])
+                echo formatRT
+                ;;
+        *.[rR])
+                echo formatR
+                ;;
+        *)
+                echo format
+                ;;
+        esac
 }
 
 function format_to {
@@ -106,7 +115,7 @@ do
 			exit 4
 		fi
 		PRINTSKIP=false
-		find "$FROM_DIR" | grep -E '[.](cpp|h|hpp)([.]Rt|)$' | while read i
+		find "$FROM_DIR" | grep -E '[.](cpp|h|hpp|cu|c|R)([.]Rt|)$' | while read i
 		do
 			if test "$FROM_DIR" == "$TO_DIR"
 			then

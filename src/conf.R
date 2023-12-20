@@ -990,7 +990,6 @@ AllKernels = expand.grid(
 	Globals=Enums$eCalculateGlobals[1:3],
 	Model=Enums$eModel,
 	Stage=Stages$name
-#	Stage=Enums$eStage
 )
 
 AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))
