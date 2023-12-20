@@ -133,18 +133,6 @@ AC_ARG_ENABLE([debug-kernel],
 	AS_HELP_STRING([--with-debug-kernel],
 		[enable NVCC pos compile stats for debug (lots of output!)]))
 
-AC_ARG_WITH([python],
-	AS_HELP_STRING([--with-python],
-		[Enable CallPython handler, requires python-dev]))
-
-AC_ARG_WITH([python_config],
-	AS_HELP_STRING([--with-python-config],
-		[Set python-config binary to call]))
-
-AC_ARG_WITH([python_bin],
-	AS_HELP_STRING([--with-python-bin],
-		[Set python binary to call]))
-
 AC_ARG_WITH([x-block],
 	AS_HELP_STRING([--with-x-block],
 		[Set the block size in the x direction (X_BLOCK) (default=32)]))
@@ -547,48 +535,6 @@ if test "x${with_hdf5}" != "xno"; then
 		fi
 	fi
 fi
-
-
-if  test "x${with_python}" == "xyes"; then
-   
-    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python3)
-    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",${python_bin}-config)
-
-    AC_MSG_NOTICE([python config: ${python_config}])
-    AC_MSG_NOTICE([python: ${python_bin}])
-
-
-    AC_MSG_CHECKING([python embandinng: linker flags])
-
-	if ${python_config} --ldflags --embed; then
-	    PF=$(${python_config} --ldflags --embed)
-	else
-	    PF=$(${python_config} --ldflags)
-	fi 
-	
-    LDFLAGS="${LDFLAGS} ${PF}"
-
-    AC_MSG_RESULT([${PF}])
-
-	AC_MSG_CHECKING([Python - numpy additional include path])
-	PYINC="$(${python_bin} -c 'import numpy; print(numpy.get_include())')"
-	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
-    AC_MSG_RESULT([${PYINC}])
-    
-    AC_MSG_CHECKING([Python Embandinng: compiler flags])
-#    PF=$($python_config --cflags)
-    PF=$($python_config --includes)
-    CPPFLAGS="${CPPFLAGS} ${PF}"
-
-    PF=$($python_config --prefix)
-
-    LDFLAGS="${LDFLAGS} -L${PF}/lib"
-    EMBEDED_PYTHON=1
-    AC_MSG_RESULT([${PF}])
-	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
-fi
-
-
 
 NLOPT=""
 
@@ -1007,7 +953,6 @@ AC_SUBST(WITH_R)
 AC_SUBST(TAPENADE)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
-AC_SUBST(EMBEDED_PYTHON)
 AC_SUBST(X_BLOCK)
 AC_SUBST(WARPSIZE)
 AC_SUBST(X_MOD)
