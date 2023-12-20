@@ -20,14 +20,13 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
     vtkFile.Init(total_output_reg, reg, "Scalars=\"rho\" Vectors=\"velocity\"", spacing, lattice.px * spacing, lattice.py * spacing, lattice.pz * spacing);
 
     {
-        auto NodeType = std::make_unique<flag_t[]>(size);
-        lattice.GetFlags(reg, NodeType.get());
-        if (what.explicitlyIn("flag")) { vtkFile.WriteField("flag", NodeType.get()); }
-        auto small = std::make_unique<unsigned char[]>(size);
+        std::vector<big_flag_t> NodeType = lattice.getFlags(reg);
+        if (what.explicitlyIn("flag")) { vtkFile.WriteField("flag", NodeType.data()); }
+        std::vector<unsigned char> small(size);
         for (const Model::NodeTypeGroupFlag& it : lattice.model->nodetypegroupflags) {
             if ((what.all && it.isSave) || what.explicitlyIn(it.name)) {
                 for (size_t i = 0; i < size; i++) { small[i] = (NodeType[i] & it.flag) >> it.shift; }
-                vtkFile.WriteField(it.name.c_str(), small.get());
+                vtkFile.WriteField(it.name.c_str(), small.data());
             }
         }
     }
@@ -37,9 +36,8 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
             double v = units.alt(it.unit);
             int comp = 1;
             if (it.isVector) comp = 3;
-            auto tmp = std::make_unique<real_t[]>(size * comp);
-            lattice.GetQuantity(it.id, reg, tmp.get(), 1 / v);
-            vtkFile.WriteField(it.name.c_str(), tmp.get(), comp);
+            std::vector<real_t> tmp = lattice.getQuantity(it, reg, 1 / v);
+            vtkFile.WriteField(it.name.c_str(), tmp.data(), comp);
         }
     }
     vtkFile.Finish();
@@ -69,9 +67,8 @@ int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const Unit
             if (what.in(quant.name)) {
                 const double v = units.alt(quant.unit);
                 const size_t comps = quant.isVector ? 3 : 1;
-                auto tmp = std::make_unique<real_t[]>(lattice.getLocalSize() * comps);
-                lattice.getQuantity(quant.id, tmp.get(), 1 / v);
-                vtu_file.writeField(quant.name, tmp.get(), comps);
+                auto tmp = lattice.getQuantity(quant, 1 / v);
+                vtu_file.writeField(quant.name, tmp.data(), comps);
             }
         }
         vtu_file.writeFooters();
@@ -82,22 +79,18 @@ int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const Unit
     return EXIT_SUCCESS;
 }
 
-int binWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units) {
-    const lbRegion& reg = lattice.getLocalRegion();
-    FILE* f;
-    int size = reg.size();
+int binWriteLattice(const std::string& filename, LatticeBase& lattice, const UnitEnv& units) {
+    int size = lattice.getLocalSize();
     for (const Model::Quantity& it : lattice.model->quantities) {
-        int comp = 1;
-        if (it.isVector) comp = 3;
-        auto tmp = std::make_unique<real_t[]>(size * comp);
-        lattice.GetQuantity(it.id, reg, tmp.get(), 1);
+        int comp = it.getComp();
+        auto tmp = lattice.getQuantity(it, 1);
         const auto fn = formatAsString("%s.%s.bin", filename, it.name);
-        f = fopen(fn.c_str(), "w");
+        FILE* f = fopen(fn.c_str(), "w");
         if (f == NULL) {
             ERROR("Cannot open file: %s\n", fn.c_str());
             return -1;
         }
-        fwrite(tmp.get(), sizeof(real_t) * comp, size, f);
+        fwrite(tmp.data(), sizeof(real_t) * comp, size, f);
         fclose(f);
     }
     return 0;
@@ -109,14 +102,6 @@ inline int txtWriteElement(FILE* f, float tmp) {
 inline int txtWriteElement(FILE* f, double tmp) {
     return fprintf(f, "%.16lg", tmp);
 }
-inline int txtWriteElement(FILE* f, vector_t tmp) {
-    txtWriteElement(f, tmp.x);
-    fprintf(f, " ");
-    txtWriteElement(f, tmp.y);
-    fprintf(f, " ");
-    return txtWriteElement(f, tmp.z);
-}
-
 template <typename T>
 int txtWriteField(FILE* f, T* tmp, int stop, int n) {
     for (int i = 0; i < n; i++) {
@@ -170,9 +155,9 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
                 return -1;
             }
             double v = units.alt(it.unit);
-            auto tmp = std::make_unique<real_t[]>(size);
-            lattice.GetQuantity(it.id, reg, tmp.get(), 1 / v);
-            txtWriteField(f, tmp.get(), reg.nx, size);
+            int comp = it.getComp();
+            auto tmp = lattice.getQuantity(it, reg, 1 / v);
+            txtWriteField(f, tmp.data(), reg.nx*comp, size*comp);
             fclose(f);
         }
     }

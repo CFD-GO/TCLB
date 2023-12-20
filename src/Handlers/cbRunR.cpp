@@ -110,14 +110,11 @@ public:
 			ERROR("R: Unknown parameter");
 			return Rcpp::NumericVector(0);
 		}
-		lbRegion reg = solver->lattice->region;
-		Rcpp::NumericVector ret(reg.size());
-		Rcpp::IntegerVector retdim(3);
-		retdim[0] = reg.nx;
-		retdim[1] = reg.ny;
-		retdim[2] = reg.nz;
-		ret.attr("dim") = retdim;
-	    solver->lattice->Get_Field(it.id, &ret[0]); 
+		size_t size = solver->lattice->getLocalSize();
+		std::vector<int> retdim = solver->lattice->shape();
+		std::vector<real_t> tmp = solver->lattice->getField(it); 
+		Rcpp::NumericVector ret(tmp.begin(), tmp.end());
+		ret.attr("dim") = Rcpp::IntegerVector(retdim.begin(), retdim.end());
 		return ret;
 	}
 
@@ -128,11 +125,13 @@ public:
 			return;
 		}
 		Rcpp::NumericVector v(v_);
-		if (v.size() != solver->region.size()) {
+		size_t size = solver->lattice->getLocalSize();
+		if (v.size() != size) {
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
-	        solver->lattice->Set_Field(it.id,&v[0]); 
+		std::vector<real_t> tmp(v.begin(), v.end());
+        solver->lattice->setField(it,tmp);
 		return;
 	}
 	Rcpp::CharacterVector Names() {
@@ -206,8 +205,6 @@ class rQuantities : public rWrapper {
 public:
 	std::string print() { return "Quantities"; }
 	SEXP Dollar(std::string name) {
-		lbRegion reg = solver->lattice->region;
-		Rcpp::NumericVector ret;
 		bool si = false;
 		std::string quant = name;
 		size_t last_index = name.find_last_not_of(".");
@@ -225,29 +222,15 @@ public:
 		}
 		double v = 1;
 		if (si) v = solver->units.alt(it.unit);
-		int comp = 1;
-		if (it.isVector) comp = 3;
-		real_t* tmp = new real_t[reg.size()*comp];
-                solver->lattice->GetQuantity(it.id, reg, tmp, 1/v);
-		ret = Rcpp::NumericVector(reg.size()*comp);
+		int comp = it.getComp();
+		size_t size = solver->lattice->getLocalSize();
+		std::vector<real_t> tmp = solver->lattice->getQuantity(it, 1/v);
+		Rcpp::NumericVector ret(tmp.begin(), tmp.end());
+		std::vector<int> retdim = solver->lattice->shape();
 		if (comp != 1) {
-			Rcpp::IntegerVector retdim(4);
-			retdim[0] = comp;
-			retdim[1] = reg.nx;
-			retdim[2] = reg.ny;
-			retdim[3] = reg.nz;
-			ret.attr("dim") = retdim;
-		} else {
-			Rcpp::IntegerVector retdim(3);
-			retdim[0] = reg.nx;
-			retdim[1] = reg.ny;
-			retdim[2] = reg.nz;
-			ret.attr("dim") = retdim;
+			retdim.insert(retdim.begin(),1,comp);
 		}
-		for (size_t i=0; i<reg.sizeL()*comp; i++) {
-			ret[i] = tmp[i];
-		}
-		delete[] tmp;
+		ret.attr("dim") = Rcpp::IntegerVector(retdim.begin(), retdim.end());
 		return ret;
 	}
 	Rcpp::CharacterVector Names() {
@@ -311,7 +294,6 @@ public:
 
 	rAction(const char* name_): name(name_) {};
 	SEXP Call(Rcpp::List args) {
-		int Snap = solver->lattice->Snap;
 		const Model::Action& it = solver->lattice->model->actions.by_name(name);
 		if (it) {
 			solver->lattice->RunAction(it.id, solver->iter_type);
@@ -343,11 +325,9 @@ public:
 
 	void DollarAssign(std::string name, SEXP v_) {
 		Rcpp::IntegerVector v(v_);
-		lbRegion reg = solver->lattice->region;
-		size_t size = reg.sizeL();
+		size_t size = solver->lattice->getLocalSize();
 		{
-			flag_t * NodeType = new flag_t[size];
-			solver->lattice->GetFlags(reg, NodeType);
+			std::vector<big_flag_t> NodeType = solver->lattice->getFlags();
 			for (const Model::NodeTypeGroupFlag& it : solver->lattice->model->nodetypegroupflags) {
 				bool some_na = false;
 				for (size_t i=0;i<size;i++) {
@@ -361,55 +341,34 @@ public:
 					ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
 				}
 			}
-			solver->lattice->FlagOverwrite(NodeType, reg);
-			delete[] NodeType;
+			solver->lattice->setFlags(NodeType);
 		}
 		return;
 	}
 
 SEXP Dollar(std::string name) {
-	lbRegion reg = solver->lattice->region;
-	size_t size = reg.sizeL();
-	if (name == "dx") return SingleInteger(reg.dx);
-	if (name == "dy") return SingleInteger(reg.dy);
-	if (name == "dz") return SingleInteger(reg.dz);
-	if (name == "size") return SingleInteger(reg.size());
-	Rcpp::IntegerVector retdim(3);
-	retdim[0] = reg.nx;
-	retdim[1] = reg.ny;
-	retdim[2] = reg.nz;
-	if (name == "dim") return retdim;
+	size_t size = solver->lattice->getLocalSize();
+	// if (name == "dx") return SingleInteger(reg.dx);
+	// if (name == "dy") return SingleInteger(reg.dy);
+	// if (name == "dz") return SingleInteger(reg.dz);
+	if (name == "size") return SingleInteger(size);
+	std::vector<int> retdim = solver->lattice->shape();
+	Rcpp::IntegerVector r_retdim(retdim.begin(), retdim.end());
+	if (name == "dim") return r_retdim;
 	if ((name == "X") || (name == "Y") || (name == "Z")) { // Positions
 		double unit = 1/solver->units.alt("1m");
-		int dir = -1;
-		if (name == "X") dir = 0;
-		if (name == "Y") dir = 1;
-		if (name == "Z") dir = 2;
-		Rcpp::NumericVector small(size);
-		small.attr("dim") = retdim;
-		size_t i=0;
-		for (int z=0;z<reg.nz;z++)
-		for (int y=0;y<reg.ny;y++)
-		for (int x=0;x<reg.nx;x++) {
-			double val=0;
-			switch (dir) {
-			case 0:	val = reg.dx + x; break;
-			case 1: val = reg.dy + y; break;
-			case 2: val = reg.dz + z; break;
-			}
-			val = (val + 0.5) * unit; 
-			small[i] = val;
-			i++;
-		}
-		return small;
+		Model::Coord dir = solver->lattice->model->coords.by_name(name);
+		std::vector<real_t> tmp = solver->lattice->getCoord(dir, unit);
+		Rcpp::NumericVector ret(tmp.begin(),tmp.end());
+		ret.attr("dim") = r_retdim;
+		return ret;
 	}
 
 	const Model::NodeTypeGroupFlag& it = solver->lattice->model->nodetypegroupflags.by_name(name);
 	if (it) { // Geometry components
-		flag_t * NodeType = new flag_t[size];
-		solver->lattice->GetFlags(reg, NodeType);
+		std::vector<big_flag_t> NodeType = solver->lattice->getFlags();
 		Rcpp::IntegerVector small(size);
-		small.attr("dim") = retdim;
+		small.attr("dim") = r_retdim;
 		for (size_t i=0;i<size;i++) {
 			small[i] = 1 + ((NodeType[i] & it.flag) >> it.shift);
 		}
@@ -423,7 +382,6 @@ SEXP Dollar(std::string name) {
 		}
 		small.attr("levels") = levels;
 		small.attr("class") = "factor";
-		delete[] NodeType;
 		return small;
 	}
 	ERROR("R: Unknown component of Geometry");
@@ -431,9 +389,9 @@ SEXP Dollar(std::string name) {
 }
 	virtual Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		ret.push_back("dx");
-		ret.push_back("dy");
-		ret.push_back("dz");
+		// ret.push_back("dx");
+		// ret.push_back("dy");
+		// ret.push_back("dz");
 		ret.push_back("X");
 		ret.push_back("Y");
 		ret.push_back("Z");

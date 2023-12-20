@@ -146,56 +146,6 @@ void CartLattice::MPIInit()
 	debug2("Done (BUFS: %d)\n", bufnumber);
 }
 
-int CartLattice::loadComp(const std::string& filename, const std::string& comp) {
-    const int n = getLocalRegion().size();
-    const auto fn = formatAsString("%s_%d.comp", filename, D_MPI_RANK);
-    auto buf = std::make_unique<real_t[]>(n);
-    output("Loading component %s from file %s\n", comp.c_str(), fn.c_str());
-    FILE * f = fopen(fn.c_str(), "rb");
-    assert(f != NULL);
-    int nn = fread(buf.get(), sizeof(real_t), n, f);
-    assert(n == nn);
-    fclose(f);
-<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
-    if (comp == "<?%s d$name ?>") Set_<?%s d$nicename ?>(buf.get()); <?R
-} ?>
-    return 0;
-}
-
-/// Save component/density
-/**
-	Saves a component/density in a binary file
-	\param filename Path/prefix of the file to save
-	\param comp Density name to save
-*/
-int CartLattice::saveComp(const std::string& filename, const std::string& comp) const {
-	const int n = getLocalRegion().size();
-	const auto fn = formatAsString("%s_%s_%d.comp", filename, comp, D_MPI_RANK);
-	auto buf = std::make_unique<real_t[]>(n);
-	output("Saving component %s to file %s\n", comp.c_str(), fn.c_str());
-    bool somethingWritten = false;
-<?R
-    for (d in rows(DensityAll)) if (d$parameter) {
-?>
-	if (comp == "<?%s d$name ?>") {
-        Get_<?%s d$nicename ?>(buf.get());
-        somethingWritten = true;
-    }
-<?R
-}
-?>
-    if (somethingWritten) {
-    	FILE * f = fopen(fn.c_str(),"wb");
-    	assert(f != NULL);
-    	fwrite(buf.get(), sizeof(real_t), n, f);
-	    fclose(f);
-        output("...saved %s\n", comp.c_str());
-    } else {
-     	output("...not saved %s\n", comp.c_str());
-    }
-	return 0;
-}
-
 /// Clear the adjoint solution buffers
 /**
         Clear the Adjoint Snapshots
@@ -456,18 +406,17 @@ void CartLattice::Color(uchar4 * ptr) {
 }
 
 /// Overwrite NodeType in a region
-void CartLattice::FlagOverwrite(flag_t * mask, const lbRegion& over)
-{
+void CartLattice::setFlags(const lbRegion& over, const std::vector<big_flag_t>& tab) {
 	if (getLocalRegion().isEqual(over)) {
 		output("overwriting all flags\n");
-		CudaMemcpy(launcher.container.NodeType, mask, sizeof(flag_t)*getLocalRegion().sizeL(), CudaMemcpyHostToDevice);
+		CudaMemcpy(launcher.container.NodeType, tab.data(), sizeof(flag_t)*getLocalRegion().sizeL(), CudaMemcpyHostToDevice);
 	} else {
 		lbRegion inter = getLocalRegion().intersect(over);
 	        int x = inter.dx;
 	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
 	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
 	        {
-	                CudaMemcpy2D(&launcher.container.NodeType[getLocalRegion().offsetL(x,y,z)], sizeof(flag_t), &mask[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
+	                CudaMemcpy2D(&launcher.container.NodeType[getLocalRegion().offsetL(x,y,z)], sizeof(flag_t), &tab[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
 	        }
 	}
 }
@@ -502,128 +451,118 @@ void CartLattice::CutsOverwrite(cut_t * Q, const lbRegion& over)
 }
 
 /// Get NodeType's from a region
-void CartLattice::GetFlags(const lbRegion& over, flag_t * NodeType) const
-{
-	size_t offset;
+std::vector<big_flag_t> CartLattice::getFlags(const lbRegion& over) const {
 	lbRegion inter = getLocalRegion().intersect(over);
+	size_t size = inter.sizeL();
+	std::vector<big_flag_t> ret(size);
 	if (getLocalRegion().isEqual(over)) {
-                CudaMemcpy(NodeType, launcher.container.NodeType, sizeof(flag_t)*getLocalRegion().sizeL(), CudaMemcpyDeviceToHost);
-        } else {
-	        int x = inter.dx;
-	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
-	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
-	        {
-			offset = getLocalRegion().offsetL(x,y,z);
-			CudaMemcpy2D(&NodeType[over.offsetL(x,y,z)], sizeof(flag_t), &launcher.container.NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
+		CudaMemcpy(ret.data(), launcher.container.NodeType, sizeof(flag_t)*getLocalRegion().sizeL(), CudaMemcpyDeviceToHost);
+	} else {
+		int x = inter.dx;
+		for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+		for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+		{
+			size_t offset = getLocalRegion().offsetL(x,y,z);
+			CudaMemcpy2D(&ret[over.offsetL(x,y,z)], sizeof(flag_t), &launcher.container.NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
 		}
 	}
+	return ret;
+}	
+
+std::vector<real_t> CartLattice::getCoord(const Model::Coord& d, real_t scale) {
+	lbRegion reg = getLocalRegion();
+	std::vector<real_t> ret;
+	ret.resize(reg.sizeL());
+	for (int z=0;z<reg.nz;z++)
+	for (int y=0;y<reg.ny;y++)
+	for (int x=0;x<reg.nx;x++) {
+		double val=0;
+		switch (d.id) {
+		case 0:	val = px + x; break;
+		case 1: val = py + y; break;
+		case 2: val = pz + z; break;
+		default: assert(false); break;
+		}
+		ret.push_back(val*scale);
+	}
+	assert(ret.size() == getLocalSize());
+	return ret;
 }
 
-void CartLattice::GetCoords(real_t* tab) {
-	return;
+std::vector<real_t> CartLattice::getField(const Model::Field& f) {
+	assert(f.isParameter);
+	FTabs& from = Snaps[Snap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	std::vector<real_t> ret(size);
+	debug2("Pulling all %s\n",f.name.c_str());
+	CudaMemcpy( ret.data(), &from.block14[f.id*size], size*sizeof(real_t), CudaMemcpyDeviceToHost);
+	return ret;
 }
 
-void CartLattice::Get_Field(int id, real_t * tab) { <?R
-	for (f in rows(Fields)) if (f$parameter) { ?>
-	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>(tab); <?R
-	} ?>
-}
-void CartLattice::Get_Field_Adj(int id, real_t * tab) {
-#ifdef ADJOINT <?R
-	for (f in rows(Fields)) if (f$parameter) { ?>
-	if (id == <?%s f$Index ?>) return Get_<?%s f$nicename ?>_Adj(tab); <?R
-	} ?>
+
+std::vector<real_t> CartLattice::getFieldAdj(const Model::Field& f) {
+#ifdef ADJOINT
+	assert(f.isParameter);
+	FTabs& from = aSnaps[aSnap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	std::vector<real_t> ret(size);
+	debug2("Pulling all %s\n",f.name.c_str());
+	CudaMemcpy( ret.data(), &from.block14[f.id*size], size*sizeof(real_t), CudaMemcpyDeviceToHost);
+	return ret;
+#else
+	assert(false);
 #endif
 }
-void CartLattice::Set_Field(int id, real_t * tab) { <?R
-	for (f in rows(Fields)) if (f$parameter) { ?>
-	if (id == <?%s f$Index ?>) return Set_<?%s f$nicename ?>(tab); <?R
-	} ?>
-}
 
-
-<?R
-	for (f in rows(Fields)[Fields$parameter]) {
-
-	for (adjoint in c(TRUE,FALSE)) {
-	if (adjoint) {
-		from="aSnaps[aSnap]";
-		suff = "_Adj"
-	} else {
-		from="Snaps[Snap]";
-		suff = ""
-	}
-	ifdef(adjoint)
-?>
-
-/// Get [<?%s f$comment ?>]
-/**
-        Retrive the values of the density <?%s f$nicename ?> (<?%s f$comment ?>)
-        from the GPU memory
-*/
-void CartLattice::Get_<?%s f$nicename ?><?%s suff ?>(real_t * tab) const
-{
-	debug2("Pulling all <?%s f$nicename ?>\n");
+void CartLattice::setField(const Model::Field& f, const std::vector<real_t>& tab){
+	assert(f.isParameter);
+	FTabs& from = Snaps[Snap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	debug2("Setting all %s\n", f.name.c_str());
 	CudaMemcpy(
-		tab,
-		&<?%s from ?>.block14[<?%s f$Index ?>*getLocalRegion().sizeL()],
-		getLocalRegion().sizeL()*sizeof(real_t),
-		CudaMemcpyDeviceToHost);
-}
-
-/// Clear [<?%s f$comment ?>]
-/**
-        Clear (set to zero) the values of
-        the density <?%s f$nicename ?> (<?%s f$comment ?>)
-        in the GPU memory
-*/
-void CartLattice::Clear_<?%s f$nicename ?><?%s suff ?>()
-{
-	debug2("Clearing all <?%s f$nicename ?>\n");
-	CudaMemset(
-		&<?%s from ?>.block14[<?%s f$Index ?>*getLocalRegion().sizeL()],
-		0,
-		getLocalRegion().sizeL()*sizeof(real_t));
-}
-
-/// Set [<?%s f$comment ?>]
-/**
-        Set the values of
-        the density <?%s f$nicename ?> (<?%s f$comment ?>)
-        in the GPU memory
-*/
-void CartLattice::Set_<?%s f$nicename ?><?%s suff ?>(real_t * tab) const
-{
-	debug2("Setting all <?%s f$nicename ?>\n");
-	CudaMemcpy(
-		&<?%s from ?>.block14[<?%s f$Index?>*getLocalRegion().sizeL()],
-		tab,
-		getLocalRegion().sizeL()*sizeof(real_t),
+		&from.block14[f.id*size],
+		tab.data(),
+		size*sizeof(real_t),
 		CudaMemcpyHostToDevice);
 }
 
-<?R }
-ifdef()
-} ?>
-
+void CartLattice::setFieldAdjZero(const Model::Field& f){
+#ifdef ADJOINT
+	assert(f.isParameter);
+	FTabs& from = aSnaps[aSnap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	debug2("Clearing all %s\n", f.name.c_str());
+	CudaMemset(
+		&from.block14[f.id*size],
+		0,
+		size*sizeof(real_t));
+#else
+	assert(false);
+#endif
+}
 
 /// Get Quantity
 /**
         Retrive the values of the Quantity
         from the GPU memory
 */
-void CartLattice::GetQuantity(int quant, const lbRegion& over, real_t * tab, real_t scale)
-{
-	switch(quant) {	<?R
-		for (q in rows(Quantities)) { ifdef(q$adjoint);
-	?>
-		case <?%s q$Index ?>: return Get<?%s q$name ?>(over, (<?%s q$type ?> *) tab, scale); <?R
+std::vector<real_t> CartLattice::getQuantity(const Model::Quantity& q, const lbRegion& over, real_t scale) {
+	int comp = q.getComp();
+	size_t size = getLocalSize() * comp;
+	std::vector<real_t> ret(size);
+	switch(q.id) { <?R
+		for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		case <?%s q$Index ?>: Get<?%s q$name ?>(over, (<?%s q$type ?> *) ret.data(), scale); break; <?R
 		}
-		ifdef();
-	?>
+		ifdef(); ?>
+		default: assert(false); break;
 	}
+	return ret;
 }
-
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
 /// Get [<?%s q$comment ?>]
@@ -762,107 +701,6 @@ int CartLattice::setPar(const ParStruct& par_struct, double * w) {
   assert(j == par_struct.Par_size);
   output("[%d] L2 norm of parameter change: %lg\n", sqrt(sum));
   return 0;
-}
-
-int CartLattice::getComponentIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
-    const auto& region = getLocalRegion();
-    int n = region.size();
-
-    dim[0] = region.nx;
-    dim[1] = region.ny;
-    dim[2] = region.nz;
-
-    offsets[0] = region.dx;
-    offsets[1] = region.dy;
-    offsets[2] = region.dz;
-
-    buf = new real_t[n];
-
-    output("Providing component %s to buffer..\n", comp);
-    bool somethingWritten = false;
-<?R
-    for (d in rows(DensityAll)) if (d$parameter){
-?>
-	if (std::string_view(comp) == "<?%s d$name ?>") {
-        Get_<?%s d$nicename ?>(buf);
-        somethingWritten = true;
-    }
-<?R
-}
-?>
-    if (!somethingWritten){
-        output("Possible densities:\n");
-    <?R
-        for (d in rows(DensityAll)) if (d$parameter){
-            ?> output("-> <?%s d$name ?>\n") ; <?R
-        }
-    ?>
-    }
-    assert(somethingWritten);
-    if (somethingWritten) {
-        output("...provided %s\n", comp);
-    } else {
-     	output("...not saved %s\n", comp);
-    }
-	return n;
-}
-
-int CartLattice::getQuantityIntoBuffer(const char* comp, real_t* &buf, long int*  dim, long int*  offsets ) {
-    const auto& region = getLocalRegion();
-    int n = region.size();
-
-    dim[0] = region.nx;
-    dim[1] = region.ny;
-    dim[2] = region.nz;
-    dim[3] = 1;
-
-    offsets[0] = region.dx;
-    offsets[1] = region.dy;
-    offsets[2] = region.dz;
-
-	output("Providing quantity %s to buffer..\n", comp);
-    bool somethingWritten = false;
-<?R
-for (q in rows(Quantities)){ ifdef(q$adjoint);
-?>
-    if (std::string_view(comp) == "<?%s q$name ?>") {
-        <?%s q$type ?>* tmp_<?%s q$name ?> = new <?%s q$type ?>[n];
-        <?R if (q$type == 'vector_t') { ?>
-            dim[3] = 3;
-<?R } ?>
-        Get<?%s q$name ?>(region, tmp_<?%s q$name ?>, 1);
-        buf = (real_t*)tmp_<?%s q$name ?>;
-        somethingWritten = true;
-    }
-<?R
-}
-ifdef();
-?>
-    if (!somethingWritten){
-        output("Possible quantities:\n");
-<?R
-for (d in rows(Quantities)) {
-     ?> output("-> <?%s d$name ?>\n"); <?R
-}
-?>
-    }
-    assert(somethingWritten);
-    if (somethingWritten) {
-        output("...provided %s\n", comp);
-    } else {
-        output("...not saved %s\n", comp);
-    }
-    return n;
-}
-
-
-int CartLattice::loadComponentFromBuffer(const char* comp,  real_t* buf) {
-    int n = getLocalRegion().size();
-<?R for (d in rows(DensityAll)) if (d$parameter) { ?>
-    if (std::string_view(comp) == "<?%s d$name ?>") Set_<?%s d$nicename ?>(buf); <?R
-} ?>
-    delete [] buf;
-    return 0;
 }
 
 void CartLattice::resetAverage() {

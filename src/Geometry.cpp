@@ -34,10 +34,10 @@ const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1
 */
 Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, const Model * model_):model(model_), region(r), totalregion(tr), units(units_)
 {
-    geom = new big_flag_t[region.sizeL()];
+	geom.resize(region.sizeL());
     Q = NULL;
     for (size_t i = 0; i < region.sizeL(); i++) {
-	geom[i] = 0;
+		geom[i] = 0;
     }
     output("Creating geom size: %ld\n", region.sizeL());
 }
@@ -1287,7 +1287,6 @@ int Geometry::load(pugi::xml_node& node, const std::map<std::string, int>& zone_
 Geometry::~Geometry()
 {
     debug1("[%d] Destroy geom\n", D_MPI_RANK);
-    delete[]geom;
     if (Q != NULL) delete[] Q;
 }
 
@@ -1309,7 +1308,7 @@ void Geometry::writeVTI(const char *name)
 	return;
     }
     vtkFile.Init(region, "");
-    vtkFile.WriteField("geom", geom);
+    vtkFile.WriteField("geom", geom.data());
     if (Q != NULL) {
         size_t regsize = region.sizeL();
 

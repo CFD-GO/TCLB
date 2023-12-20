@@ -27,7 +27,7 @@ enum draw_mode { MODE_OVERWRITE, MODE_FILL, MODE_CHANGE };
 class Geometry {
     const Model * model;
 public:
-    big_flag_t* geom; ///< Main table of flags/NodeType's
+    std::vector<big_flag_t> geom; ///< Main table of flags/NodeType's
     cut_t* Q;
     lbRegion region;       ///< Lattice region
     lbRegion totalregion;  ///< Global Lattice region

@@ -82,7 +82,19 @@ class ArbLattice : public LatticeBase {
     int reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);  /// Init if passed args differ from those passed at construction or the last call to reinitialize (avoid duplicating work)
     size_t getLocalSize() const final { return connect.chunk_end - connect.chunk_begin; }
     size_t getGlobalSize() const final { return connect.num_nodes_global; }
-    void getQuantity(int quant, real_t* host_tab, real_t scale);  /// Write GPU data to \p host_tab
+
+
+    virtual std::vector<int> shape() const { return {static_cast<int>(getLocalSize())}; };
+    virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) ;
+    virtual std::vector<big_flag_t> getFlags() const;
+    virtual std::vector<real_t> getField(const Model::Field& f);
+    virtual std::vector<real_t> getFieldAdj(const Model::Field& f);
+    virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1);
+
+    virtual void setFlags(const std::vector<big_flag_t>& x);
+    virtual void setField(const Model::Field& f, const std::vector<real_t>& x);
+    virtual void setFieldAdjZero(const Model::Field& f);
+    
     const ArbVTUGeom& getVTUGeom() const { return vtu_geom; }
     Span<const flag_t> getNodeTypes() const { return {node_types_host.data(), node_types_host.size()}; }  /// Get host view of node types (permuted)
 
@@ -109,8 +121,6 @@ class ArbLattice : public LatticeBase {
     storage_t* getAdjointSnapPtr(int snap_ind);  /// Get device pointer to the specified adjoint snap, snap_ind must be 0 or 1
 #endif
 
-    int loadComp(const std::string& filename, const std::string& comp) final;        /// TODO
-    int saveComp(const std::string& filename, const std::string& comp) const final;  /// TODO
     int loadPrimal(const std::string& filename, int snap_ind) final;                 /// TODO
     void savePrimal(const std::string& filename, int snap_ind) const final;          /// TODO
 #ifdef ADJOINT

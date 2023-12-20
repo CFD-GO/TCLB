@@ -518,12 +518,37 @@ void ArbLattice::SetFirstTabs(int tab_in, int tab_out) {
     setSnapOut(tab_out);
 }
 
-void ArbLattice::getQuantity(int quant, real_t* host_tab, real_t scale) {
+
+
+
+std::vector<big_flag_t> ArbLattice::getFlags() const { throw std::runtime_error{"UNIMPLEMENTED"}; return {}; };
+std::vector<real_t> ArbLattice::getField(const Model::Field& f) { throw std::runtime_error{"UNIMPLEMENTED"}; return {}; };
+std::vector<real_t> ArbLattice::getFieldAdj(const Model::Field& f) { throw std::runtime_error{"UNIMPLEMENTED"}; return {}; };
+void ArbLattice::setFlags(const std::vector<big_flag_t>& x) { throw std::runtime_error{"UNIMPLEMENTED"}; return; };
+void ArbLattice::setField(const Model::Field& f, const std::vector<real_t>& x) { throw std::runtime_error{"UNIMPLEMENTED"}; return; };
+void ArbLattice::setFieldAdjZero(const Model::Field& f) { throw std::runtime_error{"UNIMPLEMENTED"}; return; };
+
+
+std::vector<real_t> ArbLattice::getQuantity(const Model::Quantity& q, real_t scale) {
+    size_t size = getLocalSize();
+    int comp = q.getComp();
+    std::vector<real_t> ret(size*comp);
     setSnapIn(Snap);
 #ifdef ADJOINT
     setAdjSnapIn(aSnap);
 #endif
-    launcher.getQuantity(quant, host_tab, scale, data);
+    launcher.getQuantity(q.id, ret.data(), scale, data);
+    return ret;
+}
+
+std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
+    size_t size = getLocalSize();
+    std::vector<real_t> ret(size);
+    for (size_t i = 0; i < size; ++i) {
+        size_t j = local_permutation[i];
+        ret[j] = connect.coord(d.id, i)*scale;
+    }
+    return ret;
 }
 
 #include <iostream>
@@ -682,15 +707,6 @@ void ArbLattice::MPIStream_B() {
     CudaStreamSynchronize(inStream);
 }
 
-/// TODO section
-int ArbLattice::loadComp(const std::string& filename, const std::string& comp) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-    return -1;
-}
-int ArbLattice::saveComp(const std::string& filename, const std::string& comp) const {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-    return -1;
-}
 int ArbLattice::loadPrimal(const std::string& filename, int snap_ind) {
     throw std::runtime_error{"UNIMPLEMENTED"};
     return -1;
