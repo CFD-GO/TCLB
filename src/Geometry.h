@@ -7,6 +7,7 @@
 #include "pugixml.hpp"
 #include "unit.h"
 #include "Lists.h"
+#include "Region.h"
 
 /// STL triangle structure
 #ifdef _WIN32

@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <string>
+#include <vector>
 
 namespace mpitools {
 

@@ -3,6 +3,7 @@
 
 #include "cross.h"
 #include "pinned_allocator.hpp"
+#include "Region.h"
 
 /// Information on connectivity of a processor
 struct NodeInfo {
