@@ -221,8 +221,7 @@ CudaDeviceFunction real_t calcMu(real_t myPhase){
 		}
 	#endif
 
-	// eq 5 from "Improved locality of the phase-field lattice Boltzmann 
-	// model for immiscible fluids at high density ratios"
+	// eq 5 from "Improved locality of the phase-field lattice Boltzmann model for immiscible fluids at high density ratios"
 	real_t pfavg = 0.5*(PhaseField_l+PhaseField_h);
 	real_t mu = 4.0*(12.0*sigma/W)*(myPhase-PhaseField_l)*(myPhase-PhaseField_h)*(myPhase-pfavg)
 		        - (1.5 *sigma*W) * lpPhi; 
@@ -230,8 +229,7 @@ CudaDeviceFunction real_t calcMu(real_t myPhase){
 }
 
 CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t u2mag){
-	// eq 10 from "Improved locality of the phase-field lattice Boltzmann 
-	// model for immiscible fluids at high density ratios"
+	// eq 10 from "Improved locality of the phase-field lattice Boltzmann model for immiscible fluids at high density ratios"
 	real_t gamma, tmp;
 	tmp = (d2q9_ex[i]*u+d2q9_ey[i]*v);
 
@@ -240,8 +238,7 @@ CudaDeviceFunction real_t calcGamma(int i, real_t u, real_t v, real_t u2mag){
 }
 
 CudaDeviceFunction real_t calcF_phi(int i, real_t numerator, real_t nx, real_t ny){
-	// eq 7 from "Improved locality of the phase-field lattice Boltzmann 
-	// model for immiscible fluids at high density ratios"
+	// eq 7 from "Improved locality of the phase-field lattice Boltzmann model for immiscible fluids at high density ratios"
 
 	// nx: normalized PhaseField gradient in x direction
 	// this method calculates F_phi in [0-9] lattice coord
@@ -252,8 +249,7 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t numerator, real_t nx, real_t n
 }
 
 CudaDeviceFunction vector_t calcF_phi_xy(vector_t gradPhi, real_t myPhaseF, real_t pfavg){	
-	// eq 7 from "Improved locality of the phase-field lattice Boltzmann 
-	// model for immiscible fluids at high density ratios"
+	// eq 7 from "Improved locality of the phase-field lattice Boltzmann model for immiscible fluids at high density ratios"
 
 	// this method calculates F_phi in x,y coordinates
 	real_t nx = gradPhi.x/gradPhi.z;  // GradPhi normalized in x, y direction
@@ -540,8 +536,8 @@ CudaDeviceFunction void calcWallPhaseIter(){
 
 	if ((NodeType & NODE_BOUNDARY) == NODE_Wall) {
 		if (nw_x == 0 && nw_y == 0) { 
-			PhaseF = 0.0;
-			printf("EDGE CASE: Solid found with no normal at (%.1f %.1f)\n", X, Y);
+			PhaseF = NAN;
+			//printf("EDGE CASE: Solid found with no normal at (%.1f %.1f)\n", X, Y);
 			return;
 		} 
 		real_t myA, myPhase; 

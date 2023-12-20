@@ -88,7 +88,7 @@ if (Options$RT) {
 	# iteration
 	AddStage("BaseIter"  , "calcHydroIter"      , save=Fields$group %in% c("g","h","Vel","nw") , load=DensityAll$group %in% c("PF","g","h","Vel","nw"))  # TODO: is nw needed here?
 	AddStage("PhaseIter" , "calcPhaseFIter"		, save=Fields$group %in% c("PF")			   , load=DensityAll$group %in% c("g","h","Vel","nw"))
-	AddStage("WallIter"  , "calcWallPhaseIter"	, save=Fields$group %in% c("PF")			   , load=DensityAll$group %in% c("nw","PF"))	
+	AddStage("WallIter"  , "calcWallPhaseIter"	, save=Fields$group %in% c("PF")			   , load=DensityAll$group %in% c("nw","PF"))	# Purposefully read/write of PF for boundary. complex geom may force RACE condition.
 }
 
 AddAction("Iteration", c("BaseIter", "PhaseIter","WallIter"))
