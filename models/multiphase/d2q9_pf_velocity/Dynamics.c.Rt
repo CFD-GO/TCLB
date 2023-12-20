@@ -543,7 +543,7 @@ CudaDeviceFunction void calcWallPhaseIter(){
 		real_t myA, myPhase; 
 		myPhase = PhaseF_dyn(nw_x, nw_y);
 		if (isnan(myPhase)) {
-			printf("EDGE CASE: Solid normal pointing into solid node at (%.1f %.1f)\n", X, Y);
+			//printf("EDGE CASE: Solid normal pointing into solid node at (%.1f %.1f)\n", X, Y);
 			PhaseF=0.0;
 			return;
 		}
@@ -554,7 +554,6 @@ CudaDeviceFunction void calcWallPhaseIter(){
 			PhaseF = (myA - sqrt( myA*myA - 4.0 * (myA-1.0)*myPhase))/(myA-1.0) - myPhase;
 		}
 	} 	
-	if (isnan(PhaseF)) printf("NaN at (%.1f %.1f)\n", X, Y);
 }
 
 #ifdef OPTIONS_CM
