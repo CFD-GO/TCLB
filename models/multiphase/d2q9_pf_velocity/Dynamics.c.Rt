@@ -113,7 +113,7 @@ CudaDeviceFunction vector_t calcGradPhi(){
 	real_t phi_a = PhaseF(0,0);
 	real_t phi_b, denom = 0.0;
 
-	for (int i = 1; i<9; i++) {
+	for (int i = 0; i<9; i++) {
 		phi_b = PhaseF_dyn(d2q9_ex[i],d2q9_ey[i]);
 		if (!isnan(phi_b)){
 			gradPhi.x += wf[i]*d2q9_ex[i]*(phi_b-phi_a);
