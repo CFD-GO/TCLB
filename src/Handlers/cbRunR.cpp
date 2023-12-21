@@ -342,25 +342,22 @@ public:
 		Rcpp::IntegerVector v(v_);
 		lbRegion reg = solver->lattice->region;
 		size_t size = reg.sizeL();
-		{
-			flag_t * NodeType = new flag_t[size];
-			solver->lattice->GetFlags(reg, NodeType);
-			for (const Model::NodeTypeGroupFlag& it : solver->lattice->model->nodetypegroupflags) {
-				bool some_na = false;
-				for (size_t i=0;i<size;i++) {
-					if (Rcpp::IntegerVector::is_na(v[i])) {
-						some_na = true;
-					} else {
-						NodeType[i] = (NodeType[i] - (NodeType[i] & it.flag)) + ((v[i] - 1) << it.shift);
-					}
-				}
-				if (some_na) {
-					ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
-				}
+		flag_t * NodeType = new flag_t[size];
+		solver->lattice->GetFlags(reg, NodeType);
+		const Model::NodeTypeGroupFlag& it = solver->lattice->model->nodetypegroupflags.by_name(name);
+		bool some_na = false;
+		for (size_t i=0;i<size;i++) {
+			if (Rcpp::IntegerVector::is_na(v[i])) {
+				some_na = true;
+			} else {
+				NodeType[i] = (NodeType[i] - (NodeType[i] & it.flag)) + ((v[i] - 1) << it.shift);
 			}
-			solver->lattice->FlagOverwrite(NodeType, reg);
-			delete[] NodeType;
 		}
+		if (some_na) {
+			ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
+		}
+		solver->lattice->FlagOverwrite(NodeType, reg);
+		delete[] NodeType;
 		return;
 	}
 
