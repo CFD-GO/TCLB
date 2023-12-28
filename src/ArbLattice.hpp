@@ -137,6 +137,8 @@ class ArbLattice : public LatticeBase {
     ArbVTUGeom makeVTUGeom() const;                                                                                                /// Compute VTU geometry
     void communicateBorder();                                                                                                      /// Send and receive border values in snap (overlapped with interior computation)
     unsigned lookupLocalGhostIndex(ArbLatticeConnectivity::Index gid) const;                                                       /// For a given ghost gid, look up its local id
+    void debugDumpConnect(const std::string& name) const;                                                                          /// Dump connectivity info for debug purposes
+    void debugDumpVTU() const;                                                                                                     /// Dump VTU info info for debug purposes
 };
 
 #endif  // ARBLATTICE_HPP
