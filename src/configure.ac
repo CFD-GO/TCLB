@@ -194,11 +194,9 @@ AC_ARG_WITH([cpp-flags],
 		[privide additionals flags for the compiler]),
 	[CONF_CPPFLAGS="$withval"])		
 
-NVFLAGS=""
-
 if test "x${COMPILER_BINDIR}" != "x"
 then
-	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
+	NVFLAGS="${NVFLAGS} -ccbin=${COMPILER_BINDIR} "
 fi
 
 if test -z "$CXX"
