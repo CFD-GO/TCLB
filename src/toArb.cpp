@@ -6,18 +6,18 @@
 #include <unordered_map>
 #include <vector>
 
-static long int linPos(long int x, long int y, long int z, long int nx, long int ny) {
+static long linPos(long x, long y, long z, long nx, long ny) {
     return x + nx * y + nx * ny * z;
 }
 
 // i mod m, assuming i is greater than -m and less than 2*m
-static long int fastModSingleWrap(long int i, long int m) {
+static long fastModSingleWrap(long i, long m) {
     if (i < 0) return i + m;
     if (i >= m) return i - m;
     return i;
 }
 
-static long int linPosBoundschecked(long int x, long int y, long int z, long int nx, long int ny, long int nz) {
+static long linPosBoundschecked(long x, long y, long z, long nx, long ny, long nz) {
     return linPos(fastModSingleWrap(x, nx), fastModSingleWrap(y, ny), fastModSingleWrap(z, nz), nx, ny);
 }
 
@@ -25,9 +25,9 @@ static long int linPosBoundschecked(long int x, long int y, long int z, long int
 static auto makeBulkBmp(const Geometry& geo, big_flag_t bulk_mask, big_flag_t bulk_flag) -> std::vector<bool> {
     const auto nx = geo.totalregion.nx, ny = geo.totalregion.ny, nz = geo.totalregion.nz;
     std::vector<bool> retval(nx * ny * nz);
-    for (long int z = 0; z < nz; z++)
-        for (long int y = 0; y < ny; y++)
-            for (long int x = 0; x < nx; x++)
+    for (long z = 0; z < nz; z++)
+        for (long y = 0; y < ny; y++)
+            for (long x = 0; x < nx; x++)
                 if ((geo.geom[geo.region.offset(x, y, z)] & bulk_mask) == bulk_flag) {
                     const auto lin_pos = linPos(x, y, z, nx, ny);
                     retval[lin_pos] = true;
@@ -35,42 +35,32 @@ static auto makeBulkBmp(const Geometry& geo, big_flag_t bulk_mask, big_flag_t bu
     return retval;
 }
 
-// Mark void lattice nodes, i.e., bulk nodes which have all bulk neighbors
-static auto makeVoidBmp(const lbRegion& region, const std::vector<bool>& bulk_bmp) -> std::vector<bool> {
-    const auto nx = region.nx, ny = region.ny, nz = region.nz;
-    std::vector<bool> retval(nx * ny * nz);
-    for (long int z = 0; z < nz; z++)
-        for (long int y = 0; y < ny; y++)
-            for (long int x = 0; x < nx; x++) {
-                const auto lin_pos = linPos(x, y, z, nx, ny);
-                if (!bulk_bmp[lin_pos]) continue;  // Non-bulk nodes always stay
-                retval[lin_pos] = std::all_of(Model_m::offset_directions.begin(), Model_m::offset_directions.end(), [&](const auto& ofs_dir) -> bool {
-                    const auto [dx, dy, dz] = ofs_dir;
-                    const auto lin_pos_offset = linPosBoundschecked(x + dx, y + dy, z + dz, nx, ny, nz);
-                    return bulk_bmp[lin_pos_offset];
-                });
-            }
-    return retval;
-}
-
 // Map from full Cartesian lattice linear index to arbitrary lattice index
-static auto makeArbLatticeIndexMap(const lbRegion& region, const std::vector<bool>& void_bmp) -> std::unordered_map<long int, long int> {
-    const auto nx = region.nx, ny = region.ny, nz = region.nz;
-    std::unordered_map<long int, long int> retval(void_bmp.size() - std::count(void_bmp.begin(), void_bmp.end(), true));
-    long int index = 0;
-    for (long int z = 0; z < nz; z++)
-        for (long int y = 0; y < ny; y++)
-            for (long int x = 0; x < nx; x++) {
-                const auto lin_pos = linPos(x, y, z, nx, ny);
-                if (!void_bmp[lin_pos]) retval.emplace(lin_pos, index++);
+static auto makeArbLatticeIndexMap(const lbRegion& region, const std::vector<bool>& bulk_bmp) -> std::unordered_map<long, long> {
+    const long nx = region.nx, ny = region.ny, nz = region.nz;
+    const auto is_void = [&](long x, long y, long z, long lin_pos) {
+        if (!bulk_bmp[lin_pos]) return false;  // non-bulk nodes always stay
+        return std::all_of(Model_m::offset_directions.begin(), Model_m::offset_directions.end(), [&](const auto& ofs_dir) -> bool {
+            const auto [dx, dy, dz] = ofs_dir;
+            const auto lin_pos_offset = linPosBoundschecked(x + dx, y + dy, z + dz, nx, ny, nz);
+            return bulk_bmp[lin_pos_offset];
+        });
+    };
+    std::unordered_map<long, long> retval;
+    retval.max_load_factor(.5);
+    for (long index = 0, lin_pos = 0, z = 0; z < nz; ++z)
+        for (long y = 0; y < ny; ++y)
+            for (long x = 0; x < nx; ++x) {
+                if (!is_void(x, y, z, lin_pos)) retval.emplace(lin_pos, index++);
+                ++lin_pos;
             }
     return retval;
 }
 
-static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes, double underlying_grid_size, const Model& model, const std::map<std::string, int>& zone_map) {
+static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes, double grid_size, const Model& model, const std::map<std::string, int>& zone_map) {
     file << "OFFSET_DIRECTIONS " << Model_m::offset_directions.size() << '\n';
     for (const auto [x, y, z] : Model_m::offset_directions) file << x << ' ' << y << ' ' << z << '\n';
-    file << "GRID_SIZE " << underlying_grid_size << '\n';
+    file << "GRID_SIZE " << grid_size << '\n';
     file << "NODE_LABELS " << model.nodetypeflags.size() + zone_map.size() << '\n';
     for (const auto& ntf : model.nodetypeflags) file << ntf.name << '\n';
     for (const auto& [name, zf] : zone_map) file << "_Z_" << name << '\n';
@@ -78,13 +68,24 @@ static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes, double unde
     return file.good() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static int writeArbLatticeNodes(const Geometry& geo, const Model& model, const std::map<std::string, int>& zone_map, const std::unordered_map<long int, long int>& lin_to_arb_index_map, const std::vector<bool>& void_bmp, std::fstream& file, double spacing) {
-    const auto nx = geo.totalregion.nx, ny = geo.totalregion.ny, nz = geo.totalregion.nz;
-    for (long int z = 0; z < nz; z++)
-        for (long int y = 0; y < ny; y++)
-            for (long int x = 0; x < nx; x++) {
-                const auto lin_pos = linPos(x, y, z, nx, ny);
-                if (void_bmp[lin_pos]) continue;
+static int writeArbLatticeNodes(const Geometry& geo,
+                                const Model& model,
+                                const std::map<std::string, int>& zone_map,
+                                const std::unordered_map<long, long>& lin_to_arb_index_map,
+                                const std::vector<bool>& bulk_bmp,
+                                std::fstream& file,
+                                double spacing) {
+    const long nx = geo.totalregion.nx, ny = geo.totalregion.ny, nz = geo.totalregion.nz;
+    const auto get_nbr_id = [&](long my_pos, long nbr_pos) -> long {
+        if (my_pos != nbr_pos && bulk_bmp[my_pos] && bulk_bmp[nbr_pos]) return -1;  // ignore edges between bulk nodes
+        const auto nbr_it = lin_to_arb_index_map.find(nbr_pos);
+        return nbr_it != lin_to_arb_index_map.end() ? nbr_it->second : -1;
+    };
+    for (long lin_pos = 0, z = 0; z < nz; z++)
+        for (long y = 0; y < ny; y++)
+            for (long x = 0; x < nx; x++) {
+                const auto current_lin_pos = lin_pos++;
+                if (lin_to_arb_index_map.find(current_lin_pos) == lin_to_arb_index_map.end()) continue;  // void node
 
                 // Coordinates
                 const double x_coord = (static_cast<double>(x) + .5) * spacing;
@@ -96,14 +97,18 @@ static int writeArbLatticeNodes(const Geometry& geo, const Model& model, const s
                 for (const auto [dx, dy, dz] : Model_m::offset_directions) {
                     const auto lin_pos_offset = linPosBoundschecked(x + dx, y + dy, z + dz, nx, ny, nz);
                     const auto nbr_it = lin_to_arb_index_map.find(lin_pos_offset);
-                    file << (nbr_it != lin_to_arb_index_map.end() ? nbr_it->second : -1) << ' ';
+                    file << get_nbr_id(current_lin_pos, lin_pos_offset) << ' ';
                 }
 
                 // Groups & zones
                 const auto flag = geo.geom[geo.region.offset(x, y, z)];
                 const int zone_flag = (flag & model.settingzones.flag) >> model.settingzones.shift;
-                const size_t n_groups = std::count_if(model.nodetypeflags.cbegin(), model.nodetypeflags.cend(), [flag](const auto& ntf) { return ntf.flag != 0 && (flag & ntf.group_flag) == ntf.flag; });
-                const size_t n_zones = zone_flag == 0 ? 0 : std::count_if(zone_map.begin(), zone_map.end(), [zone_flag](const auto& zone_map_entry) { return zone_map_entry.second == zone_flag; });
+                const size_t n_groups = std::count_if(model.nodetypeflags.cbegin(), model.nodetypeflags.cend(), [flag](const auto& ntf) {
+                    return ntf.flag != 0 && (flag & ntf.group_flag) == ntf.flag;
+                });
+                const size_t n_zones = zone_flag == 0 ? 0 : std::count_if(zone_map.begin(), zone_map.end(), [zone_flag](const auto& zone_map_entry) {
+                    return zone_map_entry.second == zone_flag;
+                });
                 file << n_groups + n_zones << ' ';
                 size_t gz_ind = 0;
                 for (const auto& ntf : model.nodetypeflags) {
@@ -115,9 +120,7 @@ static int writeArbLatticeNodes(const Geometry& geo, const Model& model, const s
                         if (zone_flag == zf) file << gz_ind << ' ';
                         ++gz_ind;
                     }
-
                 file << '\n';
-
                 if (!file.good()) break;  // Fail early
             }
 
@@ -125,15 +128,20 @@ static int writeArbLatticeNodes(const Geometry& geo, const Model& model, const s
     return file.good() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static int writeArbLattice(const Geometry& geo, const Model& model, const std::map<std::string, int>& zone_map, const std::unordered_map<long int, long int>& lin_to_arb_index_map, const std::vector<bool>& void_bmp, const std::string& filename, double spacing) {
+static int writeArbLattice(const Geometry& geo,
+                           const Model& model,
+                           const std::map<std::string, int>& zone_map,
+                           const std::unordered_map<long, long>& lin_to_arb_index_map,
+                           const std::vector<bool>& bulk_bmp,
+                           const std::string& filename,
+                           double spacing) {
     std::fstream file(filename, std::ios_base::out);
     if (!file.good()) {
         ERROR("Failed to open .cxn file for writing");
         return EXIT_FAILURE;
     }
     if (writeArbLatticeHeader(file, lin_to_arb_index_map.size(), spacing, model, zone_map)) return EXIT_FAILURE;
-    if (writeArbLatticeNodes(geo, model, zone_map, lin_to_arb_index_map, void_bmp, file, spacing)) return EXIT_FAILURE;
-    return EXIT_SUCCESS;
+    return writeArbLatticeNodes(geo, model, zone_map, lin_to_arb_index_map, bulk_bmp, file, spacing);
 }
 
 static int writeArbXml(const Solver& solver, const Geometry& geo, const Model& model, const std::string& cxn_path) {
@@ -171,8 +179,8 @@ static int writeArbXml(const Solver& solver, const Geometry& geo, const Model& m
     return restartfile.save_file(filename.c_str()) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-static long int liRegionSize(const lbRegion& region) {
-    const long int nx = region.nx, ny = region.ny, nz = region.nz;
+static long liRegionSize(const lbRegion& region) {
+    const long nx = region.nx, ny = region.ny, nz = region.nz;
     return nx * ny * nz;
 }
 
@@ -186,14 +194,12 @@ int toArbitrary(const Solver& solver, const Geometry& geo, const Model& model) {
         bulk_flag = ntf.flag;
         bulk_mask = ntf.group_flag;
     }
-    auto bulk_bmp = makeBulkBmp(geo, bulk_mask, bulk_flag);
-    const auto void_bmp = makeVoidBmp(geo.totalregion, bulk_bmp);
-    bulk_bmp = {};  // Explicitly free memory for subsequent stages
-    const auto id_map = makeArbLatticeIndexMap(geo.totalregion, void_bmp);
+    const auto bulk_bmp = makeBulkBmp(geo, bulk_mask, bulk_flag);
+    const auto id_map = makeArbLatticeIndexMap(geo.totalregion, bulk_bmp);
     output("Interior size: %lu / %li", id_map.size(), liRegionSize(geo.totalregion));
     const auto filename = solver.outGlobalFile("ARB", ".cxn");
     const double spacing = 1 / solver.units.alt("m");
     output("Writing arbitrary lattice data to %s...", filename.c_str());
-    if (writeArbLattice(geo, model, solver.setting_zones, id_map, void_bmp, filename, spacing)) return EXIT_FAILURE;
+    if (writeArbLattice(geo, model, solver.setting_zones, id_map, bulk_bmp, filename, spacing)) return EXIT_FAILURE;
     return writeArbXml(solver, geo, model, filename);
 }
