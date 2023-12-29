@@ -122,11 +122,12 @@ class ArbLattice : public LatticeBase {
     void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file
     void partition();                                                                                                              /// Repartition the lattice, if ParMETIS is not present this is a noop
-    void computeLocalPermutation();                                                                                                /// Compute the local permutation, see comment at the top
+    std::function<bool(int, int)> makePermCompare(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);       /// Make type-erased comparison operator for computing the local permutation, according to the strategy specified in the xml file
+    void computeLocalPermutation(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                        /// Compute the local permutation, see comment at the top
     void computeGhostNodes();                                                                                                      /// Retrieve GIDs of ghost nodes from the connectivity info structure
     void allocDeviceMemory();                                                                                                      /// Allocate required device memory
     std::vector<NodeTypeBrush> parseBrushFromXml(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) const;  /// Parse the arbitrary lattice XML to determine the brush sequence to be applied to each node
-    void computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                         /// Compute the node types to be stored on the device
+    void computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones, bool permute);           /// Compute the node types to be stored on the device, `permute` enables better code reuse
     std::pmr::vector<real_t> computeCoords() const;                                                                                /// Compute the coordinates 2D array to be stored on the device
     std::pmr::vector<unsigned> computeNeighbors() const;                                                                           /// Compute the neighbors 2D array to be stored on the device
     void initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                                 /// Initialize data residing in device memory

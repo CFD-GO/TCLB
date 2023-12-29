@@ -42,7 +42,7 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     if (connect.getLocalSize() == 0)
         throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
     computeGhostNodes();
-    computeLocalPermutation();
+    computeLocalPermutation(arb_node, setting_zones);
     allocDeviceMemory();
     initDeviceData(arb_node, setting_zones);
     local_bounding_box = getLocalBoundingBox();
@@ -230,9 +230,41 @@ void ArbLattice::computeGhostNodes() {
     std::sort(ghost_nodes.begin(), ghost_nodes.end());
 }
 
-void ArbLattice::computeLocalPermutation() {
-    std::vector<size_t> lids;  // globalIdx - chunk_begin of elements
-    lids.resize(connect.getLocalSize());
+enum struct PermStrategy { None, Type, Coords, Both };
+
+std::function<bool(int, int)> ArbLattice::makePermCompare(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+    // Note: copies of these closures will outlive the function call, careful with the captures (capture by copy)
+    const auto get_zyx = [this](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
+    const auto get_nt = [this](int lid) { return node_types_host.at(lid); };
+    const auto get_nt_zyx = [get_zyx, get_nt](int lid) { return std::make_pair(get_nt(lid), get_zyx(lid)); };
+    constexpr auto wrap_projection_as_comparison = [](const auto& proj) { return [proj](int lid1, int lid2) { return proj(lid1) < proj(lid2); }; };
+
+    using namespace std::string_view_literals;
+    static const auto strat_map = std::unordered_map<std::string_view, PermStrategy>{{"none"sv, PermStrategy::None},
+                                                                                     {"type"sv, PermStrategy::Type},
+                                                                                     {"coords"sv, PermStrategy::Coords},
+                                                                                     {"default"sv, PermStrategy::Both},
+                                                                                     {""sv, PermStrategy::Both}};
+    const std::string_view strat_str = arb_node.attribute("permutation").value();
+    const auto enum_it = strat_map.find(strat_str);
+    if (enum_it == strat_map.end()) throw std::runtime_error{"Unrecognized permutation strategy"};
+    const auto strat = enum_it->second;
+    if (strat == PermStrategy::Type || strat == PermStrategy::Both) computeNodeTypesOnHost(arb_node, setting_zones, /*permute*/ false);
+    switch (strat) {
+        case PermStrategy::None:  // Use initial ordering
+            return std::less{};
+        case PermStrategy::Type:  // Sort by node type only
+            return wrap_projection_as_comparison(get_nt);
+        case PermStrategy::Coords:  // Sort by coordinates only
+            return wrap_projection_as_comparison(get_zyx);
+        case PermStrategy::Both:  // Sort by node type, then coordinates
+            return wrap_projection_as_comparison(get_nt_zyx);
+    }
+    return {};  // avoid compiler warning
+}
+
+void ArbLattice::computeLocalPermutation(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+    std::vector<size_t> lids(connect.getLocalSize());  // globalIdx - chunk_begin of elements
     std::iota(lids.begin(), lids.end(), 0);
     const auto is_border_node = [&](int lid) {
         for (size_t q = 0; q != Q; ++q) {
@@ -243,12 +275,9 @@ void ArbLattice::computeLocalPermutation() {
     };
     const auto interior_begin = std::stable_partition(lids.begin(), lids.end(), is_border_node);
     sizes.border_nodes = static_cast<size_t>(std::distance(lids.begin(), interior_begin));
-    const auto by_zyx = [&](int lid1, int lid2) {  // Sort by z, then y, then x -> this should help with coalesced memory access
-        const auto get_zyx = [&](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
-        return get_zyx(lid1) < get_zyx(lid2);
-    };
-    std::sort(lids.begin(), interior_begin, by_zyx);
-    std::sort(interior_begin, lids.end(), by_zyx);
+    const auto compare = makePermCompare(arb_node, setting_zones);
+    std::sort(lids.begin(), interior_begin, compare);
+    std::sort(interior_begin, lids.end(), compare);
     local_permutation.resize(connect.getLocalSize());
     size_t i = 0;
     for (const auto& lid : lids) local_permutation[lid] = i++;
@@ -296,7 +325,7 @@ std::vector<ArbLattice::NodeTypeBrush> ArbLattice::parseBrushFromXml(pugi::xml_n
     return retval;
 }
 
-void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones, bool permute) {
     const auto local_sz = connect.getLocalSize();
     const auto zone_sizes = Span(connect.zones_per_node.get(), local_sz);
     auto zone_offsets = std::vector<size_t>(local_sz);
@@ -310,7 +339,7 @@ void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<
         const auto point = std::array{connect.coord(0, i), connect.coord(1, i), connect.coord(2, i)};
         for (const auto& [pred, mask, val] : brushes)
             if (pred(labels, point)) {
-                auto& dest = node_types_host[local_permutation[i]];
+                auto& dest = node_types_host[permute ? local_permutation[i] : i];
                 dest = (dest & ~mask) | val;
             }
     }
@@ -356,7 +385,7 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
 
 void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
     fillWithStorageNaNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, inStream);
-    computeNodeTypesOnHost(arb_node, setting_zones);
+    computeNodeTypesOnHost(arb_node, setting_zones, /*permute*/ true);
     copyVecToDeviceAsync(node_types_device.get(), node_types_host, inStream);
     const auto nbrs = computeNeighbors();
     copyVecToDeviceAsync(neighbors_device.get(), nbrs, inStream);
