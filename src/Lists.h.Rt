@@ -283,6 +283,14 @@ class Model_m : public Model {
 public:
     Model_m();
 
+    // Lookup density index by name
+    static int lookupFieldIndexByName(const std::string& name) { <?R
+for (f in rows(Fields)) { ?>
+        if (name == "<?%s f$name ?>") return <?%s f$Index?>; <?R
+} ?>
+        return -1;
+    }
+
     // Offset directions (Q) stored as constexpr array of int triplets; for compile-time computations requiring Q
     static constexpr auto offset_directions = model_details::makeOffsetDirections();                           /// Array of offset directions
     static constexpr size_t Q  = offset_directions.size();                                                     /// Number of offset directions

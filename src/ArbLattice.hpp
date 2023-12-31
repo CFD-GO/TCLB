@@ -107,6 +107,7 @@ class ArbLattice : public LatticeBase {
     };
 
     storage_t* getSnapPtr(int snap_ind);  /// Get device pointer to the specified snap (somewhere within the total snap allocation)
+    const storage_t* getSnapPtr(int snap_ind) const { return const_cast<ArbLattice*>(this)->getSnapPtr(snap_ind); }
 #ifdef ADJOINT
     storage_t* getAdjointSnapPtr(int snap_ind);  /// Get device pointer to the specified adjoint snap, snap_ind must be 0 or 1
 #endif

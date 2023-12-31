@@ -678,22 +678,73 @@ void ArbLattice::MPIStream_B() {
     CudaStreamSynchronize(inStream);
 }
 
-/// TODO section
-int ArbLattice::loadComp(const std::string& filename, const std::string& comp) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-    return -1;
+static int saveImpl(const std::string& filename, const storage_t* device_ptr, size_t size) {
+    std::pmr::vector<storage_t> tab(size);
+    CudaMemcpy(tab.data(), device_ptr, size * sizeof(storage_t), CudaMemcpyDeviceToHost);
+    auto file = fopen(filename.c_str(), "wb");
+    if (!file) {
+        const auto err_msg = std::string("Failed to open ") + filename + " for writing";
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    const auto n_written = fwrite(tab.data(), sizeof(storage_t), size, file);
+    fclose(file);
+    if (n_written != size) {
+        const auto err_msg = std::string("Error writing to ") + filename;
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
-int ArbLattice::saveComp(const std::string& filename, const std::string& comp) const {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-    return -1;
+
+static int loadImpl(const std::string& filename, storage_t* device_ptr, size_t size) {
+    auto file = fopen(filename.c_str(), "rb");
+    if (!file) {
+        const auto err_msg = std::string("Failed to open ") + filename + " for reading";
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    std::pmr::vector<storage_t> tab(size);
+    const auto n_read = fread(tab.data(), sizeof(storage_t), size, file);
+    fclose(file);
+    if (n_read != size) {
+        const auto err_msg = std::string("Error reading from ") + filename;
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    CudaMemcpy(device_ptr, tab.data(), size * sizeof(storage_t), CudaMemcpyHostToDevice);
+    return EXIT_SUCCESS;
 }
-int ArbLattice::loadPrimal(const std::string& filename, int snap_ind) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-    return -1;
-}
+
 void ArbLattice::savePrimal(const std::string& filename, int snap_ind) const {
-    throw std::runtime_error{"UNIMPLEMENTED"};
+    if (saveImpl(filename, getSnapPtr(snap_ind), sizes.snaps_pitch * NF)) throw std::runtime_error{"savePrimal failed"};
 }
+
+int ArbLattice::loadPrimal(const std::string& filename, int snap_ind) {
+    return loadImpl(filename, getSnapPtr(snap_ind), sizes.snaps_pitch * NF);
+}
+
+int ArbLattice::loadComp(const std::string& filename, const std::string& comp) {
+    const int comp_ind = Model_m::lookupFieldIndexByName(comp);
+    if (comp_ind == -1) {
+        const auto err_msg = std::string("ArbLattice::loadComp called with unknown component: ") + comp;
+        error(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    return loadImpl(filename, std::next(getSnapPtr(Snap), comp_ind * sizes.snaps_pitch), sizes.snaps_pitch);
+}
+
+int ArbLattice::saveComp(const std::string& filename, const std::string& comp) const {
+    const int comp_ind = Model_m::lookupFieldIndexByName(comp);
+    if (comp_ind == -1) {
+        const auto err_msg = std::string("ArbLattice::saveComp called with unknown component: ") + comp;
+        error(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    return saveImpl(filename, std::next(getSnapPtr(Snap), comp_ind * sizes.snaps_pitch), sizes.snaps_pitch);
+}
+
+/// TODO section
 #ifdef ADJOINT
 int ArbLattice::loadAdj(const std::string& filename, int asnap_ind) {
     throw std::runtime_error{"UNIMPLEMENTED"};
