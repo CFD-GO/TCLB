@@ -12,7 +12,22 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
     const lbRegion& local_reg = lattice.getLocalRegion();
     const lbRegion reg = local_reg.intersect(total_output_reg);
     size_t size = reg.size();
-    myprint(1, -1, "Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d", reg.nx, reg.ny, reg.nz, reg.dx, reg.dy, reg.dz, size, local_reg.nx, local_reg.ny, local_reg.nz, local_reg.dx, local_reg.dy, local_reg.dz);
+    myprint(1,
+            -1,
+            "Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d",
+            reg.nx,
+            reg.ny,
+            reg.nz,
+            reg.dx,
+            reg.dy,
+            reg.dz,
+            size,
+            local_reg.nx,
+            local_reg.ny,
+            local_reg.nz,
+            local_reg.dx,
+            local_reg.dy,
+            local_reg.dz);
 
     vtkFileOut vtkFile(MPMD.local);
     if (vtkFile.Open(filename.c_str())) return -1;
@@ -50,8 +65,10 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
 int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units, const name_set& what) {
     try {
         const auto& [num_cells, num_points, coords, verts] = lattice.getVTUGeom();
-        const bool has_scalars = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return !q.isVector; }) != lattice.model->quantities.end();
-        const bool has_vectors = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return q.isVector; }) != lattice.model->quantities.end();
+        const bool has_scalars = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return !q.isVector; }) !=
+                                 lattice.model->quantities.end();
+        const bool has_vectors = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return q.isVector; }) !=
+                                 lattice.model->quantities.end();
         VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, has_scalars, has_vectors);
 
         const auto node_types_view = lattice.getNodeTypes();
@@ -84,23 +101,39 @@ int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const Unit
 
 int binWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units) {
     const lbRegion& reg = lattice.getLocalRegion();
-    FILE* f;
-    int size = reg.size();
+    const int size = reg.size();
+    const auto tmp = std::make_unique<real_t[]>(lattice.getLocalSize() * 3);  // Allocate for vector quantities and reuse
     for (const Model::Quantity& it : lattice.model->quantities) {
-        int comp = 1;
-        if (it.isVector) comp = 3;
-        auto tmp = std::make_unique<real_t[]>(size * comp);
+        const int comp = it.isVector ? 3 : 1;
         lattice.GetQuantity(it.id, reg, tmp.get(), 1);
         const auto fn = formatAsString("%s.%s.bin", filename, it.name);
-        f = fopen(fn.c_str(), "w");
+        auto f = fopen(fn.c_str(), "w");
         if (f == NULL) {
             ERROR("Cannot open file: %s\n", fn.c_str());
-            return -1;
+            return EXIT_FAILURE;
         }
         fwrite(tmp.get(), sizeof(real_t) * comp, size, f);
         fclose(f);
     }
-    return 0;
+    return EXIT_SUCCESS;
+}
+
+int binWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units) {
+    const size_t size = lattice.getLocalSize();
+    const auto tmp = std::make_unique<real_t[]>(size * 3);  // Allocate for vector quantities and reuse
+    for (const Model::Quantity& it : lattice.model->quantities) {
+        const int comp = it.isVector ? 3 : 1;
+        lattice.getQuantity(it.id, tmp.get(), 1.);
+        const auto fn = formatAsString("%s.%s.bin", filename, it.name);
+        auto f = fopen(fn.c_str(), "w");
+        if (f == NULL) {
+            ERROR("Cannot open file: %s\n", fn.c_str());
+            return EXIT_FAILURE;
+        }
+        fwrite(tmp.get(), sizeof(real_t) * comp, size, f);
+        fclose(f);
+    }
+    return EXIT_SUCCESS;
 }
 
 inline int txtWriteElement(FILE* f, float tmp) {
