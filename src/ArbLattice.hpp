@@ -85,6 +85,8 @@ class ArbLattice : public LatticeBase {
     void getQuantity(int quant, real_t* host_tab, real_t scale);  /// Write GPU data to \p host_tab
     const ArbVTUGeom& getVTUGeom() const { return vtu_geom; }
     Span<const flag_t> getNodeTypes() const { return {node_types_host.data(), node_types_host.size()}; }  /// Get host view of node types (permuted)
+    const ArbLatticeConnectivity& getConnectivity() const { return connect; }
+    const std::vector<unsigned>& getLocalPermutation() const { return local_permutation; }
 
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice

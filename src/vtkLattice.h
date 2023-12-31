@@ -16,6 +16,7 @@ int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const Unit
 int binWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units);
 int binWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units);
 int txtWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv&, const name_set& s, int type);
+int txtWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv&, const name_set& s, int type);
 void screenDumpLattice(const CartLattice& lattice);
 int initMean(const std::string& filename);
 int writeMean(const std::string& filename, const CartLattice& lattice, int, int iter, double);

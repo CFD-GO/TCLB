@@ -182,6 +182,7 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
         fclose(f);
     }
 
+    auto tmp = std::make_unique<real_t[]>(size * 3);
     for (const Model::Quantity& it : lattice.model->quantities) {
         if (what.in(it.name)) {
             const auto fn = formatAsString("%s_%s.txt", filename, it.name);
@@ -202,13 +203,83 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
                 ERROR("Cannot open file: %s\n", fn.c_str());
                 return -1;
             }
-            double v = units.alt(it.unit);
-            auto tmp = std::make_unique<real_t[]>(size);
-            lattice.GetQuantity(it.id, reg, tmp.get(), 1 / v);
+            lattice.GetQuantity(it.id, reg, tmp.get(), 1. / units.alt(it.unit));
             txtWriteField(f, tmp.get(), reg.nx, size);
             fclose(f);
         }
     }
 
     return 0;
+}
+
+int txtWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units, const name_set& what, int type) {
+    const size_t size = lattice.getLocalSize();
+    if (D_MPI_RANK == 0) {
+        const auto fn = formatAsString("%s_info.txt", filename);
+        FILE* f = fopen(fn.c_str(), "w");
+        if (f == NULL) {
+            ERROR("Cannot open file: %s\n", fn.c_str());
+            return EXIT_FAILURE;
+        }
+        fprintf(f, "dx: %lg\n", 1 / units.alt("m"));
+        fprintf(f, "dt: %lg\n", 1 / units.alt("s"));
+        fprintf(f, "dm: %lg\n", 1 / units.alt("kg"));
+        fprintf(f, "dT: %lg\n", 1 / units.alt("K"));
+        fprintf(f, "size: %lu\n", size);
+        fclose(f);
+    }
+
+    const auto open_out_stream = [&](const std::string& fn) -> FILE* {
+        switch (type) {
+            case 0:
+                return fopen(fn.c_str(), "w");
+            case 1: {
+                const auto com = formatAsString("gzip > %s.gz", fn);
+                return popen(com.c_str(), "w");
+            }
+            default:
+                ERROR("Unknown type in txtWriteLattice\n");
+                return nullptr;
+        }
+    };
+    const auto tmp = std::make_unique<real_t[]>(size * 3);  // allocate for vector quantity and reuse
+    const auto write_tmp_to_file = [&](const std::string& suffix, bool is_vector) {
+        const auto fn = formatAsString("%s_%s.txt", filename, suffix);
+        auto f = open_out_stream(fn);
+        if (!f) {
+            ERROR("Cannot open file: %s\n", fn.c_str());
+            return EXIT_FAILURE;
+        }
+        for (size_t i = 0, n = 0; n != size; ++n) {
+            if (is_vector) {
+                txtWriteElement(f, tmp[i++]);
+                fprintf(f, " ");
+                txtWriteElement(f, tmp[i++]);
+                fprintf(f, " ");
+                txtWriteElement(f, tmp[i++]);
+                fprintf(f, "\n");
+            } else {
+                txtWriteElement(f, tmp[n]);
+                fprintf(f, "\n");
+            }
+        }
+        fclose(f);
+        return EXIT_SUCCESS;
+    };
+
+    for (const auto& quantity : lattice.model->quantities) {
+        if (what.in(quantity.name)) {
+            lattice.getQuantity(quantity.id, tmp.get(), 1. / units.alt(quantity.unit));
+            if (write_tmp_to_file(quantity.name, quantity.isVector)) return EXIT_FAILURE;
+        }
+    }
+
+    for (size_t i = 0; i != size; ++i) {
+        const auto perm_ind = lattice.getLocalPermutation()[i];
+        for (size_t dim = 0; dim != 3; ++dim) {
+            const size_t dest_ind = 3 * perm_ind + dim;
+            tmp[dest_ind] = lattice.getConnectivity().coord(dim, i);
+        }
+    }
+    return write_tmp_to_file("coords", true);
 }
