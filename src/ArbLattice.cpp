@@ -230,8 +230,6 @@ void ArbLattice::computeGhostNodes() {
     std::sort(ghost_nodes.begin(), ghost_nodes.end());
 }
 
-enum struct PermStrategy { None, Type, Coords, Both };
-
 std::function<bool(int, int)> ArbLattice::makePermCompare(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
     // Note: copies of these closures will outlive the function call, careful with the captures (capture by copy)
     const auto get_zyx = [this](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
@@ -239,16 +237,18 @@ std::function<bool(int, int)> ArbLattice::makePermCompare(pugi::xml_node arb_nod
     const auto get_nt_zyx = [get_zyx, get_nt](int lid) { return std::make_pair(get_nt(lid), get_zyx(lid)); };
     constexpr auto wrap_projection_as_comparison = [](const auto& proj) { return [proj](int lid1, int lid2) { return proj(lid1) < proj(lid2); }; };
 
-    using namespace std::string_view_literals;
-    static const auto strat_map = std::unordered_map<std::string_view, PermStrategy>{{"none"sv, PermStrategy::None},
-                                                                                     {"type"sv, PermStrategy::Type},
-                                                                                     {"coords"sv, PermStrategy::Coords},
-                                                                                     {"default"sv, PermStrategy::Both},
-                                                                                     {""sv, PermStrategy::Both}};
+    enum struct PermStrategy { None, Type, Coords, Both };
+    static const std::unordered_map<std::string_view, PermStrategy> strat_map = {{"none", PermStrategy::None},
+                                                                                 {"type", PermStrategy::Type},
+                                                                                 {"coords", PermStrategy::Coords},
+                                                                                 {"both", PermStrategy::Both},
+                                                                                 {"", PermStrategy::Coords}};  // "" is the default
     const std::string_view strat_str = arb_node.attribute("permutation").value();
     const auto enum_it = strat_map.find(strat_str);
-    if (enum_it == strat_map.end()) throw std::runtime_error{"Unrecognized permutation strategy"};
+    if (enum_it == strat_map.end())
+        throw std::runtime_error{"Unknown permutation strategy for ArbitraryLattice, valid values are: none, type, coords (default), both"};
     const auto strat = enum_it->second;
+
     if (strat == PermStrategy::Type || strat == PermStrategy::Both) computeNodeTypesOnHost(arb_node, setting_zones, /*permute*/ false);
     switch (strat) {
         case PermStrategy::None:  // Use initial ordering
