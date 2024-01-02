@@ -17,9 +17,6 @@ jobs:
           - cpu
           - cuda
           - hip
-        reticulate:
-          - true
-          - false
         test:
           - true
           - false
@@ -28,7 +25,9 @@ jobs:
             test: true
           - arch: "hip"
             test: true
-          - reticulate: true
+          - precision: "float"
+            test: true
+          - precision: "double"
             test: false
     steps:
     - name: Git checkout
@@ -40,7 +39,7 @@ jobs:
         rdep: true
         openmpi: true
         rinside: true
-        reticulate: ${{ matrix.reticulate }}
+        reticulate: ${{ matrix.test }}
         cuda: ${{ matrix.arch == 'cuda' }}
         hip: ${{ matrix.arch == 'hip' }}
     - name: Configure
@@ -56,7 +55,9 @@ jobs:
       uses: ./.github/actions/compile
       with:
         model: ${{ matrix.model }}
-    - name: Run tests
+    - if: matrix.test
+      name: Run tests
       uses: ./.github/actions/test
       with:
         model: ${{ matrix.model }}
+        tests: rinside
