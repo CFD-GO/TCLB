@@ -108,13 +108,15 @@ public:
 			return Rcpp::NumericVector(0);
 		}
 		lbRegion reg = solver->lattice->region;
-		Rcpp::NumericVector ret(reg.size());
+		std::vector<real_t> vec;
+		vec.resize(reg.size());
+	    solver->lattice->Get_Field(it.id, &vec[0]);
+		Rcpp::NumericVector ret(vec.begin(),vec.end());
 		Rcpp::IntegerVector retdim(3);
 		retdim[0] = reg.nx;
 		retdim[1] = reg.ny;
 		retdim[2] = reg.nz;
 		ret.attr("dim") = retdim;
-	    solver->lattice->Get_Field(it.id, &ret[0]); 
 		return ret;
 	}
 
@@ -129,7 +131,8 @@ public:
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
-	        solver->lattice->Set_Field(it.id,&v[0]); 
+		std::vector<real_t> vec(v.begin(),v.end());
+	    solver->lattice->Set_Field(it.id,&vec[0]); 
 		return;
 	}
 	Rcpp::CharacterVector Names() {
