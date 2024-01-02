@@ -419,7 +419,7 @@ SEXP Dollar(std::string name) {
 		
 		if (name == "SETTINGZONES") {
 			Rcpp::CharacterVector levels(solver->geometry->SettingZones.size());
-			for (const auto it2 : solver->geometry->SettingZones) {
+			for (const auto& it2 : solver->geometry->SettingZones) {
 				levels[it2.second] = it2.first;
 			}		
 			small.attr("levels") = levels;
