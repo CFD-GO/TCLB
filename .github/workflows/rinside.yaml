@@ -17,21 +17,15 @@ jobs:
           - cpu
           - cuda
           - hip
-        test:
-          - true
-          - false
-        exclude:
-          - arch: "cuda"
-            test: true
-          - arch: "hip"
-            test: true
-          - precision: "float"
-            test: true
+        include:
           - precision: "double"
-            test: false
+            arch: "cpu"
+            test: true
     steps:
     - name: Git checkout
       uses: actions/checkout@v3
+      with:
+        submodules: ${{ matrix.test }}
     - name: Install dependencies
       uses: ./.github/actions/install
       with:
