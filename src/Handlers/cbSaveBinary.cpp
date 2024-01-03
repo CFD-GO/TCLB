@@ -22,11 +22,10 @@ int cbSaveBinary::Init () {
 int cbSaveBinary::DoIt () {
 		Callback::DoIt();
 		pugi::xml_attribute attr = node.attribute("comp");
-                const auto lattice = solver->getCartLattice();
 		if (attr) {
-			lattice->saveComp(fn, attr.value());
+			solver->lattice->saveComp(fn, attr.value());
 		} else {
-			lattice->saveSolution(fn);
+			solver->lattice->saveSolution(fn);
             	//error("Missing comp attribute in SaveBinary");
 		}
 		return 0;

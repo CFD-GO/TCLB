@@ -12,7 +12,22 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
     const lbRegion& local_reg = lattice.getLocalRegion();
     const lbRegion reg = local_reg.intersect(total_output_reg);
     size_t size = reg.size();
-    myprint(1, -1, "Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d", reg.nx, reg.ny, reg.nz, reg.dx, reg.dy, reg.dz, size, local_reg.nx, local_reg.ny, local_reg.nz, local_reg.dx, local_reg.dy, local_reg.dz);
+    myprint(1,
+            -1,
+            "Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d",
+            reg.nx,
+            reg.ny,
+            reg.nz,
+            reg.dx,
+            reg.dy,
+            reg.dz,
+            size,
+            local_reg.nx,
+            local_reg.ny,
+            local_reg.nz,
+            local_reg.dx,
+            local_reg.dy,
+            local_reg.dz);
 
     vtkFileOut vtkFile(MPMD.local);
     if (vtkFile.Open(filename.c_str())) return -1;
@@ -50,8 +65,10 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
 int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units, const name_set& what) {
     try {
         const auto& [num_cells, num_points, coords, verts] = lattice.getVTUGeom();
-        const bool has_scalars = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return !q.isVector; }) != lattice.model->quantities.end();
-        const bool has_vectors = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return q.isVector; }) != lattice.model->quantities.end();
+        const bool has_scalars = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return !q.isVector; }) !=
+                                 lattice.model->quantities.end();
+        const bool has_vectors = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return q.isVector; }) !=
+                                 lattice.model->quantities.end();
         VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, has_scalars, has_vectors);
 
         const auto node_types_view = lattice.getNodeTypes();
@@ -84,23 +101,39 @@ int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const Unit
 
 int binWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units) {
     const lbRegion& reg = lattice.getLocalRegion();
-    FILE* f;
-    int size = reg.size();
+    const int size = reg.size();
+    const auto tmp = std::make_unique<real_t[]>(lattice.getLocalSize() * 3);  // Allocate for vector quantities and reuse
     for (const Model::Quantity& it : lattice.model->quantities) {
-        int comp = 1;
-        if (it.isVector) comp = 3;
-        auto tmp = std::make_unique<real_t[]>(size * comp);
+        const int comp = it.isVector ? 3 : 1;
         lattice.GetQuantity(it.id, reg, tmp.get(), 1);
         const auto fn = formatAsString("%s.%s.bin", filename, it.name);
-        f = fopen(fn.c_str(), "w");
+        auto f = fopen(fn.c_str(), "w");
         if (f == NULL) {
             ERROR("Cannot open file: %s\n", fn.c_str());
-            return -1;
+            return EXIT_FAILURE;
         }
         fwrite(tmp.get(), sizeof(real_t) * comp, size, f);
         fclose(f);
     }
-    return 0;
+    return EXIT_SUCCESS;
+}
+
+int binWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units) {
+    const size_t size = lattice.getLocalSize();
+    const auto tmp = std::make_unique<real_t[]>(size * 3);  // Allocate for vector quantities and reuse
+    for (const Model::Quantity& it : lattice.model->quantities) {
+        const int comp = it.isVector ? 3 : 1;
+        lattice.getQuantity(it.id, tmp.get(), 1.);
+        const auto fn = formatAsString("%s.%s.bin", filename, it.name);
+        auto f = fopen(fn.c_str(), "w");
+        if (f == NULL) {
+            ERROR("Cannot open file: %s\n", fn.c_str());
+            return EXIT_FAILURE;
+        }
+        fwrite(tmp.get(), sizeof(real_t) * comp, size, f);
+        fclose(f);
+    }
+    return EXIT_SUCCESS;
 }
 
 inline int txtWriteElement(FILE* f, float tmp) {
@@ -149,6 +182,7 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
         fclose(f);
     }
 
+    auto tmp = std::make_unique<real_t[]>(size * 3);
     for (const Model::Quantity& it : lattice.model->quantities) {
         if (what.in(it.name)) {
             const auto fn = formatAsString("%s_%s.txt", filename, it.name);
@@ -169,13 +203,83 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
                 ERROR("Cannot open file: %s\n", fn.c_str());
                 return -1;
             }
-            double v = units.alt(it.unit);
-            auto tmp = std::make_unique<real_t[]>(size);
-            lattice.GetQuantity(it.id, reg, tmp.get(), 1 / v);
+            lattice.GetQuantity(it.id, reg, tmp.get(), 1. / units.alt(it.unit));
             txtWriteField(f, tmp.get(), reg.nx, size);
             fclose(f);
         }
     }
 
     return 0;
+}
+
+int txtWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units, const name_set& what, int type) {
+    const size_t size = lattice.getLocalSize();
+    if (D_MPI_RANK == 0) {
+        const auto fn = formatAsString("%s_info.txt", filename);
+        FILE* f = fopen(fn.c_str(), "w");
+        if (f == NULL) {
+            ERROR("Cannot open file: %s\n", fn.c_str());
+            return EXIT_FAILURE;
+        }
+        fprintf(f, "dx: %lg\n", 1 / units.alt("m"));
+        fprintf(f, "dt: %lg\n", 1 / units.alt("s"));
+        fprintf(f, "dm: %lg\n", 1 / units.alt("kg"));
+        fprintf(f, "dT: %lg\n", 1 / units.alt("K"));
+        fprintf(f, "size: %lu\n", size);
+        fclose(f);
+    }
+
+    const auto open_out_stream = [&](const std::string& fn) -> FILE* {
+        switch (type) {
+            case 0:
+                return fopen(fn.c_str(), "w");
+            case 1: {
+                const auto com = formatAsString("gzip > %s.gz", fn);
+                return popen(com.c_str(), "w");
+            }
+            default:
+                ERROR("Unknown type in txtWriteLattice\n");
+                return nullptr;
+        }
+    };
+    const auto tmp = std::make_unique<real_t[]>(size * 3);  // allocate for vector quantity and reuse
+    const auto write_tmp_to_file = [&](const std::string& suffix, bool is_vector) {
+        const auto fn = formatAsString("%s_%s.txt", filename, suffix);
+        auto f = open_out_stream(fn);
+        if (!f) {
+            ERROR("Cannot open file: %s\n", fn.c_str());
+            return EXIT_FAILURE;
+        }
+        for (size_t i = 0, n = 0; n != size; ++n) {
+            if (is_vector) {
+                txtWriteElement(f, tmp[i++]);
+                fprintf(f, " ");
+                txtWriteElement(f, tmp[i++]);
+                fprintf(f, " ");
+                txtWriteElement(f, tmp[i++]);
+                fprintf(f, "\n");
+            } else {
+                txtWriteElement(f, tmp[n]);
+                fprintf(f, "\n");
+            }
+        }
+        fclose(f);
+        return EXIT_SUCCESS;
+    };
+
+    for (const auto& quantity : lattice.model->quantities) {
+        if (what.in(quantity.name)) {
+            lattice.getQuantity(quantity.id, tmp.get(), 1. / units.alt(quantity.unit));
+            if (write_tmp_to_file(quantity.name, quantity.isVector)) return EXIT_FAILURE;
+        }
+    }
+
+    for (size_t i = 0; i != size; ++i) {
+        const auto perm_ind = lattice.getLocalPermutation()[i];
+        for (size_t dim = 0; dim != 3; ++dim) {
+            const size_t dest_ind = 3 * perm_ind + dim;
+            tmp[dest_ind] = lattice.getConnectivity().coord(dim, i);
+        }
+    }
+    return write_tmp_to_file("coords", true);
 }

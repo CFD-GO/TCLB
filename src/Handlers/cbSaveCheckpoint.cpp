@@ -43,10 +43,9 @@ int cbSaveCheckpoint::DoIt () {
 			delete the first set into the queue
 		*/
 		output("writing checkpoint");
-                const auto lattice = solver->getCartLattice();
 		const auto filename = solver->outIterCollectiveFile("checkpoint", "");
 		const auto restartFile = solver->outIterCollectiveFile("restart", ".xml");
-		auto fileStr = lattice->saveSolution(filename);
+		auto fileStr = solver->lattice->saveSolution(filename);
                 std::string restStr;
 		if (D_MPI_RANK == 0 ) {
 			writeRestartFile(filename.c_str(), restartFile.c_str());
