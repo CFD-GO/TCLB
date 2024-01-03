@@ -472,7 +472,7 @@ std::vector<big_flag_t> CartLattice::getFlags(const lbRegion& over) const {
 std::vector<real_t> CartLattice::getCoord(const Model::Coord& d, real_t scale) {
 	lbRegion reg = getLocalRegion();
 	std::vector<real_t> ret;
-	ret.resize(reg.sizeL());
+	ret.reserve(reg.sizeL());
 	for (int z=0;z<reg.nz;z++)
 	for (int y=0;y<reg.ny;y++)
 	for (int x=0;x<reg.nx;x++) {
