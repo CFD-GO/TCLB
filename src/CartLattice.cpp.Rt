@@ -594,13 +594,13 @@ void CartLattice::Get<?%s q$name ?>(const lbRegion& over, <?%s q$type ?> * tab, 
 
 int CartLattice::getPars(ParStruct& par_struct) {
   int j = 0;
-  <?R if ("DesignSpace" %in% NodeTypes$name) { ?>
-  for (int i = 0; i < getLocalRegion().size(); ++i) {
-  	if (geometry->geom[i] & NODE_DesignSpace) {
-  		j++;
-  	}
-  }
-  <?R } ?>
+  size_t n = getLocalSize();
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+	for (size_t i=0; i<n; i++) {
+		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+			j++;
+		}
+	}
   par_struct.Par_size = j * <?%d sum(Density$parameter==T) ?>;
   debug1("Par_size: %d\n",par_struct.Par_size);
   MPI_Gather(&par_struct.Par_size, 1, MPI_INT, par_struct.Par_sizes.get(), 1, MPI_INT, 0, MPMD.local);
@@ -618,25 +618,28 @@ int CartLattice::getPars(ParStruct& par_struct) {
 }
 
 int CartLattice::getDPar(const ParStruct& par_struct, double * wb) {
-  int n = getLocalRegion().size();
+  size_t n = getLocalSize();
   int k = par_struct.Par_size;
   auto buf = std::make_unique<real_t[]>(n);
   auto wb_l = std::make_unique<double[]>(par_struct.Par_size);
   int j = 0;
   double sum = 0;
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
 #ifdef ADJOINT
-<?R for (d in rows(Density)) if ((d$parameter)) { ?>
-  Get_<?%s d$nicename ?>_Adj(buf.get());
-<?R if ("DesignSpace" %in% NodeTypes$name) { ?>
-  for (int i=0; i<n; i++) {
-    if (geometry->geom[i] & NODE_DesignSpace) {
-      wb_l[j] = buf[i];
-      sum += wb_l[j]*wb_l[j];
-      j++;
+  for( const Model::Field& f : model->fields ) {
+	if (f.isParameter) {
+		auto vec = getFieldAdj(f);
+		if (ds) {
+		  for (size_t i=0; i<n; i++) {
+    		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+      			wb_l[j] = vec[i];
+      			sum += wb_l[j]*wb_l[j];
+      			j++;
+			}
+		  }
+		}
     }
   }
-<?R } ?>
-<?R } ?>
 #endif
   output("L2 norm of gradient: %lg\n", sqrt(sum));
   assert(j == par_struct.Par_size);
@@ -645,22 +648,25 @@ int CartLattice::getDPar(const ParStruct& par_struct, double * wb) {
 }
 
 int CartLattice::getPar(const ParStruct& par_struct, double * wb) {
-  int n = getLocalRegion().size();
+  size_t n = getLocalSize();
   int k = par_struct.Par_size;
   auto buf = std::make_unique<real_t[]>(n);
   auto wb_l = std::make_unique<double[]>(par_struct.Par_size);
   int j=0;
-<?R for (d in rows(Density)) if (d$parameter) { ?>
-  Get_<?%s d$nicename ?>(buf.get());
-<?R if ("DesignSpace" %in% NodeTypes$name) { ?>
-  for (int i=0; i<n; i++) {
-    if (geometry->geom[i] & NODE_DesignSpace) {
-      wb_l[j] = buf[i];
-      j++;
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+  for( const Model::Field& f : model->fields ) {
+	if (f.isParameter) {
+		auto vec = getField(f);
+		if (ds) {
+		  for (size_t i=0; i<n; i++) {
+    		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+      			wb_l[j] = vec[i];
+      			j++;
+			}
+		  }
+		}
     }
   }
-<?R } ?>
-<?R } ?>
   assert(j == par_struct.Par_size);
   MPI_Gatherv(wb_l.get(), par_struct.Par_size, MPI_DOUBLE, wb, par_struct.Par_sizes.get(), par_struct.Par_disp.get(), MPI_DOUBLE, 0, MPMD.local);
   return 0;
@@ -669,7 +675,7 @@ int CartLattice::getPar(const ParStruct& par_struct, double * wb) {
 int CartLattice::setPar(const ParStruct& par_struct, double * w) {
   static int en=0;
   en++;
-  int n = getLocalRegion().size();
+  size_t n = getLocalSize();
   auto buf = std::make_unique<real_t[]>(n);
   auto w_l = std::make_unique<double[]>(par_struct.Par_size);
   DEBUG_M;
@@ -678,26 +684,26 @@ int CartLattice::setPar(const ParStruct& par_struct, double * w) {
   int j=0;
   double sum =0;
   double diff;
-<?R for (d in rows(Density)) if (d$parameter) { ?>
-  DEBUG_M;
-  Get_<?%s d$nicename ?>(buf.get());
-  DEBUG_M;
-  <?R if ("DesignSpace" %in% NodeTypes$name) { ?>
-  for (int i=0; i<n; i++) {
-    if (geometry->geom[i] & NODE_DesignSpace) {
-      diff = buf[i];
-      buf[i] = w_l[j];
-      assert(w_l[j] <= 1.001);
-      diff -= buf[i];
-      sum += diff*diff;
-      j++;
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+  for( const Model::Field& f : model->fields ) {
+	if (f.isParameter) {
+		auto vec = getField(f);
+		DEBUG_M;
+		if (ds) {
+		  for (size_t i=0; i<n; i++) {
+    		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+				diff = vec[i];
+				vec[i] = w_l[j];
+				diff -= vec[i];
+				sum += diff*diff;
+				j++;
+			}
+		  }
+		}
+		DEBUG_M;
+		setField(f, vec);
     }
   }
-<?R } ?>
-  DEBUG_M;
-  Set_<?%s d$nicename ?>(buf.get());
-  DEBUG_M;
-<?R } ?>
   assert(j == par_struct.Par_size);
   output("[%d] L2 norm of parameter change: %lg\n", sqrt(sum));
   return 0;
