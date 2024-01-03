@@ -1,0 +1,57 @@
+name: RInside
+
+on: [ push, pull_request ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - d2q9
+        precision:
+          - float
+          - double
+        arch:
+          - cpu
+          - cuda
+          - hip
+        include:
+          - precision: "double"
+            arch: "cpu"
+            test: true
+    steps:
+    - name: Git checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: ${{ matrix.test }}
+    - name: Install dependencies
+      uses: ./.github/actions/install
+      with:
+        r: true
+        rdep: true
+        openmpi: true
+        rinside: true
+        reticulate: ${{ matrix.test }}
+        cuda: ${{ matrix.arch == 'cuda' }}
+        hip: ${{ matrix.arch == 'hip' }}
+    - name: Configure
+      uses: ./.github/actions/configure
+      with:
+        gpu: ${{ matrix.arch == 'cuda' }}
+        hip: ${{ matrix.arch == 'hip' }}
+        cuda_arch: sm_60
+        rinside: true
+        paranoid: true
+        precision: ${{ matrix.precision }}
+    - name: Compile
+      uses: ./.github/actions/compile
+      with:
+        model: ${{ matrix.model }}
+    - if: matrix.test
+      name: Run tests
+      uses: ./.github/actions/test
+      with:
+        model: ${{ matrix.model }}
+        tests: rinside
