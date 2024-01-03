@@ -1,9 +1,5 @@
 
 #include "Consts.h"
-#ifdef EMBEDED_PYTHON
-    #include <Python.h>
-    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#endif
 
 
 
@@ -1052,77 +1048,7 @@ int Geometry::Draw(pugi::xml_node & node)
 			    Dot(x, y, z);
 			}
          }
-    } else if (strcmp(n.name(), "PythonInline") == 0) {
-        #ifdef EMBEDED_PYTHON
-        
-         if (!Py_IsInitialized()) {
-            notice("Python Init");
-            Py_Initialize();
-        }    
-        // Make sure the GIL has been created since we need to acquire it in our
-        // callback to safely call into the python application.
-        
-        PyObject *pGlobal;
-        PyObject* pyModule, *pLocal, *pValue;
-
-        PyGILState_STATE state;
-        state = PyGILState_Ensure();
-   
-        pyModule = PyImport_AddModule("__main__"); 
-        pLocal = PyModule_GetDict(pyModule);
-        pGlobal = PyModule_GetDict(pyModule);
-
-
-
-        pValue = PyRun_String( n.child_value(), Py_file_input, pGlobal, pLocal );
-        if (pValue == NULL){
-             error("Provided Python code is not executable or does not contain 'test' function");    
-        }
-
-        PyObject* pFunc = PyObject_GetAttrString(pyModule, "test"); ;
-     //   Py_INCREF(pFunc);
-        Py_DECREF(pValue);
-
-
-        if (pFunc && PyCallable_Check(pFunc)) {
-            PyObject* pArgs;
-            pArgs = PyTuple_New(3);
-  
-            for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-        	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-	            for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
-
-                    PyTuple_SetItem( pArgs, 0, PyFloat_FromDouble((x-reg.dx)/(real_t)reg.nx));
-                    PyTuple_SetItem( pArgs, 1, PyFloat_FromDouble((y-reg.dy)/(real_t)reg.ny));
-                    PyTuple_SetItem( pArgs, 2, PyFloat_FromDouble((z-reg.dz)/(real_t)reg.nz));
-           
-                    //Call my function, passing it the number four
-                    pValue = PyObject_CallObject(pFunc, pArgs);
-
-           			if (  PyLong_AsLong(pValue) == 1 ) {
-   			             Dot(x, y, z);
-		            }
-                 
-                 }   
-            Py_DECREF(pArgs);
-        } else {
-            error("Provided Python code is not executable or does not contain 'test' function");        
-        }
-
-
-        Py_DECREF(pValue);
-  //      Py_XDECREF(pFunc);
- //       Py_DECREF(pGlobal);
-//        Py_DECREF(pLocal);
-        PyGILState_Release(state);
-      //  Py_Finalize();   
-
-        #else
-            error("You need to compile PYTHON support for this geometry element");
-	    return -1;
-        #endif
-
-	} else if (strcmp(n.name(), "STL") == 0) {
+    } else if (strcmp(n.name(), "STL") == 0) {
 	    debug1("Filling stl geometry with flag %d (%d)\n", fg, fg_mask);
 	    DEBUG1(reg.print();)
 		if (loadSTL(reg, n))

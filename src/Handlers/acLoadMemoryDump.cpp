@@ -16,8 +16,7 @@ int acLoadMemoryDump::Init () {
 		if (attr2) {
             error("Depreceted API call. Use LoadBinary with comp parameter");
         }
-        const auto lattice = solver->getCartLattice();
-        lattice->loadSolution(attr.value());
+        solver->lattice->loadSolution(attr.value());
         return 0;
 }
 

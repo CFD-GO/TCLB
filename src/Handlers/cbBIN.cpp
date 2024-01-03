@@ -11,13 +11,11 @@ int cbBIN::Init () {
 		return 0;
 	}
 
-
-int cbBIN::DoIt () {
-		Callback::DoIt();
-                const auto filename = solver->outIterFile(nm, "");
-                return binWriteLattice(filename, *solver->getCartLattice(), solver->units);
-	};
-
+int cbBIN::DoIt() {
+    Callback::DoIt();
+    const auto filename = solver->outIterFile(nm, "");
+    return std::visit([&](const auto lattice_ptr) { return binWriteLattice(filename, *lattice_ptr, solver->units); }, solver->getLatticeVariant());
+};
 
 // Register the handler (basing on xmlname) in the Handler Factory
 template class HandlerFactory::Register< GenericAsk< cbBIN > >;

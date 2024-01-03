@@ -22,14 +22,11 @@ int cbTXT::Init () {
 		return 0;
 	}
 
-
-int cbTXT::DoIt () {
-		Callback::DoIt();
-                const auto filename = solver->outIterFile(nm, "");
-                auto& lattice = *solver->getCartLattice();
-                return txtWriteLattice(filename.c_str(), lattice, solver->units, s, txt_type);
-	};
-
+int cbTXT::DoIt() {
+    Callback::DoIt();
+    const auto filename = solver->outIterFile(nm, "");
+    return std::visit([&](const auto lattice_ptr) { return txtWriteLattice(filename, *lattice_ptr, solver->units, s, txt_type); }, solver->getLatticeVariant());
+};
 
 // Register the handler (basing on xmlname) in the Handler Factory
 template class HandlerFactory::Register< GenericAsk< cbTXT > >;

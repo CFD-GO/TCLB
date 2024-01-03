@@ -113,7 +113,7 @@ CudaDeviceFunction vector_t calcGradPhi(){
 	real_t phi_a = PhaseF(0,0);
 	real_t phi_b, denom = 0.0;
 
-	for (int i = 1; i<9; i++) {
+	for (int i = 0; i<9; i++) {
 		phi_b = PhaseF_dyn(d2q9_ex[i],d2q9_ey[i]);
 		if (!isnan(phi_b)){
 			gradPhi.x += wf[i]*d2q9_ex[i]*(phi_b-phi_a);
@@ -1131,7 +1131,7 @@ CudaDeviceFunction void WVelocity()
 	real_t rho = calcRho(PhaseF);
 	real_t tau = calcTau(PhaseF, rho);
 	real_t p = getNormalizedPressure() ; // normalized pressure
-	vector_t Fhydro;
+	vector_t Fhydro={0.0,0.0,0.0};
 	#ifdef OPTIONS_BGK
 		if (NodeType & NODE_BGK) { // Not Implemented
 		}
@@ -1211,7 +1211,7 @@ CudaDeviceFunction void NVelocity()
 	real_t rho = calcRho(PhaseF);
 	real_t tau = calcTau(PhaseF, rho);
 	real_t p = getNormalizedPressure() ; // normalized pressure
-	vector_t Fhydro;
+	vector_t Fhydro={0.0,0.0,0.0};
 	#ifdef OPTIONS_BGK
 		if (NodeType & NODE_BGK) { // Not Implemented
 		}
@@ -1322,7 +1322,7 @@ CudaDeviceFunction void BounceBack()
 		real_t rho = calcRho(PhaseF);
 		real_t tau = calcTau(PhaseF, rho);
 		real_t p = getNormalizedPressure() ; // normalized pressure
-		vector_t Fhydro;
+		vector_t Fhydro={0.0,0.0,0.0};
 		#ifdef OPTIONS_BGK
 			if (NodeType & NODE_BGK) { // Not Implemented
 			}
@@ -1371,7 +1371,7 @@ CudaDeviceFunction void BounceBack()
 		real_t rho = calcRho(PhaseF);
 		real_t tau = calcTau(PhaseF, rho);
 		real_t p = getNormalizedPressure() ; // normalized pressure
-		vector_t Fhydro;
+		vector_t Fhydro={0.0,0.0,0.0};
 		#ifdef OPTIONS_BGK
 			if (NodeType & NODE_BGK) { // Not Implemented
 			}

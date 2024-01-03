@@ -14,10 +14,10 @@
 #include "PartitionArbLattice.hpp"
 #include "mpitools.hpp"
 #include "pinned_allocator.hpp"
-
 #include "vtuOutput.h"
 
-ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_) : LatticeBase(ZONESETTINGS, ZONE_MAX, num_snaps_, units_), comm(comm_) {
+ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_)
+    : LatticeBase(ZONESETTINGS, ZONE_MAX, num_snaps_, units_), comm(comm_) {
     initialize(num_snaps_, setting_zones, arb_node);
 }
 
@@ -36,84 +36,25 @@ void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>&
     const std::string cxn_path = name_attr.value();
     readFromCxn(cxn_path);
     global_node_dist = computeInitialNodeDist(connect.num_nodes_global, mpitools::MPI_Size(comm));
-    if (debug_name.size() != 0) {
-        connect.dump(formatAsString("%s_P%02d_conn_before.csv", debug_name, rank));
-    }
+    debugDumpConnect("conn_before");
     partition();
-    if (debug_name.size() != 0) {
-        connect.dump(formatAsString("%s_P%02d_conn_after.csv", debug_name, rank));
-    }
-    if (connect.getLocalSize() == 0) throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
+    debugDumpConnect("conn_after");
+    if (connect.getLocalSize() == 0)
+        throw std::runtime_error{"At least one MPI rank has an empty partition, please use fewer MPI ranks"};  // Realistically, this should never happen
     computeGhostNodes();
-    computeLocalPermutation();
+    computeLocalPermutation(arb_node, setting_zones);
     allocDeviceMemory();
     initDeviceData(arb_node, setting_zones);
     local_bounding_box = getLocalBoundingBox();
     vtu_geom = makeVTUGeom();
-    if (debug_name.size() != 0) {
-        std::string filename;
-        size_t i;
-        FILE* f;
-        
-        filename = formatAsString("%s_P%02d_loc_perm.csv", debug_name, rank);
-        f = fopen(filename.c_str(),"w");
-        fprintf(f,"rank,globalIdx,idx\n");
-        i = connect.chunk_begin;
-        for (const auto& idx : local_permutation) {
-            fprintf(f, "%d,%ld,%d\n", rank, i, idx);
-            i++;
-        }
-        assert(i == connect.chunk_end);
-        i = getLocalSize();
-        for (const auto& gidx : ghost_nodes) {
-            fprintf(f, "%d,%ld,%ld\n", rank, gidx, i);
-            i++;
-        }
-        fprintf(f, "%d,%ld,%ld\n", rank, (long int) -1, i);
-        i++;
-        printf("i:%ld snaps_pitch: %ld\n", i, sizes.snaps_pitch); fflush(stdout);
-        assert(i <= sizes.snaps_pitch);
-        fclose(f);
-
-
-        filename = formatAsString("%s_P%02d.vtu", debug_name, rank);
-        const auto& [num_cells, num_points, coords, verts] = getVTUGeom();
-        VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, true, false);
-        {
-            std::vector< size_t > tab1(getLocalSize());
-            std::vector< int >    tab2(getLocalSize());
-            std::vector< size_t > tab3(getLocalSize());
-            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
-                auto i = local_permutation.at(node);
-                tab1[i] = node + connect.chunk_begin;
-                tab2[i] = rank;
-                tab3[i] = connect.og_index[node];
-            }
-            vtu_file.writeField("globalId",     tab1.data());
-            vtu_file.writeField("globalIdRank", tab2.data());
-            vtu_file.writeField("globalIdOg", tab3.data());
-        }
-        {
-            std::vector< signed long int > tab1(getLocalSize()*Q);
-            std::vector< int >    tab2(getLocalSize()*Q);
-            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
-                auto i = local_permutation.at(node);
-                for (size_t q = 0; q != Q; ++q) {
-                    const auto nbr = connect.neighbor(q, node);
-                    tab1[i * Q + q] = nbr;
-                    const int owner = std::distance(global_node_dist.cbegin(), std::upper_bound(global_node_dist.cbegin(), global_node_dist.cend(), nbr)) - 1;
-                    tab2[i * Q + q] = owner;
-                }
-            }
-            vtu_file.writeField("neighbour",     tab1.data(), Q);
-            vtu_file.writeField("neighbourRank", tab2.data(), Q);
-        }
-        vtu_file.writeFooters();
-    }
+    debugDumpVTU();
     initCommManager();
     initContainer();
 
-    debug1("Initialized arbitrary lattice with: border nodes=%lu; interior nodes=%lu; ghost nodes=%lu", sizes.border_nodes, getLocalSize() - sizes.border_nodes, ghost_nodes.size());
+    debug1("Initialized arbitrary lattice with: border nodes=%lu; interior nodes=%lu; ghost nodes=%lu",
+           sizes.border_nodes,
+           getLocalSize() - sizes.border_nodes,
+           ghost_nodes.size());
 }
 
 int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
@@ -138,7 +79,9 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
 
     // Open file + utils for error reporting
     std::fstream file(cxn_path, std::ios_base::in);
-    const auto wrap_err_msg = [&](std::string msg) { return "Error while reading "s.append(cxn_path.c_str()).append(" on MPI rank ").append(std::to_string(comm_rank)).append(": ").append(msg); };
+    const auto wrap_err_msg = [&](std::string msg) {
+        return "Error while reading "s.append(cxn_path.c_str()).append(" on MPI rank ").append(std::to_string(comm_rank)).append(": ").append(msg);
+    };
     const auto check_file_ok = [&](const std::string& err_message = "Unknown error") {
         if (!file) throw std::ios_base::failure(wrap_err_msg(err_message));
     };
@@ -189,7 +132,12 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
             const auto prov_it = std::find(q_provided.cbegin(), q_provided.cend(), req);
             if (prov_it == q_provided.cend()) {
                 const auto [x, y, z] = req;
-                const auto err_msg = "The arbitrary lattice file does not provide the required direction: ["s.append(std::to_string(x)).append(", ").append(std::to_string(y)).append(", ").append(std::to_string(z)).append("]");
+                const auto err_msg = "The arbitrary lattice file does not provide the required direction: ["s.append(std::to_string(x))
+                                         .append(", ")
+                                         .append(std::to_string(y))
+                                         .append(", ")
+                                         .append(std::to_string(z))
+                                         .append("]");
                 throw std::runtime_error(wrap_err_msg(err_msg));
             }
             req_prov_perm[i++] = std::distance(q_provided.cbegin(), prov_it);
@@ -253,7 +201,10 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
 void ArbLattice::partition() {
     if (mpitools::MPI_Size(comm) == 1) return;
 
-    const auto zero_dir_ind = std::distance(Model_m::offset_directions.cbegin(), std::find(Model_m::offset_directions.cbegin(), Model_m::offset_directions.cend(), OffsetDir{0, 0, 0}));  // Note: the behavior is still correct even if (0,0,0) is not an offset direction
+    const auto zero_dir_ind = std::distance(Model_m::offset_directions.cbegin(),
+                                            std::find(Model_m::offset_directions.cbegin(),
+                                                      Model_m::offset_directions.cend(),
+                                                      OffsetDir{0, 0, 0}));  // Note: the behavior is still correct even if (0,0,0) is not an offset direction
     const auto offset_dir_wgts = std::vector(Model_m::offset_direction_weights.begin(), Model_m::offset_direction_weights.end());
     auto [dist, log] = partitionArbLattice(connect, offset_dir_wgts, zero_dir_ind, comm);
     for (const auto& [type, msg] : log) switch (type) {
@@ -279,9 +230,41 @@ void ArbLattice::computeGhostNodes() {
     std::sort(ghost_nodes.begin(), ghost_nodes.end());
 }
 
-void ArbLattice::computeLocalPermutation() {
-    std::vector< size_t > lids; // globalIdx - chunk_begin of elements
-    lids.resize(connect.getLocalSize());
+std::function<bool(int, int)> ArbLattice::makePermCompare(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+    // Note: copies of these closures will outlive the function call, careful with the captures (capture by copy)
+    const auto get_zyx = [this](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
+    const auto get_nt = [this](int lid) { return node_types_host.at(lid); };
+    const auto get_nt_zyx = [get_zyx, get_nt](int lid) { return std::make_pair(get_nt(lid), get_zyx(lid)); };
+    constexpr auto wrap_projection_as_comparison = [](const auto& proj) { return [proj](int lid1, int lid2) { return proj(lid1) < proj(lid2); }; };
+
+    enum struct PermStrategy { None, Type, Coords, Both };
+    static const std::unordered_map<std::string_view, PermStrategy> strat_map = {{"none", PermStrategy::None},
+                                                                                 {"type", PermStrategy::Type},
+                                                                                 {"coords", PermStrategy::Coords},
+                                                                                 {"both", PermStrategy::Both},
+                                                                                 {"", PermStrategy::Coords}};  // "" is the default
+    const std::string_view strat_str = arb_node.attribute("permutation").value();
+    const auto enum_it = strat_map.find(strat_str);
+    if (enum_it == strat_map.end())
+        throw std::runtime_error{"Unknown permutation strategy for ArbitraryLattice, valid values are: none, type, coords (default), both"};
+    const auto strat = enum_it->second;
+
+    if (strat == PermStrategy::Type || strat == PermStrategy::Both) computeNodeTypesOnHost(arb_node, setting_zones, /*permute*/ false);
+    switch (strat) {
+        case PermStrategy::None:  // Use initial ordering
+            return std::less{};
+        case PermStrategy::Type:  // Sort by node type only
+            return wrap_projection_as_comparison(get_nt);
+        case PermStrategy::Coords:  // Sort by coordinates only
+            return wrap_projection_as_comparison(get_zyx);
+        case PermStrategy::Both:  // Sort by node type, then coordinates
+            return wrap_projection_as_comparison(get_nt_zyx);
+    }
+    return {};  // avoid compiler warning
+}
+
+void ArbLattice::computeLocalPermutation(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+    std::vector<size_t> lids(connect.getLocalSize());  // globalIdx - chunk_begin of elements
     std::iota(lids.begin(), lids.end(), 0);
     const auto is_border_node = [&](int lid) {
         for (size_t q = 0; q != Q; ++q) {
@@ -292,12 +275,9 @@ void ArbLattice::computeLocalPermutation() {
     };
     const auto interior_begin = std::stable_partition(lids.begin(), lids.end(), is_border_node);
     sizes.border_nodes = static_cast<size_t>(std::distance(lids.begin(), interior_begin));
-    const auto by_zyx = [&](int lid1, int lid2) {  // Sort by z, then y, then x -> this should help with coalesced memory access
-        const auto get_zyx = [&](int lid) { return std::array{connect.coord(2, lid), connect.coord(1, lid), connect.coord(0, lid)}; };
-        return get_zyx(lid1) < get_zyx(lid2);
-    };
-    std::sort(lids.begin(), interior_begin, by_zyx);
-    std::sort(interior_begin, lids.end(), by_zyx);
+    const auto compare = makePermCompare(arb_node, setting_zones);
+    std::sort(lids.begin(), interior_begin, compare);
+    std::sort(interior_begin, lids.end(), compare);
     local_permutation.resize(connect.getLocalSize());
     size_t i = 0;
     for (const auto& lid : lids) {
@@ -322,7 +302,8 @@ std::vector<ArbLattice::NodeTypeBrush> ArbLattice::parseBrushFromXml(pugi::xml_n
     std::vector<ArbLattice::NodeTypeBrush> retval;
     for (auto node = arb_node.first_child(); node; node = node.next_sibling()) {
         // Requested node type
-        const auto ntf_iter = std::find_if(model->nodetypeflags.cbegin(), model->nodetypeflags.cend(), [name = node.name()](const auto& ntf) { return ntf.name == name; });
+        const auto ntf_iter =
+            std::find_if(model->nodetypeflags.cbegin(), model->nodetypeflags.cend(), [name = node.name()](const auto& ntf) { return ntf.name == name; });
         if (ntf_iter == model->nodetypeflags.cend()) throw std::runtime_error{formatAsString("Unknown node type: %s", node.name())};
 
         // Determine what kind of node we're parsing and update the brush accordingly
@@ -333,21 +314,27 @@ std::vector<ArbLattice::NodeTypeBrush> ArbLattice::parseBrushFromXml(pugi::xml_n
             const flag_t value = ntf_iter->flag | (zone_attr ? (setting_zones.at(zone_attr.value()) << model->settingzones.shift) : 0);
             const std::string group_name = group_attr.value();
             const auto label_iter = label_to_ind_map.find(group_name);
-            if (label_iter == label_to_ind_map.end()) throw std::runtime_error{formatAsString("The required label %s is missing from the .cxn file", group_name)};
+            if (label_iter == label_to_ind_map.end())
+                throw std::runtime_error{formatAsString("The required label %s is missing from the .cxn file", group_name)};
             const auto label = label_iter->second;
-            const auto has_label = [label](Span<const ArbLatticeConnectivity::ZoneIndex> labels, std::array<double, 3>) { return std::find(labels.begin(), labels.end(), label) != labels.end(); };
+            const auto has_label = [label](Span<const ArbLatticeConnectivity::ZoneIndex> labels, std::array<double, 3>) {
+                return std::find(labels.begin(), labels.end(), label) != labels.end();
+            };
             retval.push_back(NodeTypeBrush{has_label, mask, value});
         } else
-            throw std::runtime_error{std::string("The ArbitraryLattice XML node contains an incorrectly specified child named ") + node.name()};  // TODO: implement other node types, e.g. <Box>
+            throw std::runtime_error{std::string("The ArbitraryLattice XML node contains an incorrectly specified child named ") +
+                                     node.name()};  // TODO: implement other node types, e.g. <Box>
     }
     return retval;
 }
 
-void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
+void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones, bool permute) {
     const auto local_sz = connect.getLocalSize();
     const auto zone_sizes = Span(connect.zones_per_node.get(), local_sz);
     auto zone_offsets = std::vector<size_t>(local_sz);
-    std::transform_exclusive_scan(zone_sizes.begin(), zone_sizes.end(), zone_offsets.begin(), size_t{0}, std::plus{}, [](auto label) -> size_t { return label; });  // labels are stored as a short type, we need to cast it to size_t before computing the scan
+    std::transform_exclusive_scan(zone_sizes.begin(), zone_sizes.end(), zone_offsets.begin(), size_t{0}, std::plus{}, [](auto label) -> size_t {
+        return label;
+    });  // labels are stored as a short type, we need to cast it to size_t before computing the scan
     const auto brushes = parseBrushFromXml(arb_node, setting_zones);
     node_types_host = std::pmr::vector<flag_t>(local_sz, &global_pinned_resource);
     for (size_t i = 0; i != local_sz; ++i) {
@@ -355,7 +342,7 @@ void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<
         const auto point = std::array{connect.coord(0, i), connect.coord(1, i), connect.coord(2, i)};
         for (const auto& [pred, mask, val] : brushes)
             if (pred(labels, point)) {
-                auto& dest = node_types_host[local_permutation[i]];
+                auto& dest = node_types_host[permute ? local_permutation[i] : i];
                 dest = (dest & ~mask) | val;
             }
     }
@@ -401,7 +388,7 @@ std::pmr::vector<unsigned> ArbLattice::computeNeighbors() const {
 
 void ArbLattice::initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) {
     fillWithStorageNaNAsync(snaps_device.get(), sizes.snaps_pitch * sizes.snaps * NF, inStream);
-    computeNodeTypesOnHost(arb_node, setting_zones);
+    computeNodeTypesOnHost(arb_node, setting_zones, /*permute*/ true);
     copyVecToDeviceAsync(node_types_device.get(), node_types_host, inStream);
     const auto nbrs = computeNeighbors();
     copyVecToDeviceAsync(neighbors_device.get(), nbrs, inStream);
@@ -446,11 +433,13 @@ int ArbLattice::fullLatticePos(double pos) const {
 
 lbRegion ArbLattice::getLocalBoundingBox() const {
     const auto local_sz = connect.getLocalSize();
-    const Span x(connect.coords.get(), local_sz), y(std::next(connect.coords.get(), local_sz), local_sz), z(std::next(connect.coords.get(), 2 * local_sz), local_sz);
+    const Span x(connect.coords.get(), local_sz), y(std::next(connect.coords.get(), local_sz), local_sz),
+        z(std::next(connect.coords.get(), 2 * local_sz), local_sz);
     const auto [minx_it, maxx_it] = std::minmax_element(x.begin(), x.end());
     const auto [miny_it, maxy_it] = std::minmax_element(y.begin(), y.end());
     const auto [minz_it, maxz_it] = std::minmax_element(z.begin(), z.end());
-    const int x_min = fullLatticePos(*minx_it), x_max = fullLatticePos(*maxx_it), y_min = fullLatticePos(*miny_it), y_max = fullLatticePos(*maxy_it), z_min = fullLatticePos(*minz_it), z_max = fullLatticePos(*maxz_it);
+    const int x_min = fullLatticePos(*minx_it), x_max = fullLatticePos(*maxx_it), y_min = fullLatticePos(*miny_it), y_max = fullLatticePos(*maxy_it),
+              z_min = fullLatticePos(*minz_it), z_max = fullLatticePos(*maxz_it);
     return lbRegion(x_min, y_min, z_min, x_max - x_min + 1, y_max - y_min + 1, z_max - z_min + 1);
 }
 
@@ -463,7 +452,14 @@ ArbLattice::ArbVTUGeom ArbLattice::makeVTUGeom() const {
     const auto get_bb_verts = [&](unsigned node) {
         const double x = connect.coord(0, node), y = connect.coord(1, node), z = connect.coord(2, node);
         const int posx = fullLatticePos(x), posy = fullLatticePos(y), posz = fullLatticePos(z);
-        static constexpr std::array offsets = {std::array{0, 0, 0}, std::array{1, 0, 0}, std::array{1, 1, 0}, std::array{0, 1, 0}, std::array{0, 0, 1}, std::array{1, 0, 1}, std::array{1, 1, 1}, std::array{0, 1, 1}};  // We need a specific ordering to agree with the vtu spec
+        static constexpr std::array offsets = {std::array{0, 0, 0},
+                                               std::array{1, 0, 0},
+                                               std::array{1, 1, 0},
+                                               std::array{0, 1, 0},
+                                               std::array{0, 0, 1},
+                                               std::array{1, 0, 1},
+                                               std::array{1, 1, 1},
+                                               std::array{0, 1, 1}};  // We need a specific ordering to agree with the vtu spec
         std::array<Index, 8> retval{};
         std::transform(offsets.begin(), offsets.end(), retval.begin(), [&](const auto& ofs) {
             const auto [dx, dy, dz] = ofs;
@@ -482,7 +478,10 @@ ArbLattice::ArbVTUGeom ArbLattice::makeVTUGeom() const {
         return retval;
     });
 
-    ArbVTUGeom retval{connect.getLocalSize(), full_to_red_map.size(), std::make_unique<double[]>(full_to_red_map.size() * 3), std::make_unique<unsigned[]>(connect.getLocalSize() * 8)};
+    ArbVTUGeom retval{connect.getLocalSize(),
+                      full_to_red_map.size(),
+                      std::make_unique<double[]>(full_to_red_map.size() * 3),
+                      std::make_unique<unsigned[]>(connect.getLocalSize() * 8)};
     // Iterating across the entire bounding box is a bit hairy, but saves memory compared to the alternative (and we only do it once)
     for (Index vx = sx; vx != nx + sx; ++vx)
         for (Index vy = sy; vy != ny + sy; ++vy)
@@ -556,8 +555,8 @@ std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
 void ArbLattice::initCommManager() {
     if (mpitools::MPI_Size(comm) == 1) return;
     int rank = mpitools::MPI_Rank(comm);
-     const auto& field_table = Model_m::field_streaming_table;
-    using NodeFieldP = std::array<size_t, 2>;              // Node + field index. We can be a bit wasteful with storing both as 64b, since the number of border nodes is relatively small
+    const auto& field_table = Model_m::field_streaming_table;
+    using NodeFieldP = std::array<size_t, 2>;              // Node + field index
     std::map<int, std::vector<NodeFieldP>> needed_fields;  // in_nbrs to required N-F pairs, **we need it to be sorted**
     for (size_t node = 0; node != connect.getLocalSize(); ++node) {
         for (size_t q = 0; q != Q; ++q) {
@@ -575,7 +574,8 @@ void ArbLattice::initCommManager() {
         vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
         comm_manager.in_nbrs.emplace_back(id, vec.size());
     }
-    size_t recv_buf_size = std::transform_reduce(comm_manager.in_nbrs.cbegin(), comm_manager.in_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
+    const size_t recv_buf_size =
+        std::transform_reduce(comm_manager.in_nbrs.cbegin(), comm_manager.in_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
     comm_manager.recv_buf_host = std::pmr::vector<storage_t>(recv_buf_size, &global_pinned_resource);
     comm_manager.recv_buf_device = cudaMakeUnique<storage_t>(recv_buf_size);
     comm_manager.unpack_inds = cudaMakeUnique<size_t>(recv_buf_size);
@@ -599,11 +599,12 @@ void ArbLattice::initCommManager() {
         if (sz != 0) comm_manager.out_nbrs.emplace_back(out_id, sz);
         ++out_id;
     }
-    size_t send_buf_size = std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
+    size_t send_buf_size =
+        std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
     comm_manager.send_buf_host = std::pmr::vector<storage_t>(send_buf_size, &global_pinned_resource);
     comm_manager.send_buf_device = cudaMakeUnique<storage_t>(send_buf_size);
     comm_manager.pack_inds = cudaMakeUnique<size_t>(send_buf_size);
- 
+
     std::map<int, std::vector<NodeFieldP>> requested_fields;
     for (const auto& [id, sz] : comm_manager.out_nbrs) {
         auto& rf = requested_fields[id];
@@ -611,16 +612,8 @@ void ArbLattice::initCommManager() {
     }
     std::vector<MPI_Request> reqs;
     reqs.reserve(requested_fields.size() + needed_fields.size());
-    for (      auto& [id, rf] : requested_fields) {
-        MPI_Request req;
-        MPI_Irecv(rf.data(), rf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, &req);
-        reqs.push_back(req);
-    }
-    for (const auto& [id, nf] : needed_fields) {
-        MPI_Request req;
-        MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, &req);
-        reqs.push_back(req);
-    }
+    for (auto& [id, rf] : requested_fields) MPI_Irecv(rf.data(), rf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, &reqs.emplace_back());
+    for (const auto& [id, nf] : needed_fields) MPI_Isend(nf.data(), nf.size() * 2, mpitools::getMPIType<size_t>(), id, 0, comm, &reqs.emplace_back());
     MPI_Waitall(reqs.size(), reqs.data(), MPI_STATUSES_IGNORE);
     std::pmr::vector<size_t> pack_inds_host(send_buf_size, &global_pinned_resource);
     auto pack_ind_iter = pack_inds_host.begin();
@@ -644,8 +637,8 @@ void ArbLattice::initCommManager() {
         size_t i;
         FILE* f;
         filename = formatAsString("%s_P%02d_pack.csv", debug_name, rank);
-        f = fopen(filename.c_str(),"w");
-        fprintf(f,"rank,id,globalIdx,field,idx\n");
+        f = fopen(filename.c_str(), "w");
+        fprintf(f, "rank,id,globalIdx,field,idx\n");
         i = 0;
         for (const auto& [id, nfps] : requested_fields) {
             for (const auto& [node, field] : nfps) {
@@ -658,8 +651,8 @@ void ArbLattice::initCommManager() {
         assert(i == pack_inds_host.size());
         fclose(f);
         filename = formatAsString("%s_P%02d_unpack.csv", debug_name, rank);
-        f = fopen(filename.c_str(),"w");
-        fprintf(f,"rank,id,globalIdx,field,idx\n");
+        f = fopen(filename.c_str(), "w");
+        fprintf(f, "rank,id,globalIdx,field,idx\n");
         i = 0;
         for (const auto& [id, nfps] : needed_fields) {
             for (const auto& [node, field] : nfps) {
@@ -671,9 +664,7 @@ void ArbLattice::initCommManager() {
         }
         assert(i == unpack_inds_host.size());
         fclose(f);
-
     }
-
 }
 
 void ArbLattice::communicateBorder() {
@@ -695,24 +686,69 @@ void ArbLattice::communicateBorder() {
 void ArbLattice::MPIStream_A() {
     if (mpitools::MPI_Size(comm) == 1) return;
     launcher.pack(outStream);
-    CudaMemcpyAsync(comm_manager.send_buf_host.data(), comm_manager.send_buf_device.get(), comm_manager.send_buf_host.size() * sizeof(storage_t), CudaMemcpyDeviceToHost, outStream);
+    CudaMemcpyAsync(comm_manager.send_buf_host.data(),
+                    comm_manager.send_buf_device.get(),
+                    comm_manager.send_buf_host.size() * sizeof(storage_t),
+                    CudaMemcpyDeviceToHost,
+                    outStream);
 }
 
 void ArbLattice::MPIStream_B() {
     if (mpitools::MPI_Size(comm) == 1) return;
     CudaStreamSynchronize(outStream);
     communicateBorder();
-    CudaMemcpyAsync(comm_manager.recv_buf_device.get(), comm_manager.recv_buf_host.data(), comm_manager.recv_buf_host.size() * sizeof(storage_t), CudaMemcpyHostToDevice, inStream);
+    CudaMemcpyAsync(comm_manager.recv_buf_device.get(),
+                    comm_manager.recv_buf_host.data(),
+                    comm_manager.recv_buf_host.size() * sizeof(storage_t),
+                    CudaMemcpyHostToDevice,
+                    inStream);
     launcher.unpack(inStream);
     CudaStreamSynchronize(inStream);
 }
 
-int ArbLattice::loadPrimal(const std::string& filename, int snap_ind) {
-    throw std::runtime_error{"UNIMPLEMENTED"};
-    return -1;
+static int saveImpl(const std::string& filename, const storage_t* device_ptr, size_t size) {
+    std::pmr::vector<storage_t> tab(size);
+    CudaMemcpy(tab.data(), device_ptr, size * sizeof(storage_t), CudaMemcpyDeviceToHost);
+    auto file = fopen(filename.c_str(), "wb");
+    if (!file) {
+        const auto err_msg = std::string("Failed to open ") + filename + " for writing";
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    const auto n_written = fwrite(tab.data(), sizeof(storage_t), size, file);
+    fclose(file);
+    if (n_written != size) {
+        const auto err_msg = std::string("Error writing to ") + filename;
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+static int loadImpl(const std::string& filename, storage_t* device_ptr, size_t size) {
+    auto file = fopen(filename.c_str(), "rb");
+    if (!file) {
+        const auto err_msg = std::string("Failed to open ") + filename + " for reading";
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    std::pmr::vector<storage_t> tab(size);
+    const auto n_read = fread(tab.data(), sizeof(storage_t), size, file);
+    fclose(file);
+    if (n_read != size) {
+        const auto err_msg = std::string("Error reading from ") + filename;
+        ERROR(err_msg.c_str());
+        return EXIT_FAILURE;
+    }
+    CudaMemcpy(device_ptr, tab.data(), size * sizeof(storage_t), CudaMemcpyHostToDevice);
+    return EXIT_SUCCESS;
 }
 void ArbLattice::savePrimal(const std::string& filename, int snap_ind) const {
-    throw std::runtime_error{"UNIMPLEMENTED"};
+    if (saveImpl(filename, getSnapPtr(snap_ind), sizes.snaps_pitch * NF)) throw std::runtime_error{"savePrimal failed"};
+}
+
+int ArbLattice::loadPrimal(const std::string& filename, int snap_ind) {
+    return loadImpl(filename, getSnapPtr(snap_ind), sizes.snaps_pitch * NF);
 }
 #ifdef ADJOINT
 int ArbLattice::loadAdj(const std::string& filename, int asnap_ind) {
@@ -732,3 +768,71 @@ void ArbLattice::clearAdjoint() {
     zSet.ClearGrad();
 }
 /// TODO section end
+
+void ArbLattice::debugDumpConnect(const std::string& name) const {
+    if (debug_name.size() != 0) connect.dump(formatAsString("%s_P%02d_%s.csv", debug_name, mpitools::MPI_Rank(comm), name));
+}
+
+void ArbLattice::debugDumpVTU() const {
+    if (debug_name.size() != 0) {
+        std::string filename;
+        size_t i;
+        FILE* f;
+
+        const int rank = mpitools::MPI_Rank(comm);
+        filename = formatAsString("%s_P%02d_loc_perm.csv", debug_name, rank);
+        f = fopen(filename.c_str(), "w");
+        fprintf(f, "rank,globalIdx,idx\n");
+        i = connect.chunk_begin;
+        for (const auto& idx : local_permutation) {
+            fprintf(f, "%d,%ld,%d\n", rank, i, idx);
+            i++;
+        }
+        assert(i == connect.chunk_end);
+        i = getLocalSize();
+        for (const auto& gidx : ghost_nodes) {
+            fprintf(f, "%d,%ld,%ld\n", rank, gidx, i);
+            i++;
+        }
+        fprintf(f, "%d,%ld,%ld\n", rank, (long int)-1, i);
+        i++;
+        printf("i:%ld snaps_pitch: %ld\n", i, sizes.snaps_pitch);
+        fflush(stdout);
+        assert(i <= sizes.snaps_pitch);
+        fclose(f);
+
+        filename = formatAsString("%s_P%02d.vtu", debug_name, rank);
+        const auto& [num_cells, num_points, coords, verts] = getVTUGeom();
+        VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, true, false);
+        {
+            std::vector<size_t> tab1(getLocalSize());
+            std::vector<int> tab2(getLocalSize());
+            std::vector<size_t> tab3(getLocalSize());
+            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+                auto i = local_permutation.at(node);
+                tab1[i] = node + connect.chunk_begin;
+                tab2[i] = rank;
+                tab3[i] = connect.og_index[node];
+            }
+            vtu_file.writeField("globalId", tab1.data());
+            vtu_file.writeField("globalIdRank", tab2.data());
+            vtu_file.writeField("globalIdOg", tab3.data());
+        }
+        {
+            std::vector<signed long int> tab1(getLocalSize() * Q);
+            std::vector<int> tab2(getLocalSize() * Q);
+            for (size_t node = 0; node != connect.getLocalSize(); ++node) {
+                auto i = local_permutation.at(node);
+                for (size_t q = 0; q != Q; ++q) {
+                    const auto nbr = connect.neighbor(q, node);
+                    tab1[i * Q + q] = nbr;
+                    const int owner = std::distance(global_node_dist.cbegin(), std::upper_bound(global_node_dist.cbegin(), global_node_dist.cend(), nbr)) - 1;
+                    tab2[i * Q + q] = owner;
+                }
+            }
+            vtu_file.writeField("neighbour", tab1.data(), Q);
+            vtu_file.writeField("neighbourRank", tab2.data(), Q);
+        }
+        vtu_file.writeFooters();
+    }
+}

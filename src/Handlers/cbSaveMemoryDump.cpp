@@ -25,7 +25,7 @@ int cbSaveMemoryDump::DoIt () {
 		if (attr) {
             error("Depreceted API call. Use SaveBinary with comp parameter");
         }
-		solver->getCartLattice()->saveSolution(fn);
+		solver->lattice->saveSolution(fn);
 		return 0;
 	};
 

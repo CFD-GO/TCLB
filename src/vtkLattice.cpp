@@ -12,7 +12,22 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
     const lbRegion& local_reg = lattice.getLocalRegion();
     const lbRegion reg = local_reg.intersect(total_output_reg);
     size_t size = reg.size();
-    myprint(1, -1, "Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d", reg.nx, reg.ny, reg.nz, reg.dx, reg.dy, reg.dz, size, local_reg.nx, local_reg.ny, local_reg.nz, local_reg.dx, local_reg.dy, local_reg.dz);
+    myprint(1,
+            -1,
+            "Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d",
+            reg.nx,
+            reg.ny,
+            reg.nz,
+            reg.dx,
+            reg.dy,
+            reg.dz,
+            size,
+            local_reg.nx,
+            local_reg.ny,
+            local_reg.nz,
+            local_reg.dx,
+            local_reg.dy,
+            local_reg.dz);
 
     vtkFileOut vtkFile(MPMD.local);
     if (vtkFile.Open(filename.c_str())) return -1;
@@ -48,8 +63,10 @@ int vtkWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
 int vtuWriteLattice(const std::string& filename, ArbLattice& lattice, const UnitEnv& units, const name_set& what) {
     try {
         const auto& [num_cells, num_points, coords, verts] = lattice.getVTUGeom();
-        const bool has_scalars = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return !q.isVector; }) != lattice.model->quantities.end();
-        const bool has_vectors = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return q.isVector; }) != lattice.model->quantities.end();
+        const bool has_scalars = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return !q.isVector; }) !=
+                                 lattice.model->quantities.end();
+        const bool has_vectors = std::find_if(lattice.model->quantities.begin(), lattice.model->quantities.end(), [](const auto& q) { return q.isVector; }) !=
+                                 lattice.model->quantities.end();
         VtkFileOut vtu_file(filename, num_cells, num_points, coords.get(), verts.get(), MPMD.local, has_scalars, has_vectors);
 
         const auto node_types_view = lattice.getNodeTypes();
@@ -113,9 +130,11 @@ int txtWriteField(FILE* f, T* tmp, int stop, int n) {
     return 0;
 }
 
-int txtWriteLattice(const std::string& filename, CartLattice& lattice, const UnitEnv& units, const name_set& what, int type) {
-    const lbRegion& reg = lattice.getLocalRegion();
-    int size = reg.size();
+int txtWriteLattice(const std::string& filename, LatticeBase& lattice, const UnitEnv& units, const name_set& what, int type) {
+    const size_t size = lattice.getLocalSize();
+    std::vector<int> shp = lattice.shape();
+    int row = 1;
+    if (shp.size() > 1) row = shp[0];
     if (D_MPI_RANK == 0) {
         const auto fn = formatAsString("%s_info.txt", filename);
         FILE* f = fopen(fn.c_str(), "w");
@@ -127,10 +146,10 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
         fprintf(f, "dt: %lg\n", 1 / units.alt("s"));
         fprintf(f, "dm: %lg\n", 1 / units.alt("kg"));
         fprintf(f, "dT: %lg\n", 1 / units.alt("K"));
-        fprintf(f, "size: %d\n", size);
-        fprintf(f, "NX: %d\n", reg.nx);
-        fprintf(f, "NY: %d\n", reg.ny);
-        fprintf(f, "NZ: %d\n", reg.nz);
+        fprintf(f, "size: %ld\n", size);
+	fprintf(f, "shape:");
+	for (int d : shp) fprintf(f, " %d", d);
+	fprintf(f, "\n");
         fclose(f);
     }
 
@@ -156,8 +175,8 @@ int txtWriteLattice(const std::string& filename, CartLattice& lattice, const Uni
             }
             double v = units.alt(it.unit);
             int comp = it.getComp();
-            auto tmp = lattice.getQuantity(it, reg, 1 / v);
-            txtWriteField(f, tmp.data(), reg.nx*comp, size*comp);
+            auto tmp = lattice.getQuantity(it, 1 / v);
+            txtWriteField(f, tmp.data(), row*comp, size*comp);
             fclose(f);
         }
     }

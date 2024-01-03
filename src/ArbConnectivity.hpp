@@ -30,17 +30,17 @@ struct ArbLatticeConnectivity {
         zones.reserve(getLocalSize());
     }
 
-    void dump(std::string filename) {
+    void dump(std::string filename) const {
         FILE* f;
-        f = fopen(filename.c_str(),"w");
-        fprintf(f,"idx_og,idx");
-        for (size_t q=0;q<Q;q++) fprintf(f,",nbr%ld",q);
-        fprintf(f,"\n");
+        f = fopen(filename.c_str(), "w");
+        fprintf(f, "idx_og,idx");
+        for (size_t q = 0; q < Q; q++) fprintf(f, ",nbr%ld", q);
+        fprintf(f, "\n");
         size_t n = chunk_end - chunk_begin;
-        for (size_t lid=0; lid<n; lid++) {
-            fprintf(f,"%ld,%ld",(size_t) og_index[lid],(size_t) lid + chunk_begin);
-            for (size_t q=0;q<Q;q++) fprintf(f,",%ld",(signed long int) neighbor(q, lid));
-            fprintf(f,"\n");
+        for (size_t lid = 0; lid < n; lid++) {
+            fprintf(f, "%ld,%ld", (size_t)og_index[lid], (size_t)lid + chunk_begin);
+            for (size_t q = 0; q < Q; q++) fprintf(f, ",%ld", (signed long int)neighbor(q, lid));
+            fprintf(f, "\n");
         }
         fclose(f);
     }
