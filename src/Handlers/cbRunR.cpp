@@ -108,13 +108,15 @@ public:
 			return Rcpp::NumericVector(0);
 		}
 		lbRegion reg = solver->lattice->region;
-		Rcpp::NumericVector ret(reg.size());
+		std::vector<real_t> vec;
+		vec.resize(reg.size());
+	    solver->lattice->Get_Field(it.id, &vec[0]);
+		Rcpp::NumericVector ret(vec.begin(),vec.end());
 		Rcpp::IntegerVector retdim(3);
 		retdim[0] = reg.nx;
 		retdim[1] = reg.ny;
 		retdim[2] = reg.nz;
 		ret.attr("dim") = retdim;
-	    solver->lattice->Get_Field(it.id, &ret[0]); 
 		return ret;
 	}
 
@@ -129,7 +131,8 @@ public:
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
-	        solver->lattice->Set_Field(it.id,&v[0]); 
+		std::vector<real_t> vec(v.begin(),v.end());
+	    solver->lattice->Set_Field(it.id,&vec[0]); 
 		return;
 	}
 	Rcpp::CharacterVector Names() {
@@ -342,25 +345,27 @@ public:
 		Rcpp::IntegerVector v(v_);
 		lbRegion reg = solver->lattice->region;
 		size_t size = reg.sizeL();
-		{
-			flag_t * NodeType = new flag_t[size];
-			solver->lattice->GetFlags(reg, NodeType);
-			for (const Model::NodeTypeGroupFlag& it : solver->lattice->model->nodetypegroupflags) {
-				bool some_na = false;
-				for (size_t i=0;i<size;i++) {
-					if (Rcpp::IntegerVector::is_na(v[i])) {
-						some_na = true;
-					} else {
-						NodeType[i] = (NodeType[i] - (NodeType[i] & it.flag)) + ((v[i] - 1) << it.shift);
-					}
-				}
-				if (some_na) {
-					ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
-				}
+		flag_t * NodeType = new flag_t[size];
+		solver->lattice->GetFlags(reg, NodeType);
+		Model::NodeTypeGroupFlag it = solver->lattice->model->nodetypegroupflags.by_name(name);
+		if (!it) it = solver->lattice->model->settingzones;
+		if (name != it.name) {
+			ERROR("Geometry component not found: %s\n", name.c_str());
+			return;
+		}		
+		bool some_na = false;
+		for (size_t i=0;i<size;i++) {
+			if (Rcpp::IntegerVector::is_na(v[i])) {
+				some_na = true;
+			} else {
+				NodeType[i] = (NodeType[i] - (NodeType[i] & it.flag)) + ((v[i] - 1) << it.shift);
 			}
-			solver->lattice->FlagOverwrite(NodeType, reg);
-			delete[] NodeType;
 		}
+		if (some_na) {
+			ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
+		}
+		solver->lattice->FlagOverwrite(NodeType, reg);
+		delete[] NodeType;
 		return;
 	}
 
@@ -401,8 +406,12 @@ SEXP Dollar(std::string name) {
 		return small;
 	}
 
-	const Model::NodeTypeGroupFlag& it = solver->lattice->model->nodetypegroupflags.by_name(name);
-	if (it) { // Geometry components
+	Model::NodeTypeGroupFlag it = solver->lattice->model->nodetypegroupflags.by_name(name);
+	if (!it) it = solver->lattice->model->settingzones;
+	if (name != it.name) {
+		ERROR("Geometry component not found: %s\n", name.c_str());
+		return rNull;
+	}		
 		flag_t * NodeType = new flag_t[size];
 		solver->lattice->GetFlags(reg, NodeType);
 		Rcpp::IntegerVector small(size);
@@ -410,22 +419,28 @@ SEXP Dollar(std::string name) {
 		for (size_t i=0;i<size;i++) {
 			small[i] = 1 + ((NodeType[i] & it.flag) >> it.shift);
 		}
-		Rcpp::CharacterVector levels(it.max+1);
-		levels[0] = "None";
-		for (const Model::NodeTypeFlag& it2 : solver->lattice->model->nodetypeflags) {
-			if (it2.group_id == it.id) {
-				int idx = it2.flag >> it.shift;
-				if (idx < levels.size()) levels[idx] = it2.name;
+		
+		if (name == "SETTINGZONES") {
+			Rcpp::CharacterVector levels(solver->geometry->SettingZones.size());
+			for (const auto& it2 : solver->geometry->SettingZones) {
+				levels[it2.second] = it2.first;
+			}		
+			small.attr("levels") = levels;
+		} else {
+			Rcpp::CharacterVector levels(it.max+1);
+			levels[0] = "None";
+			for (const Model::NodeTypeFlag& it2 : solver->lattice->model->nodetypeflags) {
+				if (it2.group_id == it.id) {
+					int idx = it2.flag >> it.shift;
+					if (idx < levels.size()) levels[idx] = it2.name;
+				}
 			}
+			small.attr("levels") = levels;
 		}
-		small.attr("levels") = levels;
 		small.attr("class") = "factor";
 		delete[] NodeType;
 		return small;
 	}
-	ERROR("R: Unknown component of Geometry");
-	return Rcpp::IntegerVector(0);
-}
 	virtual Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
 		ret.push_back("dx");

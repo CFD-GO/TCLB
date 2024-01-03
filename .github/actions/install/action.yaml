@@ -130,20 +130,26 @@ runs:
       shell: bash
       name: "Installing CUDA"
       run: |
-        GPU="${{ inputs.cuda }}"
-        if test "$GPU" == "true"
+        VER="${{ inputs.cuda }}"
+        if test "$VER" == "true"
         then
-          GPU="11.7"
+          VER="11.7"
         fi
-        tools/install.sh ${{inputs.options}} cuda $GPU
-        CUDA_PATH=/usr/local/cuda-$GPU
+        tools/install.sh ${{inputs.options}} cuda $VER
+        CUDA_PATH=/usr/local/cuda-$VER
         echo "$CUDA_PATH/bin" >>$GITHUB_PATH
         echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >>$GITHUB_ENV
         echo "CUDA_PATH=$CUDA_PATH" >>$GITHUB_OUTPUT
     - if: inputs.hip != 'false'
       name: "Installing ROCm/HIP"
       shell: bash
-      run: tools/install.sh ${{inputs.options}} hip ${{ inputs.hip }}
+      run: |
+        VER="${{ inputs.hip }}"
+        if test "$VER" == "true"
+        then
+          VER="5.4.1"
+        fi
+        tools/install.sh ${{inputs.options}} hip $VER
     - if: inputs.openmpi != 'false'
       name: "Installing OpenMPI"
       shell: bash

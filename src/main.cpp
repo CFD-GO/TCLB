@@ -4,10 +4,6 @@
 
 #include "Consts.h"
 
-#ifdef EMBEDED_PYTHON
-#include <Python.h>
-#endif
-
 #include "Global.h"
 #include <mpi.h>
 #include "Region.h"
@@ -412,9 +408,6 @@ int main ( int argc, char * argv[] )
 			return -1;
 		}
 	}
-    #ifdef EMBEDED_PYTHON
-    Py_Finalize();
-    #endif
 
 	// Finish and clean up
 	debug2("CudaFree ...\n");
