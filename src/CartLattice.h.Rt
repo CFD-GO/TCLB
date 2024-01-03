@@ -107,25 +107,25 @@ public:
   virtual std::vector<big_flag_t> getFlags(const lbRegion&) const;
   virtual std::vector<real_t> getQuantity(const Model::Quantity& q, const lbRegion& over, real_t scale = 1);
   virtual void setFlags(const lbRegion& over, const std::vector<big_flag_t>& x);
-  virtual std::vector<int> shape() const {
+  virtual std::vector<int> shape() const override {
     const lbRegion& reg = getLocalRegion();
     return {reg.nx, reg.ny, reg.nz};
   };
-  virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) { 
+  virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) override { 
     return getQuantity(q, getLocalRegion(), scale);
   };
-  virtual std::vector<big_flag_t> getFlags() const {
+  virtual std::vector<big_flag_t> getFlags() const override {
     return getFlags(getLocalRegion());
   };
-  virtual std::vector<real_t> getField(const Model::Field& f);
-  virtual std::vector<real_t> getFieldAdj(const Model::Field& f);
-  virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1);
+  virtual std::vector<real_t> getField(const Model::Field& f) override;
+  virtual std::vector<real_t> getFieldAdj(const Model::Field& f) override;
+  virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1) override;
 
-  virtual void setFlags(const std::vector<big_flag_t>& x) {
+  virtual void setFlags(const std::vector<big_flag_t>& x) override {
     return setFlags(getLocalRegion(), x);
   };
-  virtual void setField(const Model::Field& f, const std::vector<real_t>& x);
-  virtual void setFieldAdjZero(const Model::Field& f);  
+  virtual void setField(const Model::Field& f, const std::vector<real_t>& x) override;
+  virtual void setFieldAdjZero(const Model::Field& f) override;  
 
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(const lbRegion& over, <?%s q$type ?> * tab, real_t scale);
