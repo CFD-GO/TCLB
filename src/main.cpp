@@ -4,9 +4,6 @@
 
 #include "Consts.h"
 
-#ifdef EMBEDED_PYTHON
-#include <Python.h>
-#endif
 
 #include <assert.h>
 #include <mpi.h>
@@ -472,10 +469,6 @@ int main(int argc, char* argv[]) {
                 return -1;
             }
         }
-
-#ifdef EMBEDED_PYTHON
-        Py_Finalize();
-#endif
 
         // Finish and clean up
         debug2("CudaFree ...\n");

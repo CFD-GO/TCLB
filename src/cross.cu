@@ -11,7 +11,7 @@
 
 uint3 CpuBlock, CpuThread, CpuSize;
 
-void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height) {
+void memcpy2D(void * dst_, int dpitch, const void * src_, int spitch, int width, int height) {
 	char * dst = (char*) dst_, *src = (char*) src_;
 	for (int i=0; i<height; i++) {
 		memcpy(dst + i*dpitch, src + i*spitch, width);

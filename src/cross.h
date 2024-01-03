@@ -311,7 +311,7 @@
       CPUKernelRun(func, blocks, std::forward<P>(args)...);
     }
 
-    void memcpy2D(void * dst_, int dpitch, void * src_, int spitch, int width, int height);
+    void memcpy2D(void * dst_, int dpitch, const void * src_, int spitch, int width, int height);
 
     template <class T, class P> inline T data_cast(const P& x) {
       static_assert(sizeof(T)==sizeof(P),"Wrong sizes in data_cast");

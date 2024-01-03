@@ -130,12 +130,33 @@ then
 	exit 0
 fi
 
-if test -z "$*"
+
+TESTS_ARG="$*"
+if test -z "$TESTS_ARG"
 then
-	TESTS=$(cd tests/external/$MODEL; ls *.test 2>/dev/null)
-else
-	TESTS="$*"
+	TESTS_ARG="."
 fi
+
+TESTS=""
+DIR="tests/external/$MODEL"
+for t in $TESTS_ARG
+do
+	ADD=""
+	if test -f "$DIR/$t"
+	then
+		ADD="$t"
+	elif test -f "$DIR/$t.test"
+	then
+		ADD="$t.test"	
+	elif test -d "$DIR/$t"
+	then
+		ADD="$(cd $DIR; ls $t/*.test 2>/dev/null)"
+	else
+		echo "Test not found: $t"
+		exit -1
+	fi
+	TESTS="$TESTS $ADD"
+done
 
 if test -z "$TESTS"
 then
@@ -186,6 +207,7 @@ function testModel {
 	do		
 		TEST="${t%.test}"
 		t="$TEST.test"
+		TEST=$(echo $TEST | sed 's|^[.]/||g' | sed 's|/|-|g')
 		TDIR="test-$MODEL-$TEST-$1"
 		test -d "$TDIR" && rm -r "$TDIR"
 		RESULT="OK"
