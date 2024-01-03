@@ -478,9 +478,9 @@ std::vector<real_t> CartLattice::getCoord(const Model::Coord& d, real_t scale) {
 	for (int x=0;x<reg.nx;x++) {
 		double val=0;
 		switch (d.id) {
-		case 0:	val = px + x; break;
-		case 1: val = py + y; break;
-		case 2: val = pz + z; break;
+		case 0:	val = px + 0.5 + getLocalRegion().dx + x; break;
+		case 1: val = py + 0.5 + getLocalRegion().dy + y; break;
+		case 2: val = pz + 0.5 + getLocalRegion().dz + z; break;
 		default: assert(false); break;
 		}
 		ret.push_back(val*scale);
