@@ -126,7 +126,7 @@ public:
 		}
 		Rcpp::NumericVector v(v_);
 		size_t size = solver->lattice->getLocalSize();
-		if (v.size() != size) {
+		if ((size_t) v.size() != size) {
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
