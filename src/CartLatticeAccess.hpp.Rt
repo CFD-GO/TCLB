@@ -299,11 +299,15 @@ CudaDeviceFunction void CartLatticeAccess< x_t, y_t, z_t >::pop<?%s s$suffix ?>(
 {
 	storage_t val; <?R
   con = make.context("container->in",pocket=TRUE);
-  for (d in rows(Density)[s$load.densities]) {
+  dens = Density;
+  dens$load = s$load.densities;
+  for (d in rows(dens)) if (d$load) {
     f = rows(Fields)[[match(d$field, Fields$name)]]
     dp = c(-d$dx, -d$dy, -d$dz)
     con=load.field("val", f, p, dp,con) ?>
 	<?%s paste("node",d$name,sep=".") ?> = <?%s storage_to_real("val",f)?>; <?R
+  } else if (!is.na(d$default)) { ?>
+  <?%s paste("node",d$name,sep=".") ?> = <?%f d$default ?>; <?R
   } ?>
 }
 

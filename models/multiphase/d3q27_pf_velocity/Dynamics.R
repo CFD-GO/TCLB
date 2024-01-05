@@ -124,7 +124,7 @@ if (Options$thermo){
 	AddStage("BaseInit" , "Init_distributions", save=Fields$group %in% save_initial)
 	AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
 	AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
-	AddStage(name="InitFromFieldsStage", load.densities=TRUE, save.fields=TRUE)
+	AddStage(name="InitFromFieldsStage", load=DensityAll$group %in% "init",read=FALSE, save=Fields$group %in% save_initial_PF)
 	# STAGES FOR VARIOUS OPTIONS
 	if (Options$geometric){
 		AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
