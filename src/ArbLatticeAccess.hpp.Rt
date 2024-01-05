@@ -115,10 +115,14 @@ for (s in rows(all_stages)) { ?>
     template<class Node>
     CudaDeviceFunction void pop<?%s s$suffix ?>(Node& node) const {
 <?R
-for (d in rows(Density)[s$load.densities]) {
+dens = Density;
+dens$load = s$load.densities;
+for (d in rows(dens)) if (d$load) {
   f = rows(Fields)[[match(d$field, Fields$name)]]
   dp = c(-d$dx, -d$dy, -d$dz)
   cat(paste0("        node.", d$name, " = load_", f$nicename, "<"), paste(dp, collapse=", "), " >();\n")
+  } else if (!is.na(d$default)) { ?>
+  <?%s paste("node",d$name,sep=".") ?> = <?%f d$default ?>; <?R
 } ?>    }
     template<class Node>
     CudaDeviceFunction void push<?%s s$suffix ?>(const Node& node) const {
