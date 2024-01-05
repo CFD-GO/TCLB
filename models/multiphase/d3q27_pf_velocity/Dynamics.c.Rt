@@ -284,6 +284,7 @@ CudaDeviceFunction void InitFromFieldsStage()
 	V = Init_UY_External;
 	W = Init_UZ_External;
 	if ( IamWall || IamSolid ) PhaseF = -999;
+	pnorm = 0.0; // initialise as zero and fill in later stage
 }
 
 CudaDeviceFunction void specialCases_Init()
