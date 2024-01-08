@@ -174,11 +174,13 @@ function runline {
 	shift
 	case $CMD in
 		run) try "running solver" "$@"; return $?;;
-		fail) try "running solver" '!' "$@"; return $? ;;
+		fail) try "running solver (should fail)" '!' "$@"; return $? ;;
+		csvconcatenate) try "concatenating csv files" $TCLB/tools/csvconcatenate "$@"; return $? ;;
 	esac
 	R=$1
 	shift
 	case $CMD in
+		exists) try "checking $R (exists)" test -f "$R"; return $? ;;
 		sha1) G="$R.sha1" ;;
 		*) G="$R" ;;
 	esac
@@ -194,11 +196,11 @@ function runline {
 		return -1
 	fi
 	case $CMD in
-	need) try "copy needed file" cp "$G" "$R" ;;
-	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${1:-1e-10}" -d ${2:-$CSV_DISCARD} ;;
-	diff) try "checking $R" diff "$R" "$G" ;;
-	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
-	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${1:-8}" ${2:-} ${3:-} ${4:-} ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
+	need) try "copy needed file" cp "$G" "$R"; return $? ;;
+	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${1:-1e-10}" -d ${2:-$CSV_DISCARD}; return $? ;;
+	diff) try "checking $R" diff "$R" "$G"; return $? ;;
+	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1"; return $? ;;
+	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${1:-8}" ${2:-} ${3:-} ${4:-}; return $? ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
 	*) echo "unknown: $CMD"; return -1;;
 	esac
 	return 0;
@@ -216,6 +218,7 @@ function testModel {
 		TCLB=".."
 		SOLVER="$TCLB/CLB/$MODEL/main"
 		MODELBIN="$TCLB/CLB/$MODEL"
+		TOOLS="$TCLB/tools"
 		TEST_DIR="../tests/external/$MODEL"
 		CAN_FAIL=false
 		CSV_DISCARD=Walltime
