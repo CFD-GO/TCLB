@@ -85,15 +85,15 @@ public:
 
   const lbRegion& getLocalRegion() const { return connectivity.getLocalRegion(); }
   const lbRegion& getGlobalRegion() const { return connectivity.global_region; }
-  size_t getLocalSize() const override { return static_cast<size_t>(getLocalRegion().size()); }
-  size_t getGlobalSize() const override { return static_cast<size_t>(connectivity.global_region.size()); }
+  size_t getLocalSize() const override { return getLocalRegion().sizeL(); }
+  size_t getGlobalSize() const override { return getGlobalRegion().sizeL(); }
+
 
   int EventLoop() override;
   void MPIInit ();
   void Color(uchar4 *);
   int Offset(int,int,int);
   void setPosition(double, double, double);
-  void FlagOverwrite(flag_t *, const lbRegion&);
   void CutsOverwrite(cut_t * Q, const lbRegion& over);
   void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize) const;
   size_t sizeOfTab();
@@ -104,24 +104,29 @@ public:
   void clearAdjoint() final;
   void clearDPar();
 
-  void GetCoords(real_t*);
-  void Get_Field(int, real_t * tab);
-  void Set_Field(int, real_t * tab);
-  void Get_Field_Adj(int, real_t * tab);
+  virtual std::vector<big_flag_t> getFlags(const lbRegion&) const;
+  virtual std::vector<real_t> getQuantity(const Model::Quantity& q, const lbRegion& over, real_t scale = 1);
+  virtual void setFlags(const lbRegion& over, const std::vector<big_flag_t>& x);
+  virtual std::vector<int> shape() const override {
+    const lbRegion& reg = getLocalRegion();
+    return {reg.nx, reg.ny, reg.nz};
+  };
+  virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) override { 
+    return getQuantity(q, getLocalRegion(), scale);
+  };
+  virtual std::vector<big_flag_t> getFlags() const override {
+    return getFlags(getLocalRegion());
+  };
+  virtual std::vector<real_t> getField(const Model::Field& f) override;
+  virtual std::vector<real_t> getFieldAdj(const Model::Field& f) override;
+  virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1) override;
 
-  int loadComp(const std::string& filename, const std::string& comp) final;
-  int saveComp(const std::string& filename, const std::string& comp) const final;
+  virtual void setFlags(const std::vector<big_flag_t>& x) override {
+    return setFlags(getLocalRegion(), x);
+  };
+  virtual void setField(const Model::Field& f, const std::vector<real_t>& x) override;
+  virtual void setFieldAdjZero(const Model::Field& f) override;  
 
-  void GetFlags(const lbRegion&, flag_t *) const;
-<?R for (d in rows(DensityAll)) { ?>
-  void Get_<?%s d$nicename ?>(real_t * tab) const;
-  void Clear_<?%s d$nicename ?>();
-  void Set_<?%s d$nicename ?>(real_t * tab) const;
-  void Get_<?%s d$nicename ?>_Adj(real_t * tab) const;
-  void Clear_<?%s d$nicename ?>_Adj();
-  void Set_<?%s d$nicename ?>_Adj(real_t * tab);
-<?R } ?>
-void GetQuantity(int quant, const lbRegion& over, real_t * tab, real_t scale);
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
   void Get<?%s q$name ?>(const lbRegion& over, <?%s q$type ?> * tab, real_t scale);
   void GetSample<?%s q$name ?>(const lbRegion& over, real_t scale,real_t* tab);
@@ -130,14 +135,11 @@ void GetQuantity(int quant, const lbRegion& over, real_t * tab, real_t scale);
   void Get<?%s q$name ?>_<?%s tp ?>(const lbRegion& over, <?%s tp ?> * tab, int row);
 <?R }; ifdef() ?>
 
+
   int getPars(ParStruct& par_struct);
   int getDPar(const ParStruct& par_struct, double * wb);
   int getPar(const ParStruct& par_struct, double * wb);
   int setPar(const ParStruct& par_struct, double * w);
-
-  int getComponentIntoBuffer(const char*, real_t *&, long int* , long int* );
-  int loadComponentFromBuffer(const char*, real_t*);
-  int getQuantityIntoBuffer(const char*, real_t*&, long int*, long int*);
 
   void updateAllSamples();
   void resetAverage();

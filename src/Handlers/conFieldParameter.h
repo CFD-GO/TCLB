@@ -8,7 +8,7 @@
 #include "Design.h"
 
 class  conFieldParameter  : public Design  {
-	int field_id;
+	Model::Field field;
 	size_t Pars;
 	int Par_size; ///< Parameter space dimension
 	int *Par_sizes; ///< Parameter space dimensions on all the processors

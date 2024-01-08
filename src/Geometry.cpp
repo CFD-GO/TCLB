@@ -1,13 +1,6 @@
-<?R
-source("conf.R")
-?>
 
 #include "Consts.h"
 
-<?R
- library(gvector,quiet=TRUE,warn.conflicts=FALSE)
- library(polyAlgebra,quiet=TRUE,warn.conflicts=FALSE)
-?>
 
 
 #include <stdlib.h>
@@ -25,12 +18,9 @@ source("conf.R")
 #include "spline.h"
 #include <assert.h>
 
+#define NoneFlag ((big_flag_t) 0)
 
-<?R
-				x = c(0,1,-1);
-				U = expand.grid(x,x,x)
-?>
-const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
+const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1,-1,0,0,0,1,1,0,1,-1,0,1,0,1,1,1,1,1,-1,1,1,0,-1,1,1,-1,1,-1,-1,1,0,0,-1,1,0,-1,-1,0,-1,0,1,-1,1,1,-1,-1,1,-1,0,-1,-1,1,-1,-1,-1,-1,-1 };
 
 /// Main constructor
 /**
@@ -38,12 +28,12 @@ const int d3q27_vec[] = { <?%s paste(t(U),collapse=",") ?> };
         \param r Global Lattice region
         \param units_ Units object associated with the this Geometry object
 */
-Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_):region(r), totalregion(tr), units(units_)
+Geometry::Geometry(const lbRegion & r, const lbRegion & tr, const UnitEnv &units_, const Model * model_):model(model_), region(r), totalregion(tr), units(units_)
 {
-    geom = new flag_t[region.sizeL()];
+	geom.resize(region.sizeL());
     Q = NULL;
     for (size_t i = 0; i < region.sizeL(); i++) {
-	geom[i] = 0;
+		geom[i] = 0;
     }
     output("Creating geom size: %ld\n", region.sizeL());
 }
@@ -142,13 +132,13 @@ double Geometry::val_d(pugi::xml_attribute attr)
 */
 int Geometry::setFlag(const pugi::char_t * name)
 {
-    pugi::xml_node node = fg_xml.find_child_by_attribute("Type", "name", name);
-    if (!node) {
+    Model::NodeTypeFlag it = model->nodetypeflags.by_name(name);
+    if (! it) {
 	ERROR("Unknown flag (in xml): %s\n", name);
 	return -1;
     }
-    fg = node.attribute("value").as_int();
-    E(setMask(node.attribute("mask").value()));
+    fg = it.flag;
+    fg_mask = it.group_flag;
     fg_mode = MODE_OVERWRITE;
     return 0;
 }
@@ -162,12 +152,12 @@ int Geometry::setFlag(const pugi::char_t * name)
 */
 int Geometry::setMask(const pugi::char_t * name)
 {
-    pugi::xml_node node = fg_xml.find_child_by_attribute("Mask", "name", name);
-    if (!node) {
+    Model::NodeTypeGroupFlag it = model->nodetypegroupflags.by_name(name);
+    if (! it) {
 	error("Unknown mask (in xml): %s\n", name);
 	return -1;
     }
-    fg_mask = node.attribute("value").as_int(-1);
+    fg_mask = it.flag;
     return 0;
 }
 
@@ -296,18 +286,18 @@ lbRegion Geometry::getRegion(const pugi::xml_node & node)
 }
 
 /// Fill a node with foreground flag
-inline flag_t Geometry::Dot(int x, int y, int z)
+inline big_flag_t Geometry::Dot(int x, int y, int z)
 {
     if (region.isIn(x, y, z)) {
 	int i = region.offset(x, y, z);
 	if (geom[i] & fg_mask) {
-		if (fg_mode == MODE_FILL) return 0;
+		if (fg_mode == MODE_FILL) return NoneFlag;
 	} else {
-		if (fg_mode == MODE_CHANGE) return 0;
+		if (fg_mode == MODE_CHANGE) return NoneFlag;
 	}
 	return geom[i] = (geom[i] & (~fg_mask)) | fg;
     } else 
-    return 0;
+    return NoneFlag;
 }
 
 /// Check if a point is inside a sphere
@@ -470,21 +460,26 @@ inline cut_t smaller(cut_t a,cut_t b) {
 
 cut_t calcCut(STL_tri tri, double x, double y, double z, double dx, double dy, double dz) {
 	double mat[16],b[4],r[4];
-	<?R
-		M = PV("mat[",1:16-1,"]")
-		dim(M) = c(4,4)
-		W = M
-		xyz = c("x","y","z");
-		W[1:3,1] = PV(xyz) - PV("tri.p1[",1:3-1,"]")
-		W[1:3,2] = PV(xyz) - PV("tri.p2[",1:3-1,"]")
-		W[1:3,3] = PV(xyz) - PV("tri.p3[",1:3-1,"]")
-		W[1:3,4] = PV("d",xyz)
-		W[4,1:4] = c(1,1,1,0)
-		b = c(0,0,0,1)
-		C(M,W)
-		C(PV("b[",1:4-1,"]"),c(0,0,0,1))
-	?>
-//	return 0;
+	mat[0] = -tri.p1[0] + x;
+	mat[1] = -tri.p1[1] + y;
+	mat[2] = -tri.p1[2] + z;
+	mat[3] = 1;
+	mat[4] = -tri.p2[0] + x;
+	mat[5] = -tri.p2[1] + y;
+	mat[6] = -tri.p2[2] + z;
+	mat[7] = 1;
+	mat[8] = -tri.p3[0] + x;
+	mat[9] = -tri.p3[1] + y;
+	mat[10] = -tri.p3[2] + z;
+	mat[11] = 1;
+	mat[12] = dx;
+	mat[13] = dy;
+	mat[14] = dz;
+	mat[15] = 0;
+	b[0] = 0;
+	b[1] = 0;
+	b[2] = 0;
+	b[3] = 1;
 	GaussSolve(mat,b,r,4);
 	if (r[0] < 0) return NO_CUT;
 	if (r[1] < 0) return NO_CUT;
@@ -1077,12 +1072,47 @@ int Geometry::Draw(pugi::xml_node & node)
 		return -1;
 	    }
 	    output("Reading file %s\n", n.attribute("file").value());
-	    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-		for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-		    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
+	    int p[3], dp[3], np[3], xp=-1, yp=-1, zp=-1;
+	    dp[0] = 0; np[0] = 1; dp[1] = 0; np[1] = 1; dp[2] = 0; np[2] = 1;
+	    if (n.attribute("order")) {
+	    	const char * ord = n.attribute("order").value();
+	    	int len = strlen(ord);
+	    	if (len != 3) {
+	    		ERROR("order attribute in Text has to have 3 characters\n");
+	    		return -1;
+		}
+	    	for (int k=0;k<len;k++) {
+	    		if (ord[k] == 'x' && xp == -1) {
+	    			xp = k;
+			} else if (ord[k] == 'y' && yp == -1) {
+	    			yp = k;
+			} else if (ord[k] == 'z' && zp == -1) {
+	    			zp = k;
+			} else {
+		    		ERROR("wrong characters in order attribute in Text: '%s'\n", ord);
+		    		return -1;
+			}
+		}
+	    } else {
+	    	xp = 0;
+	    	yp = 1;
+		zp = 2;
+	    }
+	    dp[xp] = reg.dx;
+	    np[xp] = reg.nx;
+	    dp[yp] = reg.dy;
+	    np[yp] = reg.ny;
+	    dp[zp] = reg.dz;
+	    np[zp] = reg.nz;
+	    for (p[0] = dp[0]; p[0] < dp[0]+np[0]; p[0]++)
+	        for (p[1] = dp[1]; p[1] < dp[1]+np[1]; p[1]++)
+		    for (p[2] = dp[2]; p[2] < dp[2]+np[2]; p[2]++) {
+		    	int x = p[xp];
+		    	int y = p[yp];
+		    	int z = p[zp];
 			int v;
 			int ret = fscanf(f, "%d", &v);
-                        if (ret == EOF) {
+                        if (ret != 1) {
                             ERROR("File (%s) ended while reading\n", n.attribute("file").value());
                             return -1;
                         }
@@ -1133,14 +1163,6 @@ pugi::xml_document& getXMLDef() {
     	</Zone>\
     	<Zone name='Tunnel'> <Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
     	<Zone name='Inlet'><Box dx='0' dy='0' dz='0' fx='0' fy='-1' fz='-1'/></Zone>\
-    	<Mask name='NONE' value='0'/>\
-    	<Type name='None' value='0' mask='NONE'/>\
-    <?R for (n in rows(NodeTypeGroups)) {
-    ?>	<Mask name='<?%s n$name ?>' value='<?%f n$mask ?>'/>\
-    <?R }
-        for (n in rows(NodeTypes)) {
-    ?>	<Type name='<?%s n$name ?>' value='<?%d n$value ?>' mask='<?%s n$group ?>'/>\
-    <?R } ?>\
     </Geometry>";
     const auto init_status = xml_def.load_string(xml_definition);
     if(!init_status) {
@@ -1191,7 +1213,6 @@ int Geometry::load(pugi::xml_node& node, const std::map<std::string, int>& zone_
 Geometry::~Geometry()
 {
     debug1("[%d] Destroy geom\n", D_MPI_RANK);
-    delete[]geom;
     if (Q != NULL) delete[] Q;
 }
 
@@ -1213,7 +1234,7 @@ void Geometry::writeVTI(const char *name)
 	return;
     }
     vtkFile.Init(region, "");
-    vtkFile.WriteField("geom", geom);
+    vtkFile.WriteField("geom", geom.data());
     if (Q != NULL) {
         size_t regsize = region.sizeL();
 

@@ -94,15 +94,6 @@ wiki/% : src/%.Rt
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ || rm $@
 
-
-travis : .travis.yml
-
-.travis.yml : src/travis.yml.Rt models/* models/*/* models/*/*/* src/models.R
-	@echo "  RT         $@"
-	@$(MKPATH) $@
-	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
-
-
 <?R
 	by(Models, Models$group, function(m) {
 		if (length(m$opts[[1]]) > 0) {

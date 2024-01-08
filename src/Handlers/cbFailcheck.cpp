@@ -37,22 +37,17 @@ int cbFailcheck::DoIt() {
     const auto check_for_nans = [&](const Model::Quantity& quantity) -> bool {
         if (!components.in(quantity.name) || quantity.isAdjoint) return false;
 
-        const auto get_quantity_vec = [&](int quant_id, int n_comps) -> std::vector<real_t> {
+        const auto get_quantity_vec = [&](const Model::Quantity& q) -> std::vector<real_t> {
             const auto get_from_cart = [&](Lattice<CartLattice>* lattice) {
-                std::vector<real_t> retval(reg.size() * n_comps);
-                lattice->GetQuantity(quant_id, reg, retval.data(), 1.);
-                return retval;
+                return lattice->getQuantity(q, reg, 1);
             };
             const auto get_from_arb = [&](Lattice<ArbLattice>* lattice) {
-                std::vector<real_t> retval(lattice->getLocalSize() * n_comps);
-                lattice->getQuantity(quant_id, retval.data(), 1.);
-                return retval;
+                return lattice->getQuantity(q, 1);
             };
             return std::visit(OverloadSet{get_from_cart, get_from_arb}, solver->getLatticeVariant());
         };
 
-        const int n_comps = quantity.isVector ? 3 : 1;
-        const auto values = get_quantity_vec(quantity.id, n_comps);
+        const auto values = get_quantity_vec(quantity);
         int has_nans = std::any_of(values.begin(), values.end(), [](auto v) { return std::isnan(v); });
         MPI_Allreduce(MPI_IN_PLACE, &has_nans, 1, MPI_INT, MPI_LOR, MPMD.local);
         if (has_nans) notice("Discovered NaN values in %s", quantity.name.c_str());

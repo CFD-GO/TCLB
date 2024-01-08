@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #define CROSS_H // We don't want the usual cross facilities, use the mock below
+#define GLOBAL_H
 
 #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
 #define CudaFree(a__) free(a__)

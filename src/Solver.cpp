@@ -1,12 +1,7 @@
-<?R
-    source("conf.R")
-	c_header();
-?>
-
 #include "Solver.h"
 
 using namespace std;
-	
+
 /// Add a unit gauge
 /**
 	Add an equation for the units like "1m/s=10"
@@ -51,82 +46,72 @@ using namespace std;
             f = fopen(filename, "wt");
             assert( f != NULL );
             fprintf(f,"\"Iteration\",\"Time_si\",\"Walltime\",\"Optimization\"");
-
-		    <?R for (v in Settings$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
-		    <?R } ?>
-		    <?R for (v in ZoneSettings$name) { ?>
+            LogScales.clear();
+            for (auto v : lattice->model->settings) {
+                fprintf(f,",\"%s\",\"%s_si\"", v.name.c_str(), v.name.c_str());
+                LogScales.push_back(1/units.alt(v.unit));
+            }
+		    for (auto v : lattice->model->zonesettings) {
 		    	for (const auto& [name, id] : setting_zones) {
-	                    fprintf(f,",\"<?%s v ?>-%s\",\"<?%s v ?>-%s_si\"", name.c_str(), name.c_str());
-	                }
-		    <?R } ?>
-		    <?R for (v in Globals$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>\",\"<?%s v ?>_si\"");
-		    <?R } ?>
-		    <?R for (v in Scales$name) { ?>
-	                    fprintf(f,",\"<?%s v ?>_si\"");
-		    <?R } ?>
-                    fprintf(f,"\n");
-
-                    fclose(f);
-	    <?R
-		for (v in rows(Settings)) { ?>
-                    LogScales[<?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
+                    fprintf(f,",\"%s-%s\",\"%s-%s_si\"", v.name.c_str(), name.c_str(), v.name.c_str(), name.c_str());
+                }
+                LogScales.push_back(1/units.alt(v.unit));
+            }
+            for (auto v : lattice->model->globals) {
+                fprintf(f,",\"%s\",\"%s_si\"", v.name.c_str(), v.name.c_str());
+                LogScales.push_back(1/units.alt(v.unit));
+            }
+            for (auto v : lattice->model->scales) {
+                fprintf(f,",\"%s_si\"", v.name.c_str());
+                LogScales.push_back(1/units.alt(v.unit));
+            }
+            fprintf(f,"\n");
+            fclose(f);
 		}
-		for (v in rows(ZoneSettings)) { ?>
-                    LogScales[SETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
-		for (v in rows(Globals)) { ?>
-                    LogScales[SETTINGS + ZONESETTINGS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
-		for (v in rows(Scales)) { ?>
-                    LogScales[SETTINGS + ZONESETTINGS + GLOBALS + <?%s v$Index ?>] = 1/units.alt("<?%s v$unit ?>"); <?R
-		}
- ?>
-		}
-                return 0;
+        return 0;
 	}
 
 /// Writes to the csv Log file.
 /**
 	\param filename Path to the Log file
 */
-	int Solver::writeLog(const char * filename)
-	{
-	    FILE * f = NULL;
-	        if (mpi_rank == 0) {
-			int j=0;
-	                f = fopen(filename, "at");
-	                assert( f != NULL );
-			fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[SETTINGS+GLOBALS+ZONESETTINGS+SCALES_dt] * iter, get_walltime(), opt_iter);
-			for (int i=0; i< SETTINGS; i++) {
-				const double v = lattice->getSetting(i);
-				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
-				j++;
-			}
-			for (int i=0; i< ZONESETTINGS; i++) {
-			    	for (const auto& [name, id] : setting_zones) {
-			    		int ind = lattice->ZoneIter;
-			    		int zone = id;
-			    		const double v = lattice->zSet.get(i, zone, ind);
-					    fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
-		            }
-				j++;
-			}
-			for (int i=0; i< GLOBALS; i++) {
-				const double v = lattice->globals[i];
-				fprintf(f,", %.13le, %.13le",v,v*LogScales[j]);
-				j++;
-			}
-			for (int i=0; i< SCALES; i++) {
-				fprintf(f,", %.13le",LogScales[j]);
-				j++;
-			}
-			fprintf(f,"\n");
-	                fclose(f);
-        	}
-		return 0;
-	}
+int Solver::writeLog(const char * filename)
+{
+    FILE * f = NULL;
+    if (mpi_rank == 0) {
+        f = fopen(filename, "at");
+        assert( f != NULL );
+        int j = lattice->model->settings.size() + lattice->model->zonesettings.size() + lattice->model->globals.size() + lattice->model->settings.by_name("dt").id;
+        fprintf(f,"%d, %.13le, %.13le, %d",iter, LogScales[j] * iter, get_walltime(), opt_iter);
+        j = 0;
+        for (auto v : lattice->model->settings) {
+            const double val = lattice->getSetting(v.id);
+            fprintf(f,", %.13le, %.13le",val,val*LogScales[j]);
+            j++;
+        }
+        for (auto v : lattice->model->zonesettings) {
+            for (const auto& [name, id] : setting_zones) {
+                int ind = lattice->ZoneIter;
+                int zone = id;
+                const double val = lattice->zSet.get(v.id, zone, ind);
+                fprintf(f,", %.13le, %.13le",val,val*LogScales[j]);
+            }
+            j++;
+        }
+        for (auto v : lattice->model->globals) {
+            const double val = lattice->globals[v.id];
+            fprintf(f,", %.13le, %.13le",val,val*LogScales[j]);
+            j++;
+        }
+        for (auto v : lattice->model->scales) {
+            fprintf(f,", %.13le",LogScales[j]);
+            j++;
+        }
+        fprintf(f,"\n");
+        fclose(f);
+    }
+    return 0;
+}
 
 CartLattice* Solver::getCartLattice() const {
     if(!lattice) {
@@ -164,23 +149,19 @@ ArbLattice* Solver::getArbLattice() const {
 */
 static void fillSides(CartConnectivity& connect, int nx, int ny, int nz)
 {
-<?R
-	sides = function(name, dx, dy, dz) {
-?>
-		connect.nodes[k].<?%s name ?> = ((nx + x + <?%d dx ?>) % nx) + ((ny + y + <?%d dy ?>) % ny) * nx + ((nz + z + <?%d dz ?>) % nz) * nx * ny;
-<?R
-	}
-?>
 	for (int x = 0; x < nx; x++)
 	    for (int y = 0; y < ny; y++)
 	        for (int z = 0; z < nz; z++) {
 		        const int k = x + y * nx + z * nx * ny;
-<?R
-	            for (m in Margin) {
-		            sides(m$side, -m$dx, -m$dy, -m$dz);
-	            }
-?>
-	}
+                int j = 0;
+                for (int dz = -1; dz <= 1; dz++)
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++){
+                            connect.nodes[k].side[j] = ((nx + x - dx) % nx) + ((ny + y - dy) % ny) * nx + ((nz + z - dz) % nz) * nx * ny;
+                            j++;
+                        }
+                assert(j == 27);
+            }
 }
 
 ///	Decompose the lattice for parallel processing

@@ -319,7 +319,7 @@ int convertToArbitrary(const std::unique_ptr<Solver>& solver, pugi::xml_node geo
     }
     const auto [nx, ny, nz] = readLatticeDims(solver->units, geo_xml);
     const auto region = lbRegion(0, 0, 0, nx, ny, nz);
-    Geometry geometry(region, region, solver->units);
+    Geometry geometry(region, region, solver->units, &model);
     if (geometry.load(geo_xml, solver->setting_zones)) {
         ERROR("Error while loading geometry for toArb");
         return EXIT_FAILURE;

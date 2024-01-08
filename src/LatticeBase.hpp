@@ -105,6 +105,18 @@ class LatticeBase {
     void push_setting(int, real_t, real_t);  ///< Set the setting (and push to settings_record if recording)
     void pop_settings();                     ///< Pop the setting from settings_record
 
+
+    virtual std::vector<int> shape() const = 0;
+    virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) = 0;
+    virtual std::vector<big_flag_t> getFlags() const = 0;
+    virtual std::vector<real_t> getField(const Model::Field& f) = 0;
+    virtual std::vector<real_t> getFieldAdj(const Model::Field& f) = 0;
+    virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1) = 0;
+
+    virtual void setFlags(const std::vector<big_flag_t>& x) = 0;
+    virtual void setField(const Model::Field& f, const std::vector<real_t>& x) = 0;
+    virtual void setFieldAdjZero(const Model::Field& f) = 0;
+
     void CopyInParticles();
     void CopyOutParticles();
 
@@ -122,8 +134,6 @@ class LatticeBase {
 
     void loadSolution(const std::string& filename);
     std::string saveSolution(const std::string& filename) const;
-    virtual int saveComp(const std::string& filename, const std::string& comp) const = 0;
-    virtual int loadComp(const std::string& filename, const std::string& comp) = 0;
 
     void Iterate(int num_iters, int iter_type);
     void IterateTill(int it, int iter_type);

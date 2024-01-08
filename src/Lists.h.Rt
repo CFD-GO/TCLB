@@ -24,6 +24,11 @@ using ObjectiveFunction = std::function<void(double*, double*, double*)>;
 class Model {
 public:
 
+    struct Coord : Thing {
+        inline Coord() {}
+        inline Coord(const int& id_, const std::string& name_) : Thing(id_,name_) {}
+    };
+
     struct Setting : UnitThing {
         std::string defaultValue;
         bool isDerived;
@@ -50,6 +55,7 @@ public:
         inline Quantity() : isVector(false), isAdjoint(false) {};
         inline Quantity(const int& id_, const std::string& name_, const std::string& unit_, const bool& isVector_, const bool& isAdjoint_=false)
             : UnitThing(id_,name_,unit_), isVector(isVector_), isAdjoint(isAdjoint_) {}
+        inline int getComp() const { if (isVector) return 3; else return 1; }
     };
 
     struct NodeTypeFlag : Thing {
@@ -143,6 +149,8 @@ public:
     };
 
     std::string name;
+    typedef Things<Coord> Coords;
+    Coords coords;
     typedef Things<Setting> Settings;
     Settings settings;
     typedef Things<ZoneSetting> ZoneSettings;
@@ -168,6 +176,14 @@ public:
     NodeTypeGroupFlag settingzones;
     typedef Things<Objective> Objectives;
     Objectives objectives;
+
+    Model() {
+        //        | id | name |
+        coords = {{  0 , "X"  },
+                  {  1 , "Y"  },
+                  {  2 , "Z"  },
+                  {  3 , "T"  }};
+    };
 };
 
 struct OffsetDir { int x, y, z; };

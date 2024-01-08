@@ -1,20 +1,14 @@
-<?R
-source("conf.R")
-c_header();
-?>
-
 #ifndef CARTCONNECTIVITY_HPP
 #define CARTCONNECTIVITY_HPP
 
 #include "cross.h"
 #include "pinned_allocator.hpp"
+#include "Region.h"
 
 /// Information on connectivity of a processor
 struct NodeInfo {
-    lbRegion region; ///< Local Lattice region <?R
-for (m in Margin) { ?>
-    int <?%s m$side ?>; ///< MPI rank of the processor on [<?%2d m$dx ?>,<?%2d m$dy?>,<?%2d m$dz?>] side <?R
-} ?>
+    lbRegion region; ///< Local Lattice region
+    int side[27];
 };
 
 struct CartConnectivity {

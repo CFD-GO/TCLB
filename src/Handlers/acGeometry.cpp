@@ -18,7 +18,7 @@ int acGeometry::Init () {
 				error("Error while loading geometry\n");
 				return -1;
 			}
-			lattice->FlagOverwrite(lattice->geometry->geom,lattice->geometry->region);
+			lattice->setFlags(lattice->geometry->region,lattice->geometry->geom);
 			lattice->CutsOverwrite(lattice->geometry->Q,lattice->geometry->region);
 			lattice->zSet.zone_max(solver->setting_zones.size() - 1);
 			return 0;

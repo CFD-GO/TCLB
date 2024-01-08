@@ -1,5 +1,7 @@
 #ifndef SOLIDALL_H
 
+#include "types.h"
+
 typedef int addr_t;
 
 template <class BALLS>

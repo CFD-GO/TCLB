@@ -14,10 +14,10 @@ int acLoadBinary::Init() {
     }
     const auto attr2 = node.attribute("comp");
     if (attr2) {
-        solver->lattice->loadComp(attr.value(), attr2.value());
+        error("LoadBinary with selected component was not implemented");
+        return -1;
     } else {
         solver->lattice->loadSolution(attr.value());
-        error("Missing comp parameter in LoadBinary");
     }
     return 0;
 }

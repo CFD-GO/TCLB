@@ -1,7 +1,3 @@
-<?R
-	source("conf.R")
-	c_header()
-?>
 /**
 	\file Global.cpp
 	Implementation of global functions

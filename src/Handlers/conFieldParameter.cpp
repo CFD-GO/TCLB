@@ -12,17 +12,16 @@ int conFieldParameter::Init () {
 			ERROR("No \"field\" attribute in GeometryParameter\n");
 			return -1;
 		}
-		std::string field = attr.value();
-		const Model::Field& fld = solver->lattice->model->fields.by_name(field);
-		if (!fld) {
-			ERROR("\"%s\" is not a field\n", field.c_str());
+		std::string field_name = attr.value();
+		field = solver->lattice->model->fields.by_name(field_name);
+		if (!field) {
+			ERROR("\"%s\" is not a field\n", field_name.c_str());
 			return -1;
 		}
-		if (!fld.isParameter) {
-			ERROR("\"%s\" is not a valid parameter field\n", field.c_str());
+		if (!field.isParameter) {
+			ERROR("\"%s\" is not a valid parameter field\n", field.name.c_str());
 			return -1;
 		}
-		field_id = fld.id;
 		attr = node.attribute("where");
 		if (attr) {
 			std::string where = attr.value();
@@ -94,12 +93,12 @@ int conFieldParameter::NumberOfParameters () {
 int conFieldParameter::LocalParameters(int type, double * tab) {
         const auto lattice = solver->getCartLattice();
         size_t n = lattice->getLocalRegion().sizeL();
-	real_t * buf = new real_t[n];
+		std::vector<real_t> buf;
 
-		if ((type == PAR_GET) || (type == PAR_SET)) lattice->Get_Field(field_id, buf);
+		if ((type == PAR_GET) || (type == PAR_SET)) buf = lattice->getField(field);
 		if ( type == PAR_GRAD ) {
 		#ifdef ADJOINT
-			lattice->Get_Field_Adj(field_id,buf);
+			buf = lattice->getFieldAdj(field,buf);
 		#else
 			ERROR("Cannot get gradient of Field Parameter without adjoint\n");
 		#endif // ADJOINT
@@ -115,6 +114,7 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 		}
 		break;
 	case PAR_SET:
+		buf.resize(n);
 		for (size_t i=0; i<n; i++) if (InDesignSpace(i)) {
 			real_t d = buf[i];
 			buf[i] = tab[j];
@@ -136,7 +136,7 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 	case PAR_Y:
 	case PAR_Z:
 	case PAR_T:
-		{
+		{ // TODO switch to getCoord
 			size_t i=0;
 			for (int z=0; z<lattice->getLocalRegion().nz; z++)
 			for (int y=0; y<lattice->getLocalRegion().ny; y++)
@@ -155,9 +155,8 @@ int conFieldParameter::LocalParameters(int type, double * tab) {
 		}
 		break;
 	}
-	if ( type == PAR_SET ) lattice->Set_Field(field_id, buf);
+	if ( type == PAR_SET ) lattice->setField(field, buf);
 	assert(j == Par_size);
-	delete[] buf;
 	return 0;
 };
 

@@ -725,7 +725,7 @@ AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 Margin = data.frame(
 	name = paste("block",1:27,sep=""),
-	side = paste("side",1:27,sep=""),
+	side = paste("side[",1:27-1,"]",sep=""),
 	dx   = rep(-1:1,times=9),
 	dy   = rep(rep(-1:1,times=3),each=3),
 	dz   = rep(-1:1,each=9),

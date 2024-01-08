@@ -5,6 +5,7 @@
 #include "hdf5Lattice.h"
 #include "Global.h"
 #include "glue.hpp"
+#include "mpitools.hpp"
 
 #ifdef WITH_HDF5
 	#include <hdf5.h>
@@ -27,26 +28,19 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 {
 #ifdef WITH_HDF5
 	Glue glue;
-	CartLattice * lattice = solver->lattice;
+	CartLattice * lattice = solver->getCartLattice();
 	UnitEnv * units = &solver->units;
 	double unit;
 
-	solver->print("writing hdf5");
-	char filename[2*STRING_LEN];
-	char * basename;
-	solver->outIterCollectiveFile(nm, ".h5", filename);
-
-	basename = filename;
-	for (char * n = filename; n[0] != '\0'; n++) {
-		if (n[0] == '/') basename = n+1;
-	}
+	std::string filename = solver->outIterCollectiveFile(nm, ".h5");
+	std::string basename = filename.substr(filename.find_last_of('/') + 1);
 
 	size_t size;
-	lbRegion local_reg = lattice->region;
+	lbRegion local_reg = lattice->getLocalRegion();
 	lbRegion reg = local_reg.intersect(total_output_reg);
 	size = reg.size();
 
-	myprint(1,-1,"Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d", 
+	myprint(1,-1,"Writing region %dx%dx%d + %d,%d,%d (size %d) from %dx%dx%d + %d,%d,%d",
 		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz, size,
 		local_reg.nx,local_reg.ny,local_reg.nz,local_reg.dx,local_reg.dy,local_reg.dz);
 
@@ -81,7 +75,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	xdmf_dataitem.append_attribute("Format") = "XML";
 	xdmf_dataitem.append_attribute("Precision") = 8;
 	xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(" ") << 1/unit << 1/unit << 1/unit);
-	
+
 	hid_t       file_id, dset_id;         /* file and dataset identifiers */
 	hsize_t     totaldim[4];                 /* dataset dimensions */
 	hsize_t     dim[4];            /* local dimensions */
@@ -89,7 +83,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	hsize_t     totalpointdim[4];            /* point dimensions */
 	hsize_t	offset[4];
 	int         *data;                    /* pointer to data buffer to write */
-	hsize_t	ones[4];	         
+	hsize_t	ones[4];
 	int         i;
 	herr_t	status;
 	hid_t plist_id;
@@ -105,8 +99,8 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	totaldim[1] = total_output_reg.ny;
 	totaldim[2] = total_output_reg.nx;
 	totaldim[3] = 3;
-	dim[0] = reg.nz;   
-	dim[1] = reg.ny;   
+	dim[0] = reg.nz;
+	dim[1] = reg.ny;
 	dim[2] = reg.nx;
 	dim[3] = 3;
 	offset[0] = reg.dz - total_output_reg.dz;
@@ -132,7 +126,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 		chunkdim[1] = 1;
 		chunkdim[2] = totaldim[3];
 		chunkdim[3] = totaldim[3];
-	}					
+	}
 
 	pugi::xml_node xdmf_topology = xdmf_grid.append_child("Topology");
 	if (options & HDF5_WRITE_POINT) {
@@ -145,7 +139,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 	pugi::xml_node xdmf_attribute;
 
 	myprint(2,-1,"hdf5 file: %s\n   domain: %lldx%lldx%lld chunks: %lldx%lldx%lld local: %lldx%lldx%lld+%lld,%lld,%lld\n",
-		filename,
+		filename.c_str(),
 		totaldim[0], totaldim[1], totaldim[2],
 		chunkdim[0], chunkdim[1], chunkdim[2],
 		dim[0], dim[1], dim[2],
@@ -153,12 +147,12 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 
 	plist_id = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_fapl_mpio(plist_id, comm, info);
-	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
+	file_id = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist_id);
 	H5Pclose(plist_id);
-	
 
-	flag_t * NodeType = new flag_t[size];
-	lattice->GetFlags(reg, NodeType);
+	std::vector<big_flag_t> NodeType = lattice->getFlags(reg);
+	std::vector<unsigned char> tmp;
+	tmp.resize(NodeType.size());
 	for (const Model::NodeTypeGroupFlag& it : lattice->model->nodetypegroupflags) {
 		hid_t       filespace, memspace;
 		const char * fieldname = it.name.c_str();
@@ -166,11 +160,11 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 		hid_t output_type = H5T_NATIVE_UCHAR;
 		int output_precision = 1;
 		int rank = 3;
-		filespace = H5Screate_simple(rank, totaldim, NULL); 
-		memspace  = H5Screate_simple(rank, dim, NULL); 
+		filespace = H5Screate_simple(rank, totaldim, NULL);
+		memspace  = H5Screate_simple(rank, dim, NULL);
 		plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-		
+
 		status = H5Pset_chunk (plist_id, rank, chunkdim);
 		if (status < 0) return H5Eprint1(stderr);
 		if (options & HDF5_DEFLATE) status = H5Pset_deflate (plist_id, 6);
@@ -184,7 +178,7 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 		}
 	   	if (status < 0) return H5Eprint1(stderr);
 
-		unsigned char * tmp = new unsigned char[size];
+
 		for (size_t i=0;i<size;i++) {
 			tmp[i] = (NodeType[i] & it.flag) >> it.shift;
 		}
@@ -192,14 +186,13 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 		myprint(0,-1,"filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
 		plist_id = H5Pcreate(H5P_DATASET_XFER);
 		H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-		status = H5Dwrite(dset_id, input_type, memspace, filespace, plist_id, tmp);
-		
+		status = H5Dwrite(dset_id, input_type, memspace, filespace, plist_id, tmp.data());
+
 		H5Pclose(plist_id);
 		H5Sclose(filespace);
 		H5Sclose(memspace);
 		H5Dclose(dset_id);
 
-		delete[] tmp;
 		xdmf_attribute = xdmf_grid.append_child("Attribute");
 		if (options & HDF5_WRITE_POINT) {
 			xdmf_attribute.append_attribute("Center") = "Node";
@@ -208,29 +201,13 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 		}
 		xdmf_attribute.append_attribute("Name") = fieldname;
 		xdmf_dataitem = xdmf_attribute.append_child("DataItem");
-		xdmf_dataitem.append_attribute("DataType") = "Float";
+		xdmf_dataitem.append_attribute("DataType") = "UInt8";
 		xdmf_dataitem.append_attribute("Dimensions") = glue(" ") << std::make_pair(totaldim, rank);
 		xdmf_dataitem.append_attribute("Format") = "HDF";
 		xdmf_dataitem.append_attribute("Precision") = output_precision;
 		xdmf_dataitem.append_child(pugi::node_pcdata).set_value(glue(":") << basename << fieldname);
 		std::string xdmf_dataitem_path = NameXPath(xdmf_dataitem);
-		if (options & HDF5_WRITE_LBM) {
-			xdmf_attribute = xdmf_grid.append_child("Attribute");
-			if (options & HDF5_WRITE_POINT) {
-				xdmf_attribute.append_attribute("Center") = "Node";
-			} else {
-				xdmf_attribute.append_attribute("Center") = "Cell";
-			}
-			xdmf_attribute.append_attribute("Name") = glue("_") << fieldname << "LB";
-			xdmf_dataitem = xdmf_attribute.append_child("DataItem");
-			xdmf_dataitem.append_attribute("ItemType") = "Function";
-			xdmf_dataitem.append_attribute("Function") = glue(" ") << unit << "*" << "$0";
-			xdmf_dataitem.append_attribute("Dimensions") = glue(" ") << std::make_pair(totaldim, rank);
-			xdmf_dataitem = xdmf_dataitem.append_child("DataItem");
-			xdmf_dataitem.append_attribute("Reference") = xdmf_dataitem_path.c_str();
-		}
 	}
-	delete[] NodeType;
 
 	for (const Model::Quantity& it : lattice->model->quantities) {
 		if (what->in(it.name)) {
@@ -253,10 +230,10 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			}
 			int rank = 3;
 			if (vector) rank = 4;
-			filespace = H5Screate_simple(rank, totaldim, NULL); 
-			memspace  = H5Screate_simple(rank, dim, NULL); 
+			filespace = H5Screate_simple(rank, totaldim, NULL);
+			memspace  = H5Screate_simple(rank, dim, NULL);
 			plist_id = H5Pcreate(H5P_DATASET_CREATE);
-			
+
 			status = H5Pset_chunk (plist_id, rank, chunkdim);
 			if (status < 0) return H5Eprint1(stderr);
 			if (options & HDF5_DEFLATE) status = H5Pset_deflate (plist_id, 6);
@@ -272,22 +249,20 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 			if (status < 0) return H5Eprint1(stderr);
 
 			unit = units->alt(it.unit);
-			int comp = 1;
-			if (vector) comp = 3;
-	                real_t* tmp = new real_t[size*comp];
-                        lattice->GetQuantity(it.id, reg, tmp, 1/unit);
+			int comp = it.getComp();
+
+            std::vector<real_t> tmp = lattice->getQuantity(it, reg, 1/unit);
 
 			myprint(0,-1,"filespace: %lld memsize: %lld\n", H5Sget_select_npoints(filespace), H5Sget_select_npoints(memspace));
 			plist_id = H5Pcreate(H5P_DATASET_XFER);
 			H5Pset_dxpl_mpio(plist_id, H5FD_MPIO_COLLECTIVE);
-			status = H5Dwrite(dset_id, input_type, memspace, filespace, plist_id, tmp);
-			
+			status = H5Dwrite(dset_id, input_type, memspace, filespace, plist_id, tmp.data());
+
 			H5Pclose(plist_id);
 			H5Sclose(filespace);
 			H5Sclose(memspace);
 			H5Dclose(dset_id);
 
-			delete[] tmp;
 			xdmf_attribute = xdmf_grid.append_child("Attribute");
 			if (options & HDF5_WRITE_POINT) {
 				xdmf_attribute.append_attribute("Center") = "Node";
@@ -326,9 +301,9 @@ int hdf5WriteLattice(const char * nm, Solver * solver, name_set * what, unsigned
 
 
 	if (options & HDF5_WRITE_XDMF) {
-		if (lattice->mpi.rank == 0) {
-			solver->outIterCollectiveFile(nm, ".xmf", filename);
-			xdmf_doc.save_file(filename);
+		if (mpitools::MPI_Rank(comm) == 0) {
+			std::string xdmf_filename = solver->outIterCollectiveFile(nm, ".xmf");
+			xdmf_doc.save_file(xdmf_filename.c_str());
 		}
 	}
 
