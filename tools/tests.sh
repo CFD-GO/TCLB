@@ -172,31 +172,33 @@ export PYTHONPATH="$PYTHONPATH:$PWD/tools/python"
 function runline {
 	CMD=$1
 	shift
-	R=$1
-	G=$TEST_DIR/$R
 	case $CMD in
-	need) 
-		comment_wait "copy $@"
-		for i in "$@"
-		do
-			SRC=$TEST_DIR/$i
-			if test -f "$SRC"
-			then
-				cp $SRC $i
-			else
-				comment_fail "copy $@"
-				echo "         $i not found"
-				return -1;
-			fi
-		done
-		comment_ok "copy $@"
-		;;
-	run) try "running solver" "$@" ;;
-	fail) try "running solver" '!' "$@" ;;
-	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${2:-1e-10}" -d ${3:-$CSV_DISCARD} ;;
+		run) try "running solver" "$@"; return $?;;
+		fail) try "running solver" '!' "$@"; return $? ;;
+	esac
+	R=$1
+	shift
+	case $CMD in
+		sha1) G="$R.sha1" ;;
+		*) G="$R" ;;
+	esac
+	if test -f "$TEST_DIR/$1"
+	then
+		G="$1"
+		shift
+	fi
+	G="$TEST_DIR/$G"
+	if ! test -f "$G"
+	then
+		comment_fail "Requested file not found: $G"
+		return -1
+	fi
+	case $CMD in
+	need) try "copy needed file" cp "$G" "$R" ;;
+	csvdiff) try "checking $R (csvdiff)" $TCLB/tools/csvdiff -a "$R" -b "$G" -x "${1:-1e-10}" -d ${2:-$CSV_DISCARD} ;;
 	diff) try "checking $R" diff "$R" "$G" ;;
 	sha1) try "checking $R (sha1)" sha1sum -c "$G.sha1" ;;
-	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${2:-8}" ${3:-} ${4:-} ${5:-} ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
+	pvtidiff) try "checking $R (pvtidiff)" $TCLB/CLB/$MODEL/compare "$R" "$G" "${1:-8}" ${2:-} ${3:-} ${4:-} ;; # ${2:-8} is { if $2 == "" then "8" else $2 }
 	*) echo "unknown: $CMD"; return -1;;
 	esac
 	return 0;
