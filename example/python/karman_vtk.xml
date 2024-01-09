@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="1024" ny="100">
+		<MRT>
+			<Box/>
+		</MRT>
+		<WVelocity name="Inlet">
+			<Inlet/>
+		</WVelocity>
+		<EPressure name="Outlet">
+			<Outlet/>
+		</EPressure>
+		<Inlet nx="1" dx="5">
+			<Box/>
+		</Inlet>
+		<Outlet nx="1" dx="-5">
+			<Box/>
+		</Outlet>
+		<Wall mask="ALL">
+			<Channel/>
+			<Wedge dx="120" nx="20" dy="50" ny="20" direction="LowerRight"/>
+			<Wedge dx="120" nx="20" dy="30" ny="20" direction="UpperRight"/>
+			<Wedge dx="140" nx="20" dy="50" ny="20" direction="LowerLeft"/>
+			<Wedge dx="140" nx="20" dy="30" ny="20" direction="UpperLeft"/>
+		</Wall>
+	</Geometry>
+	<Model>
+		<Param name="VelocityX" value="0.01"/>
+		<Param name="Viscosity" value="0.02"/>
+		<Param name="Smag" value="0.16"/>
+		<Param name="PressDiffInObj" value="1"/>
+		<Param name="EOSScale" value="0.05"/>
+		<Param name="Tension" value="0.01"/>
+		<Param name="Coriolis" value="0.001"/>
+		<Param name="SolidAlfa" value="0.166"/>
+		<Param name="FluidAlfa" value="0.01"/>
+		<Param name="InitTemperature" value="0"/>
+		<Param name="InletTemperature" value="1"/>
+	</Model>
+	<RunPython>
+import vtk;
+from vtk.util import numpy_support
+	</RunPython>
+	<RunPython Iterations="1000">
+img = vtk.vtkImageData()
+tab = Solver.Geometry.X
+img.SetDimensions(tab.shape[0]+1, tab.shape[1]+1, tab.shape[2]+1)
+
+for n,tab in Solver.Quantities:
+	vtk_data = numpy_support.numpy_to_vtk(num_array=tab.reshape(-1,order='F'))
+	vtk_data.SetName(n)
+	if len(tab.shape) == 4:
+		vtk_data.SetNumberOfComponents(tab.shape[0])
+	img.GetCellData().AddArray(vtk_data)
+	
+writer = vtk.vtkXMLImageDataWriter()
+writer.SetFileName("test.vti")
+writer.SetInputData(img)
+writer.Update()
+	</RunPython>
+	<Solve Iterations="10000"/>
+</CLBConfig>
