@@ -704,7 +704,14 @@ namespace RunPython {
 		py_initialised = true;
 		R.parseEval(
 			"py_names = function(obj) names(obj)                                   \n"
-			"py_element = function(obj, name) `[[`(obj,name)                       \n"
+			"py_element = function(obj, name) {                                    \n"
+			"  ret = `[[`(obj,name)                                                \n"
+			"  if (is.factor(ret)) {                                               \n"
+			"    as.integer(ret) - 1L                                              \n"
+			"  } else {                                                            \n"
+			"    ret                                                               \n"
+			"  }                                                                   \n"
+			"}                                                                     \n"
 			"py_element_assign = function(obj, name, value) `[[<-`(obj,name,value) \n"
 			"r_to_py.CLB = function(x, convert=FALSE) py$S3(reticulate:::py_capsule(x))\n"
 		);
