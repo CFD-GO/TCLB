@@ -1,3 +1,5 @@
+#ifndef PARTICLE_HPP
+#define PARTICLE_HPP
 
 #define NO_SYNC 0x01
 #define WARP_SYNC 0x02
@@ -112,3 +114,5 @@ CudaDeviceFunction ParticleS< BLOCK_SYNC >::~ParticleS() {
     typedef typename solidcontainer_t::set_found_t< ParticleS< PART_SYNC > > set_found_t_s;
     typedef typename solidcontainer_t::set_found_t< ParticleI > set_found_t_i;
 #endif
+
+#endif // PARTICLE_HPP

@@ -57,7 +57,8 @@ int cbHDF5::Init () {
 		}		
 		if (write_double) options = options | HDF5_WRITE_DOUBLE;
 
-		reg = solver->mpi.totalregion;
+		lbRegion global_region = solver->getCartLattice()->connectivity.global_region;
+		reg = global_region;
 		attr = node.attribute("dx");
 		if (attr) { reg.dx = solver->units.alt(attr.value()); }
 		if (reg.dx < 0) {
@@ -78,22 +79,22 @@ int cbHDF5::Init () {
 		}
 		attr = node.attribute("nx");
 		if (attr) { reg.nx = solver->units.alt(attr.value()); }
-		if (reg.nx < 0) { reg.nx = solver->mpi.totalregion.nx - reg.dx + reg.nx; }
+		if (reg.nx < 0) { reg.nx = global_region.nx - reg.dx + reg.nx; }
 		attr = node.attribute("ny");
 		if (attr) { reg.ny = solver->units.alt(attr.value()); }
-		if (reg.ny < 0) { reg.ny = solver->mpi.totalregion.ny - reg.dy + reg.nz; }
+		if (reg.ny < 0) { reg.ny = global_region.ny - reg.dy + reg.nz; }
 		attr = node.attribute("nz");
 		if (attr) { reg.nz = solver->units.alt(attr.value()); }
-		if (reg.nz < 0) { reg.nz = solver->mpi.totalregion.nz - reg.dz + reg.nz; }
-		reg = reg.intersect(solver->mpi.totalregion);
+		if (reg.nz < 0) { reg.nz = global_region.nz - reg.dz + reg.nz; }
+		reg = reg.intersect(global_region);
 		debug1("HDF5 \"%s\" with output region: %dx%dx%d + %d,%d,%d from total region %dx%dx%d + %d,%d,%d", nm.c_str(), 
-		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz,solver->mpi.totalregion.nx,solver->mpi.totalregion.ny,solver->mpi.totalregion.nz,solver->mpi.totalregion.dx,solver->mpi.totalregion.dy,solver->mpi.totalregion.dz);
+		reg.nx,reg.ny,reg.nz,reg.dx,reg.dy,reg.dz,global_region.nx,global_region.ny,global_region.nz,global_region.dx,global_region.dy,global_region.dz);
 		if (reg.size() == 0) {
 			ERROR("HDF5 \"%s\" output has size 0", nm.c_str());
 			return -1;
 		}
 
-		lbRegion local_reg = reg.intersect(solver->lattice->region);
+		lbRegion local_reg = reg.intersect(solver->getCartLattice()->getLocalRegion());
 
 		attr = node.attribute("chunk");
 		if (attr) {
@@ -108,7 +109,7 @@ int cbHDF5::Init () {
 				unsigned long int GCD, minGCD, maxGCD;
 				GCD = dim[i];
 				for (int j = 0; j < 500; j++) { // This is just a safty limit of iterations
-					if (local_reg.size() == 0) GCD = solver->mpi.totalregion.size(); //Guarunteed to be greater than any single dimension
+					if (local_reg.size() == 0) GCD = global_region.size(); //Guarunteed to be greater than any single dimension
 					MPI_Allreduce(&GCD, &minGCD, 1, MPI_UNSIGNED_LONG, MPI_MIN, solver->mpi_comm);
 					if (local_reg.size() == 0) GCD = 0;
 					MPI_Allreduce(&GCD, &maxGCD, 1, MPI_UNSIGNED_LONG, MPI_MAX, solver->mpi_comm);

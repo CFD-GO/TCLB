@@ -23,7 +23,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         solver->lattice->RFI.CanCopeWithUnits(false);
 
         bool stats = false;
-        std::string stats_prefix = solver->info.outpath;
+        std::string stats_prefix = solver->outpath;
         stats_prefix = stats_prefix + "_RFI";
         int stats_iter = 200;
         
@@ -39,10 +39,11 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
           stats_prefix = attr.value();
           stats = true;
         }
-        
+
+        const auto lattice = solver->getCartLattice();
         if (stats) {
           output("Asking for stats on RFI ( %s every %d it)\n", stats_prefix.c_str(), stats_iter);
-          solver->lattice->RFI.enableStats(stats_prefix.c_str(), stats_iter);
+          lattice->RFI.enableStats(stats_prefix.c_str(), stats_iter);
         }
 
         inter = MPMD[integrator_];
@@ -57,11 +58,11 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         if (attr) use_box = attr.as_bool();
         
         if (use_box) {
-          lbRegion reg = solver->lattice->region;
-          double px = solver->lattice->px;
-          double py = solver->lattice->py;
-          double pz = solver->lattice->pz;
-          solver->lattice->RFI.DeclareSimpleBox(
+          lbRegion reg = lattice->getLocalRegion();
+          double px = lattice->px;
+          double py = lattice->py;
+          double pz = lattice->pz;
+          lattice->RFI.DeclareSimpleBox(
             px + reg.dx - PART_MAR_BOX,
             px + reg.dx + reg.nx + PART_MAR_BOX,
             py + reg.dy - PART_MAR_BOX,
@@ -70,7 +71,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
             pz + reg.dz + reg.nz + PART_MAR_BOX);
         }
         MPI_Barrier(MPMD.local);
-        solver->lattice->RFI.Connect(MPMD.work,inter.work);
+        lattice->RFI.Connect(MPMD.work,inter.work);
         
 	return 0;
 }

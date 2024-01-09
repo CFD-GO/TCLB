@@ -86,26 +86,4 @@ public:
  void resize(int n);
 };
 
-
-inline CudaDeviceFunction vector_t calc(const STWaveSet &ST, real_t x, real_t y, real_t z) {
-  vector_t ret;
-  ret.x=0;ret.y=0;ret.z=0;
-  for (int i=0; i<ST.nmodes; i++) {
-    real_t x1 = ST.data[i*ST_DATA+ST_WAVE_X];
-    real_t y1 = ST.data[i*ST_DATA+ST_WAVE_Y];
-    real_t z1 = ST.data[i*ST_DATA+ST_WAVE_Z];
-    real_t x2 = ST.data[i*ST_DATA+ST_SINE_X];
-    real_t y2 = ST.data[i*ST_DATA+ST_SINE_Y];
-    real_t z2 = ST.data[i*ST_DATA+ST_SINE_Z];
-    real_t w = ST.data[i*ST_DATA+ST_WAVE_L];
-    w = (x1*x + y1*y + z1*z) * w;
-    real_t sw = sin(w), cw = cos(w);
-    ret.x += sw*x2 + cw*(y1*z2-z1*y2);
-    ret.y += sw*y2 + cw*(z1*x2-x1*z2);
-    ret.z += sw*z2 + cw*(x1*y2-y1*x2);
-  }
-  return ret;
-}
-
-
 #endif

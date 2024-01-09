@@ -8,14 +8,12 @@ int cbSaveMemoryDump::Init () {
 		if (!attr) {
 			attr = node.attribute("filename");
 			if (!attr) {
-				char filename[2*STRING_LEN];
-				solver->outIterFile("Save", "", filename);
-				fn = filename;
+				fn = solver->outIterFile("Save", "");
 			} else {
                 fn = attr.value();
             }
 		} else {
-            fn = ((std::string) solver->info.outpath) + "_" + attr.value();
+            fn = solver->outpath + "_" + attr.value();
         }
 		return 0;
 	}
@@ -27,7 +25,7 @@ int cbSaveMemoryDump::DoIt () {
 		if (attr) {
             error("Depreceted API call. Use SaveBinary with comp parameter");
         }
-		solver->lattice->saveSolution(fn.c_str());
+		solver->lattice->saveSolution(fn);
 		return 0;
 	};
 

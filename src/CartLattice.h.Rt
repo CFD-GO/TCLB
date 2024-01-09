@@ -1,0 +1,148 @@
+<?R
+    source("conf.R")
+    c_header();
+?>
+#ifndef CARTLATTICE_H
+#define CARTLATTICE_H
+
+#include "LatticeBase.hpp"
+#include "CartLatticeLauncher.h"
+#include "CartConnectivity.hpp"
+#include "Sampler.h"
+#include "Geometry.h"
+
+#include <memory>
+
+#ifdef GRAPHICS
+    const int desired_fps = 10;
+	#include "gpu_anim.h"
+#else
+    const int desired_fps = 1;
+#endif
+
+struct ParStruct {
+    int Par_size;                     ///< Parameter space dimension
+    std::unique_ptr<int[]> Par_sizes; ///< Parameter space dimensions on all the processors
+    std::unique_ptr<int[]> Par_disp;  ///< Offsets in the Parameter vector for all the processors
+};
+
+/// Class for computations
+/**
+  Class for all the memory allocation, storage, calculation
+  recording for unsteady adjoint etc.
+*/
+class CartLattice : public LatticeBase {
+public:
+  CartConnectivity connectivity; ///< Who's my neighbor? Which regions do they own?
+  std::unique_ptr<Geometry> geometry; ///< Main Geometry object
+
+private:
+  storage_t *mpiin[27], *mpiout[27]; ///< MPI Buffers
+  storage_t *gpuin[27], *gpuout[27], *gpubuf[27], *gpubuf2[27]; ///< GPU Buffers
+  size_t bufsize[27]; ///< Sizes of the Buffers
+  int nodein[27], nodeout[27]; ///< MPI Ranks of sources and destinations for Buffers
+  int bufnumber; ///< Number of non-NULL Buffers
+  std::unique_ptr<FTabs[]> Snaps; ///< Snapshots
+
+#ifdef ADJOINT
+  std::array<FTabs, 2> aSnaps; ///< Adjoint Snapshots
+#endif
+#ifdef GRAPHICS
+	std::unique_ptr<GPUAnimBitmap> bitmap; ///< Maybe we have a bitmap for animation
+#endif
+  int saveImpl(FTabs&, const char* filename) const;
+  int loadImpl(FTabs&, const char* filename);
+  int loadPrimal(const std::string& filename, int snap_ind) final { return loadImpl(Snaps[snap_ind], filename.c_str()); }
+  void savePrimal(const std::string& filename, int snap_ind) const final { saveImpl(Snaps[snap_ind], filename.c_str()); }
+#ifdef ADJOINT
+  int loadAdj(const std::string& filename, int asnap_ind) final { return loadImpl(aSnaps[asnap_ind], filename.c_str()); }
+  void saveAdj(const std::string& filename, int asnap_ind) const final { saveImpl(aSnaps[asnap_ind], filename.c_str()); }
+#endif
+
+protected:
+  CartLatticeLauncher launcher; ///< Main execution context, encapsulates the lattice container
+
+  void MPIStream_A();
+  void MPIStream_B();
+  void SetFirstTabs(int, int);
+  void setSnapIn(int tab) { launcher.container.in = Snaps[tab]; }
+  void setSnapOut(int tab) { launcher.container.out = Snaps[tab]; }
+#ifdef ADJOINT
+  void setAdjSnapIn(int tab) { launcher.container.adjin = aSnaps[tab]; }
+  void setAdjSnapOut(int tab) { launcher.container.adjout = aSnaps[tab]; }
+#endif
+
+public:
+  std::unique_ptr<Sampler> sample; //initializing sampler with zero size
+  real_t px, py, pz;
+
+  CartLattice (CartConnectivity connect, int ns, const UnitEnv& units_);
+  CartLattice(const CartLattice&) = delete;
+  CartLattice(CartLattice&&) = delete;
+  CartLattice& operator=(const CartLattice&) = delete;
+  CartLattice& operator=(CartLattice&&) = delete;
+  virtual ~CartLattice ();
+
+  const lbRegion& getLocalRegion() const { return connectivity.getLocalRegion(); }
+  const lbRegion& getGlobalRegion() const { return connectivity.global_region; }
+  size_t getLocalSize() const override { return getLocalRegion().sizeL(); }
+  size_t getGlobalSize() const override { return getGlobalRegion().sizeL(); }
+
+
+  int EventLoop() override;
+  void MPIInit ();
+  void Color(uchar4 *);
+  int Offset(int,int,int);
+  void setPosition(double, double, double);
+  void CutsOverwrite(cut_t * Q, const lbRegion& over);
+  void listTabs(FTabs&, int*n, size_t ** size, void *** ptr, size_t * maxsize) const;
+  size_t sizeOfTab();
+  void saveToTab(real_t * tab, int snap);
+  void saveToTab(real_t * tab) { saveToTab(tab,Snap); }
+  void loadFromTab(real_t * tab, int snap);
+  void loadFromTab(real_t * tab) { loadFromTab(tab,Snap); }
+  void clearAdjoint() final;
+  void clearDPar();
+
+  virtual std::vector<big_flag_t> getFlags(const lbRegion&) const;
+  virtual std::vector<real_t> getQuantity(const Model::Quantity& q, const lbRegion& over, real_t scale = 1);
+  virtual void setFlags(const lbRegion& over, const std::vector<big_flag_t>& x);
+  virtual std::vector<int> shape() const override {
+    const lbRegion& reg = getLocalRegion();
+    return {reg.nx, reg.ny, reg.nz};
+  };
+  virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) override { 
+    return getQuantity(q, getLocalRegion(), scale);
+  };
+  virtual std::vector<big_flag_t> getFlags() const override {
+    return getFlags(getLocalRegion());
+  };
+  virtual std::vector<real_t> getField(const Model::Field& f) override;
+  virtual std::vector<real_t> getFieldAdj(const Model::Field& f) override;
+  virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1) override;
+
+  virtual void setFlags(const std::vector<big_flag_t>& x) override {
+    return setFlags(getLocalRegion(), x);
+  };
+  virtual void setField(const Model::Field& f, const std::vector<real_t>& x) override;
+  virtual void setFieldAdjZero(const Model::Field& f) override;  
+
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+  void Get<?%s q$name ?>(const lbRegion& over, <?%s q$type ?> * tab, real_t scale);
+  void GetSample<?%s q$name ?>(const lbRegion& over, real_t scale,real_t* tab);
+  void Get<?%s q$name ?>(const lbRegion& over, <?%s q$type ?> * tab) { Get<?%s q$name ?>(over, tab, 1.0); }
+  <?R tp = "double" ?>
+  void Get<?%s q$name ?>_<?%s tp ?>(const lbRegion& over, <?%s tp ?> * tab, int row);
+<?R }; ifdef() ?>
+
+
+  int getPars(ParStruct& par_struct);
+  int getDPar(const ParStruct& par_struct, double * wb);
+  int getPar(const ParStruct& par_struct, double * wb);
+  int setPar(const ParStruct& par_struct, double * w);
+
+  void updateAllSamples();
+  void resetAverage();
+};
+
+#endif

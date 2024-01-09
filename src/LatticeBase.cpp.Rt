@@ -1,0 +1,535 @@
+<?R
+source("conf.R")
+c_header();
+?>
+
+#include "LatticeBase.hpp"
+#include "utils.h"
+
+LatticeBase::LatticeBase(int zonesettings, int zones, int num_snaps_, const UnitEnv& units_)
+  : model(std::make_unique<Model_m>()), zSet(zonesettings, zones), num_snaps(num_snaps_), units(&units_) {
+    data.Alloc();
+    SC.InitFinder(data.solidfinder);
+    data.particle_data = nullptr;
+    data.particle_data_size = 0;
+    SC.balls = &RFI;
+    RFI.name = "TCLB";
+    CudaStreamCreate(&kernelStream);
+    CudaStreamCreate(&inStream);
+    CudaStreamCreate(&outStream);
+    data.ZoneSettings = zSet.gpuTab;
+    data.ConstZoneSettings = zSet.gpuConst;
+    std::fill_n(iSnaps.get(), maxSnaps, -1);
+
+	// Setting settings to default
+<?R for (v in rows(Settings)) {
+        if (is.na(v$derived)) { ?>
+    setSetting(<?%s v$index ?>,units->alt("<?%s v$default ?>")); <?R
+}} ?>
+<?R for (s in rows(ZoneSettings)) { ?>
+    zSet.set(<?%s s$Index ?>, -1, units->alt("<?%s s$default ?>"));
+<?R } ?>
+}
+
+/// Push a setting on to the stack (recording)
+/**
+        Push a setting and it's value on the stack,
+        during adjoint recording.
+        \param i Index of the Setting
+        \param old Old value of the Setting
+        \param nw New value of the Setting
+*/
+void LatticeBase::push_setting(int i, real_t old, real_t nw) {
+    const auto old_new_p = std::make_pair(old, nw);
+    const auto i_rec_p = std::make_pair(i, old_new_p);
+    settings_record.emplace_back(Record_Iter, i_rec_p);
+    settings_i = settings_record.size();
+}
+
+/// Reconstruct the values of the settings in a iteration
+/**
+        Reconstructs the values of all the settings
+        in a specific iteration of the recorded solution
+        from the settings stack.
+*/
+void LatticeBase::pop_settings() {
+    while (settings_i > 0) {
+        if (settings_record[settings_i - 1].first <= Record_Iter) break;
+        settings_i--;
+        debug1("set %d to (back) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.second, settings_record[settings_i].second.second.first);
+        setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.first);
+    }
+    while (settings_i < settings_record.size()) {
+        if (settings_record[settings_i].first > Record_Iter) break;
+        debug1("set %d to (front) %lf -> %lf\n", settings_record[settings_i].second.first, settings_record[settings_i].second.second.first, settings_record[settings_i].second.second.second);
+        setSetting(settings_record[settings_i].second.first, settings_record[settings_i].second.second.second);
+        settings_i++;
+    }
+}
+
+/// Set a Setting
+/**
+        Set a specific Setting
+        \param i Index of the Setting
+        \param val Value of the Setting
+*/
+void LatticeBase::setSetting(int i, real_t val) {
+    data.settings[i] = val;
+}
+
+/// Set a Setting
+/**
+        Get a specific Setting
+        \param i Index of the Setting
+*/
+real_t LatticeBase::getSetting(int i) {
+    return data.settings[i];
+}
+
+void LatticeBase::SetSetting(const Model::Setting& set, real_t val) {
+    if (reverse_save) push_setting(set.id, settings[set.id], val);
+    setSetting(set.id, val);
+    if (set.isDerived) {
+        const Model::Setting& der = model->settings.by_id(set.derivedSetting);
+        double der_val = set.derivedValue(val);
+        SetSetting(der, der_val);
+    }
+}
+
+void LatticeBase::CopyInParticles() {
+    DEBUG_PROF_PUSH("Get Particles");
+    RFI.SendSizes();
+    RFI.SendParticles();
+    DEBUG_PROF_POP();
+    if (RFI.size() > particle_data_size_max) {
+        if (data.particle_data != NULL) CudaFree(data.particle_data);
+        particle_data_size_max = RFI.size();
+        CudaMalloc(&data.particle_data, RFI.mem_size());
+    }
+    data.particle_data_size = RFI.size();
+    for (size_t i = 0; i < RFI.size(); i++) {
+        RFI.RawData(i, RFI_DATA_FORCE + 0) = 0;
+        RFI.RawData(i, RFI_DATA_FORCE + 1) = 0;
+        RFI.RawData(i, RFI_DATA_FORCE + 2) = 0;
+    }
+    if (RFI.mem_size() > 0) { CudaMemcpyAsync(data.particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream); }
+    DEBUG_PROF_PUSH("Tree Build");
+    SC.Build();
+    DEBUG_PROF_POP();
+    SC.CopyToGPU(data.solidfinder, kernelStream);
+}
+
+void LatticeBase::CopyOutParticles() {
+    if (RFI.mem_size() > 0) { CudaMemcpyAsync(RFI.Particles(), data.particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream); }
+    CudaStreamSynchronize(kernelStream);
+    DEBUG_PROF_PUSH("Testing particles for NaNs");
+    int nans = 0;
+    for (size_t i = 0; i < RFI.size(); i++) {
+        for (int j = 0; j < 3; j++) {
+            if (!isfinite(RFI.RawData(i, RFI_DATA_FORCE + j))) {
+                nans++;
+                RFI.RawData(i, RFI_DATA_FORCE + j) = 0.0;
+            }
+        }
+    }
+    if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
+    DEBUG_PROF_POP();
+    RFI.SendForces();
+}
+
+void LatticeBase::GenerateST() {
+    ST.Generate();
+    ST.CopyToGPU(data.ST);
+}
+
+/// Retrive the Globals
+/**
+        Get the Globals from GPU memory and MPI-reduce them
+        \param tab Vector to store the result
+*/
+void LatticeBase::getGlobals(real_t * tab) {
+    real_t tabl[ GLOBALS ];
+    data.getGlobals(tabl); <?R
+        by(Globals,Globals$op,function(G) { n = nrow(G); ?>
+              MPI_Reduce(
+                  &tabl[<?%s G$Index[1] ?>],
+                         &tab[<?%s G$Index[1] ?>],
+                               <?%s G$Index[n] ?> - <?%s G$Index[1] ?> + 1,
+                               MPI_REAL_T,
+                               MPI_<?%s G$op[1] ?>,
+                               0,
+                               MPMD.local); <?R
+        }) ?>
+}
+
+
+/// Update the internal globals table
+/**
+        Retrive Globals values from GPU, reduce them and calculate the objective
+*/
+void LatticeBase::calcGlobals() {
+    real_t tab[ GLOBALS ];
+    getGlobals(tab);
+    double obj =0;
+<?R
+    for (m in rows(Globals)) {
+        i = which(Settings$name == paste(m$name,"InObj",sep=""));
+        if (length(i) == 1) {
+            s = Settings[Settings$name == paste(m$name,"InObj",sep=""),]; ?>
+            obj += settings[<?%s s$Index ?>] * tab[<?%s m$Index ?>]; <?R
+        }
+    }
+?>
+    tab[<?%s Globals$Index[Globals$name == "Objective"] ?>] += obj;
+    for (int i = 0; i < GLOBALS ; i++) globals[i] += tab[i];
+    data.clearGlobals();
+}
+
+/// Clear the internal globals table
+void LatticeBase::clearGlobals() { <?R
+for( g in rows(Globals) ) if (!g$adjoint) { ?>
+    globals[<?%s g$Index ?>] = 0; <?R
+}
+?>
+}
+
+/// Clear the internal globals table (derivative part)
+void LatticeBase::clearGlobals_Adj() { <?R
+for( g in rows(Globals) ) if (g$adjoint) { ?>
+    globals[<?%s g$Index ?>] = 0; <?R
+}
+?>
+}
+
+/// Return the objective function value
+double LatticeBase::getObjective() {
+    return globals[<?%s Globals$Index[Globals$name == "Objective"] ?>];
+}
+
+void LatticeBase::initLattice() {
+    Record_Iter = 0;
+    Iter = 0;
+    data.iter = 0;
+    initLatticeDerived();
+    Iter = 0;
+    data.iter = 0;
+    clearGlobals();
+}
+
+void LatticeBase::MarkIteration() {
+    ++total_iterations;
+    if (callback) callback_iter = callback(segment_iterations, total_iterations);
+}
+
+void LatticeBase::FinalIteration() {
+    total_iterations = segment_iterations;
+    if (callback) callback_iter = callback(segment_iterations, total_iterations);
+}
+
+void LatticeBase::InitialIteration(int segiter) {
+    total_iterations = 0;
+    segment_iterations = segiter;
+    if (callback) callback_iter = callback(segment_iterations, total_iterations);
+}
+
+/// Calculate the Snapshot level for the optimal Checkpointing technique
+/**
+        C-crazed function for calculating number of zeros at
+        the end of a number written in a binary system
+        /param i The number
+        /return number of zeros at the end of the number written in a binary system
+*/
+static int SnapLevel(unsigned int i) {
+	unsigned int j = 16;
+	unsigned int w = 0;
+	unsigned int k = 0xFFFFu;
+	while(j) {
+		if (i & k) {
+			j = j >> 1;
+			k = k >> j;
+		} else {
+			w = w + j;
+			j = j >> 1;
+			k = k << j;
+		}
+	}
+	return w;
+}
+
+/// Function for calculating the index of a Snapshot for an iteration
+int LatticeBase::getSnap(int i) const {
+    return SnapLevel(i) + 1;
+}
+
+/// Starting of unsteady adjoint recording
+/**
+        Starts tape recording of the iteration process including:
+        all the iterations done
+        changes of settings
+*/
+void LatticeBase::startRecord()
+{
+	if (reverse_save) {
+		ERROR("Nested record! Called startRecord while recording\n");
+		exit(-1);
+	}
+	if (Record_Iter != 0) {
+		ERROR("Record tape is not rewound (iter = %d) maybe last adjoint didn't go all the way\n", Record_Iter);
+		Record_Iter = 0;
+	}
+	debug2("Lattice is starting to record (unsteady adjoint)\n");
+	if (Snap != 0) {
+		warning("Snap = %d at startRecord\n", Snap);
+	}
+	std::fill_n(iSnaps.get(), maxSnaps, -1);
+	{
+	    const auto filename = formatAsString("%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, getSnap(0));
+		iSnaps[getSnap(0)] = 0;
+		savePrimal(filename, Snap);
+	}
+	if (Snap != 0) {
+		warning("Snap = %d. Going through disk\n", Snap);
+	} else {
+		iSnaps[Snap] = 0;
+	}
+	reverse_save = 1;
+	clearAdjoint();
+	clearGlobals();
+	settings_record.clear();
+	settings_i=0;
+}
+
+/// Finish unsteady adjoint record
+/**
+        Stops the Adjoint recording process
+*/
+void LatticeBase::rewindRecord() {
+    Record_Iter = 0;
+    IterateTill(Record_Iter, ITER_NORM);
+    debug2("Rewind tape\n");
+}
+
+/// Finish unsteady adjoint record
+/**
+        Stops the Adjoint recording process
+*/
+void LatticeBase::stopRecord() {
+    if (Record_Iter != 0) {
+        WARNING("Record tape is not rewound (iter = %d)\n", Record_Iter);
+        Record_Iter = 0;
+    }
+    reverse_save = 0;
+    debug2("Stop recording\n");
+}
+
+void LatticeBase::Iterate(int num_iters, int iter_type) {
+    const int last_glob = (iter_type & ITER_INTEG) ? 0 : (iter_type & ITER_LASTGLOB);
+    InitialIteration(num_iters);
+    if (reverse_save) {
+        switch (iter_type & ITER_TYPE) {
+            case ITER_ADJOINT:
+                for (int i = 0; i < num_iters; ++i) {
+                    if ((last_glob) && (i == num_iters - 1)) {
+                        data.clearGlobals();
+                        iter_type = iter_type | ITER_GLOBS;
+                    }
+                    Record_Iter -= 1;
+                    if (Record_Iter < 0) {
+                        ERROR("Went below the beginning of the tape (unsteady adjoint)!");
+                        std::terminate();
+                    }
+                    IterateTill(Record_Iter, ITER_NORM);
+                    IterationAdjoint(Snap, (Snap + 1) % 2, aSnap % 2, (aSnap + 1) % 2, iter_type);
+                }
+                break;
+            case ITER_NORM:
+                if (last_glob) {
+                    IterateTill(num_iters + Record_Iter - 1, iter_type);
+                    data.clearGlobals();
+                    IterateTill(Record_Iter + 1, iter_type | ITER_GLOBS);
+                } else {
+                    IterateTill(num_iters + Record_Iter, iter_type);
+                }
+                break;
+            case ITER_OPT:
+                ERROR("Cannot do an OPT iteration in record mode\n");
+                std::terminate();
+        }
+    } else {
+        switch (iter_type & ITER_TYPE) {
+            case ITER_ADJOINT:
+                iter_type |= ITER_STEADY;
+                for (int i = 0; i < num_iters; i++) {
+                    if ((last_glob) && (i == num_iters - 1)) {
+                        data.clearGlobals();
+                        iter_type |= ITER_GLOBS;
+                    }
+                    IterationAdjoint(Snap, (Snap + 1) % 2, aSnap, (aSnap + 1) % 2, iter_type);
+                }
+                break;
+            case ITER_NORM:
+                for (int i = 0; i < num_iters; i++) {
+                    if ((last_glob) && (i == num_iters - 1)) {
+                        data.clearGlobals();
+                        iter_type |= ITER_GLOBS;
+                    }
+                    IterationPrimal(Snap, (Snap + 1) % 2, iter_type);
+                    ++Iter;
+                    ++data.iter;
+                }
+                break;
+            case ITER_OPT:
+                for (int i = 0; i < num_iters; i++) {
+                    if ((last_glob) && (i == num_iters - 1)) {
+                        data.clearGlobals();
+                        iter_type |= ITER_GLOBS;
+                    }
+                    IterationOptimization(Snap, (Snap + 1) % 2, aSnap, (aSnap + 1) % 2, iter_type);
+                    ++Iter;
+                    ++data.iter;
+                }
+                break;
+        }
+    }
+    if (last_glob) {
+        switch (iter_type & ITER_TYPE) {
+            case ITER_OPT:
+                clearGlobals();
+            case ITER_ADJOINT:
+                clearGlobals_Adj();
+                break;
+            case ITER_NORM:
+                clearGlobals();
+                break;
+        }
+        calcGlobals();
+    } else if (iter_type & ITER_INTEG) {
+        calcGlobals();
+    }
+    FinalIteration();
+}
+
+/// Iterate Primal till a specific iteration
+/**
+        Function which reconstructs a state in iteration "it"
+        by reading a snapshot and iterating from it.
+        Used in usteady adjoint
+        \param it Iteration on which to finish
+        \param iter_type Type of iterations to run
+*/
+void LatticeBase::IterateTill(int it, int iter_type)
+{
+	int s1, ls1, s2, ls2;
+	int mx = -1, imx = -1, i;
+	for (i = 0; i < maxSnaps; ++i) {
+		if ((iSnaps[i] > mx) && (iSnaps[i] <= it)) {
+			mx = iSnaps[i];
+			imx = i;
+		}
+	}
+	assert(imx >= 0);
+	debug2("iterate: %d -> %d (%d primal) startSnap: %d\n", mx, it, it-mx, imx);
+	if (imx >= num_snaps) {
+		if (reverse_save) {
+			debug2("Reverse Adjoint Disk Read it:%d level:%d\n", mx, imx);
+			const auto filename = formatAsString("%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, imx);
+			if (loadPrimal(filename, 0)) std::terminate();
+		} else {
+			ERROR("I have to read from disk, but reverse_save is not switched on\n");
+			exit (-1);
+		}
+		iSnaps[0] = iSnaps[imx];
+		imx = 0;
+	}
+	s1 = imx;
+	Record_Iter = mx;
+	Snap = s1;
+	for (i = mx; i < it; i++) {
+		int s2 = getSnap(i+1);
+		int s3 = s2;
+		if (s2 >= num_snaps) s3=0;
+		pop_settings();
+		IterationPrimal(s1, s3, iter_type);
+		Record_Iter = i+1;
+		if (s2 >= num_snaps){
+			if (reverse_save) {
+				debug2("Reverse Adjoint Disk Write it:%d level:%d\n", i+1, s2);
+				const auto filename = formatAsString("%s_%02d_%02d.dat", snapFileName, D_MPI_RANK, s2);
+				savePrimal(filename, 0);
+			}
+		}
+		iSnaps[s2] = i+1;
+		iSnaps[s3] = i+1;
+		s1 = s3;
+	}
+}
+
+void LatticeBase::IterateAction(int action, int niter, int iter_type) {
+    InitialIteration(niter);
+    const int last_glob = (iter_type & ITER_INTEG) ? 0 : (iter_type & ITER_LASTGLOB);
+    if (reverse_save) {
+        ERROR("Run Action not supported in Adjoint");
+        std::terminate();
+    } else {
+        switch (iter_type & ITER_TYPE) {
+            case ITER_ADJOINT:
+                ERROR("Run Action not supported in Adjoint");
+                std::terminate();
+            case ITER_NORM:
+                for (int i = 0; i < niter; i++) {
+                    if ((last_glob) && (i == niter - 1)) {
+                        data.clearGlobals();
+                        iter_type |= ITER_GLOBS;
+                    }
+                    RunAction(action, Snap, (Snap + 1) % 2, iter_type);
+                    ++Iter;
+                    ++data.iter;
+                }
+                break;
+            case ITER_OPT:
+                ERROR("Run Action not supported in Adjoint");
+                std::terminate();
+        }
+    }
+    if (last_glob) {
+        switch (iter_type & ITER_TYPE) {
+            case ITER_OPT:
+                clearGlobals();
+            case ITER_ADJOINT:
+                clearGlobals_Adj();
+                break;
+            case ITER_NORM:
+                clearGlobals();
+                break;
+        }
+        calcGlobals();
+    } else if (iter_type & ITER_INTEG) {
+        calcGlobals();
+    }
+    FinalIteration();
+}
+
+std::string LatticeBase::saveSolution(const std::string& filename) const {
+	std::string fn = formatAsString("%s_%d.pri", filename, D_MPI_RANK);
+	savePrimal(fn, Snap);
+#ifdef ADJOINT
+	fn = formatAsString("%s_%d.adj", filename, D_MPI_RANK);
+	saveAdjoint(fn, aSnap);
+#endif
+	return fn;
+}
+
+void LatticeBase::loadSolution(const std::string& filename) {
+    std::string fn = formatAsString("%s_%d.pri", filename, D_MPI_RANK);
+    if (loadPrimal(fn, Snap)) {
+        ERROR("Failed to load %s", fn.c_str());
+        std::terminate();
+    }
+#ifdef ADJOINT
+    fn = formatAsString("%s_%d.adj", filename, D_MPI_RANK);
+    if (loadAdj(fn, aSnap)) {
+        ERROR("Failed to load %s", fn.c_str());
+        std::terminate();
+    }
+#endif
+}

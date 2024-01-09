@@ -10,10 +10,6 @@
 #include "Global.h"
 // m s kg K
 
-
-
-std::string strFromDouble(double val);
-
 const int m_unit = 9;
 const std::string m_units[]={"m","s","kg","K", "x", "y", "z", "A", "t"};
 
@@ -31,12 +27,12 @@ public:
   double val; ///< Value
   double uni[m_unit]; ///< Powers of units
   /// Conversion from double
-  inline UnitVal(double v) {
+  UnitVal(double v) {
       val=v;
       for (int i=0; i<m_unit; i++) uni[i]=0;
   };
   /// Constructor of a base unit variable
-  inline void base_unit(int k) {
+  void base_unit(int k) {
     if ((k>=0) && (k<m_unit)) {
       val=1;
       for (int i=0; i<m_unit; i++) uni[i]=0;
@@ -47,38 +43,38 @@ public:
     }
   };
   /// Default constructor creates a variable equal to zero
-  inline UnitVal() {
+  UnitVal() {
     val=0;
     for (int i=0; i<m_unit; i++) uni[i]=0;
   };
   /// Copy constructor
-  inline UnitVal(const UnitVal& e) {
+  UnitVal(const UnitVal& e) {
     val=e.val;
     for (int i=0; i<m_unit; i++) uni[i]=e.uni[i];
   };
   /// Multiplication operator
-  inline UnitVal operator* (const UnitVal& A) const {
+  UnitVal operator* (const UnitVal& A) const {
       UnitVal B;
       B.val = val * A.val;
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i] + A.uni[i];
       return B;
   };
   /// Power function
-  inline UnitVal pow (double n) {
+  UnitVal pow (double n) {
       UnitVal B;
       B.val = std::pow(val,n);
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i]*n;
       return B;
   };
   /// Division operator
-  inline UnitVal operator/ (const UnitVal& A) const {
+  UnitVal operator/ (const UnitVal& A) const {
       UnitVal B;
       B.val = val / A.val;
       for (int i=0; i<m_unit; i++) B.uni[i]=uni[i] - A.uni[i];
       return B;
   };
   /// Addition operator (fails if units mismatch)
-  inline UnitVal operator+ (const UnitVal& A) const  {
+  UnitVal operator+ (const UnitVal& A) const  {
       UnitVal B;
       B.val = val + A.val;
       for (int i=0; i<m_unit; i++) {
@@ -91,23 +87,23 @@ public:
       return B;
   };
   /// Assignment operator
-  inline void operator= (double v) {
+  void operator= (double v) {
       val = v;
       for (int i=0; i<m_unit; i++) uni[i]=0;
   };
   /// Assignment operator
-  inline void operator= (const UnitVal & A) {
+  void operator= (const UnitVal & A) {
       val = A.val;
       for (int i=0; i<m_unit; i++) uni[i]=A.uni[i];
   };
   /// Check if two variables have the same unit
-  inline bool sameUnit (const UnitVal& A) {
+  bool sameUnit (const UnitVal& A) {
     bool ret = true;
     for (int i=0; i<m_unit; i++) ret = ret && (uni[i] == A.uni[i]);
     return ret;
   };
   /// Print value and unit
-  inline char* tmp_str () const{
+  char* tmp_str () const{
     static char buf[3000];
     char * str = buf;
     str += sprintf(str,"%lg [ ",val);
@@ -116,18 +112,18 @@ public:
     return buf;
   };
 
-  inline void print () const{
+  void print () const{
     output("%s\n", tmp_str());
   };
   /// Convert to string
-  inline std::string toString () const{
-    std::string str = strFromDouble(val);
+  std::string toString () const{
+    std::string str = std::to_string(val);
     std::string div = "/";
     for (int i=0; i<m_unit; i++) if (uni[i] > 0) {
-      str = str + m_units[i] + strFromDouble(uni[i]);
+      str = str + m_units[i] + std::to_string(uni[i]);
     }
     for (int i=0; i<m_unit; i++) if (uni[i] < 0) {
-      str = str + div + m_units[i] + strFromDouble(-uni[i]);
+      str = str + div + m_units[i] + std::to_string(-uni[i]);
       div = "";
     }
     return str;
@@ -151,19 +147,19 @@ class UnitEnv {
   double scale[m_unit];
 public:
   UnitEnv ();
-  UnitVal readUnitOne( std::string val );
-  UnitVal readUnitAlpha( std::string val , double p);
-  UnitVal readUnit( std::string val );
-  UnitVal readText( std::string val );
-  inline UnitVal operator() (std::string str) { return readText(str); };
-  inline double si(const UnitVal & v) {return v.val;};
-  inline double alt(const UnitVal & v) {
+  UnitVal readUnitOne( const std::string& val ) const;
+  UnitVal readUnitAlpha( const std::string& val , double p) const;
+  UnitVal readUnit( const std::string& val ) const;
+  UnitVal readText( const std::string& val ) const;
+  UnitVal operator() (const std::string& str) const { return readText(str); }
+  double si(const UnitVal & v) const { return v.val; }
+  double alt(const UnitVal & v) const {
     double ret = v.val;
     for (int i=0; i<m_unit; i++) ret *= pow(scale[i],v.uni[i]);
     return ret;
-  };
-  inline double si(const std::string str) {return readText(str).val;};
-  inline double alt(const std::string str) {
+  }
+  double si(const std::string& str) const { return readText(str).val; }
+  double alt(const std::string& str) const {
     double ret = 0;
     int i=0, j=0;
     while (str[i]) {
@@ -190,31 +186,31 @@ public:
     }                                                                                                               
     return ret;
   };
-  inline double si(const std::string str, double def) { if (str.length() > 0) return si(str); else return def;};
-  inline double alt(const std::string str, double def) { if (str.length() > 0) return alt(str); else return def;};
-  void setUnit(std::string name, const UnitVal & v, double v2);
-  void setUnit(std::string name, const UnitVal & v);
+  double si(const std::string& str, double def) const { if (str.length() > 0) return si(str); else return def; }
+  double alt(const std::string& str, double def) const { if (str.length() > 0) return alt(str); else return def; }
+  void setUnit(const std::string& name, const UnitVal & v, double v2);
+  void setUnit(const std::string& name, const UnitVal & v);
   void makeGauge();
-  void printGauge();
+  void printGauge() const;
 };
 
 class UnitVar : public UnitVal {
   UnitEnv * env;
 public:
-  inline UnitVar(UnitEnv & env_): env(&env_) {};
-  inline void operator = (const UnitVal & A) {
+  UnitVar(UnitEnv & env_): env(&env_) {}
+  void operator = (const UnitVal & A) {
       val = A.val;
       for (int i=0; i<m_unit; i++) uni[i]=A.uni[i];
-  };
-  inline void operator = (std::string str) {
+  }
+  void operator = (const std::string& str) {
     *this = env->readText(str);
-  };
-  inline double si () {
+  }
+  double si () {
     return env->si(*this);
-  };
-  inline double alt () {
+  }
+  double alt () {
     return env->alt(*this);
-  };
+  }
 };
 
 #endif

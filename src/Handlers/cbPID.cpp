@@ -40,9 +40,10 @@ int cbPID::Init () {
 		if (zone == "") {
 			zone_number = -1;
 		} else{
-			if (solver->geometry->SettingZones.count(zone) > 0) { 
-				zone_number = solver->geometry->SettingZones[zone];
-			} else {
+                        const auto zone_iter = solver->setting_zones.find(zone);
+			if (zone_iter != solver->setting_zones.end())
+				zone_number = zone_iter->second;
+			else {
 				ERROR("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), par.c_str());
 				return -1;
 			}

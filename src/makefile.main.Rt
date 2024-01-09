@@ -1,4 +1,4 @@
-<?R 
+<?R
 	source("models.R")
 	Models = get.models();
 	Models$model.md = ifelse(Models$in.group == 1,
@@ -17,16 +17,19 @@ all: <?%s paste(Models$name,collapse=" ") ?>
 .PHONY: all clean dummy <?%s paste(Models$name,collapse="/kernel_stats_20 ") ?>
 
 
-SOURCE_PLAN+=Global.cpp Lattice.cpp vtkLattice.cpp vtkOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp
-SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp def.cpp unit.cpp
+SOURCE_PLAN+=Global.cpp CartLattice.cpp vtkLattice.cpp vtkOutput.cpp vtuOutput.h vtuOutput.cpp cross.cu cuda.cu CartLatticeAccess.hpp CudaUtils.hpp CudaUtils.cu
+SOURCE_PLAN+=Dynamics.c Dynamics_sp.c Solver.cpp pugixml.cpp Geometry.cpp unit.cpp
 SOURCE_PLAN+=ZoneSettings.cpp SyntheticTurbulence.cpp Sampler.cpp
+SOURCE_PLAN+=toArb.h toArb.cpp ArbConnectivity.hpp ArbLattice.hpp ArbLattice.cpp PartitionArbLattice.hpp PartitionArbLattice.cpp UtilTypes.hpp
 SOURCE_PLAN+=main.cpp
-SOURCE_PLAN+=Global.h gpu_anim.h CartLatticeContainer.h LatticeData.hpp CartLatticeLauncher.h CartLatticeLauncher.hpp Lattice.h Region.h vtkLattice.h vtkOutput.h cross.h cross.hpp
+SOURCE_PLAN+=Global.h gpu_anim.h LatticeData.hpp LatticeBase.hpp LatticeBase.cpp cross.h cross.hpp StorageConversions.h
+SOURCE_PLAN+=CartLattice.h Region.h vtkLattice.h vtkOutput.h CartLatticeContainer.h CartLatticeLauncher.h CartLatticeLauncher.hpp CartConnectivity.hpp
+SOURCE_PLAN+=ArbLatticeAccess.hpp ArbLatticeContainer.hpp ArbLatticeLauncher.h ArbLatticeLauncher.hpp Lattice.hpp
 SOURCE_PLAN+=gl_helper.h Dynamics.h types.h Consts.h Solver.h pugixml.hpp pugiconfig.hpp Node.hpp
-SOURCE_PLAN+=Geometry.h def.h utils.h unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
+SOURCE_PLAN+=Geometry.h utils.h utils.cpp unit.h ZoneSettings.h SyntheticTurbulence.h Sampler.h spline.h TCLBForceGroupCommon.h
 SOURCE_PLAN+=RemoteForceInterface.cpp RemoteForceInterface.h RemoteForceInterface.hpp
 SOURCE_PLAN+=TCLBForceGroupCommon.h MPMD.hpp empty.cpp Particle.hpp lammps.cpp
-SOURCE_PLAN+=SolidTree.h SolidTree.hpp SolidAll.h SolidGrid.h SolidGrid.hpp
+SOURCE_PLAN+=SolidTree.h SolidAll.h SolidGrid.h
 SOURCE_PLAN+=SolidContainer.h
 SOURCE_PLAN+=xpath_modification.cpp xpath_modification.h
 SOURCE_PLAN+=hdf5Lattice.cpp hdf5Lattice.h
@@ -90,15 +93,6 @@ wiki/% : src/%.Rt
 	@echo "  RT         $@"
 	@$(MKPATH) $@
 	@$(RT) -q -f $< -I $(TOOLS),$(SRC) -w wiki/ -o $@ || rm $@
-
-
-travis : .travis.yml
-
-.travis.yml : src/travis.yml.Rt models/* models/*/* models/*/*/* src/models.R
-	@echo "  RT         $@"
-	@$(MKPATH) $@
-	@tools/RT -q -f $< -o $@ -I $(TOOLS),$(SRC)
-
 
 <?R
 	by(Models, Models$group, function(m) {

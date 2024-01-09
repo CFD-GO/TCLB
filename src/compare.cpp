@@ -131,6 +131,12 @@ struct Tab : public TabBase {
 		assert(ftype == node.attribute("type").value());
 		assert(std::string("binary") == node.attribute("format").value());
 		assert(std::string("base64") == node.attribute("encoding").value());
+		assert(pdx >= dx);
+		assert(pdy >= dy);
+		assert(pdz >= dz);
+		assert(pnx <= nx);
+		assert(pny <= ny);
+		assert(pnz <= nz);
 		size_t psize = 1L * (pnx - pdx) * (pny - pdy) * (pnz - pdz) * comp;
 		T *ptr;
 		b64.decode64(node.child_value(), (void **)&ptr, psize * sizeof(T));

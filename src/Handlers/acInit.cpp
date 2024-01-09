@@ -4,7 +4,7 @@ std::string acInit::xmlname = "Init";
 
 int acInit::Init () {
 		Action::Init();
-		solver->lattice->Init();
+		solver->lattice->initLattice();
 		solver->iter = 0;
 		return 0;
 	}

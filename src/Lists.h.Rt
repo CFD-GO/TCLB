@@ -1,0 +1,340 @@
+<?R
+    source("conf.R")
+    c_header();
+?>
+
+#ifndef LISTS_H
+#define LISTS_H
+
+#include <mpi.h>
+
+#include <functional>
+#include <limits>
+#include <string>
+#include <vector>
+
+#include "Consts.h"
+#include "types.h"
+#include "Things.h"
+#include "cross.h"
+
+using DerivedFunction = std::function<double(double)>;
+using ObjectiveFunction = std::function<void(double*, double*, double*)>;
+
+class Model {
+public:
+
+    struct Coord : Thing {
+        inline Coord() {}
+        inline Coord(const int& id_, const std::string& name_) : Thing(id_,name_) {}
+    };
+
+    struct Setting : UnitThing {
+        std::string defaultValue;
+        bool isDerived;
+        int derivedSetting;
+        DerivedFunction derivedValue;
+        inline Setting() : isDerived(false) {};
+        inline Setting(const int& id_, const std::string& name_, const std::string& unit_,
+                const std::string& defaultValue_, const bool& isDerived_, const int& derivedSetting_, const DerivedFunction& derivedValue_)
+            : UnitThing(id_,name_,unit_), defaultValue(defaultValue_), isDerived(isDerived_), derivedSetting(derivedSetting_), derivedValue(derivedValue_) {}
+        inline Setting(const int& id_, const std::string& name_, const std::string& unit_, const std::string& defaultValue_)
+            : UnitThing(id_,name_,unit_), defaultValue(defaultValue_), isDerived(false) {}
+    };
+
+    struct ZoneSetting : UnitThing {
+        std::string defaultValue;
+        inline ZoneSetting() {};
+        inline ZoneSetting(const int& id_, const std::string& name_, const std::string& unit_, const std::string& defaultValue_)
+            : UnitThing(id_,name_,unit_), defaultValue(defaultValue_) {}
+    };
+
+    struct Quantity : UnitThing {
+        bool isVector;
+        bool isAdjoint;
+        inline Quantity() : isVector(false), isAdjoint(false) {};
+        inline Quantity(const int& id_, const std::string& name_, const std::string& unit_, const bool& isVector_, const bool& isAdjoint_=false)
+            : UnitThing(id_,name_,unit_), isVector(isVector_), isAdjoint(isAdjoint_) {}
+        inline int getComp() const { if (isVector) return 3; else return 1; }
+    };
+
+    struct NodeTypeFlag : Thing {
+        big_flag_t flag;
+        int group_id;
+        big_flag_t group_flag;
+        inline NodeTypeFlag() : flag(0), group_id(INVALID_ID), group_flag(0) {}
+        inline NodeTypeFlag(const big_flag_t& flag_, const std::string& name_, const big_flag_t& group_flag_)
+            : Thing(flag_,name_), flag(flag_), group_id(group_flag_), group_flag(group_flag_) {}
+    };
+
+    struct NodeTypeGroupFlag : Thing {
+        big_flag_t flag;
+        int shift;
+        int max;
+        int capacity;
+        int bits;
+        bool isSave;
+        inline NodeTypeGroupFlag() : flag(0), shift(0), max(0), capacity(0), bits(0), isSave(false) {}
+        inline NodeTypeGroupFlag(const big_flag_t& flag_, const std::string& name_,
+                const int& shift_, const int& max_, const int& capacity_, const int& bits_, const bool& isSave_)
+            : Thing(flag_,name_), flag(flag_), shift(shift_), max(max_), capacity(capacity_), bits(bits_), isSave(isSave_) {}
+    };
+
+    struct Global : UnitThing {
+        MPI_Op operation;
+        int inObjId;
+        bool isAdjoint;
+        inline Global() : operation(NULL), inObjId(INVALID_ID), isAdjoint(false) {}
+        inline Global(const int& id_, const std::string& name_, const std::string& unit_,
+                const MPI_Op& operation_, const bool& isAdjoint_=false)
+            : UnitThing(id_,name_,unit_), operation(operation_), inObjId(id_ + IN_OBJ_OFFSET), isAdjoint(isAdjoint_) {}
+    };
+
+    struct Option : Thing {
+        bool isActive;
+        inline Option() : isActive(false) {}
+        inline Option(const int& id_, const std::string& name_, const bool& isActive_)
+            : Thing(id_,name_), isActive(isActive_) {}
+    };
+
+    struct Scale : UnitThing {
+        using UnitThing::UnitThing;
+    };
+
+    struct Field : Thing {
+        std::string niceName;
+        bool isParameter;
+        bool isAverage;
+        int accessArea;
+        bool simpleAccess;
+        bool isAdjoint;
+        std::string adjointName;
+        std::string tangentName;
+        inline Field() : niceName("invalid"), isParameter(false), isAverage(false), accessArea(0), simpleAccess(false),
+            isAdjoint(false), adjointName("invalid"), tangentName("invalid") {}
+        inline Field(const int& id_, const std::string& name_, const std::string& niceName_,
+                const bool& isParameter_, const bool& isAverage_, const int& accessArea_, const bool& simpleAccess_)
+            : Thing(id_,name_), niceName(niceName_)
+            , isParameter(isParameter_), isAverage(isAverage_), accessArea(accessArea_), simpleAccess(simpleAccess_)
+            , isAdjoint(false) {}
+        inline Field(const int& id_, const std::string& name_, const std::string& niceName_,
+                const bool& isParameter_, const bool& isAverage_, const int& accessArea_, const bool& simpleAccess_,
+                const bool& isAdjoint_, const std::string& adjointName_, const std::string& tangentName_)
+            : Thing(id_,name_), niceName(niceName_)
+            , isParameter(isParameter_), isAverage(isAverage_), accessArea(accessArea_), simpleAccess(simpleAccess_)
+            , isAdjoint(isAdjoint_), adjointName(adjointName_), tangentName(tangentName_) {}
+    };
+
+    struct Action : Thing {
+        std::vector<int> stages;
+        inline Action() {}
+        inline Action(const int& id_, const std::string& name_, const std::vector<int>& stages_)
+            : Thing(id_,name_), stages(stages_) {}
+    };
+
+    struct Stage : Thing {
+        std::string mainFun;
+        bool isParticle;
+        bool isAdjoint;
+        inline Stage() : mainFun("invalid"), isParticle(false), isAdjoint(false) {}
+        inline Stage(const int& id_, const std::string& name_, const std::string& mainFun_, const bool& isParticle_, const bool& isAdjoint_ = false)
+            : Thing(id_,name_), mainFun(mainFun_), isParticle(isParticle_), isAdjoint(isAdjoint_) {}
+    };
+
+    struct Objective : Thing {
+        ObjectiveFunction fun;
+        inline Objective() : fun(NULL) {}
+        inline Objective(const int& id_, const std::string& name_, const ObjectiveFunction& fun_)
+            : Thing(id_,name_), fun(fun_) {}
+    };
+
+    std::string name;
+    typedef Things<Coord> Coords;
+    Coords coords;
+    typedef Things<Setting> Settings;
+    Settings settings;
+    typedef Things<ZoneSetting> ZoneSettings;
+    ZoneSettings zonesettings;
+    typedef Things<Quantity> Quantities;
+    Quantities quantities;
+    typedef Things<NodeTypeFlag> NodeTypeFlags;
+    NodeTypeFlags nodetypeflags;
+    typedef Things<NodeTypeGroupFlag> NodeTypeGroupFlags;
+    NodeTypeGroupFlags nodetypegroupflags;
+    typedef Things<Global> Globals;
+    Globals globals;
+    typedef Things<Option> Options;
+    Options options;
+    typedef Things<Scale> Scales;
+    Scales scales;
+    typedef Things<Field> Fields;
+    Fields fields;
+    typedef Things<Action> Actions;
+    Actions actions;
+    typedef Things<Stage> Stages;
+    Stages stages;
+    NodeTypeGroupFlag settingzones;
+    typedef Things<Objective> Objectives;
+    Objectives objectives;
+
+    Model() {
+        //        | id | name |
+        coords = {{  0 , "X"  },
+                  {  1 , "Y"  },
+                  {  2 , "Z"  },
+                  {  3 , "T"  }};
+    };
+};
+
+struct OffsetDir { int x, y, z; };
+inline constexpr bool operator==(const OffsetDir& d1, const OffsetDir& d2) { return d1.x == d2.x && d1.y == d2.y && d1.z == d2.z; }
+
+// It is an annoying limitation of C++ <20 that static constexpr member functions cannot be called in the definition of static constexpr member variables
+// For this reason, we define some preliminary utilities at namespace scope, and then call them in the class body
+namespace model_details {
+
+inline constexpr auto makeOffsetDirections() {
+    return std::array{
+<?R
+ret = lapply(rows(Fields), function(f) {
+    U = expand.grid( dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz )
+})
+ret = unique( do.call(rbind, ret) )
+cat(paste0("        OffsetDir{",ret$dx,", ",ret$dy,", ",ret$dz,"}", collapse=", \n"))
+?>
+    };
+}
+
+template<size_t N>
+constexpr size_t lookupOffsetDirInd(const std::array<OffsetDir, N>& offset_directions, OffsetDir d) {
+    for (size_t i = 0; i != offset_directions.size(); ++i)
+        if (offset_directions[i] == d)
+            return i;
+    throw "Failed direction lookup (exception in constant-evaluated function will result in compiler error)";
+}
+
+template<size_t Q>
+constexpr auto makeFieldStreamingTable(const std::array<OffsetDir, Q>& offset_directions) {
+    constexpr size_t NF = <?R cat(nrow(Fields)) ?>;
+    std::array<std::array<bool, Q>, NF> retval{};
+    const auto set_field_dir = [&](size_t field_ind, int x, int y, int z) {
+        const auto dir_ind = lookupOffsetDirInd(offset_directions, OffsetDir{x, y, z});
+        retval[field_ind][dir_ind] = true;
+    };
+
+<?R
+field_ind = 0
+for (f in rows(Fields)) {
+  dirs = expand.grid(dx=f$minx:f$maxx, dy=f$miny:f$maxy, dz=f$minz:f$maxz)
+  for (d in rows(dirs)) {
+    cat(paste0("    set_field_dir(", field_ind, ", ", d$dx, ", ", d$dy,", ", d$dz, ");\n"))
+  }
+  field_ind = field_ind + 1
+}
+?>
+
+    return retval;
+}
+
+template<size_t NF, size_t Q>
+constexpr auto makeOffsetWgtTable(const std::array<std::array<bool, Q>, NF>& field_dir_table) {
+    std::array<size_t, Q> retval{};
+    for (const auto& field_dirs : field_dir_table) {
+        size_t i = 0;
+        for (auto is_active : field_dirs) {
+            if (is_active)
+                ++retval[i];
+            ++i;
+        }
+    }
+    return retval;
+}
+
+template<size_t Q>
+constexpr bool isStencilSymmetric(const std::array<OffsetDir, Q>& offset_dirs) {
+    const auto contains_dir = [&](const OffsetDir& dir) {
+        for (auto d : offset_dirs)
+            if (d == dir)
+                return true;
+        return false;
+    };
+    for(auto ofs_dir : offset_dirs) {
+        const auto neg_dir = OffsetDir{-ofs_dir.x, -ofs_dir.y, -ofs_dir.z};
+        if (!contains_dir(neg_dir))
+            return false;
+    }
+    return true;
+}
+
+struct StencilBox {
+    OffsetDir min, max;
+
+    constexpr OffsetDir getOffsets() const { return min; }
+    constexpr OffsetDir getSizes() const { return {max.x - min.x + 1, max.y - min.y + 1, max.z - min.z + 1}; }
+};
+
+template<size_t Q>
+constexpr StencilBox computeStencilBox(const std::array<OffsetDir, Q>& offset_dirs) {
+    StencilBox retval{};
+    auto& [mins, maxs] = retval;
+    auto& [minx, miny, minz] = mins;
+    auto& [maxx, maxy, maxz] = maxs;
+    minx = miny = minz = std::numeric_limits<int>::max();
+    maxx = maxy = maxz = std::numeric_limits<int>::min();
+    const auto set_minmax = [](int val, int& min, int& max) {
+        if (val > max) max = val;
+        if (val < min) min = val;
+    };
+    for (const auto& [dx, dy, dz] : offset_dirs) {
+        set_minmax(dx, minx, maxx);
+        set_minmax(dy, miny, maxy);
+        set_minmax(dz, minz, maxz);
+    }
+    return retval;
+}
+
+} // namespace model_details
+
+class Model_m : public Model {
+public:
+    Model_m();
+
+    // Offset directions (Q) stored as constexpr array of int triplets; for compile-time computations requiring Q
+    static constexpr auto offset_directions = model_details::makeOffsetDirections();                           /// Array of offset directions
+    static constexpr size_t Q  = offset_directions.size();                                                     /// Number of offset directions
+    static constexpr size_t NF = <?R cat(nrow(Fields)) ?>;                                                     /// Number of fields
+    static constexpr auto field_streaming_table = model_details::makeFieldStreamingTable(offset_directions);   /// fst[f][q] == true => we need to get the field value from the node at direction (index) q
+    static constexpr auto offset_direction_weights = model_details::makeOffsetWgtTable(field_streaming_table); /// sum of fst columns, needed to correctly weight the connectivity graph during partitioning
+
+    // Statically get offset direction index
+    template<int X, int Y, int Z>
+    struct GetDirIndex {
+        static constexpr int value = model_details::lookupOffsetDirInd(offset_directions, OffsetDir{X, Y, Z});
+    };
+
+    // Dynamically get offset direction index
+    static constexpr auto stencil_sizes = model_details::computeStencilBox(offset_directions).getSizes();
+    static constexpr size_t stencil_box_sz = stencil_sizes.x * stencil_sizes.y * stencil_sizes.z;
+    static constexpr auto stencil_offsets = model_details::computeStencilBox(offset_directions).getOffsets();
+    CudaHostFunction CudaDeviceFunction static int computeOffsetHash(OffsetDir dir, OffsetDir stencil_ofs, OffsetDir stencil_sz) {
+        return (dir.x - stencil_ofs.x) + (dir.y - stencil_ofs.y) * stencil_sz.x + (dir.z - stencil_ofs.z) * stencil_sz.x * stencil_sz.y;
+    }
+    static constexpr auto makeDynamicOffsetIndLookupTable() {
+        std::array<int, stencil_box_sz> retval{};
+        for(auto& i : retval) i = -1; // Initialize with invalid index in case the stencil is not a box
+        for(const auto dir : offset_directions)
+            retval.at(computeOffsetHash(dir, stencil_offsets, stencil_sizes)) = model_details::lookupOffsetDirInd(offset_directions, dir);
+        return retval;
+    }
+
+    // The device cant access static constexpr members of non-scalar type, so we need to pass them as arguments
+    CudaDeviceFunction static int getDirIndex(OffsetDir dir, OffsetDir stencil_ofs, OffsetDir stencil_sz, const int* dir_lookup) {
+        return dir_lookup[computeOffsetHash(dir, stencil_ofs, stencil_sz)];
+    }
+
+private:
+
+    static_assert(model_details::isStencilSymmetric(offset_directions), "The stencil must be symmetric");
+};
+
+#endif

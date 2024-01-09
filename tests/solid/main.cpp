@@ -5,6 +5,9 @@
 #include <cstring>
 #include <algorithm>
 
+#define CROSS_H // We don't want the usual cross facilities, use the mock below
+#define GLOBAL_H
+
 #define CudaMalloc(a__,b__) assert( (*((void**)(a__)) = malloc(b__)) != NULL )
 #define CudaFree(a__) free(a__)
 #define CudaStream_t int
@@ -19,10 +22,8 @@ typedef float real_t;
 
 const int max_cache_size = 1024;
 #include "SolidTree.h"
-#include "SolidTree.hpp"
 #include "SolidAll.h"
 #include "SolidGrid.h"
-#include "SolidGrid.hpp"
 
 
 struct ball {

@@ -4,14 +4,14 @@ std::string cbAveraging::xmlname = "Average";
 
 int cbAveraging::Init () {
 		Callback::Init();
-		solver->lattice->resetAverage();
+		solver->getCartLattice()->resetAverage();
                 return 0;
         }
 
 
 int cbAveraging::DoIt () {
                 Callback::DoIt();
-                solver->lattice->resetAverage(); // reseting averages-storing densities and setting reset_iter to iter
+                solver->getCartLattice()->resetAverage(); // reseting averages-storing densities and setting reset_iter to iter
                 return 0;
         }
 

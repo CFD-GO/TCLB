@@ -1,0 +1,138 @@
+<?R
+source("conf.R")
+c_header();
+?>
+
+#ifndef ARBLATTICELAUNCHER_HPP
+#define ARBLATTICELAUNCHER_HPP
+
+#include "ArbLatticeAccess.hpp"
+#include "ArbLatticeLauncher.h"
+#include "GetThreads.h"
+#include "LatticeData.hpp"
+#include "Node.hpp"
+#include "CudaUtils.hpp"
+
+template <eOperationType I, eCalculateGlobals G, eStage S>
+struct ArbLatticeExecutor : public LinearExecutor {
+    ArbLatticeContainer container;
+    LatticeData data;
+    unsigned offset;  /// Starting offset for the iteration space, allows the reuse of the executor for both the border and interior
+
+    CudaDeviceFunction void Execute() const {
+        using LA = ArbLatticeAccess;
+        using N = Node<LA, I, G, S>;
+        const int i = threadID(CudaThread, CudaBlock, CudaNumberOfThreads);
+        if (inRange(i)) {
+            const unsigned node_lid = offset + i;
+            ArbLatticeAccess acc(node_lid, container);
+            N now(acc, data);
+            now.RunElement();
+        }
+    }
+};
+
+template <eOperationType I, eCalculateGlobals G, eStage S>
+void ArbLatticeLauncher::RunBorder(CudaStream_t stream, const LatticeData& data) const {
+    const ArbLatticeExecutor<I, G, S> executor{{container.num_border_nodes}, container, data, 0};
+    LaunchExecutorAsync(executor, stream);
+}
+
+template <eOperationType I, eCalculateGlobals G, eStage S>
+void ArbLatticeLauncher::RunInterior(CudaStream_t stream, const LatticeData& data) const {
+    const ArbLatticeExecutor<I, G, S> executor{{container.num_interior_nodes}, container, data, container.num_border_nodes};
+    LaunchExecutorAsync(executor, stream);
+}
+
+struct ArbLatticePacker : public LinearExecutor {
+    const storage_t* src;
+    storage_t*       dest;
+    const size_t*    src_inds;
+    const size_t*    dest_inds;
+
+    CudaDeviceFunction void Execute() const {
+        const int i = threadID(CudaThread, CudaBlock, CudaNumberOfThreads);
+        if(inRange(i)) {
+            const size_t si = src_inds ? src_inds[i] : i;
+            const size_t di = dest_inds ? dest_inds[i] : i;
+            dest[di] = src[si];
+        }
+    }
+};
+
+void ArbLatticeLauncher::pack(CudaStream_t stream) const {
+    const ArbLatticePacker executor{{container.pack_sz}, container.snap_out, container.pack_buf, container.pack_inds, nullptr};
+    LaunchExecutorAsync(executor, stream);
+}
+
+void ArbLatticeLauncher::unpack(CudaStream_t stream) const {
+    const ArbLatticePacker executor{{container.unpack_sz}, container.unpack_buf, container.snap_out, nullptr, container.unpack_inds};
+    LaunchExecutorAsync(executor, stream);
+}
+
+void ArbLatticeLauncher::getQuantity(int quant, real_t* host_tab, real_t scale, const LatticeData& data) const {
+    const size_t num_nodes = container.num_border_nodes + container.num_interior_nodes;
+	switch(quant) {	<?R
+for (q in rows(Quantities)) { ifdef(q$adjoint);
+?>
+        case <?%s q$Index ?>: {
+            const auto gpu_tab = cudaMakeUnique<<?%s q$type ?>>(num_nodes);
+            getQuantity<?%s q$name ?>(gpu_tab.get(), scale, data);
+            CudaMemcpy(host_tab, gpu_tab.get(), num_nodes * sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
+            break;
+        } <?R
+}
+ifdef();
+?>
+	}
+}
+
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint);
+if (q$adjoint) {
+  node = "Node_Adj"
+} else {
+  node = "Node"
+}
+?>
+struct GetQuantityArbExecutor<?%s q$name?> : public LinearExecutor {
+    ArbLatticeContainer container;
+    LatticeData data;
+    <?%s q$type ?>* buf;
+    real_t scale;
+
+    CudaDeviceFunction void Execute() const {
+        using LA = ArbLatticeAccess; <?R
+if (q$adjoint) { ?>
+        using N = Node< LA, Adjoint, NoGlobals, Get >; <?R
+} else { ?>
+        using N = Node< LA, Primal, NoGlobals, Get >; <?R
+}?>
+        const int i = threadID(CudaThread, CudaBlock, CudaNumberOfThreads);
+        if (inRange(i)) {
+            LA acc(i, container);
+            N now(acc, data);
+            acc.pop(now); <?R
+if (q$adjoint) { ?>
+            acc.pop_adj(now); <?R
+} ?>
+            auto val = now.get<?%s q$name ?>(); <?R
+if (q$type == "vector_t") {
+  for (coef in c("x","y","z")) { ?>
+            val.<?%s coef ?> *= scale; <?R
+  }
+} else { ?>
+            val *= scale; <?R
+} ?>
+            buf[i] = val;
+        }
+    }
+};
+
+void ArbLatticeLauncher::getQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const {
+    const GetQuantityArbExecutor<?%s q$name?> executor{{container.num_border_nodes + container.num_interior_nodes}, container, data, tab, scale};
+    LaunchExecutor(executor);
+}
+<?R }
+ifdef() ?>
+
+#endif  // ARBLATTICELAUNCHER_HPP
