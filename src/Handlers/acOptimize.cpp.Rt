@@ -7,7 +7,7 @@ int acOptimize::OptimizerInit () {
 	pugi::xml_attribute attr;
 	nlopt_result res;
 	material=0.0;
-	if (solver->mpi.rank == 0) {
+	if (solver->mpi_rank == 0) {
        		if (Pars == 0) {
        			ERROR("Error: No parameters defined!\n");
        			return -1;
@@ -18,7 +18,7 @@ int acOptimize::OptimizerInit () {
 	}
 	GetParameters(start);
 	DEBUG_M;
-	if (solver->mpi.rank == 0) {
+	if (solver->mpi_rank == 0) {
                 method="MMA";
                 attr = node.attribute("method");
                 if (attr) {
@@ -40,15 +40,15 @@ int acOptimize::OptimizerInit () {
                 }
 	}
 	double * bound = NULL;
-	if (solver->mpi.rank == 0) bound = new double[Pars];
+	if (solver->mpi_rank == 0) bound = new double[Pars];
 	Parameters(PAR_LOWER, bound);
-	if (solver->mpi.rank == 0) {
+	if (solver->mpi_rank == 0) {
 		output("lower set to %lf\n", bound[0]);
                 nlopt_set_lower_bounds(opt, bound);
 		for (int i=0;i<Pars;i++) if (start[i] < bound[i]) start[i] = bound[i];
 	}
 	Parameters(PAR_UPPER, bound);
-	if (solver->mpi.rank == 0) {
+	if (solver->mpi_rank == 0) {
 		output("upper set to %lf\n", bound[0]);
 		nlopt_set_upper_bounds(opt, bound);
 		for (int i=0;i<Pars;i++) if (start[i] > bound[i]) start[i] = bound[i];
