@@ -4,9 +4,13 @@ inputs:
   model:
     description: model to compile
     default: 'd2q9'
+  tests:
+    description: what tests to run
+    default: ''
+  
 runs:
   using: 'composite'
   steps:
     - shell: bash
       name: Run tests
-      run: tools/tests.sh ${{ inputs.model }}
+      run: tools/tests.sh ${{ inputs.model }} ${{ inputs.tests }}

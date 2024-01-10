@@ -1,0 +1,821 @@
+<?R
+	source("conf.R")
+	c_header();
+?>
+/*  File defining CartLattice                                      */
+/*     CartLattice is the low level class defining functionality   */
+/*       of Adjoint LBM solver. It realizes all the LBM        */
+/*       calculations and data transfer                        */
+/*-------------------------------------------------------------*/
+
+#include "Consts.h"
+#include "cross.h"
+#include "types.h"
+#include "Global.h"
+#include "CartLattice.h"
+#include "vtkLattice.h"
+#include <mpi.h>
+#include <cassert>
+
+#ifdef GRAPHICS
+static void MouseMove( CartLattice * data, int x, int y, int nx, int ny );
+static int MainLoop( uchar4* outputBitmap, CartLattice *d, int ticks );
+static void MainFree( CartLattice *d);
+#endif
+
+/// Set position
+void CartLattice::setPosition(double px_, double py_, double pz_)
+{
+	px = px_;
+	py = py_;
+	pz = pz_;
+	launcher.container.px = px + 0.5 + getLocalRegion().dx;
+	launcher.container.py = py + 0.5 + getLocalRegion().dy;
+	launcher.container.pz = pz + 0.5 + getLocalRegion().dz;
+}
+
+/// Calculation of the offset from X, Y and Z
+int CartLattice::Offset(int x, int y, int z)
+{
+	return x+getLocalRegion().nx*y + getLocalRegion().nx*getLocalRegion().ny*z;
+}
+
+static void AllocContainer(CartLatticeContainer& container, int nx, int ny, int nz){
+  char * tmp=NULL;
+  size_t size;
+  size = (size_t) nx*ny*nz*sizeof(flag_t);
+  debug2("Allocating: %ld b\n", size);
+  CudaMalloc( (void**)&tmp, size );
+  debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size);
+  CudaMemset( tmp, 0, size );
+
+  container.nx       = nx;
+  container.ny       = ny;
+  container.nz       = nz;
+  container.NodeType = (flag_t*)tmp;
+  container.Q        = nullptr;
+}
+
+CartLattice::CartLattice(CartConnectivity connect, int ns, const UnitEnv& units_)
+    : LatticeBase(ZONESETTINGS, ZONE_MAX, ns, units_),
+      connectivity(std::move(connect)),
+      geometry(std::make_unique<Geometry>(getLocalRegion(), connectivity.global_region, units_, model.get()))
+{
+	DEBUG_M;
+    AllocContainer(launcher.container, getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
+	sample = std::make_unique<Sampler>(model.get(), units, connectivity.mpi_rank);
+	Snaps = std::make_unique<FTabs[]>(num_snaps);
+	setPosition(0.0,0.0,0.0);
+	DEBUG_M;
+	for (int i = 0; i < num_snaps; ++i) Snaps[i].PreAlloc(getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
+#ifdef ADJOINT
+	aSnaps[0].PreAlloc(getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
+	aSnaps[1].PreAlloc(getLocalRegion().nx, getLocalRegion().ny, getLocalRegion().nz);
+#endif
+	DEBUG_M;
+	MPIInit();
+	DEBUG_M;
+	CudaAllocFinalize();
+	DEBUG_M;
+	setSnapIn(0);
+	setSnapOut(1);
+#ifdef ADJOINT
+	launcher.container.adjout = aSnaps[0];
+#endif
+#ifdef GRAPHICS
+    NOTICE("Running graphics at %dx%d\n", getLocalRegion().nx, getLocalRegion().ny);
+    bitmap = std::make_unique<GPUAnimBitmap>(getLocalRegion().nx, getLocalRegion().ny, this);
+    bitmap->mouse_move( (void (*)(void*,int,int,int,int)) MouseMove);
+    bitmap->anim_and_exit( (int (*)(uchar4*,void*,int)) MainLoop, (void (*)(void*))MainFree );
+    glutMainLoopEvent();
+    debug0("Graphics done");
+#endif
+}
+
+int CartLattice::EventLoop() {
+#ifdef GRAPHICS
+    bitmap->idle_func();
+    glutMainLoopEvent();
+#endif
+    return 0;
+}
+
+/// Preallocation of a buffer (combines allocation into one big allocation)
+static void BPreAlloc(void ** ptr, size_t size) {
+  CudaMalloc( ptr, size );
+}
+
+/// Initialization of MPI buffers
+/**
+        Initialize all the buffors needed for the MPI data transfer
+        \param mpi_ MPI Information (connectivity)
+*/
+void CartLattice::MPIInit()
+{
+//--------- Initialize MPI buffors
+	bufnumber = 0;
+#ifndef DIRECT_MEM
+	debug2("Allocating MPI buffors ...\n");
+	storage_t * ptr = NULL;
+	int size, from, to;
+	int nx = getLocalRegion().nx, ny=getLocalRegion().ny,  nz=getLocalRegion().nz;
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	size = <?R C(m$Size,float=F) ?> * sizeof(storage_t);
+	from = connectivity.nodes[connectivity.mpi_rank].<?%s m$opposite_side ?>;
+	to = connectivity.nodes[connectivity.mpi_rank].<?%s m$side ?>;
+	if ((connectivity.mpi_rank != to) && (size > 0)) {
+		CudaMallocHost(&ptr,size);
+		mpiout[bufnumber] = ptr;
+		gpuout[bufnumber] = NULL;
+		nodeout[bufnumber] = to;
+		CudaMallocHost(&ptr,size);
+		mpiin[bufnumber] = ptr;
+		BPreAlloc((void**) & (gpubuf[bufnumber]), size);
+		BPreAlloc((void**) & (gpubuf2[bufnumber]), size);
+		nodein[bufnumber] = from;
+		bufsize[bufnumber] = size;
+		bufnumber ++;
+	}
+<?R
+	}
+?>
+#endif
+
+	debug2("Done (BUFS: %d)\n", bufnumber);
+}
+
+/// Clear the adjoint solution buffers
+/**
+        Clear the Adjoint Snapshots
+*/
+void CartLattice::clearAdjoint()
+{
+#ifdef ADJOINT
+	debug1("Clearing adjoint\n");
+	aSnaps[0].Clear(getLocalRegion().nx,getLocalRegion().ny,getLocalRegion().nz);
+	aSnaps[1].Clear(getLocalRegion().nx,getLocalRegion().ny,getLocalRegion().nz);
+#endif
+	zSet.ClearGrad();
+}
+
+/// Clear the derivatives of the parameters
+/**
+        Clear the derivative component/density of the adjoint solution
+*/
+void CartLattice::clearDPar()
+{ <?R
+	for (d in rows(DensityAll)) if ((d$adjoint) && (d$parameter)) { ?>
+	Clear_<?%s d$nicename ?>(); <?R
+	}
+?>
+}
+
+/// Copy GPU to CPU memory
+void CartLattice::MPIStream_A()
+{
+	for (int i = 0; i < bufnumber; i++) if (nodeout[i] >= 0) {
+		CudaMemcpyAsync( mpiout[i], gpuout[i], bufsize[i], CudaMemcpyDeviceToHost, outStream);
+	}
+}
+
+/// Copy Buffers between processors
+void CartLattice::MPIStream_B()
+{
+        if (bufnumber > 0) {
+                DEBUG_M;
+                CudaStreamSynchronize(outStream);
+                DEBUG_M;
+        #ifdef CROSS_MPI_OLD
+                MPI_Status status;
+                MPI_Request request;
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i, MPMD.local, &request);
+                }
+                for (int i = 0; i < bufnumber; i++) if (nodein[i] >= 0) {
+                        MPI_Recv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], nodein[i]*connectivity.nodes.size() + connectivity.mpi_rank+bufsize[i], MPMD.local, &status);
+                        CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], CudaMemcpyHostToDevice, inStream);
+                }
+        #else
+                MPI_Request * recvreq = new MPI_Request[bufnumber];
+                MPI_Request * sendreq = new MPI_Request[bufnumber];
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Irecv( mpiin[i], bufsize[i], MPI_BYTE, nodein[i], i, MPMD.local, &recvreq[i]);
+                }
+                for (int i = 0; i < bufnumber; i++) {
+                        MPI_Isend( mpiout[i], bufsize[i], MPI_BYTE, nodeout[i], i, MPMD.local, &sendreq[i]);
+                }
+                #ifdef CROSS_MPI_WAITANY
+                        for (int j = 0; j < bufnumber; j++) {
+                                int i;
+                                MPI_Waitany(bufnumber, recvreq, &i, MPI_STATUSES_IGNORE);
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], CudaMemcpyHostToDevice, inStream);
+                        }
+                #else
+                        DEBUG_M;
+                        MPI_Waitall(bufnumber, recvreq, MPI_STATUSES_IGNORE);
+                        DEBUG_M;
+                        for (int i = 0; i < bufnumber; i++) {
+                                CudaMemcpyAsync( gpuin[i], mpiin[i], bufsize[i], CudaMemcpyHostToDevice, inStream);
+                        }
+                #endif
+		MPI_Waitall(bufnumber, sendreq, MPI_STATUSES_IGNORE);
+                delete[] recvreq;
+                delete[] sendreq;
+        #endif
+                DEBUG_M;
+                CudaStreamSynchronize(inStream);
+                DEBUG_M;
+        }
+}
+
+void CartLattice::SetFirstTabs(int tab0, int tab1) {
+	int from, to;
+	int i = 0; <?R
+	for (m in NonEmptyMargin) { ?>
+	from = connectivity.nodes[connectivity.mpi_rank].<?%s m$opposite_side ?>;
+	to = connectivity.nodes[connectivity.mpi_rank].<?%s m$side ?>;
+	if (connectivity.mpi_rank != to) {
+		gpuin[i] = Snaps[tab1].<?%s m$name ?>;
+		gpuout[i] = launcher.container.out.<?%s m$name ?> = gpubuf[i];
+		nodeout[i] = to;
+		nodein[i] = from;
+		++i;
+	} else {
+		launcher.container.out.<?%s m$name ?> = Snaps[tab1].<?%s m$name ?>;
+	} <?R
+	} ?>
+	launcher.container.in = Snaps[tab0];
+}
+
+/// Function listing all buffers in FTabs
+void CartLattice::listTabs(FTabs& tab, int* np, size_t ** size, void *** ptr, size_t * maxsize) const {
+	int j=0;
+	int n;
+	int nx = getLocalRegion().nx, ny=getLocalRegion().ny,  nz=getLocalRegion().nz;
+	if (maxsize) *maxsize = 0;
+	n = <?%d length(NonEmptyMargin) ?>;
+	if (np) *np = n;
+	if (size) *size = new size_t[n];
+	if (ptr) *ptr = new void*[n];
+<?R
+	for (m in NonEmptyMargin) {
+?>
+	if (size) (*size)[j] = ((size_t) <?R C(m$Size,float=F) ?>) * sizeof(storage_t);
+	if (ptr) (*ptr)[j] = (void*) tab.<?%s m$name ?>;
+	if (maxsize) if (size) if ((*size)[j] > *maxsize) *maxsize = (*size)[j];
+	j++;
+<?R
+	}
+?>
+}
+
+size_t CartLattice::sizeOfTab() {
+<?R
+	totsize = 0
+	for (m in NonEmptyMargin) totsize = m$Size + totsize
+?>
+	int nx = getLocalRegion().nx, ny=getLocalRegion().ny,  nz=getLocalRegion().nz;
+	return <?R C(totsize,float=F) ?>;
+}
+
+void CartLattice::saveToTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Save buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( vtab, ptr[i], size[i], CudaMemcpyDeviceToHost);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+void CartLattice::loadFromTab(real_t * rtab, int snap) {
+	char * vtab = (char*)rtab;
+	void ** ptr;
+	size_t * size;
+	int n;
+	FTabs tab = Snaps[snap];
+	listTabs(tab, &n, &size, &ptr, NULL);
+	for(int i=0; i<n; i++)
+	{
+		debug1("Load buf %d of size %ld\n",i,size[i]);
+		CudaMemcpy( ptr[i], vtab, size[i], CudaMemcpyHostToDevice);
+		vtab += size[i];
+	}
+	delete[] size;
+	delete[] ptr;
+}
+
+
+/// Save a FTabs
+int CartLattice::saveImpl(FTabs& tab, const char * filename) const {
+	FILE * f = fopen(filename, "w");
+	if (f == NULL) {
+		ERROR("Cannot open %s for output\n", filename);
+		assert(f == NULL);
+		return -1;
+	}
+
+	void ** ptr;
+	void * pt=NULL;
+	size_t * size;
+	size_t maxsize;
+	int n;
+
+	listTabs(tab, &n, &size, &ptr, &maxsize);
+	CudaMallocHost(&pt,maxsize);
+
+	for(int i=0; i<n; i++)
+	{
+        output("Saving data slice %d, size %d", i, size[i]);
+		CudaMemcpy( pt, ptr[i], size[i], CudaMemcpyDeviceToHost);
+		fwrite(pt, size[i], 1, f);
+	}
+
+	CudaFreeHost(pt);
+	fclose(f);
+	delete[] size;
+	delete[] ptr;
+	return 0;
+}
+
+/// Load a FTabs
+int CartLattice::loadImpl(FTabs& tab, const char* filename) {
+	FILE * f = fopen(filename, "r");
+	output("Loading CartLattice data from %s\n", filename);
+	if (f == NULL) {
+		ERROR("Cannot open %s for output\n", filename);
+		return -1;
+	}
+
+	void ** ptr;
+	void * pt = NULL;
+	size_t * size;
+	size_t maxsize;
+	int n;
+
+	listTabs(tab, &n, &size, &ptr, &maxsize);
+	CudaMallocHost(&pt,maxsize);
+
+	for(int i=0; i<n; i++)
+	{
+		int ret = fread(pt, size[i], 1, f);
+		if (ret != 1) ERROR("Could not read in CartLattice::loadImpl");
+		CudaMemcpy( ptr[i], pt, size[i], CudaMemcpyHostToDevice);
+	}
+
+	CudaFreeHost(pt);
+	fclose(f);
+	delete[] size;
+	delete[] ptr;
+	return 0;
+}
+
+static void FreeContainer(CartLatticeContainer& container) {
+  CudaFree(container.NodeType);
+  if (container.Q)
+    CudaFree(container.Q);
+}
+
+/// Destructor
+/**
+        I think it doesn't leave a big mess
+*/
+CartLattice::~CartLattice()
+{
+	RFI.Close();
+    CudaAllocFreeAll();
+	FreeContainer(launcher.container);
+	for (int i = 0; i < num_snaps; ++i) Snaps[i].Free();
+}
+
+/// Render Graphics (GUI)
+/**
+        Renders graphics in the GUI version
+*/
+void CartLattice::Color(uchar4 * ptr) {
+	launcher.Color(ptr, data);
+}
+
+/// Overwrite NodeType in a region
+void CartLattice::setFlags(const lbRegion& over, const std::vector<big_flag_t>& tab) {
+	if (getLocalRegion().isEqual(over)) {
+		output("overwriting all flags\n");
+		CudaMemcpy(launcher.container.NodeType, tab.data(), sizeof(flag_t)*getLocalRegion().sizeL(), CudaMemcpyHostToDevice);
+	} else {
+		lbRegion inter = getLocalRegion().intersect(over);
+	        int x = inter.dx;
+	        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+	        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+	        {
+	                CudaMemcpy2D(&launcher.container.NodeType[getLocalRegion().offsetL(x,y,z)], sizeof(flag_t), &tab[over.offsetL(x,y,z)], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyHostToDevice);
+	        }
+	}
+}
+
+static void ContainerActivateCuts(CartLatticeContainer& container){
+  if (!container.Q) {
+    void * tmp;
+    size_t size = (size_t) container.nx*container.ny*container.nz*sizeof(cut_t)*26;
+    debug2("Allocating: %ld b\n", size);
+    CudaMalloc( (void**)&tmp, size );
+    debug1("got address: (%p - %p)\n", tmp, (unsigned char*)tmp+size);
+    CudaMemset( tmp, 0, size );
+    container.Q = (cut_t*)tmp;
+  }
+}
+
+void CartLattice::CutsOverwrite(cut_t * Q, const lbRegion& over)
+{
+	if (Q == NULL) return;
+    ContainerActivateCuts(launcher.container);
+	lbRegion inter = getLocalRegion().intersect(over);
+        int x = inter.dx;
+	size_t regsize = getLocalRegion().size();
+	size_t oversize = over.size();
+        for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+        for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+        for (int d = 0; d<26; d++)
+        {
+                CudaMemcpy2D(&launcher.container.Q[getLocalRegion().offsetL(x,y,z)+d*regsize], sizeof(cut_t), &Q[over.offsetL(x,y,z)+oversize*d], sizeof(cut_t), sizeof(cut_t), inter.nx, CudaMemcpyHostToDevice);
+        }
+
+}
+
+/// Get NodeType's from a region
+std::vector<big_flag_t> CartLattice::getFlags(const lbRegion& over) const {
+	lbRegion inter = getLocalRegion().intersect(over);
+	size_t size = inter.sizeL();
+	std::vector<big_flag_t> ret(size);
+	if (getLocalRegion().isEqual(over)) {
+		CudaMemcpy(ret.data(), launcher.container.NodeType, sizeof(flag_t)*getLocalRegion().sizeL(), CudaMemcpyDeviceToHost);
+	} else {
+		int x = inter.dx;
+		for (int y = inter.dy; y<inter.dy+inter.ny; y++)
+		for (int z = inter.dz; z<inter.dz+inter.nz; z++)
+		{
+			size_t offset = getLocalRegion().offsetL(x,y,z);
+			CudaMemcpy2D(&ret[over.offsetL(x,y,z)], sizeof(flag_t), &launcher.container.NodeType[offset], sizeof(flag_t), sizeof(flag_t), inter.nx, CudaMemcpyDeviceToHost);
+		}
+	}
+	return ret;
+}	
+
+std::vector<real_t> CartLattice::getCoord(const Model::Coord& d, real_t scale) {
+	lbRegion reg = getLocalRegion();
+	std::vector<real_t> ret;
+	ret.reserve(reg.sizeL());
+	for (int z=0;z<reg.nz;z++)
+	for (int y=0;y<reg.ny;y++)
+	for (int x=0;x<reg.nx;x++) {
+		double val=0;
+		switch (d.id) {
+		case 0:	val = px + 0.5 + getLocalRegion().dx + x; break;
+		case 1: val = py + 0.5 + getLocalRegion().dy + y; break;
+		case 2: val = pz + 0.5 + getLocalRegion().dz + z; break;
+		default: assert(false); break;
+		}
+		ret.push_back(val*scale);
+	}
+	assert(ret.size() == getLocalSize());
+	return ret;
+}
+
+std::vector<real_t> CartLattice::getField(const Model::Field& f) {
+	assert(f.isParameter);
+	FTabs& from = Snaps[Snap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	std::vector<real_t> ret(size);
+	debug2("Pulling all %s\n",f.name.c_str());
+	CudaMemcpy( ret.data(), &from.block14[f.id*size], size*sizeof(real_t), CudaMemcpyDeviceToHost);
+	return ret;
+}
+
+
+std::vector<real_t> CartLattice::getFieldAdj(const Model::Field& f) {
+#ifdef ADJOINT
+	assert(f.isParameter);
+	FTabs& from = aSnaps[aSnap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	std::vector<real_t> ret(size);
+	debug2("Pulling all %s\n",f.name.c_str());
+	CudaMemcpy( ret.data(), &from.block14[f.id*size], size*sizeof(real_t), CudaMemcpyDeviceToHost);
+	return ret;
+#else
+	assert(false);
+#endif
+}
+
+void CartLattice::setField(const Model::Field& f, const std::vector<real_t>& tab){
+	assert(f.isParameter);
+	FTabs& from = Snaps[Snap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	debug2("Setting all %s\n", f.name.c_str());
+	CudaMemcpy(
+		&from.block14[f.id*size],
+		tab.data(),
+		size*sizeof(real_t),
+		CudaMemcpyHostToDevice);
+}
+
+void CartLattice::setFieldAdjZero(const Model::Field& f){
+#ifdef ADJOINT
+	assert(f.isParameter);
+	FTabs& from = aSnaps[aSnap];
+	size_t size = getLocalSize();
+	assert(sizeof(storage_t) == sizeof(real_t));
+	debug2("Clearing all %s\n", f.name.c_str());
+	CudaMemset(
+		&from.block14[f.id*size],
+		0,
+		size*sizeof(real_t));
+#else
+	assert(false);
+#endif
+}
+
+/// Get Quantity
+/**
+        Retrive the values of the Quantity
+        from the GPU memory
+*/
+std::vector<real_t> CartLattice::getQuantity(const Model::Quantity& q, const lbRegion& over, real_t scale) {
+	int comp = q.getComp();
+	size_t size = getLocalSize() * comp;
+	std::vector<real_t> ret(size);
+	switch(q.id) { <?R
+		for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+		case <?%s q$Index ?>: Get<?%s q$name ?>(over, (<?%s q$type ?> *) ret.data(), scale); break; <?R
+		}
+		ifdef(); ?>
+		default: assert(false); break;
+	}
+	return ret;
+}
+
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+/// Get [<?%s q$comment ?>]
+/**
+        Retrive the values of the Quantity <?%s q$name ?> (<?%s q$comment ?>)
+        from the GPU memory
+*/
+void CartLattice::Get<?%s q$name ?>(const lbRegion& over, <?%s q$type ?> * tab, real_t scale)
+{
+	launcher.container.in = Snaps[Snap];
+	<?R if (q$adjoint) { ?> launcher.container.adjin = aSnaps[aSnap]; <?R } ?>
+
+	lbRegion inter = getLocalRegion().intersect(over);
+	if (inter.size()==0) return;
+	<?%s q$type ?> * buf=NULL;
+	CudaMalloc((void**)&buf, inter.sizeL()*sizeof(<?%s q$type ?>));
+    {
+        lbRegion small = inter;
+        small.dx -= getLocalRegion().dx;
+        small.dy -= getLocalRegion().dy;
+        small.dz -= getLocalRegion().dz;
+        launcher.GetQuantity<?%s q$name ?>(small, buf, scale, data);
+        CudaMemcpy(tab, buf, small.sizeL()*sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
+	}
+	CudaFree(buf);
+}
+
+<?R }; ifdef() ?>
+
+int CartLattice::getPars(ParStruct& par_struct) {
+  int j = 0;
+  size_t n = getLocalSize();
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+	for (size_t i=0; i<n; i++) {
+		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+			j++;
+		}
+	}
+  par_struct.Par_size = j * <?%d sum(Density$parameter==T) ?>;
+  debug1("Par_size: %d\n",par_struct.Par_size);
+  MPI_Gather(&par_struct.Par_size, 1, MPI_INT, par_struct.Par_sizes.get(), 1, MPI_INT, 0, MPMD.local);
+  if (connectivity.mpi_rank == 0) {
+  	par_struct.Par_disp[0] = 0;
+  	const auto mpi_size = connectivity.nodes.size();
+  	for (size_t i = 0; i < mpi_size - 1; ++i)
+  	    par_struct.Par_disp[i + 1] = par_struct.Par_disp[i] + par_struct.Par_sizes[i];
+  	for (size_t i = 0; i < mpi_size; ++i) {
+  	    debug2("Proc: %d Parameters: %d Disp: %d\n", i, par_struct.Par_sizes[i], par_struct.Par_disp[i]);
+	}
+  	return par_struct.Par_disp[mpi_size-1] + par_struct.Par_sizes[mpi_size-1];
+  }
+  return 0;
+}
+
+int CartLattice::getDPar(const ParStruct& par_struct, double * wb) {
+  size_t n = getLocalSize();
+  int k = par_struct.Par_size;
+  auto buf = std::make_unique<real_t[]>(n);
+  auto wb_l = std::make_unique<double[]>(par_struct.Par_size);
+  int j = 0;
+  double sum = 0;
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+#ifdef ADJOINT
+  for( const Model::Field& f : model->fields ) {
+	if (f.isParameter) {
+		auto vec = getFieldAdj(f);
+		if (ds) {
+		  for (size_t i=0; i<n; i++) {
+    		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+      			wb_l[j] = vec[i];
+      			sum += wb_l[j]*wb_l[j];
+      			j++;
+			}
+		  }
+		}
+    }
+  }
+#endif
+  output("L2 norm of gradient: %lg\n", sqrt(sum));
+  assert(j == par_struct.Par_size);
+  MPI_Gatherv(wb_l.get(), par_struct.Par_size, MPI_DOUBLE, wb, par_struct.Par_sizes.get(), par_struct.Par_disp.get(), MPI_DOUBLE, 0, MPMD.local);
+  return 0;
+}
+
+int CartLattice::getPar(const ParStruct& par_struct, double * wb) {
+  size_t n = getLocalSize();
+  int k = par_struct.Par_size;
+  auto buf = std::make_unique<real_t[]>(n);
+  auto wb_l = std::make_unique<double[]>(par_struct.Par_size);
+  int j=0;
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+  for( const Model::Field& f : model->fields ) {
+	if (f.isParameter) {
+		auto vec = getField(f);
+		if (ds) {
+		  for (size_t i=0; i<n; i++) {
+    		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+      			wb_l[j] = vec[i];
+      			j++;
+			}
+		  }
+		}
+    }
+  }
+  assert(j == par_struct.Par_size);
+  MPI_Gatherv(wb_l.get(), par_struct.Par_size, MPI_DOUBLE, wb, par_struct.Par_sizes.get(), par_struct.Par_disp.get(), MPI_DOUBLE, 0, MPMD.local);
+  return 0;
+}
+
+int CartLattice::setPar(const ParStruct& par_struct, double * w) {
+  static int en=0;
+  en++;
+  size_t n = getLocalSize();
+  auto buf = std::make_unique<real_t[]>(n);
+  auto w_l = std::make_unique<double[]>(par_struct.Par_size);
+  DEBUG_M;
+  MPI_Scatterv(w, par_struct.Par_sizes.get(), par_struct.Par_disp.get(),  MPI_DOUBLE, w_l.get(), par_struct.Par_size, MPI_DOUBLE, 0, MPMD.local);
+  DEBUG_M;
+  int j=0;
+  double sum =0;
+  double diff;
+  Model::NodeTypeFlag ds = model->nodetypeflags.by_name("DesignSpace");
+  for( const Model::Field& f : model->fields ) {
+	if (f.isParameter) {
+		auto vec = getField(f);
+		DEBUG_M;
+		if (ds) {
+		  for (size_t i=0; i<n; i++) {
+    		if ((geometry->geom[i] & ds.group_flag) == ds.flag) {
+				diff = vec[i];
+				vec[i] = w_l[j];
+				diff -= vec[i];
+				sum += diff*diff;
+				j++;
+			}
+		  }
+		}
+		DEBUG_M;
+		setField(f, vec);
+    }
+  }
+  assert(j == par_struct.Par_size);
+  output("[%d] L2 norm of parameter change: %lg\n", sqrt(sum));
+  return 0;
+}
+
+void CartLattice::resetAverage() {
+	data.reset_iter = data.iter;
+        <?R for (f in rows(Fields))  if (f$average) { ?>
+          CudaMemset(&Snaps[Snap].block14[<?%s f$Index ?>*getLocalRegion().sizeL()],0,getLocalRegion().sizeL()*sizeof(real_t));
+	 <?R } ?>
+}
+<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+void CartLattice::GetSample<?%s q$name ?>(const lbRegion& over, real_t scale,real_t* buf)
+{
+    launcher.container.in = Snaps[Snap];
+<?R if (q$adjoint) { ?>
+    launcher.container.adjin = aSnaps[aSnap]; <?R } ?>
+    lbRegion small = getLocalRegion().intersect(over);
+    launcher.SampleQuantity<?%s q$name ?>(small, (<?%s q$type ?>*)buf, scale, data);
+}
+<?R } ;ifdef() ?>
+void CartLattice::updateAllSamples(){
+ if (sample->size != 0) {
+	for (size_t j = 0; j < sample->spoints.size(); j++) {
+		if (connectivity.mpi_rank == sample->spoints[j].rank) {
+		<?R for (q in rows(Quantities)) { ifdef(q$adjoint); ?>
+	 	 if (sample->quant->in("<?%s q$name ?>"))
+		{
+                        double v = sample->units->alt("<?%s q$unit ?>");
+			GetSample<?%s q$name ?>(sample->spoints[j].location,1/v,&sample->gpu_buffer[sample->location["<?%s q$name ?>"]+(data.iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]);
+		}
+		<?R }; ifdef() ?>
+	} }
+ }
+}
+
+/// Preallocation of a FTabs
+/**
+  Aglomerates all the allocation into one big memory chunk
+*/
+void FTabs::PreAlloc(int nx,int ny,int nz) {
+  size_t size;
+<?R for (m in NonEmptyMargin) { ?>
+  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  CudaPreAlloc( (void**)&<?%s m$name ?>, size );
+<?R } ?>
+}
+
+/// Clearing (zero-ing) of a FTabs
+void FTabs::Clear(int nx,int ny,int nz) {
+  size_t size;
+<?R for (m in NonEmptyMargin) { ?>
+  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  CudaMemset( <?%s m$name ?>, 0, size );
+<?R } ?>
+}
+
+static void NullSafeFree(void * ptr) {
+  if (ptr)
+#ifdef DIRECT_MEM
+    CudaFreeHost(ptr);
+#else
+    CudaFree(ptr);
+#endif
+}
+
+/// Free FTabs memory
+void FTabs::Free() { <?R
+for (m in NonEmptyMargin) { ?>
+  NullSafeFree(<?%s m$name ?>);
+  <?%s m$name ?> = nullptr;<?R
+} ?>
+}
+
+#ifdef GRAPHICS
+/// Mouse Move callback (GUI)
+/**
+	Function called when mouse is moved, wile button pressed in GUI version
+*/
+void MouseMove( CartLattice* data, int x, int y, int nx, int ny )
+{
+	lbRegion r(
+		x,
+		data->getLocalRegion().ny - y - 1,
+		0,
+	1,1,1);
+	<?R if ("Wall" %in% NodeTypes$name) { ?>
+		flag_t NodeType = NODE_Wall;
+		data->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+	<?R } ?>
+}
+
+/// Refresh callback (GUI)
+/**
+	Function called when refresh of the window is needed.
+	Renders the graphics inside of the window in GUI version
+*/
+int MainLoop( uchar4* outputBitmap, CartLattice* data, int ticks )
+{
+	data->Color(outputBitmap); // Updating graphics
+	return 0;
+}
+
+/// Clean-up
+/**
+	Empty now. TODO
+*/
+void MainFree(CartLattice*) {}
+
+// Graphics global objects
+PFNGLBINDBUFFERARBPROC    glBindBuffer     = nullptr;
+PFNGLDELETEBUFFERSARBPROC glDeleteBuffers  = nullptr;
+PFNGLGENBUFFERSARBPROC    glGenBuffers     = nullptr;
+PFNGLBUFFERDATAARBPROC    glBufferData     = nullptr;
+#endif

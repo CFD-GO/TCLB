@@ -3,6 +3,9 @@
 	c_header()
 ?>
 
+#ifndef NODE_HPP
+#define NODE_HPP
+
 /** \file Node.hpp
         Defines Node based on supplied Dynamics
 */
@@ -153,9 +156,6 @@ CudaDeviceFunction T ParticleIteratorT(real_t x, real_t y, real_t z, const Latti
 	real_t upper[3] = {x+mar,y+mar,z+mar};
 	return T(data->solidfinder, data->particle_data, point, lower, upper);
 }
-
-#ifndef NODE_HPP
-#define NODE_HPP
 
 template < class LA, eOperationType I, eCalculateGlobals G, eStage S> struct Node {
         CudaDeviceFunction inline void RunElement(){};

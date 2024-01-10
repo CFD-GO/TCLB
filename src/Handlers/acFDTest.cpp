@@ -32,7 +32,7 @@ int acFDTest::OptimizerInit () {
 		if (attr) {
 			std::string par = attr.value();
                         size_t i = par.find_first_of(':');
-                        if (i == string::npos) {
+                        if (i == std::string::npos) {
 				par_start = attr.as_int();
                         } else {
 				if (i == 0) {
@@ -103,7 +103,8 @@ int acFDTest::OptimizerRun () {
 		for (int i=0;i<Pars; i++) x[i] = start[i];
 		val0 = FOptimize(Pars, x, grad, this);
 		FILE * f;
-		f = fopen((std::string(solver->info.outpath) + "_FD_test.csv").c_str(),"w");
+                const auto fp = solver->outpath + "_FD_test.csv";
+		f = fopen(fp.c_str(),"w");
 		fprintf(f, "Parameter, Value, Gradient, H");
 		for (int o=order; o > 0; o--) fprintf(f,", RightObj%d",o);
 		fprintf(f, ", Objective");

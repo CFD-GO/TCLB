@@ -13,9 +13,8 @@ int cbDumpSettings::Init () {
 
 int cbDumpSettings::DoIt () {
 		Callback::DoIt();
-		char fn[2*STRING_LEN];
-		solver->outIterFile(filename.c_str(), ".csv", fn);
-		solver->lattice->zSet.dumpToFile(fn);
+                const auto fn = solver->outIterFile(filename, ".csv");
+		solver->getCartLattice()->zSet.dumpToFile(fn.c_str());
 		return 0;
 	}
 

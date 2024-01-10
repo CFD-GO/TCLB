@@ -5,13 +5,6 @@
 #include "types.h"
 #include <stdlib.h>
 #include "Sampler.h"
-#include "Lattice.h"
-
-Sampler::Sampler(Lattice *lattice_) : lattice(lattice_) { 
-	size = 0;
-	startIter = 0;
-	position = lbRegion();
-}
 
 int Sampler::initCSV(const char *name) 
      {
@@ -21,7 +14,7 @@ int Sampler::initCSV(const char *name)
      output("Initializing %s\n",filename);
      assert( f != NULL );
      fprintf(f,"Iteration,X,Y,Z");
-	for (const Model::Quantity& it : lattice->model->quantities) {
+	for (const Model::Quantity& it : model->quantities) {
 		if (quant->in(it.name)) {
 			const char* n = it.name.c_str();
 			if (it.isVector) {
@@ -39,19 +32,19 @@ int Sampler::writeHistory(int curr_iter) {
      FILE* f = fopen(filename,"at");
      for (int i = startIter; i< curr_iter; i++){
 	     for (size_t j = 0; j <  spoints.size(); j++) {
-		if (mpis.rank == spoints[j].rank) { 
+		if (mpi_rank == spoints[j].rank) {
 			vector_t tmp_loc;
 			tmp_loc.x = spoints[j].location.dx;
 			tmp_loc.y = spoints[j].location.dy;
 			tmp_loc.z = spoints[j].location.dz;
 			fprintf(f,"%d",i);
 			csvWriteElement(f,tmp_loc);
-	for (Model::Quantity& it : lattice->model->quantities) {
-			if (quant->in(it.name)) {
+	for (const auto& quantity : model->quantities) {
+			if (quant->in(quantity.name)) {
 				real_t tmp;
 				int comp = 1;
-				if (it.isVector) comp = 3;
-				CudaMemcpy(&tmp,&gpu_buffer[(location[it.name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t)*comp,CudaMemcpyDeviceToHost); 
+				if (quantity.isVector) comp = 3;
+				CudaMemcpy(&tmp,&gpu_buffer[(location[quantity.name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t)*comp,CudaMemcpyDeviceToHost);
 				csvWriteElement(f,tmp);
 			}
 		}
@@ -68,10 +61,10 @@ int Sampler::Allocate(name_set* nquantities,int start,int iter) {
 	int i = 0;
 	startIter=start;
 	quant = nquantities;
-	for (Model::Quantity& it : lattice->model->quantities) {
-		if (quant->in(it.name)) {
-			location[it.name] = i;	
-			if (it.isVector) i = i + 3; else i = i + 1;
+	for (const auto& quantity : model->quantities) {
+		if (quant->in(quantity.name)) {
+			location[quantity.name] = i;
+			if (quantity.isVector) i = i + 3; else i = i + 1;
 		}
 	}
 	CudaMalloc((void**)&gpu_buffer, i*totalIter*spoints.size()*sizeof(real_t)); 
@@ -93,7 +86,6 @@ int Sampler::Finish()
  size = 0;
  startIter = 0;
  spoints.clear();
- lbRegion pos;
- position = pos;
+ position = {};
  return 0;
 }

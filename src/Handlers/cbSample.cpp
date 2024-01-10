@@ -4,7 +4,6 @@ std::string cbSample::xmlname = "Sample";
 
 int cbSample::Init () {
 		std::string nm="Sampler";
-		char fn[2*STRING_LEN];
 		Callback::Init();
 		if (everyIter == 0) {
                 	error("Iteration value in sampler should not be zero");
@@ -17,6 +16,7 @@ int cbSample::Init () {
 		else {
 			s.add_from_string("all",',');
 		}
+                const auto lattice = solver->getCartLattice();
 		for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 			if (strcmp(par.name(),"Point") == 0) {
 				lbRegion loc;
@@ -32,33 +32,33 @@ int cbSample::Init () {
 				if (attr) {
 					loc.dz = solver->units.alt(attr.value());
 				}
-				loc = solver->region.intersect(loc);
-				if (loc.nx == 1)  solver->lattice->sample->addPoint(loc,solver->mpi.rank);
+				loc = lattice->getLocalRegion().intersect(loc);
+				if (loc.nx == 1)  lattice->sample->addPoint(loc, solver->mpi_rank);
 			} else {
 				error("Uknown element in Sampler\n");
 				return -1;
 			}
-		} 
-		solver->outIterFile(nm.c_str(),".csv",fn);
-		filename = fn;
-		solver->lattice->sample->units = solver->units;
-		solver->lattice->sample->mpis = solver->mpi;		
-		solver->lattice->sample->Allocate(&s,startIter,everyIter); 
-		solver->lattice->sample->initCSV(filename.c_str());
+		}
+		filename = solver->outIterFile(nm, ".csv");
+		lattice->sample->units = &solver->units;
+		lattice->sample->mpi_rank = solver->mpi_rank;
+		lattice->sample->Allocate(&s,startIter,everyIter);
+		lattice->sample->initCSV(filename.c_str());
 		return 0;
 		}
 
 
 int cbSample::DoIt () {
 		Callback::DoIt();
-		solver->lattice->sample->writeHistory(solver->iter);
-		solver->lattice->sample->startIter = solver->iter;
+                const auto lattice = solver->getCartLattice();
+		lattice->sample->writeHistory(solver->iter);
+		lattice->sample->startIter = solver->iter;
 		return 0;
 		}
 
 
 int cbSample::Finish () {
-	   solver->lattice->sample->Finish();
+	   solver->getCartLattice()->sample->Finish();
 	   return Callback::Finish();
 	 }	 
 

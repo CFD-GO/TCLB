@@ -1,12 +1,11 @@
 #include "cbRunR.h"
 
+#include <algorithm>
+
 #ifdef WITH_R
 
 #define rNull Rcpp::NumericVector(0)
 template <typename T> Rcpp::IntegerVector SingleInteger(T i) { Rcpp::IntegerVector v(1); v[0] = i; return v; }
-
-//RInside RunR::R(0,0,true,false,true);
-RInside RunR::R(0,0,true,false,true);
 
 class rWrapper { // Wrapper for all my R objects
 public:
@@ -48,9 +47,10 @@ public:
 		WARNING("in zone %s setting parameter %s\n", zone.c_str(), name.c_str());
 		Rcpp::NumericVector v(v_);
 	        int zone_number = -1;
-                if (solver->geometry->SettingZones.count(zone) > 0) { 
-                        zone_number = solver->geometry->SettingZones[zone];
-                } else {
+                const auto zone_iter = solver->setting_zones.find(zone);
+                if (zone_iter != solver->setting_zones.end())
+                        zone_number = zone_iter->second;
+                else {
                         WARNING("Unknown zone %s (found while setting parameter %s)\n", zone.c_str(), name.c_str());
                         return;
                 }
@@ -58,8 +58,8 @@ public:
 	}
 	Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		for (std::map<std::string,int>::iterator it = solver->geometry->SettingZones.begin(); it != solver->geometry->SettingZones.end(); it++) {
-			ret.push_back(it->first);
+		for (const auto& [name, id] : solver->setting_zones) {
+			ret.push_back(name);
 		}
 		return ret;
 	}
@@ -110,14 +110,11 @@ public:
 			ERROR("R: Unknown parameter");
 			return Rcpp::NumericVector(0);
 		}
-		lbRegion reg = solver->lattice->region;
-		Rcpp::NumericVector ret(reg.size());
-		Rcpp::IntegerVector retdim(3);
-		retdim[0] = reg.nx;
-		retdim[1] = reg.ny;
-		retdim[2] = reg.nz;
-		ret.attr("dim") = retdim;
-	    solver->lattice->Get_Field(it.id, &ret[0]); 
+		size_t size = solver->lattice->getLocalSize();
+		std::vector<int> retdim = solver->lattice->shape();
+		std::vector<real_t> tmp = solver->lattice->getField(it); 
+		Rcpp::NumericVector ret(tmp.begin(), tmp.end());
+		ret.attr("dim") = Rcpp::IntegerVector(retdim.begin(), retdim.end());
 		return ret;
 	}
 
@@ -128,11 +125,13 @@ public:
 			return;
 		}
 		Rcpp::NumericVector v(v_);
-		if (v.size() != solver->region.size()) {
+		size_t size = solver->lattice->getLocalSize();
+		if ((size_t) v.size() != size) {
 			ERROR("Wrong size of the parameter field!");
 			return;
 		}
-	        solver->lattice->Set_Field(it.id,&v[0]); 
+		std::vector<real_t> tmp(v.begin(), v.end());
+        solver->lattice->setField(it,tmp);
 		return;
 	}
 	Rcpp::CharacterVector Names() {
@@ -206,8 +205,6 @@ class rQuantities : public rWrapper {
 public:
 	std::string print() { return "Quantities"; }
 	SEXP Dollar(std::string name) {
-		lbRegion reg = solver->lattice->region;
-		Rcpp::NumericVector ret;
 		bool si = false;
 		std::string quant = name;
 		size_t last_index = name.find_last_not_of(".");
@@ -225,29 +222,15 @@ public:
 		}
 		double v = 1;
 		if (si) v = solver->units.alt(it.unit);
-		int comp = 1;
-		if (it.isVector) comp = 3;
-		real_t* tmp = new real_t[reg.size()*comp];
-                solver->lattice->GetQuantity(it.id, reg, tmp, 1/v);
-		ret = Rcpp::NumericVector(reg.size()*comp);
+		int comp = it.getComp();
+		size_t size = solver->lattice->getLocalSize();
+		std::vector<real_t> tmp = solver->lattice->getQuantity(it, 1/v);
+		Rcpp::NumericVector ret(tmp.begin(), tmp.end());
+		std::vector<int> retdim = solver->lattice->shape();
 		if (comp != 1) {
-			Rcpp::IntegerVector retdim(4);
-			retdim[0] = comp;
-			retdim[1] = reg.nx;
-			retdim[2] = reg.ny;
-			retdim[3] = reg.nz;
-			ret.attr("dim") = retdim;
-		} else {
-			Rcpp::IntegerVector retdim(3);
-			retdim[0] = reg.nx;
-			retdim[1] = reg.ny;
-			retdim[2] = reg.nz;
-			ret.attr("dim") = retdim;
+			retdim.insert(retdim.begin(),1,comp);
 		}
-		for (size_t i=0; i<reg.sizeL()*comp; i++) {
-			ret[i] = tmp[i];
-		}
-		delete[] tmp;
+		ret.attr("dim") = Rcpp::IntegerVector(retdim.begin(), retdim.end());
 		return ret;
 	}
 	Rcpp::CharacterVector Names() {
@@ -311,7 +294,6 @@ public:
 
 	rAction(const char* name_): name(name_) {};
 	SEXP Call(Rcpp::List args) {
-		int Snap = solver->lattice->Snap;
 		const Model::Action& it = solver->lattice->model->actions.by_name(name);
 		if (it) {
 			solver->lattice->RunAction(it.id, solver->iter_type);
@@ -343,73 +325,50 @@ public:
 
 	void DollarAssign(std::string name, SEXP v_) {
 		Rcpp::IntegerVector v(v_);
-		lbRegion reg = solver->lattice->region;
-		size_t size = reg.sizeL();
-		{
-			flag_t * NodeType = new flag_t[size];
-			solver->lattice->GetFlags(reg, NodeType);
-			for (const Model::NodeTypeGroupFlag& it : solver->lattice->model->nodetypegroupflags) {
-				bool some_na = false;
-				for (size_t i=0;i<size;i++) {
-					if (Rcpp::IntegerVector::is_na(v[i])) {
-						some_na = true;
-					} else {
-						NodeType[i] = (NodeType[i] - (NodeType[i] & it.flag)) + ((v[i] - 1) << it.shift);
-					}
-				}
-				if (some_na) {
-					ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
+		size_t size = solver->lattice->getLocalSize();
+		const Model::NodeTypeGroupFlag& it = solver->lattice->model->nodetypegroupflags.by_name(name);
+		if (it) {
+			std::vector<big_flag_t> NodeType = solver->lattice->getFlags();
+			bool some_na = false;
+			for (size_t i=0;i<size;i++) {
+				if (Rcpp::IntegerVector::is_na(v[i])) {
+					some_na = true;
+				} else {
+					NodeType[i] = (NodeType[i] - (NodeType[i] & it.flag)) + ((v[i] - 1) << it.shift);
 				}
 			}
-			solver->lattice->FlagOverwrite(NodeType, reg);
-			delete[] NodeType;
+			if (some_na) {
+				ERROR("Some NA in Geometry (%s) assignment", it.name.c_str());
+			}
+			return solver->lattice->setFlags(NodeType);
 		}
+		ERROR("R: Unknown component of Geometry");
 		return;
 	}
 
 SEXP Dollar(std::string name) {
-	lbRegion reg = solver->lattice->region;
-	size_t size = reg.sizeL();
-	if (name == "dx") return SingleInteger(reg.dx);
-	if (name == "dy") return SingleInteger(reg.dy);
-	if (name == "dz") return SingleInteger(reg.dz);
-	if (name == "size") return SingleInteger(reg.size());
-	Rcpp::IntegerVector retdim(3);
-	retdim[0] = reg.nx;
-	retdim[1] = reg.ny;
-	retdim[2] = reg.nz;
-	if (name == "dim") return retdim;
+	size_t size = solver->lattice->getLocalSize();
+	// if (name == "dx") return SingleInteger(reg.dx);
+	// if (name == "dy") return SingleInteger(reg.dy);
+	// if (name == "dz") return SingleInteger(reg.dz);
+	if (name == "size") return SingleInteger(size);
+	std::vector<int> retdim = solver->lattice->shape();
+	Rcpp::IntegerVector r_retdim(retdim.begin(), retdim.end());
+	if (name == "dim") return r_retdim;
 	if ((name == "X") || (name == "Y") || (name == "Z")) { // Positions
 		double unit = 1/solver->units.alt("1m");
-		int dir = -1;
-		if (name == "X") dir = 0;
-		if (name == "Y") dir = 1;
-		if (name == "Z") dir = 2;
-		Rcpp::NumericVector small(size);
-		small.attr("dim") = retdim;
-		size_t i=0;
-		for (int z=0;z<reg.nz;z++)
-		for (int y=0;y<reg.ny;y++)
-		for (int x=0;x<reg.nx;x++) {
-			double val=0;
-			switch (dir) {
-			case 0:	val = reg.dx + x; break;
-			case 1: val = reg.dy + y; break;
-			case 2: val = reg.dz + z; break;
-			}
-			val = (val + 0.5) * unit; 
-			small[i] = val;
-			i++;
-		}
-		return small;
+		Model::Coord dir = solver->lattice->model->coords.by_name(name);
+		std::vector<real_t> tmp = solver->lattice->getCoord(dir, unit);
+		Rcpp::NumericVector ret(tmp.begin(),tmp.end());
+		ret.attr("dim") = r_retdim;
+		return ret;
 	}
 
 	const Model::NodeTypeGroupFlag& it = solver->lattice->model->nodetypegroupflags.by_name(name);
 	if (it) { // Geometry components
-		flag_t * NodeType = new flag_t[size];
-		solver->lattice->GetFlags(reg, NodeType);
+		std::vector<big_flag_t> NodeType = solver->lattice->getFlags();
 		Rcpp::IntegerVector small(size);
-		small.attr("dim") = retdim;
+		small.attr("dim") = r_retdim;
 		for (size_t i=0;i<size;i++) {
 			small[i] = 1 + ((NodeType[i] & it.flag) >> it.shift);
 		}
@@ -423,7 +382,6 @@ SEXP Dollar(std::string name) {
 		}
 		small.attr("levels") = levels;
 		small.attr("class") = "factor";
-		delete[] NodeType;
 		return small;
 	}
 	ERROR("R: Unknown component of Geometry");
@@ -431,9 +389,9 @@ SEXP Dollar(std::string name) {
 }
 	virtual Rcpp::CharacterVector Names() {
 		Rcpp::CharacterVector ret;
-		ret.push_back("dx");
-		ret.push_back("dy");
-		ret.push_back("dz");
+		// ret.push_back("dx");
+		// ret.push_back("dy");
+		// ret.push_back("dz");
 		ret.push_back("X");
 		ret.push_back("Y");
 		ret.push_back("Z");
@@ -454,7 +412,7 @@ class rInfo: public rWrapper {
 	SEXP Dollar(std::string name) {
 		Rcpp::CharacterVector ret;
 		if (name == "OutputPath") {
-			ret.push_back(this->solver->info.outpath);
+			ret.push_back(this->solver->outpath);
 			return ret;
 		}
 		ERROR("R: Not implemented!");
@@ -613,48 +571,147 @@ void CLB_WriteConsoleEx( const char* message, int len, int oType ){
 }
 }
 
-  #define R_INTERFACE_PTRS
-  #include <Rinterface.h>
+#define R_INTERFACE_PTRS
+#include <Rinterface.h>
 
-int RunR::Init() {
+
+namespace RunR {
+	RInside& GetR() {
+		static RInside * Rptr;
+		if (Rptr == NULL) {
+			notice("R: Initializing R environment ...");
+			Rptr = new RInside(0,0,true,false,true);
+			RInside& R = *Rptr;
+
+			R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
+			R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
+			R["[[.CLB"]          = Rcpp::InternalFunction( &CLBDollar );
+			R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
+			R["[[<-.CLB"]        = Rcpp::InternalFunction( &CLBDollarAssign );
+			R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
+			R["names.CLB"]       = Rcpp::InternalFunction( &CLBNames );
+			R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
+			ptr_R_WriteConsoleEx = CLB_WriteConsoleEx ;
+			ptr_R_WriteConsole = NULL;
+			R_Outputfile = NULL;
+			R_Consolefile = NULL;
+			R.parseEval("options(prompt='[  ] R:> ');");
+		}
+		return *Rptr;
+	};
+
+	void parseEval(const std::string& source) {
+		RInside& R = GetR();
+		R.parseEval(source);
+	}
+
+	int replInit() {
+		R_ReplDLLinit();
+		return 0;
+	}
+
+	int replDo() {
+		return R_ReplDLLdo1();
+	}
+
+	SEXP wrap_solver(Solver* solver, vHandler * hand) {
+		rWrapper base;
+		base.solver = solver;
+		base.hand = hand;
+		return base.rWrap(new  rSolver ());
+	}
+
+	SEXP wrap_handler(Solver* solver, vHandler * hand, const pugi::xml_node& par) {
+		rWrapper base;
+		base.solver = solver;
+		base.hand = hand;
+		return base.rWrap(new  rXMLNode (par));
+	}
+};
+
+namespace RunPython {
+	bool has_reticulate = false;
+	bool py_initialised = false;
+	void initializePy();
+
+	void parseEval(const std::string& source) {
+		if (! py_initialised) initializePy();
+		Rcpp::Function py_run_string("py_run_string");
+		py_run_string(source);
+		return;
+	}	
+
+	void initializePy() {
+		RInside& R = RunR::GetR();
+		has_reticulate = R.parseEval("require(reticulate, quietly=TRUE)");
+		if (!has_reticulate) throw std::string("Tried to call Python, but no reticulate installed");
+		py_initialised = true;
+		R.parseEval(
+			"py_names = function(obj) names(obj)                                   \n"
+			"py_element = function(obj, name) `[[`(obj,name)                       \n"
+			"py_element_assign = function(obj, name, value) `[[<-`(obj,name,value) \n"
+			"r_to_py.CLB = function(x, convert=FALSE) py$S3(reticulate:::py_capsule(x))\n"
+		);
+		parseEval(
+			"class S3:                                                             \n"
+			"  def __init__(self, obj):                                            \n"
+			"    object.__setattr__(self,'obj',obj)                                \n"
+			"  def print(self):                                                    \n"
+			"    return r.print(self.obj)                                          \n"
+			"  def __dir__(self):                                                  \n"
+			"    return r.py_names(self.obj)                                       \n"
+			"  def __getattr__(self, index):                                       \n"
+			"    if index.startswith('_'):                                         \n"
+			"      return None                                                     \n"
+			"    return r.py_element(self.obj, index)                              \n"
+			"  def __setattr__(self, index, value):                                \n"
+			"    return r.py_element_assign(self.obj, index, value)                \n"
+			"  def __call__(self):                                                 \n"
+			"    raise TypeError('not really callable')                            \n"
+		);
+		R.parseEval(
+			"py$Solver = r_to_py(Solver)"
+		);
+	}
+
+	int replRun() {
+		if (! py_initialised) initializePy();
+		Rcpp::Function repl_python("repl_python");
+		repl_python();
+		return 0;
+	}
+}
+
+int cbRunR::Init() {
 	Callback::Init();
-	notice("R: Initializing R environment ...");
+	RInside& R = RunR::GetR();
+	R["Solver"] = RunR::wrap_solver(solver,this);
 
-	R["CLBFunctionCall"] = Rcpp::InternalFunction( &CLBFunctionCall );
-	R["$.CLB"]           = Rcpp::InternalFunction( &CLBDollar );
-	R["[[.CLB"]          = Rcpp::InternalFunction( &CLBDollar );
-	R["$<-.CLB"]         = Rcpp::InternalFunction( &CLBDollarAssign );
-	R["print.CLB"]       = Rcpp::InternalFunction( &CLBPrint );
-	R["names.CLB"]       = Rcpp::InternalFunction( &CLBNames );
-	R.parseEval("'CLBFunctionWrap' <- function(obj) { function(...) CLBFunctionCall(obj, list(...)); }");
-
-	rWrapper base;
-	base.solver = solver;
-	base.hand = this;
-	R["Solver"]          = base.rWrap(new  rSolver ());
-
-        ptr_R_WriteConsoleEx = CLB_WriteConsoleEx ;
-        ptr_R_WriteConsole = NULL;
-	R_Outputfile = NULL;
-	R_Consolefile = NULL;
-
-	R.parseEval("options(prompt='[  ] R:> ');");
-
+	python = false;
 	interactive = false;
 	echo = true;
 
+	std::string name = node.name();
+	if (name == "RunPython") python = true;
 	pugi::xml_attribute attr;
 	attr = node.attribute("interactive");
 	if (attr) interactive = attr.as_bool();
 	attr = node.attribute("echo");
 	if (attr) echo = attr.as_bool();
 
+	s_tag++;
+	tag = s_tag;
+	
 	source = "";
-        for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+    for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
 		if (par.type() == pugi::node_element) {
+			if (python) {
+				ERROR("Code-embedded xml nodes not supported for python");
+				return -1;
+			}
 			char nd_name[20];
 			sprintf(nd_name, "xml_%0zx", par.hash_value());
-			R[nd_name]          = base.rWrap(new  rXMLNode (par));
+			R[nd_name] = RunR::wrap_handler(solver,this,par);
 			
 			source = source + nd_name + "()\n";
 			output("element\n");
@@ -668,27 +725,28 @@ int RunR::Init() {
 			output("Unknown\n");
 		}
 	}
-//	output("----- RunR -----\n");
-//	output("%s\n",source.c_str());
-//	output("----------------\n");	
-	
+	if (echo) {
+		output("-----[ %9s code %03d ]-----\n", node.name(), tag);
+		output("%s\n",source.c_str());
+		output("--------------------------------\n");
+	}
 	return 0;
 }
 
+int cbRunR::s_tag = 0;
 
-int RunR::DoIt() {
+int cbRunR::DoIt() {
 	try {
 		if (source != "") {
-			solver->print("Running R ...");
-			if (echo) {
-				output("----- RunR -----\n");
-				output("%s\n",source.c_str());
-				output("----------------\n");
+			output("%8d it Executing %s code %03d\n", solver->iter, node.name(), tag);
+			if (python) {
+				RunPython::parseEval(source);
+			} else {
+				RunR::parseEval(source);
 			}
-			R.parseEval(source);
 		}
 		if (!interactive) {
-			if (echo) NOTICE("You can run interactive R session with Ctrl+X");
+			if (echo) NOTICE("You can run interactive %s session with Ctrl+X", node.name());
 			int c = kbhit();
 			if (c == 24) {
 				int a = getchar();
@@ -698,10 +756,21 @@ int RunR::DoIt() {
 			}
 		}
 		if (interactive) {
-			R_ReplDLLinit();
-			while( R_ReplDLLdo1() > 0 ) {}
+			if (python) {
+				RunPython::replRun();
+			} else {
+				RunR::replInit();
+				while( RunR::replDo() > 0 ) {}
+			}
 		}
+	} catch (Rcpp::exception& ex) {
+		ERROR("Caught Rcpp exception");
+		return -1;
+	} catch(std::exception &ex) {	
+		ERROR("Caught std exception: %s", ex.what());
+		return -1;
 	} catch (...) {
+		ERROR("Caught uknown exception");
 		return -1;
 	}
 	return 0;
@@ -713,9 +782,9 @@ int RunR::DoIt() {
 // Function created only to check to create Handler for specific conditions
 vHandler * Ask_For_RunR(const pugi::xml_node& node) {
   std::string name = node.name();
-  if (name == "RunR") {
+  if (name == "RunR" || name == "RunPython") {
 #ifdef WITH_R
-    return new RunR;
+    return new cbRunR;
 #else
     ERROR("No R support. configure with --enable-rinside\n");
     exit(-1);  

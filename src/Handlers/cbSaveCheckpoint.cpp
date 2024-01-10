@@ -43,17 +43,12 @@ int cbSaveCheckpoint::DoIt () {
 			delete the first set into the queue
 		*/
 		output("writing checkpoint");
-		char restartFile[2*STRING_LEN];
-		char filename[2*STRING_LEN];
-		std::string fileStr;
-		std::string restStr;
-
-		solver->outIterCollectiveFile("checkpoint", "", filename);
-		solver->outIterCollectiveFile("restart", ".xml", restartFile);
-		
-		fileStr = solver->lattice->saveSolution(filename);
+		const auto filename = solver->outIterCollectiveFile("checkpoint", "");
+		const auto restartFile = solver->outIterCollectiveFile("restart", ".xml");
+		auto fileStr = solver->lattice->saveSolution(filename);
+                std::string restStr;
 		if (D_MPI_RANK == 0 ) {
-			writeRestartFile(filename, restartFile);
+			writeRestartFile(filename.c_str(), restartFile.c_str());
 			restStr = restartFile;
 		}
 		if (keep != 0){

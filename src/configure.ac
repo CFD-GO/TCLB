@@ -41,6 +41,25 @@ AC_ARG_WITH([hdf5-include],
 	AS_HELP_STRING([--with-hdf5-include=hdf5],
 		[specify the full path to your hdf5 installation (headers)]))
 
+AC_ARG_WITH([parmetis],
+	AS_HELP_STRING([--with-parmetis=parmetis],
+		[specify the full path to your parmetis installation]))
+AC_ARG_WITH([parmetis-lib],
+	AS_HELP_STRING([--with-parmetis-lib=parmetis],
+		[specify the full path to your parmetis installation (libraries)]))
+AC_ARG_WITH([parmetis-include],
+	AS_HELP_STRING([--with-parmetis-include=parmetis],
+		[specify the full path to your parmetis installation (headers)]))
+AC_ARG_WITH([metis],
+	AS_HELP_STRING([--with-metis=metis],
+		[specify the full path to your metis installation]))
+AC_ARG_WITH([metis-lib],
+	AS_HELP_STRING([--with-metis-lib=metis],
+		[specify the full path to your metis installation (libraries)]))
+AC_ARG_WITH([metis-include],
+	AS_HELP_STRING([--with-metis-include=metis],
+		[specify the full path to your metis installation (headers)]))
+
 AC_ARG_WITH([eigen],
 	AS_HELP_STRING([--with-eigen=eigen],
 		[specify the full path to your Eigen installation (headers)]))
@@ -57,9 +76,9 @@ AC_ARG_WITH([storage],
 	AS_HELP_STRING([--with-storage],
 		[type of storage used: half, half-shift, float, float-shift, double]))
 
-AC_ARG_ENABLE([cpp11],
-	AS_HELP_STRING([--enable-cpp11],
-		[enable C++ 11 standard]))
+AC_ARG_ENABLE([cpp17],
+	AS_HELP_STRING([--enable-cpp17],
+		[enable C++ 17 standard]))
 
 AC_ARG_WITH([cuda-arch],
 	AS_HELP_STRING([--with-cuda-arch=arch],
@@ -133,18 +152,6 @@ AC_ARG_ENABLE([debug-kernel],
 	AS_HELP_STRING([--with-debug-kernel],
 		[enable NVCC pos compile stats for debug (lots of output!)]))
 
-AC_ARG_WITH([python],
-	AS_HELP_STRING([--with-python],
-		[Enable CallPython handler, requires python-dev]))
-
-AC_ARG_WITH([python_config],
-	AS_HELP_STRING([--with-python-config],
-		[Set python-config binary to call]))
-
-AC_ARG_WITH([python_bin],
-	AS_HELP_STRING([--with-python-bin],
-		[Set python binary to call]))
-
 AC_ARG_WITH([x-block],
 	AS_HELP_STRING([--with-x-block],
 		[Set the block size in the x direction (X_BLOCK) (default=32)]))
@@ -175,11 +182,9 @@ AC_ARG_WITH([cpp-flags],
 		[privide additionals flags for the compiler]),
 	[CONF_CPPFLAGS="$withval"])		
 
-NVFLAGS=""
-
 if test "x${COMPILER_BINDIR}" != "x"
 then
-	NVFLAGS="-ccbin=${COMPILER_BINDIR} "
+	NVFLAGS="${NVFLAGS} -ccbin=${COMPILER_BINDIR} "
 fi
 
 if test -z "$CXX"
@@ -548,47 +553,109 @@ if test "x${with_hdf5}" != "xno"; then
 	fi
 fi
 
+if test "x${with_parmetis}" != "xno"; then
+    AC_MSG_CHECKING([METIS path])
+    need_parmetis="no"
+    has_parmetis="no"
+    need_metis="no"
+    has_metis="no"
 
-if  test "x${with_python}" == "xyes"; then
-   
-    AC_CHECK_PROG(python_bin,"${with_python_bin}","${with_python_bin}",python3)
-    AC_CHECK_PROG(python_config,"${with_python_config}","${with_python_config}",${python_bin}-config)
+    # First, try to detect metis
+    if test "x${with_metis}" != "x"; then
+        if test "x${with_metis}" == "xno"; then
+            AC_MSG_ERROR([metis was disabled by the user, but it is needed as a dependency for parmetis])
+        fi
+    	METIS_LIB="${with_metis}/lib"
+    	METIS_INCLUDE="${with_metis}/include"
+    	need_metis="yes"
+    fi
+    if test "x${with_metis_lib}" != "x"
+    then
+    	METIS_LIB="${with_metis_lib}"
+    	need_metis="yes"
+    fi
+    if test "x${with_metis_include}" != "x"
+    then
+    	METIS_INCLUDE="${with_metis_include}"
+    	need_metis="yes"
+    fi
+    if test "x${METIS_LIB}" != "x"
+    then
+    	if test -d "${METIS_LIB}"
+    	then
+    		LDFLAGS="${LDFLAGS} -L${METIS_LIB}"
+    	else
+    		AC_MSG_ERROR([${METIS_LIB}: No such directory])
+    	fi
+    fi
+    if test "x${METIS_INCLUDE}" != "x"
+    then
+    	if test -d "${METIS_INCLUDE}"
+    	then
+    		CPPFLAGS="${CPPFLAGS} -I${METIS_INCLUDE}"
+    	else
+    		AC_MSG_ERROR([${METIS_INCLUDE}: No such directory])
+    	fi
+    fi
+    has_metis="yes"
+    AC_CHECK_HEADERS([metis.h],[],[has_metis="no"])
+    AC_CHECK_LIB([metis],[METIS_PartGraphKway],[],[has_metis="no"])
 
-    AC_MSG_NOTICE([python config: ${python_config}])
-    AC_MSG_NOTICE([python: ${python_bin}])
+    # Now, on to parmetis
+    AC_MSG_CHECKING([ParMETIS path])
+	if test "x${with_parmetis}" != "x"; then
+		PARMETIS_LIB="${with_parmetis}/lib"
+		PARMETIS_INCLUDE="${with_parmetis}/include"
+		need_parmetis="yes"
+	fi
+	if test "x${with_parmetis_lib}" != "x"
+	then
+		PARMETIS_LIB="${with_parmetis_lib}"
+		need_parmetis="yes"
+	fi
+	if test "x${with_parmetis_include}" != "x"
+	then
+		PARMETIS_INCLUDE="${with_parmetis_include}"
+		need_parmetis="yes"
+	fi
 
+    # Early error if ParMETIS is needed, but METIS (its dependency) is not available
+	if test "x${need_parmetis}" == "xyes"; then
+	    if test "x${has_metis}" != "xyes"; then
+	        AC_MSG_ERROR([parmetis was requested, but metis cannot be compiled and linked correctly])
+	    fi
+	fi
 
-    AC_MSG_CHECKING([python embandinng: linker flags])
+	if test "x${PARMETIS_LIB}" != "x"
+	then
+		if test -d "${PARMETIS_LIB}"
+		then
+			LDFLAGS="${LDFLAGS} -L${PARMETIS_LIB}"
+		else
+			AC_MSG_ERROR([${PARMETIS_LIB}: No such directory])
+		fi
+	fi
+	if test "x${PARMETIS_INCLUDE}" != "x"
+	then
+		if test -d "${PARMETIS_INCLUDE}"
+		then
+			CPPFLAGS="${CPPFLAGS} -I${PARMETIS_INCLUDE}"
+		else
+			AC_MSG_ERROR([${PARMETIS_INCLUDE}: No such directory])
+		fi
+	fi
+	has_parmetis="yes"
+	AC_CHECK_HEADERS([parmetis.h],[],[has_parmetis="no"])
+	AC_CHECK_LIB([parmetis],[ParMETIS_V3_PartGeomKway],[],[has_parmetis="no"],[-lmetis])
 
-	if ${python_config} --ldflags --embed; then
-	    PF=$(${python_config} --ldflags --embed)
+	if test "x${has_parmetis}" == "xyes"; then
+		AC_DEFINE([WITH_PARMETIS], [1], [Using ParMETIS])
 	else
-	    PF=$(${python_config} --ldflags)
-	fi 
-	
-    LDFLAGS="${LDFLAGS} ${PF}"
-
-    AC_MSG_RESULT([${PF}])
-
-	AC_MSG_CHECKING([Python - numpy additional include path])
-	PYINC="$(${python_bin} -c 'import numpy; print(numpy.get_include())')"
-	CPPFLAGS="${CPPFLAGS} -I${PYINC}"
-    AC_MSG_RESULT([${PYINC}])
-    
-    AC_MSG_CHECKING([Python Embandinng: compiler flags])
-#    PF=$($python_config --cflags)
-    PF=$($python_config --includes)
-    CPPFLAGS="${CPPFLAGS} ${PF}"
-
-    PF=$($python_config --prefix)
-
-    LDFLAGS="${LDFLAGS} -L${PF}/lib"
-    EMBEDED_PYTHON=1
-    AC_MSG_RESULT([${PF}])
-	AC_DEFINE([EMBEDED_PYTHON], [1], [Using Python support])
+		if test "x${need_parmetis}" == "xyes"; then
+			AC_MSG_ERROR([parmetis not found])
+		fi
+	fi
 fi
-
-
 
 NLOPT=""
 
@@ -891,10 +958,10 @@ then
 fi
 
 
-if test "x${enable_cpp11}" != "xno"
+if test "x${enable_cpp17}" != "xno"
 then
-	CPPFLAGS="${CPPFLAGS} -std=c++11"
-	NVFLAGS="${NVFLAGS} -std=c++11"
+	CPPFLAGS="${CPPFLAGS} -std=c++17"
+	NVFLAGS="${NVFLAGS} -std=c++17"
 fi
 
 AC_CHECK_HEADERS([chrono],[AC_DEFINE([USE_STEADY_CLOCK], [1], [Using chrono's steady_clock])],[])
@@ -1007,7 +1074,6 @@ AC_SUBST(WITH_R)
 AC_SUBST(TAPENADE)
 AC_SUBST(PV_VERSION)
 AC_SUBST(RTOPT)
-AC_SUBST(EMBEDED_PYTHON)
 AC_SUBST(X_BLOCK)
 AC_SUBST(WARPSIZE)
 AC_SUBST(X_MOD)

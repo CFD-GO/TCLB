@@ -62,11 +62,12 @@ SetOptions = function(...) {
   }
 }
 
-AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F,average=F, sym=c("","",""), shift=NULL, ...) {
+AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F, average=F, default=NA, sym=c("","",""), shift=NULL, ...) {
 	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
 	if (length(sym) != 3) stop("sym provided to AddDensity have to be a vector of length 3");
+	if (average && missing(default)) default=0;
 	comment = ifelse(comment == "", name, comment);
 	dd = data.frame(
 		name=name,
@@ -79,6 +80,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		group=group,
 		parameter=parameter,
 		average=average,
+		default=default,
 		symX=sym[1],
 		symY=sym[2],
 		symZ=sym[3]
@@ -479,7 +481,8 @@ for (a in rows(Actions)) {
 			legend(par('usr')[2], par('usr')[3], xpd=TRUE, yjust=1, xjust=1, ncol=2, cex=0.7, bty = "n", bg="white",
 				legend = c("Previous iteration", "Newly written field", "Previously written field", "Density read", "Declared read access", "Implicit (undeclared) read access"),
 				pch=c(15,15,15,NA,NA,NA),lty=c(NA,NA,NA,1,1,1),col=c("lightblue", "green","darkgreen","black","green","gray"))
-			axis(2,at=pa_fi$boxmid,labels = Fields$name,las=1)
+			axis(2,at=pa_fi$boxmid,labels = Fields$name,las=1,gap.axis=0,cex.axis=0.6)
+			abline(h=pa_fi$boxmid,col=8,lty=3)
 			pa_col = rep("white",nrow(pa_fi))
 			pa_col[bufin] = "lightblue"
 			rect(-0.5,pa_fi$boxlower,0.5,pa_fi$boxupper,col=pa_col,border="darkblue")
@@ -500,7 +503,7 @@ for (a in rows(Actions)) {
 				pa_col[bufout] = "darkgreen"
 				pa_col[ss] = "green"
 				rect(pa_ws*pa_si-0.5,pa_fi$boxlower,pa_ws*pa_si+0.5,pa_fi$boxupper,col=pa_col)
-				rect(pa_ws*(pa_si-0.5)-0.7,pa_f/2-pa_sl/2-0.5,pa_ws*(pa_si-0.5)+0.7,pa_f/2+pa_sl/2+0.5)
+				rect(pa_ws*(pa_si-0.5)-0.7,pa_f/2-pa_sl/2-0.5,pa_ws*(pa_si-0.5)+0.7,pa_f/2+pa_sl/2+0.5,col="white")
 				text(pa_ws*(pa_si-0.5),pa_f/2,labels=sn,srt=90)
 				pa_a1x = pa_ws*(pa_si-1)+0.5
 				pa_a1y = pa_fi$boxmid
@@ -722,7 +725,7 @@ AddSetting(name="Threshold", comment="Parameters threshold", default=0.5)
 
 Margin = data.frame(
 	name = paste("block",1:27,sep=""),
-	side = paste("side",1:27,sep=""),
+	side = paste("side[",1:27-1,"]",sep=""),
 	dx   = rep(-1:1,times=9),
 	dy   = rep(rep(-1:1,times=3),each=3),
 	dz   = rep(-1:1,each=9),
@@ -990,7 +993,6 @@ AllKernels = expand.grid(
 	Globals=Enums$eCalculateGlobals[1:3],
 	Model=Enums$eModel,
 	Stage=Stages$name
-#	Stage=Enums$eStage
 )
 
 AllKernels$adjoint = (AllKernels$Op %in% c("Adjoint","Opt"))

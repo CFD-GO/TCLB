@@ -8,14 +8,12 @@ int cbSaveBinary::Init () {
 		if (!attr) {
 			attr = node.attribute("filename");
 			if (!attr) {
-				char filename[2*STRING_LEN];
-				solver->outIterFile("Save", "", filename);
-				fn = filename;
+				fn = solver->outIterFile("Save", "");
 			} else {
                 fn = attr.value();
             }
 		} else {
-            fn = ((std::string) solver->info.outpath) + "_" + attr.value();
+            fn = ((std::string) solver->outpath) + "_" + attr.value();
         }
 		return 0;
 	}
@@ -25,9 +23,10 @@ int cbSaveBinary::DoIt () {
 		Callback::DoIt();
 		pugi::xml_attribute attr = node.attribute("comp");
 		if (attr) {
-			solver->saveComp(fn.c_str(), attr.value());
+			error("SaveBinary with selected component was not implemented");
+			return -1;
 		} else {
-			solver->lattice->saveSolution(fn.c_str());
+			solver->lattice->saveSolution(fn);
             	//error("Missing comp attribute in SaveBinary");
 		}
 		return 0;

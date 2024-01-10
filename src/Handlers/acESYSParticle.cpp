@@ -97,10 +97,11 @@ int acESYSParticle::Init () {
                                 return -1;
                         }
                 }
-                        
-                sx = solver->mpi.totalregion.nx;
-                sy = solver->mpi.totalregion.ny;
-                sz = solver->mpi.totalregion.nz;
+
+                const auto& global_region = solver->getCartLattice()->getGlobalRegion();
+                sx = global_region.nx;
+                sy = global_region.ny;
+                sz = global_region.nz;
                 
                 int workers = N - 1;
                 if (workers < 1) {
@@ -119,9 +120,9 @@ int acESYSParticle::Init () {
                         zper = zcirc ? 1 : 0;                        
                         
                         tot=0;
-                        nx0 = solver->mpi.divx;
-                        ny0 = solver->mpi.divy;
-                        nz0 = solver->mpi.divz;
+                        nx0 = solver->getCartLattice()->connectivity.divx;
+                        ny0 = solver->getCartLattice()->connectivity.divy;
+                        nz0 = solver->getCartLattice()->connectivity.divz;
                         if (nx0 <= xper) nx0 = xper + 1;
                         if (ny0 <= yper) ny0 = yper + 1;
                         if (nz0 <= zper) nz0 = zper + 1;
@@ -178,7 +179,7 @@ int acESYSParticle::Init () {
                 double maxRad = 10;
 
         //	solver->outGlobalFile("ESYS", ".py", fn);
-                sprintf(fn, "%s_%s.py", solver->info.outpath, "ESYS");
+                sprintf(fn, "%s_%s.py", solver->outpath.c_str(), "ESYS");
                 output("ESYS-P: config: %s\n", fn);
                 if (D_MPI_RANK == 0) {
                         FILE * f = fopen(fn, "wt");
@@ -197,7 +198,7 @@ int acESYSParticle::Init () {
                         fprintf(f, "%s.setTimeStepSize(%lg)\n", sim.c_str(), 1.0/units[1]);
                         fprintf(f, "%s.setNumTimeSteps(%d)\n", sim.c_str(), Next(solver->iter));
                         fprintf(f, "%s.createInteractionGroup(	RemoteForcePrms(name=\"tclb\", remote_name=\"%s\", max_rad=%lg) )\n", sim.c_str(), MPMD.name.c_str(), maxRad);
-                        fprintf(f, "output_prefix=\"%s_%s\"\n", solver->info.outpath, "ESYS");
+                        fprintf(f, "output_prefix=\"%s_%s\"\n", solver->outpath.c_str(), "ESYS");
                         fprintf(f, "def output_path(x):\n\treturn output_prefix + x\n");
                         fprintf(f, "%s\n", node.child_value());
                         fprintf(f, "%s.run()\n", sim.c_str());

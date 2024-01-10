@@ -273,6 +273,8 @@ CudaDeviceFunction void Init()
 	} else {
 		U = VelocityX;	V = VelocityY;	W = VelocityZ;
 	}
+
+	pnorm = 0.0; // initialise as zero and fill in later stage
 }
 
 CudaDeviceFunction void InitFromFieldsStage()
@@ -282,6 +284,7 @@ CudaDeviceFunction void InitFromFieldsStage()
 	V = Init_UY_External;
 	W = Init_UZ_External;
 	if ( IamWall || IamSolid ) PhaseF = -999;
+	pnorm = 0.0; // initialise as zero and fill in later stage
 }
 
 CudaDeviceFunction void specialCases_Init()
@@ -453,7 +456,6 @@ CudaDeviceFunction void UpdateGlobalMarkers()
     }
 }
 
-
 /*	ITERATION:	*/
 CudaDeviceFunction void Run() 
 {
@@ -516,11 +518,13 @@ CudaDeviceFunction void calc_Fp(real_t *fx, real_t *fy, real_t *fz, real_t press
 	*fy = (-1.0/3.0) * pressure * (Density_h-Density_l) * gPhi.y;
 	*fz = (-1.0/3.0) * pressure * (Density_h-Density_l) * gPhi.z;
 }
+
 CudaDeviceFunction void calc_Fb(real_t *fx, real_t *fy, real_t *fz, real_t rho){
     *fx = (Density_h-rho)*BuoyancyX + rho*GravitationX;
 	*fy = (Density_h-rho)*BuoyancyY + rho*GravitationY;
 	*fz = (Density_h-rho)*BuoyancyZ + rho*GravitationZ;
 }
+
 CudaDeviceFunction void calc_Fs(real_t *fx, real_t *fy, real_t *fz, real_t mu, vector_t gPhi){
 	#ifdef OPTIONS_thermo
 		Temp = Temp(0,0,0);

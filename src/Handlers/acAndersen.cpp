@@ -43,7 +43,7 @@ int acAndersen::Init () {
 		if (attr) {
 			eps = attr.as_double();
 		}
-		n = solver->lattice->sizeOfTab();
+		n = solver->getCartLattice()->sizeOfTab();
 		output("Size of vector in Andersen: %ld\n", n);
 		x = (real_t **) malloc(directions*sizeof(real_t*));
 		e = (real_t **) malloc(directions*sizeof(real_t*));
@@ -64,9 +64,9 @@ int acAndersen::Init () {
                         rotate(p,directions);
                         
                         
-                        solver->lattice->saveToTab(x[0]);
+                        solver->getCartLattice()->saveToTab(x[0]);
                         if (GenericAction::ExecuteInternal()) return -1;
-                        solver->lattice->saveToTab(e[0]);
+                        solver->getCartLattice()->saveToTab(e[0]);
                         for (size_t i=0; i<n; i++) e[0][i] = e[0][i] - x[0][i];
                         double sum = skal(e[0],e[0]);
                         output("Residual in Andersen: %lg\n",sum);
@@ -109,7 +109,7 @@ int acAndersen::Init () {
                                 for (int i=0; i < d; i++) sum += x[i][k]*p[i]/psum;
                                 nx[k] = sum;
                         }
-                        solver->lattice->loadFromTab(nx);
+                        solver->getCartLattice()->loadFromTab(nx);
                         if (GenericAction::ExecuteInternal()) return -1;
                 }
                 free(mem);

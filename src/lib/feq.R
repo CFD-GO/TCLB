@@ -101,7 +101,7 @@ WMRT_mat = function(U) {
 	  as.matrix(m[,paste0(".M",1:n)])
 	}
 	
-	EQ_NO = MRT_eq(U, ortogonal=FALSE, order=300); # Get high-order equilibrium
+	EQ_NO = MRT_eq(U, ortogonal=FALSE, order=300) # Get high-order equilibrium
 	M = EQ_NO$mat
 	A = get.M.matrix(EQ_NO$Req) # get the matrix of terms in the equilibrium moments
 	R = diag(nrow = ncol(A))
