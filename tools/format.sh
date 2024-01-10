@@ -2,12 +2,23 @@
 
 set -o pipefail
 
+
 PP=$(dirname $0)
+THISSCRIPT="$0"
 FORMATFILE="$PP/.clang-format"
 PRINTSKIP=true
 
 function format {
-	clang-format --style=file:$FORMATFILE \
+	FOPT=""
+	if ! test -z "$FORMATFILE"
+	then
+		FOPT="$FOPT --style=file:$FORMATFILE"
+	fi
+	if ! test -z "$ASSUMEFILE"
+	then
+		FOPT="$FOPT --assume-filename=$ASSUMEFILE"
+	fi
+	clang-format $FOPT \
 	| sed -E 's/for[[:blank:]]*[(]([[:alpha:]_]*[[:blank:]]|)[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*=[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*;[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*([<=]*)[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*;[[:blank:]]*([[:alnum:]_]+)[+][+][[:blank:]]*\)/for (\1\2=\3; \4\5\6; \7++)/g' \
 	| sed -E 's| ([*/]) |\1|g'
 }
@@ -52,6 +63,7 @@ function format_to {
 			return 0
 		fi
 	fi
+	ASSUMEFILE="$(basename "$1" | sed 's/[.][Rr][Tt]//')"
 	if [[ "$1" == "$2" ]]
 	then
 		echo "Running $F on $1"
@@ -60,7 +72,11 @@ function format_to {
 	fi
 	cat "$1" | $F >tmp
 	mv tmp "$2"
-	sha256sum "$1" "$2" "$FORMATFILE" >"$SUMFILE"	
+	sha256sum "$1" "$2" "$FORMATFILE" "$THISSCRIPT" >"$SUMFILE"	
+}
+
+function tmp_before_suffix {
+	sed -E 's/(([.][^/.]*)*)$/_format\1/'
 }
 
 OUTFILE=""
@@ -84,6 +100,12 @@ do
 		;;
 	-x|--overwrite)
 		OUTSAME=true
+		;;
+	--code)
+		DIFFTOOL="code --diff"
+		;;
+	--meld)
+		DIFFTOOL="meld"
 		;;
 	-a|--all)
 		shift
@@ -139,11 +161,30 @@ do
 		then
 			OUTFILE="$INFILE"
 		fi
-		if test -z $OUTFILE
+		if ! test -z "$DIFFTOOL"
+		then
+			if test -z "$OUTFILE"
+			then
+				mkdir -p $PP/.format
+				OUTFILE="$PP/.format/$(basename "$INFILE")"
+			elif test "$OUTFILE" == "$INFILE"
+			then
+				echo "Cannot run a diff tool when output file is the same as input"
+				exit -1
+			fi
+		fi
+		if test -z "$OUTFILE"
 		then
 			cat "$INFILE" | $(format_sel "$INFILE")
 		else
 			format_to "$INFILE" "$OUTFILE"
+		fi
+		if ! test -z "$DIFFTOOL"
+		then
+			$DIFFTOOL "$OUTFILE" "$INFILE"
+		fi
+		if test -z "$OUTFILE"
+		then
 			OUTFILE=""
 		fi
 	esac
