@@ -1,0 +1,67 @@
+#!/usr/bin/env Rscript
+
+library(optparse)
+options <- list(
+    make_option(c("-o","--output"), "store", default="", help="Output file", type="character"),
+    make_option(c("-c","--continue"), "store", default="Iteration,Time_si,Walltime", help="regexp for columns to continue by addition (default: Iteration,Time_si,Walltime)", type="character"),
+	make_option(c("-d","--discard"), "store", default="", help="regexp for columns to discard (separate by '|')", type="character")
+)
+
+opt <- parse_args(OptionParser(usage="Usage: csvconcatenate -o file file1 file2 file3", options), positional_arguments=TRUE)
+
+read = function(f) {
+	if (! file.exists(f)) stop(paste("File not found:",f))
+	tab = try(read.csv(f),silent=TRUE)
+	if (inherits(tab, "try-error")) stop(paste(f,"is not a valid CSV file"))
+	tab
+}
+
+args = opt$args
+opt = opt$options
+
+opt$discard = strsplit(opt$discard,",")[[1]]
+if (! is.character(opt$discard)) stop("Discard list is not text")
+
+opt$continue = strsplit(opt$continue,",")[[1]]
+if (! is.character(opt$continue)) stop("Continue list is not text")
+
+grepl_any = function(pattern, x, ...) {
+	sel = rep(FALSE,length(x))
+	for (p in pattern) sel = sel | grepl(p, x, ...)
+	sel
+}
+
+if (length(args) < 1) stop("No csv files provided")
+tab = NULL
+for (fn in args) {
+    tab1 = read(fn)
+    sel = grepl_any(opt$discard, names(tab1))
+    if (any(sel)) tab1=tab1[,!sel]
+    if (is.null(tab)) {
+        tab = tab1
+    } else {
+        if ( ! identical(sort(names(tab)), sort(names(tab1))) ) {
+            cat("names (header) not identical:\n")
+            print(sort(names(tab)))
+            print(sort(names(tab1)))
+            q(status=-2)
+        }
+        sel = grepl_any(opt$continue, names(tab1))
+        if (any(sel)) {
+            for (cn in names(tab1)[sel]) {
+                if (! cn %in% names(tab)) stop(cn,"not in previous csv files")
+                tab1[[cn]] = tab1[[cn]] + max(tab[[cn]])
+            }
+        }
+        tab = rbind(tab,tab1)
+    }
+}
+
+if (opt$output != "") {
+    write.csv(tab, opt$output, row.names=FALSE)
+} else {
+    write.csv(tab, row.names=FALSE)
+}
+
+q(status=0);	
+
