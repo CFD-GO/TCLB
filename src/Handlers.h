@@ -1,6 +1,7 @@
 #ifndef Handler_H
 #define Handler_H
 
+#include "Global.h"
 #include "Handlers/vHandler.h"
 #include "Handlers/NullHandler.h"
 #include "HandlerFactory.h"

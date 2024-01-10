@@ -8,6 +8,10 @@
 #ifndef __GPU_ANIM_H__
 #define __GPU_ANIM_H__
 
+#include "../config.h"
+
+#ifdef GRAPHICS
+
 #include "gl_helper.h"
 
 #include <cuda.h>
@@ -182,6 +186,6 @@ struct GPUAnimBitmap {
     }
 };
 
-
+#endif  // GRAPHICS
 #endif  // __GPU_ANIM_H__
 

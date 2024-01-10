@@ -1,7 +1,10 @@
 #include "Consts.h"
+#include "Global.h"
 #include "cross.h"
+#include "types.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <vector>
 
 #ifndef ZONESETTINGS_H
 #define ZONESETTINGS_H
