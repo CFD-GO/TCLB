@@ -210,7 +210,7 @@ public:
 		Rcpp::NumericVector ret;
 		bool si = false;
 		std::string quant = name;
-		size_t last_index = name.find_last_not_of(".");
+		size_t last_index = name.find_last_of(".");
 		if (last_index != std::string::npos) {
 			std::string result = name.substr(last_index + 1);
 			if (result == "si") {
@@ -514,6 +514,7 @@ public:
 		ret.push_back("Globals");
 		ret.push_back("Actions");
 		ret.push_back("Geometry");
+		ret.push_back("Info");
 		return ret;
 	}
 };
@@ -696,13 +697,21 @@ namespace RunPython {
 	}	
 
 	void initializePy() {
+		if (py_initialised) return;
 		RInside& R = RunR::GetR();
 		has_reticulate = R.parseEval("require(reticulate, quietly=TRUE)");
 		if (!has_reticulate) throw std::string("Tried to call Python, but no reticulate installed");
 		py_initialised = true;
 		R.parseEval(
 			"py_names = function(obj) names(obj)                                   \n"
-			"py_element = function(obj, name) `[[`(obj,name)                       \n"
+			"py_element = function(obj, name) {                                    \n"
+			"  ret = `[[`(obj,name)                                                \n"
+			"  if (is.factor(ret)) {                                               \n"
+			"    as.integer(ret) - 1L                                              \n"
+			"  } else {                                                            \n"
+			"    ret                                                               \n"
+			"  }                                                                   \n"
+			"}                                                                     \n"
 			"py_element_assign = function(obj, name, value) `[[<-`(obj,name,value) \n"
 			"r_to_py.CLB = function(x, convert=FALSE) py$S3(reticulate:::py_capsule(x))\n"
 		);
@@ -714,6 +723,9 @@ namespace RunPython {
 			"    return r.print(self.obj)                                          \n"
 			"  def __dir__(self):                                                  \n"
 			"    return r.py_names(self.obj)                                       \n"
+			"  def __iter__(self):                                                 \n"
+			"    for n in r.py_names(self.obj):                                    \n"
+			"      yield n, r.py_element(self.obj, n)                              \n"
 			"  def __getattr__(self, index):                                       \n"
 			"    if index.startswith('_'):                                         \n"
 			"      return None                                                     \n"
