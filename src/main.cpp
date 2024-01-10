@@ -240,8 +240,10 @@ class SolverBuilder {
     }
     void setZones(pugi::xml_node node) {  // This works for **both** the Geometry and ArbitraryLattice nodes
         for (auto n = node.first_child(); n; n = n.next_sibling()) {
-            const auto attr = n.attribute("name");
-            if (attr) insertZone(attr.value());
+            if (std::string(n.name()) != "Zone") {
+                const auto attr = n.attribute("name");
+                if (attr) insertZone(attr.value());
+            }
         }
     }
     void setSnaps() {
