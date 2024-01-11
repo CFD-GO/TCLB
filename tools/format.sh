@@ -94,6 +94,7 @@ function format_to {
 	else
 		echo "Running $F on $1 -> $2"
 	fi
+	cp "$1" tmp
 	if cat "$1" | $F >tmp
 	then
 		if test -f "$2"
