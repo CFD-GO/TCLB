@@ -78,7 +78,7 @@ function format_to {
 	fi
 	mkdir -p $PP/.format
 	NAMESUM=$(echo "$1 $2" | sha256sum | cut -c 1-30)
-	SUMFILE="$PP/.format/$NAMESUM"
+	SUMFILE="$PP/.format/$NAMESUM.sum"
 	if test -f "$SUMFILE"
 	then
 		if sha256sum --status --check "$SUMFILE"
@@ -101,9 +101,9 @@ function format_to {
 		then
 			if diff tmp $2 >/dev/null
 			then
-				mv tmp "$2"
-			else
 				rm tmp
+			else
+				mv tmp "$2"
 			fi
 		else
 			mkdir -p $(dirname "$2")
