@@ -28,7 +28,8 @@ function formatRT {
 }
 
 function formatR {
-        R -s -e "formatR::tidy_source('stdin', wrap=FALSE, args.newline=TRUE)"
+    #R -s -e "formatR::tidy_source('stdin', wrap=FALSE, args.newline=TRUE)"
+	R -s -e "writeLines(styler::style_text(readLines('stdin'),indent_by = 4L))"
 }
 
 function format_sel {
@@ -169,8 +170,9 @@ do
 				OUTFILE="$PP/.format/$(basename "$INFILE")"
 			elif test "$OUTFILE" == "$INFILE"
 			then
-				echo "Cannot run a diff tool when output file is the same as input"
-				exit -1
+				mkdir -p $PP/.format
+				INFILE="$PP/.format/$(basename "$INFILE")"
+				cp "$OUTFILE" "$INFILE"
 			fi
 		fi
 		if test -z "$OUTFILE"
