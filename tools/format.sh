@@ -8,7 +8,7 @@ THISSCRIPT="$0"
 FORMATFILE="$PP/.clang-format"
 PRINTSKIP=true
 
-function format {
+function formatCPP {
 	FOPT=""
 	if ! test -z "$FORMATFILE"
 	then
@@ -24,7 +24,7 @@ function format {
 }
 
 function formatRT {
-	R -s -e 'rtemplate::RTtokenize()' | format | R -s -e 'rtemplate::RTtokenize(inv=TRUE)'
+	R -s -e 'rtemplate::RTtokenize()' | $@ | R -s -e 'rtemplate::RTtokenize(inv=TRUE)'
 }
 
 function formatR {
@@ -32,16 +32,39 @@ function formatR {
 	R -s -e "writeLines(styler::style_text(readLines('stdin'),indent_by = 4L))"
 }
 
+function formatSH {
+	shfmt -
+}
+
+function formatSKIP {
+	cat
+}
+
+
 function format_sel {
         case "$1" in
         *.[rR][tT])
-                echo formatRT
+                echo formatRT $(format_sel ${1%.[Rr][Tt]})
                 ;;
         *.[rR])
                 echo formatR
                 ;;
-        *)
-                echo format
+		*.sh)
+				echo formatSH
+				;;
+		*.cpp|*.h|*.hpp|*.cu|*.c|*.cuh)
+				echo formatCPP
+				;;
+        *.*)
+				echo formatSKIP
+				;;
+		*)
+				if head -n 1 $1 | grep "bash" >/dev/null 2>&1
+				then
+					echo formatSH
+				else
+					echo formatSKIP
+				fi
                 ;;
         esac
 }
@@ -71,9 +94,25 @@ function format_to {
 	else
 		echo "Running $F on $1 -> $2"
 	fi
-	cat "$1" | $F >tmp
-	mv tmp "$2"
-	sha256sum "$1" "$2" "$FORMATFILE" "$THISSCRIPT" >"$SUMFILE"	
+	if cat "$1" | $F >tmp
+	then
+		if test -f "$2"
+		then
+			if diff tmp $2 >/dev/null
+			then
+				mv tmp "$2"
+			else
+				rm tmp
+			fi
+		else
+			mkdir -p $(dirname "$2")
+			mv tmp "$2"
+		fi
+		sha256sum "$1" "$2" "$FORMATFILE" "$THISSCRIPT" >"$SUMFILE"	
+	else
+		echo "$F failed"
+		exit -1
+	fi
 }
 
 function tmp_before_suffix {
@@ -138,7 +177,7 @@ do
 			exit 4
 		fi
 		PRINTSKIP=false
-		find "$FROM_DIR" | grep -E '[.](cpp|h|hpp|cu|c|R)([.]Rt|)$' | while read i
+		find "$FROM_DIR" -type f | grep -E '(/[^/.]*|[.](cpp|h|hpp|cu|c|cuh|sh|R)([.][Rr][Tt]|))$' | while read i
 		do
 			if test "$FROM_DIR" == "$TO_DIR"
 			then
