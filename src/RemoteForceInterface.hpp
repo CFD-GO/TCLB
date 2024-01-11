@@ -12,8 +12,8 @@
  #define output printf
  #define RFI_DEF_output
 #endif
-#ifndef STRING_LEN
- #define STRING_LEN 1024*4
+#ifndef RFI_STRING_LEN
+ #define RFI_STRING_LEN 1024*4
 #endif
 
 namespace rfi {
@@ -148,7 +148,7 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::all
    sizesStatsNum = 0;
    waitStats.resize(12, 0);
    waitStatsNum.resize(12, 0);
-   char fn[STRING_LEN];
+   char fn[RFI_STRING_LEN];
    
    if (stats_prefix == "") stats_prefix = "RFI";
    sprintf(fn, "%s_%s_P%02d.txt", stats_prefix.c_str(), name.c_str(), rank);
@@ -184,7 +184,7 @@ void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::sav
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t, typename tab_allocator >
 void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::printStats() {
   if (sizesStatsNum == stats_iter) {
-   char fn[STRING_LEN];
+   char fn[RFI_STRING_LEN];
    sprintf(fn, "RFI_stats_%s_%d.txt", name.c_str(), rank);
    FILE * f = fopen(stats_filename.c_str(), "a");
    fprintf(f,"%ld", sizesStatsNum);
