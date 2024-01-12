@@ -7,6 +7,7 @@ PP=$(dirname $0)
 THISSCRIPT="$0"
 FORMATFILE="$PP/.clang-format"
 PRINTSKIP=true
+SKIP_ON_KEEP=false
 
 function formatCPP {
 	FOPT=""
@@ -32,50 +33,87 @@ function formatR {
 	R -s -e "writeLines(styler::style_text(readLines('stdin'),indent_by = 4L))"
 }
 
+function formatXML {
+	xmllint -
+}
+
 function formatSH {
 	shfmt -
 }
 
-function formatSKIP {
+function formatKEEP {
 	cat
 }
 
 
 function format_sel {
-        case "$1" in
-        *.[rR][tT])
-                echo formatRT $(format_sel ${1%.[Rr][Tt]})
-                ;;
-        *.[rR])
-                echo formatR
-                ;;
-		*.sh)
-				echo formatSH
-				;;
-		*.cpp|*.h|*.hpp|*.cu|*.c|*.cuh)
-				echo formatCPP
-				;;
-        *.*)
-				echo formatSKIP
-				;;
-		*)
-				if head -n 1 $1 | grep "bash" >/dev/null 2>&1
-				then
-					echo formatSH
-				else
-					echo formatSKIP
-				fi
-                ;;
-        esac
+	FILE="$1"
+	case "$FILE" in
+	*.[rR][tT])
+		echo formatRT $(format_sel ${FILE%.[Rr][Tt]})
+		return 0
+		;;
+	*.[rR])
+		echo formatR
+		return 0
+		;;
+	*.sh)
+		echo formatSH
+		return 0
+		;;
+	*.xml)
+		echo formatXML
+		return 0
+		;;
+	*.cpp|*.h|*.hpp|*.cu|*.c|*.cuh)
+		echo formatCPP "$FILE"
+		return 0
+		;;
+	*.*)
+		echo formatKEEP
+		return 0
+		;;
+	esac
+	if ! test -f "$1"
+	then
+		echo formatKEEP
+		return 0
+	fi
+	case "$(head -n 1 $1)" in
+	*bash)
+		echo formatSH
+		return 0
+		;;
+	*R|*Rscript)
+		echo formatR
+		return 0
+		;;
+	*)
+		echo formatKEEP
+		return 0
+		;;
+	esac
+	echo formatKEEP
+	return -1
 }
 
 function format_to {
-	F="$(format_sel "$1")"
 	if test -z "$1" || test -z "$2"
 	then
-		echo "Something went wrong in format_to"
+		echo "Empty arguments to format_to"
 		exit 5
 	fi
+	if ! test -f "$1"
+	then
+		echo "File not exists: $1"
+		exit 7
+	fi
+	F="$(format_sel "$1")"
+	if $SKIP_ON_KEEP && test "$F" == "formatKEEP"
+	then
+		$PRINTSKIP && echo "Skipping $1"
+		return 0
+	fi		
 	mkdir -p $PP/.format
 	NAMESUM=$(echo "$1 $2" | sha256sum | cut -c 1-30)
 	SUMFILE="$PP/.format/$NAMESUM.sum"
@@ -88,12 +126,7 @@ function format_to {
 		fi
 	fi
 	ASSUMEFILE="$(basename "$1" | sed 's/[.][Rr][Tt]//')"
-	if [[ "$1" == "$2" ]]
-	then
-		echo "Running $F on $1"
-	else
-		echo "Running $F on $1 -> $2"
-	fi
+	echo "Running: $1 -> $F -> $2"
 	cp "$1" tmp
 	if cat "$1" | $F >tmp
 	then
@@ -178,7 +211,8 @@ do
 			exit 4
 		fi
 		PRINTSKIP=false
-		find "$FROM_DIR" -type f | grep -E '(/[^/.]*|[.](cpp|h|hpp|cu|c|cuh|sh|R)([.][Rr][Tt]|))$' | while read i
+		SKIP_ON_KEEP=true
+		find "$FROM_DIR" -not -path '*/.*' -type f | while read i
 		do
 			if test "$FROM_DIR" == "$TO_DIR"
 			then
