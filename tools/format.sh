@@ -34,7 +34,7 @@ function formatR {
 }
 
 function formatXML {
-	xmllint -
+	sed '/./,$!d' | xmllint -
 }
 
 function formatSH {
