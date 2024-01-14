@@ -193,18 +193,17 @@ template < class LA > struct Node < LA, <?%s T1 ?>, <?%s T2 ?>, <?%s T3 ?> > {
 	CudaDeviceFunction void inline Glob() {
 		glob.Glob();
 	}
-	<?R
-		if (! tp$adjoint) { ?>
-	#include "Dynamics.h" <?R
-		} else { ?>
-	#undef DYNAMICS_B_LOADED <?R
-		} ?>
-//	#include "Dynamics.h"
+	<?R	for (n in c_table_decl(unique(c(Density$name,Fields$name)))) { ?>
+	real_t <?%s n ?>;
+	<?R } ?>
+
 #ifdef CALC_DOUBLE_PRECISION
 	#include "Dynamics.c"
 #else
 	#include "Dynamics_sp.c"
-#endif <?R
+#endif
+
+<?R
 		if (tp$adjoint) {
 		        if (tp$Globals == "Globs") { ?>
         #include "DynamicsS_b.c" <?R

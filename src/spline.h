@@ -1,5 +1,7 @@
 #ifndef SPLINE_H
 
+#include <stdlib.h>
+#include <math.h>
 #include <vector>
 
 // B-Spline knot

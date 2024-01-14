@@ -1,7 +1,6 @@
 #ifndef VHANDLER_H
 #define VHANDLER_H
 
-#include "../Consts.h"
 #include "../pugixml.hpp"
 #include <math.h>
 #define HANDLER_CALLBACK  0x01

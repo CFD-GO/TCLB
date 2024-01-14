@@ -16,7 +16,7 @@ if (!exists("SYMALGEBRA")) SYMALGEBRA=FALSE
 if (!exists("NEED_OFFSETS")) NEED_OFFSETS=TRUE
 if (!exists("X_MOD")) X_MOD=0
 if (!exists("CPU_LAYOUT")) CPU_LAYOUT=FALSE
-if (!exists("plot.access")) plot.access=FALSE
+if (!exists("plot_access")) plot_access=FALSE
 
 memory_arr_cpu = CPU_LAYOUT
 memory_arr_mod = X_MOD
@@ -24,7 +24,6 @@ memory_arr_mod = X_MOD
 # SYMALGEBRA=TRUE
 
 options(stringsAsFactors=FALSE)
-format.list = function(x,...) sapply(x, class)
 
 if (! SYMALGEBRA) {
 	library(polyAlgebra,quietly=TRUE,warn.conflicts=FALSE)
@@ -63,7 +62,6 @@ SetOptions = function(...) {
 }
 
 AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F, group="", parameter=F, average=F, default=NA, sym=c("","",""), shift=NULL, ...) {
-	if (any((parameter) && (dx != 0) && (dy != 0) && (dz != 0))) stop("Parameters cannot be streamed (AddDensity)");
 	if (missing(name)) stop("Have to supply name in AddDensity!")
 	if (missing(group)) group = name
 	if (length(sym) != 3) stop("sym provided to AddDensity have to be a vector of length 3");
@@ -85,6 +83,7 @@ AddDensity = function(name, dx=0, dy=0, dz=0, comment="", field=name, adjoint=F,
 		symY=sym[2],
 		symZ=sym[3]
 	)
+	if (any((dd$parameter) & (dd$dx != 0) & (dd$dy != 0) & (dd$dz != 0))) stop("Parameters cannot be streamed (AddDensity)")
 	DensityAll <<- rbind(DensityAll,dd)
 	for (d in rows(dd)) {
 		AddField(name=d$field,
@@ -265,7 +264,7 @@ AddNodeType = function(name, group) {
 
 
 ## Description
-read.a.file = function(file) {
+read_a_file = function(file) {
 	pot = c(file, paste(include.dir,file,sep="/"))
 	sel = sapply(pot,file.exists)
 	sel = which(sel)
@@ -281,7 +280,7 @@ AddDescription = function(short, long) {
 		stop("Adding descripition twice!")
 	}
 	if (missing(long)) {
-		long = read.a.file("Description.md")
+		long = read_a_file("Description.md")
 		if (is.null(long)) long = short
 	}
 	Description <<- list(
@@ -430,7 +429,7 @@ if (any(duplicated(Stages$name))) stop ("Duplicated Stages' names\n")
 
 row.names(Stages)=Stages$name
 
-if (plot.access) {
+if (plot_access) {
 	
 	pa_fi = Fields
 	pa_fi$index = seq_len(nrow(pa_fi))
@@ -475,7 +474,7 @@ for (a in rows(Actions)) {
 		bufout = rep(FALSE, nrow(Fields))
 		first = TRUE
 		pa_si = 0
-		if (plot.access) {
+		if (plot_access) {
 			pa_s = length(a$stages)
 			plot(NA,xlim=c(-0.5,pa_ws*pa_s+0.5),ylim=pa_frange,xaxt='n',yaxt='n',xlab="",ylab="",main=a$name,asp=1)
 			legend(par('usr')[2], par('usr')[3], xpd=TRUE, yjust=1, xjust=1, ncol=2, cex=0.7, bty = "n", bg="white",
@@ -498,7 +497,7 @@ for (a in rows(Actions)) {
 			sl = DensityAll[,s$loadtag]
 			sl = Fields$name %in% unique(DensityAll$field[sl])
 			sr[(!bufin) & is.na(sr)] = FALSE
-			if (plot.access) {
+			if (plot_access) {
 				pa_col = rep("white",nrow(pa_fi))
 				pa_col[bufout] = "darkgreen"
 				pa_col[ss] = "green"
@@ -540,7 +539,7 @@ for (a in rows(Actions)) {
 	}
 }
 
-if (plot.access) {
+if (plot_access) {
 	dev.off()
 }
 
@@ -559,9 +558,9 @@ if (nrow(NodeTypes) > 0) {
   NodeTypes = do.call(rbind, by(NodeTypes,NodeTypes$group,function(tab) {
           n = nrow(tab)
           l = ceiling(log2(n+1))
-          tab$index    = 1:n
+          tab$index    = seq_len(n)
           tab$Index    = paste("NODE",tab$name,sep="_")
-          tab$value    = NodeShift*(1:n)
+          tab$value    = NodeShift*(seq_len(n))
           tab$mask     = NodeShift*((2^l)-1)
           tab$max      = n
           tab$bits     = l
@@ -816,7 +815,7 @@ for (n in c("Settings","DensityAll","Density","DensityAD","Globals","Quantities"
 	if (is.null(v)) v = data.frame()
 	Consts = rbind(Consts, data.frame(name=toupper(n), value=nrow(v)));
 	if (nrow(v) > 0) {
-		v$index = 1:nrow(v)-1
+		v$index = seq_len(nrow(v))-1
 		v$nicename = gsub("[][ ]","",v$name)
 		v$Index = paste(" ",toupper(n), "_", v$nicename, " ", sep="")
 		row.names(v) = v$name
@@ -852,15 +851,11 @@ if (is.power.of.two(memory_arr_mod)) stop("memory_arr_mod has to be a power of 2
 offsets = function() {
   mw = PV(c("nx","ny","nz"))
   one = PV(c(1L,1L,1L))
-  bp = expand.grid(x=1:3,y=1:3,z=1:3)
   p = expand.grid(x=1:3*3-2,y=1:3*3-1,z=1:3*3)
-  tab1 = c(1,-1,0)
-  tab2 = c(0,-1,1)
-  get_tab = cbind(tab1[bp$x],tab1[bp$y],tab1[bp$z],tab2[bp$x],tab2[bp$y],tab2[bp$z])
   sizes = c(one,mw,one)
   size  =  sizes[p$x]  * sizes[p$y]  * sizes[p$z]
   MarginNSize = PV(rep(0L,27))
-  calc.functions = function(f) {
+  calc_functions = function(f) {
     mins = c(f$minx,f$miny,f$minz)
     maxs = c(f$maxx,f$maxy,f$maxz)
     tab1 = c(0,0,0,ifelse(mins == maxs & maxs > 0,-1,0),ifelse(maxs > 0,1,0))
@@ -874,7 +869,7 @@ offsets = function() {
     nsize = nsizes[p$x] * nsizes[p$y] * nsizes[p$z]
     mSize = MarginNSize
     MarginNSize <<- mSize + nsize
-    offset.p = function(positions) {
+    offset_p = function(positions) {
       positions[c(mins > -2, c(FALSE,FALSE,FALSE), maxs < 2)] = PV(0L)
       if (memory_arr_cpu) {
         offset =  (positions[p$x] +
@@ -927,13 +922,13 @@ offsets = function() {
 	mins = PV(as.integer(mins))
         get_tab = cbind(tab1[p$x],tab1[p$y],tab1[p$z],tab2[p$x],tab2[p$y],tab2[p$z])
         get_sel = tab3[p$x] & tab3[p$y] & tab3[p$z]
-        offset = offset.p(c(w+dw - mins,w+dw,w+dw - mw))
+        offset = offset_p(c(w+dw - mins,w+dw,w+dw - mw))
         cond = c(w+dw,mw-w-dw-one)
         list(Offset=offset,Conditions=cond,Table=get_tab,Selection=get_sel)
       },
       put_offsets = 
       function(w) {
-        offset = offset.p(c(w - mw - PV(as.integer(mins)),w,w))
+        offset = offset_p(c(w - mw - PV(as.integer(mins)),w,w))
         cond = c(w+PV(as.integer(-maxs)),mw-w+PV(as.integer(mins))-one)
         list(Offset=offset,Conditions=cond,Table=put_tab,Selection=put_sel)
       },
@@ -944,8 +939,8 @@ offsets = function() {
   ret$get_offsets = rep(list(NULL),nrow(ret))
   ret$put_offsets = rep(list(NULL),nrow(ret))
   ret$fOffset = rep(list(NULL),nrow(ret))
-  for (idx in 1:nrow(ret)) {
-      fun = calc.functions(ret[idx,])
+  for (idx in seq_len(nrow(ret))) {
+      fun = calc_functions(ret[idx,])
       ret$get_offsets[[idx]] = fun$get_offsets
       ret$put_offsets[[idx]] = fun$put_offsets
       ret$fOffset[[idx]] = fun$fOffset
@@ -956,7 +951,7 @@ offsets = function() {
 if (NEED_OFFSETS) {
     ret = offsets()
     Fields = ret$Fields
-    for (i in 1:length(Margin)) {
+    for (i in seq_along(Margin)) {
             Margin[[i]]$Size = ret$MarginSizes[i]
             if (! is.zero(Margin[[i]]$Size)) {
                      Margin[[i]]$size = 1L;

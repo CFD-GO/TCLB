@@ -1,6 +1,8 @@
 #ifndef RANGE_INT_HPP
 #define RANGE_INT_HPP
 
+#include "cross.h"
+
 template <int A, int B=0, int C=A, int D=B>
 struct range_int {
   const int val;
