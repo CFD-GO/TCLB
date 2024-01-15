@@ -17,20 +17,29 @@ int xpath_modify(pugi::xml_document& doc, pugi::xml_node config, int argc, char 
                         output("Gracefully exiting\n");
                         return -444;
                     }
-                        
-                    output("XPATH: %s\n",argv[i]);
-                    pugi::xpath_node_set found = config.select_nodes(argv[i]);
-                    output("XPATH: %ld things found\n", found.size());
-                    i++;
-                    if (i >= argc) {
-                            ERROR("no operator in xpath evaluation\n");
-                            return -1;
+                    pugi::xpath_node_set found;
+                    if (argv[i][0] == '-' && argv[i][1] == '-') {
+                        found = config.select_nodes(".");
+                        add_attribute = argv[i] + 2;
+                    } else {
+                        output("XPATH: %s\n",argv[i]);
+                        found = config.select_nodes(argv[i]);
+                        output("XPATH: %ld things found\n", found.size());
+                        i++;
+                        if (i < argc && argv[i][0] == '@') {
+                                add_attribute = argv[i] + 1;
+                                i++;
+                        }
+                        if (i >= argc) {
+                                ERROR("no operator in xpath evaluation\n");
+                                return -1;
+                        }
+                        if ((add_attribute != NULL) && (strcmp(argv[i], "=") != 0)) {
+                                ERROR("Only '=' operator can be used for adding attribute\n");
+                                return -1;
+                        }
                     }
-                    if (argv[i][0] == '@') {
-                            add_attribute = argv[i] + 1;
-                            i++;
-                    }
-                    if (strcmp(argv[i], "=") == 0) {
+                    if ((add_attribute != NULL) || (strcmp(argv[i], "=") == 0)) {
                             i++;
                             if (i >= argc) {
                                     ERROR("XPATH: No value supplied to = operator\n");
