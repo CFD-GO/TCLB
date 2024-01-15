@@ -22,6 +22,9 @@
 
 const int d3q27_vec[] = { 0,0,0,1,0,0,-1,0,0,0,1,0,1,1,0,-1,1,0,0,-1,0,1,-1,0,-1,-1,0,0,0,1,1,0,1,-1,0,1,0,1,1,1,1,1,-1,1,1,0,-1,1,1,-1,1,-1,-1,1,0,0,-1,1,0,-1,-1,0,-1,0,1,-1,1,1,-1,-1,1,-1,0,-1,-1,1,-1,-1,-1,-1,-1 };
 
+const double topo_eps = 1e-6;
+const double topo_eps_area = 1e-6;
+
 /// Main constructor
 /**
         Constructs the Geometry object based on size
@@ -439,7 +442,7 @@ inline int Geometry::transformSTL(int ntri, STL_tri * tri, pugi::xml_node n)
 	    tri[i].p3[2] += v;
 	}
     }
-    const double sm_diff[3] = {0.1403e-4, 0.1687e-4, 0.1987e-4};
+    const double sm_diff[3] = {0.1403e-5, 0.1687e-5, 0.1987e-5};
     for (int i = 0; i < ntri; i++) {
 	for (int j = 0; j < 3; j++) {
 		tri[i].p1[j] = myround(tri[i].p1[j] * 1e5) * 1e-5;
@@ -500,44 +503,44 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
     int insideOut=0;
     int axis = 1;
     if (!n.attribute("file")) {
-	error("No 'file' attribute in 'STL' element in xml conf\n");
-	return -1;
+		error("No 'file' attribute in 'STL' element in xml conf\n");
+		return -1;
     }
     if (n.attribute("side")) {
         std::string side=n.attribute("side").value();
         if (side == "in") {
-	    insideOut=0;
+		    insideOut=0;
         } else if (side == "out") {
             insideOut=1;
         } else if (side == "surface") {
             insideOut=2;
         } else {
-	    error("'side' in 'STL' element have to be 'in', 'out' or 'surface'\n");
-	    return -1;
-	}
+			error("'side' in 'STL' element have to be 'in', 'out' or 'surface'\n");
+			return -1;
+		}
     }
     if (n.attribute("ray_axis")) {
-	if (insideOut > 1) {
-		error("the 'ray_axis' setting in 'STL' makes sens only with 'in' or 'out' side\n");
-		return -1;
-	}
+		if (insideOut > 1) {
+			error("the 'ray_axis' setting in 'STL' makes sense only with 'in' or 'out' side\n");
+			return -1;
+		}
         std::string ray_axis=n.attribute("ray_axis").value();
         if (ray_axis == "x") {
-	    axis=0;
+			axis=0;
         } else if (ray_axis == "y") {
             axis=1;
         } else if (ray_axis == "z") {
             axis=2;
         } else {
-	    error("'ray_axis' in 'STL' element have to be 'x', 'y' or 'z'\n");
-	    return -1;
-	}
+			error("'ray_axis' in 'STL' element have to be 'x', 'y' or 'z'\n");
+			return -1;
+		}
     }
     debug1("------ STL -----\n");
     FILE *f = fopen(n.attribute("file").value(), "rb");
     if (f == NULL) {
-	error("'STL' element: %s doesn't exists or cannot be opened\n", n.attribute("file").value());
-	return -1;
+		error("'STL' element: %s doesn't exists or cannot be opened\n", n.attribute("file").value());
+		return -1;
     }
     ret = fread(header, 80, sizeof(char), f);
     ret = fread(&ntri, 1, sizeof(int), f);
@@ -607,6 +610,9 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
 		v2[0] = tri[i].p3[ax2] - tri[i].p1[ax2];
 		v2[1] = tri[i].p3[ax3] - tri[i].p1[ax3];
 		c0 = v1[0] * v2[1] - v1[1] * v2[0];
+		if (fabs(c0) < topo_eps_area) {
+			topo_hit[4]++;
+		} else {
             for (int x2 = min[ax2]; x2 <= max[ax2]; x2++)
                 for (int x3 = min[ax3]; x3 <= max[ax3]; x3++) {
                     v[0] = x2 - tri[i].p1[ax2];
@@ -615,56 +621,58 @@ inline int Geometry::loadSTL(lbRegion reg, pugi::xml_node n)
                     c2 = v[0] * v2[1] - v[1] * v2[0];
                     c1 /= c0;
                     c2 /= c0;
+					if (fabs(c1) < topo_eps) c1 = 0;
+					if (fabs(c2) < topo_eps) c2 = 0;
                     c3 = 1. - c1 - c2;
-			int topo=0;
-			const double dv[2] = { -0.5694552,  0.8220224}; // random direction for resolving bad edges
-			double dc1 = (v1[0] * dv[1] - v1[1] * dv[0])/c0;
-			double dc2 = (dv[0] * v2[1] - dv[1] * v2[0])/c0;
-			double dc3 = - dc1 - dc2;
-			if (c1 == 0) {
-				topo_hit[1]++;
-				if (dc1 > 0) topo++; else if (dc1 == 0) topo_hit[3]++; else topo_hit[2]++;
-			} else if (c1 > 0) topo++;
-			if (c2 == 0) {
-				topo_hit[1]++;
-				if (dc2 > 0) topo++; else if (dc2 == 0) topo_hit[3]++; else topo_hit[2]++;
-			} else if (c2 > 0) topo++;
-			if (c3 == 0) {
-				topo_hit[1]++;
-				if (dc3 > 0) topo++; else if (dc3 == 0) topo_hit[3]++; else topo_hit[2]++;
-			} else if (c3 > 0) topo++;
-                    if (topo == 3) {
-			topo_hit[0]++;
-                        double h = tri[i].p1[ax1] * c3 + tri[i].p2[ax1] * c2 + tri[i].p3[ax1] * c1;
-                        for (int x1 = lx1; x1 <= h; x1++) {
-    //                                        debug1("%d %d %d %d\n",x,y,z,reg.offset(x,y,z));
-				int x,y,z;
-				if (axis == 0) { x = x1; y = x2; z = x3; }
-				if (axis == 1) { x = x3; y = x1; z = x2; }
-				if (axis == 2) { x = x2; y = x3; z = x1; }
-	                        if (reg.isIn(x, y, z))
-        	                        lev[reg.offset(x, y, z)]++;
+					if (fabs(c3) < topo_eps) { c1 += c3/2; c2 += c3/2; c3 = 0; }
+					int topo=0;
+					const double dv[2] = { -0.5694552,  0.8220224}; // random direction for resolving bad edges
+					double dc1 = (v1[0] * dv[1] - v1[1] * dv[0])/c0;
+					double dc2 = (dv[0] * v2[1] - dv[1] * v2[0])/c0;
+					double dc3 = - dc1 - dc2;
+					if (c1 == 0) {
+						topo_hit[1]++;
+						if (dc1 > 0) topo++; else if (dc1 == 0) topo_hit[3]++; else topo_hit[2]++;
+					} else if (c1 > 0) topo++;
+					if (c2 == 0) {
+						topo_hit[1]++;
+						if (dc2 > 0) topo++; else if (dc2 == 0) topo_hit[3]++; else topo_hit[2]++;
+					} else if (c2 > 0) topo++;
+					if (c3 == 0) {
+						topo_hit[1]++;
+						if (dc3 > 0) topo++; else if (dc3 == 0) topo_hit[3]++; else topo_hit[2]++;
+					} else if (c3 > 0) topo++;
+					if (topo == 3) {
+						topo_hit[0]++;
+						double h = tri[i].p1[ax1] * c3 + tri[i].p2[ax1] * c2 + tri[i].p3[ax1] * c1;
+						for (int x1 = lx1; x1 <= h; x1++) {
+							int x,y,z;
+							if (axis == 0) { x = x1; y = x2; z = x3; }
+							if (axis == 1) { x = x3; y = x1; z = x2; }
+							if (axis == 2) { x = x2; y = x3; z = x1; }
+							if (reg.isIn(x, y, z)) lev[reg.offset(x, y, z)]++;
                         }
                     }
                 }
-	}
+			}
+		}
     }
     if (insideOut != 2) {
         for (int x = reg.dx; x < reg.dx + reg.nx; x++)
             for (int y = reg.dy; y < reg.dy + reg.ny; y++)
                 for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
                     if (lev[reg.offset(x, y, z)] % 2 == 1) {
-    //                        debug1("%d %d %d %d\n",x,y,z,lev[reg.offset(x,y,z)]);
                         Dot(x, y, z);
                     }
                 }
-	output("STL: triangle hits: %ld\n", topo_hit[0]);
-	if (topo_hit[1] > 0) {	
-		notice("STL: \\_ edge hits: %ld\n", topo_hit[1]);
-		notice("STL:    \\_ resolved negatively: %ld\n", topo_hit[2]);
-		notice("STL:    \\_ resolved positively: %ld\n", topo_hit[1] - topo_hit[3] - topo_hit[2]);
-		if (topo_hit[3] > 0) NOTICE("STL:    \\_ could not be resolved: %ld (this can cause problems!)\n", topo_hit[3]);
-	}
+		output("STL: triangle hits: %ld\n", topo_hit[0]);
+		if (topo_hit[4] > 0) notice("STL: - eps-area triangles omitted: %ld\n", topo_hit[4]);
+		if (topo_hit[1] > 0) {	
+			notice("STL: - edge hits: %ld\n", topo_hit[1]);
+			notice("STL:   - resolved negatively: %ld\n", topo_hit[2]);
+			notice("STL:   - resolved positively: %ld\n", topo_hit[1] - topo_hit[3] - topo_hit[2]);
+			if (topo_hit[3] > 0) NOTICE("STL:   - could not be resolved: %ld (this can cause problems!)\n", topo_hit[3]);
+		}
     }
     free(tri);
     free(lev);
