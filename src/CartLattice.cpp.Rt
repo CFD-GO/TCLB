@@ -747,7 +747,7 @@ void CartLattice::updateAllSamples(){
 void FTabs::PreAlloc(int nx,int ny,int nz) {
   size_t size;
 <?R for (m in NonEmptyMargin) { ?>
-  size = <?R C(m$Size,float=F) ?>*sizeof(storage_t);
+  size = (size_t) <?R C(m$Size,float=F) ?>*sizeof(storage_t);
   CudaPreAlloc( (void**)&<?%s m$name ?>, size );
 <?R } ?>
 }
