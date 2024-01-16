@@ -19,7 +19,7 @@ get.model.names = function(path) {
 
 get.models = function() {
 	M1 = get.model.dirs("git ls-files | grep 'conf.mk$'")
-	M2 = get.model.dirs("find models/ -name 'conf.mk'")
+	M2 = get.model.dirs("find models -name 'conf.mk'")
 	M3 = union(M1,M2)
 	Models = do.call(rbind, lapply(M3,function (m) {
 		ret = get.model.names(m)
