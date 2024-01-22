@@ -38,7 +38,7 @@ function formatXML {
 }
 
 function formatSH {
-	shfmt -
+	shfmt - | expand -t 4
 }
 
 function formatKEEP {
