@@ -1,27 +1,49 @@
-*~
-makefile.main
-output*
-Running*.log
-Running*.time
-aux
-CLB
-*.cbp
-Snap*.dat
-/*.xml
+# files generated during compilation:
+/makefile.main
+/CLB/
 /config.*
 /configure
-src/test
-my/*
+
+# common temporary folders:
+aux/
+tmp/
+
+# common temporary files to ignore:
+*.cbp
 *.gcov
 *.gcda
 *.gcno
-wiki
-p
+*~
 *.pyc
+*.ipynb_checkpoint*
+
+# IDE related files:
+.idea/
+.vscode/
 .Rproj.user
+*.Rproj
+
+# file generated during runs:
+output/
+Snap*.dat
 /*.vtu
 /*.txt
-.idea/*
-*.ipynb_checkpoint*
+
+# files generated during tests:
 test-*/
-tools/.format/*
+Running*.log
+Running*.time
+
+# cluster & overlay:
+/p
+/.tclb/
+
+# generated documentation files:
+/wiki
+/tools/.format/
+
+# tidy home directory: [discard in overlay]
+/*.xml
+/*.csv
+update.sh
+/.overlay*
