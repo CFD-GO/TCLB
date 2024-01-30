@@ -42,6 +42,7 @@
 //		xx/xx/2022: Extension of phase field to d3q27 option to move away from crappy q15 lattice.
 //		xx/xx/2022: Development of geometric wetting B.C. option as well as existing surface energy.
 //		xx/xx/2023: Code extension for wetting on curved boundaries. 
+// 		30/01/2024: Thermocapillary support moved to TCLB overlay: https://github.com/TravisMitchell/thermocapillary
 
 #include <math.h>
 #define PI 3.14159265
@@ -217,13 +218,8 @@ CudaDeviceFunction real_t calcMu(real_t C)
 				myLaplace('lpPhi', 'PhaseF')
 			?>
 	#endif
-	#ifdef OPTIONS_thermo
-		mu = 4.0*(12.0*SurfaceTension(0,0,0)/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
-			- (1.5 *SurfaceTension(0,0,0)*IntWidth) * lpPhi;
-	#else
-		mu = 4.0*(12.0*sigma/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
-			- (1.5 *sigma*IntWidth) * lpPhi;
-	#endif
+	mu = 4.0*(12.0*sigma/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
+		 - (1.5 *sigma*IntWidth) * lpPhi;
 	return mu;
 }
 
@@ -288,35 +284,7 @@ CudaDeviceFunction void InitFromFieldsStage()
 }
 
 CudaDeviceFunction void specialCases_Init()
-{
-	#ifdef OPTIONS_thermo
-		Temp   = T_init;
-		if (fabs(dT) > 0){
-			Temp = T_init + dT*Y;
-		}
-		if (fabs(dTx) > 0){
-			Temp = T_init + dTx*X;
-		}
-		#ifdef OPTIONS_planarBenchmark
-			if ( (NodeType & NODE_ADDITIONALS) == NODE_BWall) { //bottom wall
-				real_t x, omega;
-				x = (X-0.5) - myL;
-				omega = 3.1415926535897 / myL;
-				Temp = T_h + T_0 * cos(omega * x);
-				printf("y,x=%.4lf,%.4lf\n", Y,x);
-			} else if ( (NodeType & NODE_ADDITIONALS) == NODE_TWall) {
-				Temp = T_c;
-				printf("y,x=%.4lf,%.4lf\n", Y, X);
-			}
-			PhaseF = 0.5 + PLUSMINUS * (0.5) * tanh( (Y - MIDPOINT)/(IntWidth/2) );
-		#endif
-		if (surfPower > 1) {
-			SurfaceTension = sigma + sigma_TT*pow((Temp(0,0,0) - T_ref),surfPower) * (1.0/surfPower);
-		} else {
-			SurfaceTension = sigma + sigma_T*(Temp(0,0,0) - T_ref);
-		}
-		Cond = interp(PhaseF, k_h, k_l);
-	#endif											
+{								
 	// Pre-defined Initialisation patterns:
 	// Diffuse interface sphere
 	   // BubbleType = -1 refers to light fluid bubble.
@@ -418,10 +386,6 @@ CudaDeviceFunction void Init_distributions()
 	?>
         pnorm  = <?R C(sum(g)) ?>;
 		PhaseF = <?R C(sum(h)) ?>;
-	#ifdef OPTIONS_thermo
-		Temp   = Temp(0,0,0);
-		Cond   = interp(PhaseF, k_h, k_l);
-	#endif
 	#ifdef OPTIONS_OutFlow
 			if ((NodeType & NODE_BOUNDARY) == NODE_EConvect){
 					<?R if (Options$OutFlow){
@@ -526,38 +490,9 @@ CudaDeviceFunction void calc_Fb(real_t *fx, real_t *fy, real_t *fz, real_t rho){
 }
 
 CudaDeviceFunction void calc_Fs(real_t *fx, real_t *fy, real_t *fz, real_t mu, vector_t gPhi){
-	#ifdef OPTIONS_thermo
-		Temp = Temp(0,0,0);
-		SurfaceTension = SurfaceTension(0,0,0);
-		Cond = Cond(0,0,0);
-		real_t tmpSig, delta_s, dotTMP, magnPhi, magnPhi2;
-		magnPhi = sqrt(gPhi.x*gPhi.x + gPhi.y*gPhi.y + gPhi.z*gPhi.z);
-		magnPhi2 = magnPhi*magnPhi;
-		vector_t gradT;
-		<?R
-			IsotropicGrad('gradT','Temp')
-		?>
-		dotTMP = dotProduct(gradT,gPhi);
-		if (surfPower < 2) {
-			delta_s = 1.5*IntWidth*sigma_T;
-			*fx = mu * gPhi.x + delta_s*( magnPhi2*gradT.x - dotTMP*gPhi.x );
-			*fy = mu * gPhi.y + delta_s*( magnPhi2*gradT.y - dotTMP*gPhi.y );
-			*fz = mu * gPhi.z + delta_s*( magnPhi2*gradT.z - dotTMP*gPhi.z );
-		} else {
-			vector_t gradSig;
-			<?R
-				IsotropicGrad('gradSig','SurfaceTension')
-			?>
-			delta_s = 1.5*IntWidth;
-			*fx = mu * gPhi.x + delta_s*gradSig.x*( magnPhi2*gradT.x - dotTMP*gPhi.x );
-			*fy = mu * gPhi.y + delta_s*gradSig.y*( magnPhi2*gradT.y - dotTMP*gPhi.y );
-			*fz = mu * gPhi.z + delta_s*gradSig.z*( magnPhi2*gradT.z - dotTMP*gPhi.z );			
-		}
-	#else
-		*fx = mu * gPhi.x;
-		*fy = mu * gPhi.y;
-		*fz = mu * gPhi.z;
-	#endif
+	*fx = mu * gPhi.x;
+	*fy = mu * gPhi.y;
+	*fz = mu * gPhi.z;
 }
 
 #ifndef OPTIONS_BGK
@@ -836,13 +771,6 @@ CudaDeviceFunction void updateTrackers(real_t C){
 			}
 	}
 }
-//#############//
-//######THERMOCAPILLARY UPDATE######//
-#ifdef OPTIONS_thermo
-	<?RT models/multiphase/d3q27_pf_velocity/thermo.c.Rt ?>
-#endif
-//#############//
-
 
 #ifdef OPTIONS_BGK
 CudaDeviceFunction void CollisionBGK()
