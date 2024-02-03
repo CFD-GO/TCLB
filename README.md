@@ -106,6 +106,29 @@ The DEM codes that TCLB can be integrated with are:
 
 Refer to the documentation for instructions on compilation and coupling.
 
+## Models
+For users looking to apply existing LBM methods, common/supported models are below. Note extensions to these models exist using the [TCLB's overlay](https://github.com/CFD-GO/TCLB_overlay) framework and TCLB optional compile flags.
+
+**Two-Dimensional**
+- d2q9: MRT LBM for single-phase flow.
+- d2q9_les: MRT LBM with Smagorinski LES turbulence model.
+- d2q9q9_cm_cht: thermal LBM with Boussinesq approx for coupling and cumulant or cascaded relaxation kernels.
+- d2q9_pf_velocity: multiphase LBM based on the phase field model and incompressible LBM.
+
+**Three-Dimensional**
+- d3q27_cumulant: cumulant LBM with options for:
+     * Interpolated bounceback.
+     * Smagorinski LES turbulence model.
+- d3q27q27_cm_cht: thermal LBM with Boussinesq approx for coupling and cumulant or cascaded collision relaxation kernels.
+- d3q27_pf_velocity: multiphase LBM based on the phase field model and incompressible LBM.
+     * Options for various contact angle implementations (surface energy or geometric)
+     * [Thermocapillary flow extension](https://github.com/TravisMitchell/thermocapillary)
+
+**Particle (DEM) Coupled**
+- d3q27_PSM: Applies the partially saturated model for coupling particles in single phase flow.
+     * Options for Two-Relaxation-Time kernel
+     * Option for Non-Equilibiurm Bounce-Back and Superposition for the DEM-LBM coupling.
+
 ## About
 
 ### Authors

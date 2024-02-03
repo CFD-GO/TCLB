@@ -108,14 +108,6 @@ if (Options$geometric){
     AddField("PhaseF",stencil3d=1, group="PF")
 }
 
-if (Options$thermo){
-    source("thermocapillary.R")
-
-    save_initial_PF = c(save_initial_PF,"Thermal")
-    save_iteration  = c(save_iteration, "Thermal")
-    load_iteration  = c(load_iteration, "Thermal")
-}
-
 ######################
 ########STAGES########
 ######################
@@ -138,26 +130,11 @@ if (Options$thermo){
 		AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 	}
-	if (Options$thermo){
-		AddStage("CopyDistributions", "TempCopy",  save=Fields$group %in% c("g","h","Vel","nw", "PF","Thermal"))
-		AddStage("CopyThermal","ThermalCopy", save=Fields$name %in% c("Temp","Cond","SurfaceTension"), load=DensityAll$name %in% c("Temp","Cond","SurfaceTension"))
-		AddStage("RK_1", "TempUpdate1", save=Fields$name=="RK1", load=DensityAll$name %in% c("U","V","W","Cond","PhaseF","Temp"))
-		AddStage("RK_2", "TempUpdate2", save=Fields$name=="RK2", load=DensityAll$name %in% c("U","V","W","RK1","Cond","PhaseF","Temp"))
-		AddStage("RK_3", "TempUpdate3", save=Fields$name=="RK3", load=DensityAll$name %in% c("U","V","W","RK1","RK2","Cond","PhaseF","Temp"))
-		AddStage("RK_4", "TempUpdate4", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("U","V","W","RK1","RK2","RK3","Cond","PhaseF","Temp"))
-
-		AddStage("NonLocalTemp","BoundUpdate", save=Fields$name %in% c("Temp","SurfaceTension"), load=DensityAll$name %in% c("Temp"))
-	}
 
 #######################
 ########ACTIONS########
 #######################
-	if (Options$thermo){	
-		AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
-		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
-		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
-	} else if (Options$geometric) {
+	if (Options$geometric) {
         calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
         AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))

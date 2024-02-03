@@ -1,6 +1,6 @@
 ADJOINT=0
 TEST=FALSE
-OPT="(q27 + OutFlow  + BGK + thermo*planarBenchmark)*autosym*geometric*staircaseimp*isograd*tprec"
+OPT="(q27 + OutFlow  + BGK)*autosym*geometric*staircaseimp*isograd*tprec"
 # q27 - Q27 lattice structure for phasefield
 #
 # OutFlow - include extra velocity stencil for outflowing boundaries
