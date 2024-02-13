@@ -673,11 +673,32 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
  */
 CudaDeviceFunction void calcWallPhase_correction() {
 	PhaseF = PhaseF(0,0,0);
-
 	if (IsSpecialBoundaryPoint == <?%s NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
 		// take the phase field calculated already from the node in front.
 		// Might as well calculate using the neighbors, e.g. averaging
-		PhaseF = PhaseF_dyn(nw_x, nw_y, nw_z);
+		real_t point_in_the_normal_direction = PhaseF_dyn(nw_x, nw_y, nw_z);
+        // in some cases we might (TODO: investigate) still point into the solid node
+        // that has normal pointing into another, we need to avoid this
+        if (point_in_the_normal_direction == <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>) {
+            // ignore first node
+            int count = 0;
+            real_t fluid_average = 0.0;
+            real_t x, y, z;
+
+			for (int i=1; i<27 ; i++){
+				x = d3q27_ex[i];
+				y = d3q27_ey[i];
+				z = d3q27_ez[i];
+                if (!IsBoundary_dyn(int(x), int(y), int(z)) && PhaseF_dyn(int(x), int(y), int(z)) > -0.5) {
+                    fluid_average += PhaseF_dyn(int(x), int(y), int(z));
+                    count++;
+                }
+			}
+            // print sum and average and count
+            PhaseF = count == 0 ? 1 : fluid_average / count;
+        } else {
+            PhaseF = point_in_the_normal_direction;
+        }
 	}
 }
 
@@ -848,6 +869,57 @@ CudaDeviceFunction real_t getSpecialBoundaryPoint() {
 	return IsSpecialBoundaryPoint;
 }
 
+/* Calculate the actual wall norm based on the solid
+ *field */
+CudaDeviceFunction real_t Init_real_wallNorm()
+{
+    // set initial values
+    nw_x = 0.0;
+    nw_y = 0.0;
+    nw_z = 0.0;
+    if ( IamWall || IamSolid ) {
+
+		int i,j,k;
+	  	real_t tmp = 0.0;
+	  	for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
+			tmp += PhaseF_dyn(i,j,k);
+	  	}}}
+
+	  	if (abs(tmp) > 26000) {
+			// I am surrounded by all solid nodes (sum(pf) = 27*-999 = -26973 if surrounded):
+			nw_x = 0.0; nw_y = 0.0; nw_z = 0.0;
+	  	} else {
+			// no I am not surrounded, so calc normal:
+			int solidFlag[27];
+			// Calculate the normal direction based converting
+			// negative PhaseF into actual solid flags
+			<?R
+			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
+			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
+			    solid = PV(paste0("solidFlag[",1:27-1,"]"))
+
+			    C(solid, pf)
+			?>
+			for (i=0;i<27;i++){
+				nw_x += wg[i] * solidFlag[i] * d3q27_ex[i];
+				nw_y += wg[i] * solidFlag[i] * d3q27_ey[i];
+				nw_z += wg[i] * solidFlag[i] * d3q27_ez[i];
+			}
+			nw_x *= -1.0/3.0; nw_y *= -1.0/3.0; nw_z *= -1.0/3.0;
+			tmp = nw_x*nw_x + nw_y*nw_y + nw_z*nw_z;
+
+            nw_x = nw_x / sqrt(tmp);
+            nw_y = nw_y / sqrt(tmp);
+            nw_z = nw_z / sqrt(tmp);
+
+        }
+    }
+    else {
+        // I am a fluid node, I dont need no solid normal,
+        // should be set to zero before. Branch kept
+        // for clarity
+    }
+}
 
 /*
  * Initialise and set: wall normals, get interpolating triangles and their coefficients,
@@ -863,7 +935,8 @@ CudaDeviceFunction void Init_wallNorm(){
 	coeff_v2 = 0;
 	coeff_v3 = 0;
 #endif
-	if ( IamWall || IamSolid ) { 
+    //printf("PhaseF value is %f\n", PhaseF);
+	if ( IamWall || IamSolid ) {
         IsBoundary = 1.0;
 		int i,j,k;
 	  	real_t tmp = 0.0;
@@ -880,42 +953,29 @@ CudaDeviceFunction void Init_wallNorm(){
 			nw_actual_z = 0.0;
 #endif
 	  	} else {
-			// no I am not surrounded, so calc normal:
-			int solidFlag[27];
+			// Calculate the closest discrete direction for normal:
+			real_t tmp = 0.0;
 			int maxi = 0;
-			real_t myNorm[3] = {0.0,0.0,0.0};
 			real_t maxn=0.0, dot;
 
-			// Calculate the normal direction based converting
-			// negative PhaseF into actual solid flags
-			<?R
-			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
-			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
-			    solid = PV(paste0("solidFlag[",1:27-1,"]"))
-
-			    C(solid, pf)
-			?>
-			for (i=0;i<27;i++){
-				myNorm[0] += wg[i] * solidFlag[i] * d3q27_ex[i];
-				myNorm[1] += wg[i] * solidFlag[i] * d3q27_ey[i];
-				myNorm[2] += wg[i] * solidFlag[i] * d3q27_ez[i];
-
-			}
-			myNorm[0] *= -1.0/3.0;myNorm[1] *= -1.0/3.0;myNorm[2] *= -1.0/3.0;
-			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
-
-			// Calculate the closest discrete direction for normal:
 			for (i = 0; i<27; i++) {
-				dot = (myNorm[0]*d3q27_ex[i] + myNorm[1]*d3q27_ey[i] + myNorm[2]*d3q27_ez[i]) /
-			      		sqrt( tmp*(d3q27_ex[i]*d3q27_ex[i] + d3q27_ey[i]*d3q27_ey[i] +
-					 	   d3q27_ez[i]*d3q27_ez[i]) + 1e-12);
+			tmp = nw_x*nw_x + nw_y*nw_y + nw_z*nw_z;
+            dot = (nw_x*d3q27_ex[i] + nw_y*d3q27_ey[i] + nw_z*d3q27_ez[i]) /
+                    sqrt( tmp*(d3q27_ex[i]*d3q27_ex[i] + d3q27_ey[i]*d3q27_ey[i] +
+                        d3q27_ez[i]*d3q27_ez[i]) + 1e-12);
 				if (dot > maxn) {
 					maxn = dot; maxi = i;
 				}
 			}
+#ifdef OPTIONS_staircaseimp
+            // save original values before they get truncated
+			real_t original_normal[3] = {nw_x, nw_y, nw_z};
+#endif
 			if (maxi < 0) {
 				// This should not happen ?
-				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+				nw_x = 0.0;
+                nw_y = 0.0;
+                nw_z = 0.0;
 			} else {
 				nw_x = d3q27_ex[maxi];
 				nw_y = d3q27_ey[maxi];
@@ -930,7 +990,6 @@ CudaDeviceFunction void Init_wallNorm(){
 			}
 
 #ifdef OPTIONS_staircaseimp
-			real_t truncated_normals[3] = {nw_x, nw_y, nw_z};
 			real_t intersection_point[3];
 			int face_index;
 			real_t coeff[3];
@@ -938,7 +997,7 @@ CudaDeviceFunction void Init_wallNorm(){
 			int t_index;
 			int t_index2;
 
-			calcIntersectionTriangleId(myNorm, t_index, face_index, coeff, intersection_point, t_index2, coeff2);
+			calcIntersectionTriangleId(original_normal, t_index, face_index, coeff, intersection_point, t_index2, coeff2);
 
 			// make sure normal vector is extended to the surface (to use it during interpolation)
 			nw_actual_x = intersection_point[0];
@@ -1027,10 +1086,6 @@ CudaDeviceFunction void Init_wallNorm(){
 
 	  	}
 	} else {
-	// I am a fluid node, I dont need no solid normal.
-		nw_x = 0.0;
-		nw_y = 0.0;
-		nw_z = 0.0;
 #ifdef OPTIONS_staircaseimp
 		nw_actual_x = 0.0;
 		nw_actual_y = 0.0;

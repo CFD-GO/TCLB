@@ -287,6 +287,22 @@ CudaDeviceFunction void InitFromFieldsStage()
 	pnorm = 0.0; // initialise as zero and fill in later stage
 }
 
+
+CudaDeviceFunction void InitFromFieldsStageWithNormals()
+{
+	PhaseF = Init_PhaseField_External;
+	U = Init_UX_External;
+	V = Init_UY_External;
+	W = Init_UZ_External;
+	if ( IamWall || IamSolid ) PhaseF = -999;
+	pnorm = 0.0; // initialise as zero and fill in later stage
+    nw_x = Init_nwx_external;
+    nw_y = Init_nwy_external;
+    nw_z = Init_nwz_external;
+}
+
+
+
 CudaDeviceFunction void specialCases_Init()
 {
 	#ifdef OPTIONS_thermo

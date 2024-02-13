@@ -14,6 +14,11 @@ AddDensity(name="Init_UY_External", group="init", comment="free stream velocity"
 AddDensity(name="Init_UZ_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_PhaseField_External", group="init", dx=0,dy=0,dz=0, parameter=TRUE)
 
+# for initialising the normals
+AddDensity(name="Init_nwx_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
+AddDensity(name="Init_nwy_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
+AddDensity(name="Init_nwz_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
+
 # macroscopic params
 # - consider migrating to fields
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
@@ -125,16 +130,21 @@ if (Options$thermo){
 	AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
 	AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
 	AddStage(name="InitFromFieldsStage", load=DensityAll$group %in% "init",read=FALSE, save=Fields$group %in% save_initial_PF)
+    AddStage(name="InitFromFieldsStageWithNormals", load=DensityAll$group %in% c("init_normals", "init"),read=FALSE, save=Fields$group %in% c("nw", save_initial_PF))
+
 	# STAGES FOR VARIOUS OPTIONS
 	if (Options$geometric){
-		AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+
+		AddStage("WallInit_Real"  , "Init_real_wallNorm", save=Fields$group %in% c("nw"))
+		AddStage("WallInit_CA"  , "Init_wallNorm", load=DensityAll$group %in% c("nw"), save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
 
 		AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
 		AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
 		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 	} else {
-		AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("WallInit_Real"  , "Init_real_wallNorm", save=Fields$group %in% c("nw"))
+		AddStage("WallInit" , "Init_wallNorm", load=DensityAll$group %in% c("nw"), save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 	}
@@ -156,16 +166,18 @@ if (Options$thermo){
 		AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
+		AddAction("Init"     , c("PhaseInit","WallInit_Real","WallInit" , "calcWall","BaseInit"))
 	} else if (Options$geometric) {
         calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
         AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
-	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
-	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("Init"     , c("PhaseInit","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFieldsWithNormals"     , c("InitFromFieldsStageWithNormals","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
-		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
+		AddAction("Init"     , c("PhaseInit", "WallInit_Real", "WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
+		AddAction("InitFields", c("InitFromFieldsStage","WallInit_Real","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
+		AddAction("InitFieldsWithNormals", c("InitFromFieldsStageWithNormals", "WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
 	}
 #######################
 ########OUTPUTS########
