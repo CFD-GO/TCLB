@@ -693,7 +693,7 @@ inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
 	int order=1;
 	attr = node.attribute("order");
 	if (attr) order = attr.as_int();
-	double dl=1e-3;
+	double dl=1e-4;
 	attr = node.attribute("step");
 	if (attr) dl = attr.as_double();
 	attr = node.attribute("steps");
@@ -724,19 +724,31 @@ inline int Geometry::loadSweep(lbRegion reg, pugi::xml_node node)
 		order = n-1;
 	}
     output("Making a Sweep over region (%ld) with %lf step\n",reg.size(), dl);
-    for (int x = reg.dx; x < reg.dx + reg.nx; x++)
-	for (int y = reg.dy; y < reg.dy + reg.ny; y++)
-	    for (int z = reg.dz; z < reg.dz + reg.nz; z++) {
-		for (double l=0;l<1; l+= dl) {
-			double x0 = bspline(l, nx, order);
-			double y0 = bspline(l, ny, order);
-			double z0 = bspline(l, nz, order);
-			double r = bspline(l, nr, order);
-			if ((x-x0)*(x-x0)+(y-y0)*(y-y0)+(z-z0)*(z-z0) < r*r) {
-			    Dot(x, y, z);
+
+	double x0_=-999.0, y0_=-999.0, z0_=-999.0, r0_=-999.0;
+    for (double l=0;l<1; l+= dl) {
+		double x0 = bspline(l, nx, order);
+		double y0 = bspline(l, ny, order);
+		double z0 = bspline(l, nz, order);
+		double r = bspline(l, nr, order);
+
+		if (abs(x0-x0_) < 0.25 && 
+			abs(y0-y0_) < 0.25 && 
+			abs(z0-z0_) < 0.25 && 
+			abs(r-r0_) < 0.25) {
+				continue;		
+		}
+		x0_ = x0; y0_ = y0; z0_ = z0; r0_ = r;
+
+		lbRegion tmpReg=reg.intersect(lbRegion(x0-r-1,y0-r-1,z0-r-1,2*r+2,2*r+2,2*r+2));
+		for (int x = tmpReg.dx; x < tmpReg.dx + tmpReg.nx; x++)
+		for (int y = tmpReg.dy; y < tmpReg.dy + tmpReg.ny; y++)
+		for (int z = tmpReg.dz; z < tmpReg.dz + tmpReg.nz; z++) {
+			if ((.5+x-x0)*(.5+x-x0)+(.5+y-y0)*(.5+y-y0)+(.5+z-z0)*(.5+z-z0) < r*r) {
+				Dot(x, y, z);
 			}
 		}
-	    }
+	}
 
     return 0;	
 }
