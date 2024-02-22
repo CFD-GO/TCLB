@@ -565,7 +565,7 @@ if (nrow(NodeTypes) > 0) {
           tab$mask     = NodeShift*((2^l)-1)
           tab$max      = n
           tab$bits     = l
-          tab$capacity = 2^l
+          tab$capacity = 2^l-1
           tab$shift = NodeShiftNum
           tab$groupIndex = paste("NODE",tab$group,sep="_")
           tab$save = TRUE
@@ -588,7 +588,7 @@ if (NodeShiftNum > 14) {
 ZoneBits = FlagTBits - NodeShiftNum
 ZoneShift = NodeShiftNum
 if (ZoneBits == 0) warning("No additional zones! (too many node types) - it will run, but you cannot use local settings")
-ZoneMax = 2^ZoneBits
+ZoneMax = 2^ZoneBits-1
 NodeTypes = rbind(NodeTypes,data.frame(
         name="DefaultZone",
         group="SETTINGZONE",
@@ -598,7 +598,7 @@ NodeTypes = rbind(NodeTypes,data.frame(
         max=ZoneMax,
         bits=ZoneBits,
         capacity=ZoneMax,
-        mask=(ZoneMax-1)*NodeShift,
+        mask=(ZoneMax)*NodeShift,
         shift=NodeShiftNum,
         groupIndex = "NODE_SETTINGZONE",
         save = TRUE
@@ -611,7 +611,7 @@ if (any(NodeTypes$value >= 2^FlagTBits)) stop("NodeTypes exceeds size of flag_t"
 #ALLBits = ZoneShift
 #ALLMax = 2^ZoneShift
 ALLBits = FlagTBits
-ALLMax = 2^ALLBits
+ALLMax = 2^ALLBits-1
 NodeTypes = rbind(NodeTypes,data.frame(
         name="None",
         group="NONE",
@@ -636,7 +636,7 @@ NodeTypes = rbind(NodeTypes,data.frame(
         max=ALLMax,
         bits=ALLBits,
         capacity=ALLMax,
-        mask=(ALLMax-1),
+        mask=ALLMax,
         shift=0,
         groupIndex = "NODE_ALL",
         save = FALSE
@@ -1034,4 +1034,15 @@ hash_header = function() {
 	for (l in clb_header)
 	cat("# |",l,"|\n",sep="");
 	cat("\n");
+}
+
+big_hex = function(x,bits=16) {
+    ret = ""
+    while (any(x > 0) | bits > 0) {
+      a = x %% 16
+      ret = sprintf("%01x%s",a,ret)
+      x = (x-a) / 16
+      bits = bits - 4
+    }
+    paste0("0x",ret)
 }

@@ -53,13 +53,13 @@ public:
     struct NodeTypeGroupFlag : Thing {
         big_flag_t flag;
         int shift;
-        int max;
-        int capacity;
+        big_flag_t max;
+        big_flag_t capacity;
         int bits;
         bool isSave;
         inline NodeTypeGroupFlag() : flag(0), shift(0), max(0), capacity(0), bits(0), isSave(false) {}
         inline NodeTypeGroupFlag(const big_flag_t& flag_, const std::string& name_,
-                const int& shift_, const int& max_, const int& capacity_, const int& bits_, const bool& isSave_)
+                const int& shift_, const big_flag_t& max_, const big_flag_t& capacity_, const int& bits_, const bool& isSave_)
             : Thing(flag_,name_), flag(flag_), shift(shift_), max(max_), capacity(capacity_), bits(bits_), isSave(isSave_) {}
     };
 
