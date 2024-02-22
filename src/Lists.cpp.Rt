@@ -156,8 +156,8 @@ Model_m::Model_m() {
 		id = NodeTypeGroups$Index,
 		name = q(NodeTypeGroups$name),
 		shift = NodeTypeGroups$shift,
-		max = NodeTypeGroups$max,
-		capacity = NodeTypeGroups$capacity,
+		max = big_hex(NodeTypeGroups$max),
+		capacity = big_hex(NodeTypeGroups$capacity),
 		bits = NodeTypeGroups$bits,
 		isSave = NodeTypeGroups$save
 	)
