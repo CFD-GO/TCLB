@@ -735,8 +735,9 @@ CudaDeviceFunction void calcWallPhase(){
 			<?R } ?>
 
 
-			// dont do staircase improvement if any of the interpolating nodes are solid
-			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
+			// dont do staircase improvement if any of the interpolating nodes are solid, make sure to cover
+			// both cases......
+			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
 				real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
 				h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
 				pf_f = pf_interpolated;
