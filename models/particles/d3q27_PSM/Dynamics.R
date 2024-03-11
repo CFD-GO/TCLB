@@ -71,7 +71,7 @@ AddQuantity(name="U",unit="m/s",vector=T)
 AddQuantity(name="Rho",unit="kg/m3")
 
 AddSetting(name="omegaF", comment='one over F relaxation time and initial relaxation time for kl')
-AddSetting(name="nu", omegaF='1.0/(3*nu+0.5)', default=0.1, comment='kinetic viscosity in LBM unit')
+AddSetting(name="nu", omegaF='1.0/(3*nu+0.5)', default=0.1, comment='kinetic viscosity in LBM unit', unit='m2/s')
 
 if (Options$TRT) {
     AddSetting( name="Lambda", comment="TRT Magic Number")
@@ -120,6 +120,8 @@ AddNodeType(name="BPressure", group="BOUNDARY")
 
 AddNodeType(name="MovingWall_N", group="BOUNDARY")
 AddNodeType(name="MovingWall_S", group="BOUNDARY")
+AddNodeType(name="MovingWall_E", group="BOUNDARY")
+AddNodeType(name="MovingWall_W", group="BOUNDARY")
 
 
 if (Options$particles) {
