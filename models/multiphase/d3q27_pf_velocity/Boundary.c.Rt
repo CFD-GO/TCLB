@@ -718,8 +718,21 @@ CudaDeviceFunction void calcWallPhase(){
         pf_f = <?%s phase_field_field_name ?>_dyn(nw_x, nw_y, nw_z);
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 
-        // if enabled compute staircase improved version of pf_f,
-        // and wallback to pf_f
+        // /now handle special cacses, that don't even
+        // need to calculate the phase field now (or have
+        // access to different fields)
+		if (h < 0.001) {
+			// If I am a wall/solid node and I am surrounded by solid nodes
+			PhaseF = 1;
+        } else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+			// Pass for now. Dont calculate anything, just set it to some huge number, purely to make sure
+			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
+			// and hopefulyl break the simulation
+			PhaseF = <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>;
+        } else {
+
+            // if enabled compute staircase improved version of pf_f,
+            // and wallback to pf_f, which is required is many places
 #ifdef OPTIONS_staircaseimp
 			int face_index = int(triangle_index) / 8;
 			int face_triangle_index = int(triangle_index) % 8;
@@ -743,22 +756,15 @@ CudaDeviceFunction void calcWallPhase(){
 				pf_f = pf_interpolated;
 			}
 #endif
-
         // handling special cases
-		if (h < 0.001) {
-			// If I am a wall/solid node and I am surrounded by solid nodes
-			PhaseF = 1;
-		} else if (fabs(radAngle - PI/2.0) < 1e-4) {
-			// If I am not surrounded, but contact angle is pi/2 (90d)
+		if (fabs(radAngle - PI/2.0) < 1e-4) {
+			// If I am not surrounded, but contact angle is pi/2 (90d). Staircase improved
+			// already handled before
 			PhaseF = pf_f;
-		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
-			// Pass for now. Dont calculate anything, just set it to some huge number, purely to make sure
-			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
-			// and hopefulyl break the simulation
-			PhaseF = <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>;
 		} else if  (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>) {
 			// Eventhough I am geometric boundary condition, still apply surface energy
-			// here because otherwise we cant really apply anything else
+			// here because otherwise we cant really apply anything else. Staircase improved
+			// already handled before
 			a = -h * (4.0/IntWidth) * cos( radAngle );
 			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
 		} else {
@@ -864,6 +870,7 @@ CudaDeviceFunction void calcWallPhase(){
 #endif // end boundary condition pick
 		}
 	}
+  }
 }
 
 CudaDeviceFunction real_t getSpecialBoundaryPoint() {
