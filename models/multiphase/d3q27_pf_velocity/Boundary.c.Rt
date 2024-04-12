@@ -684,13 +684,12 @@ CudaDeviceFunction void calcWallPhase_correction() {
             int count = 0;
             real_t fluid_average = 0.0;
             real_t x, y, z;
-
 			for (int i=1; i<27 ; i++){
 				x = d3q27_ex[i];
 				y = d3q27_ey[i];
 				z = d3q27_ez[i];
                 if (!IsBoundary_dyn(int(x), int(y), int(z)) && PhaseF_dyn(int(x), int(y), int(z)) > -0.5) {
-                    fluid_average += PhaseF_dyn(int(x), int(y), int(z));
+                    fluid_average += wg[i]*PhaseF_dyn(int(x), int(y), int(z));
                     count++;
                 }
 			}
