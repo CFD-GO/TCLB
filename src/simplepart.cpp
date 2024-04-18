@@ -14,6 +14,8 @@ struct Particle {
   double v[3];
   double f[3];
   double favg[3];
+  double omega[3];
+  double torque[3];
   size_t n;
   bool logging;
   Particle() {
@@ -23,6 +25,8 @@ struct Particle {
       v[i] = 0;
       f[i] = 0;
       favg[i] = 0;
+      omega[i] = 0;
+      torque[i] = 0;
     }
     m = 0;
     r = 0;
@@ -119,18 +123,20 @@ int main(int argc, char *argv[]) {
       Particle p;
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
         std::string attr_name = attr.name();
-        if (attr_name == "x") {
-          p.x[0] = attr.as_double();
-        } else if (attr_name == "y") {
-          p.x[1] = attr.as_double();
-        } else if (attr_name == "z") {
-          p.x[2] = attr.as_double();
-        } else if (attr_name == "vx") {
-          p.v[0] = attr.as_double();
-        } else if (attr_name == "vy") {
-          p.v[1] = attr.as_double();
-        } else if (attr_name == "vz") {
-          p.v[2] = attr.as_double();
+        bool vec = true;
+        int d = -1;
+        auto w = attr_name.back();
+        if (w == 'x') { d = 0; }
+        else if (w == 'y') { d = 1; }
+        else if (w == 'z') { d = 2; }
+        else { vec = false; }
+        if (vec) attr_name.pop_back();
+        if (vec && attr_name == "") {
+          p.x[d] = attr.as_double();
+        } else if (vec && attr_name == "v") {
+          p.v[d] = attr.as_double();
+        } else if (vec && attr_name == "omega") {
+          p.omega[d] = attr.as_double();
         } else if (attr_name == "r") {
           p.r = attr.as_double();
         } else if (attr_name == "m") {
@@ -276,14 +282,17 @@ int main(int argc, char *argv[]) {
                     RFI.setData(i, RFI_DATA_VEL + 1, p->v[1]);
                     RFI.setData(i, RFI_DATA_VEL + 2, p->v[2]);
                     if (RFI.Rot()) {
-                      RFI.setData(i, RFI_DATA_ANGVEL + 0, 0.0);
-                      RFI.setData(i, RFI_DATA_ANGVEL + 1, 0.0);
-                      RFI.setData(i, RFI_DATA_ANGVEL + 2, 0.0);
+                      RFI.setData(i, RFI_DATA_ANGVEL + 0, p->omega[0]);
+                      RFI.setData(i, RFI_DATA_ANGVEL + 1, p->omega[1]);
+                      RFI.setData(i, RFI_DATA_ANGVEL + 2, p->omega[2]);
                     }
                   } else {
                     p->f[0] += RFI.getData(i, RFI_DATA_FORCE + 0);
                     p->f[1] += RFI.getData(i, RFI_DATA_FORCE + 1);
                     p->f[2] += RFI.getData(i, RFI_DATA_FORCE + 2);
+                    p->torque[0] += RFI.getData(i, RFI_DATA_MOMENT + 0);
+                    p->torque[1] += RFI.getData(i, RFI_DATA_MOMENT + 1);
+                    p->torque[2] += RFI.getData(i, RFI_DATA_MOMENT + 2);
                   }
                   windex[worker]++;
                 }
