@@ -80,9 +80,9 @@ class name_set {
 std::string path_stripext(const std::string& str);
 std::string path_filename(const std::string& str);
 
-int mkdir_p(char* file_path_, mode_t mode = 0775);
-inline int mkdir_p(std::string file_path_, mode_t mode = 0775) {
-    return mkdir_p(file_path_.c_str(), mode);
+int mkdir_p_c(const char* file_path_, mode_t mode = 0775);
+inline int mkdir_p(std::string file_path, mode_t mode = 0775) {
+    return mkdir_p_c(file_path.c_str(), mode);
 }
 
 void fprintB64(FILE* f, const void* tab, size_t len);

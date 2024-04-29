@@ -41,12 +41,12 @@ std::string path_stripext(const std::string& str) {
 
 std::string path_filename(const std::string& str) {
     size_t i = str.find_last_of('/');
-    if (i == std::string::npos) i = 0;
+    if (i == std::string::npos) i = 0; else i++;
     return str.substr(i);
 }
 
 // This function creates the full path to a file (creates all the directories)
-int mkdir_p(char* file_path_, mode_t mode) {
+int mkdir_p_c(const char* file_path_, mode_t mode) {
   char file_path[1024];
   if (file_path_ == NULL) return -1;
   if (*file_path_ == '\0') return 0;
