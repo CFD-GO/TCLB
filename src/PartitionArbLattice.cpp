@@ -234,7 +234,7 @@ inline void redistributeParmetisGraph(RefinementStageData& data, const std::vect
     mpiWaitAll(reqs);
 
     // Finish computing new vertex distribution
-    std::inclusive_scan(vert_dist.begin(), vert_dist.end(), vert_dist.begin());
+    for (size_t i=1; i<vert_dist.size(); i++) vert_dist[i] += vert_dist[i-1];
 
     // Consolidate vertex data
     vert_wgts.clear();
@@ -377,7 +377,12 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
         std::vector<typename ArbLatticeConnectivity::ZoneIndex> zone_sz, zones;
     };
     std::vector<size_t> zone_sz_offsets(connectivity_initial.getLocalSize());
-    std::transform_exclusive_scan(connectivity_initial.zones_per_node.get(), std::next(connectivity_initial.zones_per_node.get(), connectivity_initial.getLocalSize()), zone_sz_offsets.begin(), size_t{0}, std::plus{}, [](auto v) -> size_t { return v; });
+    size_t k=0;
+    for (size_t i; i<connectivity_initial.getLocalSize(); i++) {
+        zone_sz_offsets[i] = k;
+        k += connectivity_initial.zones_per_node.get()[i];
+    }
+
     const auto pack_data = [&](const std::vector<unsigned long>& gids) {
         ArbLatticeNodeData retval{};
         auto& [coords, nbr_bmps, zone_sz, zones] = retval;

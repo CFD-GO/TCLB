@@ -38,7 +38,7 @@ class CrsGraph {
     CrsGraph() = default;
     CrsGraph(Span<const size_type> row_sizes) : n_rows_(static_cast<size_type>(row_sizes.size())), row_offs_(std::make_unique<size_type[]>(row_sizes.size() + 1)) {
         row_offs_[0] = 0;
-        std::inclusive_scan(row_sizes.begin(), row_sizes.end(), std::next(row_offs_.get()));
+        for (size_t i=0; i< row_sizes.size(); i++) row_offs_[i+1] = row_offs_[i] + row_sizes[i];
         cols_ = std::make_unique<vertex_type[]>(row_offs_[n_rows_]);
     }
 

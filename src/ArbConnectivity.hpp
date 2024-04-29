@@ -60,8 +60,7 @@ inline auto computeInitialNodeDist(size_t num_nodes_global, size_t comm_size) ->
     auto retval = std::vector<long>{};
     retval.reserve(comm_size + 1);
     retval.push_back(0);
-    for (size_t i = 0; i != comm_size; ++i) retval.push_back(static_cast<long>(chunk_size + (i < div_remainder)));
-    std::inclusive_scan(retval.begin(), retval.end(), retval.begin());
+    for (size_t i = 0; i != comm_size; ++i) retval[i+1] = retval[i] + static_cast<long>(chunk_size + (i < div_remainder));
     return retval;
 }
 

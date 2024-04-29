@@ -332,9 +332,8 @@ void ArbLattice::computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<
     const auto local_sz = connect.getLocalSize();
     const auto zone_sizes = Span(connect.zones_per_node.get(), local_sz);
     auto zone_offsets = std::vector<size_t>(local_sz);
-    std::transform_exclusive_scan(zone_sizes.begin(), zone_sizes.end(), zone_offsets.begin(), size_t{0}, std::plus{}, [](auto label) -> size_t {
-        return label;
-    });  // labels are stored as a short type, we need to cast it to size_t before computing the scan
+    zone_offsets[0] = 0;
+    for (size_t i=1; i<local_sz; i++) zone_offsets[i] = zone_offsets[i-1] + zone_sizes[i-1];
     const auto brushes = parseBrushFromXml(arb_node, setting_zones);
     node_types_host = std::pmr::vector<flag_t>(local_sz, &global_pinned_resource);
     for (size_t i = 0; i != local_sz; ++i) {
