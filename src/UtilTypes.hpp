@@ -1,6 +1,8 @@
 #ifndef UTILTYPES_HPP
 #define UTILTYPES_HPP
 
+#include <memory>
+
 /// Utility abstraction for a dynamically-sized contiguous range of elements of type T
 template <typename T>
 class Span {

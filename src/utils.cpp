@@ -33,16 +33,45 @@ void fprintB64(FILE* f, const void* tab, size_t len) {
     fprintf(f, "%s", buf);
 }
 
-int mkdir_p(const std::string& path, std::filesystem::perms perms) {
-    try {
-        const auto fs_path = std::filesystem::path(path).parent_path();
-        std::filesystem::create_directories(fs_path);
-        std::filesystem::permissions(fs_path, perms);
-        return EXIT_SUCCESS;
-    } catch (...) {
-        debug1("Failed to create %s\n", path.c_str());
-        return EXIT_FAILURE;
+
+std::string path_stripext(const std::string& str) {
+    size_t i = str.find_last_of('.');
+    return str.substr(0,i);
+}
+
+std::string path_filename(const std::string& str) {
+    size_t i = str.find_last_of('/');
+    if (i == std::string::npos) i = 0;
+    return str.substr(i);
+}
+
+// This function creates the full path to a file (creates all the directories)
+int mkdir_p(char* file_path_, mode_t mode) {
+  char file_path[1024];
+  if (file_path_ == NULL) return -1;
+  if (*file_path_ == '\0') return 0;
+  if (strlen(file_path_) >= STRING_LEN) {
+    error("too long path in mkdir: %s\n", file_path_);
+    return -1;
+  }
+  strcpy(file_path,file_path_);
+  debug1("mkdir: %s (-p)\n", file_path);
+  char* p;
+  for (p=strchr(file_path+1, '/'); p; p=strchr(p+1, '/')) {
+    *p='\0';
+    if (mkdir(file_path, mode)==-1) {
+      if (errno!=EEXIST) {
+        debug1("mkdir: %s - cannot create\n", file_path);
+        *p='/'; return -1;
+      } else {
+        debug1("mkdir: %s - exists\n", file_path);
+      }
+    } else {
+        debug1("mkdir: %s - created\n", file_path);
     }
+    *p='/';
+  }
+  return 0;
 }
 
 FILE* fopen_gz(const char* filename, const char* mode) {

@@ -26,7 +26,7 @@ using namespace std;
 	}
 
 	void Solver::setOutput(std::string out) {
-	    auto conffile_stem = std::filesystem::path(conffile_path).stem().string();
+        auto conffile_stem = path_stripext(path_filename(conffile_path));
 	    outpath = out + conffile_stem;
 		if (lattice)
 		    lattice->snapFileName = std::move(out) + std::move(conffile_stem) +"_Snap";

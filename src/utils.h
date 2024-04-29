@@ -6,10 +6,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <numeric>
 #include <set>
 #include <string>
+#include <sys/stat.h>
 
 #include "Global.h"
 #include "UtilTypes.hpp"
@@ -77,7 +77,13 @@ class name_set {
     std::set<std::string>::iterator end() { return myset.end(); }
 };
 
-int mkdir_p(const std::string& path, std::filesystem::perms perms = std::filesystem::perms::owner_all | std::filesystem::perms::group_all | std::filesystem::perms::others_read | std::filesystem::perms::others_exec);
+std::string path_stripext(const std::string& str);
+std::string path_filename(const std::string& str);
+
+int mkdir_p(char* file_path_, mode_t mode = 0775);
+inline int mkdir_p(std::string file_path_, mode_t mode = 0775) {
+    return mkdir_p(file_path_.c_str(), mode);
+}
 
 void fprintB64(FILE* f, const void* tab, size_t len);
 
