@@ -378,7 +378,7 @@ auto recoverConnectivity(const ArbLatticeConnectivity& connectivity_initial, con
     };
     std::vector<size_t> zone_sz_offsets(connectivity_initial.getLocalSize());
     size_t k=0;
-    for (size_t i; i<connectivity_initial.getLocalSize(); i++) {
+    for (size_t i=0; i<connectivity_initial.getLocalSize(); i++) {
         zone_sz_offsets[i] = k;
         k += connectivity_initial.zones_per_node.get()[i];
     }
