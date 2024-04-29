@@ -37,7 +37,7 @@ class ArbLattice : public LatticeBase {
 
     struct CommManager {
         std::vector<std::pair<int, size_t>> in_nbrs, out_nbrs;      /// Neighbor IDs + how many elements they are sending
-        std::pmr::vector<storage_t> recv_buf_host, send_buf_host;   /// Comm buffers - these are sent/received on host | TODO: CUDA + MPI
+        std::vector<storage_t, pinned_allocator<storage_t> > recv_buf_host, send_buf_host;   /// Comm buffers - these are sent/received on host | TODO: CUDA + MPI
         CudaUniquePtr<storage_t> recv_buf_device, send_buf_device;  /// Comm buffers - these are packed and unpacked on the device
         CudaUniquePtr<size_t> unpack_inds, pack_inds;               /// Recipes for how to pack/unpack the comm buffers from/into snaps
     };
@@ -65,7 +65,7 @@ class ArbLattice : public LatticeBase {
     CudaUniquePtr<real_t> coords_device;                    /// Device allocation of node coordinates: (B + I) x 3
     CudaUniquePtr<storage_t> snaps_device;                  /// Device allocation of snaps: (B + I + G + 1) x NF x num_snaps
     CudaUniquePtr<flag_t> node_types_device;                /// Device allocation of node type array: (B + I)
-    std::pmr::vector<flag_t> node_types_host;               /// Host (pinned) allocation of node type array: (B + I)
+    std::vector<flag_t, pinned_allocator<flag_t> > node_types_host;               /// Host (pinned) allocation of node type array: (B + I)
     pugi::xml_node initialized_from;                        /// XML node from which this node was initialized - avoid reinitialization if called multiple times with the same arguments
     std::string debug_name;                                 /// Prefix of debug files. Debug files are dumped if debug_name != ""
    public:
@@ -141,8 +141,8 @@ class ArbLattice : public LatticeBase {
     void allocDeviceMemory();                                                                                                      /// Allocate required device memory
     std::vector<NodeTypeBrush> parseBrushFromXml(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones) const;  /// Parse the arbitrary lattice XML to determine the brush sequence to be applied to each node
     void computeNodeTypesOnHost(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones, bool permute);           /// Compute the node types to be stored on the device, `permute` enables better code reuse
-    std::pmr::vector<real_t> computeCoords() const;                                                                                /// Compute the coordinates 2D array to be stored on the device
-    std::pmr::vector<unsigned> computeNeighbors() const;                                                                           /// Compute the neighbors 2D array to be stored on the device
+    std::vector<real_t> computeCoords() const;                                                                                /// Compute the coordinates 2D array to be stored on the device
+    std::vector<unsigned> computeNeighbors() const;                                                                           /// Compute the neighbors 2D array to be stored on the device
     void initDeviceData(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);                                 /// Initialize data residing in device memory
     void initCommManager();                                                                                                        /// Compute which fields need to be sent to/received from which neighbors
     void initContainer();                                                                                                          /// Initialize the data residing in launcher.container
