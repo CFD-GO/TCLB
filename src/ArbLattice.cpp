@@ -573,8 +573,8 @@ void ArbLattice::initCommManager() {
         vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
         comm_manager.in_nbrs.emplace_back(id, vec.size());
     }
-    const size_t recv_buf_size =
-        std::transform_reduce(comm_manager.in_nbrs.cbegin(), comm_manager.in_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
+    size_t recv_buf_size = 0;
+    for (const auto& p : comm_manager.in_nbrs) recv_buf_size += p.second;
     comm_manager.recv_buf_host.resize(recv_buf_size);
     comm_manager.recv_buf_device = cudaMakeUnique<storage_t>(recv_buf_size);
     comm_manager.unpack_inds = cudaMakeUnique<size_t>(recv_buf_size);
@@ -598,8 +598,8 @@ void ArbLattice::initCommManager() {
         if (sz != 0) comm_manager.out_nbrs.emplace_back(out_id, sz);
         ++out_id;
     }
-    size_t send_buf_size =
-        std::transform_reduce(comm_manager.out_nbrs.cbegin(), comm_manager.out_nbrs.cend(), size_t{0}, std::plus{}, [](auto p) { return p.second; });
+    size_t send_buf_size = 0;
+    for (const auto& p : comm_manager.out_nbrs) send_buf_size += p.second;
     comm_manager.send_buf_host.resize(send_buf_size);
     comm_manager.send_buf_device = cudaMakeUnique<storage_t>(send_buf_size);
     comm_manager.pack_inds = cudaMakeUnique<size_t>(send_buf_size);
