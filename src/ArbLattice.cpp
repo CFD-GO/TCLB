@@ -205,7 +205,7 @@ void ArbLattice::partition() {
                                             std::find(Model_m::offset_directions.cbegin(),
                                                       Model_m::offset_directions.cend(),
                                                       OffsetDir{0, 0, 0}));  // Note: the behavior is still correct even if (0,0,0) is not an offset direction
-    const auto offset_dir_wgts = std::vector(Model_m::offset_direction_weights.begin(), Model_m::offset_direction_weights.end());
+    const std::vector<size_t> offset_dir_wgts(Model_m::offset_direction_weights.begin(), Model_m::offset_direction_weights.end());
     auto [dist, log] = partitionArbLattice(connect, offset_dir_wgts, zero_dir_ind, comm);
     for (const auto& [type, msg] : log) switch (type) {
             case PartOutput::MsgType::Notice:

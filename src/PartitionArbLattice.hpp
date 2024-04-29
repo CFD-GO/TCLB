@@ -9,7 +9,7 @@
 
 // We need to store some logs here, since we don't have access to fancy printing from within the partitioning utilities (due to conflicting typedefs)
 struct PartOutput {
-    enum struct MsgType { Notice, Warning, Error };
+    enum MsgType { Notice, Warning, Error };
     struct LoggedEvent {
         MsgType type;
         std::string message;
