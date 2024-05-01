@@ -20,6 +20,7 @@ int Action::Init () {
 		}
 		if (node.attribute("output")) {
 			solver->setOutput(node.attribute("output").value());
+			DEBUG_M;
 		}
 		return 0;
 	}

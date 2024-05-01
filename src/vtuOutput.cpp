@@ -12,7 +12,7 @@ void VtkFileOut::init() {
     f.reset(fopen(name.c_str(), "w"));
     if (!f) throw std::runtime_error{"Could not open file: "s + name};
     if (mpitools::MPI_Rank(comm) == 0) {
-        const std::string pvtu_path = std::filesystem::path(name).replace_extension("pvtu");
+        const std::string pvtu_path = path_stripext(name) + ".pvtu";
         fp.reset(fopen(pvtu_path.c_str(), "w"));
         if (!fp) throw std::runtime_error{"Could not open file: "s + name};
     }
@@ -47,13 +47,18 @@ void VtkFileOut::writePieceInfo() const {
     const int name_sz = name.size() + 1;
     MPI_Gather(&name_sz, 1, mpitools::getMPIType<int>(), name_sizes.data(), 1, mpitools::getMPIType<int>(), 0, comm);
     auto name_offsets = name_sizes;
-    std::exclusive_scan(name_sizes.cbegin(), name_sizes.cend(), name_offsets.begin(), 0);
+    int k=0;
+    for (size_t i=0; i<name_sizes.size(); i++) {
+        name_offsets[i] = k;
+        k += name_sizes[i];
+    }
     std::vector<char> names(am0 ? name_offsets.back() + name_sizes.back() : 0);
     MPI_Gatherv(name.data(), name_sz, mpitools::getMPIType<char>(), names.data(), name_sizes.data(), name_offsets.data(), mpitools::getMPIType<char>(), 0, comm);
     if (am0)
         for (int i = 0; i != mpitools::MPI_Size(comm); ++i) {
-            const std::string_view piece_name(std::next(names.data(), name_offsets[i]), name_sizes[i]);
-            const std::string piece_fn = std::filesystem::path(piece_name).filename();
+            //const std::string_view piece_name(std::next(names.data(), name_offsets[i]), name_sizes[i]);
+            const std::string piece_name(std::next(names.data(), name_offsets[i]), name_sizes[i]);
+            const std::string piece_fn = path_filename(piece_name);
             fprintf(fp.get(), "<Piece Source=\"%s\"/>\n", piece_fn.c_str());
         }
 }
