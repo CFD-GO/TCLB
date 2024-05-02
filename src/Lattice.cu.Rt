@@ -402,6 +402,9 @@ void Lattice::CopyInParticles() {
 		RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
 		RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
 		RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
+		RFI.RawData(i, RFI_DATA_MOMENT+0) = 0;
+		RFI.RawData(i, RFI_DATA_MOMENT+1) = 0;
+		RFI.RawData(i, RFI_DATA_MOMENT+2) = 0;
 	}
 	if (RFI.mem_size() > 0) {
 		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);

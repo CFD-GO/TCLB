@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   MPMD.Identify();
-  rfi::RemoteForceInterface<rfi::ForceIntegrator, rfi::RotParticle> RFI;
+  rfi::RemoteForceInterface<rfi::ForceIntegrator, rfi::RotParticle, rfi::ArrayOfStructures, real_t> RFI;
   RFI.name = "SIMPLEPART";
 
   MPMDIntercomm inter = MPMD["TCLB"];
@@ -68,6 +68,12 @@ int main(int argc, char *argv[]) {
   int logging_iter = 1;
   FILE* logging_f = NULL;
   bool avg = false;
+
+  bool log_position = true;
+  bool log_velocity = true;
+  bool log_force = true;
+  bool log_omega = false;
+  bool log_torque = false;
 
   double periodicity[3];
   bool periodic[3];
@@ -190,6 +196,10 @@ int main(int argc, char *argv[]) {
         } else if (attr_name == "average") {
           avg = attr.as_bool();
           if (avg) notice("SIMPLEPART: Particle force averaging is ON");
+        } else if (attr_name == "rotation") {
+          log_omega = attr.as_bool();
+          log_torque = log_omega;
+          if (log_omega) notice("SIMPLEPART: Particle omega and torque is logged");
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
@@ -213,7 +223,11 @@ int main(int argc, char *argv[]) {
     fprintf(logging_f, "Iteration,Time");
     for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
       size_t n = p->n;
-      fprintf(logging_f, ",p%ld_x,p%ld_y,p%ld_z,p%ld_vx,p%ld_vy,p%ld_vz,p%ld_fx,p%ld_fy,p%ld_fz",n,n,n,n,n,n,n,n,n);
+      if (log_position) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","",n);
+      if (log_velocity) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","v",n);
+      if (log_force) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","f",n);
+      if (log_omega) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","o",n);
+      if (log_torque) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","t",n);
     }
     fprintf(logging_f, "\n");
   }
@@ -236,6 +250,9 @@ int main(int argc, char *argv[]) {
           p->f[0] = 0;
           p->f[1] = 0;
           p->f[2] = 0;
+          p->torque[0] = 0;
+          p->torque[1] = 0;
+          p->torque[2] = 0;
         }
         int minper[3], maxper[3], d[3];
         size_t offset = 0;
@@ -290,9 +307,11 @@ int main(int argc, char *argv[]) {
                     p->f[0] += RFI.getData(i, RFI_DATA_FORCE + 0);
                     p->f[1] += RFI.getData(i, RFI_DATA_FORCE + 1);
                     p->f[2] += RFI.getData(i, RFI_DATA_FORCE + 2);
-                    p->torque[0] += RFI.getData(i, RFI_DATA_MOMENT + 0);
-                    p->torque[1] += RFI.getData(i, RFI_DATA_MOMENT + 1);
-                    p->torque[2] += RFI.getData(i, RFI_DATA_MOMENT + 2);
+                    if (RFI.Rot()) {
+                      p->torque[0] += RFI.getData(i, RFI_DATA_MOMENT + 0);
+                      p->torque[1] += RFI.getData(i, RFI_DATA_MOMENT + 1);
+                      p->torque[2] += RFI.getData(i, RFI_DATA_MOMENT + 2);
+                    }
                   }
                   windex[worker]++;
                 }
@@ -316,14 +335,18 @@ int main(int argc, char *argv[]) {
     if (logging && (iter % logging_iter == 0)) {
       fprintf(logging_f, "%d,%.15lg", iter, dt*iter);
       for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
-        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->x[i]);
-        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->v[i]);
-        if (avg) {
-          for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->favg[i]/logging_iter);
-        } else {
-          for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+        if (log_position) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->x[i]);
+        if (log_velocity) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->v[i]);
+        if (log_force) {
+          if (avg) {
+            for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->favg[i]/logging_iter);
+            for (int i=0; i<3; i++) p->favg[i] = 0;
+          } else {
+            for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+          }
         }
-        for (int i=0; i<3; i++) p->favg[i] = 0;
+        if (log_omega) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->omega[i]);
+        if (log_torque) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->torque[i]);
       }
       fprintf(logging_f, "\n");
     }
