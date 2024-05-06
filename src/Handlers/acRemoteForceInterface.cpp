@@ -55,7 +55,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         bool use_box = true;
         attr = node.attribute("use_box");
         if (attr) use_box = attr.as_bool();
-        
+
         if (use_box) {
           lbRegion reg = solver->lattice->region;
           double px = solver->lattice->px;
@@ -69,6 +69,12 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
             pz + reg.dz - PART_MAR_BOX,
             pz + reg.dz + reg.nz + PART_MAR_BOX);
         }
+
+        attr = node.attribute("omega");
+        if (attr) solver->lattice->RFI_omega = attr.as_bool();
+        attr = node.attribute("torque");
+        if (attr) solver->lattice->RFI_torque = attr.as_bool();
+
         MPI_Barrier(MPMD.local);
         solver->lattice->RFI.Connect(MPMD.work,inter.work);
         

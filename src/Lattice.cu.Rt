@@ -146,6 +146,8 @@ Lattice::Lattice(lbRegion _region, MPIInfo mpi_, int ns): zSet(ZONESETTINGS, ZON
 	container->particle_data_size = 0;
 	SC.balls = &RFI;
 	RFI.name = "TCLB";
+	RFI_omega = true;
+	RFI_torque = true;
 }
 
 /// Initialization of MPI buffors
@@ -398,14 +400,9 @@ void Lattice::CopyInParticles() {
 		CudaMalloc(&container->particle_data, RFI.mem_size());
 	}
 	container->particle_data_size = RFI.size();
-	for (size_t i=0; i<RFI.size(); i++){
-		RFI.RawData(i, RFI_DATA_FORCE+0) = 0;
-		RFI.RawData(i, RFI_DATA_FORCE+1) = 0;
-		RFI.RawData(i, RFI_DATA_FORCE+2) = 0;
-		RFI.RawData(i, RFI_DATA_MOMENT+0) = 0;
-		RFI.RawData(i, RFI_DATA_MOMENT+1) = 0;
-		RFI.RawData(i, RFI_DATA_MOMENT+2) = 0;
-	}
+	for (int j=0; j<6; j++) for (size_t i=0; i<RFI.size(); i++) RFI.RawData(i, RFI_DATA_FORCE+j) = 0;
+	if (!RFI_omega) for (int j=0; j<3; j++) for (size_t i=0; i<RFI.size(); i++) RFI.RawData(i, RFI_DATA_ANGVEL+j) = 0;
+
 	if (RFI.mem_size() > 0) {
 		CudaMemcpyAsync(container->particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
 	}
@@ -422,12 +419,16 @@ void Lattice::CopyOutParticles() {
     CudaStreamSynchronize(kernelStream);
 	DEBUG_PROF_PUSH("Testing particles for NaNs");
 		int nans = 0;
-		for (size_t i=0; i<RFI.size(); i++){
-			for (int j=0; j<3; j++){
-				if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
-					nans++;
-					RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+		for (int j=0; j<6; j++) {
+			if (RFI_torque || (j<3)) {
+				for (size_t i=0; i<RFI.size(); i++){
+					if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
+						nans++;
+						RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+					}
 				}
+			} else {
+				for (size_t i=0; i<RFI.size(); i++) RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
 			}
 		}
 		if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);
