@@ -167,7 +167,7 @@ private:
 public:
     BALLS* balls;
     inline SolidGrid() {
-        depth = 0;
+        depth = 4;
     }
     void Build();
     void InitFinder(finder_t&);
