@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
             info.MPMD = &MPMD;
             info.lmp = lmp;
             info.RFI = &RFI;
-            info.atom_force = true;
+            info.atom_force = false;
             info.first_print = true;
             info.wsize.resize(RFI.Workers());
             info.windex.resize(RFI.Workers());
@@ -180,17 +180,17 @@ void tclb_callback(void* ptr, bigint ntimestep, int nlocal, int* id, double** x_
     double** omega = info->lmp->atom->omega;
     double** f = NULL;
     double** torque = NULL;
+    for (size_t k=0; k<nlocal; k++) {
+        f_[k][0] = 0;
+        f_[k][1] = 0;
+        f_[k][2] = 0;
+    }
     if (info->atom_force) {
         f = info->lmp->atom->f;
-        torque = info->lmp->atom->torque;
     } else {
-        for (size_t k=0; k<nlocal; k++) {
-            f_[k][0] = 0;
-            f_[k][1] = 0;
-            f_[k][2] = 0;
-        }
         f = f_;
     }
+    torque = info->lmp->atom->torque;
     double* r = info->lmp->atom->radius;
 
     if (info->first_print) {
