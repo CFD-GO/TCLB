@@ -34,6 +34,33 @@ struct Particle {
   }
 };
 
+struct attr_name_t {
+  std::string vector;
+  std::string non_vector;
+  int d;
+  attr_name_t(const std::string& name) {
+    bool vec = true;
+    d = -1;
+    auto w = name.back();
+    if (w == 'x') { d = 0; }
+    else if (w == 'y') { d = 1; }
+    else if (w == 'z') { d = 2; }
+    else { vec = false; }
+    if (vec) {
+      vector = name;
+      vector.pop_back();
+      non_vector = "=";
+    } else {
+      non_vector = name;
+      vector = "=";
+    }
+  }
+  attr_name_t(const char* name) : attr_name_t(std::string(name)) {};
+  bool operator==(const std::string& name) {
+    return non_vector == name;
+  }
+};
+
 typedef std::vector<Particle> Particles;
 
 int main(int argc, char *argv[]) {
@@ -75,11 +102,12 @@ int main(int argc, char *argv[]) {
   bool log_omega = false;
   bool log_torque = false;
 
-  double periodicity[3];
+  double periodicity[3], periodic_origin[3];
   bool periodic[3];
   for (int i = 0; i < 3; i++) {
     periodic[i] = false;
     periodicity[i] = 0.0;
+    periodic_origin[i] = 0.0;
   }
 
   double acc_vec[3];
@@ -128,21 +156,13 @@ int main(int argc, char *argv[]) {
     if (node_name == "Particle") {
       Particle p;
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
-        std::string attr_name = attr.name();
-        bool vec = true;
-        int d = -1;
-        auto w = attr_name.back();
-        if (w == 'x') { d = 0; }
-        else if (w == 'y') { d = 1; }
-        else if (w == 'z') { d = 2; }
-        else { vec = false; }
-        if (vec) attr_name.pop_back();
-        if (vec && attr_name == "") {
-          p.x[d] = attr.as_double();
-        } else if (vec && attr_name == "v") {
-          p.v[d] = attr.as_double();
-        } else if (vec && attr_name == "omega") {
-          p.omega[d] = attr.as_double();
+        attr_name_t attr_name = attr.name();
+        if (attr_name.vector == "") {
+          p.x[attr_name.d] = attr.as_double();
+        } else if (attr_name.vector == "v") {
+          p.v[attr_name.d] = attr.as_double();
+        } else if (attr_name.vector == "omega") {
+          p.omega[attr_name.d] = attr.as_double();
         } else if (attr_name == "r") {
           p.r = attr.as_double();
         } else if (attr_name == "m") {
@@ -162,16 +182,12 @@ int main(int argc, char *argv[]) {
       particles.push_back(p);
     } else if (node_name == "Periodic") {
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
-        std::string attr_name = attr.name();
-        if (attr_name == "x") {
-          periodic[0] = true;
-          periodicity[0] = attr.as_double();
-        } else if (attr_name == "y") {
-          periodic[1] = true;
-          periodicity[1] = attr.as_double();
-        } else if (attr_name == "z") {
-          periodic[2] = true;
-          periodicity[2] = attr.as_double();
+        attr_name_t attr_name = attr.name();
+        if (attr_name.vector == "") {
+          periodic[attr_name.d] = true;
+          periodicity[attr_name.d] = attr.as_double();
+        } else if (attr_name.vector == "p") {
+          periodic_origin[attr_name.d] = attr.as_double();
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
