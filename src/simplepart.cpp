@@ -88,10 +88,11 @@ int main(int argc, char *argv[]) {
   wsize.resize(RFI.Workers());
   windex.resize(RFI.Workers());
   Particles particles;
-  double dt = 0;
+  double dt = RFI.auto_timestep;
 
   bool logging = false;
-  std::string logging_filename;
+  std::string logging_filename = "";
+  if (RFI.hasVar("output")) logging_filename = RFI.getVar("output") + "_SP_Log.csv";
   int logging_iter = 1;
   FILE* logging_f = NULL;
   bool avg = false;
@@ -115,14 +116,33 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < 3; i++) acc_vec[i] = 0.0;
   acc_freq = 0.0;
 
-  if (argc != 2) {
+  if (argc < 1 || argc > 2) {
     printf("Syntax: simplepart config.xml\n");
+    printf("  You can omit config.xml if configuration is provided by the force calculator (eg. TCLB xml)\n");
     MPI_Abort(MPI_COMM_WORLD,1);
     exit(1);
   }
-  char * filename = argv[1];
+
+  char * filename = NULL;
+  if (argc > 1) {
+    filename = argv[1];
+  }
   pugi::xml_document config;
-  pugi::xml_parse_result result = config.load_file(filename, pugi::parse_default | pugi::parse_comments);
+  pugi::xml_parse_result result;
+  if (filename != NULL) {
+    if (RFI.hasVar("content")) {
+      WARNING("Ignoring content (configuration) sent by calculator");
+    }
+    result = config.load_file(filename, pugi::parse_default | pugi::parse_comments);
+  } else {
+    if (RFI.hasVar("content")) {
+      result = config.load_string(RFI.getVar("content").c_str(), pugi::parse_default | pugi::parse_comments);
+    } else {
+      printf("No configuration provided (either xml file or content from force calculator\n");
+      MPI_Abort(MPI_COMM_WORLD,1);
+      exit(1);
+    }
+  }
   if (!result) {
     ERROR("Error while parsing %s: %s\n", filename, result.description());
     return -1;
@@ -200,8 +220,8 @@ int main(int argc, char *argv[]) {
       } 
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
         std::string attr_name = attr.name();
+        logging = true;
         if (attr_name == "name") {
-          logging = true;
           logging_filename = attr.value();
         } else if (attr_name == "Iterations") {
           logging_iter = attr.as_int();
@@ -221,8 +241,8 @@ int main(int argc, char *argv[]) {
           return -1;
         }
       }
-      if (!logging) {
-        ERROR("Name not set in '%s' element", node.name());
+      if (logging && logging_filename == "") {
+        ERROR("Loggin file name not set in '%s' element", node.name());
         return -1;
       }
     } else {
