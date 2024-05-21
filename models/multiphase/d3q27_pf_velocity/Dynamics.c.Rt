@@ -81,12 +81,16 @@ CudaDeviceFunction vector_t getU(){
 }
 
 CudaDeviceFunction real_t getPstar(){
+    updateBoundary();
 	return <?R C(sum(g)) ?>;
 }
 
 CudaDeviceFunction real_t getP(){
+    // note: vtk export should happen after the boundary is updated,
+    // otherwise there would be some strange values
+    updateBoundary();
 	real_t d = getRho();
-	real_t pstar = getPstar();
+	real_t pstar = <?R C(sum(g)) ?>;
 	return pstar*d*cs2;
 }
 
@@ -143,7 +147,14 @@ CudaDeviceFunction vector_t calcGradPhi()
 		    <?R
 			IsotropicGrad('gradPhi', 'PhaseF')
 		    ?>
-	#endif	
+
+        auto boundary_marker = NodeType & NODE_BOUNDARY;
+        if (boundary_marker == NODE_EPressure || boundary_marker == NODE_WPressure) {
+            gradPhi.x = 0.0;
+            gradPhi.y = 0.0;
+            gradPhi.z = 0.0;
+        }
+	#endif
 	return gradPhi;
 }
 
@@ -218,11 +229,19 @@ CudaDeviceFunction real_t calcMu(real_t C)
 			?>
 	#endif
 	#ifdef OPTIONS_thermo
+
 		mu = 4.0*(12.0*SurfaceTension(0,0,0)/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
 			- (1.5 *SurfaceTension(0,0,0)*IntWidth) * lpPhi;
 	#else
+
+        auto boundary_marker = NodeType & NODE_BOUNDARY;
+        if (boundary_marker == NODE_EPressure || boundary_marker == NODE_WPressure) {
+            lpPhi = 0.0;
+        }
+
 		mu = 4.0*(12.0*sigma/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
 			- (1.5 *sigma*IntWidth) * lpPhi;
+
 	#endif
 	return mu;
 }
