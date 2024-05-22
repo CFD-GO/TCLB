@@ -18,7 +18,7 @@ double acAndersen::skal(real_t * a, real_t * b) {
         for (size_t k=0; k<n; k++) sum += a[k]*b[k];
         // TODO: MPI scatter gather
         double gsum=0;
-        MPI_Allreduce ( &sum, &gsum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+        MPI_Allreduce ( &sum, &gsum, 1, MPI_DOUBLE, MPI_SUM, solver->mpi_comm );
         return gsum;
 }
 
