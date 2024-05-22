@@ -86,7 +86,7 @@ int OptimalControl::Parameters (int type, double * tab) {
 			return 0;
 		case PAR_SET:
 			output("Setting the params in the zone\n");
-			MPI_Bcast(tab, Pars, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+			MPI_Bcast(tab, Pars, MPI_DOUBLE, 0, solver->mpi_comm);
 			if (f != NULL) {
 				fprintf(f,"SET");
 				for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
@@ -97,7 +97,7 @@ int OptimalControl::Parameters (int type, double * tab) {
 		case PAR_GRAD:
 			output("Getting gradient of a param in zone\n");
 			solver->lattice->zSet.get_grad(par_index, zone_number, tmptab);
-			MPI_Reduce(tmptab, tab, Pars, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+			MPI_Reduce(tmptab, tab, Pars, MPI_DOUBLE, MPI_SUM, 0, solver->mpi_comm);
 			if (f != NULL) {
 				fprintf(f,"GRAD");
 				for (int i=0;i<Pars;i++) fprintf(f,",%lg",(double) tab[i]);
