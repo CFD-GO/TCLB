@@ -87,34 +87,76 @@ CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
     }
 
 	real_t pstar = Pressure / (d*cs2);
-	<?R
-        EQ = MRT_eq(U,PV(1),u,mat=t(M))
-       	pstar = PV("pstar")
-		n = my_normal_directions[ii,]
-		geq = pstar*w_g + (EQ$feq - w_g)
-		bounce = Bounce(U)
-		sel = as.vector( (U %*% n) < 0)
 
-		sel2 = as.vector( ( U %*% n) == 0)	
-		exM = (g[sel2] - geq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
+    <?R
+    type_h = "fix_flux"
+    type = "pressure"
+    n = my_normal_directions[ii,]
 
-		C(g[sel], geq[sel] + geq[bounce][sel] - g[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
-	<?R
-		U_PF = U[1:PF_velocities,]
-       	pf = PV("myPhaseField")
-		n = my_normal_directions[ii,]
-		heq = pf * EQ_h$feq
-		bounce = Bounce(U_PF)
-		sel = as.vector( (U_PF %*% n) < 0)
+    EQ = MRT_eq(U,PV(1),u,mat=t(M))
+    w_g = subst(EQ$feq,U=0,V=0,W=0) # calculating weights as equilibrium with zero velocity
+    pstar = PV("pstar")
+    geq = pstar*w_g + (EQ$feq - w_g)
+    bounce = Bounce(U)
+    sel = as.vector( (U %*% n) < 0)
 
-		sel2 = as.vector( ( U_PF %*% n) == 0)	
-		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
+    ng = g
+    ng[sel] = geq[sel] + (g-geq)[bounce][sel]
 
-		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
+    equations = V(sum(ng),ng %*% U)
+    rhs = V(pstar,u)
+
+    what_to_pull = c("pstar","U","V","W")
+    which_to_pull = 1:4
+    direction = which(n != 0)
+    if (type == "pressure") {
+        which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
+        what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
+    } else if (type == "velocity") {
+        which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
+    } else stop("Unknown type of BC")
+
+    for (i in which_to_pull) {
+        C_pull(equations[i] - rhs[i],what_to_pull[i])
+    }
+    C(g[sel],ng[sel])
+
+    cat("real_t PF;\n")
+    pf = PV("PF")
+    desired_pf = PV("myPhaseField")
+    U_PF = U[1:PF_velocities,]
+    EQ_h = MRT_eq(U_PF,PV(1),u)
+
+    heq = pf * EQ_h$feq
+    bounce = Bounce(U_PF)
+    sel = as.vector( (U_PF %*% n) < 0)
+
+    nh = h
+    nh[sel] = heq[sel] + (h-heq)[bounce][sel]
+
+    equations = V(sum(nh),nh %*% U_PF)
+    rhs = V(desired_pf,desired_pf*u)
+
+    if (type_h == "fix_pf") {
+        C_pull(equations[1] - rhs[1], "PF" )
+    } else if (type_h == "open") {
+        C_pull(equations[1] - pf, "PF" )
+    } else {
+        nh = subst(nh, PF=desired_pf)
+        equations = subst(equations, PF=desired_pf)
+        if (type_h == "fix_flux") {
+        }  else if (type_h == "weird") {
+            what_to_pull = c("","U","V","W")
+            what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
+            which_to_pull = (1:4)[-(1+direction)] # throw out equation
+            for (i in which_to_pull) {
+                C_pull(equations[i] - rhs[i],what_to_pull[i])
+            }
+        } else stop("Unknown type of BC")
+    }
+
+    C(h[sel],nh[sel])
+    ?>
 }
 
 <?R
@@ -581,6 +623,14 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 			gradPhiVal_<?%s d ?> = 0;
 		}
 	<?R } ?>
+
+    // no need to do anything on the boundary
+    auto boundary_marker = NodeType & NODE_BOUNDARY;
+    if (boundary_marker == NODE_EPressure || boundary_marker == NODE_WPressure) {
+        gradPhiVal_x = 0.0;
+        gradPhiVal_y = 0.0;
+        gradPhiVal_z = 0.0;
+    }
 
     // simply copy the values
 	gradPhi_PhaseF = PhaseF(0,0,0);
