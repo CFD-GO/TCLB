@@ -987,7 +987,12 @@ CudaDeviceFunction real_t Init_real_wallNorm()
         // find in which direction to do reflection
         // mirror in the beginning, in case of non-periodic boundaries,
         // so we don't accidentally take the value from the other phase
-        /// Can keep if the setting set to true
+        // ===========================================================
+        // NOTE: Works only in X direction. To use pressure/velocity
+        // bondaries in other directions need to mark the boundaries
+        // with symmetry market, otherwise wall gradients might point
+        // to the other side. (I.e. SymmetryX_plus at the same location
+        // as EPressure, etc)
         int nx = constContainer.nx;
         for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
             if (InvasionDrainage && (i == -1) && (X == 0.5)) {
