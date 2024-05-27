@@ -172,7 +172,7 @@ if (Options$thermo){
         AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
 	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
-	    AddAction("InitFieldsWithNormals"     , c("InitFromFieldsStageWithNormals","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFieldsWithNormals"     , c("InitFromFieldsStageWithNormals",,"WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
 		AddAction("Init"     , c("PhaseInit", "WallInit_Real", "WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
@@ -248,6 +248,7 @@ if (Options$thermo){
 	AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 	AddSetting(name="VelocityZ", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 	AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', zonal=T)
+    AddSetting(name='InvasionDrainage', default=0, comment='0 nothing, 1 flooding, -1 drainage')
 	AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 	AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
 	AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
@@ -276,12 +277,17 @@ if (Options$thermo){
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
 	AddNodeType(name="flux_nodes", group="ADDITIONALS")
+    # the first one are "fix_pf"
+    pressure_boundary_types = c("", "open", "fflux")
 	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
-    dotR_my_pressure_boundaries = paste0(c("N","E","S","W","F","B"),"Pressure")
+    dotR_my_pressure_boundaries = outer(paste0(c("N","E","S","W","F","B"),"Pressure"), pressure_boundary_types, FUN  = paste, sep="")
     for (ii in 1:6){
         AddNodeType(name=dotR_my_velocity_boundaries[ii], group="BOUNDARY")
+    }
+    for (ii in 1:length(dotR_my_pressure_boundaries)) {
         AddNodeType(name=dotR_my_pressure_boundaries[ii], group="BOUNDARY")
     }
+
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
 	AddNodeType(name="MovingWall_S", group="BOUNDARY")
 	AddNodeType(name="Solid", group="BOUNDARY")

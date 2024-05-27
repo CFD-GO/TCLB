@@ -70,55 +70,72 @@ CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
 		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
 	?>
 }
+<?R
+}
+?>
 
-CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
+<?R
+for (ii in 1:cube_faces){
+for (j in 1:length(pressure_boundary_types)) {  ?>
+CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boundary_types[j]) ?>(){
     real_t d = getRho();
-
     real_t myPhaseField = 0.0;
-    // TODO: Need a proper fix soon
-    if ((NodeType & NODE_BOUNDARY) == NODE_WPressure){
-        d = Density_l;
-        myPhaseField = 0.0;
+
+    if ((NodeType & NODE_BOUNDARY) == <?%s paste0("NODE_WPressure", pressure_boundary_types[j]) ?>){
+        d = InvasionDrainage == 2? Density_l : Density_h;
+        myPhaseField = InvasionDrainage == 2? 0.0 : 1.0;
     }
 
-    if ((NodeType & NODE_BOUNDARY) == NODE_EPressure){
-        d = Density_h;
-        myPhaseField = 1.0;
+    if ((NodeType & NODE_BOUNDARY) == <?%s paste0("NODE_EPressure", pressure_boundary_types[j]) ?>){
+       d = InvasionDrainage == 2? Density_h : Density_l;
+       myPhaseField = InvasionDrainage == 2? 1.0 : 0.0;
     }
 
 	real_t pstar = Pressure / (d*cs2);
-
     <?R
-    type_h = "fix_flux"
+    type_h = (if (j == 1) "fpf" else pressure_boundary_types[j])
     type = "pressure"
     n = my_normal_directions[ii,]
 
     EQ = MRT_eq(U,PV(1),u,mat=t(M))
-    w_g = subst(EQ$feq,U=0,V=0,W=0) # calculating weights as equilibrium with zero velocity
+    # calculating weights as equilibrium with zero velocity
+    w_g = subst(EQ$feq,U=0,V=0,W=0)
     pstar = PV("pstar")
     geq = pstar*w_g + (EQ$feq - w_g)
     bounce = Bounce(U)
     sel = as.vector( (U %*% n) < 0)
-
+    # n prefix for newly expressed values
     ng = g
     ng[sel] = geq[sel] + (g-geq)[bounce][sel]
 
-    equations = V(sum(ng),ng %*% U)
-    rhs = V(pstar,u)
+    # write down the closure equation
+    # sum of LBM densities equal to pressure
+    # the first moment equal to the velocity
+    # (assuming no forcing - no phase-field gradient)!
+    equations_lhs = V(sum(ng),ng %*% U)
+    equations_rhs = V(pstar,u)
 
     what_to_pull = c("pstar","U","V","W")
     which_to_pull = 1:4
     direction = which(n != 0)
     if (type == "pressure") {
-        which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
+        # pop the pressure out of the list of equation
+        # and don't duplicate
+        which_to_pull = which_to_pull[-(1+direction)]
         what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
     } else if (type == "velocity") {
+        # pop out the equation related to this velocity direction
+        # from the list of equations, as it is already know
         which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
     } else stop("Unknown type of BC")
 
+    # express all the unknowns in terms of knowns
     for (i in which_to_pull) {
-        C_pull(equations[i] - rhs[i],what_to_pull[i])
+        C_pull(equations_lhs[i] - equations_rhs[i],what_to_pull[i])
     }
+
+    # now that the quantities are known, can properly calculate the distributution
+    # functions and reflect
     C(g[sel],ng[sel])
 
     cat("real_t PF;\n")
@@ -127,6 +144,7 @@ CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
     U_PF = U[1:PF_velocities,]
     EQ_h = MRT_eq(U_PF,PV(1),u)
 
+    # assuming no force shift here
     heq = pf * EQ_h$feq
     bounce = Bounce(U_PF)
     sel = as.vector( (U_PF %*% n) < 0)
@@ -134,23 +152,35 @@ CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
     nh = h
     nh[sel] = heq[sel] + (h-heq)[bounce][sel]
 
-    equations = V(sum(nh),nh %*% U_PF)
-    rhs = V(desired_pf,desired_pf*u)
+    # write down the closure equation
+    # sum of phase-field densities equal to phase-field value (desired or imposed)
+    # the first moment equal to the desired phase-field momentum
+    equations_lhs = V(sum(nh),nh %*% U_PF)
+    equations_rhs = V(desired_pf,desired_pf*u)
 
-    if (type_h == "fix_pf") {
-        C_pull(equations[1] - rhs[1], "PF" )
+    if (type_h == "fpf") {
+        # Make sure the sum of h is equal to the desired phase-field
+        # - "interface" will stop on the boundary
+        C_pull(equations_lhs[1] - equations_rhs[1], "PF" )
     } else if (type_h == "open") {
-        C_pull(equations[1] - pf, "PF" )
+        # The sum of phase-field is not enforced - the same is kept
+        # - "interface" is passing through the boundary
+        C_pull(equations_lhs[1] - pf, "PF" )
     } else {
+        # desired phase-field is enforced via substitution in
+        # the equilibrium distribution function directly
         nh = subst(nh, PF=desired_pf)
-        equations = subst(equations, PF=desired_pf)
-        if (type_h == "fix_flux") {
+        #
+        lhs_equations = subst(equations_lhs, PF=desired_pf)
+        if (type_h == "fflux") {
+        # we are pretty much done
         }  else if (type_h == "weird") {
             what_to_pull = c("","U","V","W")
             what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
             which_to_pull = (1:4)[-(1+direction)] # throw out equation
+            # express velocities through the phase-field?
             for (i in which_to_pull) {
-                C_pull(equations[i] - rhs[i],what_to_pull[i])
+                C_pull(equations_lhs[i] - equations_rhs[i],what_to_pull[i])
             }
         } else stop("Unknown type of BC")
     }
@@ -160,7 +190,7 @@ CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
 }
 
 <?R
-}
+    }}
 ?>
 
 #ifdef OPTIONS_OutFlow
@@ -953,13 +983,17 @@ CudaDeviceFunction real_t Init_real_wallNorm()
 		int i,j,k;
 	  	real_t tmp = 0.0;
         real_t PhaseF_tmp[3][3][3];
-        // mirror in the beginning, in case of non-periodic boundaries
+
+        // find in which direction to do reflection
+        // mirror in the beginning, in case of non-periodic boundaries,
+        // so we don't accidentally take the value from the other phase
+        /// Can keep if the setting set to true
         int nx = constContainer.nx;
         for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
-            if ((i == -1) && (X == 0.5)) {
+            if (InvasionDrainage && (i == -1) && (X == 0.5)) {
                 PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(-i,j,k);
             }
-            else if ((i == 1) && (X == nx - 0.5)) {
+            else if (InvasionDrainage && (i == 1) && (X == nx - 0.5)) {
                 PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(-i,j,k);
             }
             else {
