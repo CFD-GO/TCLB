@@ -172,7 +172,7 @@ if (Options$thermo){
         AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
 	    AddAction("Init"     , c("PhaseInit","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
 	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
-	    AddAction("InitFieldsWithNormals"     , c("InitFromFieldsStageWithNormals",,"WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFieldsWithNormals"     , c("InitFromFieldsStageWithNormals","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
 		AddAction("Init"     , c("PhaseInit", "WallInit_Real", "WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
