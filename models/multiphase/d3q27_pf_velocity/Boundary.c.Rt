@@ -995,10 +995,10 @@ CudaDeviceFunction real_t Init_real_wallNorm()
         // as EPressure, etc)
         int nx = constContainer.nx;
         for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
-            if (InvasionDrainage && (i == -1) && (X == 0.5)) {
+            if ((InvasionDrainage > 0) && (i == -1) && (X == 0.5)) {
                 PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(-i,j,k);
             }
-            else if (InvasionDrainage && (i == 1) && (X == nx - 0.5)) {
+            else if ((InvasionDrainage > 0) && (i == 1) && (X == nx - 0.5)) {
                 PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(-i,j,k);
             }
             else {
