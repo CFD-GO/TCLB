@@ -33,7 +33,7 @@ if (! SYMALGEBRA) {
 	library(symAlgebra,quietly=TRUE,warn.conflicts=FALSE)
 }
 
-if (is.null(Options$autosym)) Options$autosym = FALSE
+if (is.null(Options$autosym)) Options$autosym = 0
 
 #source("linemark.R")
 
@@ -370,7 +370,7 @@ if (is.null(Description)) {
 }
 
 
-if (Options$autosym) { ## Automatic symmetries
+if (Options$autosym > 0) { ## Automatic symmetries
   symmetries = data.frame(symX=c(-1,1,1),symY=c(1,-1,1),symZ=c(1,1,-1))
 
   for (g in unique(DensityAll$group)) {
@@ -397,6 +397,24 @@ if (Options$autosym) { ## Automatic symmetries
   for (s in names(symmetries)) {
     sel = Fields[,s] == ""
     Fields[sel,s] = Fields$name[sel]
+  }
+
+  rownames(Fields) = Fields$name	
+  ranges = c("minx","maxx","miny","maxy","minz","maxz")
+  
+  tmp = -1234
+  while (any(Fields[,ranges] != tmp)) {
+	tmp = Fields[,ranges]
+	for (f in rownames(Fields)) {
+		r = Fields[f,ranges]
+		for (s in names(symmetries)) {
+			nf = Fields[f,s]
+			or = Fields[nf,ranges]
+			nr = r * rep(symmetries[,s],each=2)
+			cr = c(range(or[1:2],nr[1:2]),range(or[1:2+2],nr[1:2+2]),range(or[1:2+4],nr[1:2+4]))
+			Fields[nf,ranges] = cr
+		}
+	}
   }
 
   AddNodeType("SymmetryX_plus",  group="SYMX")
