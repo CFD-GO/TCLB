@@ -34,6 +34,10 @@
   #define real_to_storage_shift(x__,y__) real_to_storage(x__)
 #endif
 
+#ifndef NODE_SYMZ
+  #define NODE_SYMZ 0
+#endif
+
 /// Get only type of node
 CudaDeviceFunction flag_t LatticeContainer::getType(int x, int y, int z) const
 {
@@ -417,8 +421,10 @@ public:
     
     si = which(Fields$name == fn)
     sf = rows(Fields)[[si]]
-    sd = d
-    sd[i] = sd[i]*(-1)
+    sd_plus = d
+    sd_plus[i] = autosym_shift-sd_plus[i]
+    sd_minus = d
+    sd_minus[i] = -autosym_shift-sd_minus[i]
 ?>
 template < class PARENT >
 template <class dx_t, class dy_t, class dz_t>
@@ -426,12 +432,12 @@ CudaDeviceFunction real_t SymmetryAccess< PARENT >::<?%s paste0(this_fun, f$nice
 {
   <?R if (paste0("SYM",ch[i]) %in% NodeTypes$group) { ?>
   if (<?R C(d[i]) ?> > range_int<0>()) {
-    if ((this->getNodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_Symmetry<?%s ch[i] ?>_plus) {
-      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd,sep=", ") ?>);
+    if ((this->getNodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_<?%s autosym_name ?><?%s ch[i] ?>_plus) {
+      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd_plus,sep=", ",float=FALSE,wrap.const=range_int) ?>);
     }
   } else if (<?R C(d[i]) ?> < range_int<0>()) {
-    if ((this->getNodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_Symmetry<?%s ch[i] ?>_minus) {
-      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd,sep=", ") ?>);
+    if ((this->getNodeType() & NODE_SYM<?%s ch[i] ?>) == NODE_<?%s autosym_name ?><?%s ch[i] ?>_minus) {
+      return <?%s paste0(sig, next_fun, sf$nicename) ?>(<?R C(sd_minus,sep=", ",float=FALSE,wrap.const=range_int) ?>);
     }
   }
   <?R } ?>
@@ -444,9 +450,27 @@ CudaDeviceFunction real_t SymmetryAccess< PARENT >::<?%s paste0(this_fun, f$nice
 template < class PARENT >
 template <class N>
 CudaDeviceFunction void SymmetryAccess< PARENT >::pop<?%s s$suffix ?>(N & node) const
-{
-  parent::pop<?%s s$suffix ?>(node);
-  <?R resolve.symmetries(Density[s$load.densities,,drop=FALSE]) ?>
+{ <?R
+    if (Options$autosym == 0) { ?>
+      parent::pop<?%s s$suffix ?>(node); <?R
+    } else if (Options$autosym == 1) { ?>
+      parent::pop<?%s s$suffix ?>(node); <?R
+      resolve.symmetries(Density[s$load.densities,,drop=FALSE])
+    } else if (Options$autosym == 2) { ?>
+      if (this->getNodeType() & (NODE_SYMX | NODE_SYMY | NODE_SYMZ)) { <?R
+        dens = Density;
+        dens$load = s$load.densities;
+        for (d in rows(dens)) if (d$load) {
+          f = rows(Fields)[[match(d$field, Fields$name)]]
+          dp = c(-d$dx, -d$dy, -d$dz) ?>
+          <?%s paste("node",d$name,sep=".") ?> = load_<?%s f$nicename ?>(range_int< <?%d dp[1] ?> >(),range_int< <?%d dp[2] ?> >(),range_int< <?%d dp[3] ?> >()); <?R
+        } else if (!is.na(d$default)) { ?>
+          <?%s paste("node",d$name,sep=".") ?> = <?%f d$default ?>; <?R
+        } ?>
+      } else {
+        parent::pop<?%s s$suffix ?>(node);
+      } <?R
+    } else stop("Unknown autosym option") ?>
 }
 <?R } } ?>
 

@@ -400,32 +400,59 @@ if (Options$autosym > 0) { ## Automatic symmetries
   }
 
   rownames(Fields) = Fields$name	
-  ranges = c("minx","maxx","miny","maxy","minz","maxz")
   
-  tmp = -1234
-  while (any(Fields[,ranges] != tmp)) {
-	tmp = Fields[,ranges]
-	for (f in rownames(Fields)) {
-		r = Fields[f,ranges]
-		for (s in names(symmetries)) {
-			nf = Fields[f,s]
-			or = Fields[nf,ranges]
-			nr = r * rep(symmetries[,s],each=2)
-			cr = c(range(or[1:2],nr[1:2]),range(or[1:2+2],nr[1:2+2]),range(or[1:2+4],nr[1:2+4]))
-			Fields[nf,ranges] = cr
+  if (Options$autosym == 1) {
+	autosym_shift = 0
+	autosym_name = "Symmetry"
+  } else if (Options$autosym == 2) {
+	autosym_shift = 1
+	autosym_name = "SymmetryEdge"
+  } else stop("unknown autosym value")
+
+  directions = lapply(rows(Fields), function(f)	expand.grid(dx=f$minx:f$maxx,dy=f$miny:f$maxy,dz=f$minz:f$maxz))
+  names(directions) = Fields$name
+  dir.sort = function(d) {
+	d = unique(d)
+	d[order(d[,3],d[,2],d[,1]),]
+  }
+  directions = lapply(directions,dir.sort)
+  tmp = NULL
+  while (!identical(directions, tmp)) {
+	tmp = directions
+	for (f in rows(Fields)) {
+		d = directions[[f$name]]
+		for (i in 1:3) {
+			nfn = f[[names(symmetries)[i]]]
+			od = directions[[nfn]]
+			cr = od
+			nd = d[d[,i] < 0,, drop=FALSE]
+			nd[,i] = -nd[,i] - autosym_shift
+			cr = rbind(cr,nd)
+			nd = d[d[,i] > 0,, drop=FALSE]
+			nd[,i] = -nd[,i] + autosym_shift
+			cr = rbind(cr,nd)
+			directions[[nfn]] = cr
 		}
 	}
+	directions = lapply(directions,dir.sort)
   }
+  Fields$minx = sapply(directions, function(x) min(x$dx))
+  Fields$maxx = sapply(directions, function(x) max(x$dx))
+  Fields$miny = sapply(directions, function(x) min(x$dy))
+  Fields$maxy = sapply(directions, function(x) max(x$dy))
+  Fields$minz = sapply(directions, function(x) min(x$dz))
+  Fields$maxz = sapply(directions, function(x) max(x$dz))
 
-  AddNodeType("SymmetryX_plus",  group="SYMX")
-  AddNodeType("SymmetryX_minus", group="SYMX")
-  AddNodeType("SymmetryY_plus",  group="SYMY")
-  AddNodeType("SymmetryY_minus", group="SYMY")
+  
+  AddNodeType(paste0(autosym_name, "X_plus"),   group="SYMX")
+  AddNodeType(paste0(autosym_name, "X_minus"),  group="SYMX")
+  AddNodeType(paste0(autosym_name, "Y_plus"),   group="SYMY")
+  AddNodeType(paste0(autosym_name, "Y_minus"),  group="SYMY")
   if (all(range(Fields$minz,Fields$maxz) == c(0,0))) {
 	# we're in 2D
   } else {
-	AddNodeType("SymmetryZ_plus",  group="SYMZ")
-	AddNodeType("SymmetryZ_minus", group="SYMZ")
+	AddNodeType(paste0(autosym_name, "Z_plus"),   group="SYMZ")
+	AddNodeType(paste0(autosym_name, "Z_minus"),  group="SYMZ")
   }
 }
 
