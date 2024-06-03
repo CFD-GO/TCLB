@@ -66,13 +66,16 @@ int main(int argc, char* argv[]) {
     RFI_t RFI;
     RFI.name = "LAMMPS";
 
-    if (argc < 2) {
-        printf("Syntax: lammps in.lammps [args]\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
-        exit(1);
+    MPMDIntercomm inter = MPMD["TCLB"];
+    if (inter) {
+        ret = RFI.Connect(MPMD.work, inter.work);
+        if (ret) return ret;
+    } else {
+        fprintf(stderr, "Didn't find TCLB in MPMD\n");
     }
+
     std::vector<char*> lammps_args;
-    char* infile = NULL;
+    std::string infile = "";
     bool logset = false;
     for (int i=0; i<argc; i++) {
         if ((i == 1) && (argv[i][0] != '-')) {
@@ -97,21 +100,47 @@ int main(int argc, char* argv[]) {
         lammps_args.push_back("none");
     }
 
-    if (infile == NULL) {
-        printf("ERROR: No filename provided\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
-        exit(1);
+    if (infile != "") {
+        if (RFI.Connected()) {
+            if (RFI.hasVar("content")) printf("WARNING: Ignoring content (configuration) sent by calculator");
+        }
+    } else {
+        if (RFI.Connected() && RFI.hasVar("content")) {
+            if (RFI.hasVar("output")) {
+                infile = RFI.getVar("output") + "_config.lammps";
+            } else {
+                printf("ERROR: no path to create lammps configuration from content\n");
+                MPI_Abort(MPI_COMM_WORLD, 1);
+                exit(1);
+            }
+            FILE* fp = NULL;
+            fp = fopen(infile.c_str(), "w");
+            if (fp == NULL) {
+                printf("ERROR: failed to write to %s\n",infile.c_str());
+                MPI_Abort(MPI_COMM_WORLD, 1);
+                exit(1);
+            }
+            if (RFI.hasVar("output")) {
+                fprintf(fp, "variable output string %s\n", RFI.getVar("output").c_str());
+            }
+            fprintf(fp, "%s\n", RFI.getVar("content").c_str());
+            fclose(fp);
+        } else {
+            printf("ERROR: No configuration provided (either xml file or content from force calculator\n");
+            MPI_Abort(MPI_COMM_WORLD,1);
+            exit(1);
+        }
     }
 
     FILE* fp = NULL;
     if (MPMD.local_rank == 0) {
-        printf("LAMMPS: running input file: %s\n", infile);
+        printf("LAMMPS: running input file: %s\n", infile.c_str());
         printf("LAMMPS: arguments:");
         for (int i = 1; i < lammps_args.size(); i++) printf(" %s", lammps_args[i]);
         printf("\n");
-        fp = fopen(infile, "r");
+        fp = fopen(infile.c_str(), "r");
         if (fp == NULL) {
-            printf("ERROR: Could not open LAMMPS input script %s\n", infile);
+            printf("ERROR: Could not open LAMMPS input script %s\n", infile.c_str());
             MPI_Abort(MPI_COMM_WORLD, 1);
             exit(1);
         }
@@ -141,13 +170,6 @@ int main(int argc, char* argv[]) {
 
         if (match_pattern(line, " fix tclb * external")) {
             printf("LAMMPS: Added fix tclb external! (%s) Adding callback.\n", line);
-            MPMDIntercomm inter = MPMD["TCLB"];
-            if (!inter) {
-                fprintf(stderr, "Didn't find TCLB in MPMD\n");
-                return -1;
-            }
-            ret = RFI.Connect(MPMD.work, inter.work);
-            if (ret) return ret;
             assert(RFI.Connected());
 
             int ifix = lmp->modify->find_fix("tclb");
