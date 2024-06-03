@@ -972,7 +972,7 @@ CudaDeviceFunction real_t getSpecialBoundaryPoint() {
 
 /* Calculate the actual wall norm based on the solid
  *field */
-CudaDeviceFunction real_t Init_real_wallNorm()
+CudaDeviceFunction void Init_real_wallNorm()
 {
     // set initial values
     nw_x = 0.0;
