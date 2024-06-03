@@ -74,6 +74,7 @@ public:
   real_t px, py, pz; 
   MPIInfo mpi; ///< MPI information
   rfi_t RFI;
+  bool RFI_omega, RFI_torque;
   solidcontainer_t SC;
   size_t particle_data_size_max;
   char snapFileName[STRING_LEN];

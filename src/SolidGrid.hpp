@@ -58,7 +58,6 @@ void SolidGrid<BALLS>::Build () {
         }
         size_t grid_size = 1;
         for (int k=0; k<3; k++) grid_size = grid_size * (maxs[k]-mins[k]+1);
-        depth = 4;
         while (TryDepth(grid_size)) {
             depth = depth*2;
             output("Too many particles per bin in SolidGrid. Increasing bin size to %d\n", depth);

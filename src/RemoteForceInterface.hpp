@@ -18,7 +18,7 @@
 
 namespace rfi {
 
-const int version = 0x000104;
+const int version = 0x000105;
 
 #define safe_MPI_Type_free(datatype) { if ((*datatype) != NULL) MPI_Type_free(datatype); }
 
@@ -117,6 +117,7 @@ RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::RemoteFo
    base_units[0] = 1.0;
    base_units[1] = 1.0;
    base_units[2] = 1.0;
+   auto_timestep = 1.0;
    non_trivial_units = false;
    can_cope_with_units = true;
 }
@@ -209,6 +210,15 @@ inline void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator
  base_units[1] = second;
  base_units[2] = kilogram;
  non_trivial_units = true;
+}
+
+template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t, typename tab_allocator >
+inline void RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::setVar(const vars_name_t& name, const vars_value_t& value) {
+ if (Connected()) {
+   ERROR("Vars can be set only before connection is established\n");
+   exit(-1);
+ }
+ vars[name] = value;
 }
 
 template < rfi_type_t TYPE, rfi_rot_t ROT, rfi_storage_t STORAGE, typename rfi_real_t, typename tab_allocator >
@@ -361,6 +371,43 @@ int RemoteForceInterface < TYPE, ROT, STORAGE, rfi_real_t, tab_allocator >::Nego
         unit[RFI_DATA_ANGVEL+i] = 1.0/second;
         unit[RFI_DATA_FORCE+i] = kilogram*meter/(second*second);
         unit[RFI_DATA_MOMENT+i] = kilogram*meter*meter/(second*second);
+      }
+      auto_timestep = 1.0/second;
+    }
+
+    typedef std::vector<std::string::value_type> vars_pack_t;
+    vars_pack_t my_vars, other_vars;
+    for (vars_t::const_iterator it = vars.begin(); it != vars.end(); it++) {
+      std::string v;
+      v = it->first;
+      for (std::string::const_iterator it2 = v.begin(); it2 != v.end(); it2++) my_vars.push_back(*it2);
+      my_vars.push_back(0);
+      v = it->second;
+      for (std::string::const_iterator it2 = v.begin(); it2 != v.end(); it2++) my_vars.push_back(*it2);
+      my_vars.push_back(0);
+    }
+    other_vars = Exchange(my_vars);
+    bool is_name = true;
+    std::string buf;
+    std::string name_buf;
+    std::string value_buf;
+    for (vars_pack_t::const_iterator it = other_vars.begin(); it != other_vars.end(); it++) {
+      if (*it == 0) {
+        if (is_name) {
+          name_buf = buf;
+          is_name = false;
+        } else {
+          value_buf = buf;
+          is_name = true;
+          debug1("RFI: %s: Received: %s = %s\n",name.c_str(), name_buf.c_str(), value_buf.c_str());
+          if (vars.find(name_buf) != vars.end()) {
+            debug1("RFI: %s: Variable overwritten.", name.c_str());
+          }
+          vars[name_buf] = value_buf;
+        }
+        buf.clear();
+      } else {
+        buf.push_back(*it);
       }
     }
   }
