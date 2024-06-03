@@ -154,7 +154,7 @@ for (d in destinations) {
 				paste0("  ",
 					names(opts),
 					" = ",
-					ifelse(opts==0,"FALSE","TRUE"),
+					opts,
 					ifelse(seq_along(opts) != length(opts),",","")
 				)
 			)
