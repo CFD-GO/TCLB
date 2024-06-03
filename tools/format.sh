@@ -31,7 +31,8 @@ function formatR {
 }
 
 function formatXML {
-    sed '/./,$!d' | xmllint -
+    export XMLLINT_INDENT="    "
+    sed '/./,$!d' | xmllint --format -
 }
 
 function formatSH {
@@ -74,22 +75,21 @@ function format_sel {
         echo formatKEEP
         return 0
     fi
-    case "$(head -n 1 $1)" in
-    *bash)
-        echo formatSH
-        return 0
-        ;;
-    *R | *Rscript)
-        echo formatR
-        return 0
-        ;;
-    *)
-        echo formatKEEP
-        return 0
-        ;;
-    esac
+    if head -1 "$1" | grep -q "^#!"
+    then
+        case "$(head -n 1 $1)" in
+        *bash)
+            echo formatSH
+            return 0
+            ;;
+        *R | *Rscript)
+            echo formatR
+            return 0
+            ;;
+        esac
+    fi
     echo formatKEEP
-    return -1
+    return 0
 }
 
 function format_to {
@@ -232,9 +232,7 @@ while test -n "$1"; do
         if ! test -z "$DIFFTOOL"; then
             $DIFFTOOL "$OUTFILE" "$INFILE"
         fi
-        if test -z "$OUTFILE"; then
-            OUTFILE=""
-        fi
+        OUTFILE=""
         ;;
     esac
     shift
