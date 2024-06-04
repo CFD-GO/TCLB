@@ -277,8 +277,8 @@ if (Options$thermo){
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
 	AddNodeType(name="flux_nodes", group="ADDITIONALS")
-    # the first one are "fix_pf"
-    pressure_boundary_types = c("", "open", "fflux")
+    # the first one are "fflux"
+    pressure_boundary_types = c("", "open", "fpf")
 	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
     dotR_my_pressure_boundaries = outer(paste0(c("N","E","S","W","F","B"),"Pressure"), pressure_boundary_types, FUN  = paste, sep="")
     for (ii in 1:6){
