@@ -24,7 +24,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         solver->lattice->RFI.setUnits(units[0],units[1],units[2]);
         solver->lattice->RFI.CanCopeWithUnits(false);
 
-        solver->lattice->RFI.setVar("output", solver->info.outpath);
+        solver->lattice->RFI.setVar("output", solver->outpath);
 
         
         std::string element_content;
