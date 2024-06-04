@@ -47,11 +47,23 @@ get.models = function() {
 			opts_terms = terms(opts)
 			opts = attr(opts_terms,"factors")
 			opts = data.frame(t(opts))
-			rownames(opts) = paste(name,gsub(":","_",rownames(opts)),sep="_")
+			opts[] = opts > 0
 			if (attr(opts_terms, "intercept") == 1) {
-				opts[name,]=0
+				opts = rbind(opts, FALSE)
 			}
-#			opts = apply(opts, 2, function(x) x > 0)
+			if ("autosym" %in% names(opts)) {
+				opts$autosym = ifelse(opts$autosym, 1, 0)
+				x = opts[opts$autosym > 0,,drop=FALSE]
+				x$autosym = 2
+				opts = rbind(opts, x)
+			}
+			rownames(opts) = sapply(seq_len(nrow(opts)), function(i) {
+				x = opts[i,]
+				w = names(opts)
+				w = paste0(w, ifelse(x>1,x,""))
+				w = c(name, w[x>0])
+				paste(w,collapse="_")
+			})
 		} else {
 			opts = data.frame(row.names=name)
 		}
