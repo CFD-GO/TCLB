@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" permissive="true" output="output/">
+	<Units>
+		<Param name="D" value="1m" gauge="64"/>
+		<Param name="DT" value="1" gauge="0.00004s"/>
+		<Param name="rho" value="1kg/m3" gauge="1"/>
+		<!-- 1/s -->
+		<!-- 40m/s 10m/s-->
+	</Units>
+	<Geometry nx="2m" ny="1m+2" nz="2m" px="-1.0m" py="-0.5m-1" pz="-1.0m">
+		<BGK><Box/></BGK>
+		<Wall><Box ny="1"/><Box ny="-1"/></Wall>
+	</Geometry>
+	<Model>
+		<Param name="aX_mean" value="100Pa/m"/>
+		<Param name="nu" value="1m2/s"/>
+        <RemoteForceInterface integrator="SIMPLEPART"/>
+	</Model>
+	<VTK Iterations="100" what="U,Solid"/>
+	<Log Iterations="100"/>
+	<Solve Iterations="10000"/>
+</CLBConfig>

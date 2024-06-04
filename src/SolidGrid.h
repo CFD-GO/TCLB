@@ -169,6 +169,9 @@ private:
     inline int TryDepth(size_t grid_size);
 public:
     BALLS* balls;
+    inline SolidGrid() {
+        depth = 4;
+    }
     inline void Build();
     inline void InitFinder(finder_t&);
     inline void CleanFinder(finder_t&);

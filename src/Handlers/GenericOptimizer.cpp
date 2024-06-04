@@ -6,7 +6,7 @@ int GenericOptimizer::Init () {
 		int ret;
 		DEBUG_M;
 		ret = OptimizerInit();
-		MPI_Bcast( &ret, 1, MPI_INT, 0, MPI_COMM_WORLD );
+		MPI_Bcast( &ret, 1, MPI_INT, 0, solver->mpi_comm );
 		if (ret) {
 			ERROR("Failed to initialize Optimizer");
 			return -1;

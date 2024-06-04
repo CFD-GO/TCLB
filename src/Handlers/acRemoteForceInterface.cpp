@@ -2,6 +2,8 @@
 std::string acRemoteForceInterface::xmlname = "RemoteForceInterface";
 #include "../HandlerFactory.h"
 
+#include <sstream>
+
 int acRemoteForceInterface::Init () {
         Action::Init();
         pugi::xml_attribute attr = node.attribute("integrator");
@@ -22,6 +24,26 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         solver->lattice->RFI.setUnits(units[0],units[1],units[2]);
         solver->lattice->RFI.CanCopeWithUnits(false);
 
+        solver->lattice->RFI.setVar("output", solver->info.outpath);
+
+        
+        std::string element_content;
+        int node_children = 0;
+        for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
+          node_children ++;
+          if (node_children > 1) {
+              ERROR("Only a single element/CDATA allowed inside of a RemoteForceInterface xml element\n");
+              return -1;
+          }
+		      if ((par.type() == pugi::node_pcdata) || (par.type() == pugi::node_cdata)) {
+            element_content = par.value();
+		      } else {
+            std::stringstream ss;
+            par.print(ss);
+            element_content = ss.str();
+          }
+	      }
+        if (node_children > 0) solver->lattice->RFI.setVar("content", element_content);
         bool stats = false;
         std::string stats_prefix = solver->outpath;
         stats_prefix = stats_prefix + "_RFI";
@@ -56,7 +78,7 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         bool use_box = true;
         attr = node.attribute("use_box");
         if (attr) use_box = attr.as_bool();
-        
+
         if (use_box) {
           lbRegion reg = lattice->getLocalRegion();
           double px = lattice->px;
@@ -70,6 +92,12 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
             pz + reg.dz - PART_MAR_BOX,
             pz + reg.dz + reg.nz + PART_MAR_BOX);
         }
+
+        attr = node.attribute("omega");
+        if (attr) solver->lattice->RFI_omega = attr.as_bool();
+        attr = node.attribute("torque");
+        if (attr) solver->lattice->RFI_torque = attr.as_bool();
+
         MPI_Barrier(MPMD.local);
         lattice->RFI.Connect(MPMD.work,inter.work);
         
