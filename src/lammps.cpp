@@ -121,6 +121,7 @@ int main(int argc, char* argv[]) {
                 exit(1);
             }
             if (RFI.hasVar("output")) {
+                fprintf(fp, "variable timestep equal %.15lg\n", RFI.auto_timestep);
                 fprintf(fp, "variable output string %s\n", RFI.getVar("output").c_str());
             }
             fprintf(fp, "%s\n", RFI.getVar("content").c_str());
