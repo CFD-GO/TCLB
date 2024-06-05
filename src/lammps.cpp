@@ -113,19 +113,21 @@ int main(int argc, char* argv[]) {
                 MPI_Abort(MPI_COMM_WORLD, 1);
                 exit(1);
             }
-            FILE* fp = NULL;
-            fp = fopen(infile.c_str(), "w");
-            if (fp == NULL) {
-                printf("ERROR: failed to write to %s\n",infile.c_str());
-                MPI_Abort(MPI_COMM_WORLD, 1);
-                exit(1);
-            }
-            if (RFI.hasVar("output")) {
+            if (MPMD.local_rank == 0) {
+                FILE* fp = NULL;
+                fp = fopen(infile.c_str(), "w");
+                if (fp == NULL) {
+                    printf("ERROR: failed to write to %s\n",infile.c_str());
+                    MPI_Abort(MPI_COMM_WORLD, 1);
+                    exit(1);
+                }
                 fprintf(fp, "variable timestep equal %.15lg\n", RFI.auto_timestep);
-                fprintf(fp, "variable output string %s\n", RFI.getVar("output").c_str());
+                if (RFI.hasVar("output")) {
+                    fprintf(fp, "variable output string %s\n", RFI.getVar("output").c_str());
+                }
+                fprintf(fp, "%s\n", RFI.getVar("content").c_str());
+                fclose(fp);
             }
-            fprintf(fp, "%s\n", RFI.getVar("content").c_str());
-            fclose(fp);
         } else {
             printf("ERROR: No configuration provided (either xml file or content from force calculator\n");
             MPI_Abort(MPI_COMM_WORLD,1);
