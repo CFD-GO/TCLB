@@ -56,7 +56,9 @@ int cbFailcheck::DoIt() {
 
     // Note: std::any_of would break early, we want to print all quantities which have NaN values, hence std::transform_reduce
     const auto& quants = solver->lattice->model->quantities;
-    if (std::transform_reduce(quants.begin(), quants.end(), false, std::logical_or{}, check_for_nans)) {
+    bool res = false;
+    for (const auto& p : quants) res = res || check_for_nans(p);
+    if (res) {
         notice("NaN value discovered. Executing final actions from the Failcheck element before full stop...\n");
         for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
             Handler hand(par, solver);

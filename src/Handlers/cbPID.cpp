@@ -111,7 +111,7 @@ int cbPID::DoIt () {
 			old_err = err;
 			
 		}
-                MPI_Bcast(&control, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+                MPI_Bcast(&control, 1, MPI_DOUBLE, 0, solver->mpi_comm);
                 double nval;
 /*                if (zone_number < 0) {
                 	sval = solver->lattice->zSet.get(setting, 0, (size_t) 0);

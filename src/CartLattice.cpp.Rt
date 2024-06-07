@@ -791,8 +791,8 @@ void MouseMove( CartLattice* data, int x, int y, int nx, int ny )
 		0,
 	1,1,1);
 	<?R if ("Wall" %in% NodeTypes$name) { ?>
-		flag_t NodeType = NODE_Wall;
-		data->FlagOverwrite(&NodeType,r); // Overwrite mesh flags with flags from 'mask' table
+		static std::vector<big_flag_t> NodeType = { NODE_Wall };
+		data->setFlags(r, NodeType); // Overwrite mesh flags with flags from 'mask' table
 	<?R } ?>
 }
 

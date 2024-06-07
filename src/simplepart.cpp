@@ -14,6 +14,8 @@ struct Particle {
   double v[3];
   double f[3];
   double favg[3];
+  double omega[3];
+  double torque[3];
   size_t n;
   bool logging;
   Particle() {
@@ -23,10 +25,39 @@ struct Particle {
       v[i] = 0;
       f[i] = 0;
       favg[i] = 0;
+      omega[i] = 0;
+      torque[i] = 0;
     }
     m = 0;
     r = 0;
     logging = false;
+  }
+};
+
+struct attr_name_t {
+  std::string vector;
+  std::string non_vector;
+  int d;
+  attr_name_t(const std::string& name) {
+    bool vec = true;
+    d = -1;
+    auto w = name.back();
+    if (w == 'x') { d = 0; }
+    else if (w == 'y') { d = 1; }
+    else if (w == 'z') { d = 2; }
+    else { vec = false; }
+    if (vec) {
+      vector = name;
+      vector.pop_back();
+      non_vector = "=";
+    } else {
+      non_vector = name;
+      vector = "=";
+    }
+  }
+  attr_name_t(const char* name) : attr_name_t(std::string(name)) {};
+  bool operator==(const std::string& name) {
+    return non_vector == name;
   }
 };
 
@@ -44,7 +75,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   MPMD.Identify();
-  rfi::RemoteForceInterface<rfi::ForceIntegrator, rfi::RotParticle> RFI;
+  rfi::RemoteForceInterface<rfi::ForceIntegrator, rfi::RotParticle, rfi::ArrayOfStructures, real_t> RFI;
   RFI.name = "SIMPLEPART";
 
   MPMDIntercomm inter = MPMD["TCLB"];
@@ -57,19 +88,27 @@ int main(int argc, char *argv[]) {
   wsize.resize(RFI.Workers());
   windex.resize(RFI.Workers());
   Particles particles;
-  double dt = 0;
+  double dt = RFI.auto_timestep;
 
   bool logging = false;
-  std::string logging_filename;
+  std::string logging_filename = "";
+  if (RFI.hasVar("output")) logging_filename = RFI.getVar("output") + "_SP_Log.csv";
   int logging_iter = 1;
   FILE* logging_f = NULL;
   bool avg = false;
 
-  double periodicity[3];
+  bool log_position = true;
+  bool log_velocity = true;
+  bool log_force = true;
+  bool log_omega = false;
+  bool log_torque = false;
+
+  double periodicity[3], periodic_origin[3];
   bool periodic[3];
   for (int i = 0; i < 3; i++) {
     periodic[i] = false;
     periodicity[i] = 0.0;
+    periodic_origin[i] = 0.0;
   }
 
   double acc_vec[3];
@@ -77,14 +116,33 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < 3; i++) acc_vec[i] = 0.0;
   acc_freq = 0.0;
 
-  if (argc != 2) {
+  if (argc < 1 || argc > 2) {
     printf("Syntax: simplepart config.xml\n");
+    printf("  You can omit config.xml if configuration is provided by the force calculator (eg. TCLB xml)\n");
     MPI_Abort(MPI_COMM_WORLD,1);
     exit(1);
   }
-  char * filename = argv[1];
+
+  char * filename = NULL;
+  if (argc > 1) {
+    filename = argv[1];
+  }
   pugi::xml_document config;
-  pugi::xml_parse_result result = config.load_file(filename, pugi::parse_default | pugi::parse_comments);
+  pugi::xml_parse_result result;
+  if (filename != NULL) {
+    if (RFI.hasVar("content")) {
+      WARNING("Ignoring content (configuration) sent by calculator");
+    }
+    result = config.load_file(filename, pugi::parse_default | pugi::parse_comments);
+  } else {
+    if (RFI.hasVar("content")) {
+      result = config.load_string(RFI.getVar("content").c_str(), pugi::parse_default | pugi::parse_comments);
+    } else {
+      printf("No configuration provided (either xml file or content from force calculator\n");
+      MPI_Abort(MPI_COMM_WORLD,1);
+      exit(1);
+    }
+  }
   if (!result) {
     ERROR("Error while parsing %s: %s\n", filename, result.description());
     return -1;
@@ -118,19 +176,13 @@ int main(int argc, char *argv[]) {
     if (node_name == "Particle") {
       Particle p;
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
-        std::string attr_name = attr.name();
-        if (attr_name == "x") {
-          p.x[0] = attr.as_double();
-        } else if (attr_name == "y") {
-          p.x[1] = attr.as_double();
-        } else if (attr_name == "z") {
-          p.x[2] = attr.as_double();
-        } else if (attr_name == "vx") {
-          p.v[0] = attr.as_double();
-        } else if (attr_name == "vy") {
-          p.v[1] = attr.as_double();
-        } else if (attr_name == "vz") {
-          p.v[2] = attr.as_double();
+        attr_name_t attr_name = attr.name();
+        if (attr_name.vector == "") {
+          p.x[attr_name.d] = attr.as_double();
+        } else if (attr_name.vector == "v") {
+          p.v[attr_name.d] = attr.as_double();
+        } else if (attr_name.vector == "omega") {
+          p.omega[attr_name.d] = attr.as_double();
         } else if (attr_name == "r") {
           p.r = attr.as_double();
         } else if (attr_name == "m") {
@@ -150,16 +202,12 @@ int main(int argc, char *argv[]) {
       particles.push_back(p);
     } else if (node_name == "Periodic") {
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
-        std::string attr_name = attr.name();
-        if (attr_name == "x") {
-          periodic[0] = true;
-          periodicity[0] = attr.as_double();
-        } else if (attr_name == "y") {
-          periodic[1] = true;
-          periodicity[1] = attr.as_double();
-        } else if (attr_name == "z") {
-          periodic[2] = true;
-          periodicity[2] = attr.as_double();
+        attr_name_t attr_name = attr.name();
+        if (attr_name.vector == "") {
+          periodic[attr_name.d] = true;
+          periodicity[attr_name.d] = attr.as_double();
+        } else if (attr_name.vector == "p") {
+          periodic_origin[attr_name.d] = attr.as_double();
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
@@ -172,8 +220,8 @@ int main(int argc, char *argv[]) {
       } 
       for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
         std::string attr_name = attr.name();
+        logging = true;
         if (attr_name == "name") {
-          logging = true;
           logging_filename = attr.value();
         } else if (attr_name == "Iterations") {
           logging_iter = attr.as_int();
@@ -184,13 +232,17 @@ int main(int argc, char *argv[]) {
         } else if (attr_name == "average") {
           avg = attr.as_bool();
           if (avg) notice("SIMPLEPART: Particle force averaging is ON");
+        } else if (attr_name == "rotation") {
+          log_omega = attr.as_bool();
+          log_torque = log_omega;
+          if (log_omega) notice("SIMPLEPART: Particle omega and torque is logged");
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
         }
       }
-      if (!logging) {
-        ERROR("Name not set in '%s' element", node.name());
+      if (logging && logging_filename == "") {
+        ERROR("Loggin file name not set in '%s' element", node.name());
         return -1;
       }
     } else {
@@ -207,7 +259,11 @@ int main(int argc, char *argv[]) {
     fprintf(logging_f, "Iteration,Time");
     for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
       size_t n = p->n;
-      fprintf(logging_f, ",p%ld_x,p%ld_y,p%ld_z,p%ld_vx,p%ld_vy,p%ld_vz,p%ld_fx,p%ld_fy,p%ld_fz",n,n,n,n,n,n,n,n,n);
+      if (log_position) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","",n);
+      if (log_velocity) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","v",n);
+      if (log_force) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","f",n);
+      if (log_omega) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","o",n);
+      if (log_torque) fprintf(logging_f, ",p%2$ld_%1$sx,p%2$ld_%1$sy,p%2$ld_%1$sz","t",n);
     }
     fprintf(logging_f, "\n");
   }
@@ -230,6 +286,9 @@ int main(int argc, char *argv[]) {
           p->f[0] = 0;
           p->f[1] = 0;
           p->f[2] = 0;
+          p->torque[0] = 0;
+          p->torque[1] = 0;
+          p->torque[2] = 0;
         }
         int minper[3], maxper[3], d[3];
         size_t offset = 0;
@@ -276,14 +335,19 @@ int main(int argc, char *argv[]) {
                     RFI.setData(i, RFI_DATA_VEL + 1, p->v[1]);
                     RFI.setData(i, RFI_DATA_VEL + 2, p->v[2]);
                     if (RFI.Rot()) {
-                      RFI.setData(i, RFI_DATA_ANGVEL + 0, 0.0);
-                      RFI.setData(i, RFI_DATA_ANGVEL + 1, 0.0);
-                      RFI.setData(i, RFI_DATA_ANGVEL + 2, 0.0);
+                      RFI.setData(i, RFI_DATA_ANGVEL + 0, p->omega[0]);
+                      RFI.setData(i, RFI_DATA_ANGVEL + 1, p->omega[1]);
+                      RFI.setData(i, RFI_DATA_ANGVEL + 2, p->omega[2]);
                     }
                   } else {
                     p->f[0] += RFI.getData(i, RFI_DATA_FORCE + 0);
                     p->f[1] += RFI.getData(i, RFI_DATA_FORCE + 1);
                     p->f[2] += RFI.getData(i, RFI_DATA_FORCE + 2);
+                    if (RFI.Rot()) {
+                      p->torque[0] += RFI.getData(i, RFI_DATA_MOMENT + 0);
+                      p->torque[1] += RFI.getData(i, RFI_DATA_MOMENT + 1);
+                      p->torque[2] += RFI.getData(i, RFI_DATA_MOMENT + 2);
+                    }
                   }
                   windex[worker]++;
                 }
@@ -307,14 +371,18 @@ int main(int argc, char *argv[]) {
     if (logging && (iter % logging_iter == 0)) {
       fprintf(logging_f, "%d,%.15lg", iter, dt*iter);
       for (Particles::iterator p = particles.begin(); p != particles.end(); p++) if (p->logging) {
-        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->x[i]);
-        for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->v[i]);
-        if (avg) {
-          for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->favg[i]/logging_iter);
-        } else {
-          for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+        if (log_position) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->x[i]);
+        if (log_velocity) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->v[i]);
+        if (log_force) {
+          if (avg) {
+            for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->favg[i]/logging_iter);
+            for (int i=0; i<3; i++) p->favg[i] = 0;
+          } else {
+            for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->f[i]);
+          }
         }
-        for (int i=0; i<3; i++) p->favg[i] = 0;
+        if (log_omega) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->omega[i]);
+        if (log_torque) for (int i=0; i<3; i++) fprintf(logging_f, ",%.15lg", p->torque[i]);
       }
       fprintf(logging_f, "\n");
     }

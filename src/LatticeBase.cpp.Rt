@@ -14,6 +14,9 @@ LatticeBase::LatticeBase(int zonesettings, int zones, int num_snaps_, const Unit
     data.particle_data_size = 0;
     SC.balls = &RFI;
     RFI.name = "TCLB";
+   	RFI_omega = true;
+	RFI_torque = true;
+
     CudaStreamCreate(&kernelStream);
     CudaStreamCreate(&inStream);
     CudaStreamCreate(&outStream);
@@ -107,12 +110,11 @@ void LatticeBase::CopyInParticles() {
         CudaMalloc(&data.particle_data, RFI.mem_size());
     }
     data.particle_data_size = RFI.size();
-    for (size_t i = 0; i < RFI.size(); i++) {
-        RFI.RawData(i, RFI_DATA_FORCE + 0) = 0;
-        RFI.RawData(i, RFI_DATA_FORCE + 1) = 0;
-        RFI.RawData(i, RFI_DATA_FORCE + 2) = 0;
+    for (int j=0; j<6; j++) for (size_t i=0; i<RFI.size(); i++) RFI.RawData(i, RFI_DATA_FORCE+j) = 0;
+    if (!RFI_omega) for (int j=0; j<3; j++) for (size_t i=0; i<RFI.size(); i++) RFI.RawData(i, RFI_DATA_ANGVEL+j) = 0;
+    if (RFI.mem_size() > 0) {
+        CudaMemcpyAsync(data.particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream);
     }
-    if (RFI.mem_size() > 0) { CudaMemcpyAsync(data.particle_data, RFI.Particles(), RFI.mem_size(), CudaMemcpyHostToDevice, kernelStream); }
     DEBUG_PROF_PUSH("Tree Build");
     SC.Build();
     DEBUG_PROF_POP();
@@ -120,16 +122,22 @@ void LatticeBase::CopyInParticles() {
 }
 
 void LatticeBase::CopyOutParticles() {
-    if (RFI.mem_size() > 0) { CudaMemcpyAsync(RFI.Particles(), data.particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream); }
+    if (RFI.mem_size() > 0) {
+        CudaMemcpyAsync(RFI.Particles(), data.particle_data, RFI.mem_size(), CudaMemcpyDeviceToHost, kernelStream);
+    }
     CudaStreamSynchronize(kernelStream);
     DEBUG_PROF_PUSH("Testing particles for NaNs");
     int nans = 0;
-    for (size_t i = 0; i < RFI.size(); i++) {
-        for (int j = 0; j < 3; j++) {
-            if (!isfinite(RFI.RawData(i, RFI_DATA_FORCE + j))) {
-                nans++;
-                RFI.RawData(i, RFI_DATA_FORCE + j) = 0.0;
+    for (int j=0; j<6; j++) {
+        if (RFI_torque || (j<3)) {
+            for (size_t i=0; i<RFI.size(); i++){
+                if (! isfinite(RFI.RawData(i,RFI_DATA_FORCE+j))) {
+                    nans++;
+                    RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
+                }
             }
+        } else {
+            for (size_t i=0; i<RFI.size(); i++) RFI.RawData(i,RFI_DATA_FORCE+j) = 0.0;
         }
     }
     if (nans > 0) notice("%d NANs in particle forces (overwritten with 0.0)\n", nans);

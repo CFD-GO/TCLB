@@ -29,9 +29,11 @@ class cbRunR : public  Callback  {
     bool python;
     static int s_tag;
     int tag;
+    int old_iter_type;
 public:
     int Init ();
     int DoIt ();
+    int Finish ();
 };
 
 #endif // WITH_R

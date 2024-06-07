@@ -30,9 +30,9 @@ struct ParticleI : Particle {
 		angvel.x = particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+0];
 		angvel.y = particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+1];
 		angvel.z = particle_data[i*RFI_DATA_SIZE+RFI_DATA_ANGVEL+2];
-		diff.x = pos.x - node[0];
-		diff.y = pos.y - node[1];
-		diff.z = pos.z - node[2];
+		diff.x = node[0] - pos.x;
+		diff.y = node[1] - pos.y;
+		diff.z = node[2] - pos.z;
 		dist = sqrt(diff.x*diff.x + diff.y*diff.y + diff.z*diff.z);
 		cvel.x = vel.x + angvel.y*diff.z - angvel.z*diff.y;
 		cvel.y = vel.y + angvel.z*diff.x - angvel.x*diff.z;

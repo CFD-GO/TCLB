@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <vector>
 #include <string>
+#include <map>
 
 namespace rfi {
 
@@ -94,6 +95,10 @@ private:
   std::vector< rfi_real_t > unit;
   bool non_trivial_units;
   bool can_cope_with_units;
+  typedef std::string vars_name_t;
+  typedef std::string vars_value_t;
+  typedef std::map< vars_name_t, vars_value_t > vars_t;
+  vars_t vars;
   void ISendSizes();
   void WSendSizes();
   void ISendParticles();
@@ -114,6 +119,7 @@ private:
 public:
   int particle_size;
   std::string name;
+  rfi_real_t auto_timestep;
   RemoteForceInterface();
   ~RemoteForceInterface();
   void MakeTypes(bool,bool);  
@@ -143,6 +149,9 @@ public:
   template <class T> inline std::vector<T> Exchange(std::vector<T> out);
   template <class T> inline std::basic_string<T> Exchange(std::basic_string<T> out);
   void setUnits(rfi_real_t meter, rfi_real_t second, rfi_real_t kilogram);
+  void setVar(const vars_name_t& name, const vars_value_t& value);
+  bool hasVar(const vars_name_t& name) { return vars.find(name) != vars.end(); };
+  const vars_value_t& getVar(const vars_name_t& name) { return vars[name]; };
   inline rfi_real_t& RawData(size_t i, int j) {
     if (STORAGE == ArrayOfStructures) {
       return tab[i*particle_size + j];
