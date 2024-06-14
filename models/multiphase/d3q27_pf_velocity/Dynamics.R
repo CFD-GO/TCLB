@@ -19,6 +19,9 @@ AddDensity(name="Init_nwx_external", group="init_normals", dx=0,dy=0,dz=0, param
 AddDensity(name="Init_nwy_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
 AddDensity(name="Init_nwz_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
 
+# Add extra density for setting the pressure on boundaries
+AddDensity(name="Pressure_external", group="Vel", dx=0, dy=0, dz=0, parameter=TRUE)
+
 # macroscopic params
 # - consider migrating to fields
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
@@ -207,6 +210,7 @@ if (Options$thermo){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
+    AddSetting(name="UseExternalPressure", default=0, comment='Use external pressure (set from RunR)')
 	AddSetting(name="force_fixed_iterator", default=2, comment='to resolve implicit relation of viscous force')
   	AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
   	AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
