@@ -94,7 +94,7 @@ CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boun
 	real_t pstar = Pressure / (d*cs2);
     if (UseExternalPressure > 0){
         /// use pressure set externally from RunR
-        p_star = Pressure_external / (d*cs2);
+        pstar = Pressure_external / (d*cs2);
     }
     <?R
     type_h = (if (j == 1) "fflux" else pressure_boundary_types[j])
