@@ -8,11 +8,11 @@
 	</Units>
 	<Geometry nx="1x" ny="1m+2" nz="1x" px="-0.5x" py="-1" pz="-0.5x">
 		<BGK><Box/></BGK>
-		<MovingWall_N mask="ALL" name="top_wall"><Box dy="-1"/></MovingWall_N>
+		<MovingWall_N mask="ALL" name="topwall"><Box dy="-1"/></MovingWall_N>
 		<Wall mask="ALL"><Box ny="1"/></Wall>
 	</Geometry>
 	<Model>
-		<Param name="VelocityX" value="1m/s" zone="top_wall"/>
+		<Param name="VelocityX" value="1m/s" zone="topwall"/>
 		<RemoteForceInterface integrator="LAMMPS">
 			units 		cgs
 			boundary 	p f f
@@ -39,7 +39,7 @@
 			# Insert particles
 			fix     part_1 particle_group particletemplate/sphere 17891 atom_type 1 density constant 1.0 radius constant 0.1
 			fix     dist particle_group particledistribution/discrete 18143 1 part_1 1
-			fix 	ins particle_group insert/pack seed 100003 distributiontemplate dist maxattempt 500 insert_every once overlapcheck yes all_in yes  region pack volumefraction_region 0.050000 check_dist_from_subdomain_border no
+			fix 	ins particle_group insert/pack seed 100003 distributiontemplate dist maxattempt 500 insert_every once overlapcheck yes all_in yes  region pack volumefraction_region 0.30000 check_dist_from_subdomain_border no
 			run	1
 			
 			# Specify particle groups
@@ -52,14 +52,14 @@
 			fix	m3 all property/global coefficientRestitution peratomtypepair 1 0.8 # defines damping, must be >0.05
 			fix	m4 all property/global coefficientFriction peratomtypepair 1 0.5 # defines friction
 			
-			fix	top_wall all mesh/surface file example/data/plane1x1.stl type 1 scale 2 rotate axis 1 0 0 angle 90 move -1 1 -1 surface_vel 1 0 0
-			fix	bottom_wall all mesh/surface file example/data/plane1x1.stl type 1 scale 2 rotate axis 1 0 0 angle 90 move -1 0 -1
+			fix	topwall all mesh/surface/stress file example/data/plane1x1.stl type 1 scale 2 rotate axis 1 0 0 angle 90 move -1 1 -1 surface_vel 1 0 0
+			fix	bottomwall all mesh/surface/stress file example/data/plane1x1.stl type 1 scale 2 rotate axis 1 0 0 angle 90 move -1 0 -1
 			
 			# Define physics for particle interactions
 			pair_style 	gran model hertz tangential history # 'tangential off' sets Ft=0; 'tangential no_history' incorporates damping to Ft, sets kt=0; 'tangential history' incorporate kt and damping into Ft
 			pair_coeff	* *
 			
-			fix granwalls all wall/gran model hertz tangential history mesh n_meshes 2 meshes top_wall bottom_wall
+			fix granwalls all wall/gran model hertz tangential history mesh n_meshes 2 meshes topwall bottomwall
 			
 			# Apply integration
 			fix	integr particle_group nve/sphere
@@ -67,8 +67,19 @@
 			# Couple to TCLB
 			fix 	tclb all external pf/callback 1 1
 			
+			variable time equal step*dt
+			variable tfx equal f_topwall[1]
+			variable tfy equal f_topwall[2]
+			variable tfz equal f_topwall[3]
+			variable bfx equal f_bottomwall[1]
+			variable bfy equal f_bottomwall[2]
+			variable bfz equal f_bottomwall[3]
+			dump forces all mesh/vtk 1000 ${output}_wall_*.vtk output interpolate id stress stresscomponents
+			fix forceslog all print 100 "${time},${tfx},${tfy},${tfz},${bfx},${bfy},${bfz}" file ${output}_forces.csv title "t,tFx,tFy,tFz,bFx,bFy,bFz" screen no
+
 			dump vtk_dump all atom/vtk 1000 ${output}_part_*.vtu
 			
+
 			timestep ${timestep}
 			
 			run	50000
