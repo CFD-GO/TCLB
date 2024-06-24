@@ -132,12 +132,12 @@ int main(int argc, char* argv[]) {
                         ret = sscanf(value.c_str(),"%lf%n", &val, &len);
                         if ((ret > 0) && (len == value.size())) {
                             is_numeric = true;
-                            fprintf(fp, "variable %s equal %.15lg\n", v.c_str(), val);
+                            fprintf(fp, "variable %s equal %.13lg\n", v.c_str(), val);
                         }
                     }
                     if (!is_numeric) fprintf(fp, "variable %s string %s\n", v.c_str(), value.c_str());
                 }
-                fprintf(fp, "variable timestep equal %.15lg\n", RFI.auto_timestep);
+                fprintf(fp, "variable timestep equal %.13lg\n", RFI.auto_timestep);
                 fprintf(fp, "\n");
                 fprintf(fp, "%s\n", RFI.getVar("content").c_str());
                 fprintf(fp, "\n");
