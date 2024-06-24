@@ -15,7 +15,6 @@ int acRemoteForceInterface::Init () {
 
 int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_) {
         output("Connecting RFI to %s\n",integrator_.c_str());
-        pugi::xml_attribute attr;
         double units[3];
         units[0] = solver->units.alt("1m");
         units[1] = solver->units.alt("1s");
@@ -25,7 +24,6 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
         solver->lattice->RFI.CanCopeWithUnits(false);
 
         solver->lattice->RFI.setVar("output", solver->info.outpath);
-
         
         std::string element_content;
         int node_children = 0;
@@ -44,24 +42,40 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
           }
 	      }
         if (node_children > 0) solver->lattice->RFI.setVar("content", element_content);
+
         bool stats = false;
         std::string stats_prefix = solver->info.outpath;
         stats_prefix = stats_prefix + "_RFI";
         int stats_iter = 200;
-        
-        attr = node.attribute("stats");
-        if (attr) stats = attr.as_bool();
-        attr = node.attribute("stats_iter");
-        if (attr) {
-          stats_iter = solver->units.alt(attr.value());
-          stats = true;
+        bool use_box = true;
+
+
+        for (pugi::xml_attribute attr = node.first_attribute(); attr; attr = attr.next_attribute()) {
+          std::string attr_name = attr.name();
+          if (attr_name == "integrator") {
+            // ignore
+          } else if (attr_name == "stats") {
+            stats = attr.as_bool();
+          } else if (attr_name == "stats_iter") {
+            stats_iter = solver->units.alt(attr.value());
+            stats = true;
+          } else if (attr_name == "stats_prefix") {
+            stats_prefix = attr.value();
+            stats = true;
+          } else if (attr_name == "use_box") {
+            use_box = attr.as_bool();
+          } else if (attr_name == "omega") {
+            solver->lattice->RFI_omega = attr.as_bool();
+          } else if (attr_name == "torque") {
+            solver->lattice->RFI_torque = attr.as_bool();
+          } else {
+            double val = solver->units.alt(attr.value());
+            char str[STRING_LEN];
+            sprintf(str, "%.15lg", val);
+            solver->lattice->RFI.setVar(attr.name(), str);
+          }
         }
-        attr = node.attribute("stats_prefix");
-        if (attr) {
-          stats_prefix = attr.value();
-          stats = true;
-        }
-        
+
         if (stats) {
           output("Asking for stats on RFI ( %s every %d it)\n", stats_prefix.c_str(), stats_iter);
           solver->lattice->RFI.enableStats(stats_prefix.c_str(), stats_iter);
@@ -73,10 +87,6 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
                 return -1;
         }
         integrator = integrator_;
-
-        bool use_box = true;
-        attr = node.attribute("use_box");
-        if (attr) use_box = attr.as_bool();
 
         if (use_box) {
           lbRegion reg = solver->lattice->region;
@@ -92,15 +102,10 @@ int acRemoteForceInterface::ConnectRemoteForceInterface(std::string integrator_)
             pz + reg.dz + reg.nz + PART_MAR_BOX);
         }
 
-        attr = node.attribute("omega");
-        if (attr) solver->lattice->RFI_omega = attr.as_bool();
-        attr = node.attribute("torque");
-        if (attr) solver->lattice->RFI_torque = attr.as_bool();
-
         MPI_Barrier(MPMD.local);
         solver->lattice->RFI.Connect(MPMD.work,inter.work);
         
-	return 0;
+        return 0;
 }
 
 

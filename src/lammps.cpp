@@ -121,11 +121,26 @@ int main(int argc, char* argv[]) {
                     MPI_Abort(MPI_COMM_WORLD, 1);
                     exit(1);
                 }
-                fprintf(fp, "variable timestep equal %.15lg\n", RFI.auto_timestep);
-                if (RFI.hasVar("output")) {
-                    fprintf(fp, "variable output string %s\n", RFI.getVar("output").c_str());
+                const std::vector<std::string> var_names = RFI.listVars();
+                for (const auto& v : var_names) {
+                    if (v == "content") continue;
+                    auto& value = RFI.getVar(v);
+                    bool is_numeric = false;
+                    if (v != "output") {
+                        double val;
+                        int ret, len;
+                        ret = sscanf(value.c_str(),"%lf%n", &val, &len);
+                        if ((ret > 0) && (len == value.size())) {
+                            is_numeric = true;
+                            fprintf(fp, "variable %s equal %.15lg\n", v.c_str(), val);
+                        }
+                    }
+                    if (!is_numeric) fprintf(fp, "variable %s string %s\n", v.c_str(), value.c_str());
                 }
+                fprintf(fp, "variable timestep equal %.15lg\n", RFI.auto_timestep);
+                fprintf(fp, "\n");
                 fprintf(fp, "%s\n", RFI.getVar("content").c_str());
+                fprintf(fp, "\n");
                 fclose(fp);
             }
         } else {

@@ -13,7 +13,7 @@
 	</Geometry>
 	<Model>
 		<Param name="VelocityX" value="1m/s" zone="topwall"/>
-		<RemoteForceInterface integrator="LAMMPS">
+		<RemoteForceInterface integrator="LAMMPS" radius="3/m">
 			units 		cgs
 			boundary 	p f f
 			newton		off # required off for tangential history
@@ -37,7 +37,7 @@
 			region pack block -1 1 0 1 -1 1
 			
 			# Insert particles
-			fix     part_1 particle_group particletemplate/sphere 17891 atom_type 1 density constant 1.0 radius constant 0.1
+			fix     part_1 particle_group particletemplate/sphere 17891 atom_type 1 density constant 1.0 radius constant ${radius}
 			fix     dist particle_group particledistribution/discrete 18143 1 part_1 1
 			fix 	ins particle_group insert/pack seed 100003 distributiontemplate dist maxattempt 500 insert_every once overlapcheck yes all_in yes  region pack volumefraction_region 0.30000 check_dist_from_subdomain_border no
 			run	1
