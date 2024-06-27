@@ -113,18 +113,36 @@ int main(int argc, char* argv[]) {
                 MPI_Abort(MPI_COMM_WORLD, 1);
                 exit(1);
             }
-            FILE* fp = NULL;
-            fp = fopen(infile.c_str(), "w");
-            if (fp == NULL) {
-                printf("ERROR: failed to write to %s\n",infile.c_str());
-                MPI_Abort(MPI_COMM_WORLD, 1);
-                exit(1);
+            if (MPMD.local_rank == 0) {
+                FILE* fp = NULL;
+                fp = fopen(infile.c_str(), "w");
+                if (fp == NULL) {
+                    printf("ERROR: failed to write to %s\n",infile.c_str());
+                    MPI_Abort(MPI_COMM_WORLD, 1);
+                    exit(1);
+                }
+                const std::vector<std::string> var_names = RFI.listVars();
+                for (const auto& v : var_names) {
+                    if (v == "content") continue;
+                    auto& value = RFI.getVar(v);
+                    bool is_numeric = false;
+                    if (v != "output") {
+                        double val;
+                        int ret, len;
+                        ret = sscanf(value.c_str(),"%lf%n", &val, &len);
+                        if ((ret > 0) && (len == value.size())) {
+                            is_numeric = true;
+                            fprintf(fp, "variable %s equal %.13lg\n", v.c_str(), val);
+                        }
+                    }
+                    if (!is_numeric) fprintf(fp, "variable %s string %s\n", v.c_str(), value.c_str());
+                }
+                fprintf(fp, "variable timestep equal %.13lg\n", RFI.auto_timestep);
+                fprintf(fp, "\n");
+                fprintf(fp, "%s\n", RFI.getVar("content").c_str());
+                fprintf(fp, "\n");
+                fclose(fp);
             }
-            if (RFI.hasVar("output")) {
-                fprintf(fp, "variable output string %s\n", RFI.getVar("output").c_str());
-            }
-            fprintf(fp, "%s\n", RFI.getVar("content").c_str());
-            fclose(fp);
         } else {
             printf("ERROR: No configuration provided (either xml file or content from force calculator\n");
             MPI_Abort(MPI_COMM_WORLD,1);
