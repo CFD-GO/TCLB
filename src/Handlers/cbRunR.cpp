@@ -742,6 +742,8 @@ int cbRunR::Init() {
 		output("%s\n",source.c_str());
 		output("--------------------------------\n");
 	}
+	old_iter_type = solver->iter_type;
+	solver->iter_type |= ITER_LASTGLOB;
 	return 0;
 }
 
@@ -786,6 +788,11 @@ int cbRunR::DoIt() {
 		return -1;
 	}
 	return 0;
+}
+
+int cbRunR::Finish () {
+	solver->iter_type = old_iter_type;
+	return Callback::Finish();
 }
 
 

@@ -64,6 +64,7 @@ class LatticeBase {
     solidcontainer_t SC;                      ///<
     size_t particle_data_size_max = 0;        ///<
     rfi_t RFI;                                ///<
+    bool RFI_omega, RFI_torque;
     SyntheticTurbulence ST;                   ///<
     std::string snapFileName;
 
