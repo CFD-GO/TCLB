@@ -18,7 +18,7 @@ function formatCPP {
     fi
     clang-format $FOPT |
         sed -E 's/for[[:blank:]]*[(]([[:alpha:]_]*[[:blank:]]|)[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*=[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*;[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*([<=]*)[[:blank:]]*([[:alnum:]_]+)[[:blank:]]*;[[:blank:]]*([[:alnum:]_]+)[+][+][[:blank:]]*\)/for (\1\2=\3; \4\5\6; \7++)/g' |
-        sed -E 's| ([*/]) |\1|g'
+        perl -pe 's/(["][^"]*["])(*SKIP)(*F)| ([*\/]) /\2/g'
 }
 
 function formatRT {
