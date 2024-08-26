@@ -781,17 +781,19 @@ CudaDeviceFunction void calcWallPhase_correction() {
             int count = 0;
             real_t fluid_average = 0.0;
             real_t x, y, z;
+            real_t denom = 0.0;
 			for (int i=1; i<27 ; i++){
 				x = d3q27_ex[i];
 				y = d3q27_ey[i];
 				z = d3q27_ez[i];
                 if (!IsBoundary_dyn(int(x), int(y), int(z)) && PhaseF_dyn(int(x), int(y), int(z)) > -0.5) {
                     fluid_average += wg[i]*PhaseF_dyn(int(x), int(y), int(z));
+                    denom += wg[i];
                     count++;
                 }
 			}
             // print sum and average and count
-            PhaseF = count == 0 ? 1 : fluid_average / count;
+            PhaseF = count == 0 ? 1 : fluid_average / denom;
         } else {
             PhaseF = point_in_the_normal_direction;
         }
