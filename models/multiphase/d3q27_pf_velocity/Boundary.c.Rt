@@ -78,18 +78,14 @@ CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
 for (ii in 1:cube_faces){
 for (j in 1:length(pressure_boundary_types)) {  ?>
 CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boundary_types[j]) ?>(){
-    real_t d = getRho();
-    real_t myPhaseField = 0.0;
 
-    if ((NodeType & NODE_BOUNDARY) == <?%s paste0("NODE_WPressure", pressure_boundary_types[j]) ?>){
-        d = InvasionDrainage == 2? Density_l : Density_h;
-        myPhaseField = InvasionDrainage == 2? 0.0 : 1.0;
-    }
 
-    if ((NodeType & NODE_BOUNDARY) == <?%s paste0("NODE_EPressure", pressure_boundary_types[j]) ?>){
-       d = InvasionDrainage == 2? Density_h : Density_l;
-       myPhaseField = InvasionDrainage == 2? 1.0 : 0.0;
-    }
+    // can't use PhaseF or getRho() because
+    // the values can be streamed from the other side of the
+    // boundary
+    real_t myPhaseField = PhaseField;
+	real_t d =  Density_l + (Density_h-Density_l) * (PhaseField - PhaseField_l)/(PhaseField_h - PhaseField_l);
+
 
 	real_t pstar = Pressure / (d*cs2);
     if (UseExternalPressure > 0){

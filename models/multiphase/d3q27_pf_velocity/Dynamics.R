@@ -252,7 +252,7 @@ if (Options$thermo){
 	AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 	AddSetting(name="VelocityZ", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 	AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', zonal=T)
-    AddSetting(name='InvasionDrainage', default=0, comment='0 nothing, 1 flooding, -1 drainage')
+    AddSetting(name='InvasionDrainage', default=0, comment='0 nothing, anything bigger is invasion/drainage case")
 	AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 	AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
 	AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
