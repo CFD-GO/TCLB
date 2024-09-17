@@ -765,35 +765,32 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
  * yet set value
  */
 CudaDeviceFunction void calcWallPhase_correction() {
-	PhaseF = PhaseF(0,0,0);
-	if (IsSpecialBoundaryPoint == <?%s NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
-		// take the phase field calculated already from the node in front.
-		// Might as well calculate using the neighbors, e.g. averaging
-		real_t point_in_the_normal_direction = PhaseF_dyn(nw_x, nw_y, nw_z);
-        // in some cases we might (TODO: investigate) still point into the solid node
-        // that has normal pointing into another, we need to avoid this
-        if (point_in_the_normal_direction == <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>) {
-            // ignore first node
-            int count = 0;
-            real_t fluid_average = 0.0;
-            real_t x, y, z;
-            real_t denom = 0.0;
-			for (int i=1; i<27 ; i++){
-				x = d3q27_ex[i];
-				y = d3q27_ey[i];
-				z = d3q27_ez[i];
-                if (!IsBoundary_dyn(int(x), int(y), int(z)) && PhaseF_dyn(int(x), int(y), int(z)) > -0.5) {
-                    fluid_average += wg[i]*PhaseF_dyn(int(x), int(y), int(z));
-                    denom += wg[i];
-                    count++;
-                }
-			}
-            // print sum and average and count
-            PhaseF = count == 0 ? 1 : fluid_average / denom;
-        } else {
-            PhaseF = point_in_the_normal_direction;
+    PhaseF = PhaseF(0,0,0);
+    if (IsSpecialBoundaryPoint == <?%s NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
+        // We could take the phase field calculated already from the node in front
+        // (solid in the direction of solid normal)
+        // if it is already has the phase field value calculated (from the BC application)
+        // however this seems to be less stable...
+        // More robust is calculate using the neighbors, e.g. averaging.
+        // If this also would not work at some point, more detailed investigation is needed
+        int count = 0;
+        real_t fluid_average = 0.0;
+        real_t x, y, z;
+        real_t denom = 0.0;
+        // ignore first node
+        for (int i=1; i<27 ; i++){
+            x = d3q27_ex[i];
+            y = d3q27_ey[i];
+            z = d3q27_ez[i];
+            if (!IsBoundary_dyn(int(x), int(y), int(z)) && PhaseF_dyn(int(x), int(y), int(z)) > -0.5) {
+                fluid_average += wg[i]*PhaseF_dyn(int(x), int(y), int(z));
+                denom += wg[i];
+                count++;
+            }
         }
-	}
+        // print sum and average and count
+        PhaseF = count == 0 ? 1 : fluid_average / denom;
+    }
 }
 
 
