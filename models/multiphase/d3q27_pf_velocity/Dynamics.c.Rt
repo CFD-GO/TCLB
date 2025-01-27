@@ -400,6 +400,10 @@ CudaDeviceFunction void specialCases_Init()
 		PhaseF = 1 - 0.5 *  ( tanh( 2.0 * ( X - Washburn_start ) / IntWidth ) -
 						   tanh( 2.0 * ( X - Washburn_end  )  / IntWidth ));
 	}
+    if (Tanh_init > 0) {
+        PhaseF = 0.5 + 0.5*( tanh( 2.0 * ( X - Tanh_init) / IntWidth ));
+    }
+
 }
 
 CudaDeviceFunction void Init_distributions()
