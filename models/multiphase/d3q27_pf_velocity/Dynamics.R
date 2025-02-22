@@ -214,6 +214,7 @@ if (Options$thermo){
 	AddSetting(name="force_fixed_iterator", default=2, comment='to resolve implicit relation of viscous force')
   	AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
   	AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
+  	AddSetting(name="Tanh_init", default="0", comment='Start of tanh interface initialisation')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS
