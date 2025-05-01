@@ -259,6 +259,7 @@ if (Options$thermo){
 	AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho_h-rho)*BuoyancyX')
 	AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho_h-rho)*BuoyancyY')
 	AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ')
+    AddSetting(name="vlimiter", default=0.0, comment="Velocity limiter value")
 ##################################
 ########TRACKING VARIABLES########
 ##################################
@@ -321,6 +322,7 @@ if (Options$thermo){
 	AddGlobal(name="LiqTotalVelocityX", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
+	AddGlobal(name="LimitedCells", comment='Number of cells where we limited the velocity', unit="1")
     AddGlobal(name="NumFluidCells", comment='Number of fluid cells')
     AddGlobal(name="NumSpecialPoints", comment='Number of special points')
     AddGlobal(name="NumWallBoundaryPoints", comment='Number of boundary nodes')

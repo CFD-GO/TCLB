@@ -687,6 +687,18 @@ CudaDeviceFunction void CollisionMRT()
 
 	<?R 	C( u, m0[2:4] + 0.5 * F_total * rho.inv) ?>
 	} while (j<force_fixed_iterator);
+
+   if (vlimiter != 0) {
+        real_t vl = U*U + V*V + W*W;
+        if (vl > vlimiter*vlimiter){
+            real_t reducer = vlimiter / sqrt(vl);
+            AddToLimitedCells(1);
+            U = U * reducer;
+            V = V * reducer;
+            W = W * reducer;
+        }
+    }
+
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	<?R
