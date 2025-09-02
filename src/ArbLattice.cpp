@@ -835,3 +835,12 @@ void ArbLattice::debugDumpVTU() const {
         vtu_file.writeFooters();
     }
 }
+
+void ArbLattice::resetAverage(){
+    data.reset_iter = data.iter;
+    for(const Model::Field& f : model->fields) {
+        if (f.isAverage) {
+            CudaMemset(&getSnapPtr(Snap)[f.id*sizes.snaps_pitch], 0, sizes.snaps_pitch*sizeof(real_t));
+        }
+    }
+}
