@@ -3,16 +3,23 @@ std::string cbAveraging::xmlname = "Average";
 #include "../HandlerFactory.h"
 
 int cbAveraging::Init () {
-		Callback::Init();
-		solver->getCartLattice()->resetAverage();
-                return 0;
+		return Callback::Init();
         }
 
 
 int cbAveraging::DoIt () {
-                Callback::DoIt();
-                solver->getCartLattice()->resetAverage(); // reseting averages-storing densities and setting reset_iter to iter
-                return 0;
+	        Callback::DoIt();
+	        const auto do_cartesian = [&](const Lattice<CartLattice>* lattice){
+                        // reseting averages-storing densities and setting reset_iter to iter for Cartesian lattice
+		        solver->getCartLattice()->resetAverage();
+		        return EXIT_SUCCESS;
+	        };
+	        const auto do_arbitrary = [&](const Lattice<ArbLattice>* lattice){
+                        // reseting averages-storing densities and setting reset_iter to iter for arbitrary lattice
+		        solver->getArbLattice()->resetAverage();
+		        return EXIT_SUCCESS;
+	        };
+	        return std::visit(OverloadSet{do_cartesian, do_arbitrary}, solver->getLatticeVariant());
         }
 
 
