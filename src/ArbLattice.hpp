@@ -100,6 +100,8 @@ class ArbLattice : public LatticeBase {
     const ArbLatticeConnectivity& getConnectivity() const { return connect; }
     const std::vector<unsigned>& getLocalPermutation() const { return local_permutation; }
 
+    void resetAverage();
+
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
     void SetFirstTabs(int tab0, int tab1);
