@@ -31,29 +31,37 @@ int Sampler::initCSV(const char *name)
 int Sampler::writeHistory(int curr_iter) {
      FILE* f = fopen(filename,"at");
      for (int i = startIter; i< curr_iter; i++){
-	     for (size_t j = 0; j <  spoints.size(); j++) {
-		if (mpi_rank == spoints[j].rank) {
-			vector_t tmp_loc;
-			tmp_loc.x = spoints[j].location.dx;
-			tmp_loc.y = spoints[j].location.dy;
-			tmp_loc.z = spoints[j].location.dz;
-			fprintf(f,"%d",i);
-			csvWriteElement(f,tmp_loc);
-	for (const auto& quantity : model->quantities) {
-			if (quant->in(quantity.name)) {
-				real_t tmp;
-				int comp = 1;
-				if (quantity.isVector) comp = 3;
-				CudaMemcpy(&tmp,&gpu_buffer[(location[quantity.name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t)*comp,CudaMemcpyDeviceToHost);
-				csvWriteElement(f,tmp);
+	    for (size_t j = 0; j <  spoints.size(); j++) {
+			if (mpi_rank == spoints[j].rank) {
+				vector_t tmp_loc;
+				tmp_loc.x = spoints[j].location.dx;
+				tmp_loc.y = spoints[j].location.dy;
+				tmp_loc.z = spoints[j].location.dz;
+				fprintf(f,"%d",i);
+				csvWriteElement(f,tmp_loc);
+				for (const auto& quantity : model->quantities) {
+					if (quant->in(quantity.name)) {
+						if (quantity.isVector) {
+							real_t tmp[3];
+							CudaMemcpy(tmp,&gpu_buffer[(location[quantity.name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t)*3,CudaMemcpyDeviceToHost);
+							vector_t val;
+							val.x = tmp[0];
+							val.y = tmp[1];
+							val.z = tmp[2];
+							csvWriteElement(f, val);
+						} else {
+							real_t tmp;
+							CudaMemcpy(&tmp,&gpu_buffer[(location[quantity.name] + (i - startIter)*size + totalIter*j*size)],sizeof(real_t),CudaMemcpyDeviceToHost);
+							csvWriteElement(f, tmp);
+						}
+					}
+				}
+				fprintf(f,"\n");
 			}
 		}
-			fprintf(f,"\n");
-			}
-			}
-	       } 
-      fclose(f);
-     return 0;
+	} 
+    fclose(f);
+    return 0;
  }
 
 int Sampler::Allocate(name_set* nquantities,int start,int iter) {
