@@ -308,3 +308,27 @@ if (Options$thermo){
 	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxY",comment='flux in y direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxZ",comment='flux in z direction for flux_nodes', unit="1")
+	AddGlobal(name="F_pressureX", comment='Pressure force X', unit="N")
+	AddGlobal(name="F_pressureY", comment='Pressure force Y', unit="N")
+	AddGlobal(name="F_pressureZ", comment='Pressure force Z', unit="N")
+	AddGlobal(name="F_bodyX", comment='Body force X', unit="N")
+	AddGlobal(name="F_bodyY", comment='Body force Y', unit="N")
+	AddGlobal(name="F_bodyZ", comment='Body force Z', unit="N")
+	AddGlobal(name="F_surfX", comment='Surface tension force X', unit="N")
+	AddGlobal(name="F_surfY", comment='Surface tension force Y', unit="N")
+	AddGlobal(name="F_surfZ", comment='Surface tension force Z', unit="N")
+	AddGlobal(name="F_muX", comment='Viscous tension force X', unit="N")
+	AddGlobal(name="F_muY", comment='Viscous tension force Y', unit="N")
+	AddGlobal(name="F_muZ", comment='Viscous tension force Z', unit="N")
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
