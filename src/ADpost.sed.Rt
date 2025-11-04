@@ -1,5 +1,6 @@
 <?R source("conf.R") ?>
 s/0[.]D0/0/
+/adStack/s|^|//|
 s/void/CudaDeviceFunction void/
 <?R
 	for (v in rows(Settings)) {
