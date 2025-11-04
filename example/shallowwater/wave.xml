@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" output="output/" permissive="true">
+	<Geometry nx="300" ny="300">
+		<MRT>
+			<Box/>
+		</MRT>
+		<DesignSpace>
+			<Box/>
+		</DesignSpace>
+		<None mask="DESIGNSPACE">
+			<Sphere dx="30" nx="40" ny="40" dy="10"/>
+			<Sphere dx="-32" dy="-62" nx="14" ny="14"/>
+		</None>
+		<None name="high">
+			<Sphere dx="40" nx="20" ny="20" dy="20"/>
+		</None>
+		<Wall mask="ALL">
+			<Channel/>
+			<Inlet/>
+			<Outlet/>
+		</Wall>
+		<Obj1>
+			<Sphere dx="-30" dy="-60" nx="10" ny="10"/>
+		</Obj1>
+	</Geometry>
+	<Model>
+		<Param name="Gravity" value=".1"/>
+		<Param name="nu" value="0.166666"/>
+		<Param name="Height" value="1.0"/>
+		<Param name="Height" value="1.01" zone="high"/>
+		<Param name="TotalDiffInObj" value="1e6"/>
+	</Model>
+	<VTK Iterations="100"/>
+	<Log Iterations="10"/>
+	<InternalTopology/>
+	<Optimize>
+		<Adjoint NumberOfSnaps="14" type="unsteady">
+			<Solve Iterations="2000"/>
+		</Adjoint>
+	</Optimize>
+</CLBConfig>
