@@ -57,10 +57,11 @@ static auto makeArbLatticeIndexMap(const lbRegion& region, const std::vector<boo
     return retval;
 }
 
-static int writeArbLatticeHeader(std::fstream& file, size_t n_nodes, double grid_size, const Model& model, const std::map<std::string, int>& zone_map) {
+static int writeArbLatticeHeader(std::fstream& file, const lbRegion& region, size_t n_nodes, double grid_size, const Model& model, const std::map<std::string, int>& zone_map) {
     file << "OFFSET_DIRECTIONS " << Model_m::offset_directions.size() << '\n';
     for (const auto [x, y, z] : Model_m::offset_directions) file << x << ' ' << y << ' ' << z << '\n';
     file << "GRID_SIZE " << grid_size << '\n';
+    file << "TOTAL_REGION " << region.nx << ' ' << region.ny << ' ' << region.nz << '\n';
     file << "NODE_LABELS " << model.nodetypeflags.size() + zone_map.size() << '\n';
     for (const auto& ntf : model.nodetypeflags) file << ntf.name << '\n';
     for (const auto& [name, zf] : zone_map) file << "_Z_" << name << '\n';
@@ -92,6 +93,9 @@ static int writeArbLatticeNodes(const Geometry& geo,
                 const double y_coord = (static_cast<double>(y) + .5) * spacing;
                 const double z_coord = (static_cast<double>(z) + .5) * spacing;
                 file << x_coord << ' ' << y_coord << ' ' << z_coord << ' ';
+
+                // Cartesian index
+                file << current_lin_pos << ' ';
 
                 // Neighbors
                 for (const auto [dx, dy, dz] : Model_m::offset_directions) {
@@ -140,7 +144,7 @@ static int writeArbLattice(const Geometry& geo,
         ERROR("Failed to open .cxn file for writing");
         return EXIT_FAILURE;
     }
-    if (writeArbLatticeHeader(file, lin_to_arb_index_map.size(), spacing, model, zone_map)) return EXIT_FAILURE;
+    if (writeArbLatticeHeader(file, geo.totalregion, lin_to_arb_index_map.size(), spacing, model, zone_map)) return EXIT_FAILURE;
     return writeArbLatticeNodes(geo, model, zone_map, lin_to_arb_index_map, bulk_bmp, file, spacing);
 }
 
