@@ -5,6 +5,8 @@
 #include <numeric>
 #include <vector>
 
+#include "types.h"
+
 struct ArbLatticeConnectivity {
     using Index = long;
     using ZoneIndex = unsigned short;
@@ -14,8 +16,10 @@ struct ArbLatticeConnectivity {
     std::unique_ptr<Index[]> og_index;
     std::unique_ptr<Index[]> nbrs;
     std::unique_ptr<ZoneIndex[]> zones_per_node;
+    std::vector<Index> cart_index;
     std::vector<ZoneIndex> zones;
     double grid_size{};
+    int nx, ny, nz; // total region
 
     ArbLatticeConnectivity() = default;
     ArbLatticeConnectivity(size_t chunk_begin_, size_t chunk_end_, size_t num_nodes_global_, size_t Q_)
@@ -26,7 +30,8 @@ struct ArbLatticeConnectivity {
           coords(std::make_unique<double[]>(3 * (chunk_end_ - chunk_begin_))),
           og_index(std::make_unique<Index[]>(chunk_end_ - chunk_begin_)),
           nbrs(std::make_unique<Index[]>((chunk_end_ - chunk_begin_) * Q)),
-          zones_per_node(std::make_unique<ZoneIndex[]>(chunk_end_ - chunk_begin_)) {
+          zones_per_node(std::make_unique<ZoneIndex[]>(chunk_end_ - chunk_begin_)),
+          cart_index(chunk_end_ - chunk_begin_) {
         zones.reserve(getLocalSize());
     }
 
@@ -46,12 +51,16 @@ struct ArbLatticeConnectivity {
     }
 
     size_t getLocalSize() const { return chunk_end - chunk_begin; }
+
     bool isGhost(Index nbr) const { return nbr != -1 && (nbr < static_cast<Index>(chunk_begin) || nbr >= static_cast<Index>(chunk_end)); }
 
     double& coord(size_t dim, size_t local_node_ind) { return coords[local_node_ind + dim * getLocalSize()]; }
     double coord(size_t dim, size_t local_node_ind) const { return coords[local_node_ind + dim * getLocalSize()]; }
+    Index& cartesian_ind(size_t local_node_ind) { return cart_index[local_node_ind]; }
+    Index cartesian_ind(size_t local_node_ind) const { return cart_index[local_node_ind]; }
     Index& neighbor(size_t q, size_t local_node_ind) { return nbrs[local_node_ind + q * getLocalSize()]; }
     Index neighbor(size_t q, size_t local_node_ind) const { return nbrs[local_node_ind + q * getLocalSize()]; }
+
 };
 
 inline auto computeInitialNodeDist(size_t num_nodes_global, size_t comm_size) -> std::vector<long> {

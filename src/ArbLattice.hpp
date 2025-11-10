@@ -7,6 +7,7 @@
 
 #include "ArbConnectivity.hpp"
 #include "ArbLatticeLauncher.h"
+#include "Sampler.h"
 #include "CudaUtils.hpp"
 #include "LatticeBase.hpp"
 #include "Lists.h"
@@ -71,6 +72,7 @@ class ArbLattice : public LatticeBase {
    public:
     static constexpr size_t Q = Model_m::Q;    /// Stencil size
     static constexpr size_t NF = Model_m::NF;  /// Number of fields
+    std::unique_ptr<Sampler> sample;           /// initializing sample with zero size
 
     ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_);
     ArbLattice(const ArbLattice&) = delete;
@@ -86,6 +88,7 @@ class ArbLattice : public LatticeBase {
 
     virtual std::vector<int> shape() const { return {static_cast<int>(getLocalSize())}; };
     virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) ;
+    virtual void getSample(int quant, lbRegion over, real_t scale, real_t *buf);
     virtual std::vector<big_flag_t> getFlags() const;
     virtual std::vector<real_t> getField(const Model::Field& f);
     virtual std::vector<real_t> getFieldAdj(const Model::Field& f);
@@ -99,8 +102,10 @@ class ArbLattice : public LatticeBase {
     Span<const flag_t> getNodeTypes() const { return {node_types_host.data(), node_types_host.size()}; }  /// Get host view of node types (permuted)
     const ArbLatticeConnectivity& getConnectivity() const { return connect; }
     const std::vector<unsigned>& getLocalPermutation() const { return local_permutation; }
+    lbRegion getLocalBoundingBox() const;  /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
 
     void resetAverage();
+    void updateAllSamples();
 
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
@@ -135,6 +140,7 @@ class ArbLattice : public LatticeBase {
     void clearAdjoint() final;  /// TODO
 
     void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
+    int Offset(int x, int y, int z);                                                                                               /// Calculation of the offset from x, y and z
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file
     void partition();                                                                                                              /// Repartition the lattice, if ParMETIS is not present this is a noop
     std::function<bool(int, int)> makePermCompare(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);       /// Make type-erased comparison operator for computing the local permutation, according to the strategy specified in the xml file
@@ -149,7 +155,6 @@ class ArbLattice : public LatticeBase {
     void initCommManager();                                                                                                        /// Compute which fields need to be sent to/received from which neighbors
     void initContainer();                                                                                                          /// Initialize the data residing in launcher.container
     int fullLatticePos(double pos) const;                                                                                          /// Compute the position (in terms of lattice offsets) of a node, assuming the arbitrary lattice is a subset of a Cartesian lattice
-    lbRegion getLocalBoundingBox() const;                                                                                          /// Compute local bounding box, assuming the arbitrary lattice is a subset of a Cartesian lattice
     ArbVTUGeom makeVTUGeom() const;                                                                                                /// Compute VTU geometry
     void communicateBorder();                                                                                                      /// Send and receive border values in snap (overlapped with interior computation)
     unsigned lookupLocalGhostIndex(ArbLatticeConnectivity::Index gid) const;                                                       /// For a given ghost gid, look up its local id

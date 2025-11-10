@@ -87,6 +87,22 @@ ifdef();
 	}
 }
 
+void ArbLatticeLauncher::SampleQuantity(int quant, int lid, real_t* host_tab, real_t scale, const LatticeData &data) {
+    switch(quant) {	<?R
+for (q in rows(Quantities)) { ifdef(q$adjoint);
+?>
+        case <?%s q$Index ?>: {
+            const auto gpu_tab = cudaMakeUnique<<?%s q$type ?>>(1);
+            getSample<?%s q$name ?>(lid, gpu_tab.get(), scale, data);
+            CudaMemcpy(host_tab, gpu_tab.get(), sizeof(<?%s q$type ?>), CudaMemcpyDeviceToHost);
+            break;
+        } <?R
+}
+ifdef();
+?>
+	}
+}
+
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint);
 if (q$adjoint) {
   node = "Node_Adj"
@@ -128,10 +144,50 @@ if (q$type == "vector_t") {
     }
 };
 
+struct GetSampleArbExecutor<?%s q$name?> : public LinearExecutor {
+    ArbLatticeContainer container;
+    LatticeData data;
+
+    int lid;
+    <?%s q$type ?>* buf;
+    real_t scale;
+
+    CudaDeviceFunction void Execute() const {
+        using LA = ArbLatticeAccess; <?R
+        if (q$adjoint) { ?>
+            using N = Node< LA, Adjoint, NoGlobals, Get >; <?R
+        } else { ?>
+            using N = Node< LA, Primal, NoGlobals, Get >; <?R
+        }?>
+
+        LA acc(lid, container);
+        N now(acc, data);
+        acc.pop(now); <?R
+        if (q$adjoint) { ?>
+            acc.pop_adj(now); <?R
+        } ?>
+        auto val = now.get<?%s q$name ?>(); <?R
+        if (q$type == "vector_t") {
+            for (coef in c("x","y","z")) { ?>
+                val.<?%s coef ?> *= scale; <?R
+            }
+        } else { ?>
+            val *= scale; <?R
+        } ?>
+        buf[0] = val;    
+    }
+};
+
 void ArbLatticeLauncher::getQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const {
     const GetQuantityArbExecutor<?%s q$name?> executor{{container.num_border_nodes + container.num_interior_nodes}, container, data, tab, scale};
     LaunchExecutor(executor);
 }
+
+void ArbLatticeLauncher::getSample<?%s q$name ?>(int lid, <?%s q$type ?>* tab, real_t scale, const LatticeData& data) const {
+    const GetSampleArbExecutor<?%s q$name?> executor{{1}, container, data, lid, tab, scale};
+    LaunchExecutor(executor);
+}
+
 <?R }
 ifdef() ?>
 
