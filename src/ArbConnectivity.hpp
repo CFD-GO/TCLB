@@ -5,6 +5,8 @@
 #include <numeric>
 #include <vector>
 
+#include "types.h"
+
 struct ArbLatticeConnectivity {
     using Index = long;
     using ZoneIndex = unsigned short;
@@ -46,12 +48,14 @@ struct ArbLatticeConnectivity {
     }
 
     size_t getLocalSize() const { return chunk_end - chunk_begin; }
+
     bool isGhost(Index nbr) const { return nbr != -1 && (nbr < static_cast<Index>(chunk_begin) || nbr >= static_cast<Index>(chunk_end)); }
 
     double& coord(size_t dim, size_t local_node_ind) { return coords[local_node_ind + dim * getLocalSize()]; }
     double coord(size_t dim, size_t local_node_ind) const { return coords[local_node_ind + dim * getLocalSize()]; }
     Index& neighbor(size_t q, size_t local_node_ind) { return nbrs[local_node_ind + q * getLocalSize()]; }
     Index neighbor(size_t q, size_t local_node_ind) const { return nbrs[local_node_ind + q * getLocalSize()]; }
+
 };
 
 inline auto computeInitialNodeDist(size_t num_nodes_global, size_t comm_size) -> std::vector<long> {

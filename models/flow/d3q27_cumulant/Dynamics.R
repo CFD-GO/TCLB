@@ -46,7 +46,10 @@ AddNodeType(name="SPressure", group="BOUNDARY")
 AddNodeType(name="NSymmetry", group="ADDITIONALS")
 AddNodeType(name="SSymmetry", group="ADDITIONALS")
 AddNodeType(name="Body", group="BODY")
-
+AddNodeType(name="FVelocity", group="BOUNDARY")
+AddNodeType(name="BVelocity", group="BOUNDARY")
+AddNodeType(name="FPressure", group="BOUNDARY")
+AddNodeType(name="BPressure", group="BOUNDARY")
 
 for (f in fname) AddField(f,dx=0,dy=0,dz=0) # Make f accessible also in present node (not only streamed)
 
