@@ -24,6 +24,7 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
 void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
     const int rank = mpitools::MPI_Rank(comm);
     sizes.snaps = num_snaps_;
+    sample = std::make_unique<Sampler>(model.get(), units, rank);
 #ifdef ADJOINT
     sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
 #endif
@@ -69,6 +70,20 @@ int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>
             return EXIT_FAILURE;
         }
     return EXIT_SUCCESS;
+}
+
+int ArbLattice::getId(const double &dx, const double &dy, const double &dz)
+{
+    int id = 0;
+    double epsilon = std::fabs(connect.coord(0, 0) - dx) + std::fabs(connect.coord(1, 0) - dy) + std::fabs(connect.coord(2, 0) - dz);
+    for (int i = 1; i < getLocalSize(); i++) {
+        double tmp = std::fabs(connect.coord(0, i) - dx) + std::fabs(connect.coord(1, i) - dy) + std::fabs(connect.coord(2, i) - dz);
+        if (tmp < epsilon) {
+            epsilon = tmp;
+            id = i;
+        }
+    }
+    return id;
 }
 
 void ArbLattice::readFromCxn(const std::string& cxn_path) {
@@ -539,6 +554,15 @@ std::vector<real_t> ArbLattice::getQuantity(const Model::Quantity& q, real_t sca
     return ret;
 }
 
+void ArbLattice::getSample(int quant, lbRegion r, real_t scale, real_t *buf) {
+    setSnapIn(Snap);
+#ifdef ADJOINT
+    setAdjSnapIn(aSnap);
+#endif
+    int lid = getId(r.x, r.y, r.z);
+    launcher.SampleQuantity(quant, lid, buf, scale, data);
+}
+
 std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
     size_t size = getLocalSize();
     std::vector<real_t> ret(size);
@@ -548,8 +572,6 @@ std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
     }
     return ret;
 }
-
-#include <iostream>
 
 void ArbLattice::initCommManager() {
     if (mpitools::MPI_Size(comm) == 1) return;
@@ -841,6 +863,22 @@ void ArbLattice::resetAverage(){
     for(const Model::Field& f : model->fields) {
         if (f.isAverage) {
             CudaMemset(&getSnapPtr(Snap)[f.id*sizes.snaps_pitch], 0, sizes.snaps_pitch*sizeof(real_t));
+        }
+    }
+}
+
+void ArbLattice::updateAllSamples(){
+    const int rank = mpitools::MPI_Rank(comm);
+    if (sample->size != 0) {
+	    for (size_t j = 0; j < sample->spoints.size(); j++) {
+		    if (rank == sample->spoints[j].rank) {
+		        for(const Model::Quantity& q : model->quantities) {
+                    if (sample->quant->in(q.name.c_str())){
+                        double v = sample->units->alt(q.unit.c_str());
+                        getSample(q.id, sample->spoints[j].location, 1/v, &sample->gpu_buffer[sample->location[q.name.c_str()]+(data.iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]); 
+                    }
+                }
+	        } 
         }
     }
 }

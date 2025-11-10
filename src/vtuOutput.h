@@ -2,6 +2,7 @@
 #define VTUOUTPUT_H
 
 #include <mpi.h>
+#include <stdexcept>
 
 #include "cross.h"
 #include "types.h"

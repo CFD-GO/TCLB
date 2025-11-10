@@ -8,6 +8,7 @@
 struct lbRegion {
   int dx = 0, dy = 0, dz = 0;
   int nx = 1, ny = 1, nz = 1;
+  float x = 0.0f, y = 0.0f, z = 0.0f;
   lbRegion() = default;
   lbRegion(int w, int h) : nx(w), ny(h) {}
   lbRegion(int x, int y, int w, int h) : dx(x), dy(y), nx(w), ny(h) {}

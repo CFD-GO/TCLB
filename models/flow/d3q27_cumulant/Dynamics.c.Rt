@@ -136,6 +136,16 @@ CudaDeviceFunction void WVelocity()
 <?R ZouHe(EQ, 1, 1, "velocity") ?>
 }
 
+CudaDeviceFunction void FVelocity()
+{
+<?R ZouHe(EQ, 3, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void BVelocity()
+{
+<?R ZouHe(EQ, 3, 1, "velocity") ?>
+}
+
 CudaDeviceFunction void SVelocity()
 {
 <?R ZouHe(EQ, 2, 1, "velocity") ?>
@@ -154,6 +164,16 @@ CudaDeviceFunction void WPressure()
 CudaDeviceFunction void SPressure()
 {
 <?R ZouHe(EQ, 2, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void FPressure()
+{
+<?R ZouHe(EQ, 3, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void BPressure()
+{
+<?R ZouHe(EQ, 3, 1, "pressure") ?>
 }
 
 CudaDeviceFunction void NPressure()
@@ -242,26 +262,38 @@ CudaDeviceFunction void RunBoundaries() {
 		WVelocityTurbulent();
 		break;
 	case NODE_EPressure:
-        EPressure();
-        break;
+                EPressure();
+                break;
 	case NODE_WPressure:
 		WPressure();
 		break;
+        case NODE_FPressure:
+                FPressure();
+                break;
+	case NODE_BPressure:
+		BPressure();
+		break;
 	case NODE_SPressure:
-        SPressure();
-        break;
+                SPressure();
+                break;  
 	case NODE_NPressure:
-        NPressure();
-        break;
+                NPressure();
+                break;
 	case NODE_WVelocity:
 		WVelocity();
 		break;
-	 case NODE_NVelocity:
-        NVelocity();
-        break;
-	 case NODE_SVelocity:
-        SVelocity();
-        break;
+        case NODE_FVelocity:
+                NVelocity();
+                break;
+	case NODE_BVelocity:
+                SVelocity();
+                break;
+	case NODE_NVelocity:
+                NVelocity();
+                break;
+	case NODE_SVelocity:
+                SVelocity();
+                break;
 	case NODE_EVelocity:
 		EVelocity();
 		break;
