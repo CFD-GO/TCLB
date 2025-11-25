@@ -133,7 +133,7 @@ runs:
         VER="${{ inputs.cuda }}"
         if test "$VER" == "true"
         then
-          VER="11.7"
+          VER="12.9"
         fi
         tools/install.sh ${{inputs.options}} cuda $VER
         CUDA_PATH=/usr/local/cuda-$VER
@@ -147,7 +147,7 @@ runs:
         VER="${{ inputs.hip }}"
         if test "$VER" == "true"
         then
-          VER="5.4.1"
+          VER="6.4.4"
         fi
         tools/install.sh ${{inputs.options}} hip $VER
     - if: inputs.openmpi != 'false'
