@@ -367,6 +367,7 @@ do
 		install_rpackage reticulate
 		;;
 	rinside)
+		install_apt "Installing missing RPC library" libtirpc-dev
 		if $GITHUB
 		then
 			install_rpackage_github eddelbuettel/rinside
