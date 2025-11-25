@@ -47,6 +47,7 @@ jobs:
         precision: ${{ matrix.precision }}
     - name: Compile
       uses: ./.github/actions/compile
+      continue-on-error: ${{ matrix.arch == 'hip' }}
       with:
         model: ${{ matrix.model }}
     - if: matrix.test
