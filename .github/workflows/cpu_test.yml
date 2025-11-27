@@ -57,6 +57,7 @@ jobs:
     - name: Gather coverage data
       uses: ./.github/actions/coverage
       id: coverage
+      continue-on-error: true
     - name: Send coverage data
       uses: codecov/codecov-action@v3
       if: steps.coverage.outputs.reports != ''
