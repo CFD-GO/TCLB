@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<CLBConfig version="2.0" permissive="true" output="output/">
+	<Units>
+        <!-- particle diameter 0.0150m -->
+        <Param name="X1" value="0.180m" gauge="1x"/>
+        <Param name="X2" value="1x" gauge="64"/>
+        <Param name="Y" value="0.090m" gauge="1y"/>
+        <Param name="nu" value="0.01m2/s" gauge="0.16666"/>
+        <!-- time step 1/s-->
+		<Param name="rho" value="1kg/m3" gauge="1"/>
+	</Units>
+	<Geometry nx="1x" ny="1y+2" nz="1y+2" py="-0.5y-1" pz="-0.5y-1">
+		<BGK><Box/></BGK>
+        <Wall mask="ALL">
+            <STL file="example/data/pipe2x1.stl" scale="1y" y="0.5y+1" z="0.5y+1" side="out" ray_axis="y"/>
+        </Wall>
+	</Geometry>
+	<Model>
+        <Param name="nu" value="0.01m2/s"/>
+		<Param name="aX_mean" value="1Pa/m"/>
+        <RemoteForceInterface integrator="LAMMPS">
+units 		cgs
+boundary 	p f f
+newton		off # required off for tangential history
+atom_style 	sphere
+atom_modify	map array
+atom_modify	sort 1 0.4
+communicate single vel yes
+processors	* 1 1
+
+neighbor      	0.006 bin # ensure skin distance + rp_lrg + rp_sml > dp_lrg
+neigh_modify  	delay 0
+
+# Declare domain
+region		domain block 0 0.18 -0.045 0.045 -0.045 0.045
+create_box	1 domain
+
+# Specify particle groups
+group  particle_group type 1
+
+# Define region for particle insertion
+region pack cylinder x 0 0 0.0375 0 0.12
+
+# Insert particles
+fix     part_1 particle_group particletemplate/sphere 17891 atom_type 1 density constant 1.0 radius constant 0.0075000000
+fix     dist particle_group particledistribution/discrete 18143 1 part_1 1
+fix 	ins particle_group insert/pack seed 100003 distributiontemplate dist maxattempt 500 insert_every once overlapcheck yes all_in yes  region pack volumefraction_region 0.050000 check_dist_from_subdomain_border no
+run	1
+
+# Specify particle groups
+group  particle_group type 1
+
+# Define material properties (from which kn kt etc. are calculated for hertz interactions)
+soft_particles yes
+fix	m1 all property/global youngsModulus peratomtype 3000.000000 # defines kn, kt, gamma_n, gamma_t
+fix     m2 all property/global poissonsRatio peratomtype 0.5 # defines kn, kt, gamma_n, gamma_t
+fix	m3 all property/global coefficientRestitution peratomtypepair 1 0.8 # defines damping, must be >0.05
+fix	m4 all property/global coefficientFriction peratomtypepair 1 0.5 # defines friction
+
+fix	frac_wall all mesh/surface file example/data/pipe2x1.stl type 1 scale 0.09 move 0 0 0
+
+# Define physics for particle interactions
+pair_style 	gran model hertz tangential history # 'tangential off' sets Ft=0; 'tangential no_history' incorporates damping to Ft, sets kt=0; 'tangential history' incorporate kt and damping into Ft
+pair_coeff	* *
+
+fix granwalls all wall/gran model hertz tangential history mesh n_meshes 1 meshes frac_wall
+
+# Apply integration
+fix	integr particle_group nve/sphere
+
+# Couple to TCLB
+fix 	tclb all external pf/callback 1 1
+
+dump vtk_dump all atom/vtk 1000 ${output}_part_*.vtu
+
+timestep ${timestep}
+
+run	50000
+        </RemoteForceInterface>
+	</Model>
+	<!-- <VTK Iterations="1000" what="U,Solid"/> -->
+	<Log Iterations="100"/>
+    <VTK Iterations="1000"/>
+	<Solve Iterations="50000"/>
+</CLBConfig>

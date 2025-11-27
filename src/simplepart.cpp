@@ -6,16 +6,20 @@
 #include <vector>
 
 const double twopi = 8*atan(1.0);
+const double pi = 4*atan(1.0);
 
 struct Particle {
   double x[3];
   double r;
   double m;
   double v[3];
+  double v0[3];
   double f[3];
   double favg[3];
   double omega[3];
+  double omega0[3];
   double torque[3];
+  double ease_in_time;
   size_t n;
   bool logging;
   Particle() {
@@ -31,6 +35,7 @@ struct Particle {
     m = 0;
     r = 0;
     logging = false;
+    ease_in_time = 0;
   }
 };
 
@@ -180,15 +185,17 @@ int main(int argc, char *argv[]) {
         if (attr_name.vector == "") {
           p.x[attr_name.d] = attr.as_double();
         } else if (attr_name.vector == "v") {
-          p.v[attr_name.d] = attr.as_double();
+          p.v0[attr_name.d] = attr.as_double();
         } else if (attr_name.vector == "omega") {
-          p.omega[attr_name.d] = attr.as_double();
+          p.omega0[attr_name.d] = attr.as_double();
         } else if (attr_name == "r") {
           p.r = attr.as_double();
         } else if (attr_name == "m") {
           p.m = attr.as_double();
         } else if (attr_name == "log") {
           p.logging = attr.as_bool();
+        } else if (attr_name == "ease-in") {
+          p.ease_in_time = attr.as_double();
         } else {
           ERROR("Unknown atribute '%s' in '%s'", attr.name(), node.name());
           return -1;
@@ -197,6 +204,17 @@ int main(int argc, char *argv[]) {
       if (p.r <= 0.0) {
         ERROR("Specify the radius with 'r' attribute");
         return -1;
+      }
+      if (p.ease_in_time > 0) {
+        for (int i=0;i<3;i++) {
+          p.v[i] = 0;
+          p.omega[i] = 0;
+        }
+      } else {
+        for (int i=0;i<3;i++) {
+          p.v[i] = p.v0[i];
+          p.omega[i] = p.omega0[i];
+        }
       }
       p.n = particles.size();
       particles.push_back(p);
@@ -387,11 +405,24 @@ int main(int argc, char *argv[]) {
       fprintf(logging_f, "\n");
     }
     for (Particles::iterator p = particles.begin(); p != particles.end(); p++) {
+      double t = dt * iter;
       for (int i=0; i<3; i++) p->favg[i] = p->favg[i] + p->f[i];
-      if (p->m > 0.0) {
-        for (int i=0; i<3; i++) p->v[i] = p->v[i] + p->f[i] / p->m * dt;
+      if (p->ease_in_time > 0) {
+        if (p->ease_in_time > t) {
+          double fac = (1-cos(pi * t / p->ease_in_time))*0.5;
+          for (int i=0; i<3; i++) p->v[i] = p->v0[i] * fac;
+          for (int i=0; i<3; i++) p->omega[i] = p->omega0[i] * fac;
+        } else {
+          for (int i=0; i<3; i++) p->v[i] = p->v0[i];
+          for (int i=0; i<3; i++) p->omega[i] = p->omega0[i];
+          p->ease_in_time = 0;
+        }
+      } else {
+        if (p->m > 0.0) {
+          for (int i=0; i<3; i++) p->v[i] = p->v[i] + p->f[i] / p->m * dt;
+        }
+        for (int i=0; i<3; i++) p->v[i] = p->v[i] + acc_vec[i] * cos(twopi * t * acc_freq);
       }
-      for (int i=0; i<3; i++) p->v[i] = p->v[i] + acc_vec[i] * cos(twopi * dt * iter * acc_freq);
       for (int i=0; i<3; i++) p->x[i] = p->x[i] + p->v[i] * dt;
     }
     iter++;

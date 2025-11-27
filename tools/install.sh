@@ -367,6 +367,7 @@ do
 		install_rpackage reticulate
 		;;
 	rinside)
+		install_apt "Installing missing RPC library" libtirpc-dev
 		if $GITHUB
 		then
 			install_rpackage_github eddelbuettel/rinside
@@ -388,10 +389,10 @@ do
 			then
 				OS="ubuntu$(lsb_release -sr | sed 's/[.]//g')"
 			fi
-			KEYRINGVER='1.0-1'
+			KEYRINGVER='1.1-1'
 			PINFILE="cuda-${OS}.pin"
-			try "Downloading CUDA pin file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/${PINFILE} -O tmp.pinfile
-			try "Downloading CUDA keyring file" wget $WGETOPT http://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
+			try "Downloading CUDA pin file" wget $WGETOPT https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/${PINFILE} -O tmp.pinfile
+			try "Downloading CUDA keyring file" wget $WGETOPT https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-keyring_${KEYRINGVER}_all.deb -O tmp.keyring.deb
 			try "Installing CUDA dist" $SUDO dpkg -i tmp.keyring.deb
 			try "Planting pin file" $SUDO mv tmp.pinfile /etc/apt/preferences.d/cuda-repository-pin-600
 			update_apt

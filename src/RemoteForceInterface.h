@@ -151,6 +151,11 @@ public:
   void setUnits(rfi_real_t meter, rfi_real_t second, rfi_real_t kilogram);
   void setVar(const vars_name_t& name, const vars_value_t& value);
   bool hasVar(const vars_name_t& name) { return vars.find(name) != vars.end(); };
+  std::vector<vars_name_t> listVars() {
+    std::vector<vars_name_t> names;
+    for (auto it : vars) names.push_back(it.first);
+    return names;
+  }
   const vars_value_t& getVar(const vars_name_t& name) { return vars[name]; };
   inline rfi_real_t& RawData(size_t i, int j) {
     if (STORAGE == ArrayOfStructures) {
