@@ -692,9 +692,15 @@ namespace RunPython {
 	void parseEval(const std::string& source) {
 		if (! py_initialised) initializePy();
 		Rcpp::Function py_run_string("py_run_string");
-		py_run_string(source);
+        py_run_string(source);
 		return;
 	}	
+
+    std::tuple<std::string, std::string> getLastError() {
+        Rcpp::Function py_last_error("py_last_error");
+        Rcpp::List error_details = py_last_error();
+        return std::make_tuple(Rcpp::as<std::string>(error_details["type"]), Rcpp::as<std::string>(error_details["value"]));
+    } 
 
 	void initializePy() {
 		if (py_initialised) return;
@@ -838,8 +844,17 @@ int cbRunR::DoIt() {
 		ERROR("Caught std exception: %s", ex.what());
 		return -1;
 	} catch (...) {
-		ERROR("Caught uknown exception");
-		return -1;
+        if (python) { 
+            std::string error_type, error_message;
+            std::tie(error_type, error_message) = RunPython::getLastError();
+            if (error_type == "SimulationStopSignal") {
+		        WARNING("From RunPython received signal to stop simulation with message: %s. Stopping the enclosing handler.", 
+                    error_message.c_str());
+                return 1;  
+            } 
+        }
+        ERROR("Caught uknown exception");
+        return -1;
 	}
 	return 0;
 }
