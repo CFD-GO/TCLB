@@ -255,9 +255,9 @@ public:
 
   CudaDeviceFunction void Execute() const {
     using LA = CartLatticeAccessAll;
-    int x = CudaBlock.x + small.dx;
-    int y = CudaBlock.y + small.dy;
-    int z = CudaBlock.z + small.dz;
+    int x = (CudaBlock.x + small.dx) %container.nx;
+    int y = (CudaBlock.y + small.dy) %container.ny;
+    int z = (CudaBlock.z + small.dz) %container.nz;
     LA acc(x, y, z, container); <?R
     if (q$adjoint) { ?>
       Node< LA, Adjoint, NoGlobals, Get > now(acc, data); <?R

@@ -109,8 +109,7 @@ struct Lattice : public LatticeType {
         CudaDeviceSynchronize();
         LatticeType::Snap = tab_out;
         LatticeType::MarkIteration();
-        if constexpr(std::is_same_v<LatticeType, CartLattice>) /// TODO
-            LatticeType::updateAllSamples();
+        LatticeType::updateAllSamples();
         DEBUG_PROF_POP();
     }
 
