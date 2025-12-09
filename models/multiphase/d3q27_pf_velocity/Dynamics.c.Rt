@@ -95,6 +95,16 @@ CudaDeviceFunction vector_t getNormal(){
 	return n;
 }
 
+%% Electric output 
+
+CudaDeviceFunction real_t getEps(){
+    return epsilon_l + (epsilon_v-epsilon_l) * (current_phase - PhaseField_l)/(PhaseField_h - PhaseField_l);
+}
+
+CudaDeviceFunction real_t getSigma(){
+    return sigma_l + (sigma_v-sigma_l) * (current_phase - PhaseField_l)/(PhaseField_h - PhaseField_l);
+}
+
 <?R
 ###################################################
 # Miscellaneous helper functions used in the code #
