@@ -69,11 +69,28 @@ if (Options$geometric){
     AddField("IsBoundary", stencil3d=1, group="solid_boundary")
 }
 
+#save_initial_PF = c("PF","Vel")
+#save_initial    = c("g","h","PF")
+#save_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_save_iteration)
+#load_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_load_iteration)
+#load_phase      = c("g","h","Vel","nw", "solid_boundary", extra_load_phase)
+
 save_initial_PF = c("PF","Vel")
-save_initial    = c("g","h","PF")
-save_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_save_iteration)
-load_iteration  = c("g","h","Vel","nw", "solid_boundary", extra_load_iteration)
-load_phase      = c("g","h","Vel","nw", "solid_boundary", extra_load_phase)
+
+# also save electric fields and distributions at init
+save_initial    = c("g","h","PF","electric","e","l")
+
+# also save electric fields and distributions every iteration
+save_iteration  = c("g","h","Vel","nw","solid_boundary",
+                    "electric","e","l", extra_save_iteration)
+
+# load electric distributions every iteration
+load_iteration  = c("g","h","Vel","nw","solid_boundary",
+                    "e","l", extra_load_iteration)
+
+# if phase is loaded, we also want electric fields available
+load_phase      = c("g","h","Vel","nw","solid_boundary",
+                    "electric", extra_load_phase)
 
 if (Options$OutFlow){
 	for (d in rows(DensityAll)) {
@@ -116,6 +133,16 @@ if (Options$thermo){
     load_iteration  = c(load_iteration, "Thermal")
 }
 
+
+# --- Electric scalar & vector fields ---
+AddField("V_elec",      stencil3d=0, group="electric")   # electric potential
+AddField("Rho_e",       stencil3d=0, group="electric")   # charge density
+AddField("epsilon_e",   stencil3d=0, group="electric")   # permittivity
+
+AddField("E_x", stencil3d=0, group="electric")           # electric field components
+AddField("E_y", stencil3d=0, group="electric")
+AddField("E_z", stencil3d=0, group="electric")
+
 ######################
 ########STAGES########
 ######################
@@ -125,6 +152,11 @@ if (Options$thermo){
 	AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
 	AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
 	AddStage(name="InitFromFieldsStage", load=DensityAll$group %in% "init",read=FALSE, save=Fields$group %in% save_initial_PF)
+    # --- Electric stages ---
+    AddStage("ElectricInit", "InitElectric",save = Fields$group %in% c("electric"))
+
+    AddStage("ElectricIter", "RunElectric", save = Fields$group %in% c("electric"),load = DensityAll$group %in% c("e","l"))
+
 	# STAGES FOR VARIOUS OPTIONS
 	if (Options$geometric){
 		AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
@@ -152,21 +184,39 @@ if (Options$thermo){
 #######################
 ########ACTIONS########
 #######################
-	if (Options$thermo){	
-		AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
-		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
-		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
-	} else if (Options$geometric) {
-        calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
-        AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
-	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
-	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
-    } else {
-		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
-		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
-	}
+	#if (Options$thermo){	
+		
+		#AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
+		#AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
+		#AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
+	#} else if (Options$geometric) {
+        #calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
+       # AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
+	    #AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    #AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+   # } else {#
+		#AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
+		#AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
+		#AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
+	#}
+
+if (Options$thermo){	
+    AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
+    AddAction("Iteration",c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4", "NonLocalTemp","ElectricIter"))
+    AddAction("IterationConstantTemp",c("BaseIter", "calcPhase", "calcWall","CopyThermal","ElectricIter"))
+
+    AddAction("Init",c("PhaseInit","WallInit","calcWall","BaseInit","ElectricInit"))
+} else if (Options$geometric) {
+	calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
+    AddAction("Iteration",c("BaseIter", "calcPhase",  calcGrad,"calcWall_CA", "calcWallPhase_correction","ElectricIter"))
+    AddAction("Init",c("PhaseInit","WallInit_CA","calcPhaseGrad_init","calcWall_CA","calcWallPhase_correction","BaseInit","ElectricInit"))
+    AddAction("InitFields",c("InitFromFieldsStage","WallInit_CA","calcPhaseGrad_init","calcWall_CA","calcWallPhase_correction","BaseInit","ElectricInit"))
+} else {
+    AddAction("Iteration",c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction","ElectricIter"))
+    AddAction("Init", c("PhaseInit","WallInit","calcWall","calcWallPhase_correction","BaseInit","ElectricInit"))
+    AddAction("InitFields", c("InitFromFieldsStage","WallInit","calcWall","calcWallPhase_correction", "BaseInit","ElectricInit"))
+}
+
 #######################
 ########OUTPUTS########
 #######################
@@ -177,6 +227,12 @@ if (Options$thermo){
 	AddQuantity(name="Pstar", unit="1")
 	AddQuantity(name="Normal", unit=1, vector=T)
     AddQuantity(name="IsItBoundary", unit="1")
+    # --- Electric outputs ---
+    AddQuantity(name="V_elec",   unit="V",    field="V_elec")
+    AddQuantity(name="Rho_e",    unit="C/m3", field="Rho_e")
+    AddQuantity(name="epsilon_e",unit="1",    field="epsilon_e")
+    AddQuantity(name="E",        unit="V/m",  vector=T,field=c("E_x","E_y","E_z"))
+
 	if (Options$geometric){
 		AddQuantity(name="GradPhi", unit=1, vector=T)
 	}
@@ -200,7 +256,21 @@ if (Options$thermo){
   	AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
-	##SPECIAL INITIALISATIONS
+
+   # electric settings
+   ##################################
+   ########INPUTS - ELECTRIC########
+   ##################################
+    AddSetting(name="epsilon_l", default=1.0, comment='permittivity of liquid phase')
+    AddSetting(name="epsilon_v", default=1.0, comment='permittivity of gas phase')
+    AddSetting(name="sigma_l",   default=0.0,comment='conductivity of liquid phase')
+    AddSetting(name="sigma_v",   default=0.0,comment='conductivity of gas phase')
+    AddSetting(name="alpha_q",   default=0.0,comment='charge mobility / diffusion coefficient')
+  # relaxation parameters for LB solvers (Poisson and Nernst–Planck)
+    AddSetting(name="omega_e",   default=1.0,comment='LB relaxation for electric potential distributions e_i')
+    AddSetting(name="omega_l",   default=1.0,comment='LB relaxation for Nernst–Planck distributions l_i')
+
+##SPECIAL INITIALISATIONS
 	# RTI
 		AddSetting(name="RTI_Characteristic_Length", default=-999, comment='Use for RTI instability')
 	    AddSetting(name="pseudo2D", default="0", comment="if 1, assume model is pseduo2D")
