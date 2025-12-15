@@ -91,7 +91,7 @@ CudaDeviceFunction void <?%s bc$name ?>(){
         pstar = Pressure_external / (d*cs2);
     }
     <?R
-    type_h = (if (bc$type == "") "fflux" else bc$subtype)
+    type_h = (if (bc$subtype == "") "fflux" else bc$subtype)
     n = my_normal_directions[bc$side,]
 
     EQ = MRT_eq(U,PV(1),u,mat=t(M))
@@ -115,12 +115,12 @@ CudaDeviceFunction void <?%s bc$name ?>(){
     what_to_pull = c("pstar","U","V","W")
     which_to_pull = 1:4
     direction = which(n != 0)
-    if (type == "Pressure") {
+    if (bc$type == "Pressure") {
         # pop the pressure out of the list of equation
         # and don't duplicate
         which_to_pull = which_to_pull[-(1+direction)]
         what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
-    } else if (type == "Velocity") {
+    } else if (bc$type == "Velocity") {
         # pop out the equation related to this velocity direction
         # from the list of equations, as it is already know
         which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
