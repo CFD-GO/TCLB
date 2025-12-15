@@ -283,16 +283,16 @@ if (Options$thermo){
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
 	AddNodeType(name="flux_nodes", group="ADDITIONALS")
-    # the first one are "fflux"
-    pressure_boundary_types = c("", "open", "fpf")
-	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
-    dotR_my_pressure_boundaries = outer(paste0(c("N","E","S","W","F","B"),"Pressure"), pressure_boundary_types, FUN  = paste, sep="")
-    for (ii in 1:6){
-        AddNodeType(name=dotR_my_velocity_boundaries[ii], group="BOUNDARY")
-    }
-    for (ii in 1:length(dotR_my_pressure_boundaries)) {
-        AddNodeType(name=dotR_my_pressure_boundaries[ii], group="BOUNDARY")
-    }
+
+    my_boundaries = rbind(expand.grid(side = 1:6, type=c('Pressure'), subtype = c("", "open", "fpf")),
+                        expand.grid(side = 1:6, type=c('Velocity'), subtype=c("")))
+    my_boundaries$side_letter = c("N","E","S","W","F","B")[my_boundaries$side]
+    my_boundaries$name = paste0(my_boundaries$side_letter, my_boundaries$type, my_boundaries$subtype)
+    AddNodeType(name=my_boundaries$name, group="BOUNDARY")
+
+    # for convienience
+    my_velocity_boundaries = my_boundaries[my_boundaries$type == 'Pressure', ]
+    my_pressure_boundaries = my_boundaries[my_boundaries$type == 'Velocity', ]
 
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
 	AddNodeType(name="MovingWall_S", group="BOUNDARY")

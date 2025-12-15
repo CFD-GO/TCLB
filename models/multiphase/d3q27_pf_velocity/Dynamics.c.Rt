@@ -149,7 +149,7 @@ CudaDeviceFunction vector_t calcGradPhi()
 		    ?>
 
         auto boundary_marker = NodeType & NODE_BOUNDARY;
-        <?R condition = paste(paste0("boundary_marker == NODE_", c(dotR_my_velocity_boundaries, dotR_my_pressure_boundaries), collapse = ' || ')) ?>
+        <?R condition = paste(paste0("boundary_marker == NODE_", my_boundaries$name, collapse = ' || ')) ?>
         if (<?%s condition ?>) {
             gradPhi.x = 0.0;
             gradPhi.y = 0.0;
@@ -236,7 +236,7 @@ CudaDeviceFunction real_t calcMu(real_t C)
 	#else
 
         auto boundary_marker = NodeType & NODE_BOUNDARY;
-        <?R condition = paste(paste0("boundary_marker == NODE_", c(dotR_my_velocity_boundaries, dotR_my_pressure_boundaries), collapse = ' || ')) ?>
+        <?R condition = paste(paste0("boundary_marker == NODE_", my_boundaries$name, collapse = ' || ')) ?>
         if (<?%s condition ?>) {
             lpPhi = 0.0;
         }
@@ -742,23 +742,12 @@ CudaDeviceFunction void updateBoundary(){
 			BounceBack();
 			break;
         <?R
-        for (ii in 1:cube_faces){
+        for (bc in rows(my_boundaries)) {
         ?>
-        case NODE_<?R C(my_velocity_boundaries[ii])?>:
-			<?R C(my_velocity_boundaries[ii])?>();
+		case NODE_<?%s bc$name ?>:
+			<?%s bc$name ?>();
 			break;
-		<?R
-        }
-        ?>
-        <?R
-        for (my_pressure_boundary in dotR_my_pressure_boundaries) {
-        ?>
-		case NODE_<?%s my_pressure_boundary ?>:
-			<?%s my_pressure_boundary ?>();
-			break;
-		<?R
-              }
-        ?>
+        <?R } ?>
 		case NODE_MovingWall_N:
 			MovingNWall();
 			break;

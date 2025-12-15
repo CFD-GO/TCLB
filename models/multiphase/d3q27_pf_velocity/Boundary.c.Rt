@@ -2,8 +2,6 @@
 #########################################################
 # create pressure/velocity boundaries in all directions #
 #########################################################
-    my_velocity_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Velocity"))
-    my_pressure_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Pressure"))
     my_normal_directions = rbind(c(0,1,0),
                                  c(1,0,0),
                                  c(0,-1,0),
@@ -11,7 +9,6 @@
                                  c(0,0,1),
                                  c(0,0,-1))
 
-    cube_faces = 6
     b_uavg = PV("Uavg")
     b_height = PV("HEIGHT")
     b_pipecentre_y = PV("pipeCentre_Y")
@@ -26,12 +23,13 @@
 
     b_pipe_flow_tmp = (coords_shift-b_pipecentre_y)^2+(coords_shift_2-b_pipecentre_z)^2
 
-    for (ii in 1:cube_faces){
+    for (bc in rows(my_velocity_boundaries)) {
 ?>
-CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
+CudaDeviceFunction void <?%s bc$name ?>(){
     U = VelocityX;
     V = VelocityY;
     W = VelocityZ;
+    <?R ii = bc$side ?>
     if ( developedFlow > 0.1 ){
         <?R
             C(b_velocities,-1*my_normal_directions[ii,]*b_channel_flow)
@@ -75,9 +73,9 @@ CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
 ?>
 
 <?R
-for (ii in 1:cube_faces){
-for (j in 1:length(pressure_boundary_types)) {  ?>
-CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boundary_types[j]) ?>(){
+    for (bc in rows(my_pressure_boundaries)) {
+?>
+CudaDeviceFunction void <?%s bc$name ?>(){
 
 
     // can't use PhaseF or getRho() because
@@ -93,9 +91,8 @@ CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boun
         pstar = Pressure_external / (d*cs2);
     }
     <?R
-    type_h = (if (j == 1) "fflux" else pressure_boundary_types[j])
-    type = "pressure"
-    n = my_normal_directions[ii,]
+    type_h = (if (bc$type == "") "fflux" else bc$subtype)
+    n = my_normal_directions[bc$side,]
 
     EQ = MRT_eq(U,PV(1),u,mat=t(M))
     # calculating weights as equilibrium with zero velocity
@@ -118,12 +115,12 @@ CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boun
     what_to_pull = c("pstar","U","V","W")
     which_to_pull = 1:4
     direction = which(n != 0)
-    if (type == "pressure") {
+    if (type == "Pressure") {
         # pop the pressure out of the list of equation
         # and don't duplicate
         which_to_pull = which_to_pull[-(1+direction)]
         what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
-    } else if (type == "velocity") {
+    } else if (type == "Velocity") {
         # pop out the equation related to this velocity direction
         # from the list of equations, as it is already know
         which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
@@ -190,7 +187,7 @@ CudaDeviceFunction void <?%s paste0(C(my_pressure_boundaries[ii]), pressure_boun
 }
 
 <?R
-    }}
+    }
 ?>
 
 #ifdef OPTIONS_OutFlow
