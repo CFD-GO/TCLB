@@ -81,12 +81,16 @@ CudaDeviceFunction vector_t getU(){
 }
 
 CudaDeviceFunction real_t getPstar(){
+    updateBoundary();
 	return <?R C(sum(g)) ?>;
 }
 
 CudaDeviceFunction real_t getP(){
+    // note: vtk export should happen after the boundary is updated,
+    // otherwise there would be some strange values
+    updateBoundary();
 	real_t d = getRho();
-	real_t pstar = getPstar();
+	real_t pstar = <?R C(sum(g)) ?>;
 	return pstar*d*cs2;
 }
 
@@ -143,7 +147,15 @@ CudaDeviceFunction vector_t calcGradPhi()
 		    <?R
 			IsotropicGrad('gradPhi', 'PhaseF')
 		    ?>
-	#endif	
+
+        auto boundary_marker = NodeType & NODE_BOUNDARY;
+        <?R condition = paste(paste0("boundary_marker == NODE_", my_boundaries$name, collapse = ' || ')) ?>
+        if (<?%s condition ?>) {
+            gradPhi.x = 0.0;
+            gradPhi.y = 0.0;
+            gradPhi.z = 0.0;
+        }
+	#endif
 	return gradPhi;
 }
 
@@ -218,11 +230,20 @@ CudaDeviceFunction real_t calcMu(real_t C)
 			?>
 	#endif
 	#ifdef OPTIONS_thermo
+
 		mu = 4.0*(12.0*SurfaceTension(0,0,0)/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
 			- (1.5 *SurfaceTension(0,0,0)*IntWidth) * lpPhi;
 	#else
+
+        auto boundary_marker = NodeType & NODE_BOUNDARY;
+        <?R condition = paste(paste0("boundary_marker == NODE_", my_boundaries$name, collapse = ' || ')) ?>
+        if (<?%s condition ?>) {
+            lpPhi = 0.0;
+        }
+
 		mu = 4.0*(12.0*sigma/IntWidth)*(C-PhaseField_l)*(C-PhaseField_h)*(C-pfavg)
 			- (1.5 *sigma*IntWidth) * lpPhi;
+
 	#endif
 	return mu;
 }
@@ -255,12 +276,17 @@ CudaDeviceFunction real_t calcF_phi(int i, real_t tmp1, real_t nx, real_t ny, re
 	return f_phi;
 }
 
+CudaDeviceFunction void InitPhaseFforWallNormals()
+{
+	if ( IamWall || IamSolid ) PhaseF = -999;
+}
+
 /*	INITIALISATION:	*/
 CudaDeviceFunction void Init() 
 {
 	PhaseF = PhaseField;
 	specialCases_Init();
-	if ( IamWall || IamSolid ) PhaseF = -999;
+    InitPhaseFforWallNormals();
 
 	if (developedFlow > 0.1) {
 		U = 6.0 * Uavg * Y*(HEIGHT - Y)/(HEIGHT*HEIGHT);
@@ -283,9 +309,25 @@ CudaDeviceFunction void InitFromFieldsStage()
 	U = Init_UX_External;
 	V = Init_UY_External;
 	W = Init_UZ_External;
-	if ( IamWall || IamSolid ) PhaseF = -999;
+    InitPhaseFforWallNormals();
 	pnorm = 0.0; // initialise as zero and fill in later stage
 }
+
+
+CudaDeviceFunction void InitFromFieldsStageWithNormals()
+{
+	PhaseF = Init_PhaseField_External;
+	U = Init_UX_External;
+	V = Init_UY_External;
+	W = Init_UZ_External;
+    InitPhaseFforWallNormals();
+	pnorm = 0.0; // initialise as zero and fill in later stage
+    nw_x = Init_nwx_external;
+    nw_y = Init_nwy_external;
+    nw_z = Init_nwz_external;
+}
+
+
 
 CudaDeviceFunction void specialCases_Init()
 {
@@ -358,6 +400,10 @@ CudaDeviceFunction void specialCases_Init()
 		PhaseF = 1 - 0.5 *  ( tanh( 2.0 * ( X - Washburn_start ) / IntWidth ) -
 						   tanh( 2.0 * ( X - Washburn_end  )  / IntWidth ));
 	}
+    if (Tanh_init > 0) {
+        PhaseF = 0.5 + 0.5*( tanh( 2.0 * ( X - Tanh_init) / IntWidth ));
+    }
+
 }
 
 CudaDeviceFunction void Init_distributions()
@@ -645,6 +691,18 @@ CudaDeviceFunction void CollisionMRT()
 
 	<?R 	C( u, m0[2:4] + 0.5 * F_total * rho.inv) ?>
 	} while (j<force_fixed_iterator);
+
+   if (vlimiter != 0) {
+        real_t vl = U*U + V*V + W*W;
+        if (vl > vlimiter*vlimiter){
+            real_t reducer = vlimiter / sqrt(vl);
+            AddToLimitedCells(1);
+            U = U * reducer;
+            V = V * reducer;
+            W = W * reducer;
+        }
+    }
+
 	// PHASE FIELD POPULATION UPDATE:
 	tmp1 = (1.0 - 4.0*(C - 0.5)*(C - 0.5))/IntWidth;
 	<?R
@@ -684,17 +742,12 @@ CudaDeviceFunction void updateBoundary(){
 			BounceBack();
 			break;
         <?R
-        for (ii in 1:6){
+        for (bc in rows(my_boundaries)) {
         ?>
-        case NODE_<?R C(my_velocity_boundaries[ii])?>:
-			<?R C(my_velocity_boundaries[ii])?>();
+		case NODE_<?%s bc$name ?>:
+			<?%s bc$name ?>();
 			break;
-		case NODE_<?R C(my_pressure_boundaries[ii])?>:
-			<?R C(my_pressure_boundaries[ii])?>();
-			break;
-		<?R
-        }
-        ?>
+        <?R } ?>
 		case NODE_MovingWall_N:
 			MovingNWall();
 			break;
@@ -733,12 +786,14 @@ CudaDeviceFunction void updateMyGlobals(real_t pf){
 	    AddToGasTotalVelocityZ( tmpPF*W );
 	    AddToGasTotalPhase( tmpPF );
 	    AddToXLocation( tmpPF*X );
+        AddToGasSaturation(1);
 	} else {
 	    AddToLiqTotalVelocity( pf*sqrt(u2mag));
 	    AddToLiqTotalVelocityX( U*pf );
 	    AddToLiqTotalVelocityY( V*pf );
 	    AddToLiqTotalVelocityZ( W*pf );
 	    AddToLiqTotalPhase( pf );
+        AddToLiquidSaturation(1);
 	}
 
 	if ((NodeType & NODE_ADDITIONALS) == NODE_flux_nodes) {

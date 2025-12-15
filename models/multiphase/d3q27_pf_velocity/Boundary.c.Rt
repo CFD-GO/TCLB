@@ -2,8 +2,6 @@
 #########################################################
 # create pressure/velocity boundaries in all directions #
 #########################################################
-    my_velocity_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Velocity"))
-    my_pressure_boundaries = PV(paste0(c("N","E","S","W","F","B"),"Pressure"))
     my_normal_directions = rbind(c(0,1,0),
                                  c(1,0,0),
                                  c(0,-1,0),
@@ -11,7 +9,6 @@
                                  c(0,0,1),
                                  c(0,0,-1))
 
-    cube_faces = 6
     b_uavg = PV("Uavg")
     b_height = PV("HEIGHT")
     b_pipecentre_y = PV("pipeCentre_Y")
@@ -26,12 +23,13 @@
 
     b_pipe_flow_tmp = (coords_shift-b_pipecentre_y)^2+(coords_shift_2-b_pipecentre_z)^2
 
-    for (ii in 1:cube_faces){
+    for (bc in rows(my_velocity_boundaries)) {
 ?>
-CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
+CudaDeviceFunction void <?%s bc$name ?>(){
     U = VelocityX;
     V = VelocityY;
     W = VelocityZ;
+    <?R ii = bc$side ?>
     if ( developedFlow > 0.1 ){
         <?R
             C(b_velocities,-1*my_normal_directions[ii,]*b_channel_flow)
@@ -70,42 +68,126 @@ CudaDeviceFunction void <?R C(my_velocity_boundaries[ii])?>(){
 		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
 	?>
 }
+<?R
+}
+?>
 
-CudaDeviceFunction void <?R C(my_pressure_boundaries[ii])?>(){
-    real_t d = getRho();
+<?R
+    for (bc in rows(my_pressure_boundaries)) {
+?>
+CudaDeviceFunction void <?%s bc$name ?>(){
+
+
+    // can't use PhaseF or getRho() because
+    // the values can be streamed from the other side of the
+    // boundary
+    real_t myPhaseField = PhaseField;
+	real_t d =  Density_l + (Density_h-Density_l) * (PhaseField - PhaseField_l)/(PhaseField_h - PhaseField_l);
+
+
 	real_t pstar = Pressure / (d*cs2);
-	<?R
-        EQ = MRT_eq(U,PV(1),u,mat=t(M))
-       	pstar = PV("pstar")
-		n = my_normal_directions[ii,]
-		geq = pstar*w_g + (EQ$feq - w_g)
-		bounce = Bounce(U)
-		sel = as.vector( (U %*% n) < 0)
+    if (UseExternalPressure > 0){
+        /// use pressure set externally from RunR
+        pstar = Pressure_external / (d*cs2);
+    }
+    <?R
+    type_h = (if (bc$subtype == "") "fflux" else bc$subtype)
+    n = my_normal_directions[bc$side,]
 
-		sel2 = as.vector( ( U %*% n) == 0)	
-		exM = (g[sel2] - geq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
+    EQ = MRT_eq(U,PV(1),u,mat=t(M))
+    # calculating weights as equilibrium with zero velocity
+    w_g = subst(EQ$feq,U=0,V=0,W=0)
+    pstar = PV("pstar")
+    geq = pstar*w_g + (EQ$feq - w_g)
+    bounce = Bounce(U)
+    sel = as.vector( (U %*% n) < 0)
+    # n prefix for newly expressed values
+    ng = g
+    ng[sel] = geq[sel] + (g-geq)[bounce][sel]
 
-		C(g[sel], geq[sel] + geq[bounce][sel] - g[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
-	<?R
-		U_PF = U[1:PF_velocities,]
-       	pf = PV("PhaseField")
-		n = my_normal_directions[ii,]
-		heq = pf * EQ_h$feq
-		bounce = Bounce(U_PF)
-		sel = as.vector( (U_PF %*% n) < 0)
+    # write down the closure equation
+    # sum of LBM densities equal to pressure
+    # the first moment equal to the velocity
+    # (assuming no forcing - no phase-field gradient)!
+    equations_lhs = V(sum(ng),ng %*% U)
+    equations_rhs = V(pstar,u)
 
-		sel2 = as.vector( ( U_PF %*% n) == 0)	
-		exM = (h[sel2] - heq[sel2]) %*% rep(1,sum(sel2)) 
-		Unknowns = 1.0/sum(sel)
+    what_to_pull = c("pstar","U","V","W")
+    which_to_pull = 1:4
+    direction = which(n != 0)
+    if (bc$type == "Pressure") {
+        # pop the pressure out of the list of equation
+        # and don't duplicate
+        which_to_pull = which_to_pull[-(1+direction)]
+        what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
+    } else if (bc$type == "Velocity") {
+        # pop out the equation related to this velocity direction
+        # from the list of equations, as it is already know
+        which_to_pull = which_to_pull[-(1+direction)] # throw out the equation related to this velocity direction
+    } else stop("Unknown type of BC")
 
-		C(h[sel], heq[sel] + heq[bounce][sel] - h[bounce][sel] - 0.5 * Unknowns * (exM))
-	?>
+    # express all the unknowns in terms of knowns
+    for (i in which_to_pull) {
+        C_pull(equations_lhs[i] - equations_rhs[i],what_to_pull[i])
+    }
+
+    # now that the quantities are known, can properly calculate the distributution
+    # functions and reflect
+    C(g[sel],ng[sel])
+
+    cat("real_t PF;\n")
+    pf = PV("PF")
+    desired_pf = PV("myPhaseField")
+    U_PF = U[1:PF_velocities,]
+    EQ_h = MRT_eq(U_PF,PV(1),u)
+
+    # assuming no force shift here
+    heq = pf * EQ_h$feq
+    bounce = Bounce(U_PF)
+    sel = as.vector( (U_PF %*% n) < 0)
+
+    nh = h
+    nh[sel] = heq[sel] + (h-heq)[bounce][sel]
+
+    # write down the closure equation
+    # sum of phase-field densities equal to phase-field value (desired or imposed)
+    # the first moment equal to the desired phase-field momentum
+    equations_lhs = V(sum(nh),nh %*% U_PF)
+    equations_rhs = V(desired_pf,desired_pf*u)
+
+    if (type_h == "fpf") {
+        # Make sure the sum of h is equal to the desired phase-field
+        # - "interface" will stop on the boundary
+        C_pull(equations_lhs[1] - equations_rhs[1], "PF" )
+    } else if (type_h == "open") {
+        # The sum of phase-field is not enforced - the same is kept
+        # - "interface" is passing through the boundary
+        C_pull(equations_lhs[1] - pf, "PF" )
+    } else {
+        # desired phase-field is enforced via substitution in
+        # the equilibrium distribution function directly
+        nh = subst(nh, PF=desired_pf)
+        #
+        lhs_equations = subst(equations_lhs, PF=desired_pf)
+        if (type_h == "fflux") {
+        # we are pretty much done
+        }  else if (type_h == "weird") {
+            what_to_pull = c("","U","V","W")
+            what_to_pull[1] = what_to_pull[1+direction] # pull out velocity from first equation
+            which_to_pull = (1:4)[-(1+direction)] # throw out equation
+            # express velocities through the phase-field?
+            for (i in which_to_pull) {
+                C_pull(equations_lhs[i] - equations_rhs[i],what_to_pull[i])
+            }
+        } else stop("Unknown type of BC")
+    }
+
+    C(h[sel],nh[sel])
+    ?>
 }
 
 <?R
-}
+    }
 ?>
 
 #ifdef OPTIONS_OutFlow
@@ -569,6 +651,14 @@ CudaDeviceFunction void calcPhaseGrad_init(){
 		}
 	<?R } ?>
 
+    // no need to do anything on the boundary
+    auto boundary_marker = NodeType & NODE_BOUNDARY;
+    if (boundary_marker == NODE_EPressure || boundary_marker == NODE_WPressure) {
+        gradPhiVal_x = 0.0;
+        gradPhiVal_y = 0.0;
+        gradPhiVal_z = 0.0;
+    }
+
     // simply copy the values
 	gradPhi_PhaseF = PhaseF(0,0,0);
 }
@@ -672,13 +762,32 @@ CudaDeviceFunction void calcPhaseGradCloseToBoundary(){
  * yet set value
  */
 CudaDeviceFunction void calcWallPhase_correction() {
-	PhaseF = PhaseF(0,0,0);
-
-	if (IsSpecialBoundaryPoint == <?%s NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
-		// take the phase field calculated already from the node in front.
-		// Might as well calculate using the neighbors, e.g. averaging
-		PhaseF = PhaseF_dyn(nw_x, nw_y, nw_z);
-	}
+    PhaseF = PhaseF(0,0,0);
+    if (IsSpecialBoundaryPoint == <?%s NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?> ) {
+        // We could take the phase field calculated already from the node in front
+        // (solid in the direction of solid normal)
+        // if it is already has the phase field value calculated (from the BC application)
+        // however this seems to be less stable...
+        // More robust is calculate using the neighbors, e.g. averaging.
+        // If this also would not work at some point, more detailed investigation is needed
+        int count = 0;
+        real_t fluid_average = 0.0;
+        real_t x, y, z;
+        real_t denom = 0.0;
+        // ignore first node
+        for (int i=1; i<27 ; i++){
+            x = d3q27_ex[i];
+            y = d3q27_ey[i];
+            z = d3q27_ez[i];
+            if (!IsBoundary_dyn(int(x), int(y), int(z)) && PhaseF_dyn(int(x), int(y), int(z)) > -0.5) {
+                fluid_average += wg[i]*PhaseF_dyn(int(x), int(y), int(z));
+                denom += wg[i];
+                count++;
+            }
+        }
+        // print sum and average and count
+        PhaseF = count == 0 ? 1 : fluid_average / denom;
+    }
 }
 
 
@@ -689,37 +798,31 @@ CudaDeviceFunction void calcWallPhase(){
 	PhaseF = PhaseF(0,0,0); //For fluid nodes.
 	if ( IamWall || IamSolid ) {
 		real_t a, h, pf_f;
-
-		// This is needed, because otherwise geometric_staircaseimp performance will drop
+        // First compute pf_f without staircase improvement
+		//
+		// Weird selection here is needed, because otherwise geometric_staircaseimp performance will drop
 		// (presumably because of the dynamic access that it has)
         <?R phase_field_field_name <- if (Options$geometric) 'gradPhi_PhaseF' else 'PhaseF' ?>
-
         pf_f = <?%s phase_field_field_name ?>_dyn(nw_x, nw_y, nw_z);
-
 		h = 0.5 * sqrt(nw_x*nw_x + nw_y*nw_y + nw_z*nw_z);
 
-        // handling special cases
+        // /now handle special cacses, that don't even
+        // need to calculate the phase field now (or have
+        // access to different fields)
 		if (h < 0.001) {
 			// If I am a wall/solid node and I am surrounded by solid nodes
 			PhaseF = 1;
-		} else if (fabs(radAngle - PI/2.0) < 1e-4) {
-			// If I am not surrounded, but contact angle is pi/2 (90d)
-			PhaseF = pf_f;
-		} else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
+
+        } else if (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_NEXT_NODE ?>) {
 			// Pass for now. Dont calculate anything, just set it to some huge number, purely to make sure
 			// that the value is corrected in calcWall_correction, and otherwise the error would be visible
 			// and hopefulyl break the simulation
 			PhaseF = <?%f SPECIAL_POINT_HUGE_MAGIC_NUMBER ?>;
-		} else if  (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>) {
-			// Eventhough I am geometric boundary condition, still apply surface energy
-			// here because otherwise we cant really apply anything else
-			a = -h * (4.0/IntWidth) * cos( radAngle );
-			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
-		} else {
-			// normal calculation with picking correct form depending on the boundary condition
+        } else {
 
+            // if enabled compute staircase improved version of pf_f,
+            // and wallback to pf_f, which is required is many places
 #ifdef OPTIONS_staircaseimp
-
 			int face_index = int(triangle_index) / 8;
 			int face_triangle_index = int(triangle_index) % 8;
 			int vertex_coords[3] = {0,0,0};
@@ -729,22 +832,33 @@ CudaDeviceFunction void calcWallPhase(){
 				int v<?%s v ?>_x = vertex_coords[0], v<?%s v ?>_y = vertex_coords[1], v<?%s v ?>_z = vertex_coords[2];
 			<?R } ?>
 
-
-			<?R phase_field_field_name <- if (Options$geometric) 'gradPhi_PhaseF' else 'PhaseF' ?>
-
 			<?R for (v in c(1, 2, 3)) { ?>
 				real_t pf_v<?%s v?> = <?%s phase_field_field_name ?>_dyn(v<?%s v?>_x, v<?%s v?>_y, v<?%s v?>_z);
 			<?R } ?>
 
 
-			// dont do staircase improvement if any of the interpolating nodes are solid
-			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
+			// dont do staircase improvement if any of the interpolating nodes are solid, make sure to cover
+			// both cases......
+			if (IsSpecialBoundaryPoint != <?%d NEXT_INTERPOLATING_POINTS_ARE_SOLID ?> && IsSpecialBoundaryPoint != <?%d BOTH_NEXT_AND_NNEXT_INTERPOLATING_POINTS_ARE_SOLID ?>) {
 				real_t pf_interpolated = coeff_v1 * pf_v1 + coeff_v2 * pf_v2 + coeff_v3 * pf_v3;
 				h = 0.5 * sqrt(nw_actual_x*nw_actual_x + nw_actual_y*nw_actual_y + nw_actual_z*nw_actual_z);
 				pf_f = pf_interpolated;
 			}
 #endif
-			
+        // handling special cases
+		if (fabs(radAngle - PI/2.0) < 1e-4) {
+			// If I am not surrounded, but contact angle is pi/2 (90d). Staircase improved
+			// already handled before
+			PhaseF = pf_f;
+		} else if  (IsSpecialBoundaryPoint == <?%d NORMAL_POINTING_INTO_SOLID_ON_FURTHER_NEXT_NODE ?>) {
+			// Eventhough I am geometric boundary condition, still apply surface energy
+			// here because otherwise we cant really apply anything else. Staircase improved
+			// already handled before
+			a = -h * (4.0/IntWidth) * cos( radAngle );
+			PhaseF = (1 + a - sqrt( (1+a)*(1+a) - 4*a*pf_f))/(a+1e-12) - pf_f;
+		} else {
+			// normal calculation with picking correct form depending on the boundary condition
+
 #ifndef OPTIONS_geometric
 			// Case 1: Apply surface energy BC (with calculated pf_f with standard or staircase improvement)
 			a = -h * (4.0/IntWidth) * cos( radAngle );
@@ -845,12 +959,89 @@ CudaDeviceFunction void calcWallPhase(){
 #endif // end boundary condition pick
 		}
 	}
+  }
 }
 
 CudaDeviceFunction real_t getSpecialBoundaryPoint() {
 	return IsSpecialBoundaryPoint;
 }
 
+/* Calculate the actual wall norm based on the solid
+ *field */
+CudaDeviceFunction void Init_real_wallNorm()
+{
+    // set initial values
+    nw_x = 0.0;
+    nw_y = 0.0;
+    nw_z = 0.0;
+    if ( IamWall || IamSolid ) {
+
+		int i,j,k;
+	  	real_t tmp = 0.0;
+        real_t PhaseF_tmp[3][3][3];
+
+        // find in which direction to do reflection
+        // mirror in the beginning, in case of non-periodic boundaries,
+        // so we don't accidentally take the value from the other phase
+        // ===========================================================
+        // NOTE: Works only in X direction. To use pressure/velocity
+        // bondaries in other directions need to mark the boundaries
+        // with symmetry market, otherwise wall gradients might point
+        // to the other side. (I.e. SymmetryX_plus at the same location
+        // as EPressure, etc)
+        int nx = constContainer.nx;
+        for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
+            if ((InvasionDrainage > 0) && (i == -1) && (X == 0.5)) {
+                PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(-i,j,k);
+            }
+            else if ((InvasionDrainage > 0) && (i == 1) && (X == nx - 0.5)) {
+                PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(-i,j,k);
+            }
+            else {
+                PhaseF_tmp[i+1][j+1][k+1] = PhaseF_dyn(i,j,k);
+            }
+        }}
+        }
+	  	for (i=-1;i<2;i++){for (j=-1;j<2;j++){for (k=-1;k<2;k++){
+			tmp += PhaseF_tmp[i+1][j+1][k + 1];
+	  	}}}
+
+	  	if (abs(tmp) > 26000) {
+			// I am surrounded by all solid nodes (sum(pf) = 27*-999 = -26973 if surrounded):
+			nw_x = 0.0; nw_y = 0.0; nw_z = 0.0;
+	  	} else {
+			// no I am not surrounded, so calc normal:
+			int solidFlag[27];
+			// Calculate the normal direction based converting
+			// negative PhaseF into actual solid flags
+			<?R
+			    pf    = PV(paste0("PhaseF_tmp[",U[,1] + 1,"][",U[,2] + 1,"][",U[,3] + 1,"]/-998"))
+			    solid = PV(paste0("solidFlag[",1:27-1,"]"))
+
+			    C(solid, pf)
+			?>
+			for (i=0;i<27;i++){
+                // no need to calculate the normal direction if in the beginning of the boundary
+				nw_x += wg[i] * solidFlag[i] * d3q27_ex[i];
+				nw_y += wg[i] * solidFlag[i] * d3q27_ey[i];
+				nw_z += wg[i] * solidFlag[i] * d3q27_ez[i];
+			}
+
+			nw_x *= -1.0/3.0; nw_y *= -1.0/3.0; nw_z *= -1.0/3.0;
+			tmp = nw_x*nw_x + nw_y*nw_y + nw_z*nw_z;
+
+            nw_x = nw_x / sqrt(tmp);
+            nw_y = nw_y / sqrt(tmp);
+            nw_z = nw_z / sqrt(tmp);
+
+        }
+    }
+    else {
+        // I am a fluid node, I dont need no solid normal,
+        // should be set to zero before. Branch kept
+        // for clarity
+    }
+}
 
 /*
  * Initialise and set: wall normals, get interpolating triangles and their coefficients,
@@ -866,7 +1057,7 @@ CudaDeviceFunction void Init_wallNorm(){
 	coeff_v2 = 0;
 	coeff_v3 = 0;
 #endif
-	if ( IamWall || IamSolid ) { 
+	if ( IamWall || IamSolid ) {
         IsBoundary = 1.0;
 		int i,j,k;
 	  	real_t tmp = 0.0;
@@ -883,42 +1074,29 @@ CudaDeviceFunction void Init_wallNorm(){
 			nw_actual_z = 0.0;
 #endif
 	  	} else {
-			// no I am not surrounded, so calc normal:
-			int solidFlag[27];
+			// Calculate the closest discrete direction for normal:
+			real_t tmp = 0.0;
 			int maxi = 0;
-			real_t myNorm[3] = {0.0,0.0,0.0};
 			real_t maxn=0.0, dot;
 
-			// Calculate the normal direction based converting
-			// negative PhaseF into actual solid flags
-			<?R
-			    myN   = PV(paste0("myNorm[",1:3-1,"]"))
-			    pf    = PV(paste0("PhaseF(",U[,1],",",U[,2],",",U[,3],")/-998"))
-			    solid = PV(paste0("solidFlag[",1:27-1,"]"))
-
-			    C(solid, pf)
-			?>
-			for (i=0;i<27;i++){
-				myNorm[0] += wg[i] * solidFlag[i] * d3q27_ex[i];
-				myNorm[1] += wg[i] * solidFlag[i] * d3q27_ey[i];
-				myNorm[2] += wg[i] * solidFlag[i] * d3q27_ez[i];
-
-			}
-			myNorm[0] *= -1.0/3.0;myNorm[1] *= -1.0/3.0;myNorm[2] *= -1.0/3.0;
-			tmp = myNorm[0]*myNorm[0] + myNorm[1]*myNorm[1] + myNorm[2]*myNorm[2];
-
-			// Calculate the closest discrete direction for normal:
 			for (i = 0; i<27; i++) {
-				dot = (myNorm[0]*d3q27_ex[i] + myNorm[1]*d3q27_ey[i] + myNorm[2]*d3q27_ez[i]) /
-			      		sqrt( tmp*(d3q27_ex[i]*d3q27_ex[i] + d3q27_ey[i]*d3q27_ey[i] +
-					 	   d3q27_ez[i]*d3q27_ez[i]) + 1e-12);
+			tmp = nw_x*nw_x + nw_y*nw_y + nw_z*nw_z;
+            dot = (nw_x*d3q27_ex[i] + nw_y*d3q27_ey[i] + nw_z*d3q27_ez[i]) /
+                    sqrt( tmp*(d3q27_ex[i]*d3q27_ex[i] + d3q27_ey[i]*d3q27_ey[i] +
+                        d3q27_ez[i]*d3q27_ez[i]) + 1e-12);
 				if (dot > maxn) {
 					maxn = dot; maxi = i;
 				}
 			}
+#ifdef OPTIONS_staircaseimp
+            // save original values before they get truncated
+			real_t original_normal[3] = {nw_x, nw_y, nw_z};
+#endif
 			if (maxi < 0) {
 				// This should not happen ?
-				nw_x = 0.0;nw_y = 0.0;nw_z = 0.0;
+				nw_x = 0.0;
+                nw_y = 0.0;
+                nw_z = 0.0;
 			} else {
 				nw_x = d3q27_ex[maxi];
 				nw_y = d3q27_ey[maxi];
@@ -933,7 +1111,6 @@ CudaDeviceFunction void Init_wallNorm(){
 			}
 
 #ifdef OPTIONS_staircaseimp
-			real_t truncated_normals[3] = {nw_x, nw_y, nw_z};
 			real_t intersection_point[3];
 			int face_index;
 			real_t coeff[3];
@@ -941,7 +1118,7 @@ CudaDeviceFunction void Init_wallNorm(){
 			int t_index;
 			int t_index2;
 
-			calcIntersectionTriangleId(myNorm, t_index, face_index, coeff, intersection_point, t_index2, coeff2);
+			calcIntersectionTriangleId(original_normal, t_index, face_index, coeff, intersection_point, t_index2, coeff2);
 
 			// make sure normal vector is extended to the surface (to use it during interpolation)
 			nw_actual_x = intersection_point[0];
@@ -1030,10 +1207,6 @@ CudaDeviceFunction void Init_wallNorm(){
 
 	  	}
 	} else {
-	// I am a fluid node, I dont need no solid normal.
-		nw_x = 0.0;
-		nw_y = 0.0;
-		nw_z = 0.0;
 #ifdef OPTIONS_staircaseimp
 		nw_actual_x = 0.0;
 		nw_actual_y = 0.0;

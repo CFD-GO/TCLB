@@ -14,6 +14,14 @@ AddDensity(name="Init_UY_External", group="init", comment="free stream velocity"
 AddDensity(name="Init_UZ_External", group="init", comment="free stream velocity", parameter=TRUE)
 AddDensity(name="Init_PhaseField_External", group="init", dx=0,dy=0,dz=0, parameter=TRUE)
 
+# for initialising the normals
+AddDensity(name="Init_nwx_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
+AddDensity(name="Init_nwy_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
+AddDensity(name="Init_nwz_external", group="init_normals", dx=0,dy=0,dz=0, parameter=TRUE)
+
+# Add extra density for setting the pressure on boundaries
+AddDensity(name="Pressure_external", group="Vel", dx=0, dy=0, dz=0, parameter=TRUE)
+
 # macroscopic params
 # - consider migrating to fields
 AddDensity(name="pnorm", dx=0, dy=0, dz=0, group="Vel")
@@ -125,16 +133,21 @@ if (Options$thermo){
 	AddStage("calcPhase", "calcPhaseF", save=Fields$name=="PhaseF", load=DensityAll$group %in% load_phase)
 	AddStage("BaseIter" , "Run", save=Fields$group %in% save_iteration, load=DensityAll$group %in% load_iteration )
 	AddStage(name="InitFromFieldsStage", load=DensityAll$group %in% "init",read=FALSE, save=Fields$group %in% save_initial_PF)
+    AddStage(name="InitFromFieldsStageWithNormals", load=DensityAll$group %in% c("init_normals", "init"),read=FALSE, save=Fields$group %in% c("nw", save_initial_PF))
+
 	# STAGES FOR VARIOUS OPTIONS
 	if (Options$geometric){
-		AddStage("WallInit_CA"  , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+
+		AddStage("WallInit_Real"  , "Init_real_wallNorm", save=Fields$group %in% c("nw"))
+		AddStage("WallInit_CA"  , "Init_wallNorm", load=DensityAll$group %in% c("nw"), save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWall_CA"  , "calcWallPhase", save=Fields$name %in% c("PhaseF"), load=DensityAll$group %in% c("nw", "gradPhi", "PF", "solid_boundary", extra_fields_to_load_for_bc))
 
 		AddStage('calcPhaseGrad', "calcPhaseGrad", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
 		AddStage('calcPhaseGrad_init', "calcPhaseGrad_init", load=DensityAll$group %in% c("nw", "PF", "solid_boundary"), save=Fields$group=="gradPhi")
 		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 	} else {
-		AddStage("WallInit" , "Init_wallNorm", save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
+		AddStage("WallInit_Real"  , "Init_real_wallNorm", save=Fields$group %in% c("nw"))
+		AddStage("WallInit" , "Init_wallNorm", load=DensityAll$group %in% c("nw"), save=Fields$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWall" , "calcWallPhase", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary", extra_fields_to_load_for_bc))
 		AddStage("calcWallPhase_correction", "calcWallPhase_correction", save=Fields$name=="PhaseF", load=DensityAll$group %in% c("nw", "solid_boundary"))
 	}
@@ -156,16 +169,18 @@ if (Options$thermo){
 		AddAction("TempToSteadyState", c("CopyDistributions","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall","RK_1", "RK_2", "RK_3", "RK_4","NonLocalTemp"))
 		AddAction("IterationConstantTemp", c("BaseIter", "calcPhase", "calcWall","CopyThermal"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","BaseInit"))
+		AddAction("Init"     , c("PhaseInit","WallInit_Real","WallInit" , "calcWall","BaseInit"))
 	} else if (Options$geometric) {
         calcGrad <- if (Options$isograd)  "calcPhaseGrad" else "calcPhaseGrad_init"
         AddAction("Iteration", c("BaseIter", "calcPhase",  calcGrad, "calcWall_CA", "calcWallPhase_correction"))
-	    AddAction("Init"     , c("PhaseInit","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
-	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("Init"     , c("PhaseInit","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init"  , "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFields"     , c("InitFromFieldsStage","WallInit_Real","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
+	    AddAction("InitFieldsWithNormals"     , c("InitFromFieldsStageWithNormals","WallInit_CA" , "calcPhaseGrad_init", "calcWall_CA", "calcWallPhase_correction", "BaseInit"))
     } else {
 		AddAction("Iteration", c("BaseIter", "calcPhase", "calcWall", "calcWallPhase_correction"))
-		AddAction("Init"     , c("PhaseInit","WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
-		AddAction("InitFields", c("InitFromFieldsStage","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
+		AddAction("Init"     , c("PhaseInit", "WallInit_Real", "WallInit" , "calcWall","calcWallPhase_correction", "BaseInit"))
+		AddAction("InitFields", c("InitFromFieldsStage","WallInit_Real","WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
+		AddAction("InitFieldsWithNormals", c("InitFromFieldsStageWithNormals", "WallInit" , "calcWall", "calcWallPhase_correction", "BaseInit"))
 	}
 #######################
 ########OUTPUTS########
@@ -195,9 +210,11 @@ if (Options$thermo){
 	AddSetting(name="omega_phi", comment='one over relaxation time (phase field)')
 	AddSetting(name="M", omega_phi='1.0/(3*M+0.5)', default=0.02, comment='Mobility')
 	AddSetting(name="sigma", comment='surface tension')
+    AddSetting(name="UseExternalPressure", default=0, comment='Use external pressure (set from RunR)')
 	AddSetting(name="force_fixed_iterator", default=2, comment='to resolve implicit relation of viscous force')
   	AddSetting(name="Washburn_start", default="0", comment='Start of washburn gas phase')
   	AddSetting(name="Washburn_end", default="0", comment='End of washburn gas phase')
+  	AddSetting(name="Tanh_init", default="0", comment='Start of tanh interface initialisation')
 	AddSetting(name="radAngle", default='1.570796', comment='Contact angle in radians, can use units -> 90d where d=2pi/360', zonal=T)
 	AddSetting(name="minGradient", default='1e-8', comment='if the phase gradient is less than this, set phase normals to zero')
 	##SPECIAL INITIALISATIONS
@@ -236,12 +253,14 @@ if (Options$thermo){
 	AddSetting(name="VelocityY", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 	AddSetting(name="VelocityZ", default=0.0, comment='inlet/outlet/init velocity', zonal=T)
 	AddSetting(name="Pressure" , default=0.0, comment='inlet/outlet/init density', zonal=T)
+    AddSetting(name='InvasionDrainage', default=0, comment="0 nothing, anything bigger is invasion/drainage case")
 	AddSetting(name="GravitationX", default=0.0, comment='applied (rho)*GravitationX')
 	AddSetting(name="GravitationY", default=0.0, comment='applied (rho)*GravitationY')
 	AddSetting(name="GravitationZ", default=0.0, comment='applied (rho)*GravitationZ')
 	AddSetting(name="BuoyancyX", default=0.0, comment='applied (rho_h-rho)*BuoyancyX')
 	AddSetting(name="BuoyancyY", default=0.0, comment='applied (rho_h-rho)*BuoyancyY')
 	AddSetting(name="BuoyancyZ", default=0.0, comment='applied (rho_h-rho)*BuoyancyZ')
+    AddSetting(name="vlimiter", default=0.0, comment="Velocity limiter value")
 ##################################
 ########TRACKING VARIABLES########
 ##################################
@@ -264,12 +283,17 @@ if (Options$thermo){
 ##########################
 	AddNodeType("Smoothing",group="ADDITIONALS")
 	AddNodeType(name="flux_nodes", group="ADDITIONALS")
-	dotR_my_velocity_boundaries = paste0(c("N","E","S","W","F","B"),"Velocity")
-    dotR_my_pressure_boundaries = paste0(c("N","E","S","W","F","B"),"Pressure")
-    for (ii in 1:6){
-        AddNodeType(name=dotR_my_velocity_boundaries[ii], group="BOUNDARY")
-        AddNodeType(name=dotR_my_pressure_boundaries[ii], group="BOUNDARY")
-    }
+
+    my_boundaries = rbind(expand.grid(side = 1:6, type=c('Pressure'), subtype = c("", "open", "fpf")),
+                        expand.grid(side = 1:6, type=c('Velocity'), subtype=c("")))
+    my_boundaries$side_letter = c("N","E","S","W","F","B")[my_boundaries$side]
+    my_boundaries$name = paste0(my_boundaries$side_letter, my_boundaries$type, my_boundaries$subtype)
+    AddNodeType(name=my_boundaries$name, group="BOUNDARY")
+
+    # for convienience
+    my_velocity_boundaries = my_boundaries[my_boundaries$type == 'Pressure', ]
+    my_pressure_boundaries = my_boundaries[my_boundaries$type == 'Velocity', ]
+
 	AddNodeType(name="MovingWall_N", group="BOUNDARY")
 	AddNodeType(name="MovingWall_S", group="BOUNDARY")
 	AddNodeType(name="Solid", group="BOUNDARY")
@@ -299,6 +323,7 @@ if (Options$thermo){
 	AddGlobal(name="LiqTotalVelocityX", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityY", comment='use to determine avg velocity of droplets', unit="m/s")
 	AddGlobal(name="LiqTotalVelocityZ", comment='use to determine avg velocity of droplets', unit="m/s")
+	AddGlobal(name="LimitedCells", comment='Number of cells where we limited the velocity', unit="1")
     AddGlobal(name="NumFluidCells", comment='Number of fluid cells')
     AddGlobal(name="NumSpecialPoints", comment='Number of special points')
     AddGlobal(name="NumWallBoundaryPoints", comment='Number of boundary nodes')
@@ -308,3 +333,5 @@ if (Options$thermo){
 	AddGlobal(name="FluxX",comment='flux in x direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxY",comment='flux in y direction for flux_nodes', unit="1")
 	AddGlobal(name="FluxZ",comment='flux in z direction for flux_nodes', unit="1")
+    AddGlobal(name="LiquidSaturation", comment="Liquid saturation(number of liquid nodes)", unit="1")
+    AddGlobal(name="GasSaturation", comment="Gas saturation(number of gas nodes)", unit="1")
