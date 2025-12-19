@@ -23,6 +23,7 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
 
 void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
     const int rank = mpitools::MPI_Rank(comm);
+    sample = std::make_unique<Sampler>(model.get(), units, rank);
     sizes.snaps = num_snaps_;
 #ifdef ADJOINT
     sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
@@ -549,7 +550,28 @@ std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
     return ret;
 }
 
-#include <iostream>
+int ArbLattice::getId(const double &x, const double &y, const double &z) {
+    int id = 0;
+    double epsilon = std::fabs(connect.coord(0, 0)-x) + std::fabs(connect.coord(1, 0)-y) + std::fabs(connect.coord(2, 0)-z);
+    for (int i = 1; i < getLocalSize(); i++) {
+        double tmp = std::fabs(connect.coord(0, i)-x) + std::fabs(connect.coord(1, i)-y) + std::fabs(connect.coord(2, i)-z);
+        if (tmp < epsilon) {
+            epsilon = tmp;
+            id = i;
+        }
+    }
+    return id;
+}
+
+void ArbLattice::getSample(int quant, lbRegion r, real_t scale, real_t *buf) {
+    setSnapIn(Snap);
+#ifdef ADJOINT
+    setAdjSnapIn(aSnap);
+#endif
+    int lid = getId(r.x, r.y, r.z);
+    launcher.SampleQuantity(quant, lid, buf, scale, data);
+}
+
 
 void ArbLattice::initCommManager() {
     if (mpitools::MPI_Size(comm) == 1) return;
@@ -841,6 +863,22 @@ void ArbLattice::resetAverage(){
     for(const Model::Field& f : model->fields) {
         if (f.isAverage) {
             CudaMemset(&getSnapPtr(Snap)[f.id*sizes.snaps_pitch], 0, sizes.snaps_pitch*sizeof(real_t));
+        }
+    }
+}
+
+void ArbLattice::updateAllSamples(){
+    const int rank = mpitools::MPI_Rank(comm);
+    if (sample->size != 0) {
+	    for (size_t j = 0; j < sample->spoints.size(); j++) {
+		    if (rank == sample->spoints[j].rank) {
+		        for(const Model::Quantity& q : model->quantities) {
+                    if (sample->quant->in(q.name.c_str())){
+                        double v = sample->units->alt(q.unit.c_str());
+                        getSample(q.id, sample->spoints[j].location, 1/v, &sample->gpu_buffer[sample->location[q.name.c_str()]+(data.iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]); 
+                    }
+                }
+	        } 
         }
     }
 }

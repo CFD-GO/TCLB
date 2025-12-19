@@ -4,6 +4,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <algorithm>
 
 #include "Global.h"
 #include "cross.h"

@@ -21,6 +21,7 @@ struct ArbLatticeLauncher {
     void unpack(CudaStream_t stream) const;
 
     void getQuantity(int quant, real_t* host_tab, real_t scale, const LatticeData& data) const;
+    void SampleQuantity(int quant, int lid, real_t *host_tab, real_t scale, const LatticeData& data);
 
 private:
 <?R for (q in rows(Quantities)) { ifdef(q$adjoint);
@@ -31,8 +32,12 @@ if (q$adjoint) {
 }
 ?>
     void getQuantity<?%s q$name ?>(<?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
+    void getSample<?%s q$name ?>(int lid, <?%s q$type ?>* tab, real_t scale, const LatticeData& data) const;
 <?R }
 ifdef() ?>
 };
 
 #endif  // ARBLATTICELAUNCHER_H
+
+
+

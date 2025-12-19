@@ -13,6 +13,7 @@
 #include "Region.h"
 #include "pugixml.hpp"
 #include "utils.h"
+#include "Sampler.h"
 
 /// Note on node numbering: We have 2 indexing schemes - a global and a local one.
 /// Globally, nodes are numbered such that consecutive ranks own monotonically increasing intervals, (e.g. rank 0 owns nodes [0, n_0), rank 1 owns nodes [n_0, n_1), etc.) This is required for ParMETIS, but it is also a convenient scheme in general.
@@ -71,6 +72,7 @@ class ArbLattice : public LatticeBase {
    public:
     static constexpr size_t Q = Model_m::Q;    /// Stencil size
     static constexpr size_t NF = Model_m::NF;  /// Number of fields
+    std::unique_ptr<Sampler> sample;           /// initializing sample with zero size
 
     ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node, MPI_Comm comm_);
     ArbLattice(const ArbLattice&) = delete;
@@ -90,6 +92,8 @@ class ArbLattice : public LatticeBase {
     virtual std::vector<real_t> getField(const Model::Field& f);
     virtual std::vector<real_t> getFieldAdj(const Model::Field& f);
     virtual std::vector<real_t> getCoord(const Model::Coord& q, real_t scale = 1);
+    virtual int getId(const double &x,const  double &y, const double &z);
+    virtual void getSample(int quant, lbRegion r, real_t scale, real_t *buf);
 
     virtual void setFlags(const std::vector<big_flag_t>& x);
     virtual void setField(const Model::Field& f, const std::vector<real_t>& x);
@@ -101,6 +105,7 @@ class ArbLattice : public LatticeBase {
     const std::vector<unsigned>& getLocalPermutation() const { return local_permutation; }
 
     void resetAverage();
+    void updateAllSamples();
 
    protected:
     ArbLatticeLauncher launcher;  /// Launcher responsible for running CUDA kernels on the lattice
