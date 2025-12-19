@@ -61,6 +61,7 @@ static int writeArbLatticeHeader(std::fstream& file, const lbRegion& region, siz
     file << "OFFSET_DIRECTIONS " << Model_m::offset_directions.size() << '\n';
     for (const auto [x, y, z] : Model_m::offset_directions) file << x << ' ' << y << ' ' << z << '\n';
     file << "GRID_SIZE " << grid_size << '\n';
+    file << "TOTAL_REGION " << region.nx << ' ' << region.ny << ' ' << region.nz << '\n';
     file << "NODE_LABELS " << model.nodetypeflags.size() + zone_map.size() << '\n';
     for (const auto& ntf : model.nodetypeflags) file << ntf.name << '\n';
     for (const auto& [name, zf] : zone_map) file << "_Z_" << name << '\n';
@@ -92,6 +93,9 @@ static int writeArbLatticeNodes(const Geometry& geo,
                 const double y_coord = (static_cast<double>(y) + .5) * spacing;
                 const double z_coord = (static_cast<double>(z) + .5) * spacing;
                 file << x_coord << ' ' << y_coord << ' ' << z_coord << ' ';
+
+                // Cartesian index
+                file << current_lin_pos << ' ';
 
                 // Neighbors
                 for (const auto [dx, dy, dz] : Model_m::offset_directions) {

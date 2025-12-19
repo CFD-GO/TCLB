@@ -167,6 +167,14 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
     file >> grid_size;
     check_file_ok("Failed to read section: GRID_SIZE");
 
+    // Total region
+    file >> word;
+    check_file_ok("Failed to read section header: TOTAL_REGION");
+    check_expected_word("TOTAL_REGION", word);
+    int nx, ny, nz;
+    file >> nx >> ny >> nz;
+    check_file_ok("Failed to read section: TOTAL_REGION");
+
     // Labels present in the .cxn file
     const auto labels = process_section("NODE_LABELS", [&file](size_t n_labels) {
         std::vector<std::string> retval(n_labels);
@@ -177,23 +185,29 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
 
     // Nodes header
     process_section("NODES", [&](size_t num_nodes_global) {
-        // Compute the current rank's offset and number of nodes to read
+        // Compute the current ranks offset and number of nodes to read
         const auto chunk_offsets = computeInitialNodeDist(num_nodes_global, static_cast<size_t>(comm_size));
         const auto chunk_begin = static_cast<size_t>(chunk_offsets[comm_rank]), chunk_end = static_cast<size_t>(chunk_offsets[comm_rank + 1]);
         const auto num_nodes_local = chunk_end - chunk_begin;
 
         connect = ArbLatticeConnectivity(chunk_begin, chunk_end, num_nodes_global, Q);
         connect.grid_size = grid_size;
+        connect.nx = nx;
+        connect.ny = ny;
+        connect.nz = nz;
 
         // Skip chunk_begin + 1 (header) newlines
         for (size_t i = 0; i != chunk_begin + 1; ++i) file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        check_file_ok("Failed to skip ahead to this rank's chunk");
+        check_file_ok("Failed to skip ahead to this ranks chunk");
 
         // Parse node data
         std::vector<long> nbrs_in_file(q_provided.size());
         for (size_t local_node_ind = 0; local_node_ind != num_nodes_local; ++local_node_ind) {
             // Read coords
             file >> connect.coord(0, local_node_ind) >> connect.coord(1, local_node_ind) >> connect.coord(2, local_node_ind);
+
+            // Read cartesian index
+            file >> connect.cartesian_ind(local_node_ind);
 
             // Read neighbors, map to local (required) ones
             for (auto& nbr : nbrs_in_file) file >> nbr;
