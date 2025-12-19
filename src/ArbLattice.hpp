@@ -88,7 +88,6 @@ class ArbLattice : public LatticeBase {
 
     virtual std::vector<int> shape() const { return {static_cast<int>(getLocalSize())}; };
     virtual std::vector<real_t> getQuantity(const Model::Quantity& q, real_t scale = 1) ;
-    virtual void getSample(int quant, lbRegion r, real_t scale, real_t *buf);
     virtual std::vector<big_flag_t> getFlags() const;
     virtual std::vector<real_t> getField(const Model::Field& f);
     virtual std::vector<real_t> getFieldAdj(const Model::Field& f);
@@ -140,7 +139,7 @@ class ArbLattice : public LatticeBase {
 #endif
     void clearAdjoint() final;  /// TODO
 
-    void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args                                                                                             /// Calculation of the offset from x, y and z
+    void initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node);                  /// Init based on args
     void readFromCxn(const std::string& cxn_path);                                                                                 /// Read the lattice info from a .cxn file
     void partition();                                                                                                              /// Repartition the lattice, if ParMETIS is not present this is a noop
     std::function<bool(int, int)> makePermCompare(pugi::xml_node arb_node, const std::map<std::string, int>& setting_zones);       /// Make type-erased comparison operator for computing the local permutation, according to the strategy specified in the xml file

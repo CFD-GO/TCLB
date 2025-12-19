@@ -44,43 +44,8 @@ int cbSample::Init () {
 		lattice->sample->mpi_rank = solver->mpi_rank;
 		lattice->sample->Allocate(&s,startIter,everyIter);
 		lattice->sample->initCSV(filename.c_str());
-    return EXIT_SUCCESS;
-	};
-
-    const auto init_arbitrary = [&](const Lattice<ArbLattice>* lattice) {
-      for (pugi::xml_node par = node.first_child(); par; par = par.next_sibling()) {
-        if (strcmp(par.name(),"Point") == 0) {
-          lbRegion loc;
-          attr = par.attribute("dx");
-          if (attr) {
-            loc.x = solver->units.si(attr.value());
-            loc.dx = solver->units.alt(attr.value());
-          }
-          attr = par.attribute("dy");
-          if (attr) {
-            loc.y = solver->units.si(attr.value());
-            loc.dy = solver->units.alt(attr.value());
-          }
-          attr = par.attribute("dz");
-          if (attr) {
-            loc.z = solver->units.si(attr.value());
-            loc.dz = solver->units.alt(attr.value());
-          }
-				  if (loc.nx == 1) lattice->sample->addPoint(loc, solver->mpi_rank);
-        } else {
-          error("Uknown element in Sampler\n");
-          return -1;
-        }
-      }
-      filename = solver->outIterFile(nm, ".csv");
-      lattice->sample->units = &solver->units;
-      lattice->sample->mpi_rank = solver->mpi_rank;
-      lattice->sample->Allocate(&s,startIter,everyIter);
-      lattice->sample->initCSV(filename.c_str());
-      return EXIT_SUCCESS;
-    };
-	return std::visit(OverloadSet{init_cartesian, init_arbitrary}, solver->getLatticeVariant());
-}
+		return 0;
+		}
 
 
 int cbSample::DoIt () {
