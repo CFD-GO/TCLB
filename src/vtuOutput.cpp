@@ -1,6 +1,7 @@
 #include "vtuOutput.h"
 
 #include "mpitools.hpp"
+#include <stdexcept>
 
 VtkFileOut::VtkFileOut(std::string name_, size_t num_cells_, size_t num_points_, const double* coords, const unsigned* verts, MPI_Comm comm_, bool has_scalars, bool has_vectors) : name(std::move(name_)), comm(comm_), num_cells(num_cells_), num_points(num_points_) {
     init();

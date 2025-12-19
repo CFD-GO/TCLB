@@ -24,9 +24,11 @@ CudaDeviceFunction real_t getRho(){
 	return <?R C(sum(f)) ?>;
 }
 
-CudaDeviceFunction real_t getP(){
-	return ((<?R C(sum(f)) ?>)-1.0)/3.0;
+CudaDeviceFunction real_t getP() {
+    return ((<?R C(sum(f)) ?>) - 1.0) / 3.0;
 }
+
+
 CudaDeviceFunction vector_t getU_(){
         real_t d = getRho();
         vector_t u;
@@ -98,6 +100,7 @@ CudaDeviceFunction real_t getKinE(){
 }
 
 #endif
+
 CudaDeviceFunction float2 Color() {
         float2 ret;
         vector_t u = getU();
@@ -109,6 +112,7 @@ CudaDeviceFunction float2 Color() {
         }
         return ret;
 }
+
 CudaDeviceFunction void BounceBack()
 {
     vector_t p1,p2;
@@ -136,6 +140,16 @@ CudaDeviceFunction void WVelocity()
 <?R ZouHe(EQ, 1, 1, "velocity") ?>
 }
 
+CudaDeviceFunction void FVelocity()
+{
+<?R ZouHe(EQ, 3, -1, "velocity") ?>
+}
+
+CudaDeviceFunction void BVelocity()
+{
+<?R ZouHe(EQ, 3, 1, "velocity") ?>
+}
+
 CudaDeviceFunction void SVelocity()
 {
 <?R ZouHe(EQ, 2, 1, "velocity") ?>
@@ -149,6 +163,16 @@ CudaDeviceFunction void NVelocity()
 CudaDeviceFunction void WPressure()
 {
 <?R ZouHe(EQ, 1, 1, "pressure") ?>
+}
+
+CudaDeviceFunction void FPressure()
+{
+<?R ZouHe(EQ, 3, -1, "pressure") ?>
+}
+
+CudaDeviceFunction void BPressure()
+{
+<?R ZouHe(EQ, 3, 1, "pressure") ?>
 }
 
 CudaDeviceFunction void SPressure()
@@ -242,26 +266,38 @@ CudaDeviceFunction void RunBoundaries() {
 		WVelocityTurbulent();
 		break;
 	case NODE_EPressure:
-        EPressure();
-        break;
+		EPressure();
+		break;
 	case NODE_WPressure:
 		WPressure();
 		break;
+	case NODE_FPressure:
+		FPressure();
+		break;
+	case NODE_BPressure:
+		BPressure();
+		break;
 	case NODE_SPressure:
-        SPressure();
-        break;
+		SPressure();
+		break;
 	case NODE_NPressure:
-        NPressure();
-        break;
+		NPressure();
+		break;
 	case NODE_WVelocity:
 		WVelocity();
 		break;
-	 case NODE_NVelocity:
-        NVelocity();
-        break;
-	 case NODE_SVelocity:
-        SVelocity();
-        break;
+	case NODE_FVelocity:
+		FVelocity();
+		break;
+	case NODE_BVelocity:
+		BVelocity();
+		break;
+	case NODE_NVelocity:
+		NVelocity();
+		break;
+	case NODE_SVelocity:
+		SVelocity();
+		break;
 	case NODE_EVelocity:
 		EVelocity();
 		break;
@@ -517,4 +553,5 @@ varUXUZ = varUXUZ + getU_().x*getU_().z;
 varUYUZ = varUYUZ + getU_().y*getU_().z;
 #endif
 }
+
 

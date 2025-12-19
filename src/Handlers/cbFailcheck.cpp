@@ -1,4 +1,5 @@
 #include "cbFailcheck.h"
+#include <algorithm>
 
 std::string cbFailcheck::xmlname = "Failcheck";
 
