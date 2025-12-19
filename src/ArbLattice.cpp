@@ -24,6 +24,7 @@ ArbLattice::ArbLattice(size_t num_snaps_, const UnitEnv& units_, const std::map<
 void ArbLattice::initialize(size_t num_snaps_, const std::map<std::string, int>& setting_zones, pugi::xml_node arb_node) {
     const int rank = mpitools::MPI_Rank(comm);
     sizes.snaps = num_snaps_;
+    sample = std::make_unique<Sampler>(model.get(), units, rank);
 #ifdef ADJOINT
     sizes.snaps += 2;  // Adjoint snaps are appended to the total snap allocation
 #endif
@@ -69,6 +70,20 @@ int ArbLattice::reinitialize(size_t num_snaps_, const std::map<std::string, int>
             return EXIT_FAILURE;
         }
     return EXIT_SUCCESS;
+}
+
+int ArbLattice::getId(const double &dx, const double &dy, const double &dz)
+{
+    int id = 0;
+    double epsilon = std::fabs(connect.coord(0, 0) - dx) + std::fabs(connect.coord(1, 0) - dy) + std::fabs(connect.coord(2, 0) - dz);
+    for (int i = 1; i < getLocalSize(); i++) {
+        double tmp = std::fabs(connect.coord(0, i) - dx) + std::fabs(connect.coord(1, i) - dy) + std::fabs(connect.coord(2, i) - dz);
+        if (tmp < epsilon) {
+            epsilon = tmp;
+            id = i;
+        }
+    }
+    return id;
 }
 
 void ArbLattice::readFromCxn(const std::string& cxn_path) {
@@ -152,6 +167,14 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
     file >> grid_size;
     check_file_ok("Failed to read section: GRID_SIZE");
 
+    // Total region
+    file >> word;
+    check_file_ok("Failed to read section header: TOTAL_REGION");
+    check_expected_word("TOTAL_REGION", word);
+    int nx, ny, nz;
+    file >> nx >> ny >> nz;
+    check_file_ok("Failed to read section: TOTAL_REGION");
+
     // Labels present in the .cxn file
     const auto labels = process_section("NODE_LABELS", [&file](size_t n_labels) {
         std::vector<std::string> retval(n_labels);
@@ -162,23 +185,29 @@ void ArbLattice::readFromCxn(const std::string& cxn_path) {
 
     // Nodes header
     process_section("NODES", [&](size_t num_nodes_global) {
-        // Compute the current rank's offset and number of nodes to read
+        // Compute the current ranks offset and number of nodes to read
         const auto chunk_offsets = computeInitialNodeDist(num_nodes_global, static_cast<size_t>(comm_size));
         const auto chunk_begin = static_cast<size_t>(chunk_offsets[comm_rank]), chunk_end = static_cast<size_t>(chunk_offsets[comm_rank + 1]);
         const auto num_nodes_local = chunk_end - chunk_begin;
 
         connect = ArbLatticeConnectivity(chunk_begin, chunk_end, num_nodes_global, Q);
         connect.grid_size = grid_size;
+        connect.nx = nx;
+        connect.ny = ny;
+        connect.nz = nz;
 
         // Skip chunk_begin + 1 (header) newlines
         for (size_t i = 0; i != chunk_begin + 1; ++i) file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        check_file_ok("Failed to skip ahead to this rank's chunk");
+        check_file_ok("Failed to skip ahead to this ranks chunk");
 
         // Parse node data
         std::vector<long> nbrs_in_file(q_provided.size());
         for (size_t local_node_ind = 0; local_node_ind != num_nodes_local; ++local_node_ind) {
             // Read coords
             file >> connect.coord(0, local_node_ind) >> connect.coord(1, local_node_ind) >> connect.coord(2, local_node_ind);
+
+            // Read cartesian index
+            file >> connect.cartesian_ind(local_node_ind);
 
             // Read neighbors, map to local (required) ones
             for (auto& nbr : nbrs_in_file) file >> nbr;
@@ -539,6 +568,15 @@ std::vector<real_t> ArbLattice::getQuantity(const Model::Quantity& q, real_t sca
     return ret;
 }
 
+void ArbLattice::getSample(int quant, lbRegion r, real_t scale, real_t *buf) {
+    setSnapIn(Snap);
+#ifdef ADJOINT
+    setAdjSnapIn(aSnap);
+#endif
+    int lid = getId(r.x, r.y, r.z);
+    launcher.SampleQuantity(quant, lid, buf, scale, data);
+}
+
 std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
     size_t size = getLocalSize();
     std::vector<real_t> ret(size);
@@ -548,8 +586,6 @@ std::vector<real_t> ArbLattice::getCoord(const Model::Coord& d, real_t scale) {
     }
     return ret;
 }
-
-#include <iostream>
 
 void ArbLattice::initCommManager() {
     if (mpitools::MPI_Size(comm) == 1) return;
@@ -841,6 +877,22 @@ void ArbLattice::resetAverage(){
     for(const Model::Field& f : model->fields) {
         if (f.isAverage) {
             CudaMemset(&getSnapPtr(Snap)[f.id*sizes.snaps_pitch], 0, sizes.snaps_pitch*sizeof(real_t));
+        }
+    }
+}
+
+void ArbLattice::updateAllSamples(){
+    const int rank = mpitools::MPI_Rank(comm);
+    if (sample->size != 0) {
+	    for (size_t j = 0; j < sample->spoints.size(); j++) {
+		    if (rank == sample->spoints[j].rank) {
+		        for(const Model::Quantity& q : model->quantities) {
+                    if (sample->quant->in(q.name.c_str())){
+                        double v = sample->units->alt(q.unit.c_str());
+                        getSample(q.id, sample->spoints[j].location, 1/v, &sample->gpu_buffer[sample->location[q.name.c_str()]+(data.iter - sample->startIter)*sample->size + sample->totalIter*j*sample->size]); 
+                    }
+                }
+	        } 
         }
     }
 }
