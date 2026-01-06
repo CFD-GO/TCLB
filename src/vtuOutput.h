@@ -26,6 +26,8 @@ DEF_VTK_TYPE_TRAITS(unsigned char, "UInt8", 1);
 DEF_VTK_TYPE_TRAITS(unsigned short int, "UInt16", 1);
 DEF_VTK_TYPE_TRAITS(unsigned int, "UInt32", 1);
 DEF_VTK_TYPE_TRAITS(std::uint64_t, "UInt64", 1);
+DEF_VTK_TYPE_TRAITS(unsigned long, "UInt64", 1);
+DEF_VTK_TYPE_TRAITS(long, "Int64", 1);
 DEF_VTK_TYPE_TRAITS(float, "Float32", 1);
 DEF_VTK_TYPE_TRAITS(float2, "Float32", 2);
 DEF_VTK_TYPE_TRAITS(float3, "Float32", 3);
