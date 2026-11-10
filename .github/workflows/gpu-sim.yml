@@ -1,0 +1,86 @@
+name: GPU Simulator
+
+# Optional, non-required check. The hosted runners have no GPU, so the CUDA
+# build of a model is compiled in gpu_comp.yml but never run. This builds the
+# CUDA version of a model and runs its test decks (tools/tests.sh) on a
+# simulated NVIDIA H100 (https://github.com/pantheongpu/pantheonsim). A
+# simulator cannot reproduce hardware-specific behavior or timing, so it
+# complements real-GPU testing and does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ develop ]
+    paths:
+      - "src/**"
+      - "models/**"
+      - "tools/**"
+      - "tests/**"
+      - ".github/actions/**"
+      - ".github/workflows/gpu-sim.yml"
+
+concurrency:
+  group: gpu-sim-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.model }} (CUDA 13.0 and simulated H100)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - d2q9
+          - d3q27_PSM_NEBB
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@ca87fe3143b29166822b923d6050945c5179408c # v0.1.5
+        with:
+          gpu: nvidia/h100
+          cuda-toolkit: "13.0"
+
+      - name: Install dependencies
+        uses: ./.github/actions/install
+        with:
+          r: true
+          rdep: true
+          openmpi: true
+
+      # CUDA_HOME points configure at the toolkit (otherwise it derives it from
+      # the nvcc on the PATH, which is the simulator's drop-in and has no
+      # headers next to it). compute_90 makes configure pass -arch=compute_90 to nvcc, which embeds
+      # PTX only (what the simulator runs). The simulator needs a shared CUDA
+      # runtime, hence -cudart shared. With CUDA 13, src/cross.hpp (it enables
+      # cooperative groups only when __CUDA_ARCH__ >= 700) makes the host pass
+      # fail with "'::cuda' has not been declared", so CROSS_COOP_GROUPS is
+      # defined on the command line; it is already defined in the device pass
+      # for compute_90.
+      - name: Configure
+        uses: ./.github/actions/configure
+        with:
+          gpu: true
+          cuda_arch: compute_90
+        env:
+          CUDA_HOME: /usr/local/cuda-13.0
+          NVFLAGS: -cudart shared -DCROSS_COOP_GROUPS
+
+      - name: Compile
+        uses: ./.github/actions/compile
+        with:
+          model: ${{ matrix.model }}
+        env:
+          MAKEFLAGS: -j3
+
+      - name: Run tests
+        run: vgpu run tools/tests.sh ${{ matrix.model }}
